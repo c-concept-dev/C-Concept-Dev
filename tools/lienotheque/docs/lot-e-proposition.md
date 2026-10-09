@@ -16,15 +16,117 @@ du Worker `lienotheque-api`. Inventaire en lecture seule du 9 octobre 2026 :
 
 Ces quatre ressources ne seront **ni modifiées ni supprimées** par ce lot.
 
+**Confirmé par l'utilisateur le 9 octobre 2026** : Workers Paid et R2 Paid actifs, renouvellement
+le 5 novembre 2026 ; 40 $ de budget disponible sur le compte. HEB-04 est donc tenue — les limites
+à retenir sont celles du plan payant : 10 Go par base D1, 50 000 bases.
+
+**Plafond de précaution retenu : 10 $ par mois** sur les appels IA (réponses rédigées et vision
+ciblée), à ajuster avec l'usage réel. Le Worker le fait respecter par un refus propre, jamais par
+une dégradation silencieuse (RCH-10) : un compteur mensuel dans le registre, et au-delà, une
+réponse qui dit « plafond atteint » plutôt qu'une réponse plus courte sans le dire.
+
 ---
 
 ## La contrainte qui commande tout le reste
+
+Le CDC l'a inscrite depuis, sous **BAS-01 à BAS-05** : on ne touche jamais à la bibliothèque
+actuelle pendant la construction, les deux coexistent, et aucune des étapes BAS-02 (réimport),
+BAS-04 (bascule) et BAS-05 (suppression) ne s'exécute sans accord explicite et séparé, donné après
+un plan écrit. Les lots E1 à E6 de ce document portent ces cinq étapes ; la correspondance est
+donnée au point 10.
 
 On ne touche jamais à la bibliothèque actuelle. On en construit une seconde, à côté, avec les mêmes
 234 ouvrages, et les deux coexistent jusqu'à ce que la nouvelle soit éprouvée. L'architecture doit
 donc répondre à trois questions avant toute autre : **comment deux bibliothèques vivent sans se
 voir, comment on passe de l'une à l'autre par un réglage, et comment on prouve que la nouvelle vaut
 l'ancienne.** Les points 1, 5 et 6 y répondent ; les autres les servent.
+
+---
+
+## Le corpus, mesuré plutôt qu'estimé
+
+C'est le point qu'il fallait chiffrer correctement, et il réservait trois surprises.
+
+### Ce que pèse vraiment le dossier
+
+Le dossier des ouvrages, sur le Mac : **11,90 Go de PDF** répartis sur 267 fichiers, plus une poignée d'EPUB qui ne pèsent presque rien. La distribution est très inégale —
+médiane 3,2 Mo, troisième quartile 85,7 Mo, maximum 345 Mo : une petite minorité de gros scans fait
+l'essentiel du poids.
+
+**Première surprise : 4,52 Go sont des doublons exacts.** Trente-neuf fichiers en double dans
+`IRIS SCAN` (un sous-dossier « dossier 2 » qui reprend le dossier parent) et un dans `SEXO`.
+Vérifié au hachage, pas seulement au nom : deux fichiers de 267,6 Mo rendent la même empreinte
+SHA-256 au bit près. Liénothèque les dédoublonne sans rien demander — l'empreinte **est** la clé
+primaire de la table `fichier`. Le corpus réel à héberger n'est donc pas 11,90 Go mais **7,38 Go**.
+
+### Ce que l'optimiseur gagne, mesuré
+
+Cinq documents représentatifs copiés dans un espace de travail local hors du dépôt, passés par
+l'optimiseur du projet (`outils/optimiseur`, OPT-01 à OPT-04 : groupe 4 pour le noir et blanc,
+AVIF pour le gris et la couleur, résolution jamais réduite, page native jamais touchée). Huit pages
+réparties sur toute la longueur de chaque document, **encodées pour de vrai**, pas estimées :
+
+| Document | Poids | Pages dominantes | Pages | Couche texte | Images | Hors images | Mesuré sur | Rapport |
+|---|---:|---|---:|---|---:|---:|---:|---:|
+| Petit document | 1,1 Mo | native 73 % | 40 | oui | 0,6 Mo | 0,5 Mo | — | — |
+| Livre natif | 13,8 Mo | mixte 100 % | 286 | oui | 2,4 Mo | 11,4 Mo | — | — |
+| Scan moyen | 55,6 Mo | mixte 100 % | 108 | oui | 54,6 Mo | 1,0 Mo | 8 p. | **×0,43** |
+| Gros scan | 85,7 Mo | mixte 100 % | 108 | oui | 84,3 Mo | 1,4 Mo | 8 p. | **×0,42** |
+| Très gros scan | 345,0 Mo | mixte 100 % | 158 | oui | 217,4 Mo | 127,6 Mo | 8 p. | **×0,28** |
+
+**Échantillon encodé : 20,4 Mo → 7,1 Mo, soit ×0,350.** Les images de page font **72 %** du poids
+des documents lus.
+
+Le banc est `outils/ingestion/mesures/poids-optimise.ts` ; il ne modifie rien et se relance sur
+n'importe quel dossier. Les copies de travail ont été effacées après la mesure.
+
+**Deuxième surprise, et c'est la bonne : tous les scans portent déjà une couche texte.** « Mixte
+100 % » veut dire que chaque page porte à la fois une image et du texte — ces ouvrages sont passés
+par un lecteur optique avant d'arriver ici. Le réimport n'aura donc pas à tout océriser : le
+lecteur de texte (OUT-05) lit cette couche. **Ce que cela retire du coût de E2 est considérable.**
+
+La réserve qui va avec : cette couche existe, sa **qualité** est inconnue. Le CDC relève, sur la
+fixture F2, 305 titres sur 437 dans une couche OCR existante. Faut-il s'y fier ou réocériser ?
+C'est une mesure à faire au début de E2, sur un échantillon, pas une hypothèse à poser ici.
+
+**Troisième surprise, celle que je ne sais pas expliquer.** Le très gros scan montre 127,6 Mo qui ne
+sont ni des images vues par le lecteur de format, ni une couche texte plausible — 800 Ko par page.
+L'explication la plus probable est que ses images passent par un objet de formulaire intermédiaire
+que `pagesPdf` ne suit pas, et qu'elles sont donc comptées « hors images ». Si c'est le cas, le gain
+réel est **meilleur** que celui annoncé ci-dessous. Je préfère un chiffre prudent et une question
+ouverte à une explication arrangeante : à élucider en début de E2.
+
+Accessoirement, le rapport mesuré (×0,35) **bat la table prudente des contrats** (`RAPPORTS_ESTIMES`
+annonce 0,39 en noir et blanc, 0,54 en gris et en couleur). La table n'est pas fausse, elle est
+prudente, et elle sert à annoncer un poids avant envoi. Je ne la touche pas dans ce lot.
+
+### Trois poids qu'il ne faut surtout pas confondre
+
+L'ancienne base pèse 168,7 Mo pour 234 ouvrages, dont 75,3 Mo de texte et le reste d'index. Ce n'est **pas** une cible : c'est du texte seul,
+découpé en passages pour la recherche, sans une seule image de page. Liénothèque garde en plus les
+images, parce que montrer la vraie page est sa raison d'être. Comparer les deux reviendrait à
+comparer une table des matières à un livre.
+
+| Ce qu'on pèse | Où ça vit | Poids estimé |
+|---|---|---|
+| **Texte seul** — les passages, pour chercher | D1, pas R2 | **75,3 Mo de texte mesurés**, ~170 à 250 Mo une fois indexés |
+| **Images de page optimisées** — pour montrer la vraie page | R2 | **~1,9 Go** (7,38 Go × 72 % × 0,35) |
+| **Sources d'origine**, si on choisit de les garder en ligne | R2 | + 7,38 Go |
+
+**Et c'est là qu'une décision vous revient.** Une bibliothèque publiée n'a besoin, pour être lue
+sans l'ordinateur, que des **dérivés** : les images de page optimisées. Les PDF d'origine ne sont
+indispensables en ligne que si l'on veut pouvoir les retélécharger ou retraiter dans le nuage. Or
+le Mac les garde déjà, et il reste l'original (point 7).
+
+| | Poids R2 | Coût R2 |
+|---|---:|---|
+| **Dérivés seuls** (recommandé) | ~1,9 Go | **0 $** — très en deçà des 10 Go offerts |
+| Sources et dérivés | ~9,3 Go | **0 $**, mais au bord de la tranche gratuite |
+
+Je recommande **les dérivés seuls**, et de garder les sources sur le Mac et sa sauvegarde. Non pour
+économiser — les deux coûtent zéro — mais parce que téléverser 7,4 Go d'œuvres sous droits chez un
+hébergeur sans en avoir besoin n'est pas un geste neutre, et parce que la marge sous les 10 Go est
+ce qui permettra d'ajouter une deuxième bibliothèque sans y repenser.
 
 ---
 
@@ -168,6 +270,66 @@ window.conversationalSystem?.WORKER_URL || window._therapyWorkerUrl
 Clinique : `WORKER_URL` pointe vers l'ancien Worker ou vers le nouveau. Remettre l'ancienne valeur
 annule la bascule en une seconde, et les deux bibliothèques sont intactes des deux côtés.
 
+### L'ancienne base, consultée en lecture seule
+
+Consultation autorisée le 9 octobre 2026, **aucune écriture** : `rows_written: 0` sur chaque
+requête, et la taille de la base est inchangée. Voici ce qu'elle contient réellement.
+
+| | |
+|---|---:|
+| Passages | **22 022** |
+| Identifiants d'ouvrage distincts | **234** |
+| Texte, octets cumulés | **75,3 Mo** |
+| Poids de la base D1 | 168,7 Mo |
+| Passage moyen | ~3 400 caractères |
+| Français | 20 733 passages, 224 ouvrages |
+| Anglais | 1 289 passages, 10 ouvrages |
+
+**Le texte ne fait que 45 % de la base.** 75,3 Mo de contenu pour 168,7 Mo occupés : le reste est
+l'index de recherche plein texte et la structure. C'est un bon repère pour dimensionner D1 côté
+Liénothèque — le texte seul y pèsera du même ordre, et l'index ce que l'index coûte.
+
+**Taux de remplissage des colonnes que la façade doit rendre :**
+
+| Colonne | Renseignée | Verdict pour la correspondance |
+|---|---:|---|
+| `content`, `page_number`, `language` | 100 % | à faire correspondre |
+| `author` | 99,9 % (25 passages vides) | à faire correspondre |
+| `approach` | 100 % | à faire correspondre |
+| `chapter` | **10 passages sur 22 022** | vestigiale — rien à perdre à la rendre vide |
+| `page_end` | **170 passages sur 22 022** | vestigiale — idem |
+
+Deux colonnes sur sept ne servent donc à rien. La façade les rendra, puisqu'elles existent dans le
+contrat de fait, mais aucune donnée de Liénothèque n'a besoin de s'y plier.
+
+### Deux corrections que la consultation impose
+
+**`ADMIN_APPROACHES` ne décrit pas les données.** La liste de l'outil d'administration propose
+22 valeurs ; la base en contient **19**, dont **quatre que la liste n'offre pas** :
+
+| Dans la base, absente de la liste | Passages |
+|---|---:|
+| `sexology` | 3 103 |
+| `pnl` | 408 |
+| `at` | 107 |
+| `personality_profiling` | 7 |
+| **Total invisible au filtre** | **3 625, soit 16,5 % de la base** |
+
+À l'inverse, sept valeurs de la liste (`outils_couple`, `cbt`, `cft`, `dbt`, `mi`, `pbt`,
+`psychodynamic`) n'existent dans aucun passage. **Un filtre construit sur la liste masquerait un
+sixième de la bibliothèque** — silencieusement, puisqu'il n'y a aucune erreur à produire.
+
+C'est la confirmation la plus nette de ce que CLA-01 impose : les valeurs d'un axe se lisent dans
+les données, jamais dans une liste écrite à côté. La correspondance ci-dessous prend donc les
+19 valeurs réelles comme point de départ, et le schéma de la bibliothèque les porte.
+
+**240 ouvrages ou 234 ?** Les deux chiffres circulent parce qu'ils ne comptent pas la même chose :
+234 identifiants distincts, mais 240 combinaisons de métadonnées. Un seul identifiant explique
+l'écart — `personality-profiling`, dont les **sept passages portent sept jeux de métadonnées
+différents**. Sept documents courts entrés sous un même identifiant. C'est minuscule, et c'est
+précisément le genre d'anomalie qu'une table plate laisse passer et qu'une table `document` avec
+une identité propre rend impossible. Bon candidat pour la fixture F8.
+
 ### Ce que la façade doit faire
 
 Exposer les quatre routes avec les mêmes corps de requête et les mêmes formes de réponse, en les
@@ -180,19 +342,93 @@ pilotée par une **table de correspondance rangée dans la bibliothèque**, au m
 de `fixtures/modeles/` :
 
 ```json
-{ "book_title": "titre du document", "author": "axe:auteur",
-  "approach": "axe:approche", "language": "axe:langue",
-  "content": "texte du passage", "page_number": "page imprimée de l'ancre" }
+{
+  "book_id":     "document.id",
+  "book_title":  "document.titre",
+  "author":      "axe:auteur",
+  "approach":    { "axe": "approche", "valeurs": ["couple", "sexology", "hypnosis",
+                   "schema_therapy", "icv", "general", "act", "trauma", "personal_development",
+                   "systemic", "coherence", "pnl", "attachment", "cnv", "ifs", "emdr",
+                   "mbct", "at", "personality_profiling"] },
+  "language":    { "axe": "langue", "valeurs": ["fr", "en"] },
+  "chapter":     null,
+  "content":     "texte du passage",
+  "page_number": "page imprimée de l'ancre",
+  "page_end":    null,
+  "chunk_index": "rang du passage dans le document",
+  "score":       "confiance du lien"
+}
 ```
 
 Le code de la façade ne contient aucun de ces mots ; il lit une correspondance. Une autre
 application, un autre domaine, une autre correspondance, et pas une ligne de code de plus.
+
+Les dix-neuf valeurs d'`approach` sont celles que **la base contient réellement**, par ordre de
+poids, et non les vingt-deux que propose l'outil d'administration — la consultation ci-dessus
+explique pourquoi l'écart compte. Les deux valeurs de `language` sont confirmées des deux côtés.
+Elles deviennent ici les valeurs d'axe du schéma de la bibliothèque : une donnée du domaine, à sa
+place. `chapter` et `page_end` sont à `null` parce qu'ils ne portent rien — la façade les rend
+vides, comme aujourd'hui pour 99,9 % des passages.
+
+**Une page lue, pas une page devinée.** L'ancien outil attache un numéro de page à un passage par
+une carte mot à mot : il compte les mots de chaque page, puis retrouve de quelle page vient chaque
+mot du passage. C'est ingénieux et c'est approximatif. Liénothèque attache le passage à une
+**ancre**, qui porte la page imprimée réellement lue sur la page. Le `page_number` de la façade sera
+donc meilleur que celui de l'ancienne base — et c'est précisément ce que le banc de comparaison
+(point 6) doit mesurer, parce que c'est le seul endroit où une divergence entre les deux systèmes
+est une **amélioration** et non une régression.
+
+**Une route ouverte, à trancher.** Les routes de mutation et de recherche exigent toutes
+`X-API-Key`. Une exception : **`/library-stats` est appelée trois fois sans aucun en-tête**. Elle
+rend la liste des ouvrages, leurs auteurs, leurs approches et le nombre total de passages. La
+façade doit choisir — la laisser ouverte comme aujourd'hui, ou la fermer, ce qui serait un
+changement de comportement pour l'outil d'administration, qui cesserait de répondre sans jeton.
+Mon avis : la fermer, et donner son jeton à l'outil d'administration le jour de la bascule. SEC-05
+demande que tout accès soit authentifié, et une liste d'ouvrages est déjà une donnée.
 
 **Deux réserves honnêtes.** `/d1-query` ne reçoit pas du SQL mais une intention, que le Worker
 actuel traduit en l'un de deux gabarits préparés fixes ; la façade doit reproduire la **sémantique**
 de ces deux gabarits, ce qui demande de les lire ligne à ligne au lot E2. Et un commentaire du
 Worker affirme que `/rag-search` n'a plus de consommateur réel, alors qu'un appel subsiste dans le
 code — à vérifier avant de décider si la façade doit vraiment la servir, plutôt qu'à supposer.
+
+## 5 bis. Ce que l'ancien outil d'administration apprend
+
+`bibliotheque-admin.html` a tourné en production pendant des mois. Ses commentaires forment un
+journal de pannes, et ce journal vaut mieux qu'un avis. **Aucune de ses lignes n'est reprise** — le
+code de Liénothèque suit ses contrats et ses règles. Ce sont les leçons qui se reprennent, réécrites.
+
+**Quatre pannes, une seule forme : une étape qui annonce un succès sans l'avoir vérifié.**
+
+| Ce qui s'est passé | Ce que Liénothèque en retient |
+|---|---|
+| La vérification de doublon échouait (réseau, HTTP, JSON illisible) et l'ingestion **continuait comme si l'absence de doublon était confirmée** | Un contrôle qui n'a pas pu s'exécuter n'est pas un contrôle réussi. En cas d'échec, le travail s'arrête — c'est déjà la règle de la file (JOB), elle doit valoir pour chaque vérification |
+| La suppression de l'ancien contenu affichait « supprimé » **sans lire le résultat** de l'appel | Un geste destructeur se confirme sur la réponse, jamais sur l'absence d'exception |
+| Le Worker avalait les erreurs par passage dans un `try/catch` vide et rendait 200 ; une ingestion **partielle s'affichait comme complète** | Ce qui est écrit se compte et se compare à ce qui devait l'être. Le dépôt rend déjà un bilan par travail — il doit être lu, pas supposé |
+| Le rang d'un passage était recalculé **localement sur chaque lot de 20**, créant des rangs en double au-delà de vingt passages et cassant le dédoublonnage | Un fait se calcule à un seul endroit. C'est déjà une règle du projet ; en voici le prix quand on l'enfreint |
+
+**Trois autres idées qui méritent d'être reprises.**
+
+*Une valeur par défaut jamais vérifiée doit se savoir.* L'outil met `language: 'fr'` par défaut et
+le commentaire le dit sans détour : cette valeur n'est jamais vérifiée pour un PDF ; seule une
+détection positive et fiable la remplace. Liénothèque a la même situation partout où une recette
+propose un défaut. La leçon : **distinguer dans la donnée ce qui a été lu de ce qui a été supposé**
+— c'est exactement ce que fait déjà `numeroLu` à côté du rang, et il faut l'étendre.
+
+*Ce qui vient du serveur n'est pas digne de confiance.* Les titres et les auteurs rendus par le
+Worker sont échappés avant insertion, parce qu'ils viennent de métadonnées saisies à l'ingestion.
+Liénothèque valide tout ce qui traverse une frontière par un contrat — même raison, meilleure arme.
+
+*Une liste écrite deux fois diverge.* Les approches étaient codées en dur dans le HTML **et** dans
+le script, et les deux listes avaient déjà cessé de correspondre. C'est la règle CLA-01 vue par la
+bande : le vocabulaire est une donnée, et une donnée n'a qu'un seul endroit.
+
+**Et une mise en garde.** Le découpage en passages de l'ancien outil tient en un paramétrage
+empirique — 500 mots visés, 700 au plus, 900 en limite dure, 100 mots de recouvrement, découpage
+par paragraphes avec une acrobatie pour les paragraphes trop longs. Ces nombres ont été réglés par
+l'usage, et ils portent la pertinence de l'ancienne base. **Le banc de comparaison les jugera** :
+si Liénothèque découpe autrement et retrouve moins bien, c'est le découpage qu'il faudra revoir, pas
+la mesure qu'il faudra arranger.
 
 ## 6. Comparer les deux bibliothèques avant la bascule
 
@@ -256,63 +492,83 @@ question du domaine hors du lot E1 et laisse le lot E petit.
 
 ## 9. Coût mensuel estimé
 
-Socle : **abonnement Workers Paid, 5 $/mois**, déjà payé pour les Workers existants (à confirmer).
+Socle : **Workers Paid et R2 Paid, actifs**, renouvellement le 5 novembre 2026.
 
-| Poste | Pendant la coexistence | Après suppression de l'ancienne |
+| Poste | Pendant la coexistence (BAS-02 à BAS-04) | Après BAS-05 |
 |---|---|---|
-| Stockage D1 | 161 Mio + ~200 à 400 Mio ≈ 0,6 Go, compris dans l'abonnement | ~0,3 Go, idem |
-| Lignes lues D1 | très en deçà du compris | idem |
-| R2 | **0 $** jusqu'à 10 Go ; 0,30 $ à 30 Go ; 1,35 $ à 100 Go | idem, un préfixe de moins |
+| Stockage D1 | 168,7 Mo (ancienne, mesurée) + ~170 à 250 Mo (nouvelle) ≈ 0,4 Go | ~0,25 Go |
+| Lignes lues D1 | très en deçà de ce que le plan comprend | idem |
+| **R2, dérivés seuls** | **~1,9 Go → 0 $** (10 Go offerts) | idem |
+| R2, si l'on garde aussi les sources | ~9,3 Go → 0 $, mais au bord de la tranche | idem |
 | Vectorize | ~0,15 $ (deux index) | ~0,08 $ |
 | Tunnel, Access | 0 $ | 0 $ |
 | Domaine, si tunnel | ~1 €/mois | ~1 €/mois |
-| **Infrastructure** | **5 $ + 0 à 2 $** | **5 $ + 0 à 2 $** |
-| Réponses rédigées (Haiku) | ~1 centime l'unité : 1 $ pour 100, 10 $ pour 1 000 | identique |
-| Vision ciblée | plafond que vous fixez | identique |
+| **Infrastructure** | **0 à 0,20 $ au-dessus de l'abonnement** | **idem** |
+| Réponses rédigées (Haiku) | ~1 centime l'unité | identique |
+| Vision ciblée | sous le plafond | identique |
+| **Plafond IA retenu** | **10 $/mois**, refus propre au-delà (RCH-10) | identique |
 
-**La conclusion est nette : la coexistence des deux bibliothèques ne coûte presque rien.** Garder
-l'ancienne pendant la validation ajoute 161 Mio de base et un index — soit une dizaine de centimes
-par mois. Ce n'est pas un argument pour se presser de la supprimer.
+**La mesure a tranché une inquiétude : l'hébergement ne coûte rien.** Avec les dérivés seuls, les
+1,9 Go tiennent cinq fois dans la tranche gratuite de R2, et les deux bases D1 réunies pèsent moins
+d'un demi-giga-octet. Garder l'ancienne bibliothèque pendant toute la validation coûte **une
+dizaine de centimes par mois**. Il n'y a donc aucune raison financière de se presser de la
+supprimer — et c'est la meilleure nouvelle de ce chiffrage, parce que la prudence ne se paie pas.
 
-Ce qui coûte, ce sont les réponses rédigées et la vision ciblée, les deux seuls postes qui croissent
-avec l'usage. Le CDC le dit déjà, et c'est le plafond du Worker qui les borne.
+Le seul poste qui croît avec l'usage reste l'IA. Le plafond de 10 $ le borne, et le budget de 40 $
+disponible laisse quatre mois de marge au plafond plein — très au-delà de ce qu'un usage normal
+consommera.
 
-**Dépenses ponctuelles du réimport (E2)** : embeddings des passages des 234 ouvrages, quelques
-dollars ; vision ciblée sur les zones difficiles, selon le plafond ; transcription Whisper s'il y a
-de l'audio, 0,27 $ pour dix heures. Chiffrables dès que vous m'aurez donné le poids du corpus.
+**Dépenses ponctuelles du réimport (BAS-02).** Elles viennent de fondre : tous les scans de
+l'échantillon portent déjà une couche texte, donc **pas d'océrisation de masse à prévoir**. Restent
+les embeddings des passages — quelques dollars pour l'ordre de grandeur de l'ancienne base — et la
+vision ciblée sur les seules zones difficiles, sous le plafond. Le chiffre exact se posera après la
+mesure de qualité de la couche texte, au début de E2.
 
 ## 10. Ordre de construction
 
 | Lot | Ce qu'on fait | Ce qui autorise le suivant |
 |---|---|---|
-| **E1** | Registre, schéma sur D1, préfixes R2, sessions par clé d'accès, liens signés, provisionnement, sauvegarde et restauration éprouvées, façade répondant aux quatre routes **depuis une bibliothèque d'essai** (F3, qui nous appartient) | Restauration chronométrée et documentée ; aucune clé dans un navigateur ; banc de comparaison vert sur la bibliothèque d'essai. **Rien de réel n'a été touché** |
-| **E2** | Réimport réel des 234 ouvrages dans la **nouvelle** bibliothèque | **Accord explicite et séparé.** L'ancienne reste intacte |
-| **E3** | Comparaison et validation (F8, requêtes F5), rapport daté | Le rapport, lu et accepté par vous |
-| **E4** | Bascule : une valeur de configuration | **Accord explicite et séparé.** Retour arrière par la même valeur |
+| **E1** = BAS-01 | Registre, schéma sur D1, préfixes R2, sessions par clé d'accès, liens signés, provisionnement, sauvegarde et restauration éprouvées, façade répondant aux quatre routes **depuis une bibliothèque d'essai** (F3, qui nous appartient) | Restauration chronométrée et documentée ; aucune clé dans un navigateur ; banc de comparaison vert sur la bibliothèque d'essai. **Rien de réel n'a été touché** |
+| **E2** = BAS-02 | Réimport réel des 234 ouvrages dans la **nouvelle** bibliothèque | **Accord explicite et séparé.** L'ancienne reste intacte |
+| **E3** = BAS-03 | Comparaison et validation (F8, requêtes F5), rapport daté | Le rapport, lu et accepté par vous |
+| **E4** = BAS-04 | Bascule : une valeur de configuration | **Accord explicite et séparé.** Retour arrière par la même valeur |
 | **E5** | Version en ligne | — |
-| **E6** | Suppression de l'ancienne bibliothèque | **Accord explicite et séparé**, et pas avant qu'une restauration de son export ait été prouvée chronomètre en main |
+| **E6** = BAS-05 | Suppression de l'ancienne bibliothèque | **Accord explicite et séparé**, et pas avant qu'une restauration de son export ait été prouvée chronomètre en main |
 
 ---
 
-## Questions qu'il me faut pour chiffrer sérieusement
+## Ce qui est réglé, et ce qui reste
 
-1. **Domaine.** En possédez-vous un sur Cloudflare ? Sans lui, pas de tunnel nommé — ce qui ne gêne
-   pas le lot E1 tel que je le propose, mais décide du corpus musical plus tard.
-2. **Nommage.** `lienotheque-<nom>` pour les bases et les préfixes. Quel nom pour la bibliothèque
+**Réglé depuis la première version :**
+
+| | |
+|---|---|
+| Abonnement | Workers Paid et R2 Paid actifs — HEB-04 tenue |
+| Plafond IA | 10 $/mois, refus propre au-delà |
+| Poids du corpus | 11,90 Go bruts, **7,38 Go distincts**, **~1,9 Go** de dérivés optimisés |
+| Format de l'ancienne base | consulté en lecture seule : 22 022 passages, 234 ouvrages, taux de remplissage relevés |
+| Correspondance de la façade | finalisée, sur les 19 valeurs réelles |
+| Médias | la bibliothèque thérapeutique ne porte que des documents — **pas de tunnel nécessaire** |
+
+## Questions qui restent
+
+1. **Sources dans R2, ou dérivés seuls ?** Je recommande les dérivés seuls : ~1,9 Go au lieu de
+   ~9,3 Go, et 7,4 Go d'œuvres sous droits qui ne quittent pas votre Mac sans nécessité. Les deux
+   coûtent zéro ; ce n'est pas une question d'argent.
+2. **Nommage.** `lienotheque-<nom>` pour la base et le préfixe. Quel nom pour la bibliothèque
    thérapeutique ? Il doit se distinguer sans ambiguïté de `therapeute-library`.
-3. **Plafond mensuel.** Quel montant maximum pour l'usage IA, et le Worker doit-il **refuser** une
-   fois le plafond atteint ? RCH-10 exige un refus propre, donc il me faut un chiffre.
-4. **Format de la base actuelle.** J'ai lu le **code** du Worker, pas la base. Pour finir la table de
-   correspondance de la façade, il me manque le nombre total de passages et de savoir si
-   `author`, `approach`, `language` et `chapter` sont renseignés pour les 234 ouvrages ou seulement
-   pour une partie. Trois `SELECT` en lecture seule répondraient — **je ne les ai pas lancés et je ne
-   les lancerai pas sans votre accord**, la base étant interdite par CLAUDE.md.
-5. **Poids du corpus.** Poids total des sources des 234 ouvrages, et des dérivés optimisés si vous le
-   connaissez. C'est la seule vraie inconnue de l'estimation : elle décide à elle seule si R2 coûte
-   zéro ou un dollar et demi.
-6. **Abonnement.** Workers Paid, confirmé ? `wrangler queues list` a répondu sans erreur de
-   facturation, ce qui le laisse penser, mais HEB-04 demande une vérification, pas une déduction.
-7. **Médias.** La bibliothèque thérapeutique porte-t-elle de l'audio ou de la vidéo, ou seulement des
-   documents ? C'est ce qui décide tunnel ou R2.
-8. **Second utilisateur.** Sa clé d'accès dès E1, ou plus tard ? Et quels droits : lecture,
+3. **`/library-stats` ouverte ou fermée ?** Elle est aujourd'hui accessible sans jeton et rend la
+   liste de vos ouvrages. Je propose de la fermer et de donner son jeton à l'outil d'administration
+   au moment de la bascule — mais c'est un changement de comportement, et il vous revient.
+4. **Domaine.** Toujours utile à savoir pour la suite (corpus musical, adresse stable), même si le
+   lot E tel que proposé n'en a plus besoin.
+5. **Second utilisateur.** Sa clé d'accès dès E1 ou plus tard, et avec quels droits — lecture,
    contribution, administration (SEC-03) ?
+6. **Les sept passages de `personality-profiling`.** Sept documents courts sous un même
+   identifiant. Les séparer au réimport, ou les laisser tels quels ? Cela ne presse pas, mais le
+   banc de comparaison les signalera.
+
+Et une chose que je ne sais pas encore, qui ne se décide pas mais se mesure, au début de E2 : **la
+couche texte des scans est-elle assez bonne pour qu'on s'y fie**, ou faut-il réocériser ? Elle
+existe sur toutes les pages de l'échantillon, ce qui change déjà le coût du réimport ; sa qualité
+reste à éprouver sur une poignée de pages relues à la main.
