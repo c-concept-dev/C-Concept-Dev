@@ -56,25 +56,35 @@ compte que celles-là, l'étape écartée est grisée, et **son état survit à 
 réécrire une étape ne recoche pas celles qu'on avait écartées. « Annuler ce geste » restaure
 tout, écartées comprises.
 
-### La règle des paragraphes — le texte exact, à valider avant publication
-
-C'est le point que Christophe doit lire avant que cela parte en ligne :
+### La règle des paragraphes — texte retenu après la relecture de Christophe
 
 ```
 SI L'ÉCRAN MONTRE UN PARAGRAPHE.
 Ne le reformulez pas. Le spectateur vient de le lire : redire la même idée avec d'autres
 mots lui prend son temps, même si votre formulation est meilleure. Dites ce que la phrase
-affichée NE DIT PAS. Trois façons, choisissez-en une :
-- la conséquence vécue : ce que cela change concrètement pour quelqu'un ;
+affichée NE DIT PAS, sans introduire de fait, de chiffre ni d'étude qui ne soient dans le
+document, et sans le contredire. Trois façons, choisissez-en une :
+- la conséquence vécue : ce que cela change concrètement pour quelqu'un. Formulez-la comme
+  une possibilité — « cela peut vouloir dire que… », « il arrive que… » — jamais comme une
+  règle ni comme une généralité sur les gens ;
 - un exemple qui donne un visage à l'idée, annoncé comme exemple ;
 - une question posée au spectateur, à laquelle l'écran ne répond pas.
 Si le paragraphe énumère plusieurs éléments, ne reprenez pas son énumération : choisissez-en
 un seul et montrez-le.
-Test avant de rendre votre texte : si on retirait la diapositive, votre commentaire
-garderait-il quelque chose à dire ? S'il ne reste rien, c'est que vous avez reformulé.
+Avant de rendre votre texte, barrez mentalement tout ce que la diapositive dit déjà.
+S'il ne reste rien, vous avez reformulé.
 ```
 
-Aucun exemple n'y est tiré d'un document réel. Le prompt passe de 108 à **121 lignes**.
+**Trois changements demandés par Christophe, et pourquoi le troisième comptait le plus.** Mon
+test final était **à l'envers** : « si on retirait la diapositive, votre commentaire garderait-il
+quelque chose à dire ? » — un commentaire qui reformule garderait tout son sens sans la
+diapositive, et passait donc le test haut la main. Christophe l'a retourné : on barre ce que
+l'écran dit déjà, et on regarde ce qui reste. S'y ajoutent l'interdiction d'introduire un fait,
+un chiffre ou une étude absents du document (ou de le contredire), et la conséquence vécue
+formulée comme une **possibilité**, jamais comme une règle sur les gens.
+
+L'ancien test a été **retiré**, pas laissé à côté : deux consignes contradictoires valent moins
+qu'une seule. Une assertion vérifie son absence. Le prompt passe à **121 lignes**.
 
 ### Le champ « apport » — évalué, pas imposé
 
@@ -100,7 +110,10 @@ seule.
 fixture qui déclare `exemple` sur un texte recopié mot pour mot, pour éprouver la contradiction ;
 une fixture sans le champ, pour vérifier qu'il ne bloque pas.
 
-**Ma recommandation** : attendre. Les cinq avertissements mesurent déjà ce qui se mesure, et une
+**Décision de Christophe : attendre.** Le champ n'est pas construit. Ce qui suit reste
+l'évaluation, pour le jour où la question se reposera.
+
+**Ma recommandation allait dans le même sens** : attendre. Les cinq avertissements mesurent déjà ce qui se mesure, et une
 déclaration du modèle sur son propre travail est exactement le genre de chiffre que j'ai appris à
 ne pas croire cette semaine. Le croisement déclaration/mesure est la seule partie qui apporterait
 quelque chose — et il ne vaut d'être construit que si tu constates que la mesure seule te laisse
@@ -108,7 +121,9 @@ passer à côté d'étapes.
 
 ### Mesurer proprement la part d'étapes gardées — un seul tirage ne tranche rien
 
-Le modèle varie. Protocole proposé, **sans aucun appel dans les tests** :
+Le modèle varie. **Ce protocole n'est pas une obligation** : c'est une méthode disponible, à
+employer le jour où une modification du prompt demande à être tranchée. Sans aucun appel dans
+les tests :
 
 1. **Trois tirages** sur la même présentation, mêmes réglages, sans rien changer entre les deux.
 2. Pour chaque tirage, Christophe note par étape : **gardée telle quelle / retouchée / refaite**.

@@ -295,7 +295,16 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       ['un exemple annoncé', /un exemple qui donne un visage à l.idée, annoncé comme exemple/],
       ['une question sans réponse à l\'écran', /une question posée au spectateur, à laquelle l.écran ne répond pas/],
       ['ne pas reprendre l\'énumération', /ne reprenez pas son énumération/],
-      ['le test du retrait', /si on retirait la diapositive, votre commentaire/],
+      // Les trois changements du 9 octobre, UNE ASSERTION PAR LIGNE.
+      // Le test précédent était à l'envers : un commentaire qui reformule garderait tout son
+      // sens sans la diapositive. Christophe l'a retourné — on barre ce que l'écran dit déjà.
+      ['barrer ce que l\'écran dit déjà', /barrez mentalement tout ce que la diapositive dit déjà\./],
+      ['s\'il ne reste rien', /S.il ne reste rien, vous avez reformulé\./],
+      ['aucun fait ni chiffre ajouté', /sans introduire de fait, de chiffre ni d.étude qui ne soient dans le/],
+      ['sans contredire le document', /document, et sans le contredire\./],
+      ['la conséquence est une possibilité', /Formulez-la comme\s*\n?\s*une possibilité/],
+      ['les deux tournures données', /« cela peut vouloir dire que… », « il arrive que… »/],
+      ['jamais une règle ni une généralité', /jamais comme une\s*\n?\s*règle ni comme une généralité sur les gens/],
       ['jamais le guillemet droit', /N.employez JAMAIS le\s*\n?\s*guillemet droit/],
       ['apostrophe typographique', /L.apostrophe s.écrit ’, jamais '/],
       ['pas de parenthèse', /Aucune parenthèse/],
@@ -313,6 +322,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       assert.ok(re.test(prompt.vous), 'le prompt doit porter : ' + nom);
     });
     // Et ce qui ne doit PLUS y être : une proportion donnée en exemple.
+    // L'ANCIEN TEST NE DOIT PLUS Y ÊTRE : il était à l'envers, le garder à côté du nouveau
+    // donnerait au modèle deux consignes contradictoires.
+    assert.equal(/si on retirait la diapositive/.test(prompt.vous), false,
+      'l\'ancien test, à l\'envers, doit avoir disparu du prompt');
     assert.equal(/un couple sur trois/.test(prompt.vous), false,
       'l\'ancien exemple « un couple sur trois » ressemblait à une statistique');
     // Correction 2 : le sujet vient du TITRE, et le mot « couple » n'est plus en dur.

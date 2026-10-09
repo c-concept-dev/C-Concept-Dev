@@ -93,6 +93,24 @@ const ESSAIS = [
     vers: "      case_.checked = true;",
     attendu: 'réécrire une étape recoche celles qu\'on avait écartées' },
 
+  { nom: 'l\'ancien test, à l\'envers, revient dans le prompt',
+    fichier: 'module',
+    de: "      'Avant de rendre votre texte, barrez mentalement tout ce que la diapositive dit déjà.',",
+    vers: "      'Test avant de rendre votre texte : si on retirait la diapositive, votre commentaire',",
+    attendu: 'un test qu\'un commentaire qui reformule passerait haut la main' },
+
+  { nom: 'la conséquence vécue redevient une règle générale',
+    fichier: 'module',
+    de: "      '- la conséquence vécue : ce que cela change concrètement pour quelqu\\'un. Formulez-la comme',",
+    vers: "      '- la conséquence vécue : ce que cela change pour les gens ;',",
+    attendu: 'une généralité sur les couples énoncée comme une règle' },
+
+  { nom: 'le commentaire peut de nouveau ajouter un fait absent du document',
+    fichier: 'module',
+    de: "      'affichée NE DIT PAS, sans introduire de fait, de chiffre ni d\\'étude qui ne soient dans le',",
+    vers: "      'affichée NE DIT PAS. Trois façons, choisissez-en une :',",
+    attendu: 'un chiffre ou une étude inventés pour « ajouter » à la diapositive' },
+
   { nom: 'la règle des paragraphes disparaît',
     fichier: 'module',
     de: "      'Ne le reformulez pas. Le spectateur vient de le lire : redire la même idée avec d\\'autres',",
