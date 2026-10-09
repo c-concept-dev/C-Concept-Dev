@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { ArriveeDeFichiers, DescriptionBibliotheque, ReglagesHote, Travail } from "@lienotheque/contrats";
+import { ArriveeDeFichiers, DescriptionBibliotheque, Recette, ReglagesHote, Travail, VueBibliotheque } from "@lienotheque/contrats";
 
 /** Le pont vers l'hôte de bureau (PLT-02).
  *
@@ -100,4 +100,51 @@ export async function travauxDe(racine: string): Promise<readonly Travail[]> {
 /** Met un travail en pause, le reprend, ou l'annule (JOB-08). */
 export async function agirSurTravail(racine: string, id: string, action: "pause" | "reprendre" | "annuler"): Promise<Travail> {
   return Travail.parse(await invoke("agir_sur_travail", { racine, id, action }));
+}
+
+/** Quelques pages d'un document déposé, en images, pour les montrer dans l'éditeur.
+ *
+ *  Avant toute recette : on ne peut pas montrer où regarder sur une page qu'on ne voit pas. */
+export async function apercuDePages(
+  racine: string,
+  nom: string,
+  depuis: number,
+  combien: number,
+): Promise<readonly { rang: number; image: string }[]> {
+  // L'hôte rend les images elles-mêmes, et non des chemins : ouvrir l'accès au disque depuis la
+  // page pour montrer huit vignettes serait payer très cher une commodité.
+  const rendu = await invoke<{ pages?: { rang: number; image: string }[] }>("apercu_de_pages", {
+    racine,
+    nom,
+    depuis,
+    combien,
+  });
+  return (rendu.pages ?? []).map((page) => ({ rang: page.rang, image: page.image }));
+}
+
+/** Essaie une manière de lire sur quelques pages, sans rien enregistrer (REC-07). */
+export async function essayerManiere(
+  racine: string,
+  nom: string,
+  recette: unknown,
+  pages: number,
+): Promise<VueBibliotheque> {
+  const rendu = await invoke<{ vue: unknown }>("essayer_maniere", {
+    racine,
+    nom,
+    recette: JSON.stringify(recette),
+    pages,
+  });
+  return VueBibliotheque.parse(rendu.vue);
+}
+
+/** Enregistre la manière de lire d'une bibliothèque, et rend le chemin où elle a été écrite. */
+export async function enregistrerManiere(racine: string, recette: unknown): Promise<string> {
+  return invoke<string>("enregistrer_maniere", { racine, recette: JSON.stringify(recette) });
+}
+
+/** La manière de lire d'une bibliothèque, ou rien si elle n'en a pas encore. */
+export async function lireManiere(racine: string): Promise<Recette | undefined> {
+  const brut = await invoke<string | null>("lire_maniere", { racine });
+  return brut === null ? undefined : Recette.parse(JSON.parse(brut));
 }

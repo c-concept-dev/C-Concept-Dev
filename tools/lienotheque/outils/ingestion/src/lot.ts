@@ -44,6 +44,9 @@ export type Lot = {
   readonly relecture?: Relecture | undefined;
   /** Appelé après chaque cliché lu, pour dire où en est le traitement (JOB-03). */
   readonly avancement?: ((faits: number, total: number) => void) | undefined;
+  /** N'en lire que les premières pages. C'est ce que demande l'essai d'une manière de lire :
+   *  dix pages suffisent pour voir si elle tient, et trois cents feraient attendre pour rien. */
+  readonly pages?: number | undefined;
 };
 
 /** Quel numéro imprimé porte chaque rang du document, d'après l'interprète.
@@ -101,6 +104,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     ...(lot.cache === undefined ? {} : { cache: lot.cache }),
     ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
     ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
+    ...(lot.pages === undefined ? {} : { pages: lot.pages }),
   });
 
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang

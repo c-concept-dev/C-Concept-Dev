@@ -70,6 +70,9 @@ type Props = {
   readonly onFichiers: (fichiers: readonly File[]) => void;
   readonly onAction: (id: string, action: ActionTravail) => void;
   readonly onVerifier: () => void;
+  /** Ouvre la manière de lire pour ce document : c'est par lui qu'on y entre, parce que c'est
+   *  lui qu'on regarde en la montrant. */
+  readonly onManiere?: ((nom: string) => void) | undefined;
 };
 
 export function Depot({
@@ -81,6 +84,7 @@ export function Depot({
   onFichiers,
   onAction,
   onVerifier,
+  onManiere,
 }: Props): JSX.Element {
   const enCours = travaux.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length;
   const aVerifier = travaux.filter((travail) => travail.erreur !== undefined).length;
@@ -143,7 +147,19 @@ export function Depot({
                 <Icone nom={enPanne ? "alerte" : ICONES[travail.sujet?.contenu ?? "documents"]} />
 
                 <div className="ln-ligne__quoi">
-                  <p className="ln-ligne__nom">{travail.sujet?.nom ?? travail.outil.nom}</p>
+                  <p className="ln-ligne__nom">
+                    {onManiere === undefined || travail.sujet === undefined ? (
+                      travail.sujet?.nom ?? travail.outil.nom
+                    ) : (
+                      <button
+                        type="button"
+                        className="ln-lien-action ln-ligne__ouvrir"
+                        onClick={() => onManiere(travail.sujet!.nom)}
+                      >
+                        {travail.sujet.nom}
+                      </button>
+                    )}
+                  </p>
                   <p className={enPanne ? "ln-ligne__panne" : "ln-muted"}>
                     {travail.erreur?.cause ??
                       (travail.sujet?.total === undefined

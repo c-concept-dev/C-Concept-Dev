@@ -74,12 +74,22 @@ export const BROUILLON_NEUF: Brouillon = {
   seuil: 0.6,
 };
 
+/** Les mots de la bibliothèque, pour que la phrase soit la sienne.
+ *
+ *  Sans eux, on dirait « élément » là où elle a son propre mot — et l'écran écrirait sa phrase à
+ *  côté de celle-ci, ce qui en ferait deux à tenir d'accord. Une seule phrase, à un seul
+ *  endroit : celui qui sait ce qui manque reçoit les mots pour le dire. */
+export type MotsPourLaPhrase = { readonly element: string; readonly page: string };
+
+const MOTS_GENERIQUES: MotsPourLaPhrase = { element: "élément", page: "page" };
+
 /** Ce qui manque pour essayer, dit à qui le lit — ou rien si l'on peut lancer l'essai. */
-export function manqueALaManiere(brouillon: Brouillon): string | undefined {
+export function manqueALaManiere(brouillon: Brouillon, mots: MotsPourLaPhrase = MOTS_GENERIQUES): string | undefined {
   const parRole = (role: RoleZone): number => brouillon.zones.filter((zone) => zone.role === role).length;
-  if (parRole("element") === 0) return "Tracez d’abord la zone où se trouve le numéro d’un élément.";
-  if (parRole("element") > 1) return "Une seule zone pour les numéros d’éléments : ils sont tous au même endroit.";
-  if (parRole("page_imprimee") > 1) return "Une seule zone pour le numéro de page.";
+  if (parRole("element") === 0) return `Tracez d’abord la zone où se trouve le numéro d’${mots.element}.`;
+  if (parRole("element") > 1)
+    return `Une seule zone pour les numéros d’${mots.element} : ils sont tous au même endroit.`;
+  if (parRole("page_imprimee") > 1) return `Une seule zone pour le numéro de ${mots.page}.`;
   if (brouillon.hauteurElement.max <= brouillon.hauteurElement.min)
     return "La plus grande hauteur doit dépasser la plus petite.";
   for (const zone of brouillon.zones)
@@ -209,5 +219,87 @@ export function versionSuivante(brouillon: Brouillon): Brouillon {
     ...brouillon,
     version: brouillon.version + 1,
     derivee: { id: brouillon.id, version: brouillon.version },
+  };
+}
+
+/** La plus petite zone qui ait un sens. Au-dessous, on ne vise plus rien : on clique. */
+export const MINIMUM = 0.005;
+
+/** Un rectangle tenu dans la page, quoi qu'on lui demande.
+ *
+ *  Une zone qui déborde ne cherche pas dehors : elle cherche sur un bord, et l'écran l'affiche
+ *  à cheval. On la ramène donc, plutôt que de la refuser — on déplace une zone en la poussant,
+ *  et buter contre le bord doit s'arrêter, pas annuler le geste. */
+export function borner(rectangle: Rectangle): Rectangle {
+  const l = Math.min(1, Math.max(MINIMUM, rectangle.l));
+  const h = Math.min(1, Math.max(MINIMUM, rectangle.h));
+  return {
+    l,
+    h,
+    x: Math.min(1 - l, Math.max(0, rectangle.x)),
+    y: Math.min(1 - h, Math.max(0, rectangle.y)),
+  };
+}
+
+/** Déplace une zone, sans la laisser sortir. */
+export function deplacer(rectangle: Rectangle, dx: number, dy: number): Rectangle {
+  return borner({ ...rectangle, x: rectangle.x + dx, y: rectangle.y + dy });
+}
+
+/** Change la taille d'une zone par un de ses coins, sans la laisser sortir ni se retourner. */
+export function redimensionner(rectangle: Rectangle, coin: Coin, dx: number, dy: number): Rectangle {
+  const gauche = coin === "no" || coin === "so";
+  const haut = coin === "no" || coin === "ne";
+  const x1 = gauche ? rectangle.x + dx : rectangle.x;
+  const y1 = haut ? rectangle.y + dy : rectangle.y;
+  const x2 = gauche ? rectangle.x + rectangle.l : rectangle.x + rectangle.l + dx;
+  const y2 = haut ? rectangle.y + rectangle.h : rectangle.y + rectangle.h + dy;
+  // Tirer un coin au-delà du coin opposé retourne la zone : on prend les deux points tels
+  // qu'ils sont et on les remet dans l'ordre, plutôt que d'interdire le geste.
+  return borner({
+    x: Math.min(x1, x2),
+    y: Math.min(y1, y2),
+    l: Math.abs(x2 - x1),
+    h: Math.abs(y2 - y1),
+  });
+}
+
+export type Coin = "no" | "ne" | "so" | "se";
+
+/** Le rectangle tracé entre deux points, quel que soit l'ordre où on les a donnés. */
+export function entre(depart: { x: number; y: number }, arrivee: { x: number; y: number }): Rectangle {
+  return borner({
+    x: Math.min(depart.x, arrivee.x),
+    y: Math.min(depart.y, arrivee.y),
+    l: Math.abs(arrivee.x - depart.x),
+    h: Math.abs(arrivee.y - depart.y),
+  });
+}
+
+/** Ce qu'un essai a donné, page par page, tel que l'éditeur le montre (REC-07).
+ *
+ *  Lu de la vue que la chaîne a produite, et de rien d'autre : l'écran ne recompte pas ce que le
+ *  traitement a déjà compté. Les numéros sont ceux qui ont été lus, dans l'ordre des pages — pas
+ *  un total, qui cacherait une page entièrement muette au milieu de neuf bonnes.
+ */
+export function bilanDEssai(vue: {
+  readonly pages: readonly {
+    readonly numero: number;
+    readonly elements: readonly { readonly numero: string; readonly aVerifier: boolean }[];
+  }[];
+}): {
+  readonly pages: readonly { readonly numero: number; readonly elements: readonly string[]; readonly aVerifier: number }[];
+  readonly lus: number;
+  readonly muettes: number;
+} {
+  const pages = vue.pages.map((page) => ({
+    numero: page.numero,
+    elements: page.elements.map((element) => element.numero),
+    aVerifier: page.elements.filter((element) => element.aVerifier).length,
+  }));
+  return {
+    pages,
+    lus: pages.reduce((somme, page) => somme + page.elements.length, 0),
+    muettes: pages.filter((page) => page.elements.length === 0).length,
   };
 }

@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 import { Recette } from "@lienotheque/contrats";
 import {
   BROUILLON_NEUF,
+  MINIMUM,
+  bilanDEssai,
+  borner,
+  deplacer,
+  entre,
+  redimensionner,
   depuisRecette,
   enRecette,
   manqueALaManiere,
@@ -35,7 +41,13 @@ describe("ce qui manque se dit, il ne se devine pas (UX-09)", () => {
   });
 
   it("sans zone d'éléments, il n'y a rien à lire", () => {
-    expect(manqueALaManiere(BROUILLON_NEUF)).toMatch(/numéro d’un élément/);
+    expect(manqueALaManiere(BROUILLON_NEUF)).toMatch(/numéro d’élément/);
+  });
+
+  it("emploie les mots de la bibliothèque quand on les lui donne (CLA-01)", () => {
+    expect(manqueALaManiere(BROUILLON_NEUF, { element: "exercice", page: "feuillet" })).toMatch(
+      /numéro d’exercice/,
+    );
   });
 
   it("deux zones pour la même chose : les numéros sont tous au même endroit", () => {
@@ -69,7 +81,7 @@ describe("les zones deviennent une recette que le contrat accepte (REC-01)", () 
   });
 
   it("refuse d'écrire une recette d'un brouillon incomplet, en disant ce qui manque", () => {
-    expect(() => enRecette(BROUILLON_NEUF)).toThrow(/numéro d’un élément/);
+    expect(() => enRecette(BROUILLON_NEUF)).toThrow(/numéro d’élément/);
   });
 });
 
@@ -112,5 +124,72 @@ describe("une manière de lire corrigée est une version de plus (REC-03, REC-06
 
   it("une première version ne dérive de rien", () => {
     expect(enRecette(COMPLET).derivee_de).toBeNull();
+  });
+});
+
+describe("la géométrie des zones vit ici, et non dans l'écran", () => {
+  const CARRE = { x: 0.4, y: 0.4, l: 0.2, h: 0.2 };
+
+  it("une zone poussée contre le bord s'y arrête, elle ne sort pas", () => {
+    expect(deplacer(CARRE, -1, 0)).toEqual({ x: 0, y: 0.4, l: 0.2, h: 0.2 });
+    expect(deplacer(CARRE, 1, 1)).toEqual({ x: 0.8, y: 0.8, l: 0.2, h: 0.2 });
+  });
+
+  it("buter contre le bord arrête le geste, il ne l'annule pas", () => {
+    const pousse = deplacer(CARRE, -1, 0.1);
+    expect(pousse.x).toBe(0);
+    expect(pousse.y).toBeCloseTo(0.5, 10);
+  });
+
+  it("un coin tiré au-delà du coin opposé retourne la zone au lieu de refuser le geste", () => {
+    const retourne = redimensionner(CARRE, "se", -0.5, -0.5);
+    expect(retourne.l).toBeGreaterThan(0);
+    expect(retourne.h).toBeGreaterThan(0);
+    expect(retourne.x).toBeLessThan(CARRE.x);
+  });
+
+  it("agrandir par le coin haut-gauche garde le coin bas-droit en place", () => {
+    const agrandi = redimensionner(CARRE, "no", -0.1, -0.1);
+    expect(agrandi.x).toBeCloseTo(0.3, 10);
+    expect(agrandi.x + agrandi.l).toBeCloseTo(0.6, 10);
+  });
+
+  it("une zone ne descend jamais sous la plus petite taille qui ait un sens", () => {
+    expect(redimensionner(CARRE, "se", -1, -1).l).toBeGreaterThanOrEqual(MINIMUM);
+    expect(entre({ x: 0.5, y: 0.5 }, { x: 0.5, y: 0.5 }).h).toBeGreaterThanOrEqual(MINIMUM);
+  });
+
+  it("le rectangle tracé est le même dans les deux sens", () => {
+    expect(entre({ x: 0.2, y: 0.8 }, { x: 0.6, y: 0.3 })).toEqual(entre({ x: 0.6, y: 0.3 }, { x: 0.2, y: 0.8 }));
+  });
+
+  it("une zone bornée reste une zone que le contrat accepte", () => {
+    const extreme = borner({ x: 2, y: -1, l: 5, h: 5 });
+    const avec = enRecette({ ...COMPLET, zones: [{ cle: "b", role: "element", rectangle: extreme }] });
+    expect(avec.lectures[0]?.ancre).toBe("element");
+  });
+});
+
+describe("ce qu'un essai a donné se lit page par page (REC-07)", () => {
+  const VUE = {
+    pages: [
+      { numero: 1, elements: [{ numero: "2.1", aVerifier: false }, { numero: "2.2", aVerifier: true }] },
+      { numero: 2, elements: [] },
+      { numero: 3, elements: [{ numero: "2.3", aVerifier: false }] },
+    ],
+  };
+
+  it("compte ce qui a été lu, et dit combien de pages n'ont rien rendu", () => {
+    const bilan = bilanDEssai(VUE);
+    expect(bilan.lus).toBe(3);
+    expect(bilan.muettes).toBe(1);
+  });
+
+  it("garde les numéros tels qu'ils ont été lus, et dans l'ordre des pages", () => {
+    expect(bilanDEssai(VUE).pages.map((page) => page.elements)).toEqual([["2.1", "2.2"], [], ["2.3"]]);
+  });
+
+  it("compte les doutes par page : un total cacherait une page muette au milieu de neuf bonnes", () => {
+    expect(bilanDEssai(VUE).pages.map((page) => page.aVerifier)).toEqual([1, 0, 0]);
   });
 });

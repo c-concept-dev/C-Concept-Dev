@@ -167,3 +167,10 @@
   padding: 0;
   list-style: none;
 }
+
+/* Le nom du document mène à sa manière de lire : c'est lui qu'on regarde en la montrant. */
+.ln-ligne__ouvrir {
+  font: inherit;
+  font-weight: 600;
+  text-align: start;
+}
