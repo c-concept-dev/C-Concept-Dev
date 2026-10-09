@@ -493,10 +493,15 @@ chaîne ne couvre pas encore, et qui reste à traiter.
 
 `VERSION_LECTURE` passe à 9 — une lecture porte désormais le numéro tel qu'il est imprimé — ce
 qui invalide les caches. **F3 relu entièrement à froid : 95 / 95**, deux pages absentes, six
-médias orphelins, en 195 s. F1 exact. F4 n'a pas été relancé : sa mesure appelle le service de
-relecture payant, et rien dans ce lot n'autorisait cette dépense — c'est pourquoi la règle de la
-bande a été écrite pour ne rien changer aux recettes décrites par une marge ou un bord, ce qui est
-le cas de F4.
+médias orphelins, en 195 s. F1 exact.
+
+**F4 a été vérifié par son témoin**, qui n'appelle rien et ne dépense rien : `mesures/f4-temoin.ts`
+rend **66 / 92 premiers éléments et 77 / 92 pages**, exactement le relevé de référence consigné
+plus haut. Sa lecture n'a pas bougé. Le critère lui-même — 84 / 92 — demande la relecture ciblée,
+donc le service payant, et rien dans ce lot n'autorisait cette dépense : c'est pourquoi la règle
+de la bande a été écrite pour ne rien changer aux recettes décrites par une marge ou un bord, ce
+qui est le cas de F4. Un raisonnement de code aurait suffi à s'en convaincre ; une mesure vaut
+mieux, et celle-ci ne coûte rien.
 
 ### Ce que les captures ont montré
 
