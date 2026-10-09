@@ -10,7 +10,9 @@
     flex-wrap: wrap;
   }
 
-  .ln-recherche {
+  /* L'en-tête précise le champ de son composant, il ne le redéfinit pas : sans la descendance,
+     la règle vaudrait pour tout ce qui porte ce nom, où que ce soit. */
+  .ln-shell .ln-recherche {
     order: 3;
     max-width: none;
     flex-basis: 100%;

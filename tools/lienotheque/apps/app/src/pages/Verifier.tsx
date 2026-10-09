@@ -177,7 +177,7 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
                     → {nommer(vue.mots.piste, c.element.media.piste)}
                   </span>
                 )}
-                <span className={`ln-etiquette ln-etiquette--${c.etat}`}>
+                <span className={`ln-verifier__etiquette ln-verifier__etiquette--${c.etat}`}>
                   <Icone nom={ETATS[c.etat].icone} />
                   {ETATS[c.etat].libelle}
                 </span>

@@ -109,21 +109,21 @@ export function Recherche({ vue, actions, onFermer, onOuvrir, onEcouter, onActio
     <div className="ln-voile" role="presentation" onMouseDown={onFermer}>
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
-        className="ln-recherche"
+        className="ln-chercher"
         role="dialog"
         aria-modal="true"
         aria-label="Rechercher"
         onMouseDown={(evenement) => evenement.stopPropagation()}
         onKeyDown={auClavier}
       >
-        <div className="ln-recherche__champ">
+        <div className="ln-chercher__champ">
           <Icone nom="recherche" />
           <label className="ln-sr-only" htmlFor={`${base}-champ`}>
             Rechercher dans {vue.nom}
           </label>
           <input
             id={`${base}-champ`}
-            className="ln-recherche__saisie"
+            className="ln-chercher__saisie"
             value={requete}
             autoFocus
             autoComplete="off"
@@ -134,25 +134,25 @@ export function Recherche({ vue, actions, onFermer, onOuvrir, onEcouter, onActio
             placeholder={`Chercher dans ${vue.nom}`}
             onChange={(evenement) => setRequete(evenement.target.value)}
           />
-          <span className="ln-recherche__portee">{vue.nom}</span>
+          <span className="ln-chercher__portee">{vue.nom}</span>
           <Bouton compact icone={<Icone nom="fermer" />} onClick={onFermer}>
             Fermer
           </Bouton>
         </div>
 
-        <div className="ln-recherche__corps">
-          <div className="ln-recherche__liste" id={`${base}-liste`} role="listbox" aria-label="Résultats" ref={liste}>
+        <div className="ln-chercher__corps">
+          <div className="ln-chercher__liste" id={`${base}-liste`} role="listbox" aria-label="Résultats" ref={liste}>
             {requete.trim() === "" ? (
-              <p className="ln-recherche__vide">
+              <p className="ln-chercher__vide">
                 Cherchez un {vue.mots.element.un}, un mot d’une {vue.mots.page.un}, une{" "}
                 {vue.mots.piste.un}.
               </p>
             ) : file.length === 0 ? (
-              <p className="ln-recherche__vide">Rien ici ne correspond à «&nbsp;{requete.trim()}&nbsp;».</p>
+              <p className="ln-chercher__vide">Rien ici ne correspond à «&nbsp;{requete.trim()}&nbsp;».</p>
             ) : (
               groupes.map((groupe) => (
-                <div key={groupe.genre} className="ln-recherche__groupe" role="group" aria-label={groupe.libelle}>
-                  <p className="ln-section ln-recherche__intitule">
+                <div key={groupe.genre} className="ln-chercher__groupe" role="group" aria-label={groupe.libelle}>
+                  <p className="ln-section ln-chercher__intitule">
                     {groupe.libelle} · {groupe.resultats.length}
                   </p>
                   {groupe.resultats.map((resultat) => (
@@ -190,10 +190,10 @@ export function Recherche({ vue, actions, onFermer, onOuvrir, onEcouter, onActio
             )}
           </div>
 
-          <aside className="ln-recherche__apercu" aria-label="Aperçu">
+          <aside className="ln-chercher__apercu" aria-label="Aperçu">
             <p className="ln-section">Aperçu</p>
             {actif === undefined || actif.page === undefined ? (
-              <p className="ln-muted ln-recherche__sans-apercu">
+              <p className="ln-muted ln-chercher__sans-apercu">
                 Choisissez un résultat&nbsp;: sa {vue.mots.page.un} s’affichera ici.
               </p>
             ) : (
@@ -202,7 +202,7 @@ export function Recherche({ vue, actions, onFermer, onOuvrir, onEcouter, onActio
           </aside>
         </div>
 
-        <p className="ln-recherche__pied">
+        <p className="ln-chercher__pied">
           <span>
             <span className="ln-touche">↑</span> <span className="ln-touche">↓</span> parcourir
           </span>
@@ -216,7 +216,7 @@ export function Recherche({ vue, actions, onFermer, onOuvrir, onEcouter, onActio
           <span>
             <span className="ln-touche">⇥</span> changer de groupe
           </span>
-          <span className="ln-recherche__fin">
+          <span className="ln-chercher__fin">
             <span className="ln-touche">échap</span> fermer
           </span>
         </p>
@@ -242,7 +242,7 @@ function Apercu({
 
   return (
     <>
-      <div className="ln-recherche__page">
+      <div className="ln-chercher__page">
         {page?.image === undefined ? (
           <p className="ln-muted">
             Cette {vue.mots.page.un} n’a pas encore d’image&nbsp;: le traitement ne l’a pas produite.
@@ -252,7 +252,7 @@ function Apercu({
         )}
       </div>
       <div>
-        <p className="ln-recherche__quoi">
+        <p className="ln-chercher__quoi">
           {resultat.titre} · {vue.mots.page.un} {resultat.page}
         </p>
         <p className="ln-muted">
@@ -261,7 +261,7 @@ function Apercu({
             : `Relié à la ${vue.mots.piste.un} ${element.media.piste}.`}
         </p>
       </div>
-      <div className="ln-recherche__faire">
+      <div className="ln-chercher__faire">
         {resultat.piste === undefined ? null : (
           <Bouton icone={<Icone nom="lecture" />} onClick={onEcouter}>
             Écouter

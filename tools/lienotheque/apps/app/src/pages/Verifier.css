@@ -136,7 +136,7 @@
   grid-area: vers;
 }
 
-.ln-etiquette {
+.ln-verifier__etiquette {
   grid-area: etiquette;
   display: inline-flex;
   align-items: center;
@@ -149,7 +149,7 @@
   width: fit-content;
 }
 
-.ln-etiquette--conflit_appareils {
+.ln-verifier__etiquette--conflit_appareils {
   background: var(--ln-selection-background);
   color: var(--ln-selection-text);
 }
