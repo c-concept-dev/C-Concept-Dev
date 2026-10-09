@@ -32,7 +32,7 @@
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
 | 2026-10-08 | **La recherche n'a pas d'index à elle** : elle lit la vue, et tout se passe sur la machine. Le surlignage porte sur le texte d'origine, pas sur sa forme repliée | Lot D2, étape 4, section ci-dessous |
 | 2026-10-09 | **La forme d'un numéro d'élément se donne par l'exemple**, jamais par une syntaxe : « ici, un numéro ressemble à 2.46 ». Quatre hypothèses du lecteur deviennent des données | Lot D2, étape 5, section ci-dessous |
-| 2026-10-09 | **REC-07 sur F5 : 7 min 05 s puis 2 min 35 s**, sous le critère. Le vocabulaire des recettes l'exprime désormais ; l'OCR perd encore le point de « 2.1 » | Lot D2, étape 5 |
+| 2026-10-09 | **REC-07 sur F5 : 13 min 25 s en trois passes, sous le critère — et F5 se lit.** Ce n'était pas l'OCR : le redressement automatique tournait la page sous le tracé. On trace désormais sur la page telle qu'elle est montrée | Lot D2, étape 5 |
 | 2026-10-08 | **Un travail par document, non par fichier** : le moteur lit un document et ses médias ensemble, et un travail qui ne porterait qu'une piste n'aurait rien à lire | Lot D2, étape 3, section ci-dessous |
 | 2026-10-08 | **Pas de temps restant à l'écran de traitement** : on ne sait pas à quelle vitesse la suite ira, et un chiffre inventé est pire qu'un chiffre absent. On écrit « 194 / 286 » | Lot D2, étape 3 |
 | 2026-10-08 | **Fusionner et retirer une valeur sont deux gestes**, pas un : le contrat a refusé qu'une clé vive à deux endroits, et il avait raison — ils ne montrent pas la même chose | Lot D2, étape 2, section ci-dessous |
@@ -444,25 +444,49 @@ première version la libérait dès que les numéros de page se lisaient ailleur
 mais F4 ne peut pas être éprouvé sans solliciter le service de relecture payant, et une règle
 qu'on ne peut pas vérifier ne doit pas changer le comportement des recettes existantes.
 
-### Ce qui bloque encore, et qui n'est plus le contrat
+### Le résultat final : F5 se lit, et ce n'était pas l'OCR
 
-Avec ces ajouts, la manière de lire de F5 **s'exprime**. Elle ne se lit toujours pas : à la
-résolution de ce document, Tesseract rend « 21 » pour « 2.1 ». **Le point disparaît**, même
-déclaré dans la liste de caractères. Éprouvé à la main sur un recadrage serré, agrandi huit fois
-et bordé de blanc — le même traitement que le lecteur applique :
+**Une conclusion de cette section était fausse, et il faut le dire avant tout le reste.** Elle
+affirmait que l'OCR perdait le point de « 2.1 ». Cela avait été constaté sur un **recadrage
+serré**, en segmentation « mot isolé ». En lecture éparse sur la page entière — le mode que le
+lecteur emploie déjà, et qui figure parmi ses trois passes — Tesseract rend « 2.1 » avec une
+confiance de 96. **Le point ne se perd pas.**
 
-| Segmentation | Sans liste | Avec `0123456789.` |
-|---|---|---|
-| 7 | `eA (il` | *(rien)* |
-| 8 | `21)` | `21` |
-| 13 | `21)` | `21` |
+Ce qui bloquait était le **redressement automatique**. Il tourne la page sous le tracé, et la
+zone ne désigne alors plus rien : on cherche au bon endroit d'une page qui a bougé. Une manière
+de lire neuve ne redresse donc plus — on trace sur la page **telle qu'elle est montrée**. Une
+recette qui redresse se rouvre telle quelle : on ne la corrige pas dans le dos de qui l'a écrite.
 
-Le séparateur n'est pas récupérable ainsi. Ce n'est plus un manque de vocabulaire : c'est une
-capacité de lecture qui manque. Deux pistes, toutes deux à décider :
+Avec cela, F5 se lit : **page imprimée 15 reconnue, élément « 2.1 » lu et affiché tel qu'il est
+imprimé.**
 
-- **Lire les groupes séparément** et les recomposer par l'écart horizontal, en s'appuyant sur le
-  découpage de chiffres qui existe déjà pour les pastilles.
-- **Déclarer que le numéro est encadré**, et se servir du cadre pour borner la lecture.
+### La lecture par groupes, qui reste utile
+
+Elle a été implémentée avant que la vraie cause soit trouvée, et elle est gardée : un séparateur
+imprimé petit ne survit pas toujours, et l'espace qu'il laisse, lui, survit. Quand la recette
+annonce plusieurs groupes **et** que la lecture ordinaire a échoué, on découpe les formes de la
+taille d'un chiffre — le découpage que les pastilles emploient —, on coupe aux écarts les plus
+larges, et on lit chaque groupe à part.
+
+Deux garde-fous : rien ne s'enclenche sans déclaration, donc F3 et F4 ne rencontrent jamais ce
+chemin ; et une coupure franche ou rien, parce qu'un numéro inventé vaut moins qu'un numéro
+absent.
+
+### Les trois temps
+
+| | |
+|---|---:|
+| Découverte brute — du premier coup d'œil à une cause (fausse) identifiée | 7 min 05 s |
+| Découverte complète — après les trois ajouts au contrat | 2 min 35 s |
+| Troisième passe — lecture par groupes, puis la vraie cause | 3 min 45 s |
+| **Total sur le document** | **13 min 25 s**, sous les quinze minutes du critère |
+
+### Ce que le document garde pour lui
+
+Le moteur ne voit que **15 des quelque 96 pages de F5** : les suivantes n'ont pas d'image JPEG
+dans le PDF, et l'exportateur comme le lecteur les sautent. L'essai « sur dix pages » n'en montre
+donc qu'une d'exercices. Ce n'est pas la manière de lire qui échoue — c'est un encodage que la
+chaîne ne couvre pas encore, et qui reste à traiter.
 
 ### Ce qui a été vérifié intact
 
