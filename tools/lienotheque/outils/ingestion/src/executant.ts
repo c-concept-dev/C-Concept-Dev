@@ -42,8 +42,10 @@ export const ChargeTraitement = z
     adresseMedias: z.string().min(1).optional(),
     /** Adresse du service de relecture ciblée. Absente, la chaîne est la même, elle ne relit rien. */
     relecture: z.url().optional(),
-    /** N'en lire que les premières pages, pour essayer une manière de lire sans tout relire. */
+    /** N'en lire que quelques pages, pour essayer une manière de lire sans tout relire. */
     pages: z.number().int().positive().optional(),
+    /** Rang de la première page lue : les dix premières d'un document n'ont souvent rien à lire. */
+    depuis: z.number().int().nonnegative().optional(),
   })
   .strict();
 export type ChargeTraitement = z.infer<typeof ChargeTraitement>;
@@ -125,6 +127,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
       ...(charge.adresseImages === undefined ? {} : { adresseImages: charge.adresseImages }),
       ...(charge.adresseMedias === undefined ? {} : { adresseMedias: charge.adresseMedias }),
       ...(charge.pages === undefined ? {} : { pages: charge.pages }),
+      ...(charge.depuis === undefined ? {} : { depuis: charge.depuis }),
       ...(charge.relecture === undefined || jeton === undefined
         ? {}
         : {

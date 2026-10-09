@@ -63,6 +63,9 @@ export type OptionsBanc = OptionsReperes & {
    *  cent pendant que les dernières pages passent encore à l'OCR serait un mensonge poli. Un lot
    *  servi par le cache ne passe pas par ici — il n'y a rien à suivre. */
   readonly avancement?: (faits: number, total: number) => void;
+  /** Rang de la première page lue, à partir de zéro. Avec `pages`, cela fait une tranche : ce
+   *  qu'il faut pour essayer une manière de lire là où le document a quelque chose à lire. */
+  readonly depuis?: number;
   /** De quoi relire les repères difficiles. Absente, la chaîne ne relit rien et ne change pas. */
   readonly relecture?: Relecture;
   /** Dossier où garder les lectures. Absent, rien n'est gardé. */
@@ -131,9 +134,12 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
   // plus rien à lire : zéro élément là où il y en avait six.
   const rotationDuLot = reglages === undefined || reglages.rotation !== "auto" ? undefined : await voterOrientation(chemin, options);
 
-  let index = 0;
+  // Le rang dans le document, et non dans la tranche : essayer une manière de lire sur dix
+  // pages du milieu doit les numéroter comme elles le sont, sinon ce qu'on lit ne se retrouve
+  // nulle part.
+  let index = options.depuis ?? 0;
   let total = 0;
-  for await (const image of pagesEnGris(chemin, options.pages, (compte) => (total = compte))) {
+  for await (const image of pagesEnGris(chemin, options.pages, (compte) => (total = compte), options.depuis ?? 0)) {
     if (reglages === undefined) yield { image, index, total };
     else
       for (const produite of redresser(image, index, reglages, {
@@ -161,10 +167,15 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
  *
  *  Un flux, pas un tableau : le tableau gardait les trois cents pages décodées en mémoire en même
  *  temps — deux mégaoctets et demi la page, et la mémoire croissait avec le document. */
-export async function* pagesEnGris(chemin: string, limite?: number, surTotal?: (total: number) => void): AsyncGenerator<ImageGrise> {
+export async function* pagesEnGris(
+  chemin: string,
+  limite?: number,
+  surTotal?: (total: number) => void,
+  depuis = 0,
+): AsyncGenerator<ImageGrise> {
   const objets = objetsPdf(await readFile(chemin));
   const pages = pagesPdf(objets);
-  const retenues = limite === undefined ? pages : pages.slice(0, limite);
+  const retenues = pages.slice(depuis, limite === undefined ? undefined : depuis + limite);
 
   // Combien de pages il y a, dit une fois, avant la première. C'est ici — et seulement ici —
   // qu'on le sait sans reparser le document, et une file qui annonce un pourcentage et un temps

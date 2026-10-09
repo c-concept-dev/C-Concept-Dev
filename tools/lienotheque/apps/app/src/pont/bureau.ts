@@ -127,12 +127,14 @@ export async function essayerManiere(
   racine: string,
   nom: string,
   recette: unknown,
+  depuis: number,
   pages: number,
 ): Promise<VueBibliotheque> {
   const rendu = await invoke<{ vue: unknown }>("essayer_maniere", {
     racine,
     nom,
     recette: JSON.stringify(recette),
+    depuis,
     pages,
   });
   return VueBibliotheque.parse(rendu.vue);

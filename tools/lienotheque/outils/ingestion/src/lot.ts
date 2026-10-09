@@ -47,6 +47,9 @@ export type Lot = {
   /** N'en lire que les premières pages. C'est ce que demande l'essai d'une manière de lire :
    *  dix pages suffisent pour voir si elle tient, et trois cents feraient attendre pour rien. */
   readonly pages?: number | undefined;
+  /** Rang de la première page lue. Essayer une manière de lire sur dix pages du milieu demande
+   *  de dire lesquelles : les dix premières d'un document n'ont souvent rien à lire. */
+  readonly depuis?: number | undefined;
 };
 
 /** Quel numéro imprimé porte chaque rang du document, d'après l'interprète.
@@ -105,6 +108,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
     ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+    ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
   });
 
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang

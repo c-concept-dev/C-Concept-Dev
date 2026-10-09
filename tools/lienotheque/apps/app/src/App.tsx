@@ -246,7 +246,15 @@ export function App(): JSX.Element {
   const essayer = async (racine: string): Promise<void> => {
     setManiere((avant) => ({ ...avant, occupe: true, echec: undefined }));
     try {
-      const vue = await essayerManiere(racine, maniere.document, enRecette(maniere.brouillon), 10);
+      // On essaie là où l'on regarde : les dix premières pages d'un document n'ont souvent rien
+      // à lire, et un essai qui ne lit rien ne dit rien.
+      const vue = await essayerManiere(
+        racine,
+        maniere.document,
+        enRecette(maniere.brouillon),
+        maniere.pages[0]?.rang ?? 0,
+        10,
+      );
       const bilan = bilanDEssai(vue);
       setManiere((avant) => ({
         ...avant,

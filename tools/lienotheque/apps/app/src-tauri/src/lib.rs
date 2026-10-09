@@ -234,7 +234,7 @@ fn apercu_de_pages(racine: String, nom: String, depuis: u32, combien: u32) -> Re
 /// Rien n'est activé : l'essai rend ce qui a été lu, et l'écran le montre. Une version du dépôt
 /// ne s'écrit que pour un vrai traitement (JOB-06).
 #[tauri::command]
-fn essayer_maniere(racine: String, nom: String, recette: String, pages: u32) -> Result<serde_json::Value, String> {
+fn essayer_maniere(racine: String, nom: String, recette: String, depuis: u32, pages: u32) -> Result<serde_json::Value, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     let document = depot.racine().join(depot::SOURCES).join(&nom);
     if !document.exists() {
@@ -262,6 +262,7 @@ fn essayer_maniere(racine: String, nom: String, recette: String, pages: u32) -> 
             "medias": depot.racine().join(depot::SOURCES),
             "recette": brouillon,
             "description": description,
+            "depuis": depuis,
             "pages": pages,
         },
     });
