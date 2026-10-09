@@ -13,6 +13,7 @@ import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } f
 import { chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
+import { pourLAccueil } from "./donnees/accueil.js";
 import { Accueil } from "./pages/Accueil.js";
 import { Catalogue } from "./pages/Catalogue.js";
 import { Lecteur } from "./pages/Lecteur.js";
@@ -39,6 +40,9 @@ import {
   enregistrerManiere,
   essayerManiere,
   lireManiere,
+  imageDePage,
+  versionActive,
+  vueDeBibliotheque,
   choisirFichiers,
   deposer as deposerChezLHote,
   faireTourner,
@@ -165,8 +169,51 @@ export function App(): JSX.Element {
     aller({ ecran: "organisation" });
   };
 
-  /** La bibliothèque ouverte. C'est elle dont on montre la file. */
+  /** La bibliothèque ouverte. C'est elle dont on montre la file, et dont les écrans lisent. */
   const courante = creees[creees.length - 1];
+
+  // L'image de la page qu'on regarde, prise à la demande. Une par une : un livre de trois cents
+  // pages pèse des centaines de mégaoctets, et le Lecteur n'en montre qu'une. Elle remplace
+  // l'adresse que la vue porte, qui ne désigne rien sur le bureau.
+  useEffect(() => {
+    if (courante === undefined || !estBureau() || route.ecran !== "lecteur" || vue === undefined) return undefined;
+    const page = vue.pages.find((candidate) => candidate.numero === route.page);
+    if (page?.image === undefined || page.image.startsWith("data:")) return undefined;
+    const fichier = page.image.split("/").pop();
+    if (fichier === undefined) return undefined;
+
+    let vivant = true;
+    void versionActive(courante.racine)
+      .then(async (version) => (version === undefined ? undefined : imageDePage(courante.racine, version, fichier)))
+      .then((image) => {
+        if (!vivant || image === undefined) return;
+        setVue((avant) =>
+          avant === undefined
+            ? avant
+            : { ...avant, pages: avant.pages.map((autre) => (autre.numero === page.numero ? { ...autre, image } : autre)) },
+        );
+      })
+      .catch(() => {
+        // Une image qui manque n'empêche pas de lire : l'écran le dit déjà à sa façon.
+      });
+    return () => {
+      vivant = false;
+    };
+  }, [courante, route, vue]);
+
+  // Ce que les écrans lisent vient de la bibliothèque ouverte, et non d'un instantané de
+  // développement : sur le bureau, c'est le dépôt qui fait foi. On la relit après chaque
+  // traitement, puisque c'est lui qui pose une nouvelle version active (JOB-06).
+  useEffect(() => {
+    if (courante === undefined || !estBureau()) return undefined;
+    let vivant = true;
+    void vueDeBibliotheque(courante.racine).then((lue) => {
+      if (vivant && lue !== undefined) setVue(lue);
+    });
+    return () => {
+      vivant = false;
+    };
+  }, [courante, file]);
 
   // La file est à l'hôte : on la relit, on ne la devine pas. Toutes les deux secondes suffisent —
   // un traitement se compte en minutes, et un écran qui se redessine sans cesse fatigue.
@@ -278,6 +325,9 @@ export function App(): JSX.Element {
     try {
       await enregistrerManiere(racine, enRecette(brouillon));
       setManiere((avant) => ({ ...avant, brouillon, occupe: false }));
+      // On revient au traitement : c'est de là qu'on venait, et c'est là qu'on reprend les
+      // travaux que l'absence de manière de lire avait arrêtés.
+      aller({ ecran: "depot" });
     } catch (erreur) {
       setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
     }
@@ -290,6 +340,18 @@ export function App(): JSX.Element {
     if (estBureau()) await ecrireBibliotheque(derniere.racine, description);
     setCreees((anciennes) => anciennes.map((creee) => (creee === derniere ? { ...creee, description } : creee)));
   };
+
+  // L'accueil montre les bibliothèques ouvertes. Sans cela, l'administrateur qui vient d'en
+  // créer une retombe sur le premier lancement, comme s'il n'avait rien fait.
+  const aLAccueil: DonneesAccueil =
+    creees.length === 0
+      ? donnees
+      : {
+          ...donnees,
+          bibliotheques: creees.map((creee) =>
+            pourLAccueil(creee.description, creee === courante ? vue : undefined, "Sur cet ordinateur"),
+          ),
+        };
 
   const ecran = ((): JSX.Element | null => {
     if (route.ecran === "reglages") return <Reglages theme={theme} onThemeChange={changerTheme} />;
@@ -374,7 +436,7 @@ export function App(): JSX.Element {
         />
       );
     if (vue === undefined || restants === undefined) {
-      return donnees.bibliotheques.length === 0 ? (
+      return aLAccueil.bibliotheques.length === 0 ? (
         <PremierLancement
           theme={theme}
           onCreer={() => aller({ ecran: "creer" })}
@@ -383,7 +445,7 @@ export function App(): JSX.Element {
           echec={echecOuverture}
         />
       ) : (
-        <Accueil donnees={donnees} onFichiers={deposer} />
+        <Accueil donnees={aLAccueil} onFichiers={deposer} />
       );
     }
     if (route.ecran === "verifier")
@@ -415,7 +477,7 @@ export function App(): JSX.Element {
           onAjouter={() => aller(ACCUEIL)}
         />
       );
-    return donnees.bibliotheques.length === 0 ? (
+    return aLAccueil.bibliotheques.length === 0 ? (
       <PremierLancement
           theme={theme}
           onCreer={() => aller({ ecran: "creer" })}
@@ -424,7 +486,7 @@ export function App(): JSX.Element {
           echec={echecOuverture}
         />
     ) : (
-      <Accueil donnees={donnees} onFichiers={deposer} />
+      <Accueil donnees={aLAccueil} onFichiers={deposer} />
     );
   })();
 
@@ -437,7 +499,7 @@ export function App(): JSX.Element {
         theme={theme}
         onThemeChange={changerTheme}
         onRecherche={() => setCherche(true)}
-        donnees={donnees}
+        donnees={aLAccueil}
         enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
       />
       <div className="ln-application__vue">{ecran}</div>

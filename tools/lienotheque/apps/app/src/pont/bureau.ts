@@ -150,3 +150,22 @@ export async function lireManiere(racine: string): Promise<Recette | undefined> 
   const brut = await invoke<string | null>("lire_maniere", { racine });
   return brut === null ? undefined : Recette.parse(JSON.parse(brut));
 }
+
+/** Ce que les écrans lisent d'une bibliothèque : sa version active (B5, JOB-06).
+ *
+ *  Rien si aucune version n'est active — ce n'est pas une panne, c'est une bibliothèque qui n'a
+ *  encore rien traité. */
+export async function vueDeBibliotheque(racine: string): Promise<VueBibliotheque | undefined> {
+  const brut = await invoke<unknown>("vue_de_bibliotheque", { racine });
+  return brut === null || brut === undefined ? undefined : VueBibliotheque.parse(brut);
+}
+
+/** La version active d'une bibliothèque : c'est elle qui dit où prendre les images. */
+export async function versionActive(racine: string): Promise<string | undefined> {
+  return (await invoke<string | null>("version_active", { racine })) ?? undefined;
+}
+
+/** L'image d'une page, à la demande. Une par une : un livre entier ne tient pas en mémoire. */
+export async function imageDePage(racine: string, version: string, fichier: string): Promise<string | undefined> {
+  return (await invoke<string | null>("image_de_page", { racine, version, fichier })) ?? undefined;
+}
