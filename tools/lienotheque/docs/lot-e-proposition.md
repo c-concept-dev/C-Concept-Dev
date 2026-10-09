@@ -77,8 +77,10 @@ réparties sur toute la longueur de chaque document, **encodées pour de vrai**,
 **Échantillon encodé : 20,4 Mo → 7,1 Mo, soit ×0,350.** Les images de page font **72 %** du poids
 des documents lus.
 
-Le banc est `outils/ingestion/mesures/poids-optimise.ts` ; il ne modifie rien et se relance sur
-n'importe quel dossier. Les copies de travail ont été effacées après la mesure.
+Deux bancs, qui ne modifient rien et se relancent sur n'importe quel dossier :
+`outils/ingestion/mesures/poids-optimise.ts` pour le poids et le gain,
+`outils/ingestion/mesures/sonde-pdf.ts` pour savoir à quoi les octets d'un PDF sont passés. Les
+copies de travail ont été effacées après la mesure.
 
 **Deuxième surprise, et c'est la bonne : tous les scans portent déjà une couche texte.** « Mixte
 100 % » veut dire que chaque page porte à la fois une image et du texte — ces ouvrages sont passés
@@ -89,12 +91,35 @@ La réserve qui va avec : cette couche existe, sa **qualité** est inconnue. Le 
 fixture F2, 305 titres sur 437 dans une couche OCR existante. Faut-il s'y fier ou réocériser ?
 C'est une mesure à faire au début de E2, sur un échantillon, pas une hypothèse à poser ici.
 
-**Troisième surprise, celle que je ne sais pas expliquer.** Le très gros scan montre 127,6 Mo qui ne
-sont ni des images vues par le lecteur de format, ni une couche texte plausible — 800 Ko par page.
-L'explication la plus probable est que ses images passent par un objet de formulaire intermédiaire
-que `pagesPdf` ne suit pas, et qu'elles sont donc comptées « hors images ». Si c'est le cas, le gain
-réel est **meilleur** que celui annoncé ci-dessous. Je préfère un chiffre prudent et une question
-ouverte à une explication arrangeante : à élucider en début de E2.
+**Troisième surprise : 122,5 Mo qui ne s'affichent nulle part.** Le très gros scan montrait
+127,6 Mo inexpliqués. La sonde `outils/ingestion/mesures/sonde-pdf.ts` a tranché, et **ma première
+hypothèse était fausse** : le document porte bien neuf marqueurs de fin de fichier — neuf
+enregistrements successifs —, mais les objets périmés qu'ils laissent derrière eux **pèsent zéro**.
+
+Le compte réel est ailleurs : **348 objets image pour 158 pages**, 339,8 Mo au total, tous de
+~4 200 × 3 200 pixels — des pages entières photographiées, pas des bandes. Et les 158 pages en
+réclament exactement **158**. Les **190 autres, 122,5 Mo, ne sont réclamées par aucune page.**
+
+Ce sont des pages retirées du document au fil de ses neuf enregistrements, dont les octets n'ont
+jamais été repris. Elles ne s'affichent nulle part, et personne ne les lira jamais. Le lecteur de
+format n'avait donc aucun défaut : il comptait ce qu'il faut compter.
+
+**Trois conséquences.**
+
+D'abord, Liénothèque copie **des pages, pas des fichiers** : une image qu'aucune page ne réclame
+n'est jamais convertie et ne part jamais chez l'hébergeur. Ce document de 345 Mo ne pèsera pas
+121 Mo une fois optimisé (345 × 0,35) mais **61 Mo** (217,4 × 0,28). Le gain est meilleur que le
+rapport ne le laisse croire, parce qu'une partie du poids disparaît sans même être encodée.
+
+Ensuite, **l'estimation de 1,9 Go est une borne haute**, et c'est heureux : elle part de la part
+d'images mesurée sur les fichiers entiers (72 %), alors que seules les images réclamées par une
+page comptent. S'il existe d'autres documents porteurs d'orphelines — et il y en a probablement —,
+le poids réel sera en dessous.
+
+Enfin, une amélioration que je **ne fais pas** dans ce lot mais qui mérite d'être notée :
+l'Inspecteur (OUT-01) sait déjà signaler les images répétées ; il ne sait pas signaler les images
+qu'aucune page ne réclame. Le réimport les révélera gratuitement, puisqu'il ne copie que ce qu'une
+page demande.
 
 Accessoirement, le rapport mesuré (×0,35) **bat la table prudente des contrats** (`RAPPORTS_ESTIMES`
 annonce 0,39 en noir et blanc, 0,54 en gris et en couleur). La table n'est pas fausse, elle est
@@ -537,38 +562,95 @@ mesure de qualité de la couche texte, au début de E2.
 
 ---
 
-## Ce qui est réglé, et ce qui reste
+## Ce qui est arrêté
 
-**Réglé depuis la première version :**
+**Décidé par l'utilisateur le 9 octobre 2026 :**
 
 | | |
 |---|---|
 | Abonnement | Workers Paid et R2 Paid actifs — HEB-04 tenue |
-| Plafond IA | 10 $/mois, refus propre au-delà |
-| Poids du corpus | 11,90 Go bruts, **7,38 Go distincts**, **~1,9 Go** de dérivés optimisés |
-| Format de l'ancienne base | consulté en lecture seule : 22 022 passages, 234 ouvrages, taux de remplissage relevés |
-| Correspondance de la façade | finalisée, sur les 19 valeurs réelles |
-| Médias | la bibliothèque thérapeutique ne porte que des documents — **pas de tunnel nécessaire** |
+| Plafond IA | **10 $/mois**, refus propre au-delà |
+| R2 | **dérivés seuls, jamais les sources** — les œuvres sous droits restent sur le Mac |
+| Corpus | 7,38 Go réels, **~1,9 Go de dérivés** (borne haute) |
+| Couche texte | sa qualité se mesure sur échantillon **au début de E2**, avant tout réimport |
 
-## Questions qui restent
+**Proposé ici, à confirmer d'un mot — ce sont les cinq questions restantes :**
 
-1. **Sources dans R2, ou dérivés seuls ?** Je recommande les dérivés seuls : ~1,9 Go au lieu de
-   ~9,3 Go, et 7,4 Go d'œuvres sous droits qui ne quittent pas votre Mac sans nécessité. Les deux
-   coûtent zéro ; ce n'est pas une question d'argent.
-2. **Nommage.** `lienotheque-<nom>` pour la base et le préfixe. Quel nom pour la bibliothèque
-   thérapeutique ? Il doit se distinguer sans ambiguïté de `therapeute-library`.
-3. **`/library-stats` ouverte ou fermée ?** Elle est aujourd'hui accessible sans jeton et rend la
-   liste de vos ouvrages. Je propose de la fermer et de donner son jeton à l'outil d'administration
-   au moment de la bascule — mais c'est un changement de comportement, et il vous revient.
-4. **Domaine.** Toujours utile à savoir pour la suite (corpus musical, adresse stable), même si le
-   lot E tel que proposé n'en a plus besoin.
-5. **Second utilisateur.** Sa clé d'accès dès E1 ou plus tard, et avec quels droits — lecture,
-   contribution, administration (SEC-03) ?
-6. **Les sept passages de `personality-profiling`.** Sept documents courts sous un même
-   identifiant. Les séparer au réimport, ou les laisser tels quels ? Cela ne presse pas, mais le
-   banc de comparaison les signalera.
+**1. Nommage.** `lienotheque-therapie` pour la base et `therapie/` pour le préfixe R2 ;
+`lienotheque-registre` pour le registre ; `lienotheque-essai` pour la bibliothèque d'essai de E1,
+nommée pour qu'on ne la confonde jamais avec une vraie. Aucune collision possible avec
+`therapeute-library`, qui ne partage ni préfixe ni suffixe.
 
-Et une chose que je ne sais pas encore, qui ne se décide pas mais se mesure, au début de E2 : **la
-couche texte des scans est-elle assez bonne pour qu'on s'y fie**, ou faut-il réocériser ? Elle
-existe sur toutes les pages de l'échantillon, ce qui change déjà le coût du réimport ; sa qualité
-reste à éprouver sur une poignée de pages relues à la main.
+**2. `/library-stats` : fermée.** Elle est aujourd'hui accessible sans jeton et rend la liste de
+vos ouvrages, leurs auteurs et leurs approches. SEC-05 ne souffre pas d'exception, et LIV-04
+conditionne la livraison à des tests de fuite négatifs. Le coût de la fermeture est **une ligne**
+dans l'outil d'administration — l'en-tête qu'il calcule déjà pour ses six autres appels. À faire au
+moment de la bascule, pas avant.
+
+**3. Domaine : hors du chemin critique.** La question reste la vôtre, mais le plan n'en dépend plus.
+Un nom en `workers.dev` suffit à tout ce que E1 construit, **y compris aux clés d'accès** : une clé
+WebAuthn se rattache au nom d'hôte, et un sous-domaine de `workers.dev` en est un comme un autre.
+Le domaine redeviendra utile le jour du corpus musical, pour le tunnel.
+
+**4. Second utilisateur : sa clé d'accès dès E1, en lecture et contribution.** Deux raisons de ne
+pas attendre : SEC-02 se vérifie mal à un seul utilisateur, et LIV-06 demande un essai réel sur les
+bibliothèques **des deux** utilisateurs. Droits proposés : lire, annoter, corriger un lien — pas
+changer le schéma, publier ou supprimer, qui restent à l'administration (SEC-03).
+
+**5. Les sept passages de `personality-profiling` : séparés au réimport.** Ils portent déjà sept
+jeux de métadonnées différents — ce *sont* sept documents, et une table `document` avec une
+identité propre ne peut de toute façon pas les confondre. Cela ne coûte rien et fait un bon cas
+pour la fixture F8.
+
+---
+
+## Le plan final de E1, pour accord
+
+**E1 ne touche à rien de réel.** Pas un octet des 234 ouvrages, pas une ligne de
+`therapeute-library`, pas un réglage de Studio Clinique. Tout se construit et s'éprouve sur une
+bibliothèque d'essai montée à partir de F3, qui nous appartient.
+
+### Ce qui se construit, dans l'ordre
+
+| | Ce qu'on fait | Pourquoi dans cet ordre |
+|---:|---|---|
+| 1 | **Le registre** : base `lienotheque-registre`, migrations engendrées depuis `MIGRATIONS`, test de non-dérive | Tout le reste s'y inscrit |
+| 2 | **Le schéma d'une bibliothèque sur D1** : `lienotheque-essai`, migrations appliquées, réserve de liaisons `BIB_1`…`BIB_4` | Avant de publier quoi que ce soit, savoir où ça va |
+| 3 | **Sauvegarde et restauration** : export vers le volume externe, restauration dans `lienotheque-restauration-essai`, **chronométrée** | SEC-10 l'exige *avant* toute donnée réelle. Le faire tôt, pas en dernier |
+| 4 | **R2** : compartiment `lienotheque-medias`, préfixes, une seule fonction qui compose les clés, test qui l'atteste | — |
+| 5 | **Liens signés** : jeton court signé, servi par le Worker, vérifié en temps constant | — |
+| 6 | **Sessions** : clés d'accès WebAuthn, cookie 90 jours renouvelé, révocation par le registre, **deux utilisateurs** | — |
+| 7 | **Jetons limités** par bibliothèque et par action, révocables un à un (SEC-03, INT-01) | La façade en a besoin |
+| 8 | **Provisionnement** : locale → publiée → locale, sans perte, avec région explicite et estimation de poids (HEB-03, 05, 06) | — |
+| 9 | **La façade** : les quatre routes, pilotées par la table de correspondance, servies depuis `lienotheque-essai` | Elle est le but de E1 |
+| 10 | **Le banc de comparaison** : requêtes figées, rappel par ouvrage, recouvrement, exactitude de page, p50/p95, citations mot pour mot | Il est l'outil qui autorisera E3 |
+
+### Ce qui autorise E2 (critère de passage de BAS-01)
+
+- La façade répond aux quatre routes depuis la bibliothèque d'essai, aux formes attendues.
+- Le banc de comparaison tourne et rend un rapport — sur l'essai, pas encore sur le vrai.
+- **Une restauration réelle a été faite et chronométrée**, et le chiffre est écrit.
+- Aucune clé dans un navigateur ; tests de fuite négatifs (LIV-04).
+- `pnpm check` vert sur les trois systèmes, rendu vert sur les trois moteurs (LIV-02).
+- **Rien de réel n'a été touché**, et cela se vérifie : `therapeute-library` a la même taille et le
+  même nombre de passages qu'au 9 octobre 2026 — 168 738 816 octets, 22 022 passages.
+
+### Ressources créées par E1, et leur coût
+
+| Ressource | Nature | Coût |
+|---|---|---|
+| D1 `lienotheque-registre` | réelle, minuscule | 0 $ |
+| D1 `lienotheque-essai` | **d'essai**, nommée comme telle | 0 $ |
+| D1 `lienotheque-restauration-essai` | **d'essai**, détruite après la mesure | 0 $ |
+| R2 `lienotheque-medias` | réelle, vide au départ | 0 $ |
+| Worker `lienotheque-api` | **existe déjà**, routes ajoutées | 0 $ |
+
+**Coût total de E1 : zéro au-dessus de l'abonnement.** Aucune de ces créations ne touche une
+ressource existante, et aucune n'engage de dépense. Je demanderai néanmoins votre accord avant la
+première commande qui crée quoi que ce soit, conformément à la règle 7 de CLAUDE.md.
+
+### Ce pour quoi je redemanderai un accord, séparément
+
+**E2** (réimport réel), **E4** (bascule) et **E6** (suppression de l'ancienne), comme BAS-02,
+BAS-04 et BAS-05 l'imposent. Et, à l'intérieur de E2, une fois de plus avant d'engager la moindre
+dépense de vision ciblée au-delà du plafond de 10 $.
