@@ -129,10 +129,10 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
                     autoFocus
                     onChange={(evenement) => setSaisie(evenement.target.value)}
                   />
-                  <Bouton type="submit" variante="principal" compact icone={<Icone nom="valide" />}>
+                  <Bouton type="submit" variante="principal" icone={<Icone nom="valide" />}>
                     Renommer
                   </Bouton>
-                  <Bouton compact icone={<Icone nom="fermer" />} onClick={() => setEdition(undefined)}>
+                  <Bouton icone={<Icone nom="fermer" />} onClick={() => setEdition(undefined)}>
                     Renoncer
                   </Bouton>
                 </form>
@@ -215,10 +215,10 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
                         autoFocus
                         onChange={(evenement) => setSaisie(evenement.target.value)}
                       />
-                      <Bouton type="submit" variante="principal" compact aria-label="Ajouter cette valeur" icone={<Icone nom="valide" />}>
+                      <Bouton type="submit" variante="principal" aria-label="Ajouter cette valeur" icone={<Icone nom="valide" />}>
                         Ajouter
                       </Bouton>
-                      <Bouton compact icone={<Icone nom="fermer" />} onClick={() => setEdition(undefined)}>
+                      <Bouton icone={<Icone nom="fermer" />} onClick={() => setEdition(undefined)}>
                         Renoncer
                       </Bouton>
                     </form>
@@ -458,7 +458,7 @@ function ValeurOuverte({
         Fusionner joint deux noms qui désignaient la même chose. Retirer garde celui-ci, barré, et
         le fait mener à l’autre. Dans les deux cas, rien de ce qui était rangé ne se perd.
       </p>
-      <Bouton compact icone={<Icone nom="fermer" />} onClick={onFermer}>
+      <Bouton icone={<Icone nom="fermer" />} onClick={onFermer}>
         Fermer
       </Bouton>
     </div>

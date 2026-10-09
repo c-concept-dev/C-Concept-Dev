@@ -8,7 +8,9 @@ type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className"> & {
   /** Affiche le rouage et neutralise le bouton, sans changer sa largeur de place. */
   readonly chargement?: boolean | undefined;
   readonly icone?: ReactNode | undefined;
-  /** Carré à la taille d'une icône : le libellé reste lisible par les lecteurs d'écran. */
+  /** Carré à la taille d'une icône : le libellé n'est plus affiché, mais il reste lu par les
+   *  lecteurs d'écran. Un bouton compact *porte donc toujours un libellé* — c'est lui qui dit ce
+   *  que l'icône veut dire. */
   readonly compact?: boolean | undefined;
   readonly children: ReactNode;
 };
@@ -34,7 +36,7 @@ export function Bouton({
       aria-busy={chargement ? true : undefined}
     >
       {chargement ? <span className="ln-rouage" aria-hidden="true" /> : icone}
-      {children}
+      {compact ? <span className="ln-sr-only">{children}</span> : children}
     </button>
   );
 }

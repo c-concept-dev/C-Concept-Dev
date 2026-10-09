@@ -96,3 +96,50 @@ describe("typographie : Inter partout sauf le logo et « Bonjour »", () => {
     }
   });
 });
+
+/** Deux feuilles qui définissent la même classe se marchent dessus, et en silence.
+ *
+ *  C'est arrivé : l'écran de recherche a nommé son voile `.ln-recherche`, nom que portait déjà le
+ *  champ de l'en-tête. Dès que son module était chargé — c'est-à-dire partout —, le champ de
+ *  l'en-tête devenait une colonne et se disloquait, sur tous les écrans. Aucun test ne le disait ;
+ *  une capture l'a montré.
+ *
+ *  Les classes de `base.css` sont le socle : les autres feuilles ont le droit de les préciser,
+ *  c'est à cela qu'elles servent. Entre deux feuilles d'écran ou de composant, en revanche, une
+ *  classe appartient à une seule. */
+describe("une classe appartient à une seule feuille", () => {
+  /** Les classes qu'une feuille *définit* : celles qui ouvrent un sélecteur, pas celles qu'elle
+   *  qualifie — `.ln-panneau-titre .ln-bandeau` précise, elle ne définit pas `.ln-bandeau`. */
+  function definies(contenu: string): Set<string> {
+    const sans = contenu.replace(/\/\*[\s\S]*?\*\//g, "");
+    const classes = new Set<string>();
+    for (const bloc of sans.split("}")) {
+      const selecteurs = bloc.slice(bloc.lastIndexOf("{") === -1 ? 0 : 0, bloc.indexOf("{"));
+      if (!selecteurs.includes(".ln-")) continue;
+      for (const selecteur of selecteurs.split(",")) {
+        const premier = selecteur.trim().split(/[\s>+~]/)[0] ?? "";
+        const nom = /^[a-z]*\.(ln-[a-z0-9-]+)/.exec(premier)?.[1];
+        if (nom !== undefined) classes.add(nom);
+      }
+    }
+    return classes;
+  }
+
+  it("aucune classe n'est définie par deux feuilles, hors le socle", () => {
+    const socle = definies(readFileSync(join(SRC, "styles", "base.css"), "utf8"));
+    const proprietaires = new Map<string, string>();
+    const doublons: string[] = [];
+
+    for (const chemin of fichiers(SRC, [".css"])) {
+      if (chemin.endsWith(join("styles", "base.css"))) continue;
+      for (const classe of definies(readFileSync(chemin, "utf8"))) {
+        if (socle.has(classe)) continue;
+        const premier = proprietaires.get(classe);
+        if (premier === undefined) proprietaires.set(classe, relatif(chemin));
+        else if (premier !== relatif(chemin)) doublons.push(`${classe} : ${premier} et ${relatif(chemin)}`);
+      }
+    }
+
+    expect(doublons).toEqual([]);
+  });
+});
