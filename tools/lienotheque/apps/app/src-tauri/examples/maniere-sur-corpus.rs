@@ -179,6 +179,23 @@ fn essayer(arguments: &[String]) -> ExitCode {
                     .map(|e| {
                         e.iter()
                             .map(|el| {
+                                // Le numéro tel qu'il est imprimé quand il en porte un : c'est
+                                // celui-là qu'on montre, et non son rang.
+                                el["numeroLu"]
+                                    .as_str()
+                                    .map(String::from)
+                                    .or_else(|| el["numero"].as_str().map(String::from))
+                                    .or_else(|| el["numero"].as_u64().map(|n| n.to_string()))
+                                    .unwrap_or_else(|| el.to_string())
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let _ignore: Vec<String> = page["elements"]
+                    .as_array()
+                    .map(|e| {
+                        e.iter()
+                            .map(|el| {
                                 el["numero"]
                                     .as_str()
                                     .map(String::from)

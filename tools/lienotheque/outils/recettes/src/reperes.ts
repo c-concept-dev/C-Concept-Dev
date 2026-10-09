@@ -18,7 +18,15 @@ import {
 } from "@lienotheque/images";
 import { lireParOcr } from "@lienotheque/lecteur-texte";
 import { chiffresDuMorceau } from "./chiffres.js";
-import { FORME_PAR_DEFAUT, caracteresAcceptes, formeDepuisExemple, rangDuNumero } from "./numeros.js";
+import {
+  FORME_PAR_DEFAUT,
+  caracteresAcceptes,
+  formeDepuisExemple,
+  grouperParEcart,
+  rangDuNumero,
+  recomposer,
+  type FormeDeNumero,
+} from "./numeros.js";
 
 /** Lecteur de repères (OUT-07) : numéros de page, numéros d'élément, pastilles, séquence.
  *
@@ -516,6 +524,56 @@ export function lireBlocPiste(
   };
 }
 
+/** Relit un numéro en séparant ses groupes de chiffres, quand le séparateur n'a pas survécu.
+ *
+ *  Un point imprimé entre deux chiffres ne revient pas de la lecture : le texte arrive collé.
+ *  L'**espace** qu'il laisse, lui, revient. On découpe donc les formes de la taille d'un chiffre
+ *  — le même découpage que les pastilles emploient —, on coupe aux écarts les plus larges, et on
+ *  lit chaque groupe séparément. Rien n'est inventé : si la coupure n'est pas franche, on rend
+ *  rien, et le mot reste ce que la lecture ordinaire en a fait.
+ *
+ *  Générique : cela ne s'enclenche que si la recette déclare un numéro à plusieurs groupes. */
+function relireParGroupes(
+  image: ImageGrise,
+  boite: Boite,
+  forme: FormeDeNumero,
+  options: OptionsReperes,
+): string | undefined {
+  if (forme.groupes <= 1) return undefined;
+  // Une marge autour du mot : un chiffre qui touche le bord se perd au seuillage.
+  const marge = Math.max(2, Math.round(boite.h * 0.25));
+  const morceau = recadrer(image, {
+    x: boite.x - marge,
+    y: boite.y - marge,
+    l: boite.l + marge * 2,
+    h: boite.h + marge * 2,
+  });
+  if (morceau.largeur === 0 || morceau.hauteur === 0) return undefined;
+
+  const brut = inverser(seuiller(morceau, Math.max(1, tonClair(morceau, 0.6))));
+  const paquets = grouperParEcart(chiffresDuMorceau(brut), forme.groupes);
+  if (paquets === undefined) return undefined;
+
+  const lus: string[] = [];
+  for (const paquet of paquets) {
+    const gauche = Math.min(...paquet.map((chiffre) => chiffre.x));
+    const droite = Math.max(...paquet.map((chiffre) => chiffre.x + chiffre.l));
+    const haut = Math.min(...paquet.map((chiffre) => chiffre.y));
+    const bas = Math.max(...paquet.map((chiffre) => chiffre.y + chiffre.h));
+    const part = recadrer(brut, { x: gauche, y: haut, l: droite - gauche, h: bas - haut });
+    if (part.largeur === 0 || part.hauteur === 0) return undefined;
+
+    const net = border(agrandir(part, 6), 30);
+    const texte = ocr(net, 8, options, CHIFFRES)
+      .map((mot) => mot.texte.trim())
+      .join("")
+      .replace(/\D/g, "");
+    if (texte === "") return undefined;
+    lus.push(texte);
+  }
+  return recomposer(lus, forme);
+}
+
 /** Toutes les lectures d'une page : plusieurs passes, aucune consolidation encore.
  *
  *  Deux façons de repérer un élément, selon ce que la recette déclare. Avec un libellé, on
@@ -629,7 +687,14 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
       const texte = mot.texte.trim();
       // Ce qu'un numéro doit être vient de la recette ; sans exemple, c'est ce qui a toujours
       // été lu — un nombre de un à trois chiffres. « 0 » n'est le numéro d'aucun élément.
-      const valeur = rangDuNumero(texte, forme);
+      // Le texte tel qu'il est revenu, ou recomposé groupe par groupe quand la recette attend
+      // plusieurs groupes et que le séparateur n'a pas survécu à la lecture.
+      const recompose =
+        rangDuNumero(texte, forme) === undefined && /^\d+$/.test(texte)
+          ? relireParGroupes(agrandie, { x: mot.x, y: mot.y, l: mot.l, h: mot.h }, forme, options)
+          : undefined;
+      const lu = recompose ?? texte;
+      const valeur = rangDuNumero(lu, forme);
       if (valeur === undefined) continue;
       if ((mot.confiance ?? 1) < CONFIANCE_MINIMALE) continue;
       if (mot.h < hauteurMin || mot.h > hauteurMax) continue;
@@ -637,7 +702,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
       // elle les lit ailleurs, cette bande redevient disponible : c'est elle qui décide.
       if (hautInterdit && mot.y < agrandie.hauteur * BANDE_NUMERO) continue;
       if (!dansLaZone(mot, lectureElement.zone, agrandie, options.cote)) continue;
-      retenir(rang, valeur, texte, { x: mot.x, y: mot.y, l: mot.l, h: mot.h }, mot.y / agrandie.hauteur);
+      retenir(rang, valeur, lu, { x: mot.x, y: mot.y, l: mot.l, h: mot.h }, mot.y / agrandie.hauteur);
     }
   }
   return lectures;
@@ -678,7 +743,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
 /** 9 : une lecture porte le numéro **tel qu'il est imprimé** quand il ne s'écrit pas comme un
  *  nombre, et la forme attendue vient de la recette au lieu d'être écrite ici. Les caches
  *  d'avant ne le portent pas. */
-export const VERSION_LECTURE = 9;
+export const VERSION_LECTURE = 10;
 
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;
