@@ -293,6 +293,58 @@ fn lire_maniere(racine: String) -> Result<Option<String>, String> {
     }
 }
 
+/// Ce que les écrans lisent d'une bibliothèque : sa version active (JOB-06, B5).
+///
+/// Jusqu'ici les écrans ne savaient lire qu'un instantané de développement, servi par le serveur
+/// de Vite. Sur le bureau il n'y en a pas : après un traitement, Vérifier et le Lecteur
+/// n'avaient donc rien à montrer — alors que le dépôt, lui, avait tout.
+///
+/// Rien si aucune version n'est active : ce n'est pas une panne, c'est une bibliothèque qui n'a
+/// encore rien traité.
+#[tauri::command]
+fn vue_de_bibliotheque(racine: String) -> Result<Option<serde_json::Value>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let Some(charge) = depot.charge_active().map_err(|e| format!("Version active illisible : {e}"))? else {
+        return Ok(None);
+    };
+    let lu: serde_json::Value = serde_json::from_str(&charge).map_err(|e| format!("Version active illisible : {e}"))?;
+    Ok(Some(lu["vue"].clone()))
+}
+
+/// L'image d'une page, à la demande.
+///
+/// Une par une, et non toutes d'un coup : un livre de trois cents pages pèse des centaines de
+/// mégaoctets, et le Lecteur n'en montre qu'une à la fois. Elle revient dans la réponse plutôt
+/// que par un chemin que la page irait lire — la page web ne touche pas au disque.
+#[tauri::command]
+fn image_de_page(racine: String, version: String, fichier: String) -> Result<Option<String>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    // Un nom de fichier, rien d'autre : jamais un chemin qui remonte hors du dossier.
+    let nom = std::path::Path::new(&fichier)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or("Nom d’image invalide.")?;
+    if !nom.ends_with(".webp") {
+        return Err("Seules les images de page se servent ainsi.".to_owned());
+    }
+    let chemin = depot.racine().join(depot::DERIVES).join(&version).join("pages").join(nom);
+    match std::fs::read(&chemin) {
+        Ok(octets) => Ok(Some(format!("data:image/webp;base64,{}", BASE64.encode(&octets)))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("Image de page illisible : {e}")),
+    }
+}
+
+/// La version active d'une bibliothèque, pour savoir où prendre ses images.
+#[tauri::command]
+fn version_active(racine: String) -> Result<Option<String>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    depot
+        .version_active()
+        .map(|pointeur| pointeur.map(|p| p.version))
+        .map_err(|e| format!("Version active illisible : {e}"))
+}
+
 /// Ce que l'hôte retient d'une session à l'autre : cet appareil, et les bibliothèques ouvertes.
 ///
 /// L'application le demande au démarrage. Sans lui, il faudrait repointer l'application vers son
@@ -442,6 +494,9 @@ fn lancer(captures: bool) {
             essayer_maniere,
             enregistrer_maniere,
             lire_maniere,
+            vue_de_bibliotheque,
+            image_de_page,
+            version_active,
             faire_tourner,
             travaux,
             agir_sur_travail,
