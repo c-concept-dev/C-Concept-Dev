@@ -48,3 +48,65 @@ const PRESENTATION = {
 };
 
 module.exports = { PRESENTATION };
+
+// ── Une seconde présentation d'essai, NEUTRE et non clinique ────────────────────────────────
+// Elle porte ce qu'il faut pour éprouver les cinq avertissements du 9 octobre : une liste de
+// trois éléments, un questionnaire de quatre questions, une liste de quatre idées, et une
+// citation à reprendre mot pour mot. Sujet volontairement sans rapport avec le travail de
+// Christophe : aucun contenu réel ne doit entrer dans un test.
+const b2 = (id, type, content) => ({ id, type, content, citationIds: [], validation: {} });
+
+const PRESENTATION_LISTES = {
+  schemaVersion: 1,
+  documentId: 'essai-listes',
+  versionId: 'essai-listes-v1',
+  previousVersionId: null,
+  requestId: 'essai-listes-r',
+  sourceSnapshotId: 'essai-listes-s',
+  createdAt: '2026-10-09T09:00:00Z',
+  language: 'fr',
+  status: 'draft',
+  title: 'Ranger un atelier',
+  purpose: 'Donner trois gestes simples pour qu’un atelier reste utilisable d’une séance à l’autre.',
+  audience: 'Grand public — personnes qui bricolent chez elles',
+  documentKind: 'presentation',
+  renderManifestId: 'manifest-default-001',
+  derivedFrom: null,
+  citations: [],
+  blocks: [
+    { id: 'slide-01', type: 'card', citationIds: [], validation: {},
+      content: { title: 'Trois gestes', imageRef: null, imageAlt: null, blocks: [
+        b2('heading-01', 'heading', { text: 'Un atelier se range en partant', level: 2 }),
+        b2('liste-trois', 'list', { ordered: true, items: [
+          'Remettre chaque outil à sa place avant de quitter la pièce.',
+          'Vider les chutes dans un seul bac, jamais sur l’établi.',
+          'Noter sur une feuille ce qui manque pour la prochaine fois.',
+        ] }),
+        b2('citation-01', 'quote', { text: 'Un atelier bien rangé fait gagner plus de temps qu’il n’en coûte.' }),
+      ] } },
+    { id: 'slide-02', type: 'card', citationIds: [], validation: {},
+      content: { title: 'Où en êtes-vous', imageRef: null, imageAlt: null, blocks: [
+        b2('heading-02', 'heading', { text: 'Quatre questions', level: 2 }),
+        b2('questionnaire-01', 'questionnaire', { allowTwoPartners: false, profiles: [],
+          questions: [
+            { id: 'q1', text: 'Combien d’outils traînent sur votre établi en ce moment ?', options: [] },
+            { id: 'q2', text: 'Quand avez-vous vidé les chutes pour la dernière fois ?', options: [] },
+            { id: 'q3', text: 'Savez-vous ce qui vous manque pour votre prochain chantier ?', options: [] },
+            { id: 'q4', text: 'Combien de temps perdez-vous à chercher un outil ?', options: [] },
+          ] }),
+      ] } },
+    { id: 'slide-03', type: 'card', citationIds: [], validation: {},
+      content: { title: 'Ce qu’on retient', imageRef: null, imageAlt: null, blocks: [
+        b2('liste-quatre', 'list', { ordered: true, items: [
+          'Ranger en partant coûte deux minutes et en fait gagner vingt.',
+          'Un seul bac pour les chutes évite de trier deux fois.',
+          'Une liste de manques évite un aller-retour au magasin.',
+          'Un établi vide est une invitation à recommencer.',
+        ] }),
+      ] } },
+  ],
+  validation: { sourceIntegrity: 'pending', contentCompleteness: 'pending', layout: 'pending',
+                accessibility: 'pending', humanClinicalReview: 'required' },
+};
+
+module.exports.PRESENTATION_LISTES = PRESENTATION_LISTES;

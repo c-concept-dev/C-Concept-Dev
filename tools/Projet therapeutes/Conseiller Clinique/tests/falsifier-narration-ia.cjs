@@ -56,6 +56,73 @@ const ESSAIS = [
     attendu: 'un nombre choisi au lieu d\'une règle appliquée' },
 
   // ── Le prompt système ─────────────────────────────────────────────────────────────────────
+  // ── La relecture du 9 octobre : politique de violation, avertissements, total honnête ─────
+  { nom: 'la longueur redevient bloquante',
+    fichier: 'module',
+    de: "      if (horsTolerance) {\n        longueurs.push(",
+    vers: "      if (horsTolerance) {\n        violations.push(id + ' : longueur');\n        longueurs.push(",
+    attendu: 'un second appel facturé pour un écart de sept pour cent' },
+
+  { nom: 'le plancher de tolérance des titres repasse à 5 mots',
+    fichier: 'module',
+    de: "      var plancherEtape = (etape && etape.type === 'heading') ? TOLERANCE_PLANCHER_TITRE : plancher;",
+    vers: "      var plancherEtape = plancher;",
+    attendu: 'un titre refusé pour un mot d\'écart' },
+
+  { nom: 'la ligne d\'état réaffiche la CIBLE comme total',
+    fichier: 'module',
+    de: "          + '\\n' + res.mots_recus + ' mots reçus, cible ' + r.total_reparti + ', '",
+    vers: "          + '\\n' + r.total_reparti + ' mots reçus, cible ' + r.total_reparti + ', '",
+    attendu: 'le défaut du 9 octobre : 1197 annoncés pour 1109 reçus' },
+
+  { nom: 'l\'avertissement de reprise disparaît',
+    fichier: 'module',
+    de: "    if (suite >= SEUIL_SUITE_MOTS || part >= SEUIL_TRIGRAMMES) {",
+    vers: "    if (false) {",
+    attendu: 'un commentaire qui redit l\'écran passe sans un mot' },
+
+  { nom: 'l\'avertissement de parcours de liste disparaît',
+    fichier: 'module',
+    de: "      if (repris >= SEUIL_ELEMENTS_PARCOURUS) {",
+    vers: "      if (false) {",
+    attendu: 'la liste lue élément par élément passe sans un mot' },
+
+  { nom: 'l\'avertissement d\'adresse disparaît',
+    fichier: 'module',
+    de: "    if (PRONOMS[adresse].test(horsCitations)) {",
+    vers: "    if (false) {",
+    attendu: 'un « toi » dans un texte en « vous » passe sans un mot' },
+
+  { nom: 'la détection de citation non identique disparaît',
+    fichier: 'module',
+    de: "      if (!contient(texteDocument, normaliserMots(c))) {",
+    vers: "      if (false) {",
+    attendu: 'une citation tronquée et réattribuée passe sans un mot' },
+
+  { nom: 'l\'avertissement de phrase longue disparaît',
+    fichier: 'module',
+    de: "      .filter(function (n) { return n > SEUIL_PHRASE_LONGUE; });",
+    vers: "      .filter(function () { return false; });",
+    attendu: 'une phrase de cent mots passe sans un mot' },
+
+  { nom: 'la reprise recompte les citations',
+    fichier: 'module',
+    de: "    var suite = plusLongueSuite(comHorsCitations, ecran);\n    var part = partTrigrammesCommuns(comHorsCitations, ecran);",
+    vers: "    var suite = plusLongueSuite(com, ecran);\n    var part = partTrigrammesCommuns(com, ecran);",
+    attendu: 'une citation exacte, pourtant exigée, déclenche l\'alerte de reprise' },
+
+  { nom: 'la réécriture envoie tout le document',
+    fichier: 'module',
+    de: "    lignes.push('  contenu de cette étape : ' + (etape.texte || '(pas de texte, image ou titre seul)'));",
+    vers: "    toutes.forEach(function (x) { lignes.push('  stepId: ' + x.stepId + ' contenu : ' + x.texte); });",
+    attendu: 'des jetons dépensés pour dix-huit étapes que personne ne réécrit' },
+
+  { nom: 'la réécriture écrit directement dans le document',
+    fichier: 'module',
+    de: "      res.entrees[i] = Object.assign({}, r.entree,",
+    vers: "      window.adocNarrationWrite(doc, stepId, r.entree.text);\n      res.entrees[i] = Object.assign({}, r.entree,",
+    attendu: 'le document modifié sans « Appliquer » ni confirmation' },
+
   // ── Le câblage réel, trouvé cassé par Christophe le 9 octobre ─────────────────────────────
   { nom: 'le transport reprend les fonctions sur window (le défaut du 9 octobre)',
     fichier: 'module',
@@ -83,7 +150,7 @@ const ESSAIS = [
 
   { nom: 'l\'objectif ne part plus avec le message',
     fichier: 'module',
-    de: "    if (doc.purpose) lignes.push('Objectif : ' + doc.purpose);",
+    de: "    if (doc.purpose) lignes.push('Objectif : ' + doc.purpose);\n    lignes.push('Durée visée pour l\\'ensemble : '",
     vers: "    if (false) lignes.push('Objectif : ' + doc.purpose);",
     attendu: 'la première et la dernière étape devinent au lieu de savoir' },
 
@@ -168,8 +235,12 @@ const ESSAIS = [
   // ── Le message ────────────────────────────────────────────────────────────────────────────
   { nom: 'le document brut entier part au modèle',
     fichier: 'module',
-    de: "    lignes.push('Titre de la présentation : ' + (doc.title || 'sans titre'));",
-    vers: "    lignes.push('Titre de la présentation : ' + (doc.title || 'sans titre'));\n    lignes.push(JSON.stringify(doc));",
+    // L'ancre vise la ligne de DURÉE, qui n'existe que dans construireMessage. La version
+    // précédente — titre, public, objectif — était unique mais tombait dans reecrireEtape,
+    // parce qu'un commentaire avait séparé ces trois lignes ici. Une ancre unique ne prouve
+    // pas qu'elle désigne le bon endroit : il faut une ligne propre à la fonction visée.
+    de: "    lignes.push('Durée visée pour l\\'ensemble : ' + o.minutes + ' minutes, soit environ '",
+    vers: "    lignes.push(JSON.stringify(doc));\n    lignes.push('Durée visée pour l\\'ensemble : ' + o.minutes + ' minutes, soit environ '",
     attendu: 'citations, snapshot et identifiants techniques envoyés sans raison' },
 
   // ── Le contrat de réponse ─────────────────────────────────────────────────────────────────
@@ -193,9 +264,9 @@ const ESSAIS = [
 
   { nom: 'la longueur n\'est plus vérifiée',
     fichier: 'module',
-    de: "      if (n < cible - marge) violations.push(id + ' : trop court (' + n + ' mots pour ' + cible + ' ± ' + marge + ')');",
-    vers: "      if (false) violations.push(id);",
-    attendu: 'deux mots là où il en fallait cent vingt' },
+    de: "      if (horsTolerance) {",
+    vers: "      if (false) {",
+    attendu: 'un écart de longueur qui ne se voit nulle part' },
 
   // ── La boucle de correction ───────────────────────────────────────────────────────────────
   // MUTATION D'ABORD ESSAYÉE, PUIS ÉCARTÉE parce qu'elle est ÉQUIVALENTE : porter la borne de
@@ -209,7 +280,7 @@ const ESSAIS = [
   // correction. Un second appel qui ne dit pas ce qui n'allait pas est un appel pour rien.
   { nom: 'le tour de correction ne dit pas ce qui n\'allait pas',
     fichier: 'module',
-    de: "      messages = messages.concat([\n        { role: 'assistant', content: brut },",
+    de: "      var aCorriger = v.violations.concat(\n        v.longueurGrave ? v.longueurs.map(function (l) { return l.texte; }) : []);\n      messages = messages.concat([\n        { role: 'assistant', content: brut },",
     vers: "      messages = messages.concat([\n        { role: 'assistant', content: '' },",
     attendu: 'le modèle corrige à l\'aveugle, sans voir sa propre réponse fautive' },
 

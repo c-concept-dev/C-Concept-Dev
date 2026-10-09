@@ -176,6 +176,9 @@
         stepId: e.stepId, cardId: e.cardId, cardTitle: e.cardTitle || '',
         rang: e.rang, surRang: e.surRang,
         type: (i >= 0 && sous[i] && sous[i].type) || 'card',
+        // Le contenu BRUT du bloc : les avertissements ont besoin des éléments d'une liste ou
+        // des questions d'un questionnaire, pas seulement de leur texte aplati.
+        contenuBrut: (i >= 0 && sous[i] && sous[i].content) || null,
         texte: propre, dejaVu: avant,
       };
     });
@@ -292,8 +295,9 @@
       '- Des phrases courtes. Une idée par phrase.',
       '- Des mots simples, ceux de la conversation.',
       '- Du rythme : alternez les phrases brèves et les phrases un peu plus longues.',
-      '- Aucune parenthèse, aucun tiret d\'incise, aucune énumération à puces, aucune tournure',
-      '  qui ne se dit pas (« cf. », « c.-à-d. », « etc. », « voir ci-dessous »).',
+      '- Aucune parenthèse, aucune énumération à puces, aucune tournure qui ne se dit pas',
+      '  (« cf. », « c.-à-d. », « etc. », « voir ci-dessous »).',
+      '- Évitez les longues incises entre tirets ; un tiret ponctuel est acceptable.',
       '- Aucun Markdown : ni astérisque, ni dièse, ni tiret de liste, ni guillemet de code.',
       '- Si vous citez, employez les guillemets français : « comme ceci ». N\'employez JAMAIS le',
       '  guillemet droit " : il casserait le fichier. L\'apostrophe s\'écrit ’, jamais \'.',
@@ -306,6 +310,19 @@
       'répète pas. Le spectateur voit le texte à l\'écran : le redire est une perte de temps.',
       'Apportez donc : un exemple concret, une image, une nuance, une objection fréquente, ou',
       'une question posée au spectateur. Reliez l\'étape à la précédente quand cela aide.',
+      '',
+      'SI L\'ÉCRAN MONTRE UNE LISTE OU UN QUESTIONNAIRE.',
+      'Ne les parcourez pas, élément par élément, dans l\'ordre : le spectateur les lit lui-même.',
+      'Choisissez UN élément et illustrez-le par un exemple, ou dites ce qui relie tous les',
+      'éléments, ou posez une seule question qui les résume. Pour un questionnaire, ne lisez',
+      'jamais les questions : invitez le spectateur à y répondre pour lui-même, en une ou deux',
+      'phrases. N\'ajoutez aucune question qui ne figure pas à l\'écran.',
+      '',
+      'SI VOUS CITEZ LE DOCUMENT.',
+      'Reprenez ses mots exacts, entre guillemets français, sans en retirer ni en ajouter.',
+      'N\'attribuez jamais une phrase ou une idée à un groupe (« les chercheurs », « les',
+      'spécialistes », « ceux qui travaillent avec des couples ») que le document ne nomme pas.',
+      'Si le document ne dit pas qui parle, ne dites pas qui parle.',
       '',
       'UN SEUL DISCOURS, DU DÉBUT À LA FIN.',
       'Vous n\'écrivez pas des commentaires séparés : vous écrivez UN texte continu, découpé en',
@@ -340,6 +357,8 @@
       'Chaleureux, posé, jamais culpabilisant. Vous ne jugez personne. Vous ne vous adressez pas',
       'à « ceux qui ont un problème », mais à quelqu\'un qui écoute et se reconnaîtra peut-être.',
       adresse,
+      'Un seul pronom d\'adresse dans tout le texte. Avant de répondre, relisez : aucun « toi »,',
+      '« tu », « ton », « ta », « tes » dans un texte en « vous » (et réciproquement).',
       '',
       'À QUI VOUS PARLEZ.',
       registre,
@@ -359,6 +378,15 @@
       'Chaque étape porte une cible en mots. Respectez-la à ' + Math.round(TOLERANCE * 100) + ' % près',
       '(au minimum ' + TOLERANCE_PLANCHER + ' mots d\'écart tolérés). C\'est une contrainte de montage :',
       'le commentaire doit tenir dans le temps où l\'image est à l\'écran.',
+      '',
+      'DEUX EXEMPLES, POUR LA DIFFÉRENCE.',
+      'Écran : « Un bon jardin se prépare en hiver. »',
+      '✗ Un commentaire qui répète : « Pour avoir un beau jardin, il faut le préparer pendant',
+      '  l\'hiver. »',
+      '✓ Un commentaire qui ajoute : « Ceux qui jardinent le savent : le travail qu\'on ne voit',
+      '  pas est celui qui compte. [pause] Pendant que la terre dort, vous décidez déjà de ce',
+      '  qui poussera. »',
+      'Ces deux exemples illustrent la différence ; ne les reprenez jamais, ni leurs images.',
       '',
       'VOTRE RÉPONSE.',
       'Uniquement un tableau JSON, rien avant, rien après, sans bloc de code :',
@@ -421,6 +449,170 @@
 
   var MARKDOWN_RE = /(^|\s)([*_]{1,2})\S|\*\*|^#{1,6}\s|^\s*[-*+]\s|\[[^\]]*\]\([^)]*\)|`/m;
 
+  // ── MESURER LE RECOUVREMENT AVEC L'ÉCRAN ───────────────────────────────────────────────────
+  // Le 9 octobre, cinq étapes sur dix-neuf ont été refusées par Christophe. Trois des cinq
+  // REDISENT l'écran au lieu de l'augmenter — et cela se mesure, contrairement à la paraphrase,
+  // qui se juge à l'oreille. Deux mesures, parce qu'une seule se contourne :
+  //   · la PLUS LONGUE SUITE de mots communs (un emprunt littéral de huit mots s'entend) ;
+  //   · la part des TRIGRAMMES du commentaire qu'on retrouve à l'écran (un emprunt dispersé).
+  // Les seuils (8 mots, 20 %) sont ceux qui séparent les étapes gardées des étapes refusées.
+  // Ils sont reconfirmés sur les fixtures d'essai du lot, jamais calibrés sur un document réel.
+  var SEUIL_SUITE_MOTS = 8;
+  var SEUIL_TRIGRAMMES = 0.20;
+  var SEUIL_PHRASE_LONGUE = 30;
+  var SEUIL_ELEMENT_REPRIS = 0.40;   // part des mots d'un élément de liste repris
+  var SEUIL_ELEMENTS_PARCOURUS = 3;  // nombre d'éléments repris qui font un « parcours »
+
+  function normaliserMots(texte) {
+    return String(texte || '')
+      .replace(pauseRe(), ' ')
+      .toLowerCase()
+      .replace(/[\u2019']/g, ' ')
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim().split(/\s+/).filter(Boolean);
+  }
+
+  function plusLongueSuite(a, b) {
+    if (!a.length || !b.length) return 0;
+    // Programmation dynamique sur une seule ligne : les textes font quelques dizaines de mots.
+    var prec = new Array(b.length + 1).fill(0), max = 0;
+    for (var i = 1; i <= a.length; i++) {
+      var cour = new Array(b.length + 1).fill(0);
+      for (var j = 1; j <= b.length; j++) {
+        if (a[i - 1] === b[j - 1]) {
+          cour[j] = prec[j - 1] + 1;
+          if (cour[j] > max) max = cour[j];
+        }
+      }
+      prec = cour;
+    }
+    return max;
+  }
+
+  function trigrammes(mots) {
+    var out = [];
+    for (var i = 0; i + 2 < mots.length; i++) out.push(mots[i] + ' ' + mots[i + 1] + ' ' + mots[i + 2]);
+    return out;
+  }
+
+  function partTrigrammesCommuns(commentaire, ecran) {
+    var tc = trigrammes(commentaire);
+    if (!tc.length) return 0;
+    var te = {};
+    trigrammes(ecran).forEach(function (t) { te[t] = true; });
+    var n = 0;
+    tc.forEach(function (t) { if (te[t]) n++; });
+    return n / tc.length;
+  }
+
+  // Les passages entre guillemets français du commentaire.
+  function citations(texte) {
+    var out = [], re = /\u00ab\s*([^\u00bb]*?)\s*\u00bb/g, m;
+    while ((m = re.exec(String(texte || '')))) { if (m[1].trim()) out.push(m[1].trim()); }
+    return out;
+  }
+
+  function contient(grandeSuite, petiteSuite) {
+    if (!petiteSuite.length) return true;
+    for (var i = 0; i + petiteSuite.length <= grandeSuite.length; i++) {
+      var ok = true;
+      for (var j = 0; j < petiteSuite.length; j++) {
+        if (grandeSuite[i + j] !== petiteSuite[j]) { ok = false; break; }
+      }
+      if (ok) return true;
+    }
+    return false;
+  }
+
+  function phrasesLongues(texte) {
+    return String(texte || '').replace(pauseRe(), ' ')
+      .split(/[.!?\u2026]+/)
+      .map(function (p) { return normaliserMots(p).length; })
+      .filter(function (n) { return n > SEUIL_PHRASE_LONGUE; });
+  }
+
+  // Les éléments d'une liste ou d'un questionnaire, tels qu'ils sont à l'écran.
+  function elementsDeLEtape(etape) {
+    var c = (etape && etape.contenuBrut) || null;
+    if (!c) return [];
+    if (Array.isArray(c.items)) return c.items.map(function (x) {
+      return typeof x === 'string' ? x : (x && x.text) || ''; }).filter(Boolean);
+    if (Array.isArray(c.questions)) return c.questions.map(function (q) {
+      return (q && q.text) || ''; }).filter(Boolean);
+    return [];
+  }
+
+  var PRONOMS = {
+    vous: /\b(toi|tu|ton|ta|tes)\b/i,
+    tu: /\b(vous|votre|vos)\b/i,
+  };
+
+  // ── LES AVERTISSEMENTS, par étape. AUCUN n'est bloquant. ──────────────────────────────────
+  // Ils ne refusent rien : ils montrent à Christophe où regarder. Un texte conforme au contrat
+  // peut être mauvais, et c'est lui qui juge — mais il ne doit pas avoir à relire dix-neuf
+  // étapes pour trouver les trois qui redisent l'écran.
+  function avertissementsEtape(texteCommentaire, etape, options) {
+    var o = options || {};
+    var out = [];
+    var com = normaliserMots(texteCommentaire);
+    var ecran = normaliserMots(etape && etape.texte);
+
+    // LA MESURE DE REPRISE IGNORE LES CITATIONS. Citer l'écran mot pour mot est non seulement
+    // permis, c'est EXIGÉ par le prompt — une citation est par construction une longue suite
+    // commune. La compter comme un emprunt ferait crier l'avertissement sur exactement ce
+    // qu'on demande, et un avertissement qui crie à tort s'apprend à être ignoré.
+    // Trouvé par le témoin du contrôle 20, pas deviné.
+    var comHorsCitations = normaliserMots(
+      String(texteCommentaire || '').replace(/\u00ab[^\u00bb]*\u00bb/g, ' '));
+    var suite = plusLongueSuite(comHorsCitations, ecran);
+    var part = partTrigrammesCommuns(comHorsCitations, ecran);
+    if (suite >= SEUIL_SUITE_MOTS || part >= SEUIL_TRIGRAMMES) {
+      out.push({ type: 'reprise', texte: 'reprend ' + suite + ' mots de suite de l\u2019écran ('
+        + Math.round(part * 100) + ' % de trigrammes communs)', suite: suite, part: part });
+    }
+
+    var elements = elementsDeLEtape(etape);
+    if (elements.length >= SEUIL_ELEMENTS_PARCOURUS) {
+      var repris = 0;
+      elements.forEach(function (el) {
+        var mots = normaliserMots(el);
+        if (!mots.length) return;
+        var dedans = 0;
+        var vus = {};
+        com.forEach(function (m) { vus[m] = true; });
+        mots.forEach(function (m) { if (vus[m]) dedans++; });
+        if (dedans / mots.length >= SEUIL_ELEMENT_REPRIS) repris++;
+      });
+      if (repris >= SEUIL_ELEMENTS_PARCOURUS) {
+        out.push({ type: 'parcours', texte: 'parcourt la liste élément par élément ('
+          + repris + ' éléments sur ' + elements.length + ' repris)', repris: repris });
+      }
+    }
+
+    // Le pronom de l'AUTRE adresse, hors citations : une citation peut légitimement tutoyer.
+    var adresse = o.adresse === 'tu' ? 'tu' : 'vous';
+    var horsCitations = String(texteCommentaire || '')
+      .replace(/\u00ab[^\u00bb]*\u00bb/g, ' ');
+    if (PRONOMS[adresse].test(horsCitations)) {
+      out.push({ type: 'adresse', texte: adresse === 'vous' ? 'passe au tu' : 'passe au vous' });
+    }
+
+    // Toute citation doit se retrouver TELLE QUELLE à l'écran, mots normalisés.
+    var texteDocument = o.texteDocument || ecran;
+    citations(texteCommentaire).forEach(function (c) {
+      if (!contient(texteDocument, normaliserMots(c))) {
+        out.push({ type: 'citation', texte: 'citation non identique à l\u2019écran : « '
+          + c.slice(0, 60) + (c.length > 60 ? '…' : '') + ' »' });
+      }
+    });
+
+    phrasesLongues(texteCommentaire).forEach(function (n) {
+      out.push({ type: 'phrase', texte: 'phrase de ' + n + ' mots', mots: n });
+    });
+
+    return out;
+  }
+
   // ── TYPOGRAPHIE : normaliser quand c'est sans ambiguïté, refuser quand ça ne l'est pas ─────
   // Le guillemet droit est le vrai danger : c'est le délimiteur du JSON. L'apostrophe droite
   // n'est qu'une faute de typographie française. On ne traite donc pas les deux pareil :
@@ -456,6 +648,16 @@
     return { texte: t, notes: notes, refus: null };
   }
 
+  // PLANCHER DE TOLÉRANCE PLUS LARGE POUR UN TITRE. Une cible de 20 mots avec ±5 refuse à 14 ;
+  // or un titre se commente en une phrase, dont la longueur varie beaucoup. 8 mots, décision du
+  // 9 octobre.
+  var TOLERANCE_PLANCHER_TITRE = 8;
+  // Un tour de correction n'est demandé pour la LONGUEUR que si l'écart est vraiment grave :
+  // une étape à moins de la moitié (ou plus d'une fois et demie) sa cible, ou plus d'un quart
+  // des étapes hors tolérance. Sinon on signale et on laisse Christophe juger — le 9 octobre,
+  // 1 109 mots pour 1 197 visés (−7 %) étaient parfaitement utilisables.
+  var PART_ETAPES_HORS_TOLERANCE = 0.25;
+
   function validerReponse(brut, etapesDemandees, repartition, options) {
     var o = options || {};
     var tolerance = typeof o.tolerance === 'number' ? o.tolerance : TOLERANCE;
@@ -463,13 +665,19 @@
     var violations = [];
     var tableau = extraireJSON(brut);
     if (!Array.isArray(tableau)) {
-      return { ok: false, entrees: [], violations: ['la réponse n\'est pas un tableau JSON lisible'] };
+      // MÊME FORME que le retour normal. Un objet à géométrie variable fait planter l'appelant
+      // sur le chemin d'erreur, c'est-à-dire exactement quand il a besoin de lire le résultat.
+      return { ok: false, entrees: [], violations: ['la réponse n\'est pas un tableau JSON lisible'],
+               normalisations: [], avertissements: [], longueurs: [],
+               longueurGrave: false, raisonLongueur: null, mots_recus: 0 };
     }
     var attendus = etapesDemandees.map(function (e) { return e.stepId; });
     var cibles = {};
     repartition.cibles.forEach(function (c) { cibles[c.stepId] = c.mots; });
 
-    var vus = [], entrees = [], normalisations = [];
+    var vus = [], entrees = [], normalisations = [], avertissements = [], longueurs = [];
+    var parId = {};
+    etapesDemandees.forEach(function (e) { parId[e.stepId] = e; });
     tableau.forEach(function (el, i) {
       if (!el || typeof el !== 'object') { violations.push('élément ' + (i + 1) + ' : pas un objet'); return; }
       var id = el.stepId, texte = el.text;
@@ -483,17 +691,41 @@
       if (typo.refus) { violations.push(id + ' : ' + typo.refus); return; }
       if (typo.notes.length) normalisations.push(id + ' : ' + typo.notes.join(', '));
       texte = typo.texte;
+      var etape = parId[id];
       var n = compterMots(texte), cible = cibles[id] || 0;
-      var marge = Math.max(plancher, Math.round(cible * tolerance));
-      if (n < cible - marge) violations.push(id + ' : trop court (' + n + ' mots pour ' + cible + ' ± ' + marge + ')');
-      if (n > cible + marge) violations.push(id + ' : trop long (' + n + ' mots pour ' + cible + ' ± ' + marge + ')');
-      entrees.push({ stepId: id, text: texte.trim(), mots: n, cible: cible });
+      // LA LONGUEUR N'EST PLUS BLOQUANTE. Elle est mesurée, signalée par étape, et ne déclenche
+      // un tour de correction que sur un écart grave (voir `longueurGrave` plus bas). Refuser
+      // une réponse à −7 % aurait coûté un second appel pour rien, le 9 octobre.
+      var plancherEtape = (etape && etape.type === 'heading') ? TOLERANCE_PLANCHER_TITRE : plancher;
+      var marge = Math.max(plancherEtape, Math.round(cible * tolerance));
+      var ecart = n - cible;
+      var horsTolerance = Math.abs(ecart) > marge;
+      if (horsTolerance) {
+        longueurs.push({ stepId: id, mots: n, cible: cible, marge: marge, ecart: ecart,
+          texte: id + ' : ' + (ecart < 0 ? 'trop court' : 'trop long') + ' (' + n + ' mots pour '
+            + cible + ' ± ' + marge + ')' });
+      }
+      var avertis = avertissementsEtape(texte, etape, o);
+      if (avertis.length) avertissements.push({ stepId: id, liste: avertis });
+      entrees.push({ stepId: id, text: texte.trim(), mots: n, cible: cible, marge: marge,
+                     ecart: ecart, horsTolerance: horsTolerance, avertissements: avertis });
     });
     attendus.forEach(function (id) {
       if (vus.indexOf(id) === -1) violations.push(id + ' : étape manquante');
     });
-    return { ok: violations.length === 0, entrees: entrees, violations: violations,
-             normalisations: normalisations };
+    // LA RÈGLE DE REPRISE POUR LA LONGUEUR, dite une seule fois ici.
+    var grave = longueurs.some(function (l) { return Math.abs(l.ecart) > l.cible / 2; });
+    var tropNombreuses = entrees.length
+      && (longueurs.length / entrees.length) > PART_ETAPES_HORS_TOLERANCE;
+    return {
+      ok: violations.length === 0,
+      entrees: entrees, violations: violations, normalisations: normalisations,
+      avertissements: avertissements, longueurs: longueurs,
+      longueurGrave: !!(grave || tropNombreuses),
+      raisonLongueur: grave ? 'un écart dépasse la moitié de la cible'
+        : (tropNombreuses ? 'plus du quart des étapes sont hors tolérance' : null),
+      mots_recus: entrees.reduce(function (a, e) { return a + e.mots; }, 0),
+    };
   }
 
   // ── L'appel, avec UN seul tour de correction ───────────────────────────────────────────────
@@ -568,30 +800,126 @@
     var transport = o.transport || transportReel;
     var messages = [{ role: 'user', content: message }];
     var journal = [];
+    var dernierBrut = '';
+    // Le texte de TOUTE la présentation, normalisé : une citation peut venir d'une autre
+    // diapositive que celle de l'étape, et elle reste légitime si elle y figure telle quelle.
+    var texteDocument = normaliserMots(toutes.map(function (e) {
+      return (e.cardTitle || '') + ' ' + (e.texte || ''); }).join(' '));
+    var opts = Object.assign({}, o, { texteDocument: texteDocument,
+                                      adresse: o.adresse === 'tu' ? 'tu' : 'vous' });
 
     for (var tour = 0; tour < 2; tour++) {
       var brut = await transport({ system: system, messages: messages, maxTokens: maxTokens,
                                    budgetMs: budgetMs, tour: tour });
-      var v = validerReponse(brut, etapes, repartition, o);
-      journal.push({ tour: tour + 1, violations: v.violations.slice(0, 12) });
-      if (v.ok) {
+      dernierBrut = brut;
+      var v = validerReponse(brut, etapes, repartition, opts);
+      journal.push({ tour: tour + 1, violations: v.violations.slice(0, 12),
+                     longueurs: v.longueurs.map(function (l) { return l.texte; }).slice(0, 12),
+                     longueurGrave: v.longueurGrave, raisonLongueur: v.raisonLongueur });
+      // LA LONGUEUR N'EST PAS BLOQUANTE : elle ne provoque un second tour que si elle est grave.
+      var refaire = !v.ok || (tour === 0 && v.longueurGrave);
+      if (!refaire) {
         return { entrees: v.entrees, repartition: repartition, tours: tour + 1, journal: journal,
-                 normalisations: v.normalisations,
+                 normalisations: v.normalisations, avertissements: v.avertissements,
+                 longueurs: v.longueurs, mots_recus: v.mots_recus,
+                 duree_recue_s: Math.round(v.mots_recus / motsParSeconde()),
+                 brut: brut,
                  maxTokens: maxTokens, budgetMs: budgetMs, etapesDemandees: etapes.length };
       }
       if (tour === 1) break;
       // UN SEUL tour de correction, et il dit exactement ce qui ne va pas. Jamais un résultat
       // partiel rendu en silence : ou tout est conforme, ou l'appel échoue avec la raison.
+      var aCorriger = v.violations.concat(
+        v.longueurGrave ? v.longueurs.map(function (l) { return l.texte; }) : []);
       messages = messages.concat([
         { role: 'assistant', content: brut },
         { role: 'user', content: 'Votre réponse ne respecte pas le contrat sur les points suivants :\n'
-          + v.violations.map(function (x) { return '- ' + x; }).join('\n')
+          + aCorriger.map(function (x) { return '- ' + x; }).join('\n')
           + '\n\nRecommencez. Rendez UNIQUEMENT le tableau JSON complet, corrigé, '
           + 'avec exactement un élément par étape demandée.' },
       ]);
     }
-    var e = new Error('le modèle n’a pas respecté le contrat après un tour de correction : '
-      + journal[journal.length - 1].violations.slice(0, 6).join(' ; '));
+    // L'ÉCHEC CITE CHAQUE TOUR, pas seulement le dernier : savoir que le second tour a échoué
+    // sans savoir ce que le premier reprochait ne permet pas de comprendre ce qui s'est passé.
+    var detail = journal.map(function (j) {
+      var l = j.violations.concat(j.longueurGrave ? j.longueurs : []);
+      return 'tour ' + j.tour + ' : ' + (l.length ? l.slice(0, 6).join(' ; ') : 'aucune violation');
+    }).join('\n');
+    var e = new Error('le modèle n’a pas respecté le contrat après un tour de correction.\n'
+      + detail);
+    e.journal = journal;
+    e.brut = dernierBrut;   // pour « Voir la réponse du modèle » — jamais la clé, jamais un secret
+    throw e;
+  }
+
+  // ── RÉÉCRIRE UNE SEULE ÉTAPE ───────────────────────────────────────────────────────────────
+  // L'appel ne porte QUE cette étape : l'en-tête du document, le contenu de l'étape, le
+  // commentaire de l'étape précédente et de la suivante (pour que la continuité tienne), la
+  // cible de mots et la consigne libre de Christophe. Pas les dix-huit autres étapes : elles
+  // coûteraient des jetons sans rien apporter, et le modèle n'a pas à les réécrire.
+  async function reecrireEtape(doc, stepId, consigne, options) {
+    var o = options || {};
+    var toutes = contenuParEtape(doc);
+    var i = -1;
+    for (var k = 0; k < toutes.length; k++) { if (toutes[k].stepId === stepId) { i = k; break; } }
+    if (i === -1) throw new Error('étape inconnue : ' + stepId);
+    var etape = toutes[i];
+    var cible = (o.cible > 0) ? o.cible
+      : repartirMots([etape], (typeof o.minutes === 'number' ? o.minutes : DUREE_DEFAUT_MIN)).cibles[0].mots;
+    var dejaEcrites = o.dejaEcrites || {};
+    var avant = i > 0 ? dejaEcrites[toutes[i - 1].stepId] : null;
+    var apres = i + 1 < toutes.length ? dejaEcrites[toutes[i + 1].stepId] : null;
+
+    var lignes = [];
+    lignes.push('Titre de la présentation : ' + (doc.title || 'sans titre'));
+    if (doc.audience) lignes.push('Public : ' + doc.audience);
+    if (doc.purpose) lignes.push('Objectif : ' + doc.purpose);
+    lignes.push('');
+    lignes.push('Vous réécrivez le commentaire d’UNE SEULE étape. Rendez un tableau JSON d\'un');
+    lignes.push('seul élément, pour cette étape et pour aucune autre.');
+    lignes.push('');
+    if (avant) lignes.push('Commentaire de l’étape PRÉCÉDENTE (ne le répétez pas) : ' + avant);
+    if (apres) lignes.push('Commentaire de l’étape SUIVANTE (n’empiétez pas dessus) : ' + apres);
+    if (avant || apres) lignes.push('');
+    lignes.push('Diapositive : ' + (etape.cardTitle || 'sans titre'));
+    lignes.push('  stepId: ' + etape.stepId);
+    lignes.push('  cible: ' + cible + ' mots');
+    lignes.push('  contenu de cette étape : ' + (etape.texte || '(pas de texte, image ou titre seul)'));
+    lignes.push('');
+    lignes.push('Consigne de l’auteur : ' + (String(consigne || '').trim() || 'réécrivez autrement.'));
+
+    var message = lignes.join('\n');
+    if (message.length > ENTREE_MAX_CARACTERES) throw new Error('consigne trop longue.');
+    var maxTokens = jetonsPour(cible);
+    var budgetMs = budgetDelaiMs(maxTokens);
+    var system = promptSysteme(Object.assign({}, o, { titre: doc.title, public: doc.audience }));
+    var transport = o.transport || transportReel;
+    var repartition = { cibles: [{ stepId: stepId, mots: cible }] };
+    var texteDocument = normaliserMots(toutes.map(function (e) {
+      return (e.cardTitle || '') + ' ' + (e.texte || ''); }).join(' '));
+    var opts = Object.assign({}, o, { texteDocument: texteDocument,
+                                      adresse: o.adresse === 'tu' ? 'tu' : 'vous' });
+    var messages = [{ role: 'user', content: message }];
+    var journal = [];
+    for (var tour = 0; tour < 2; tour++) {
+      var brut = await transport({ system: system, messages: messages, maxTokens: maxTokens,
+                                   budgetMs: budgetMs, tour: tour });
+      var v = validerReponse(brut, [etape], repartition, opts);
+      journal.push({ tour: tour + 1, violations: v.violations.slice(0, 12) });
+      if (v.ok) {
+        return { entree: v.entrees[0], tours: tour + 1, journal: journal, brut: brut,
+                 cible: cible, avertissements: v.avertissements };
+      }
+      if (tour === 1) break;
+      messages = messages.concat([
+        { role: 'assistant', content: brut },
+        { role: 'user', content: 'Votre réponse ne respecte pas le contrat :\n'
+          + v.violations.map(function (x) { return '- ' + x; }).join('\n')
+          + '\n\nRecommencez, avec UNIQUEMENT le tableau JSON d\'un seul élément.' },
+      ]);
+    }
+    var e = new Error('la réécriture n\u2019a pas respecté le contrat : '
+      + journal.map(function (j) { return 'tour ' + j.tour + ' : ' + j.violations.join(' ; '); }).join(' | '));
     e.journal = journal;
     throw e;
   }
@@ -609,6 +937,12 @@
     contenuParEtape: contenuParEtape, repartirMots: repartirMots,
     jetonsPour: jetonsPour, budgetDelaiMs: budgetDelaiMs,
     promptSysteme: promptSysteme, construireMessage: construireMessage,
+    normaliserMots: normaliserMots, plusLongueSuite: plusLongueSuite,
+    partTrigrammesCommuns: partTrigrammesCommuns, citations: citations,
+    phrasesLongues: phrasesLongues, avertissementsEtape: avertissementsEtape,
+    SEUIL_SUITE_MOTS: SEUIL_SUITE_MOTS, SEUIL_TRIGRAMMES: SEUIL_TRIGRAMMES,
+    SEUIL_PHRASE_LONGUE: SEUIL_PHRASE_LONGUE, TOLERANCE_PLANCHER_TITRE: TOLERANCE_PLANCHER_TITRE,
+    PART_ETAPES_HORS_TOLERANCE: PART_ETAPES_HORS_TOLERANCE,
     extraireJSON: extraireJSON, validerReponse: validerReponse,
     // Le cœur pose ses services par ici. La clé n'est pas gardée : seule la FONCTION qui la
     // lit l'est, et elle n'est appelée qu'au moment de l'envoi.
@@ -616,7 +950,7 @@
     _aLesServices: function () { return !!(_services && _services.urlWorker && _services.cleApi); },
     transportReel: transportReel, sansCle: sansCle,
     normaliserTypographie: normaliserTypographie,
-    rediger: rediger,
+    rediger: rediger, reecrireEtape: reecrireEtape,
   };
 })();
 
@@ -639,6 +973,13 @@
     + '.nia-etape h5{margin:0 0 2px;font-size:12px;font-weight:600;}'
     + '.nia-etape .nia-meta{color:var(--muted,#667);font-size:11px;margin:0 0 3px;}'
     + '.nia-etape p.nia-texte{margin:0;white-space:pre-wrap;line-height:1.45;}'
+    + '.nia-avertis{margin:4px 0 0;padding-left:16px;}'
+    + '.nia-avertis li{font-size:11px;color:var(--terracotta-700,#9c4221);}'
+    + '.nia-reecrire-ligne{margin:5px 0 0;gap:6px;}'
+    + '.nia-consigne{flex:1 1 180px;font:inherit;font-size:11px;padding:2px 5px;}'
+    + '.nia-reecrire-etat{font-size:11px;color:var(--muted,#667);}'
+    + '.nia-brut{max-height:160px;overflow:auto;white-space:pre-wrap;font-size:11px;'
+    + 'background:#fff;border:1px solid var(--stone-300,#c9c3b8);padding:6px;margin-top:6px;}'
     + '.nia-etat{margin:6px 0 0;color:var(--muted,#667);white-space:pre-wrap;}'
     + '.nia-etat[data-erreur]{color:var(--terracotta-700,#9c4221);}';
 
@@ -695,18 +1036,66 @@
       titres[e.stepId] = 'Diapositive « ' + (e.cardTitle || 'sans titre') + ' », étape '
         + e.rang + ' sur ' + e.surRang;
     });
-    zone.innerHTML = res.entrees.map(function (en) {
-      var s = Math.round(IA.dureeSecondes(en.text));
-      return '<div class="nia-etape"><h5></h5>'
-        + '<p class="nia-meta"></p><p class="nia-texte"></p></div>';
+    zone.innerHTML = res.entrees.map(function () {
+      return '<div class="nia-etape"><h5></h5><p class="nia-meta"></p>'
+        + '<p class="nia-texte"></p><ul class="nia-avertis"></ul>'
+        + '<div class="nia-ligne nia-reecrire-ligne">'
+        + '<input type="text" class="nia-consigne" placeholder="plus court, un autre exemple…">'
+        + '<button type="button" class="nia-reecrire">Réécrire cette étape</button>'
+        + '<span class="nia-reecrire-etat"></span></div></div>';
     }).join('');
     Array.prototype.forEach.call(zone.querySelectorAll('.nia-etape'), function (el, i) {
       var en = res.entrees[i];
+      el.dataset.stepId = en.stepId;
       el.querySelector('h5').textContent = titres[en.stepId] || en.stepId;
       el.querySelector('.nia-meta').textContent = en.mots + ' mots (cible ' + en.cible + ') — '
-        + Math.round(IA.dureeSecondes(en.text)) + ' s';
+        + Math.round(IA.dureeSecondes(en.text)) + ' s'
+        + (en.horsTolerance ? '  —  hors tolérance (± ' + en.marge + ')' : '');
       el.querySelector('.nia-texte').textContent = en.text;
+      // LES AVERTISSEMENTS, SOUS LE TEXTE DE L'ÉTAPE. Ils ne refusent rien : ils disent où
+      // regarder. Christophe ne doit pas relire dix-neuf étapes pour trouver les trois qui
+      // redisent l'écran.
+      var ul = el.querySelector('.nia-avertis');
+      (en.avertissements || []).forEach(function (a) {
+        var li = document.createElement('li');
+        li.className = 'nia-avertis-' + a.type;
+        li.textContent = a.texte;
+        ul.appendChild(li);
+      });
+      el.querySelector('.nia-reecrire').onclick = function () {
+        reecrire(panneau, el, en.stepId, res, doc);
+      };
     });
+  }
+
+  // « Réécrire cette étape » ne touche QUE l'aperçu : le document n'est écrit qu'à « Appliquer ».
+  async function reecrire(panneau, el, stepId, res, doc) {
+    var btn = el.querySelector('.nia-reecrire');
+    var etat = el.querySelector('.nia-reecrire-etat');
+    var consigne = el.querySelector('.nia-consigne').value;
+    var i = -1;
+    for (var k = 0; k < res.entrees.length; k++) { if (res.entrees[k].stepId === stepId) { i = k; break; } }
+    if (i === -1) return;
+    btn.disabled = true;
+    etat.textContent = 'réécriture…';
+    try {
+      var dejaEcrites = {};
+      res.entrees.forEach(function (x) { dejaEcrites[x.stepId] = x.text; });
+      var r = await IA.reecrireEtape(doc, stepId, consigne, {
+        cible: res.entrees[i].cible,
+        adresse: panneau.querySelector('.nia-adresse').value,
+        dejaEcrites: dejaEcrites,
+        transport: window.NarrationIA._transportDEssai || undefined,
+      });
+      res.entrees[i] = Object.assign({}, r.entree,
+        { avertissements: (r.avertissements[0] && r.avertissements[0].liste) || [] });
+      rendreApercu(panneau, res, doc);
+      dire(panneau, 'Étape réécrite dans l\u2019aperçu seulement. Rien n\u2019est écrit tant que '
+        + 'vous n\u2019avez pas cliqué « Appliquer ».');
+    } catch (e) {
+      etat.textContent = '';
+      dire(panneau, 'Réécriture impossible : ' + (e && e.message || e), true);
+    } finally { btn.disabled = false; }
   }
 
   function brancher(boite, servicesDuCoeur) {
@@ -762,15 +1151,48 @@
             + Math.round(r.duree_estimee_s / 60 * 10) / 10 + ' min, pas '
             + Math.round(r.duree_visee_s / 60 * 10) / 10 + ' min.';
         }
-        dire(panneau, res.entrees.length + ' étape(s) rédigée(s), '
-          + r.total_reparti + ' mots répartis, environ '
-          + Math.round(r.duree_estimee_s / 60 * 10) / 10 + ' min.'
+        // LE TOTAL AFFICHÉ EST LA MESURE, JAMAIS LA CIBLE. Le 9 octobre, la ligne d'état
+        // annonçait « 1197 mots répartis » alors que 1 109 mots avaient été reçus : 1197 était
+        // la cible de la répartition, pas un résultat. Un chiffre affiché doit être ce que la
+        // page a reçu, pas ce que le code avait demandé.
+        var ecart = r.total_reparti ? (res.mots_recus - r.total_reparti) / r.total_reparti : 0;
+        var signe = ecart >= 0 ? '+' : '−';
+        var nAvertis = (res.avertissements || []).reduce(function (a, x) { return a + x.liste.length; }, 0);
+        dire(panneau, res.entrees.length + ' étape(s) rédigée(s).'
+          + '\n' + res.mots_recus + ' mots reçus, cible ' + r.total_reparti + ', '
+          + signe + Math.abs(Math.round(ecart * 100)) + ' %, environ '
+          + Math.round(res.duree_recue_s / 60 * 10) / 10 + ' min pour '
+          + Math.round(r.duree_estimee_s / 60 * 10) / 10 + '.'
           + avertissement
+          + (res.longueurs && res.longueurs.length
+              ? '\n' + res.longueurs.length + ' étape(s) hors tolérance — signalées, non bloquantes.' : '')
+          + (nAvertis ? '\n' + nAvertis + ' avertissement(s) sous les étapes : à relire de près.' : '')
           + (res.tours > 1 ? '\nUn tour de correction a été nécessaire.' : '')
           + '\nRien n’est encore écrit : relisez, puis cliquez « Appliquer ».');
       } catch (e) {
         panneau.querySelector('.nia-apercu').hidden = true;
         dire(panneau, 'Rédaction impossible : ' + (e && e.message || e), true);
+        // « VOIR LA RÉPONSE DU MODÈLE » — le brut de la dernière réponse, pour comprendre ce
+        // qui s'est passé. Jamais la clé : elle n'est ni dans le message, ni dans le brut, qui
+        // est ce que le modèle a écrit. Le bouton n'apparaît que s'il y a quelque chose à voir.
+        var ancien = panneau.querySelector('.nia-voir-brut');
+        if (ancien) ancien.remove();
+        var ancienBloc = panneau.querySelector('.nia-brut');
+        if (ancienBloc) ancienBloc.remove();
+        if (e && e.brut) {
+          var voir = document.createElement('button');
+          voir.type = 'button';
+          voir.className = 'nia-voir-brut';
+          voir.textContent = 'Voir la réponse du modèle';
+          voir.style.cssText = 'font:inherit;font-size:11px;padding:3px 8px;margin-top:6px;cursor:pointer;';
+          var bloc = document.createElement('pre');
+          bloc.className = 'nia-brut';
+          bloc.hidden = true;
+          bloc.textContent = IA.sansCle(String(e.brut));
+          voir.onclick = function () { bloc.hidden = !bloc.hidden; };
+          panneau.appendChild(voir);
+          panneau.appendChild(bloc);
+        }
       } finally { btn.disabled = false; }
     };
 
