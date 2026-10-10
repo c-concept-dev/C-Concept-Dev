@@ -2274,3 +2274,56 @@ et un test qui confondrait les deux interdirait d'expliquer un danger là où il
 Deux noms ont été corrigés en chemin par le typage : `placesLibres` existait déjà pour les places
 de la file de travaux. Les liaisons libres s'appellent donc `liaisonsLibres`. Deux choses
 différentes ne doivent pas porter le même nom, et c'est le compilateur qui l'a dit en premier.
+
+### Étape 3 — la sauvegarde, et ce qu'elle a révélé (10 octobre 2026)
+
+**Une découverte avant la mesure : le texte des passages ne vit pas dans la base.** `Ancre` porte
+une position — une zone, un temps, une page —, jamais un texte. Le texte lisible d'une
+bibliothèque vit dans la **vue**, un fichier JSON posé à côté de la base, que la recherche locale
+parcourt en entier.
+
+C'est tenable pour une bibliothèque ouverte sur un ordinateur. Ça ne l'est pas pour une
+bibliothèque servie : chaque requête devrait rapatrier la vue entière avant de chercher dedans. Et
+la façade de compatibilité le réclame en clair — elle doit rendre un champ `content`. **Un texte
+qui n'existe que dans un fichier JSON ne se cherche pas en SQL.**
+
+D'où une table `passage` (migration 3), ajoutée maintenant et non à l'étape 9, pour deux raisons.
+La première est que le chronomètre de SEC-10 doit porter sur le schéma qui tiendra vraiment les
+données : restaurer une base de métadonnées puis annoncer un temps serait mesurer autre chose. La
+seconde est qu'une table qu'on découvre nécessaire à l'étape 9 est une migration de plus sur une
+base déjà en service.
+
+Ce n'est pas un second magasin à tenir à la main : la table est **produite** depuis la vue au
+moment où une version est activée, et refaite si la version change. La vue reste ce qui fait foi.
+
+**L'épreuve, chronométrée (SEC-10).** Sur une base d'essai semée de 22 022 passages de texte
+inventé — le compte de la bibliothèque à reprendre, avec sa longueur moyenne de passage, parce
+qu'un chronomètre pris sur des lignes courtes ne dirait rien :
+
+| | |
+|---|---:|
+| Semence | 85 Mo poussés en **84,6 s** |
+| Sauvegarde, vers le volume externe | 85,4 Mo en **74,5 s** |
+| **Restauration**, dans `lienotheque-restauration-essai` | **17,9 s** |
+| Comparaison | 16 tables, **aucun écart** |
+
+La restauration est quatre fois plus rapide que la sauvegarde. C'est rassurant dans le bon sens :
+le geste qu'on fait sous la contrainte est le moins long des deux.
+
+**Ce que l'épreuve ne couvre pas, et pourquoi elle n'a pas à le couvrir.** Les objets du
+compartiment ne sont pas sauvegardés : ils sont adressés par leur empreinte, jamais réécrits, et
+l'ordinateur en garde l'original. **R2 est la copie, le Mac est l'original.** La sauvegarde des
+fichiers, c'est le dossier de la bibliothèque, qui existe déjà.
+
+**Trois erreurs à mon compte, toutes dans le banc, aucune dans la sauvegarde.** La comparaison a
+d'abord buté sur une limite de D1 (« too many terms in compound SELECT ») : une requête par table
+plutôt qu'un grand SELECT composé. Puis le vidage de la cible a échoué deux fois sur l'ordre des
+suppressions — retirer `document` relance une cascade vers `ancre`, que l'ordre alphabétique avait
+déjà retiré, et les contraintes différées n'y changent rien : le problème n'est pas le moment de
+la vérification, c'est la table absente. L'ordre se calcule donc depuis le schéma, **les filles
+avant leurs parents**, et six contrôles le vérifient en six millisecondes — là où chaque erreur
+coûtait quatre-vingts secondes d'envoi avant de se montrer.
+
+**Un garde-fou dans le banc lui-même** : il refuse toute cible dont le nom ne finit pas par
+`-essai`. Une épreuve capable d'effacer une vraie base est une épreuve que personne ne devrait
+lancer, et la règle vit dans le code plutôt que dans la prudence de qui tape la commande.
