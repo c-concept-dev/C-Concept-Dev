@@ -78,6 +78,33 @@ const FILTRE = (() => {
   return String(process.argv[i + 1] || '').split(',').map((x) => x.trim()).filter(Boolean);
 })();
 
+// ── RÉFÉRENCE AU SUPPORT (4e tirage) ────────────────────────────────────────────────────────
+// LE DÉTERMINANT PORTE LA DÉCISION, et c'est ce qui tranche les deux cas que Christophe m'a
+// laissés : un déterminant DÉFINI ou DÉMONSTRATIF désigne le support qu'on a sous les yeux, un
+// déterminant INDÉFINI introduit une chose dont on parle. Et « l'écran » n'est jamais signalé,
+// puisque le prompt l'autorise comme la bonne façon de nommer ce qu'on voit.
+const SUPPORT_VRAIS = [
+  'le document', 'ce document', 'cette présentation', 'cette diapositive',
+  'comme le dit le document', 'tiré du document', 'les documents le montrent',
+  'dans cette présentation', 'ces diapositives', 'de la présentation',
+  // DÉCIDÉ : « ce document-là » est un démonstratif sur un nom de support. Il se signale.
+  'ce document-là est à vous',
+];
+const SUPPORT_FAUX = [
+  // DÉCIDÉ : indéfini → ce n'est pas le support, c'est un objet du propos.
+  'un document de travail', 'un bon document', 'une présentation claire',
+  // DÉCIDÉ : « l'écran » est la formulation que le prompt RECOMMANDE.
+  // Les trois premières portent un déterminant ÉLIDÉ (`l’`), qui n'est pas dans la liste des
+  // déterminants : elles ne pourraient pas matcher même si « écran » devenait un nom de support.
+  // Les trois suivantes portent un déterminant DE LA LISTE : ce sont elles le vrai témoin.
+  // Sans elles, ajouter « écran » aux noms de support ne faisait échouer aucun contrôle.
+  'l’écran', 'à l’écran', 'ce qu’on voit à l’écran',
+  'cet écran', 'les écrans', 'sur cet écran',
+  // des mots de la même famille, qui ne désignent aucun support
+  'documenter sa pratique', 'la documentation', 'présenter les choses autrement',
+  'sa présentation de soi', 'le présent',
+];
+
 let reussis = 0;
 let ignores = 0;
 const echecs = [];
@@ -280,6 +307,135 @@ async function controle(nom, fn) {
       'aucun DÉFAUT ne doit être compté ici ; types : ' + JSON.stringify(r.types));
   });
 
+  // ── §6 — RÉFÉRENCE AU SUPPORT (4e tirage) ─────────────────────────────────────────────────
+  await controle('§6 « référence au support » : ' + SUPPORT_VRAIS.length + ' vraies vues, '
+    + SUPPORT_FAUX.length + ' tournures épargnées', async () => {
+    const r = await page.evaluate(([vrais, faux]) => {
+      const A = window.NarrationIA;
+      const ecran = 'Un texte d’écran quelconque.';
+      const etape = { contenuBrut: null, texte: ecran };
+      const voit = (t) => A.avertissementsEtape(t, etape, { adresse: 'vous',
+        texteDocument: A.normaliserMots(ecran), texteDocumentBrut: ecran })
+        .some((a) => a.type === 'reference-support');
+      return { manques: vrais.filter((t) => !voit(t)), fauxPositifs: faux.filter(voit) };
+    }, [SUPPORT_VRAIS, SUPPORT_FAUX]);
+    assert.deepEqual(r.manques, [],
+      'références au support non vues : ' + JSON.stringify(r.manques));
+    assert.deepEqual(r.fauxPositifs, [],
+      'tournures signalées à tort : ' + JSON.stringify(r.fauxPositifs));
+  });
+
+  await controle('§6b l\'avertissement compte les occurrences et cite les expressions', async () => {
+    const r = await page.evaluate(() => {
+      const A = window.NarrationIA;
+      const ecran = 'Un texte d’écran quelconque.';
+      const etape = { contenuBrut: null, texte: ecran };
+      // Les TROIS références du quatrième tirage, dans un seul commentaire.
+      const l = A.avertissementsEtape(
+        'Comme le dit le document, la tension monte. Cette présentation le montre bien. '
+        + 'Et le document y revient plus loin.',
+        etape, { adresse: 'vous', texteDocument: A.normaliserMots(ecran), texteDocumentBrut: ecran });
+      const a = l.find((x) => x.type === 'reference-support');
+      return a ? { occurrences: a.occurrences, expressions: a.expressions, texte: a.texte,
+                   information: !!a.information } : null;
+    });
+    assert.ok(r, 'l\'avertissement doit être présent');
+    assert.equal(r.occurrences, 3, 'trois références attendues : ' + r.occurrences);
+    assert.ok(r.texte.includes('3 fois'), 'le texte doit porter le compte : ' + r.texte);
+    assert.ok(r.expressions.length >= 2,
+      'et citer les expressions trouvées : ' + JSON.stringify(r.expressions));
+    assert.equal(r.information, false, 'c\'est un défaut, pas une information neutre');
+  });
+
+  await controle('§6c une citation qui contient « le document » n\'est pas comptée', async () => {
+    const r = await page.evaluate(() => {
+      const A = window.NarrationIA;
+      const ecran = 'Le document fondateur parle de rupture.';
+      const etape = { contenuBrut: null, texte: ecran };
+      // Si l'écran écrit « le document », la citation exacte a le droit de le reprendre.
+      return A.avertissementsEtape('Il le dit ainsi : « Le document fondateur parle de rupture ».',
+        etape, { adresse: 'vous', texteDocument: A.normaliserMots(ecran), texteDocumentBrut: ecran })
+        .map((a) => a.type);
+    });
+    assert.ok(!r.includes('reference-support'),
+      'une référence DANS une citation ne doit pas être comptée : ' + JSON.stringify(r));
+  });
+
+  // ── §7 — L'ANGLE MORT DE « PARCOURT LA LISTE » ────────────────────────────────────────────
+  await controle('§7 « énumère » voit trois propositions reformulées, invisibles au vocabulaire', async () => {
+    const r = await page.evaluate(() => {
+      const A = window.NarrationIA;
+      // Une étape de LISTE : c'est la condition d'application.
+      const etape = { texte: 'Trois appuis : le sommeil, le mouvement, le lien.',
+        contenuBrut: { type: 'list', items: [
+          { text: 'le sommeil, qui répare' }, { text: 'le mouvement, qui décharge' },
+          { text: 'le lien, qui soutient' }] } };
+      const ecran = etape.texte;
+      const av = (com) => A.avertissementsEtape(com, etape, { adresse: 'vous',
+        texteDocument: A.normaliserMots(ecran), texteDocumentBrut: ecran });
+      const types = (com) => av(com).map((a) => a.type);
+      // LE TEXTE EXACT DE L'ANGLE MORT : trois idées énumérées, reformulées, aucun mot emprunté.
+      const angleMort = 'Peut-être que c’est la fatigue qui parle. Peut-être que c’est la peur '
+                      + 'de recommencer. Peut-être que c’est simplement l’habitude installée.';
+      const a = av(angleMort).find((x) => x.type === 'enumere');
+      return {
+        angleMort: types(angleMort),
+        detail: a ? { regle: a.regle, ouverture: a.ouverture, repetitions: a.repetitions,
+                      texte: a.texte } : null,
+        // l'ancien détecteur de vocabulaire ne le voit PAS : c'est tout l'intérêt
+        parcoursVu: types(angleMort).includes('parcours'),
+        // L'ÉNUMÉRATION DANS UNE SEULE PHRASE, séparée par des virgules — et c'est le vrai
+        // témoin de la coupure sur la virgule. Avec trois phrases, couper seulement sur le
+        // point suffisait, et retirer la virgule ne faisait échouer aucun contrôle.
+        uneSeulePhrase: types('Peut-être que c’est la fatigue, peut-être que c’est la peur, '
+                            + 'peut-être que c’est l’habitude.'),
+        // marqueurs d'ordre
+        ordinaux: types('La première chose tient au sommeil. La deuxième touche au mouvement. '
+                      + 'La troisième concerne le lien.'),
+        // un seul élément illustré : rien
+        unSeul: types('Prenez le sommeil. Une nuit hachée suffit à rendre une journée ordinaire '
+                    + 'beaucoup plus rude.'),
+        // deux propositions seulement : sous le seuil de trois
+        deuxSeules: types('Peut-être que c’est la fatigue. Peut-être que c’est la peur.'),
+      };
+    });
+    assert.ok(r.angleMort.includes('enumere'),
+      'l\'angle mort doit être vu : ' + JSON.stringify(r.angleMort));
+    assert.equal(r.detail.regle, 'ouverture répétée', 'par la forme : ' + r.detail.regle);
+    assert.equal(r.detail.repetitions, 3, 'trois propositions : ' + r.detail.repetitions);
+    assert.ok(r.detail.texte.includes(r.detail.ouverture),
+      'le message doit citer l\'ouverture qui se répète : ' + r.detail.texte);
+    assert.equal(r.parcoursVu, false,
+      'le détecteur de VOCABULAIRE ne le voit pas — c\'est pour cela que celui de FORME existe');
+    assert.ok(r.uneSeulePhrase.includes('enumere'),
+      'une énumération tient souvent dans UNE phrase, séparée par des virgules : ' +
+      JSON.stringify(r.uneSeulePhrase));
+    assert.ok(r.ordinaux.includes('enumere'),
+      'les marqueurs d\'ordre doivent être vus : ' + JSON.stringify(r.ordinaux));
+    assert.ok(!r.unSeul.includes('enumere'),
+      'un seul élément illustré n\'énumère pas : ' + JSON.stringify(r.unSeul));
+    assert.ok(!r.deuxSeules.includes('enumere'),
+      'deux propositions sont sous le seuil de trois : ' + JSON.stringify(r.deuxSeules));
+    console.log('        ouverture « ' + r.detail.ouverture + ' » × ' + r.detail.repetitions +
+      ' · le détecteur de vocabulaire, lui, ne voyait rien');
+  });
+
+  await controle('§7b dans de la PROSE, trois phrases qui commencent pareil sont une anaphore', async () => {
+    const r = await page.evaluate(() => {
+      const A = window.NarrationIA;
+      // Aucun contenuBrut : ce n'est ni une liste ni un questionnaire.
+      const etape = { contenuBrut: null, texte: 'Le silence s’installe entre eux.' };
+      const ecran = etape.texte;
+      return A.avertissementsEtape(
+        'Peut-être que c’est la fatigue qui parle. Peut-être que c’est la peur de recommencer. '
+        + 'Peut-être que c’est simplement l’habitude installée.',
+        etape, { adresse: 'vous', texteDocument: A.normaliserMots(ecran), texteDocumentBrut: ecran })
+        .map((a) => a.type);
+    });
+    assert.ok(!r.includes('enumere'),
+      'hors liste, une anaphore est une figure de style et non un défaut : ' + JSON.stringify(r));
+  });
+
   // ── §3 — LA LISTE PARCOURUE ───────────────────────────────────────────────────────────────
   await controle('§3 la règle de liste est explicite dans le prompt, et le parcours est vu', async () => {
     const r = await page.evaluate(() => {
@@ -295,8 +451,15 @@ async function controle(nom, fn) {
         texteDocument: A.normaliserMots(ecran), texteDocumentBrut: ecran }).map((a) => a.type);
       return {
         regleDansLePrompt: /SI VOUS EN NOMMEZ PLUS D’UNE|SI VOUS EN NOMMEZ PLUS D'UNE/.test(p),
+        seuilLongueur: A.SEUIL_PHRASE_LONGUE,
         compteExplicite: /Nommez-en UNE SEULE, ou AUCUNE/.test(p),
         dialogueDansLePrompt: /DIALOGUE IMAGINÉ/.test(p),
+        // les trois règles du 4e tirage
+        limite25: /AUCUNE PHRASE DE PLUS DE 25 MOTS/.test(p),
+        supportInterdit: /NE DITES JAMAIS « le document »/.test(p),
+        niLuiNiElle: /N'EMPLOYEZ NI « lui » NI « elle »/.test(p),
+        // et la règle du couple ne doit exister qu'UNE fois : elle était déjà là
+        foisCouple: p.split('l\'un des deux').length - 1,
         // trois éléments nommés : c'est un parcours
         troisNommes: types('Retenez une idée : le sommeil répare, le mouvement décharge, '
                          + 'et le lien soutient.'),
@@ -308,6 +471,14 @@ async function controle(nom, fn) {
     assert.ok(r.regleDansLePrompt, 'la règle « si vous en nommez plus d’une » doit être dans le prompt');
     assert.ok(r.compteExplicite, 'et le compte doit être explicite : « une seule, ou aucune »');
     assert.ok(r.dialogueDansLePrompt, 'la règle du dialogue imaginé doit y être aussi');
+    assert.ok(r.limite25, 'la limite chiffrée de 25 mots doit être dans le prompt');
+    assert.ok(r.supportInterdit, 'l\'interdiction de nommer le support doit y être');
+    assert.ok(r.niLuiNiElle, '« ni lui ni elle » doit y être');
+    assert.equal(r.foisCouple, 1,
+      'la règle du couple existait DÉJÀ : elle doit apparaître une seule fois, pas deux. ' +
+      'Occurrences : ' + r.foisCouple);
+    assert.equal(r.seuilLongueur, 30,
+      'le seuil d\'AVERTISSEMENT reste à 30 même si le prompt demande 25 : ' + r.seuilLongueur);
     assert.ok(r.troisNommes.includes('parcours'),
       'trois éléments nommés doivent être vus comme un parcours : ' + JSON.stringify(r.troisNommes));
     assert.ok(!r.unSeul.includes('parcours'),

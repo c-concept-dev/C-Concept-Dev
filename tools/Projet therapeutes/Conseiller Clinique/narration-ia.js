@@ -292,7 +292,9 @@
       'ne traitez pas d\'un sujet voisin parce qu\'il vous vient plus facilement.',
       '',
       'CE TEXTE SERA DIT, PAS LU.',
-      '- Des phrases courtes. Une idée par phrase.',
+      '- Des phrases courtes. Une idée par phrase. AUCUNE PHRASE DE PLUS DE 25 MOTS : au-delà,',
+      '  coupez-la en deux. Au quatrième tirage, trois phrases faisaient 45 et 46 mots — elles',
+      '  ne se disent pas d\'un souffle.',
       '- Des mots simples, ceux de la conversation.',
       '- Du rythme : alternez les phrases brèves et les phrases un peu plus longues.',
       '- Aucune parenthèse, aucune énumération à puces, aucune tournure qui ne se dit pas',
@@ -339,6 +341,9 @@
       '',
       'SI VOUS CITEZ LE DOCUMENT.',
       'Reprenez ses mots exacts, entre guillemets français, sans en retirer ni en ajouter.',
+      'NE DITES JAMAIS « le document », « cette présentation » ni « cette diapositive » :',
+      'intégrez la citation à la phrase, ou parlez de ce qu\'on voit à l\'écran. Le spectateur',
+      'ne voit pas un document, il voit une image — le nommer le fait sortir de ce qu\'il regarde.',
       'Un DIALOGUE IMAGINÉ peut s\'écrire entre guillemets français, à condition d\'être introduit',
       'comme imaginé — « imaginez quelqu\'un qui dirait : « … » ». Une CITATION DU DOCUMENT, elle,',
       'reste mot pour mot. Les deux s\'écrivent entre guillemets ; ce qui les sépare est',
@@ -372,9 +377,10 @@
       '  de résultat thérapeutique.',
       '- Aucun jargon. Si un terme technique est indispensable, expliquez-le en une phrase.',
       '- N\'attribuez jamais d\'office un rôle à l\'homme ou à la femme : ni celui qui se tait, ni',
-      '  celle qui demande, ni l\'inverse. Dites « l\'un » et « l\'autre », ou « l\'un des deux ».',
-      '  Un couple n\'est pas forcément un homme et une femme, et le rôle décrit n\'appartient à',
-      '  aucun des deux par nature.',
+      '  celle qui demande, ni l\'inverse. Dites « l\'un » et « l\'autre », ou « l\'un des deux »,',
+      '  et N\'EMPLOYEZ NI « lui » NI « elle » pour désigner un partenaire : vous ne savez pas qui',
+      '  écoute, ni qui est qui. Un couple n\'est pas forcément un homme et une femme, et le rôle',
+      '  décrit n\'appartient à aucun des deux par nature.',
       '',
       'LE TON.',
       'Chaleureux, posé, jamais culpabilisant. Vous ne jugez personne. Vous ne vous adressez pas',
@@ -626,6 +632,94 @@
   // est un défaut ; en dessous, le passage raconte autre chose.
   var SEUIL_CITATION_PROCHE = 0.60;
 
+  // ── RÉFÉRENCE AU SUPPORT (4e tirage, 10 octobre) ──────────────────────────────────────────
+  //
+  // Effet de bord de la règle de citation : à force d'exiger des mots exacts, le texte s'est mis
+  // à dire « comme le dit le document », trois fois. Le spectateur d'une vidéo ne voit aucun
+  // « document » : il voit une image. Nommer le support le fait sortir de ce qu'il regarde.
+  //
+  // LE DÉTERMINANT PORTE LA DÉCISION, et c'est ce qui sépare les deux cas que Christophe m'a
+  // laissés trancher. Un déterminant DÉFINI ou DÉMONSTRATIF désigne LE support qu'on a sous les
+  // yeux (« le document », « ce document », « cette présentation », « tiré du document ») : on
+  // le signale. Un déterminant INDÉFINI introduit une chose dont on parle (« un document de
+  // travail ») : on ne signale rien, c'est un objet du propos et non le support.
+  // Et « l'écran » n'est JAMAIS signalé : le prompt l'autorise explicitement comme la bonne
+  // façon de désigner ce qu'on voit.
+  var REFERENCE_SUPPORT = new RegExp(
+    BORNE_AVANT + '(?:l[ea]|ce|cet|cette|ces|les|du|de\\s+la|des)\\s+'
+    + '(?:documents?|pr[ée]sentations?|diapositives?)' + BORNE_APRES, 'giu');
+
+  // ── ÉNUMÉRATION STRUCTURELLE (4e tirage) ──────────────────────────────────────────────────
+  //
+  // L'ANGLE MORT que Christophe a trouvé : « parcourt la liste » compare les mots du commentaire
+  // à ceux des éléments de l'écran. Un texte qui énumère trois idées en les REFORMULANT passe
+  // sous le seuil de 40 % et n'est pas vu — « Peut-être que c'est la fatigue… Peut-être que c'est
+  // la peur… Peut-être que c'est l'habitude… » parcourt bel et bien la liste, sans lui emprunter
+  // un seul mot.
+  //
+  // On ne mesure donc plus le vocabulaire, mais la FORME : trois propositions ou plus qui
+  // s'ouvrent sur les mêmes mots, ou trois marqueurs d'ordre différents. Deux signes
+  // structurels, insensibles à la reformulation.
+  //
+  // Seulement sur les étapes de LISTE ou de QUESTIONNAIRE : dans de la prose, trois phrases qui
+  // commencent pareil sont une anaphore, une figure de style, et pas un défaut.
+  var ENUM_MOTS_OUVERTURE = 3;    // on cherche les ouvertures de 2 et 3 mots
+  var ENUM_MIN_MOTS_SEGMENT = 3;  // une proposition de moins de 3 mots ne compte pas
+  var ENUM_MIN_REPETITIONS = 3;   // « trois propositions ou plus », comme demandé
+  var MARQUEURS_ORDRE = new RegExp(
+    BORNE_AVANT + '(?:premi[èe]rement|deuxi[èe]mement|troisi[èe]mement'
+    + '|la\\s+premi[èe]re|le\\s+premier|la\\s+deuxi[èe]me|le\\s+deuxi[èe]me'
+    + '|la\\s+troisi[èe]me|le\\s+troisi[èe]me|d[\\u2019\']abord|ensuite|enfin|puis)'
+    + BORNE_APRES, 'giu');
+
+  // Les propositions d'un texte : on coupe aussi sur la virgule et le point-virgule, parce
+  // qu'une énumération tient souvent dans UNE phrase (« c'est ceci, c'est cela, c'est encore
+  // autre chose »). `phrasesDe` ne coupe pas là, et c'est normal : il sert à comparer des
+  // phrases, pas à repérer une forme.
+  function propositionsDe(texte) {
+    return String(texte || '').split(/[.!?;:,\u2026]+/)
+      .map(normaliserMots)
+      .filter(function (m) { return m.length >= ENUM_MIN_MOTS_SEGMENT; });
+  }
+
+  // Rend la raison de l'énumération, ou null. Jamais un booléen seul : un verdict sans sa raison
+  // ne se vérifie pas (régression #11(j) — une ligne porte la grandeur dont elle découle).
+  function enumeration(texte) {
+    var props = propositionsDe(texte);
+    var compte = {};
+    props.forEach(function (mots) {
+      for (var n = 2; n <= ENUM_MOTS_OUVERTURE; n++) {
+        if (mots.length < n) continue;
+        var cle = mots.slice(0, n).join(' ');
+        compte[cle] = (compte[cle] || 0) + 1;
+      }
+    });
+    var meilleure = null;
+    Object.keys(compte).forEach(function (ouv) {
+      var k = compte[ouv];
+      if (k < ENUM_MIN_REPETITIONS) return;
+      // À nombre égal de répétitions, l'ouverture la plus LONGUE est la plus parlante.
+      if (!meilleure || k > meilleure.repetitions
+          || (k === meilleure.repetitions && ouv.length > meilleure.ouverture.length)) {
+        meilleure = { ouverture: ouv, repetitions: k };
+      }
+    });
+    if (meilleure) {
+      return { regle: 'ouverture répétée', ouverture: meilleure.ouverture,
+               repetitions: meilleure.repetitions, propositions: props.length };
+    }
+    var trouves = String(texte || '').match(MARQUEURS_ORDRE) || [];
+    var distincts = [];
+    trouves.forEach(function (m) {
+      var k = m.toLowerCase();
+      if (distincts.indexOf(k) < 0) distincts.push(k);
+    });
+    if (distincts.length >= ENUM_MIN_REPETITIONS) {
+      return { regle: 'marqueurs d\'ordre', marqueurs: distincts, propositions: props.length };
+    }
+    return null;
+  }
+
   var PRONOMS = {
     vous: borneMot('toi|tu|ton|ta|tes'),
     tu: borneMot('vous|votre|vos'),
@@ -670,6 +764,38 @@
       if (repris >= SEUIL_ELEMENTS_PARCOURUS) {
         out.push({ type: 'parcours', texte: 'parcourt la liste élément par élément ('
           + repris + ' éléments sur ' + elements.length + ' repris)', repris: repris });
+      }
+    }
+
+    // RÉFÉRENCE AU SUPPORT, hors citations : une citation peut contenir le mot « document » si
+    // l'écran l'écrit. Non bloquant, comme tous les autres.
+    var horsCitationsPourSupport = String(texteCommentaire || '')
+      .replace(/\u00ab[^\u00bb]*\u00bb/g, ' ');
+    REFERENCE_SUPPORT.lastIndex = 0;
+    var refs = horsCitationsPourSupport.match(REFERENCE_SUPPORT) || [];
+    if (refs.length) {
+      var vues = [];
+      refs.forEach(function (r) {
+        var k = r.toLowerCase().replace(/\s+/g, ' ');
+        if (vues.indexOf(k) < 0) vues.push(k);
+      });
+      out.push({ type: 'reference-support', occurrences: refs.length, expressions: vues,
+        texte: 'référence au support (' + refs.length + ' fois) : « ' + vues.join(' », « ')
+          + ' » — le spectateur voit une image, pas un document' });
+    }
+
+    // ÉNUMÉRATION STRUCTURELLE, sur les étapes de liste ou de questionnaire SEULEMENT : dans de
+    // la prose, trois phrases qui commencent pareil sont une anaphore, pas un défaut.
+    if (elements.length) {
+      var enu = enumeration(texteCommentaire);
+      if (enu) {
+        out.push({ type: 'enumere', regle: enu.regle,
+          ouverture: enu.ouverture, repetitions: enu.repetitions, marqueurs: enu.marqueurs,
+          texte: 'énumère (' + enu.regle + ') : '
+            + (enu.regle === 'ouverture répétée'
+                ? enu.repetitions + ' propositions ouvertes par « ' + enu.ouverture + ' »'
+                : enu.marqueurs.join(', '))
+            + ' sur ' + enu.propositions + ' propositions' });
       }
     }
 
@@ -1084,6 +1210,9 @@
     partTrigrammesCommuns: partTrigrammesCommuns, citations: citations,
     phrasesLongues: phrasesLongues, avertissementsEtape: avertissementsEtape,
     phrasesDe: phrasesDe, borneMot: borneMot, PRONOMS: PRONOMS,
+    REFERENCE_SUPPORT: REFERENCE_SUPPORT, MARQUEURS_ORDRE: MARQUEURS_ORDRE,
+    enumeration: enumeration, propositionsDe: propositionsDe,
+    ENUM_MIN_REPETITIONS: ENUM_MIN_REPETITIONS, ENUM_MOTS_OUVERTURE: ENUM_MOTS_OUVERTURE,
     SEUIL_CITATION_PROCHE: SEUIL_CITATION_PROCHE,
     SEUIL_SUITE_MOTS: SEUIL_SUITE_MOTS, SEUIL_TRIGRAMMES: SEUIL_TRIGRAMMES,
     SEUIL_PHRASE_LONGUE: SEUIL_PHRASE_LONGUE, TOLERANCE_PLANCHER_TITRE: TOLERANCE_PLANCHER_TITRE,
