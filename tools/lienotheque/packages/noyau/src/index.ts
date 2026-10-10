@@ -7,3 +7,5 @@ export * from "./travaux.js";
 export * from "./hebergement.js";
 export * from "./objets.js";
 export * from "./laissez-passer.js";
+export * from "./session.js";
+export * from "./droits.js";

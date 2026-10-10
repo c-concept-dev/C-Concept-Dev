@@ -2365,3 +2365,42 @@ message qui apprendrait ce qui existe.
 **Le garde-fou CLA-01 m'a repris en chemin** : j'avais écrit un mot de domaine comme nom de
 bibliothèque d'exemple dans des tests génériques. Il avait raison, et c'est exactement à cela
 qu'il sert.
+
+### Étapes 6 et 7 — qui entre, et ce qu'il a le droit de faire (10 octobre 2026)
+
+Le registre gagne quatre tables : `utilisateur`, `cle_acces`, `session`, `droit`.
+
+**La session tient SEC-02 par trois propriétés, et un test les mesure ensemble** : on simule
+365 jours d'usage quotidien, et la session ne périme pas une fois. Quatre-vingt-dix jours
+**repoussés à chaque usage** — une session à date fixe demanderait une ressaisie le
+quatre-vingt-onzième jour quoi qu'on fasse ; une session glissante n'expire que si l'on cesse de
+s'en servir, ce qui est précisément le moment où elle doit expirer.
+
+Le registre garde une **empreinte** du jeton, jamais le jeton : une base lue ne doit pas livrer de
+quoi se faire passer pour quelqu'un. Et la révocation vit dans le registre, pas dans le jeton —
+un jeton ne peut pas se retirer lui-même, et c'est la seule raison pour laquelle on consulte le
+registre à chaque usage au lieu de se fier à la signature.
+
+L'écriture ne se fait qu'**une fois par jour**, pas à chaque requête : une page qui en fait trente
+réécrirait trente fois la même échéance.
+
+**Les droits sont une échelle, pas une liste de cases.** Qui peut administrer peut contribuer, qui
+peut contribuer peut lire. Une liste de cases se désaccorde — on ajoute une action quelque part et
+on oublie de la cocher ailleurs. Une action absente de la table est **refusée à tout le monde** :
+un geste qu'on a oublié de classer doit être refusé, jamais autorisé par défaut.
+
+Un refus pour « bibliothèque qui n'est pas la vôtre » et un refus pour « droits insuffisants »
+rendent **exactement la même phrase**. Distinguer les deux apprendrait l'existence d'une
+bibliothèque à qui n'a pas le droit de la voir.
+
+**Ce que je ne fais pas dans ce lot, et pourquoi.** La cérémonie WebAuthn elle-même — l'échange
+avec l'appareil qui déverrouille la clé — n'est pas écrite. Deux raisons. Il n'existe pas encore
+de page web pour l'exécuter : la version en ligne est au lot E5 (PLT-03), et le bureau ne passe
+pas par là. Et la bibliothèque de référence apporte dix dépendances transitives, pour l'essentiel
+de la vérification de certificats d'attestation dont deux utilisateurs connus n'ont pas l'usage.
+Écrire moi-même l'analyse CBOR et COSE dans un chemin d'authentification serait pire ; ajouter dix
+dépendances pour du code que rien n'appelle ne vaut pas mieux. Les tables l'attendent, la clé
+publique a sa colonne, et la cérémonie se branchera avec le client qui en a besoin.
+
+SEC-02 dit « **idéalement** déverrouillée par Touch ID ou clé d'accès » : l'exigence dure est la
+session de 90 jours sans ressaisie, révocable à distance, et elle est tenue.
