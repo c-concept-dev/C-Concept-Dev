@@ -1192,11 +1192,23 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         // Des PHRASES, pas un seul bloc de mots : sans ponctuation, le texte compterait comme
         // une phrase unique et déclencherait à juste titre « phrase de N mots ». La fixture
         // doit ressembler à ce qu'un modèle écrit, sinon elle éprouve autre chose.
+        //
+        // ET DES MOTS VARIÉS, pour la MÊME raison — ajouté le 10 octobre au soir. Le remplissage
+        // était « mot mot mot… » répété : douze phrases s'ouvraient donc sur la même suite, et le
+        // détecteur d'ÉNUMÉRATION du quatrième tirage les a signalées, à juste titre. Un texte de
+        // remplissage uniforme n'est pas du français, et il éprouvait autre chose que ce que ce
+        // contrôle veut éprouver. Les mots tournent, et chaque phrase commence ailleurs.
+        const POOL = ['lien', 'geste', 'parole', 'temps', 'regard', 'silence', 'pas', 'jour',
+                      'souffle', 'main', 'place', 'route'];
         const phrases = [];
         let restants = Math.max(0, cible - 5);
+        let depart = 0;
         while (restants > 0) {
           const n = Math.min(10, restants);
-          phrases.push('mot '.repeat(n).trim() + '.');
+          const ph = [];
+          for (let k = 0; k < n; k++) ph.push(POOL[(depart + k) % POOL.length]);
+          phrases.push(ph.join(' ') + '.');
+          depart += 5;              // chaque phrase s'ouvre sur un mot différent
           restants -= n;
         }
         return JSON.stringify([{ stepId: id,

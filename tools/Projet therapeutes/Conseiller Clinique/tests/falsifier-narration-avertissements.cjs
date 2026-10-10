@@ -154,6 +154,96 @@ const ESSAIS = [
     attendu: 'le modèle doit savoir qu\'un dialogue imaginé s\'annonce comme imaginé',
   },
 
+  // ── RÉFÉRENCE AU SUPPORT (4e tirage) ──────────────────────────────────────────────────────
+  {
+    nom: 'le déterminant indéfini est accepté : « un document de travail » devient un défaut',
+    de: "    BORNE_AVANT + '(?:l[ea]|ce|cet|cette|ces|les|du|de\\\\s+la|des)\\\\s+'",
+    vers: "    BORNE_AVANT + '(?:l[ea]|ce|cet|cette|ces|les|du|de\\\\s+la|des|un|une)\\\\s+'",
+    sections: '§6',
+    attendu: 'un indéfini introduit un objet du propos, pas le support qu\'on a sous les yeux',
+  },
+  {
+    nom: '« l\'écran » entre dans la liste des noms de support',
+    de: "    + '(?:documents?|pr[ée]sentations?|diapositives?)' + BORNE_APRES, 'giu');",
+    vers: "    + '(?:documents?|pr[ée]sentations?|diapositives?|[ée]crans?)' + BORNE_APRES, 'giu');",
+    sections: '§6',
+    attendu: '« l\'écran » est la formulation que le prompt RECOMMANDE : la signaler serait absurde',
+  },
+  {
+    nom: 'les citations ne sont plus retirées avant de chercher le support',
+    de: "    var horsCitationsPourSupport = String(texteCommentaire || '')\n      .replace(/\\u00ab[^\\u00bb]*\\u00bb/g, ' ');",
+    vers: "    var horsCitationsPourSupport = String(texteCommentaire || '');",
+    sections: '§6c',
+    attendu: 'si l\'écran écrit « le document », une citation exacte a le droit de le reprendre',
+  },
+  {
+    nom: 'l\'avertissement de support ne compte plus ses occurrences',
+    de: "      out.push({ type: 'reference-support', occurrences: refs.length, expressions: vues,",
+    vers: "      out.push({ type: 'reference-support', occurrences: 1, expressions: vues,",
+    sections: '§6b',
+    attendu: 'trois références doivent se compter trois : le relevé porte sa grandeur',
+  },
+
+  // ── L'ANGLE MORT DE « PARCOURT LA LISTE » (4e tirage) ─────────────────────────────────────
+  {
+    nom: 'l\'heuristique d\'énumération est retirée',
+    de: "      var enu = enumeration(texteCommentaire);",
+    vers: "      var enu = null;",
+    sections: '§7',
+    attendu: 'trois propositions reformulées parcourent la liste sans lui emprunter un mot',
+  },
+  {
+    nom: 'le seuil de répétitions passe de trois à quatre',
+    de: '  var ENUM_MIN_REPETITIONS = 3;   // « trois propositions ou plus », comme demandé',
+    vers: '  var ENUM_MIN_REPETITIONS = 4;',
+    sections: '§7',
+    attendu: 'Christophe a demandé « trois propositions ou plus »',
+  },
+  {
+    nom: 'les propositions ne se coupent plus sur la virgule',
+    de: "    return String(texte || '').split(/[.!?;:,\\u2026]+/)",
+    vers: "    return String(texte || '').split(/[.!?]+/)",
+    sections: '§7',
+    attendu: 'une énumération tient souvent dans UNE phrase, séparée par des virgules',
+  },
+  {
+    nom: 'l\'énumération s\'applique AUSSI hors des listes',
+    de: "    if (elements.length) {\n      var enu = enumeration(texteCommentaire);",
+    vers: "    if (true) {\n      var enu = enumeration(texteCommentaire);",
+    sections: '§7b',
+    attendu: 'dans de la prose, trois phrases qui commencent pareil sont une anaphore',
+  },
+  {
+    nom: 'les marqueurs d\'ordre ne sont plus reconnus',
+    de: "    if (distincts.length >= ENUM_MIN_REPETITIONS) {",
+    vers: "    if (false) {",
+    sections: '§7',
+    attendu: '« la première… la deuxième… la troisième » énumère, sans ouverture répétée',
+  },
+
+  // ── LES RÈGLES DU PROMPT (4e tirage) ──────────────────────────────────────────────────────
+  {
+    nom: 'la limite chiffrée de 25 mots disparaît du prompt',
+    de: "      '- Des phrases courtes. Une idée par phrase. AUCUNE PHRASE DE PLUS DE 25 MOTS : au-delà,',",
+    vers: "      '- Des phrases courtes. Une idée par phrase.',",
+    sections: '§3',
+    attendu: 'trois phrases de 45 et 46 mots au quatrième tirage : la limite doit être chiffrée',
+  },
+  {
+    nom: 'l\'interdiction de nommer le support disparaît du prompt',
+    de: "      'NE DITES JAMAIS « le document », « cette présentation » ni « cette diapositive » :',",
+    vers: "      '',",
+    sections: '§3',
+    attendu: 'le texte disait trois fois « le document » : la règle doit être écrite',
+  },
+  {
+    nom: '« ni lui ni elle » disparaît de la règle du couple',
+    de: "      '  et N\\'EMPLOYEZ NI « lui » NI « elle » pour désigner un partenaire : vous ne savez pas qui',",
+    vers: "      '  pour désigner un partenaire : vous ne savez pas qui',",
+    sections: '§3',
+    attendu: 'la règle existait sans cette clause ; c\'est elle que Christophe a demandée',
+  },
+
   // ── UNE MUTATION ÉQUIVALENTE, AVEC SA RAISON (régression #11(h)) ──────────────────────────
   {
     nom: 'le filtre des phrases vides est retiré',
