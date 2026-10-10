@@ -67,6 +67,7 @@ const PANNEAU = `
     <button id="bc-rendre" style="font:inherit;padding:6px 12px;cursor:pointer;">Rendre les images</button>
     <button id="bc-tout" style="font:inherit;padding:6px 12px;cursor:pointer;">Rendre les trois</button>
     <button id="bc-jpeg" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Télécharger en JPEG haute qualité</button>
+    <button id="bc-planche" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Planche à l’œil (un fichier)</button>
     <button id="bc-perime" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Modifier un texte et revérifier</button>
     <button id="bc-ouverte" style="font:inherit;padding:6px 12px;cursor:pointer;">Utiliser la présentation ouverte</button>
     <label style="font:inherit;padding:6px 12px;border:1px solid #888;border-radius:6px;cursor:pointer;">Charger un JSON
@@ -306,6 +307,7 @@ const PANNEAU = `
     $('bc-copier').disabled = false;
     dernier = { p: p, res: res };
     $('bc-jpeg').disabled = false;
+    $('bc-planche').disabled = false;
     $('bc-perime').disabled = false;
     return res;
   }
@@ -521,6 +523,113 @@ const PANNEAU = `
     dire(lignes.join('\\n'));
     this.disabled = false;
   };
+  // ── LA PLANCHE À L'ŒIL ──────────────────────────────────────────────────────────────────────
+  // Un SEUL fichier, téléchargé dans le dossier des téléchargements de Christophe : le dépôt n'en
+  // voit rien, et aucun contenu de sa présentation n'y entre. Les images y sont à leur taille
+  // réelle (1920 de large), en JPEG de qualité 0,82 pour que le fichier reste ouvrable, avec un
+  // bouton « taille réelle » pour juger la lisibilité du texte au pixel.
+  //
+  // DEUX REPÈRES SUR LES IMAGES HAUTES, et c'est tout l'intérêt de la planche : un trait à
+  // 1080 px dit où s'arrête le PREMIER cadre de la vidéo, et un second trait dit où s'arrête le
+  // TRAVELLING. Entre les deux, ce que le spectateur verra défiler ; en dessous du second, ce
+  // que le moteur a jugé vide. C'est exactement ce qu'il faut regarder pour valider ou refuser.
+  function echapper(t) {
+    return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  $('bc-planche').onclick = async function () {
+    if (!dernier) return;
+    this.disabled = true;
+    var res = dernier.res;
+    var parts = [];
+    for (var i = 0; i < res.images.length; i++) {
+      var im = res.images[i];
+      dire('planche : image ' + (i + 1) + ' sur ' + res.images.length);
+      var blob = await window.AtelierImages.versType(im, 'image/jpeg', 0.82);
+      var data = await new Promise(function (ok) {
+        var fr = new FileReader(); fr.onload = function () { ok(fr.result); }; fr.readAsDataURL(blob);
+      });
+      var t = im.travelling;
+      var finPan = t ? (t.fin_y + res.sortie.hauteur) : res.sortie.hauteur;
+      var reperes = '';
+      if (im.hauteur > res.sortie.hauteur) {
+        reperes = '<div class="rep cadre" style="top:' + (res.sortie.hauteur / im.hauteur * 100)
+          + '%">premier cadre, ' + res.sortie.hauteur + ' px</div>';
+        if (t && t.course_px > 0 && finPan < im.hauteur) {
+          reperes += '<div class="rep pan" style="top:' + (finPan / im.hauteur * 100)
+            + '%">fin du travelling, ' + finPan + ' px — rien ne doit porter d’encre en dessous</div>';
+        }
+      }
+      parts.push('<figure><figcaption><b>diapositive ' + (im.cardIndex + 1) + ', étape '
+        + im.rang + ' sur ' + im.surRang + '</b>'
+        + '<span>image ' + im.largeur + '×' + im.hauteur + ' px'
+        + '  ·  scène ' + im.scene_largeur + '×' + im.scene_hauteur
+        + '  ·  corps ' + im.corps_px + ' px soit ' + im.texte_pc + ' % du cadre'
+        + (im.plus_petit_texte_px && im.plus_petit_texte_px < im.corps_px
+           ? '  ·  plus petit texte ' + im.plus_petit_texte_px + ' px soit ' + im.plus_petit_texte_pc + ' %' : '')
+        + '  ·  contenu ' + im.hauteur_contenu + ' px, coupé ' + im.coupe_px + ' px'
+        + '  ·  ' + im.debordement_verdict.toUpperCase()
+        + (t ? (t.course_px > 0
+                ? '  ·  travelling ' + t.course_px + ' px'
+                  + (t.vitesse_px_par_s !== null ? ' à ' + t.vitesse_px_par_s + ' px/s' : ' (durée du commentaire inconnue)')
+                : '  ·  rien à faire défiler à cette étape')
+             : '  ·  aucun travelling')
+        + '</span></figcaption>'
+        + '<div class="cadre-img">' + reperes + '<img src="' + data + '" alt=""></div></figure>');
+    }
+    var tr = res.travellings || {};
+    var entete = '<h1>Planche à l’œil — ' + echapper(dernier.p && dernier.p.nom) + '</h1>'
+      + '<p class="meta">' + res.images.length + ' étapes  ·  sortie ' + res.sortie.largeur + '×'
+      + res.sortie.hauteur + '  ·  ' + (res.scene_par_diapositive
+        ? 'une scène par diapositive, plancher ' + res.plancher_lisibilite_pc + ' %'
+        : 'scène imposée ' + res.scene.largeur + '×' + res.scene.hauteur)
+      + '  ·  échelle typographique ' + (res.echelle_typo === 1 ? 'aucune' : '×' + res.echelle_typo)
+      + '  ·  débordements : ' + res.debordements.aucun + ' sans, ' + res.debordements.defilement
+      + ' à faire défiler, ' + res.debordements.scission + ' à scinder'
+      + '  ·  travellings : ' + (tr.nombre || 0) + ' dont ' + (tr.tenables || 0) + ' tenable(s), '
+      + (tr.sans_course || 0) + ' étape(s) qui débordent sans rien avoir à faire défiler'
+      + '  ·  moteur ' + res.moteur + ', SnapDOM ' + res.snapdom + '</p>'
+      + '<p class="meta">À regarder : le texte est-il lisible ? reste-t-il quelque chose de coupé '
+      + '(« coupé » doit valoir 0 partout) ? et sur la diapositive à questionnaire, l’encre '
+      + 's’arrête-t-elle bien avant le trait « fin du travelling » ?</p>'
+      + '<p><button id="bascule">taille réelle / ajustée</button></p>';
+    var html = '<!doctype html><html lang="fr"><head><meta charset="utf-8">'
+      + '<title>Planche à l’œil</title><style>'
+      + 'body{margin:0;padding:18px 20px 60px;background:#f6f2ea;color:#273331;'
+      + 'font:14px/1.5 -apple-system,system-ui,sans-serif;}'
+      + 'h1{font-size:18px;margin:0 0 6px;} .meta{font-size:12px;color:#5b6b67;margin:4px 0;}'
+      + 'figure{margin:22px 0;} figcaption{font-size:12px;margin-bottom:6px;}'
+      + 'figcaption span{display:block;color:#5b6b67;font-family:ui-monospace,Menlo,monospace;}'
+      + '.cadre-img{position:relative;display:inline-block;border:1px solid #c9c3b8;background:#fff;}'
+      + 'img{display:block;width:100%;height:auto;max-width:1100px;}'
+      + 'body.reel img{width:auto;max-width:none;}'
+      + '.rep{position:absolute;left:0;right:0;border-top:2px dashed #b4463c;color:#b4463c;'
+      + 'font-size:11px;font-family:ui-monospace,Menlo,monospace;padding-left:4px;}'
+      + '.rep.pan{border-top-color:#1f5053;color:#1f5053;}'
+      + '</style></head><body>' + entete + parts.join('')
+      // Le bouton de bascule, posé par un script et non par un attribut : un onclick en ligne
+      // demanderait des apostrophes imbriquées dans la source du panneau, qui est elle-même une
+      // chaîne. Mesuré en le tentant — la forge refusait de compiler.
+      // LES DEUX BALISES SONT COUPÉES EN DEUX, et non échappées. Trois raisons, et je les ai
+      // rencontrées dans cet ordre : une barre oblique inverse est refusée par le garde-fou 3 ;
+      // une balise d'ouverture littérale fait découper le panneau au mauvais endroit par le
+      // garde-fou 2, qui isole le script en coupant sur cette balise — y compris écrite dans un
+      // COMMENTAIRE, ce qui m'est arrivé en écrivant celui-ci ; et une fermeture littérale
+      // fermerait la balise de la page du banc. Les garde-fous ont rattrapé les trois.
+      + '<' + 'script>document.getElementById("bascule").onclick=function(){'
+      + 'document.body.classList.toggle("reel");};<' + '/script>'
+      + '</body></html>';
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'planche-a-l-oeil-' + res.images.length + '-etapes.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    dire('planche téléchargée : ' + a.download + '  ('
+      + Math.round(blob.size / 1024 / 1024 * 10) / 10 + ' Mo, ' + res.images.length + ' étapes). '
+      + 'Rien n’a été écrit dans le dépôt.');
+    this.disabled = false;
+  };
+
   $('bc-jpeg').onclick = async function () {
     if (!dernier) return;
     this.disabled = true;

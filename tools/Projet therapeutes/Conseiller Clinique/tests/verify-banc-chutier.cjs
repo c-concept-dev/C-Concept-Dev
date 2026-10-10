@@ -132,7 +132,39 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     console.log('      ' + telecharges.map((t) => t.nom + ' ' + Math.round(t.octets / 1024) + ' Ko').join('   '));
     pass('bouton JPEG : 4 vrais fichiers JPEG téléchargés, noms conformes à X5.');
 
-    // ── 5. Le bouton de péremption signale, et ne remplace rien ───────────────────────────────
+    // ── 5. LA PLANCHE À L'ŒIL : un seul fichier, et ses deux repères ─────────────────────────
+    // Christophe juge les images à l'œil : texte lisible, rien de coupé, et sur une diapositive
+    // haute, l'encre s'arrête-t-elle avant la fin du travelling. La planche est le fichier qui
+    // lui permet de le voir. Elle est TÉLÉCHARGÉE, jamais écrite dans le dépôt : elle porte des
+    // images de sa présentation, qui n'ont rien à y faire.
+    const avantPlanche = telecharges.length;
+    await page.click('#bc-planche');
+    await page.waitForFunction(() => /planche téléchargée/.test(document.getElementById('bc-etat').textContent),
+      { timeout: 300000 });
+    await page.waitForTimeout(600);
+    const planche = telecharges.slice(avantPlanche);
+    assert.equal(planche.length, 1, 'la planche est UN seul fichier : ' + planche.length + ' reçu(s)');
+    assert.match(planche[0].nom, /^planche-a-l-oeil-4-etapes\.html$/, 'nom : ' + planche[0].nom);
+    const corps = fs.readFileSync(path.join(dossierTelechargements, planche[0].nom), 'utf8');
+    assert.equal((corps.match(/<figure>/g) || []).length, 4,
+      'une figure par étape : ' + (corps.match(/<figure>/g) || []).length);
+    assert.equal((corps.match(/data:image\/jpeg;base64,/g) || []).length, 4,
+      'et une image embarquée par figure — la planche doit s\'ouvrir seule, sans fichier à côté');
+    // LES DEUX REPÈRES, sur la diapositive qui déborde. Sans eux, la planche ne dirait pas où
+    // s'arrête le premier cadre ni où s'arrête le travelling : elle montrerait une image haute
+    // sans dire ce que le spectateur en verra.
+    assert.ok((corps.match(/premier cadre, 1080 px/g) || []).length >= 1,
+      'le trait du premier cadre doit être tracé sur l\'image qui déborde');
+    assert.ok((corps.match(/fin du travelling, [0-9]+ px/g) || []).length >= 1,
+      'et celui de la fin du travelling');
+    assert.match(corps, /corps 15 px soit [0-9.]+ % du cadre/,
+      'chaque légende nomme la taille du corps et son pourcentage');
+    assert.match(corps, /coupé 0 px/, 'et ce qui est coupé, qui doit valoir 0');
+    console.log('      planche : ' + planche[0].nom + ' ' + Math.round(planche[0].octets / 1024) + ' Ko, '
+      + (corps.match(/<figure>/g) || []).length + ' figures, repères tracés');
+    pass('planche à l\'œil : un fichier autonome, une figure par étape, les deux repères du travelling.');
+
+    // ── 6. Le bouton de péremption signale, et ne remplace rien ───────────────────────────────
     await page.click('#bc-perime');
     await page.waitForFunction(() => /à jour :/.test(document.getElementById('bc-etat').textContent),
       { timeout: 30000 });
