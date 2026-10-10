@@ -2247,3 +2247,30 @@ discipline. Le prix est assumé : publier une bibliothèque de plus est un dépl
 
 Le registre porte aussi le **journal d'audit** (SEC-07) dès cette étape, plutôt qu'après coup : une
 opération sensible qui n'est pas journalisée au moment où on l'écrit ne le sera jamais.
+
+### Étape 2 — le schéma d'une bibliothèque, et la réserve (faite le 10 octobre 2026)
+
+| | |
+|---|---|
+| Base | `lienotheque-essai`, D1, région WEUR — **nommée pour qu'on ne la confonde jamais avec une vraie** |
+| Schéma | les deux migrations de `MIGRATIONS`, appliquées à distance : 15 tables |
+| Réserve | `BIB_1` déclarée et reliée ; les suivantes s'ajouteront quand une bibliothèque en aura besoin |
+| Contrôle | `therapeute-library` : 22 022 passages, 168 738 816 octets, **0 écriture** |
+
+**La réserve se lit, elle ne se redéclare pas.** `placesDeclarees` parcourt les liaisons que
+l'hébergeur fournit vraiment et ne retient que celles qui sont des bases. Une liste écrite à deux
+endroits finit par diverger, et le jour où elle diverge, le Worker propose une place qui ne mène à
+aucune base. Une place proposée est une promesse d'hébergement.
+
+**Aucune place vide n'a été créée d'avance.** Déclarer `BIB_2` à `BIB_4` imposerait de créer trois
+bases que personne n'utilise. La mécanique est éprouvée par les tests sur une réserve de quatre ;
+la quatrième base existera le jour où une quatrième bibliothèque la réclamera.
+
+**Le garde-fou qui compte** se vérifie sur le fichier de configuration lui-même : aucune liaison
+vers `therapeute-library` ni vers `clone-proxy`. Le test lit les **déclarations** et non les
+commentaires — le fichier parle de clone-proxy, c'est tout le propos de son avertissement en tête,
+et un test qui confondrait les deux interdirait d'expliquer un danger là où il se présente.
+
+Deux noms ont été corrigés en chemin par le typage : `placesLibres` existait déjà pour les places
+de la file de travaux. Les liaisons libres s'appellent donc `liaisonsLibres`. Deux choses
+différentes ne doivent pas porter le même nom, et c'est le compilateur qui l'a dit en premier.

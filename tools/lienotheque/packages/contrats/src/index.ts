@@ -15,6 +15,7 @@ export * from "./redressement.js";
 export * from "./repere.js";
 export * from "./segment.js";
 export * from "./ecrans.js";
+export * from "./hebergement.js";
 export * from "./travail.js";
 export * from "./execution.js";
 export * from "./operation.js";

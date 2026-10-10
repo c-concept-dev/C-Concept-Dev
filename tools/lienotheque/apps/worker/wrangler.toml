@@ -67,3 +67,21 @@ binding = "REGISTRE"
 database_name = "lienotheque-registre"
 database_id = "a4a21d00-c8a0-459a-a279-7b083ffa1794"
 migrations_dir = "migrations/registre"
+
+# ── La réserve de liaisons ────────────────────────────────────────────────────
+#
+# Une place par bibliothèque servie. Le registre dit laquelle est occupée par
+# qui ; le Worker ne fait que lire la base qu'on lui a reliée.
+#
+# BIB_1 porte pour l'instant « lienotheque-essai », la bibliothèque d'essai du
+# lot E1 — nommée ainsi pour qu'on ne la confonde jamais avec une vraie. Les
+# places suivantes s'ajoutent quand une bibliothèque en a besoin : déclarer des
+# places vides reviendrait à créer des bases que personne n'utilise.
+#
+#     npx wrangler d1 migrations apply lienotheque-essai --config wrangler.toml --remote
+#
+[[d1_databases]]
+binding = "BIB_1"
+database_name = "lienotheque-essai"
+database_id = "5c4aba81-9504-4551-bd75-4d9761e7bc2c"
+migrations_dir = "migrations/bibliotheque"
