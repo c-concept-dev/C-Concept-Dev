@@ -456,6 +456,31 @@ const ESSAIS = [
     attendu: "des relevés d'un contexte fermé décideraient du canal du suivant",
   },
 
+  {
+    nom: "la fréquence imposée par le banc est ignorée",
+    fichier: "module",
+    de: "    var demandee = (_services && typeof _services.frequenceDemandee === 'number')\n      ? _services.frequenceDemandee : FREQUENCE_DEMANDEE;",
+    vers: "    var demandee = FREQUENCE_DEMANDEE;",
+    sections: "§16b",
+    attendu: "sans ce levier, les deux prises auraient la même fréquence et le test de T1 a n'éprouverait rien",
+  },
+  {
+    nom: "la prise enregistre la fréquence de la CONSTANTE, non celle du contexte",
+    fichier: "module",
+    de: "        echantillonnage: _etat.echantillonnage,\n        canaux: (_etat.sommesAnalyse && _etat.sommesAnalyse.canaux) || _etat.canaux || 0,",
+    vers: "        echantillonnage: FREQUENCE_DEMANDEE || 48000,\n        canaux: (_etat.sommesAnalyse && _etat.sommesAnalyse.canaux) || _etat.canaux || 0,",
+    sections: "§16b,§8",
+    attendu: "chaque prise doit enregistrer la fréquence RÉELLE de son contexte, pas une valeur de réglage",
+  },
+  {
+    nom: "la taille de morceau est figée, au lieu de suivre la fréquence",
+    fichier: "module",
+    de: "          echantillonsParMorceau: Math.round(_etat.tailleMorceau_s * ctx.sampleRate),",
+    vers: "          echantillonsParMorceau: 220544,",
+    sections: "§16b,§6",
+    attendu: "à 48 000 Hz, 5 s font 240 000 échantillons : une taille figée briserait l'entier de blocs ou la durée",
+  },
+
   // ── UNE MUTATION ÉQUIVALENTE, AVEC SA RAISON (régression #11(h)) ──────────────────────────
   {
     nom: 'le garde isFinite de la corrélation est retiré',

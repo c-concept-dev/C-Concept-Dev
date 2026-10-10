@@ -727,6 +727,148 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       ' Hz (honorée) · piste du micro ' + r.piste + ' Hz → le contexte interpolerait');
   });
 
+  // ── §16b — (a) DEUX PRISES DE FRÉQUENCES DIFFÉRENTES DANS UN MÊME MONTAGE ─────────────────
+  // LE TEST QUE LE CDC DEMANDE À T1 a, ET QUI MANQUAIT. §16 mesurait que l'option de fréquence
+  // est honorée, §8 et §20 qu'UNE prise porte sa fréquence réelle — mais rien n'éprouvait le cas
+  // qui compte pour le lot 4 : deux prises de fréquences DIFFÉRENTES côte à côte dans le même
+  // stockage, c'est-à-dire dans le même montage. Aucun périphérique ne produit cela tout seul,
+  // d'où la fréquence imposée au banc (`?frequence=`), le défaut du produit restant le natif.
+  await controle('§16b deux prises de fréquences différentes dans un même montage', async () => {
+    // UN SEUL contexte de navigateur pour les deux prises : même origine, donc même IndexedDB,
+    // donc même montage. C'est tout le point — deux onglets séparés ne prouveraient rien.
+    const ctx = await nav.newContext({ permissions: ['microphone'] });
+
+    const prendreA = async (requete) => {
+      const page = await ctx.newPage();
+      await page.goto(base + '/banc-enregistreur.html' + requete);
+      await page.waitForFunction(() => window.__bancPret === true || window.__bancErreur,
+        null, { timeout: 20000 });
+      await page.click('[data-action="autoriser"]');
+      await page.waitForFunction(() => {
+        const f = window.EnregistreurVoix._fenetreDeDecision();
+        return f.suffisante && f.secondes >= 1.5;
+      }, null, { timeout: 20000 });
+      await page.click('[data-action="demarrer"]');
+      await page.waitForTimeout(1600);
+      await page.click('[data-action="arreter"]');
+      await page.waitForFunction(() => /terminée|muette/i.test(
+        document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+      const r = await page.evaluate(() => {
+        const e = window.EnregistreurVoix._etat();
+        return { priseId: e.priseId, echantillonnage: e.echantillonnage,
+                 frequenceAffichee: document.querySelector('[data-sb-frequence]').textContent,
+                 mesures: e.mesures };
+      });
+      await page.close();
+      return r;
+    };
+
+    // Prise 1 : la fréquence NATIVE du périphérique (celle du produit).
+    const a = await prendreA('');
+    // Prise 2 : 48 000 Hz imposés au contexte, dans le MÊME stockage.
+    const b = await prendreA('?frequence=48000');
+
+    // Les deux prises relues depuis le stockage partagé : c'est le montage.
+    const page3 = await ctx.newPage();
+    await page3.goto(base + '/banc-enregistreur.html');
+    await page3.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    const montage = await page3.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      const l = await window.VoixStockage.listerPrises(e.db);
+      const out = [];
+      for (const p of l) {
+        let ech = 0, nb = 0;
+        await window.VoixStockage.parcourirMorceaux(e.db, p.id, (m) => {
+          nb++; ech += m.pcm.byteLength / 2;
+        });
+        out.push({ id: p.id, echantillonnage: p.echantillonnage,
+                   parMorceau: p.echantillonsParMorceau, nbEchantillons: p.nbEchantillons,
+                   morceaux: nb, echantillonsRelus: ech,
+                   duree_s: p.nbEchantillons / p.echantillonnage });
+      }
+      // Ce que la liste AFFICHE, et non ce que le module déclare.
+      const affichees = [...document.querySelectorAll('[data-prises] [data-prise]')]
+        .map((el) => el.querySelector('[data-detail]').textContent);
+      return { prises: out, affichees };
+    });
+    await page3.close();
+    await ctx.close();
+
+    // ── LES DEUX FRÉQUENCES SONT BIEN DIFFÉRENTES ──────────────────────────────────────────
+    assert.notEqual(a.echantillonnage, b.echantillonnage,
+      'les deux prises doivent avoir des fréquences différentes ; obtenu ' + a.echantillonnage +
+      ' et ' + b.echantillonnage + ' — sans cela le contrôle n\'éprouve rien');
+    assert.equal(b.echantillonnage, 48000, 'la seconde doit être à 48 000 : ' + b.echantillonnage);
+
+    // ── CHAQUE PRISE PORTE SA PROPRE FRÉQUENCE, dans le montage ────────────────────────────
+    assert.equal(montage.prises.length, 2,
+      'les deux prises doivent coexister dans le même stockage : ' + JSON.stringify(montage.prises));
+    const pa = montage.prises.find((x) => x.id === a.priseId);
+    const pb = montage.prises.find((x) => x.id === b.priseId);
+    assert.ok(pa && pb, 'les deux prises doivent être retrouvées par leur identifiant');
+    assert.equal(pa.echantillonnage, a.echantillonnage,
+      'la prise 1 doit porter SA fréquence : ' + pa.echantillonnage);
+    assert.equal(pb.echantillonnage, 48000,
+      'la prise 2 doit porter SA fréquence : ' + pb.echantillonnage);
+
+    // ── CHAQUE TAILLE DE MORCEAU RESTE UN NOMBRE ENTIER DE BLOCS, à sa fréquence ───────────
+    for (const x of [pa, pb]) {
+      assert.equal(x.parMorceau % 128, 0,
+        'à ' + x.echantillonnage + ' Hz, la taille effective doit être un entier de blocs : ' +
+        x.parMorceau + ' % 128 = ' + (x.parMorceau % 128));
+      assert.equal(x.echantillonsRelus, x.nbEchantillons,
+        'et la prise doit annoncer ce qu\'elle contient : ' + x.nbEchantillons + ' contre ' +
+        x.echantillonsRelus);
+    }
+    // À 48 000 Hz, 5 s font 240 000 échantillons, qui SONT un entier de blocs : la taille
+    // effective doit donc valoir exactement la consigne, contrairement à 44 100 Hz.
+    assert.equal(pb.parMorceau, 240000,
+      'à 48 000 Hz, 5 s font 240 000 échantillons pile (1 875 blocs) : ' + pb.parMorceau);
+    assert.notEqual(pa.parMorceau, pb.parMorceau,
+      'et les deux tailles effectives diffèrent, puisque les fréquences diffèrent');
+
+    // ── CE QUE LE LOT 4 DEVRA FAIRE, dit prise par prise ──────────────────────────────────
+    assert.equal(b.mesures.frequence.aReechantillonnerAuLot4, false,
+      'la prise à 48 000 Hz ne demande aucun rééchantillonnage');
+    assert.equal(a.mesures.frequence.aReechantillonnerAuLot4, a.echantillonnage !== 48000,
+      'et la prise native le demande si elle n\'est pas à 48 000 : ' + a.echantillonnage);
+
+    // ── ET LA PAGE AFFICHE LES DEUX FRÉQUENCES, pas une seule ─────────────────────────────
+    assert.ok(a.frequenceAffichee.includes(String(a.echantillonnage)),
+      'la page de la prise 1 affichait sa fréquence : ' + a.frequenceAffichee);
+    assert.ok(b.frequenceAffichee.includes('48000'),
+      'celle de la prise 2 aussi : ' + b.frequenceAffichee);
+    assert.equal(montage.affichees.length, 2, 'les deux prises doivent être AFFICHÉES');
+    assert.ok(montage.affichees.some((t) => t.includes(String(a.echantillonnage) + ' Hz')),
+      'la liste doit montrer la fréquence de la prise 1 : ' + JSON.stringify(montage.affichees));
+    assert.ok(montage.affichees.some((t) => t.includes('48000 Hz')),
+      'et celle de la prise 2 : ' + JSON.stringify(montage.affichees));
+
+    console.log('        prise 1 : ' + pa.echantillonnage + ' Hz, ' + pa.parMorceau +
+      ' éch/morceau (' + (pa.parMorceau / 128) + ' blocs), rééchantillonnage ' +
+      a.mesures.frequence.aReechantillonnerAuLot4);
+    console.log('        prise 2 : ' + pb.echantillonnage + ' Hz, ' + pb.parMorceau +
+      ' éch/morceau (' + (pb.parMorceau / 128) + ' blocs), rééchantillonnage ' +
+      b.mesures.frequence.aReechantillonnerAuLot4);
+    console.log('        les deux coexistent dans le même stockage, chacune avec SA fréquence');
+  });
+
+  await controle('§16c le défaut du PRODUIT reste la fréquence native', async () => {
+    // La fréquence imposée est un levier du BANC, pas un changement de décision : la constante
+    // du module doit rester `null`, sans quoi §16b aurait verrouillé 48 000 par la porte de
+    // derrière.
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(() => ({
+      constante: window.EnregistreurVoix.FREQUENCE_DEMANDEE,
+      servicesDuBanc: window.__bancServices ? ('frequenceDemandee' in window.__bancServices) : 'absent',
+    }));
+    await ctx.close();
+    assert.equal(r.constante, null,
+      'la constante du module doit rester null : ' + JSON.stringify(r.constante));
+    assert.equal(r.servicesDuBanc, false,
+      'et sans `?frequence=`, le banc ne doit rien imposer : ' + JSON.stringify(r.servicesDuBanc));
+  });
+
   // ── §17 — (b) LE CANAL : FENÊTRE DE DÉCISION, PUIS VÉRIFICATION SUR LA PRISE ───────────────
   await controle('§17 un canal actif au DÉMARRAGE puis à zéro ne décide pas de la prise', async () => {
     // La fixture : le canal droit porte du signal pendant la première seconde, puis tombe à zéro

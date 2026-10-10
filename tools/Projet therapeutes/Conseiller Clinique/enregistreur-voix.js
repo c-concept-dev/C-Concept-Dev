@@ -734,7 +734,14 @@
     _etat.sommesAnalyse = null;
     // (a) La fréquence demandée, ou rien du tout. Mesuré : les deux moteurs honorent l'option,
     // mais la piste du micro garde la sienne et le contexte interpole — voir la constante.
-    var ctx = (FREQUENCE_DEMANDEE === null) ? new AC() : new AC({ sampleRate: FREQUENCE_DEMANDEE });
+    //
+    // `services.frequenceDemandee` permet au BANC d'en imposer une autre. Seul usage : éprouver
+    // deux prises de fréquences DIFFÉRENTES dans un même montage, ce que le CDC demande (T1 a) et
+    // qu'aucun périphérique ne produit tout seul. Le défaut du produit reste la constante
+    // ci-dessus, et un contrôle vérifie qu'elle vaut bien `null`.
+    var demandee = (_services && typeof _services.frequenceDemandee === 'number')
+      ? _services.frequenceDemandee : FREQUENCE_DEMANDEE;
+    var ctx = (demandee === null) ? new AC() : new AC({ sampleRate: demandee });
     _etat.ctx = ctx;
     _etat.echantillonnage = ctx.sampleRate;
 

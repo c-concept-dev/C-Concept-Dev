@@ -71,6 +71,12 @@ body { margin: 0; padding: 24px 16px; }
   var p = new URLSearchParams(location.search);
   var services = { urlWorklet: 'enregistreur-worklet.js' };
 
+  // `?frequence=48000` impose la fréquence du contexte audio. Seul usage : éprouver deux prises
+  // de fréquences différentes dans un même montage (CDC, T1 a). Sans ce paramètre, le banc prend
+  // la fréquence native du périphérique, qui est le choix du produit.
+  var fDemandee = parseInt(p.get('frequence') || '', 10);
+  if (!isNaN(fDemandee) && fDemandee > 0) services.frequenceDemandee = fDemandee;
+
   // ── LA SOURCE D'ESSAI, réservée au banc ────────────────────────────────────────────────────
   // `?source=fixture&fichier=…` remplace le micro par un fichier décodé et joué dans le graphe.
   // Ce qui est simulé est la COUCHE LA PLUS BASSE possible : à la place de `getUserMedia`, une
