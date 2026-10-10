@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Banc de l'enregistreur — lot 3, jalon I</title>
+<link rel="stylesheet" href="kit-ux/banc-montage.css"/>
+<style>
+/* Les deux fonds photographiques du kit NE SONT PAS dans ce dépôt, volontairement : ce sont des
+   images générées, dont le dossier d'origine note que l'usage reste soumis aux conditions du
+   service de génération. Ce dépôt est PUBLIC, et ce n'est pas à moi d'en décider seul. On
+   neutralise donc les deux règles de fond plutôt que de laisser deux requêtes en 404.
+   Polices, couleurs, espacements et composants restent ceux du kit, à l'octet près. */
+.sc-bm-screen-shell, .sc-bm-screen-shell--record { background-image: none !important; }
+/* LA COQUILLE DU KIT SUPPOSE LA RANGÉE DES ÉTAPES, QUI EST DU LOT 4.
+   `.sc-bm-screen-shell--no-montage` est une grille de hauteur FIXE (900 px) à quatre rangées :
+   56 px pour la barre du haut, 48 px pour les étapes, le contenu, 32 px pour la barre d'état.
+   Les étapes étant du lot 4, elles doivent être ABSENTES — et sans elles, mes trois enfants
+   tombent sur les trois premières rangées : la barre d'état atterrit dans la rangée du contenu
+   et recouvre les boutons. Constaté par un clic qui n'atteignait plus sa cible, pas par lecture.
+   On redéclare donc les rangées pour une interface de lot 3 seulement, et on laisse la hauteur
+   suivre le contenu. Aucun composant du kit n'est modifié : seule la grille de la coquille l'est.
+   À signaler à Christophe : le kit gagnerait une variante de coquille sans la rangée d'étapes. */
+.sc-bm-screen-page .sc-bm-screen-shell--record {
+  height: auto;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.sc-bm-screen-page .sc-bm-screen-record-layout { min-height: 0; }
+/* Le banc n'est pas l'application : il n'a ni timeline ni colonne de montage, et doit rester
+   lisible dans une fenêtre ordinaire. Rien ici ne touche un composant du kit. */
+body { margin: 0; padding: 24px 16px; }
+.banc-entete { max-width: 1100px; margin: 0 auto 20px; }
+.banc-entete h1 { margin: 0 0 6px; }
+[data-enregistreur] { max-width: 1100px; margin: 0 auto; }
+</style>
+</head>
+<body class="sc-bm-root sc-bm-screen-page" data-screen="banc-jalon-1" data-lot="3">
+
+<svg class="sc-bm-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="display:none">
+  <symbol id="sc-bm-icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 10v2a6 6 0 0 0 12 0v-2M12 18v3m-4 0h8"/></symbol>
+  <symbol id="sc-bm-icon-record" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"/></symbol>
+  <symbol id="icon-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="sc-bm-icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="icon-warning" viewBox="0 0 24 24"><path d="m12 3 10 18H2L12 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 9v5m0 3v.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 10v7m0-10v.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</svg>
+
+<div class="banc-entete">
+  <h1>Banc de l'enregistreur — lot 3, jalon I</h1>
+  <p class="sc-bm-help">Capture et stockage seulement : worklet, flux vers IndexedDB, reprise
+  après fermeture, détection de capture muette, canal retenu, vu-mètre, export WAV. Aucune
+  connexion réseau, aucun appel au Worker, aucune clé. La voix ne quitte pas cet ordinateur.</p>
+  <p class="sc-bm-help">Les composants viennent du kit v1.1, lot 3 uniquement. Ce qui appartient
+  à un lot ultérieur est <strong>absent</strong>, jamais grisé : pas d'étapes (lot 4), pas
+  d'aperçu de présentation (lot 4), pas de bande rythmo ni de repères (jalon II), pas d'avis
+  bloquants (jalon III).</p>
+</div>
+
+<div data-enregistreur></div>
+
+<script src="voix-stockage.js"></script>
+<script src="enregistreur-voix.js"></script>
+<script>
+// ── LES DEUX ACCROCHES, exactement comme le cœur les posera au jalon III ─────────────────────
+// Le banc fournit un conteneur et appelle `brancher`. Rien d'autre. Ce point d'injection est
+// celui que le produit empruntera : un contrôle doit donc passer par ICI, et non le contourner
+// (régression #11(a)).
+(function () {
+  'use strict';
+  var p = new URLSearchParams(location.search);
+  var services = { urlWorklet: 'enregistreur-worklet.js' };
+
+  // ── LA SOURCE D'ESSAI, réservée au banc ────────────────────────────────────────────────────
+  // `?source=fixture&fichier=…` remplace le micro par un fichier décodé et joué dans le graphe.
+  // Ce qui est simulé est la COUCHE LA PLUS BASSE possible : à la place de `getUserMedia`, une
+  // source audio. Le worklet, le mixage, le découpage en morceaux, IndexedDB et l'affichage sont
+  // les vrais. Sans ce paramètre, le banc prend le micro réel — et c'est ce chemin-là que
+  // Christophe éprouve, et qu'au moins un contrôle automatique emprunte aussi avec le micro
+  // factice de Chromium.
+  if (p.get('source') === 'fixture') {
+    var fichier = p.get('fichier');
+    var tampon = null;
+    services.obtenirFlux = function () {
+      return fetch(fichier).then(function (r) {
+        if (!r.ok) throw new Error('fixture introuvable : ' + fichier);
+        return r.arrayBuffer();
+      }).then(function (ab) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        var tmp = new AC();
+        return tmp.decodeAudioData(ab).then(function (buf) {
+          tampon = buf;
+          tmp.close();
+          // Un objet qui répond comme un MediaStream pour ce que le module en fait : lister la
+          // piste. Il n'y a pas de piste réelle, et le module le verra (aucun événement).
+          return { getAudioTracks: function () { return []; } };
+        });
+      });
+    };
+    services.creerSource = function (ctx) {
+      var src = ctx.createBufferSource();
+      src.buffer = tampon;
+      src.loop = !!p.get('boucle');
+      src.start();
+      window.__bancFixture = { duree: tampon.duration, canaux: tampon.numberOfChannels,
+                               echantillonnage: tampon.sampleRate };
+      // `?gain=2` pousse le signal AU-DELÀ de la pleine échelle, ce qu'un fichier WAV ne peut pas
+      // porter (il est borné à l'écriture) mais qu'un graphe Web Audio fait très bien. C'est le
+      // seul moyen d'éprouver l'écrêtage du worklet sur le vrai chemin, plutôt que de tester une
+      // copie de sa formule — il n'y en a qu'une, et elle est dans le worklet.
+      var gain = parseFloat(p.get('gain') || '1');
+      if (gain !== 1) {
+        var g = ctx.createGain();
+        g.gain.value = gain;
+        src.connect(g);
+        window.__bancGain = gain;
+        return g;
+      }
+      return src;
+    };
+  }
+
+  window.EnregistreurVoix.brancher(document.querySelector('[data-enregistreur]'), services)
+    .then(function () { window.__bancPret = true; })
+    .catch(function (e) {
+      window.__bancErreur = String(e && e.message);
+      document.querySelector('[data-enregistreur]').innerHTML =
+        '<div class="sc-bm-message" data-state="error" role="status"><span>Le banc n\'a pas pu démarrer : ' +
+        String(e && e.message) + '</span></div>';
+    });
+})();
+</script>
+</body>
+</html>

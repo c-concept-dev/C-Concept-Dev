@@ -2,3 +2,9 @@
 # Le dépôt est public : règle 11 de la gouvernance — le dossier est ignoré AVANT sa
 # création, jamais après. La règle vivait sur la branche du lot 2 ; elle doit vivre ici.
 banc-chutier/
+
+# Lot 3 — tout ce que les mesures de l'enregistreur produisent : fixtures WAV
+# synthétiques, rapports JSON de mesure, bases IndexedDB exportées, prises d'essai.
+# Ignoré AVANT la première création, jamais après (règle 11 de la gouvernance) :
+# un motif ajouté ensuite ne retire pas ce qui est déjà indexé.
+banc-enregistreur/
