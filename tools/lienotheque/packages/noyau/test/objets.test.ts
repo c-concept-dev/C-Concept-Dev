@@ -43,15 +43,21 @@ describe("personne d'autre ne compose de préfixe (le garde-fou)", () => {
   const SOURCES = ["packages/noyau/src", "packages/depot-sqlite/src", "apps/worker/src", "outils/ingestion/src"];
   const AUTORISE = "packages/noyau/src/objets.ts";
 
+  /** Les chemins se comparent en barres obliques, pas en séparateurs du système.
+   *
+   *  Sans cela, le contrôle s'accuse lui-même sur Windows : `join` y rend des barres inverses,
+   *  et le chemin autorisé, écrit à la main, n'est jamais reconnu. C'est le même genre de piège
+   *  que les fins de ligne — une différence qui ne se voit pas à la lecture. */
+  const enBarresObliques = (chemin: string): string => chemin.replaceAll("\\", "/");
+
   const fichiersTypeScript = (dossier: string): string[] => {
-    const complet = join(RACINE, dossier);
     let entrees: string[];
     try {
-      entrees = readdirSync(complet, { recursive: true }) as string[];
+      entrees = readdirSync(join(RACINE, dossier), { recursive: true }) as string[];
     } catch {
       return [];
     }
-    return entrees.filter((nom) => nom.endsWith(".ts")).map((nom) => join(dossier, nom));
+    return entrees.filter((nom) => nom.endsWith(".ts")).map((nom) => `${dossier}/${enBarresObliques(nom)}`);
   };
 
   it("aucun module hors objets.ts ne fabrique « /sources/ » ni « /derives/ »", () => {
