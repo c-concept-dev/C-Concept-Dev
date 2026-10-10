@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@lienotheque/contrats": "workspace:*",
+    "@lienotheque/noyau": "workspace:*",
     "hono": "^4.13.12"
   },
   "devDependencies": {

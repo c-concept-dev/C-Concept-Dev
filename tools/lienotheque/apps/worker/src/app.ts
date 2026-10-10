@@ -1,4 +1,5 @@
 import { DemandeVision, EstimationVision, EtatService, ReponseVision, reponseRepondA, type Capacite } from "@lienotheque/contrats";
+import { verifier } from "@lienotheque/noyau";
 import { Hono } from "hono";
 import {
   compterParModele,
@@ -14,13 +15,25 @@ export const SERVICE = "lienotheque-api";
 export const VERSION = "0.2.0";
 
 /** Ce que le service sait faire. La liste grandit avec les routes (HEB-01). */
-export const CAPACITES: readonly Capacite[] = ["sante", "vision"];
+export const CAPACITES: readonly Capacite[] = ["sante", "vision", "fichiers"];
 
 /** Ce que l'hébergeur fournit. Jamais écrit dans un fichier du dépôt, jamais rendu dans une
  *  réponse, jamais consigné : ce sont des secrets posés à la main sur le Worker (règle 6). */
 export type Liaisons = {
   readonly ANTHROPIC_API_KEY?: string;
   readonly JETON_ACCES?: string;
+  /** Le secret qui signe les laissez-passer des fichiers (SEC-05). */
+  readonly SECRET_LAISSEZ?: string;
+  /** Le compartiment des fichiers. Jamais lu sans laissez-passer vérifié. */
+  readonly MEDIAS?: { readonly get: (cle: string, options?: unknown) => Promise<ObjetServi | null> };
+};
+
+/** Ce qu'un objet du compartiment doit savoir rendre pour qu'on le serve. */
+export type ObjetServi = {
+  readonly body: ReadableStream | null;
+  readonly size?: number;
+  readonly httpEtag?: string;
+  readonly httpMetadata?: { readonly contentType?: string };
 };
 
 type Options = {
@@ -120,6 +133,37 @@ export function creerApp({ maintenant = () => new Date(), lecteur = lireParModel
     const demande = await demandeDe(contexte);
     if (demande instanceof Response) return demande;
     return repondre(() => compteur(contexte.env.ANTHROPIC_API_KEY!)(demande), (estimation) => EstimationVision.parse(estimation));
+  });
+
+  /** Servir un fichier, et seulement sur laissez-passer (SEC-05).
+   *
+   *  Le Worker retransmet au lieu de signer une adresse chez l'hébergeur de fichiers : un secret
+   *  de moins, et la sortie ne coûte rien. Ce qui autorise, c'est la signature — jamais la clé
+   *  de l'objet, qu'on ne lit d'ailleurs qu'une fois la signature vérifiée.
+   *
+   *  Aucune réponse ne dit **ce qui** manque : un fichier absent et un laissez-passer refusé se
+   *  distinguent par leur code, pas par un message qui apprendrait ce qui existe. */
+  app.get("/fichier/:laissez{.+}", async (contexte) => {
+    const secret = contexte.env.SECRET_LAISSEZ;
+    const compartiment = contexte.env.MEDIAS;
+    if (secret === undefined || secret.length === 0 || compartiment === undefined)
+      return contexte.json({ erreur: "Le service de fichiers n'est pas configuré" }, 503);
+
+    const verdict = await verifier(secret, contexte.req.param("laissez"), Math.floor(Date.now() / 1000));
+    if (!verdict.ouvert) return contexte.json({ erreur: verdict.raison }, 403);
+
+    const objet = await compartiment.get(verdict.laissez.cle);
+    if (objet === null || objet.body === null) return contexte.json({ erreur: "Fichier absent" }, 404);
+
+    const entetes = new Headers({
+      "content-type": objet.httpMetadata?.contentType ?? "application/octet-stream",
+      // Privé, et pas seulement « non public » : un fichier servi sur laissez-passer n'a rien à
+      // faire dans un cache partagé, qui le resservirait après l'expiration.
+      "cache-control": "private, no-store",
+    });
+    if (objet.size !== undefined) entetes.set("content-length", String(objet.size));
+    if (objet.httpEtag !== undefined) entetes.set("etag", objet.httpEtag);
+    return new Response(objet.body, { headers: entetes });
   });
 
   app.notFound((contexte) => contexte.json({ erreur: "Route inconnue" }, 404));

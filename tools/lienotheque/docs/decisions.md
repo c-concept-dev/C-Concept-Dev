@@ -2327,3 +2327,41 @@ coûtait quatre-vingts secondes d'envoi avant de se montrer.
 **Un garde-fou dans le banc lui-même** : il refuse toute cible dont le nom ne finit pas par
 `-essai`. Une épreuve capable d'effacer une vraie base est une épreuve que personne ne devrait
 lancer, et la règle vit dans le code plutôt que dans la prudence de qui tape la commande.
+
+### Étapes 4 et 5 — les fichiers, et ce qui les ouvre (10 octobre 2026)
+
+| | |
+|---|---|
+| Compartiment | `lienotheque-medias`, R2, région WEUR, vide au départ |
+| Clés | `<clé>/sources/<2 premiers>/<empreinte>` et `<clé>/derives/<version>/…` |
+| Laissez-passer | signature HMAC, trois minutes, vérifiée avant toute lecture |
+| Contrôle | `therapeute-library` : 22 022 passages, 168 738 816 octets, **0 écriture** |
+
+**Un seul endroit compose une clé**, et un test refuse qu'un second s'y mette. Pour les bases,
+l'isolation est structurelle — une base par bibliothèque, aucune requête ne peut en atteindre
+deux. Pour les fichiers elle ne l'est pas, et il faut le dire : un compartiment unique, des
+préfixes, et du code qui tient la frontière. Le concentrer en une fonction est la seule façon de
+rendre cette frontière relisable.
+
+Le piège qu'un `startsWith` ne voit pas a son test : **`essai-bis/` commence par `essai`**. La
+comparaison porte donc sur la clé recomposée, jamais sur un préfixe de texte.
+
+**Ce n'est pas la clé de l'objet qui autorise, c'est la signature.** Un laissez-passer dit quel
+fichier, de quelle bibliothèque, jusqu'à quand. Trois minutes : assez pour qu'un navigateur
+charge une page, trop peu pour qu'une adresse recopiée dans un message serve encore demain. Et
+même signée, une clé qui n'appartient pas à la bibliothèque annoncée ne s'ouvre pas — une
+signature atteste qu'on a écrit le laissez-passer, pas qu'on avait raison de l'écrire.
+
+Le Worker **retransmet** au lieu de signer une adresse chez l'hébergeur de fichiers : un secret de
+moins (SEC-06), et la sortie ne coûte rien. Le jour où une mesure montrera que retransmettre pèse
+trop, on changera — pas avant.
+
+Trois détails que les tests imposent et qu'on aurait pu manquer : le compartiment n'est **jamais**
+touché avant que le laissez-passer soit vérifié ; la réponse porte `private, no-store`, sans quoi
+un cache partagé resservirait le fichier après l'expiration ; et un fichier absent se distingue
+d'un accès refusé **par le code** — 404 dit « pas là », 403 dit « pas vous » — jamais par un
+message qui apprendrait ce qui existe.
+
+**Le garde-fou CLA-01 m'a repris en chemin** : j'avais écrit un mot de domaine comme nom de
+bibliothèque d'exemple dans des tests génériques. Il avait raison, et c'est exactement à cela
+qu'il sert.

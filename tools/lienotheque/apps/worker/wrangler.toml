@@ -85,3 +85,17 @@ binding = "BIB_1"
 database_name = "lienotheque-essai"
 database_id = "5c4aba81-9504-4551-bd75-4d9761e7bc2c"
 migrations_dir = "migrations/bibliotheque"
+
+# ── Les fichiers ──────────────────────────────────────────────────────────────
+#
+# Un seul compartiment, préfixé par bibliothèque. Un compartiment par
+# bibliothèque imposerait un redéploiement à chaque création, puisqu'une liaison
+# se déclare ici ; un préfixe n'impose rien.
+#
+# Le prix est assumé et dit : pour les fichiers, l'isolation est tenue par le
+# code et non par la structure. Tout ce qui compose une clé passe par
+# packages/noyau/src/objets.ts, et un test refuse qu'un second module s'y mette.
+#
+[[r2_buckets]]
+binding = "MEDIAS"
+bucket_name = "lienotheque-medias"

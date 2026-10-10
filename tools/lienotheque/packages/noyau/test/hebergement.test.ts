@@ -73,7 +73,7 @@ describe("ce qu'un état promet (HEB-01, PLT-12)", () => {
 
 describe("le préfixe et le poids annoncé", () => {
   it("compose le préfixe depuis la clé, et nulle part ailleurs", () => {
-    expect(prefixeDe("therapie")).toBe("therapie/");
+    expect(prefixeDe("ailleurs")).toBe("ailleurs/");
   });
 
   it("n'annonce que le poids des pages, jamais celui du dossier", () => {
