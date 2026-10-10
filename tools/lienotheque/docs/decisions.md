@@ -2556,3 +2556,41 @@ facettes comptaient trois valeurs d'axe quand la recherche rendait des axes vide
 deux regardaient des documents différents. Les identifiants sont désormais dérivés de la clé de
 la bibliothèque. C'est la faute relevée dans l'ancien outil d'administration, où le rang d'un
 passage était recalculé par lot : **une identité qui n'est pas stable n'est pas une identité.**
+
+### Lot E2, étape 0 — le volume, éprouvé pour de vrai (10 octobre 2026)
+
+| L'épreuve | Ce qu'on a vu |
+|---|---|
+| Volume démonté en cours | « le dossier n'existe pas — volume démonté ou débranché ? », à 12 s |
+| Le travail pendant l'absence | **en file**, tentative 1 — pas d'échec, pas de tentative consommée |
+| Volume remonté | reprise annoncée à 32 s, sans rien relancer |
+| Travail **en vol** au moment de l'absence | revient en file, tentative inchangée (contrôle Rust) |
+
+**Le message disait faux, et seul l'essai réel l'a montré.** Démonter une carte sous `/Volumes`
+rend « Permission denied » : c'est `/Volumes` qui refuse qu'on y crée un dossier, pas le volume,
+qui n'est plus là. Le message envoyait chercher un problème de droits là où il fallait rebrancher
+un disque. On regarde désormais ce qui existe avant de nommer la cause.
+
+**L'essai ne prouvait qu'une moitié.** Le travail *attendait* ; le chemin que j'avais écrit pour
+rendre un travail *en vol* n'était pas éprouvé — et c'est pourtant le seul endroit où la
+confusion coûtait cher, puisque c'est lui qui transformait une absence d'une minute et demie en
+document perdu. Un contrôle le couvre maintenant, et sa première version échouait sur sa propre
+prémisse : le dossier que je croyais injoignable était simplement créable.
+
+**Le support de données a changé, et pas par préférence.** La carte de 1 To porte une corruption
+de catalogue — « Invalid node structure » — et **refuse de remonter après chaque démontage** :
+trois fois, dont une après une vérification qui n'écrit rien, et `fsck_hfs -fy` ne sait pas
+reconstruire un catalogue. Un support qui ne survit pas à un démontage ne peut porter ni une
+base, ni une sauvegarde.
+
+La clé « Macbook » a passé ce que la carte échoue : 20 Mo écrits puis relus à l'identique, et
+**quatre cycles démontage-remontage sans incident**. Elle reçoit les sauvegardes, et rien d'autre
+— ExFAT n'a pas de journal, une coupure peut y laisser un fichier incomplet.
+
+**D'où le découpage, maintenant écrit au plan** : base, file et dérivés sur le disque interne,
+originaux inchangés, sauvegardes sur la clé. **Aucun support amovible n'est nécessaire au
+fonctionnement** ; si la clé s'absente, la sauvegarde attend et n'arrête rien.
+
+**Deux absences, deux réponses**, et les confondre serait refaire la faute corrigée ici : les
+dérivés injoignables suspendent, la base injoignable ne se suspend pas — la file vit dessus, on
+ne peut ni lire ce qui restait à faire ni écrire qu'on attend.

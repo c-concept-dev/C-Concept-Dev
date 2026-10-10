@@ -18,21 +18,42 @@ quelques EPUB. Chaque fichier est ouvert en lecture, son empreinte calculée, se
 inspectées. **Aucune écriture, aucun renommage, aucun déplacement.** Un fichier d'origine n'est
 jamais réécrit : c'est une règle du dépôt, pas une intention de ce lot.
 
-### Écrit, dans un seul endroit, nouveau
+### Écrit, et où
 
-Un dossier de bibliothèque, à créer sur le **volume externe** (436 Go libres, et la règle du
-projet veut que les gros corpus n'aillent jamais dans le dépôt principal) :
+Le découpage tient en une phrase : **ce qui garde la mémoire du travail ne vit jamais sur ce qui
+se débranche ; ce que le travail produit, éventuellement.**
+
+| Quoi | Poids | Où | Pourquoi |
+|---|---:|---|---|
+| La base et la file | ~250 Mo | **disque interne** | C'est la mémoire de ce qui a été fait. Si elle part avec le disque, on ne sait même plus où on en était |
+| Les dérivés | ~1,9 Go | **disque interne** | 49 Gio libres : ils tiennent sans compromis. Regénérables de toute façon |
+| Les originaux | 7,4 Go | **là où ils sont** | jamais recopiés |
+| Les sauvegardes | 85 Mo l'export | **clé « Macbook »** | son seul rôle |
 
 ```
-<volume>/lienotheque-therapie/
-  base/        la base SQLite de la bibliothèque
-  sources/     rien — les originaux restent où ils sont (voir ci-dessous)
-  derives/     les images de page optimisées, ~1,9 Go attendus
+~/Lienotheque/therapie/
+  base/        la base SQLite et la file
+  derives/     les images de page optimisées
 ```
 
-**Les originaux ne sont pas recopiés.** La bibliothèque les référence par leur empreinte et leur
-chemin ; les dupliquer coûterait 7,4 Go pour rien, et vous avez déjà décidé que les œuvres
-restent sur votre Mac.
+**Pourquoi ce n'est plus le volume externe.** Le plan prévoyait d'y mettre la bibliothèque. Un
+essai réel l'a écarté : la carte de 1 To porte une corruption de catalogue et **refuse de
+remonter après chaque démontage** — trois fois, dont une après une simple vérification qui
+n'écrit rien. Un support qui ne survit pas à un démontage ne peut porter ni une base, ni une
+sauvegarde.
+
+La clé « Macbook » a passé l'épreuve que la carte échoue : écriture de 20 Mo relue à l'identique,
+puis **quatre cycles démontage-remontage sans incident**. Elle est en ExFAT, qui n'a pas de
+journal — une coupure en cours d'écriture peut y laisser un fichier incomplet. Raison de plus
+pour qu'elle reçoive des copies et jamais des données vives.
+
+**Ce que ce découpage garantit :** aucun support amovible n'est nécessaire au fonctionnement. Si
+la clé s'absente, la sauvegarde attend ; elle n'arrête rien.
+
+**Deux réserves, posées franchement.** Quarante-neuf gigaoctets libres n'est pas énorme : je
+vérifierai la place avant chaque séance et je m'arrêterai net sous un seuil plutôt que de remplir
+votre disque. Et un disque interne tombe aussi — ce qui le protège est la sauvegarde, dont
+l'épreuve d'E1 a montré qu'elle se restaure en dix-huit secondes.
 
 ### Jamais touché
 
@@ -232,7 +253,8 @@ le second non.
 
 | | |
 |---|---|
-| **Un témoin de présence** | Avant de prendre un travail, l'hôte vérifie que le dossier de la bibliothèque existe et accepte une écriture. Un fichier témoin, écrit et relu — l'existence d'un dossier ne prouve pas qu'on peut y écrire, et un volume démonté laisse parfois un point de montage vide qui ressemble à un dossier |
+| **Un témoin de présence** | Avant de prendre un travail, l'hôte vérifie que le dossier existe et accepte une écriture. Un fichier témoin, écrit et relu — l'existence d'un dossier ne prouve pas qu'on peut y écrire, et un volume démonté laisse parfois un point de montage vide qui ressemble à un dossier |
+| **Deux absences, deux réponses** | **Les dérivés injoignables : on suspend** — la file sait où elle en est, les travaux attendent, tout repart au retour. **La base injoignable : ce n'est pas une suspension** — la file vit dessus, on ne peut ni lire ce qui restait à faire ni écrire qu'on attend ; le seul geste honnête est de s'arrêter et de le dire. Les confondre serait refaire la faute qu'on vient de corriger |
 | **Une suspension, pas un échec** | Volume absent : la file **se met en pause** et ne consomme aucune tentative. Aucun travail ne passe en échec parce que le disque n'était pas là |
 | **Une reprise d'elle-même** | La file reteste le témoin à intervalle régulier et repart dès qu'il répond, sans qu'on ait à relancer quoi que ce soit |
 | **Un arrêt net du travail en cours** | Le processus en vol est arrêté proprement plutôt que laissé à écrire dans le vide, et son travail revient « en file », pas « en échec » |

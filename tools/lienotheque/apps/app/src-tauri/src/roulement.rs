@@ -89,10 +89,14 @@ impl Roulement {
         self.arret.load(Ordering::Relaxed)
     }
 
-    /// Le volume de la bibliothèque répond-il ?
+    /// Le dossier de la bibliothèque répond-il ?
     ///
     /// Posée à chaque tour, et pas une fois au démarrage : un disque s'absente en cours de route,
     /// c'est tout l'objet. La réponse est gardée pour que l'écran puisse la montrer en mots.
+    ///
+    /// Depuis le lot E2 ce dossier porte la base et la file, et il vit sur le disque interne : son
+    /// absence relève donc de `Role::Base`, qui ne se suspend pas. Les dérivés, eux, peuvent vivre
+    /// ailleurs, et c'est `presence_des_derives` qui les regarde.
     pub fn presence(&self) -> Presence {
         volume::demander(self.depot.racine(), &volume::marque(&self.appareil, travail::maintenant()))
     }
@@ -395,6 +399,44 @@ mod tests {
         fs::remove_dir_all(&chemin).ok();
         fs::create_dir_all(&chemin).expect("bac");
         chemin
+    }
+
+    /// Un travail **en vol** quand le volume disparaît revient en file, sans perdre de tentative.
+    ///
+    /// L'épreuve réelle ne montre que l'autre moitié : un travail qui *attendait* n'échoue pas.
+    /// Celui-ci éprouve le chemin de l'échec, qui est le seul endroit où la confusion coûtait
+    /// cher — c'est lui qui transformait une absence d'une minute et demie en document perdu.
+    ///
+    /// Le dépôt pointe un dossier absent ; le fichier du travail, lui, est bien là. C'est
+    /// exactement la situation : la question posée au volume est celle du dépôt, pas celle du
+    /// fichier qu'on est en train d'écrire.
+    #[test]
+    fn un_travail_en_vol_revient_en_file_quand_le_volume_s_absente() {
+        let bac = bac("en-vol");
+        let roul = roulement(bac.clone());
+
+        // On fait disparaître le dossier du dépôt, et on met un fichier à sa place : c'est ce
+        // qu'un point de montage laisse derrière lui quand le volume s'en va, et c'est ce qui
+        // fait échouer la création comme l'écriture.
+        let racine = bac.join("bibliotheque");
+        std::fs::remove_dir_all(&racine).expect("dossier retiré");
+        std::fs::write(&racine, b"un volume qui n'est plus la").expect("obstacle");
+        assert!(!roul.presence().est_la(), "le dépôt devrait être injoignable : {}", racine.display());
+
+        let mut en_cours = Travail::neuf("t-en-vol", "lecture-de-pages", 1);
+        en_cours.etat = "en_cours".to_owned();
+        en_cours.tentative = 2;
+        let chemin = bac.join("t-en-vol.json");
+        travail::enregistrer(&chemin, &en_cours).expect("travail posé");
+
+        roul.conclure(&chemin, &en_cours, "echouerRecuperable", Some("le moteur s'est arrêté".to_owned()));
+
+        let relu = travail::charger(&chemin).expect("lecture").expect("travail relu");
+        assert_eq!(relu.etat, "en_file", "un volume absent a fait échouer un travail en vol");
+        assert_eq!(relu.tentative, 2, "une absence de volume a consommé une tentative");
+        assert!(relu.cause.unwrap_or_default().contains("volume absent"), "la cause ne dit pas pourquoi");
+        assert!(roul.suspendu(), "le roulement devrait s'être suspendu");
+        std::fs::remove_dir_all(&bac).ok();
     }
 
     fn roulement(racine: PathBuf) -> Roulement {

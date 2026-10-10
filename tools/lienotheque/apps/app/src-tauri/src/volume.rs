@@ -11,6 +11,16 @@
 //! non. Ce module ne fait que répondre à la seconde question, pour que la file cesse de les
 //! confondre.
 //!
+//! **Deux absences qui ne se ressemblent pas.** Depuis le lot E2, la base et la file vivent sur
+//! le disque interne, et seuls les dérivés peuvent vivre ailleurs. Les deux cas appellent des
+//! réponses opposées, et les confondre serait revenir au défaut qu'on vient de corriger :
+//!
+//! - **Les dérivés sont injoignables** : on suspend. La file sait où elle en est, les travaux
+//!   attendent, et tout repart au retour du disque. C'est `Role::Derives`.
+//! - **La base est injoignable** : il n'y a rien à suspendre, puisque la file elle-même est
+//!   dessus. On ne peut ni lire ce qui restait à faire, ni écrire qu'on attend. Le seul geste
+//!   honnête est de s'arrêter et de le dire. C'est `Role::Base`, et ce n'est pas une suspension.
+//!
 //! **Pourquoi écrire et relire plutôt que regarder si le dossier existe.** Un volume démonté
 //! laisse souvent son point de montage : un dossier du même nom, vide, sur le disque interne.
 //! `exists()` répond « oui » et le traitement écrit dans le vide — sur le mauvais disque, qui
@@ -24,6 +34,30 @@ use std::path::{Path, PathBuf};
 /// Le nom du témoin. Dans le dossier de la bibliothèque, à côté du reste : s'il est accessible,
 /// le reste l'est aussi.
 const TEMOIN: &str = ".volume-present";
+
+/// À quoi sert le dossier qu'on interroge. Ce n'est pas une nuance : il commande la réponse.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Role {
+    /// La base et la file. Son absence n'est pas une attente, c'est un arrêt.
+    Base,
+    /// Les dérivés. Son absence est une attente, et elle se lève d'elle-même.
+    Derives,
+}
+
+impl Role {
+    /// Ce qu'on fait quand ce dossier ne répond pas.
+    pub fn consequence(self) -> &'static str {
+        match self {
+            Role::Base => "arrêt : la file vit sur ce dossier, il n'y a rien à suspendre",
+            Role::Derives => "suspension : la file attend, et repartira d'elle-même",
+        }
+    }
+
+    /// Faut-il suspendre, ou s'arrêter ?
+    pub fn suspend(self) -> bool {
+        matches!(self, Role::Derives)
+    }
+}
 
 /// Ce qu'on a trouvé en demandant au volume s'il est là.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -151,6 +185,16 @@ mod tests {
                 assert!(!dit.contains("Permission denied"), "le message rend encore l'erreur brute : {dit}");
             }
         }
+    }
+
+    #[test]
+    fn les_deux_absences_n_appellent_pas_la_meme_reponse() {
+        // La confusion que ce lot a corrigée se rejouerait si les deux rôles menaient au même
+        // geste. Les dérivés attendent ; la base, non — il n'y a rien à suspendre quand c'est
+        // la file elle-même qui manque.
+        assert!(Role::Derives.suspend(), "les dérivés absents doivent suspendre");
+        assert!(!Role::Base.suspend(), "la base absente n'est pas une suspension");
+        assert_ne!(Role::Base.consequence(), Role::Derives.consequence());
     }
 
     #[test]
