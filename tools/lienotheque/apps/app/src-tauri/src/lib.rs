@@ -21,6 +21,7 @@ pub mod reglages;
 pub mod roulement;
 pub mod traitement;
 pub mod travail;
+pub mod volume;
 
 use std::{
     path::{Path, PathBuf},
