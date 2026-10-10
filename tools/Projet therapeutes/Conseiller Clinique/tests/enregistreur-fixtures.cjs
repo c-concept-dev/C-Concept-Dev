@@ -212,6 +212,89 @@ const FIXTURES = [
     },
   },
   {
+    nom: 'droit-actif-puis-zero.wav',
+    pourquoi: 'Étape 1b — LE CANAL MOMENTANÉMENT ACTIF AU DÉMARRAGE. Le canal droit porte du ' +
+              'signal pendant la première seconde, puis tombe à zéro numérique pour toujours : ' +
+              'c\'est ce qu\'un périphérique fait parfois juste après l\'autorisation, avant de se ' +
+              'stabiliser. Décider sur tout l\'historique retiendrait le droit ; décider sur les ' +
+              'deux dernières secondes retient le gauche, qui est le bon.',
+    attendu: 'sur la fenêtre de 2 s → gauche ; sur tout l\'historique → autre chose',
+    faire: () => {
+      const n = ECH * 12;
+      const g = sinusPlusBruit(n, 196, 0.22, 0.0006, 21);
+      const d = new Float32Array(n);
+      // Le droit est FORT pendant une seconde, puis zéro exact.
+      const bref = sinusPlusBruit(ECH, 320, 0.45, 0.0006, 22);
+      for (let i = 0; i < ECH; i++) d[i] = bref[i];
+      return { canaux: [g, d] };
+    },
+  },
+  {
+    nom: 'bruit-grave-puis-voix.wav',
+    pourquoi: 'Étape 1d (T13) — LE PROFIL DE LA SALLE DE CHRISTOPHE. Trois secondes de bruit de ' +
+              'pièce à 50 et 100 Hz (les raies qu\'il a mesurées, +14 et +10 dB), au niveau qu\'il ' +
+              'a relevé (environ −57 dBFS), puis la voix. La mesure de bruit porte sur les trois ' +
+              'premières secondes, le silence initial, et doit conclure « bruyant » et « grave ».',
+    attendu: 'état bruyant, part de grave > 0,5, mention du filtre au mixage, prise non bloquée',
+    faire: () => {
+      const n = ECH * 12;
+      const a = new Float32Array(n);
+      const r = alea(23);
+      // −57 dBFS efficace : amplitude efficace 10^(−57/20) ≈ 1,41e-3. Deux raies graves plus un
+      // souffle large très faible, pour que la part de grave soit nettement au-dessus de 0,5.
+      const eff = Math.pow(10, -57 / 20);
+      const a50 = eff * 1.6, a100 = eff * 0.9, souffle = eff * 0.12;
+      const bruit = (i) => a50 * Math.sin((2 * Math.PI * 50 * i) / ECH)
+                         + a100 * Math.sin((2 * Math.PI * 100 * i) / ECH)
+                         + souffle * (r() * 2 - 1);
+      // SEPT secondes de bruit seul, et non trois : la prise ne démarre pas à l'instant zéro de
+      // la fixture (il faut autoriser le micro et laisser la fenêtre de décision se remplir),
+      // donc une fenêtre de mesure de 3 s doit pouvoir tenir ENTIÈRE dans le bruit malgré ce
+      // décalage. Avec trois secondes seulement, la fenêtre mordait sur la voix et la part de
+      // grave tombait à 0,14 : la mesure était contaminée, et c'est ce qui a fait écrire la
+      // détection du silence initial non respecté.
+      for (let i = 0; i < ECH * 7; i++) a[i] = bruit(i);
+      const ampVoix = Math.pow(10, -30 / 20) * Math.SQRT2;
+      for (let i = ECH * 7; i < n; i++) {
+        a[i] = ampVoix * Math.sin((2 * Math.PI * 196 * i) / ECH) + bruit(i);
+      }
+      return { canaux: [a, zeros(n)] };
+    },
+  },
+  {
+    nom: 'droit-devient-actif-pendant.wav',
+    pourquoi: 'Étape 1b — LE CANAL QUI CHANGE PENDANT LA PRISE. Le droit est à zéro numérique ' +
+              'pendant les quatre premières secondes, puis devient actif et plus fort que le ' +
+              'gauche. La fenêtre d\'avant-prise voit donc « droit vide → gauche », et la prise ' +
+              'elle-même dit « le plus fort → droit ». C\'est le seul cas où la revérification de ' +
+              'fin de prise a quelque chose à dire, et sans lui elle ne s\'éprouve pas.',
+    attendu: 'canal gelé = gauche ; recalculé sur la prise = droit ; accord = false ; un avis le dit',
+    faire: () => {
+      const n = ECH * 20;
+      const g = sinusPlusBruit(n, 196, 0.06, 0.0006, 31);
+      const d = new Float32Array(n);
+      const fort = sinusPlusBruit(n, 437, 0.40, 0.0006, 32);
+      for (let i = ECH * 4; i < n; i++) d[i] = fort[i];
+      return { canaux: [g, d] };
+    },
+  },
+  {
+    nom: 'bruit-120hz.wav',
+    pourquoi: 'Étape 1d — LA COUPURE DU PASSE-BAS, À SA FRÉQUENCE EXACTE. Un son pur à 120 Hz, ' +
+              'au niveau d\'un bruit de pièce. Le passe-bas de Butterworth du 2e ordre laisse ' +
+              'passer la MOITIÉ de l\'énergie à sa coupure : la part de grave doit donc valoir ' +
+              '0,50. Un filtre calculé pour 48 kHz mais appliqué à 44,1 kHz couperait à 110 Hz et ' +
+              'donnerait environ 0,42 — c\'est ce que ce son-là, et lui seul, rend visible.',
+    attendu: 'part de grave = 0,50 à ±0,03 ; hors de cette bande, le filtre ne coupe pas à 120 Hz',
+    faire: () => {
+      const n = ECH * 12;
+      const a = new Float32Array(n);
+      const eff = Math.pow(10, -57 / 20) * Math.SQRT2;
+      for (let i = 0; i < n; i++) a[i] = eff * Math.sin((2 * Math.PI * 120 * i) / ECH);
+      return { canaux: [a, zeros(n)] };
+    },
+  },
+  {
     nom: 'voix-5min.wav',
     longue: true,
     pourquoi: 'Critère de sortie du lot 3 : une prise de 5 minutes sans perte. Niveau choisi au ' +

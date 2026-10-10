@@ -51,6 +51,59 @@
   // portent la même chose, et leur moyenne ne perd rien.
   var CORRELATION_MEME_SIGNAL = 0.8;
 
+  // ── (a) LA FRÉQUENCE : MESURÉE, PUIS DÉCIDÉE ──────────────────────────────────────────────
+  //
+  // Les deux prises réelles de Christophe sont arrivées à 44 100 Hz, là où le lot 0 avait mesuré
+  // 48 000. J'ai donc essayé `new AudioContext({ sampleRate: 48000 })` et mesuré ce qui arrive.
+  //
+  // CE QUE J'AI MESURÉ. Chromium ET WebKit (le moteur de son Safari) honorent la demande : le
+  // contexte rend bien 48 000. Mais la PISTE du micro reste à 44 100 — c'est le périphérique qui
+  // la fixe — et le contexte rééchantillonne donc 44 100 → 48 000 en amont de nous.
+  //
+  // POURQUOI JE GARDE LE NATIF, malgré une option honorée. Demander 48 000 ne donne pas une
+  // capture à 48 kHz : cela donne une INTERPOLATION, faite par un rééchantillonneur que nous ne
+  // choisissons pas et que nous ne pouvons pas éprouver de l'intérieur, qui coûte 8,8 % d'octets
+  // sans ajouter un seul échantillon d'information, et qui EFFACE la fréquence réelle de la
+  // capture — la prise dirait 48 000 et plus personne ne saurait que la voix est née à 44 100.
+  // Le lot 4 doit de toute façon savoir rééchantillonner, puisqu'une voix importée arrive à
+  // n'importe quelle fréquence : autant que ce rééchantillonnage se fasse UNE fois, là où nous
+  // le choisissons et où un contrôle peut le mesurer, avec l'avis visible que le CDC demande.
+  //
+  // Mettre 48000 ici rétablit la demande : le reste du code suit, et la prise enregistrera la
+  // fréquence que le contexte aura réellement.
+  var FREQUENCE_DEMANDEE = null;   // null = la fréquence native du périphérique
+
+  // ── (b) LA FENÊTRE DE DÉCISION DU CANAL ───────────────────────────────────────────────────
+  //
+  // La décision se prend sur les DEUX DERNIÈRES SECONDES mesurées juste avant « Commencer », et
+  // non sur tout ce qui a été vu depuis l'autorisation : après `getUserMedia`, le périphérique
+  // met un instant à se stabiliser, et les premiers dixièmes de seconde peuvent porter un canal
+  // momentanément actif qui retombera à zéro. Une fenêtre minimale d'une seconde évite de
+  // décider sur trois relevés.
+  var FENETRE_CANAL_S = 2;
+  var FENETRE_CANAL_MIN_S = 1;
+
+  // ── (d) LE BRUIT DE PIÈCE (T13) : UNE SEULE CONSTANTE ─────────────────────────────────────
+  //
+  // Trois états, jamais bloquants. Les paliers viennent des faits : le lot 0 a mesuré −71 à
+  // −73 dBFS dans une pièce calme, et les prises réelles de Christophe −55,7 à −57,9 dBFS dans
+  // une salle de soins à générateurs. « Calme » couvre donc la pièce calme avec de la marge,
+  // « bruyant » attrape sa salle de soins.
+  //
+  // `partGraveMin` : au-delà de cette part d'énergie conservée par le passe-bas de 120 Hz du
+  // worklet, le bruit est dit GRAVE — c'est le cas de sa salle (raies à 50 et 100 Hz). Un filtre
+  // le réduira au mixage, donc on le dit sans rien bloquer.
+  var BRUIT = {
+    calmeMax_dbfs: -65,      // ≤ −65 : calme
+    bruyantMin_dbfs: -58,    // > −58 : bruyant ; entre les deux : correct
+    partGraveMin: 0.5,       // plus de la moitié de l'énergie sous la coupure du passe-bas
+    secondes: 3,             // la durée du silence initial de T13
+    // Montée tolérée entre la première et la seconde moitié de la fenêtre. 6 dB, c'est un
+    // doublement de l'amplitude efficace : le bruit d'une pièce ne double pas en une seconde et
+    // demie, une voix qui démarre si. Au-delà, la mesure est déclarée douteuse plutôt que fausse.
+    monteeMax_db: 6,
+  };
+
   var _services = null;
   var _boite = null;
   var _etat = neuf();
@@ -65,7 +118,10 @@
       canalRetenu: null,
       reglageCanal: 'auto',
       tailleMorceau_s: TAILLE_MORCEAU_S_DEFAUT,
-      sommesAnalyse: null,   // dernières sommes cumulées en mode analyse (pour décider du canal)
+      fenetre: [],           // (b) les relevés des 2 dernières secondes, pour décider du canal
+      bruit: null,           // (d) le verdict de bruit de pièce de la prise en cours
+      bruitEnCours: false,
+      sommesAnalyse: null,   // sommes cumulées depuis l'autorisation (pour le repli seulement)
       sommesTotal: null,     // sommes cumulées de la prise en cours
       dernierReleve: null,
       enPrise: false,
@@ -140,6 +196,77 @@
     var r = cov / Math.sqrt(varG * varD);
     if (!isFinite(r)) return 'indéterminée';
     return Math.max(-1, Math.min(1, r));
+  }
+
+  // Additionne plusieurs relevés de sommes en un seul. Les sommes sont additives par
+  // construction (Σ, Σx², Σxy, n) ; la crête est un maximum et les zéros s'additionnent. C'est
+  // ce qui permet de reconstituer une fenêtre de deux secondes à partir des relevés sans
+  // redemander au worklet de la tenir lui-même.
+  function fusionnerSommes(liste) {
+    var a = { n: 0, canaux: 0, sommeG: 0, sommeD: 0, sommeCarreG: 0, sommeCarreD: 0,
+              sommeProduit: 0, creteG: 0, creteD: 0, zerosG: 0, zerosD: 0 };
+    (liste || []).forEach(function (x) {
+      if (!x || !x.n) return;
+      a.n += x.n;
+      a.canaux = Math.max(a.canaux, x.canaux || 0);
+      a.sommeG += x.sommeG; a.sommeD += x.sommeD;
+      a.sommeCarreG += x.sommeCarreG; a.sommeCarreD += x.sommeCarreD;
+      a.sommeProduit += x.sommeProduit;
+      a.creteG = Math.max(a.creteG, x.creteG); a.creteD = Math.max(a.creteD, x.creteD);
+      a.zerosG += x.zerosG; a.zerosD += x.zerosD;
+    });
+    return a;
+  }
+
+  // (d) LE VERDICT DE BRUIT, à partir des sommes brutes du worklet. Trois états, une mention de
+  // grave, et la RÈGLE écrite à côté du chiffre — un rapport de 0,62 ne se lit pas comme
+  // « 62 % de l'énergie est sous 120 Hz », puisque le passe-bas est une pente et non un mur.
+  function verdictBruit(b) {
+    if (!b || !b.n) return { mesure: false, raison: 'bruit non mesuré' };
+    var efficace = Math.sqrt(b.sommeCarre / b.n);
+    var db = dbfs(efficace);
+    var etat = (db <= BRUIT.calmeMax_dbfs) ? 'calme'
+             : (db > BRUIT.bruyantMin_dbfs) ? 'bruyant'
+             : 'correct';
+    var partGrave = b.sommeCarre > 0 ? (b.sommeCarreGrave / b.sommeCarre) : 0;
+    var grave = partGrave > BRUIT.partGraveMin;
+
+    // ── LE SILENCE INITIAL EN ÉTAIT-IL UN ? ─────────────────────────────────────────────────
+    // T13 porte la trace du contraire, mesurée au lot 0 : « un silence initial de 3 s n'a jamais
+    // été silencieux ». Si la seconde moitié de la fenêtre est nettement plus forte que la
+    // première, quelqu'un a commencé à parler : la fenêtre ne mesure plus le bruit de la pièce,
+    // elle mesure une voix. Un verdict rendu là-dessus serait crédible et faux — la pire espèce.
+    var eff1 = b.n1 ? Math.sqrt(b.sommeCarre1 / b.n1) : 0;
+    var eff2 = b.n2 ? Math.sqrt(b.sommeCarre2 / b.n2) : 0;
+    var monteeDb = (eff1 > 0 && eff2 > 0) ? (20 * Math.log10(eff2 / eff1)) : 0;
+    var douteux = monteeDb > BRUIT.monteeMax_db;
+    return {
+      mesure: true,
+      echantillons: b.n,
+      secondes: b.echantillonnage ? b.n / b.echantillonnage : 0,
+      efficace: efficace, efficaceDbfs: db,
+      crete: b.crete, creteDbfs: dbfs(b.crete),
+      echantillonsAZero: b.zeros,
+      etat: douteux ? 'douteux' : etat,
+      etatSiLeSilenceEtaitRespecte: etat,
+      silenceInitialRespecte: !douteux,
+      monteeEntreLesDeuxMoities_db: monteeDb,
+      efficaceDbfsPremiereMoitie: dbfs(eff1),
+      efficaceDbfsSecondeMoitie: dbfs(eff2),
+      partGrave: partGrave,
+      graveDominant: grave,
+      mention: douteux
+        ? 'le silence initial n\'a pas été respecté (' + monteeDb.toFixed(1) + ' dB de plus sur '
+          + 'la seconde moitié) : cette mesure ne décrit pas le bruit de la pièce'
+        : (grave ? 'bruit grave : un filtre le réduira au mixage' : ''),
+      coupureHz: b.coupureHz,
+      regle: 'état : calme ≤ ' + BRUIT.calmeMax_dbfs + ' dBFS, bruyant > ' + BRUIT.bruyantMin_dbfs
+        + ' dBFS, correct entre les deux (valeur efficace). partGrave = énergie qui ressort d\'un '
+        + 'passe-bas de Butterworth du 2e ordre à ' + b.coupureHz + ' Hz divisée par l\'énergie '
+        + 'totale ; ce filtre est une PENTE et non un mur (0,5 à la coupure, 1 en dessous, 1/f⁴ '
+        + 'au-dessus), donc ce rapport n\'est pas un pourcentage d\'énergie sous ' + b.coupureHz
+        + ' Hz. Grave dominant si le rapport dépasse ' + BRUIT.partGraveMin + '.',
+    };
   }
 
   // LA RÈGLE DE CHRISTOPHE, écrite une fois, ici, et rien qu'ici (E3 ne tranchait pas le cas de
@@ -247,6 +374,7 @@
         '</div>' +
         '<div class="sc-bm-meter-bar"><span class="sc-bm-meter-fill" data-vu-barre style="width:0%"></span></div>' +
         '<span class="sc-bm-help" data-vu-detail>Parlez à votre volume habituel.</span>' +
+        '<span class="sc-bm-help" data-bruit>Bruit de pièce : non mesuré.</span>' +
       '</div>' +
 
       '<label class="sc-bm-field" data-lot="3">Microphone' +
@@ -271,6 +399,8 @@
           '<svg class="sc-bm-icon" aria-hidden="true"><use href="#icon-stop"></use></svg>Arrêter la prise</button>' +
         '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="autoriser" data-lot="3">' +
           '<svg class="sc-bm-icon" aria-hidden="true"><use href="#sc-bm-icon-mic"></use></svg>Autoriser le micro</button>' +
+        '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="bruit" data-lot="3">' +
+          '<svg class="sc-bm-icon" aria-hidden="true"><use href="#sc-bm-icon-mic"></use></svg>Mesurer le bruit de la pièce</button>' +
       '</div>' +
       '<p class="sc-bm-help">Le jalon I ne pose aucun repère et n\'affiche aucune bande rythmo : ' +
         'ils arrivent au jalon II. Rien n\'est grisé — ce qui n\'existe pas est absent.</p>' +
@@ -292,6 +422,7 @@
     '<span data-sb-morceaux>0 morceau</span>' +
     '<span data-sb-piste>Piste : inconnue</span>' +
     '<span data-sb-canal>Canal : —</span>' +
+    '<span data-sb-frequence>Fréquence : —</span>' +
   '</footer>' +
 '</div>';
   }
@@ -344,8 +475,23 @@
     _etat.canaux = (m.releve && m.releve.canaux) || _etat.canaux;
     _etat.dernierReleve = m;
 
-    if (m.mode === 'analyse') _etat.sommesAnalyse = m.total;
-    else _etat.sommesTotal = m.total;
+    if (m.mode === 'analyse') {
+      _etat.sommesAnalyse = m.total;
+      // (b) LA FENÊTRE GLISSANTE DES DEUX DERNIÈRES SECONDES. Chaque relevé porte les sommes
+      // d'environ 50 ms ; on en garde juste assez pour couvrir la fenêtre, et on jette le reste.
+      // Décider sur tout ce qui a été vu depuis l'autorisation ferait peser les premiers
+      // dixièmes de seconde, où le périphérique n'est pas encore stabilisé, autant que l'instant
+      // présent — et un canal momentanément actif au démarrage emporterait la décision.
+      _etat.fenetre.push({ sommes: m.releve, echantillons: m.releve.n });
+      var limite = Math.round(FENETRE_CANAL_S * (_etat.echantillonnage || 48000));
+      var cumul = 0;
+      for (var i = _etat.fenetre.length - 1; i >= 0; i--) {
+        cumul += _etat.fenetre[i].echantillons;
+        if (cumul > limite) { _etat.fenetre = _etat.fenetre.slice(i + 1); break; }
+      }
+    } else {
+      _etat.sommesTotal = m.total;
+    }
 
     var sommes = m.releve;
     var canalPourLeMetre = _etat.canalRetenu ||
@@ -411,6 +557,43 @@
         journaliser('canal non fourni au worklet', 0, { retombeeSur: m.canal });
         message('canal', 'warning', 'Le canal n\'a pas été décidé avant la prise : le canal ' +
           m.canal + ' a été pris par défaut. La mesure le dit plutôt que de le taire.');
+      }
+      return;
+    }
+
+    if (m.type === 'bruit-demarre') {
+      _etat.bruitEnCours = true;
+      var eb = q('[data-bruit]');
+      if (eb) eb.textContent = 'Bruit de pièce : mesure en cours sur '
+        + (m.echantillons / (m.echantillonnage || 48000)).toFixed(1) + ' s…';
+      return;
+    }
+
+    if (m.type === 'bruit') {
+      _etat.bruitEnCours = false;
+      _etat.bruit = verdictBruit(m);
+      var v = _etat.bruit;
+      journaliser('bruit de pièce ' + v.etat, _etat.echantillonsEcrits, {
+        efficaceDbfs: +v.efficaceDbfs.toFixed(1), partGrave: +v.partGrave.toFixed(3),
+        graveDominant: v.graveDominant, echantillons: v.echantillons });
+      var el = q('[data-bruit]');
+      if (el) {
+        el.setAttribute('data-etat', v.etat);
+        // LA GRANDEUR À CÔTÉ DU VERDICT : sans le décibel et le rapport, « bruyant » est un avis
+        // qu'on ne peut pas refaire.
+        el.textContent = 'Bruit de pièce : ' + v.etat.toUpperCase() + ' — ' + fmtDb(v.efficaceDbfs)
+          + ' efficace, crête ' + fmtDb(v.creteDbfs) + ', sur ' + v.secondes.toFixed(1) + ' s'
+          + ' · part de grave ' + v.partGrave.toFixed(3) + ' (passe-bas ' + v.coupureHz + ' Hz)'
+          + (v.mention ? ' · ' + v.mention : '');
+      }
+      // Jamais bloquant : une information, pas un défaut.
+      if (v.etat === 'bruyant') {
+        message('bruit', 'info', 'La pièce est bruyante (' + fmtDb(v.efficaceDbfs)
+          + ', seuil ' + BRUIT.bruyantMin_dbfs + ' dBFS)'
+          + (v.graveDominant ? '. ' + v.mention : '. Le bruit n\'est pas surtout grave.')
+          + ' Rien n\'est bloqué : la prise se fait quand même.');
+      } else {
+        message('bruit', '', null);
       }
       return;
     }
@@ -523,16 +706,44 @@
     }, function () {});
   }
 
+  // ── UNE SEULE CONSTRUCTION DE GRAPHE À LA FOIS ─────────────────────────────────────────────
+  //
+  // DEUX APPELS CONCURRENTS LAISSAIENT UN NŒUD ORPHELIN, et c'est un contrôle qui l'a montré :
+  // changer la taille de morceau lance une construction, cliquer « Autoriser » en lance une
+  // seconde. Comme `addModule` est asynchrone, la seconde fermait le contexte que la première
+  // venait de créer, puis la première finissait par installer SON nœud — appartenant désormais à
+  // un contexte fermé. La prise suivante démarrait sur un graphe mort : zéro échantillon, « prise
+  // muette », et dans le journal un « contexte closed » qui disait tout.
+  //
+  // Le compteur de génération règle cela sans verrou : chaque construction prend un numéro et
+  // n'installe son résultat que si elle est encore la plus récente. Celle qui a été dépassée
+  // ferme ce qu'elle a créé et se retire.
+  var _generation = 0;
+
   function brancherGraphe() {
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return Promise.reject(new Error('Web Audio absent'));
+    var moi = ++_generation;
     if (_etat.ctx) { try { _etat.ctx.close(); } catch (e) {} }
-    var ctx = new AC();
+    // La fenêtre de décision appartient au graphe qu'on vient de fermer : la garder ferait
+    // décider la prochaine prise sur les relevés d'un autre contexte, et une attente de « fenêtre
+    // pleine » la trouverait pleine alors qu'aucun échantillon n'est encore arrivé.
+    _etat.fenetre = [];
+    _etat.sommesAnalyse = null;
+    // (a) La fréquence demandée, ou rien du tout. Mesuré : les deux moteurs honorent l'option,
+    // mais la piste du micro garde la sienne et le contexte interpole — voir la constante.
+    var ctx = (FREQUENCE_DEMANDEE === null) ? new AC() : new AC({ sampleRate: FREQUENCE_DEMANDEE });
     _etat.ctx = ctx;
     _etat.echantillonnage = ctx.sampleRate;
 
     var urlWorklet = (_services && _services.urlWorklet) || 'enregistreur-worklet.js';
     return ctx.audioWorklet.addModule(urlWorklet).then(function () {
+      // Dépassée pendant l'attente de `addModule` : on ferme ce qu'on a créé et on ne touche à
+      // rien. Sans ce retour, ce nœud-ci s'installerait par-dessus le graphe le plus récent.
+      if (moi !== _generation) {
+        try { ctx.close(); } catch (e) {}
+        return false;
+      }
       // `channelCountMode: 'max'` et NON 'explicit' à 2. Avec 'explicit', une entrée mono est
       // complétée par un second canal de zéros, et le worklet voit alors deux canaux dont un
       // vide : le résultat serait juste (on prend le canal actif) mais le RAPPORT mentirait, en
@@ -554,6 +765,12 @@
         : ctx.createMediaStreamSource(_etat.flux);
       _etat.source = source;
       source.connect(noeud);
+
+      // (a) LA FRÉQUENCE RÉELLE, affichée dès que le graphe existe : c'est elle que la prise
+      // enregistrera, et c'est elle que Christophe doit pouvoir lire dans le rapport.
+      var sbf = q('[data-sb-frequence]');
+      if (sbf) sbf.textContent = 'Fréquence : ' + ctx.sampleRate + ' Hz'
+        + (ctx.sampleRate === 48000 ? '' : ' (le lot 4 rééchantillonnera à 48 000)');
 
       // L'état de la piste, journalisé : muette, terminée, contexte suspendu. En échantillons.
       var piste = _etat.flux && _etat.flux.getAudioTracks ? _etat.flux.getAudioTracks()[0] : null;
@@ -589,6 +806,18 @@
     });
   }
 
+  // (b) Les sommes de la fenêtre de décision, avec de quoi juger si elle est assez longue.
+  function fenetreDeDecision() {
+    var sommes = fusionnerSommes(_etat.fenetre.map(function (x) { return x.sommes; }));
+    var ech = _etat.echantillonnage || 48000;
+    return {
+      sommes: sommes,
+      secondes: sommes.n / ech,
+      suffisante: sommes.n >= Math.round(FENETRE_CANAL_MIN_S * ech),
+      relevés: _etat.fenetre.length,
+    };
+  }
+
   function echantillonsCourants() {
     return _etat.dernierReleve ? _etat.dernierReleve.echantillonsEcrits : _etat.echantillonsEcrits;
   }
@@ -599,11 +828,28 @@
     if (_etat.enPrise) return Promise.resolve(null);
     if (!_etat.noeud) return Promise.reject(new Error('micro non autorisé : rien à enregistrer'));
 
-    // Le canal est décidé MAINTENANT, à partir de ce que l'analyse a vu, et gelé : on ne peut pas
-    // remixer après coup des échantillons déjà écrits.
-    var dec = choisirCanal(_etat.sommesAnalyse, _etat.reglageCanal);
+    // (b) LE CANAL EST DÉCIDÉ SUR LA FENÊTRE DES DEUX DERNIÈRES SECONDES, et gelé : on ne peut
+    // pas remixer après coup des échantillons déjà écrits. Si la fenêtre est trop courte — moins
+    // d'une seconde, parce qu'on a cliqué aussitôt après l'autorisation — on le DIT et on se
+    // rabat sur tout ce qui a été vu, plutôt que de décider sur trois relevés en silence.
+    var f = fenetreDeDecision();
+    var sommesDecision = f.suffisante ? f.sommes : _etat.sommesAnalyse;
+    var dec = choisirCanal(sommesDecision, _etat.reglageCanal);
     _etat.canalRetenu = dec.canal;
     _etat.canalRaison = dec.raison;
+    _etat.fenetreDecision = {
+      secondes: +f.secondes.toFixed(3), relevés: f.relevés, suffisante: f.suffisante,
+      minimum_s: FENETRE_CANAL_MIN_S, visee_s: FENETRE_CANAL_S,
+      source: f.suffisante ? 'les ' + f.secondes.toFixed(2) + ' s avant le démarrage'
+                           : 'REPLI : fenêtre de ' + f.secondes.toFixed(2) + ' s, sous le minimum de '
+                             + FENETRE_CANAL_MIN_S + ' s — décision prise sur tout ce qui a été vu',
+    };
+    if (!f.suffisante) {
+      message('fenetre', 'info', 'La fenêtre de décision du canal ne fait que '
+        + f.secondes.toFixed(2) + ' s (minimum ' + FENETRE_CANAL_MIN_S + ' s) : le canal a été '
+        + 'choisi sur tout ce qui a été mesuré depuis l\'autorisation. Laissez le vu-mètre '
+        + 'tourner deux secondes avant de commencer.');
+    }
 
     var id = 'prise-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
     var nom = (q('[data-nom-prise]') && q('[data-nom-prise]').value) || 'Prise';
@@ -641,11 +887,12 @@
         canalRetenu: dec.canal,
         canalRaison: dec.raison,
         reglageCanal: _etat.reglageCanal,
-        tailleMorceau_s: _etat.tailleMorceau_s,
-        // La valeur APPLIQUÉE par le worklet, et la valeur demandée à côté d'elle : les deux sont
-        // dans le relevé, et un contrôle vérifie qu'elles s'accordent à moins d'un bloc près.
+        // (c) UNE SEULE GRANDEUR : la taille EFFECTIVE, celle que le worklet applique, un nombre
+        // entier de blocs de 128. La taille nominale de 5 s n'est écrite NI dans la prise NI
+        // dans le rapport : c'est une consigne d'interface, pas un fait de la prise, et la garder
+        // à côté de la valeur réelle faisait deux vérités pour une même grandeur — 220 500 contre
+        // 220 544 à 44 100 Hz. Un contrôle vérifie que le rapport et le journal donnent la même.
         echantillonsParMorceau: _etat.echantillonsParMorceauReels,
-        echantillonsParMorceauDemandes: Math.round(_etat.tailleMorceau_s * _etat.echantillonnage),
         nbEchantillons: 0,
         nbMorceaux: 0,
         // 'en-cours' : si la page meurt maintenant, le prochain chargement la trouvera ainsi et
@@ -664,6 +911,11 @@
       q('[data-mode]').textContent = 'Prise en cours';
       journaliser('prise démarrée', 0, { canal: dec.canal, raison: dec.raison,
         echantillonsParMorceau: _etat.echantillonsParMorceauReels });
+      // (d) T13 : LE BRUIT SE MESURE PENDANT LE SILENCE INITIAL, donc sur les premières
+      // secondes de la prise — pas sur une fenêtre d'avant, qui ne serait pas dans le fichier.
+      _etat.bruit = null;
+      _etat.noeud.port.postMessage({ type: 'mesurer-bruit', canal: dec.canal,
+        echantillons: Math.round(BRUIT.secondes * _etat.echantillonnage) });
       return id;
     }, function (err) {
       _etat.enPrise = false;
@@ -703,6 +955,33 @@
         // Un passage muet dans une prise par ailleurs sonore n'est pas un échec, mais il ne se
         // tait pas : il reste au journal, et il est dit.
         var passageMuet = !muette && _etat.journal.some(function (e) { return e.quoi === 'piste muette'; });
+
+        // ── (b) LA REVÉRIFICATION DU CANAL, SUR LA PRISE ELLE-MÊME ────────────────────────
+        // La décision a été prise sur deux secondes AVANT la prise. La prise, elle, dure parfois
+        // cinq minutes : un canal qui semblait actif peut être retombé à zéro, et l'inverse.
+        // On rejoue donc la même règle sur les sommes de la PRISE, et c'est CETTE raison-là que
+        // le rapport écrit. Si les deux verdicts diffèrent, on le dit — un canal retenu qui
+        // contredit la mesure de la prise est précisément ce qu'on ne doit pas taire.
+        var surLaPrise = choisirCanal(_etat.sommesTotal || f.total, _etat.reglageCanal);
+        _etat.verificationCanal = {
+          geleAvantLaPrise: _etat.canalRetenu,
+          raisonAvantLaPrise: _etat.canalRaison,
+          recalculeSurLaPrise: surLaPrise.canal,
+          raisonSurLaPrise: surLaPrise.raison,
+          accord: surLaPrise.canal === _etat.canalRetenu,
+          fenetreDeDecision: _etat.fenetreDecision || null,
+          regle: 'la décision est gelée avant la prise (on ne peut pas remixer des échantillons '
+            + 'déjà écrits) ; la vérification rejoue la même règle sur les sommes de la prise, et '
+            + 'c\'est la raison SUR LA PRISE que le rapport porte.',
+        };
+        if (!_etat.verificationCanal.accord) {
+          journaliser('canal démenti par la prise', _etat.echantillonsEcrits,
+            { gele: _etat.canalRetenu, surLaPrise: surLaPrise.canal });
+          message('canal-verif', 'error', 'Le canal retenu (' + nomCanal(_etat.canalRetenu)
+            + ') ne correspond pas à ce que la prise elle-même indique ('
+            + nomCanal(surLaPrise.canal) + ') : ' + surLaPrise.raison
+            + '. La prise est utilisable, mais le mixage n\'est peut-être pas le bon.');
+        }
 
         var mesures = rapportDUnePrise(f, perdus, muette, passageMuet);
         _etat.mesures = mesures;
@@ -749,11 +1028,29 @@
       prise: _etat.priseId,
       nom: (q('[data-nom-prise]') && q('[data-nom-prise]').value) || null,
       horodatage: new Date().toISOString(),
+      // ── (a) LA FRÉQUENCE RÉELLE, et ce que le lot 4 devra en faire ──────────────────────
+      frequence: {
+        reelle_hz: _etat.echantillonnage,
+        demandee: FREQUENCE_DEMANDEE === null ? 'aucune (fréquence native du périphérique)'
+                                              : FREQUENCE_DEMANDEE,
+        native: FREQUENCE_DEMANDEE === null,
+        aReechantillonnerAuLot4: _etat.echantillonnage !== 48000,
+        regle: 'le lot 4 rééchantillonne à 48 000 Hz toute prise qui n\'y est pas, avec un avis '
+          + 'visible. Mesuré le 10 octobre : Chromium et WebKit honorent tous deux '
+          + '`new AudioContext({ sampleRate: 48000 })`, mais la piste du micro reste à sa propre '
+          + 'fréquence et le contexte interpole en amont — d\'où le choix du natif, pour que la '
+          + 'prise porte la fréquence où la voix est née.',
+      },
       echantillonnage: _etat.echantillonnage,
       canauxALEntree: s ? s.canaux : 0,
       canalRetenu: _etat.canalRetenu,
-      raisonDuCanal: _etat.canalRaison,
+      raisonDuCanal: (_etat.verificationCanal && _etat.verificationCanal.raisonSurLaPrise)
+        || _etat.canalRaison,
+      // (b) LA VÉRIFICATION, et la fenêtre sur laquelle la décision a été prise.
+      verificationDuCanal: _etat.verificationCanal || 'non vérifié',
       reglageCanal: _etat.reglageCanal,
+      // (d) LE BRUIT DE PIÈCE (T13), jamais bloquant.
+      bruitDePiece: _etat.bruit || 'non mesuré',
       regleDuCanal: 'un seul actif → ce canal ; deux actifs et corrélation > ' +
         CORRELATION_MEME_SIGNAL + ' → moyenne ; deux actifs différents → le plus fort',
       niveaux: {
@@ -764,8 +1061,10 @@
       regleCorrelation: 'Pearson, moyennes retirées : (Σgd − ΣgΣd/n) / √((Σg² − (Σg)²/n)(Σd² − (Σd)²/n)). Jamais null : une raison à la place.',
       blocs: perdus,
       morceaux: {
-        dureeMorceau_s: _etat.tailleMorceau_s,
-        echantillonsParMorceau: Math.round(_etat.tailleMorceau_s * _etat.echantillonnage),
+        // (c) LA TAILLE EFFECTIVE, et elle seule : celle que le worklet applique, un nombre
+        // entier de blocs de 128. La nominale de 5 s n'entre pas dans le rapport.
+        echantillonsParMorceau: _etat.echantillonsParMorceauReels,
+        blocsParMorceau: _etat.echantillonsParMorceauReels / 128,
         morceauxEcrits: _etat.morceauxEcrits,
         echantillonsEcrits: _etat.echantillonsEcrits,
         octetsEcrits: _etat.echantillonsEcrits * 2,
@@ -948,7 +1247,15 @@
     selTaille.value = String(TAILLE_MORCEAU_S_DEFAUT);
     selTaille.addEventListener('change', function () {
       _etat.tailleMorceau_s = parseFloat(selTaille.value);
-      if (_etat.flux) brancherGraphe();   // la taille passe au worklet à sa construction
+      // La taille ne passe au worklet qu'à la construction du graphe : il faut donc le
+      // reconstruire. L'erreur est rapportée plutôt qu'avalée — un graphe qui n'a pas été
+      // reconstruit laisserait la prise suivante sur l'ancienne taille, en silence.
+      if (_etat.flux) {
+        brancherGraphe().catch(function (e) {
+          message('graphe', 'error', 'Le graphe audio n\'a pas pu être reconstruit après le '
+            + 'changement de taille : ' + (e && e.message) + '. La taille précédente reste en place.');
+        });
+      }
     });
 
     q('[data-reglage-canal]').addEventListener('change', function () {
@@ -972,6 +1279,16 @@
         message('arret', 'error', 'L\'arrêt n\'a pas abouti : ' + (e && e.message) +
           '. La prise reste inachevée plutôt que d\'être annoncée terminée.');
       });
+    });
+    q('[data-action="bruit"]').addEventListener('click', function () {
+      if (!_etat.noeud) {
+        message('bruit', 'error', 'Autorisez d\'abord le micro : sans lui, il n\'y a rien à mesurer.');
+        return;
+      }
+      var canal = _etat.canalRetenu
+        || choisirCanal(fenetreDeDecision().sommes, _etat.reglageCanal).canal;
+      _etat.noeud.port.postMessage({ type: 'mesurer-bruit', canal: canal,
+        echantillons: Math.round(BRUIT.secondes * _etat.echantillonnage) });
     });
     q('[data-action="rapport"]').addEventListener('click', function () {
       var r = _etat.mesures ||
@@ -1047,6 +1364,10 @@
     fmtTemps: fmtTemps,
     remplacerInfinis: remplacerInfinis,
     TAILLES_MORCEAU_S: TAILLES_MORCEAU_S,
+    FREQUENCE_DEMANDEE: FREQUENCE_DEMANDEE, BRUIT: BRUIT,
+    FENETRE_CANAL_S: FENETRE_CANAL_S, FENETRE_CANAL_MIN_S: FENETRE_CANAL_MIN_S,
+    fusionnerSommes: fusionnerSommes, verdictBruit: verdictBruit,
+    _fenetreDeDecision: fenetreDeDecision,
     CORRELATION_MEME_SIGNAL: CORRELATION_MEME_SIGNAL,
     DBFS_QUASI_VIDE: DBFS_QUASI_VIDE,
     // Pour qu'un contrôle lise l'état sans le déduire de l'affichage.

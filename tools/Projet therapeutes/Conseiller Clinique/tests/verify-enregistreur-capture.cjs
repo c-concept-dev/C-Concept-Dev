@@ -95,12 +95,14 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
   if (reglageCanal) await page.selectOption('[data-reglage-canal]', reglageCanal);
 
   await page.click('[data-action="autoriser"]');
-  // Laisser l'analyse d'avant-prise voir assez d'échantillons pour décider du canal (E2 : le
-  // vu-mètre tourne avant la prise ; c'est là que la décision se prend).
+  // ON ATTEND UNE FENÊTRE DE DÉCISION PLEINE, et pas seulement « quelques échantillons ».
+  // Avant cette correction, les contrôles démarraient à 0,5 s et passaient donc TOUS par le
+  // repli « fenêtre trop courte » sans que personne ne le voie : ils n'éprouvaient jamais le
+  // chemin normal. Christophe, lui, laisse le vu-mètre tourner avant de cliquer.
   await page.waitForFunction(() => {
-    const e = window.EnregistreurVoix._etat();
-    return e.sommesAnalyse && e.sommesAnalyse.n > 20000;
-  }, null, { timeout: 15000 });
+    const f = window.EnregistreurVoix._fenetreDeDecision();
+    return f.suffisante && f.secondes >= 1.5;
+  }, null, { timeout: 20000 });
 
   await page.click('[data-action="demarrer"]');
   if (jusqua) await page.waitForFunction(jusqua, null, { timeout: 30000 });
@@ -134,6 +136,8 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
         sbCanal: document.querySelector('[data-sb-canal]').textContent,
         sbMorceaux: document.querySelector('[data-sb-morceaux]').textContent,
         sbPiste: document.querySelector('[data-sb-piste]').textContent,
+        sbFrequence: document.querySelector('[data-sb-frequence]').textContent,
+        bruit: (document.querySelector('[data-bruit]') || {}).textContent,
         messages: [...document.querySelectorAll('[data-messages] .sc-bm-message')]
           .map((m) => ({ etat: m.getAttribute('data-state'), texte: m.querySelector('span').textContent,
                          icone: m.querySelector('use').getAttribute('href') })),
@@ -523,19 +527,33 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
 
       const ech = r.module.echantillonnage;
       const parMorceau = r.stockage.prise.echantillonsParMorceau;
-      const demandes = r.stockage.prise.echantillonsParMorceauDemandes;
-      assert.equal(r.module.tailleMorceau_s, taille, 'taille retenue');
-      // La prise doit porter la taille APPLIQUÉE par le worklet, pas celle demandée : à
-      // 44 100 Hz, 5 secondes font 220 500 échantillons, qui ne sont pas un nombre entier de
-      // blocs de 128. Les deux valeurs sont au relevé, et elles doivent s'accorder à moins d'un
-      // bloc près — c'est la règle, et elle est nommée.
+      // (c) UNE SEULE GRANDEUR STOCKÉE : la taille EFFECTIVE. La nominale de 5 s n'est écrite
+      // NI dans la prise NI dans le rapport — elle reste une consigne d'interface. Garder les
+      // deux faisait deux vérités pour une même grandeur (220 500 contre 220 544 à 44 100 Hz).
+      assert.equal(r.stockage.prise.echantillonsParMorceauDemandes, undefined,
+        'la taille NOMINALE ne doit plus être écrite dans la prise');
+      assert.equal(r.stockage.prise.tailleMorceau_s, undefined,
+        'ni la durée nominale en secondes');
+      assert.equal(r.module.mesures.morceaux.dureeMorceau_s, undefined,
+        'ni dans le rapport');
       assert.equal(parMorceau % 128, 0,
         'un morceau doit faire un nombre ENTIER de blocs de 128 ; ' + parMorceau +
         ' % 128 = ' + (parMorceau % 128));
-      assert.equal(demandes, Math.round(taille * ech), 'la valeur demandée doit être consignée');
-      assert.ok(Math.abs(parMorceau - demandes) < 128,
-        'appliquée (' + parMorceau + ') et demandée (' + demandes +
-        ') doivent s\'accorder à moins d\'un bloc : écart ' + Math.abs(parMorceau - demandes));
+      // LA MÊME VALEUR PARTOUT : la prise, le rapport et le journal.
+      assert.equal(r.module.mesures.morceaux.echantillonsParMorceau, parMorceau,
+        'le rapport doit donner la taille effective de la prise : ' +
+        r.module.mesures.morceaux.echantillonsParMorceau + ' contre ' + parMorceau);
+      assert.equal(r.module.mesures.morceaux.blocsParMorceau, parMorceau / 128,
+        'et son nombre de blocs');
+      const auJournal = r.module.journal.find((x) => x.quoi === 'prise démarrée');
+      assert.ok(auJournal, 'le journal doit porter « prise démarrée »');
+      assert.equal(auJournal.echantillonsParMorceau, parMorceau,
+        'le journal doit donner LA MÊME taille que le rapport : ' +
+        auJournal.echantillonsParMorceau + ' contre ' + parMorceau);
+      // Et elle doit rester à moins d'un bloc de ce que l'interface demandait.
+      assert.ok(Math.abs(parMorceau - Math.round(taille * ech)) < 128,
+        'la taille effective doit rester à moins d\'un bloc de la consigne : ' + parMorceau +
+        ' contre ' + Math.round(taille * ech));
 
       // Index continus, sans trou : un trou dirait « morceau perdu » et doit se voir.
       const attendus = r.stockage.indexVus.map((_, i) => i);
@@ -576,7 +594,7 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
         'la latence du message de démarrage doit être mesurée POUR ELLE-MÊME, pas confondue ' +
         'avec une perte');
       console.log('        ' + taille + ' s/morceau à ' + ech + ' Hz : ' + parMorceau +
-        ' éch appliqués (' + demandes + ' demandés) = ' + (parMorceau / 128) + ' blocs · ' +
+        ' éch effectifs (consigne ' + Math.round(taille * ech) + ') = ' + (parMorceau / 128) + ' blocs · ' +
         r.stockage.morceaux + ' morceaux · ' +
         r.stockage.echantillons + ' éch · blocs comptés ' + b.blocsComptesParLeWorklet +
         ' contre ' + b.blocsAttendusParLHorlogeAudio + ' attendus (écart ' + b.ecart +
@@ -667,6 +685,249 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     console.log('        ' + r.demandees + ' transactions demandées, ' + r.terminees +
       ' terminées, 0 en vol · ' + r.morceaux + ' morceaux / ' + r.echantillons + ' éch, annoncés ' +
       r.priseAnnonce);
+  });
+
+  // ── §16 — (a) LA FRÉQUENCE : CE QUE LE NAVIGATEUR FAIT VRAIMENT DE LA DEMANDE ─────────────
+  // La mesure qui a fondé la décision, gardée comme contrôle pour qu'elle ne devienne pas une
+  // croyance : si un jour un moteur refuse l'option, ou si la piste arrive déjà à 48 kHz, le
+  // relevé le dira au lieu de laisser le commentaire du module mentir.
+  await controle('§16 la demande de 48 000 Hz : honorée, mais la piste garde la sienne', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(async () => {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const out = {};
+      const n = new AC(); out.natif = n.sampleRate; await n.close();
+      try { const d = new AC({ sampleRate: 48000 }); out.demande48 = d.sampleRate; await d.close(); }
+      catch (e) { out.demande48 = 'levée : ' + e.name; }
+      const flux = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 2,
+        echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+      out.piste = flux.getAudioTracks()[0].getSettings().sampleRate;
+      flux.getTracks().forEach((t) => t.stop());
+      out.constanteDuModule = window.EnregistreurVoix.FREQUENCE_DEMANDEE;
+      return out;
+    });
+    await ctx.close();
+    assert.equal(r.demande48, 48000,
+      'l\'option est honorée dans ce moteur : ' + r.demande48 +
+      ' — si elle cesse de l\'être, la décision du module doit être relue');
+    assert.ok(typeof r.piste === 'number' && r.piste > 8000, 'piste : ' + r.piste);
+    assert.equal(r.constanteDuModule, null,
+      'le module garde la fréquence NATIVE : la demande interpole en amont et efface la ' +
+      'fréquence où la voix est née');
+    console.log('        natif ' + r.natif + ' Hz · demande 48000 → ' + r.demande48 +
+      ' Hz (honorée) · piste du micro ' + r.piste + ' Hz → le contexte interpolerait');
+  });
+
+  // ── §17 — (b) LE CANAL : FENÊTRE DE DÉCISION, PUIS VÉRIFICATION SUR LA PRISE ───────────────
+  await controle('§17 un canal actif au DÉMARRAGE puis à zéro ne décide pas de la prise', async () => {
+    // La fixture : le canal droit porte du signal pendant la première seconde, puis tombe à zéro
+    // pour toujours. C'est le cas que la fenêtre de deux secondes doit neutraliser — et c'est
+    // aussi celui où la vérification de fin de prise doit parler.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/droit-actif-puis-zero.wav');
+    await page.click('[data-action="autoriser"]');
+    const r = await page.evaluate(async () => {
+      const A = window.EnregistreurVoix;
+      // On attend que la fenêtre soit pleine ET que la première seconde du droit soit passée.
+      const t0 = performance.now();
+      while (performance.now() - t0 < 3400) await new Promise((r2) => setTimeout(r2, 100));
+      const f = A._fenetreDeDecision();
+      return {
+        fenetre_s: f.secondes, suffisante: f.suffisante, releves: f.relevés,
+        surLaFenetre: A.choisirCanal(f.sommes, 'auto'),
+        surToutDepuisLAutorisation: A.choisirCanal(A._etat().sommesAnalyse, 'auto'),
+      };
+    });
+    assert.ok(r.suffisante, 'la fenêtre doit être pleine : ' + r.fenetre_s + ' s');
+    assert.ok(r.fenetre_s <= 2.2 && r.fenetre_s >= 1.0,
+      'la fenêtre doit faire environ deux secondes, pas tout l\'historique : ' + r.fenetre_s + ' s');
+    // SUR LA FENÊTRE : le droit est à zéro depuis une seconde → gauche.
+    assert.equal(r.surLaFenetre.canal, 'gauche',
+      'sur les deux dernières secondes, le droit est vide : ' + r.surLaFenetre.raison);
+    // SUR TOUT L'HISTORIQUE : le droit a porté du signal → la décision serait autre, et c'est
+    // précisément ce que la fenêtre évite.
+    assert.notEqual(r.surToutDepuisLAutorisation.canal, 'gauche',
+      'sur tout l\'historique, le droit compte encore — c\'est ce que la fenêtre neutralise. ' +
+      'Obtenu : ' + r.surToutDepuisLAutorisation.canal + ' (' +
+      r.surToutDepuisLAutorisation.raison + ')');
+    await ctx.close();
+    console.log('        fenêtre ' + r.fenetre_s.toFixed(2) + ' s → ' + r.surLaFenetre.canal +
+      ' · tout l\'historique → ' + r.surToutDepuisLAutorisation.canal);
+  });
+
+  await controle('§17b la raison du rapport est calculée SUR LA PRISE, et le désaccord est dit', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    const r = await prendre(page, { attendreMs: 2600 });
+    await ctx.close();
+    const v = r.module.mesures.verificationDuCanal;
+    assert.ok(v && typeof v === 'object', 'la vérification doit être au rapport : ' + JSON.stringify(v));
+    assert.equal(v.geleAvantLaPrise, r.module.canalRetenu, 'le gel doit être consigné');
+    assert.ok(v.recalculeSurLaPrise, 'le recalcul sur la prise doit être consigné');
+    assert.equal(v.accord, true, 'sur cette fixture, les deux doivent s\'accorder');
+    // LA RAISON DU RAPPORT EST CELLE DE LA PRISE, jamais celle de la fenêtre d'avant.
+    assert.equal(r.module.mesures.raisonDuCanal, v.raisonSurLaPrise,
+      'le rapport doit porter la raison calculée sur la prise, pas sur la fenêtre d\'avant');
+    assert.ok(v.fenetreDeDecision && typeof v.fenetreDeDecision.secondes === 'number',
+      'et dire sur quelle fenêtre la décision avait été gelée : ' + JSON.stringify(v.fenetreDeDecision));
+    assert.ok(v.regle && v.regle.length > 40, 'la règle doit être nommée');
+    console.log('        gelé ' + v.geleAvantLaPrise + ' · recalculé ' + v.recalculeSurLaPrise +
+      ' · accord ' + v.accord + ' · fenêtre ' + v.fenetreDeDecision.secondes + ' s');
+  });
+
+  // ── §18 — (d) LE BRUIT DE PIÈCE (T13) ─────────────────────────────────────────────────────
+  await controle('§18 trois états de bruit, aux seuils de la constante unique', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(() => {
+      const A = window.EnregistreurVoix;
+      const B = A.BRUIT;
+      // Des sommes fabriquées pour tomber de part et d'autre des deux paliers. L'amplitude
+      // efficace qui donne d dBFS est 10^(d/20).
+      const pour = (dbfs, partGrave) => {
+        const eff = Math.pow(10, dbfs / 20), n = 48000 * 3;
+        return { n, sommeCarre: eff * eff * n, sommeCarreGrave: eff * eff * n * partGrave,
+                 crete: eff * Math.SQRT2, zeros: 0, coupureHz: 120, echantillonnage: 48000 };
+      };
+      return {
+        seuils: { calme: B.calmeMax_dbfs, bruyant: B.bruyantMin_dbfs, grave: B.partGraveMin },
+        tresCalme: A.verdictBruit(pour(-72, 0.2)),
+        aLaLimiteCalme: A.verdictBruit(pour(-65, 0.2)),
+        correct: A.verdictBruit(pour(-61, 0.2)),
+        aLaLimiteBruyant: A.verdictBruit(pour(-58, 0.2)),
+        bruyant: A.verdictBruit(pour(-56, 0.2)),
+        // la salle de soins de Christophe : bruyante ET grave
+        salleDeSoins: A.verdictBruit(pour(-56.8, 0.72)),
+        nonMesure: A.verdictBruit(null),
+      };
+    });
+    assert.deepEqual(r.seuils, { calme: -65, bruyant: -58, grave: 0.5 },
+      'les seuils doivent être ceux décidés : ' + JSON.stringify(r.seuils));
+    assert.equal(r.tresCalme.etat, 'calme');
+    assert.equal(r.aLaLimiteCalme.etat, 'calme', '≤ −65 est calme, bornes comprises');
+    assert.equal(r.correct.etat, 'correct');
+    assert.equal(r.aLaLimiteBruyant.etat, 'correct', '−58 pile n\'est pas encore bruyant');
+    assert.equal(r.bruyant.etat, 'bruyant');
+    // La salle de soins réelle : bruyante, et le grave est dominant.
+    assert.equal(r.salleDeSoins.etat, 'bruyant');
+    assert.equal(r.salleDeSoins.graveDominant, true,
+      'part de grave ' + r.salleDeSoins.partGrave + ' > ' + r.seuils.grave);
+    assert.ok(/filtre le réduira au mixage/.test(r.salleDeSoins.mention),
+      'la mention de grave doit être celle demandée : ' + r.salleDeSoins.mention);
+    assert.equal(r.correct.graveDominant, false, 'un bruit à 20 % de grave n\'est pas grave');
+    assert.equal(r.nonMesure.mesure, false, 'non mesuré doit se dire, non s\'inventer');
+    assert.ok(r.bruyant.regle.includes('PENTE') || r.bruyant.regle.includes('pente'),
+      'la règle doit dire que le passe-bas est une pente, pas un mur : ' + r.bruyant.regle);
+    await ctx.close();
+    console.log('        −72 calme · −65 calme · −61 correct · −58 correct · −56 bruyant · ' +
+      'salle de soins (−56,8 dBFS, grave 0,72) bruyant + grave');
+  });
+
+  await controle('§18b le bruit est mesuré sur le VRAI chemin, pendant le silence initial', async () => {
+    // La fixture : trois secondes de bruit grave (50 et 100 Hz) puis de la voix. C'est le profil
+    // de la salle de Christophe, et la mesure doit porter sur les trois premières secondes.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/bruit-grave-puis-voix.wav');
+    const r = await prendre(page, {
+      jusqua: () => !!window.EnregistreurVoix._etat().bruit,
+    });
+    await ctx.close();
+    const b = r.module.mesures.bruitDePiece;
+    assert.ok(b && b.mesure, 'le bruit doit être mesuré : ' + JSON.stringify(b));
+    assert.ok(b.secondes >= 2.8 && b.secondes <= 3.2,
+      'la mesure doit porter sur les trois secondes du silence initial : ' + b.secondes);
+    assert.equal(b.silenceInitialRespecte, true,
+      'ici le silence initial EST tenu (7 s de bruit seul) ; montée mesurée ' +
+      b.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB');
+    assert.equal(b.etat, 'bruyant', 'et le verdict est rendu : ' + b.etat);
+    assert.equal(b.graveDominant, true,
+      'un bruit à 50 et 100 Hz doit être vu comme grave ; part mesurée ' + b.partGrave);
+    assert.ok(b.partGrave > 0.5, 'part de grave : ' + b.partGrave);
+    // CE QUE LA PAGE AFFICHE, et non ce que le module déclare.
+    const affiche = r.affiche.bruit || '';
+    assert.ok(/Bruit de pièce/.test(affiche), 'la page doit afficher le bruit : ' + affiche);
+    assert.ok(affiche.includes('part de grave'),
+      'avec la grandeur dont le verdict découle : ' + affiche);
+    assert.ok(/filtre le réduira au mixage/.test(affiche),
+      'et la mention de grave : ' + affiche);
+    // JAMAIS BLOQUANT : la prise s'est faite.
+    assert.ok(r.stockage.echantillons > 0, 'la prise doit avoir été enregistrée malgré le bruit');
+    assert.notEqual(r.stockage.prise.etat, 'muette', 'et ne pas être muette');
+    console.log('        ' + b.etat + ' · ' + b.efficaceDbfs.toFixed(1) + ' dBFS · part de grave ' +
+      b.partGrave.toFixed(3) + ' sur ' + b.secondes.toFixed(2) + ' s · prise enregistrée quand même');
+  });
+
+  await controle('§18c un silence initial NON tenu rend la mesure douteuse, pas fausse', async () => {
+    // CE CONTRÔLE EST EXACT, ET NON SUR LE VRAI CHEMIN, POUR UNE RAISON QUI SE DIT.
+    // La fenêtre de mesure démarre avec la prise, et l'instant où la prise démarre ne peut pas
+    // être épinglé sur la frise d'une fixture : il dépend du temps que met la fenêtre de décision
+    // du canal à se remplir. Un essai réel plaçait donc la voix soit entièrement dans la fenêtre,
+    // soit entièrement dehors, selon la machine — un contrôle qui passe ou échoue au hasard ne
+    // contrôle rien. La RÈGLE se vérifie donc sur des sommes exactes, et le VRAI chemin est
+    // éprouvé en §18b sur le cas où le silence EST tenu.
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(() => {
+      const A = window.EnregistreurVoix;
+      const ECH = 48000, N = ECH * 3;
+      // Deux moitiés d'une fenêtre de 3 s. `pour` fabrique les sommes brutes que le worklet
+      // posterait, avec une amplitude efficace par moitié.
+      const pour = (db1, db2, partGrave) => {
+        const e1 = Math.pow(10, db1 / 20), e2 = Math.pow(10, db2 / 20);
+        const n1 = N / 2, n2 = N / 2;
+        const sc = e1 * e1 * n1 + e2 * e2 * n2;
+        return { n: N, sommeCarre: sc, sommeCarreGrave: sc * partGrave,
+                 crete: Math.max(e1, e2) * Math.SQRT2, zeros: 0,
+                 n1, sommeCarre1: e1 * e1 * n1, n2, sommeCarre2: e2 * e2 * n2,
+                 coupureHz: 120, echantillonnage: ECH };
+      };
+      return {
+        seuilMontee: A.BRUIT.monteeMax_db,
+        // le silence tenu : les deux moitiés au même niveau
+        tenu: A.verdictBruit(pour(-57, -57, 0.72)),
+        // juste sous le seuil : 5 dB de montée, encore crédible pour un bruit de pièce
+        sousLeSeuil: A.verdictBruit(pour(-60, -55, 0.72)),
+        // le fait du lot 0 : la voix démarre dans la seconde moitié, +27 dB
+        voixDansLaSecondeMoitie: A.verdictBruit(pour(-57, -30, 0.20)),
+        // juste au-dessus du seuil
+        justeAuDessus: A.verdictBruit(pour(-60, -53.5, 0.72)),
+      };
+    });
+    await ctx.close();
+
+    assert.equal(r.seuilMontee, 6, 'le seuil de montée doit être 6 dB : ' + r.seuilMontee);
+
+    assert.equal(r.tenu.silenceInitialRespecte, true, 'deux moitiés égales : silence tenu');
+    assert.equal(r.tenu.etat, 'bruyant', 'et le verdict est rendu : ' + r.tenu.etat);
+    assert.ok(Math.abs(r.tenu.monteeEntreLesDeuxMoities_db) < 0.01,
+      'montée nulle attendue : ' + r.tenu.monteeEntreLesDeuxMoities_db);
+
+    assert.equal(r.sousLeSeuil.silenceInitialRespecte, true,
+      '5 dB de montée reste crédible pour une pièce : ' +
+      r.sousLeSeuil.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB');
+    assert.notEqual(r.sousLeSeuil.etat, 'douteux', 'donc le verdict est rendu');
+
+    const v = r.voixDansLaSecondeMoitie;
+    assert.equal(v.silenceInitialRespecte, false,
+      'une voix qui démarre dans la seconde moitié doit être vue : ' +
+      v.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB');
+    assert.equal(v.etat, 'douteux',
+      'l\'état doit être « douteux » plutôt qu\'un verdict crédible et faux : ' + v.etat);
+    assert.ok(v.monteeEntreLesDeuxMoities_db > 20,
+      'la montée doit être franche : ' + v.monteeEntreLesDeuxMoities_db);
+    assert.ok(/silence initial n’a pas été respecté|silence initial n\'a pas été respecté/.test(v.mention),
+      'la mention doit dire pourquoi : ' + v.mention);
+    // CE QU'ON AURAIT RENDU reste lisible : rien n'est perdu, c'est juste déclaré peu fiable.
+    assert.ok(v.etatSiLeSilenceEtaitRespecte,
+      'l\'état qui aurait été rendu doit rester au rapport : ' + v.etatSiLeSilenceEtaitRespecte);
+    assert.ok(typeof v.efficaceDbfsPremiereMoitie === 'number' &&
+              typeof v.efficaceDbfsSecondeMoitie === 'number',
+      'et les deux moitiés doivent porter leur décibel, pour que le lecteur refasse le calcul');
+
+    assert.equal(r.justeAuDessus.etat, 'douteux',
+      '6,5 dB dépasse le seuil : ' + r.justeAuDessus.monteeEntreLesDeuxMoities_db.toFixed(1));
+
+    console.log('        tenu 0,0 dB → verdict rendu · 5,0 dB → rendu · ' +
+      r.justeAuDessus.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB → douteux · ' +
+      v.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB (voix) → douteux');
   });
 
   // ── §7 — LA REPRISE APRÈS FERMETURE (E5) ───────────────────────────────────────────────────
@@ -763,11 +1024,18 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     assert.equal(r.stockage.prise.echantillonnage, r.module.echantillonnage);
     // Les morceaux suivent l'échantillonnage RÉEL (44 100 ici), pas 48 000 en dur — et ils
     // tombent sur un nombre entier de blocs, ce que 5 s à 44 100 Hz n'est pas.
-    assert.equal(r.stockage.prise.echantillonsParMorceauDemandes,
-      Math.round(r.module.tailleMorceau_s * r.module.echantillonnage),
-      'la taille demandée doit suivre l\'échantillonnage réel');
     assert.equal(r.stockage.prise.echantillonsParMorceau % 128, 0,
-      'et la taille appliquée doit être un nombre entier de blocs');
+      'la taille effective doit être un nombre entier de blocs');
+    assert.equal(r.stockage.prise.echantillonsParMorceauDemandes, undefined,
+      'la taille nominale n\'est plus écrite dans la prise');
+    // (a) LA PRISE PORTE LA FRÉQUENCE RÉELLE, et le rapport dit si le lot 4 devra la changer.
+    assert.equal(r.module.mesures.frequence.reelle_hz, r.module.echantillonnage,
+      'le rapport doit porter la fréquence réelle');
+    assert.equal(r.module.mesures.frequence.native, true,
+      'la fréquence native est le choix mesuré du 10 octobre');
+    assert.equal(r.module.mesures.frequence.aReechantillonnerAuLot4,
+      r.module.echantillonnage !== 48000,
+      'le rapport doit dire si le lot 4 devra rééchantillonner');
     // La piste réelle a bien été ouverte sans traitement du navigateur (E3).
     const ouverture = r.module.journal.find((x) => x.quoi === 'piste ouverte');
     assert.ok(ouverture, 'la piste doit être journalisée ; journal : ' +

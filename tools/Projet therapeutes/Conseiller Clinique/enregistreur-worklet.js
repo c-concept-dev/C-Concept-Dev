@@ -38,6 +38,43 @@ const BLOCS_PAR_RELEVE = 19;
 // écrit en dur : à 44,1 kHz, 2 secondes ne font pas le même nombre d'échantillons.
 const SECONDES_DE_SILENCE_AVANT_ALERTE = 2;
 
+// ── LE BRUIT DE PIÈCE, ET SA PART DE GRAVE (T13, étape 1d) ──────────────────────────────────
+//
+// Les prises réelles de Christophe l'ont montré : −55,7 à −57,9 dBFS dans une salle de soins à
+// générateurs, avec l'énergie surtout sous 120 Hz et des raies à 50 et 100 Hz. Un plancher à
+// −71 dBFS, mesuré au lot 0 dans une pièce calme, ne décrit pas sa salle.
+//
+// COMMENT ON MESURE LA PART DE GRAVE, et ce que cette mesure vaut exactement : un passe-bas de
+// Butterworth du SECOND ordre à 120 Hz (Q = 1/√2), puis le rapport entre l'énergie qui en
+// ressort et l'énergie qui y entre. Ce n'est PAS un mur de brique : à 120 Hz pile, le filtre
+// laisse passer la moitié de l'énergie, donc un son à 120 Hz donne un rapport d'environ 0,5. En
+// dessous il tend vers 1, au-dessus il chute en 1/f⁴. C'est une mesure de PENTE, pas de
+// découpage net, et le relevé le dit avec sa règle — un rapport sans sa règle se lirait comme un
+// pourcentage exact, ce qu'il n'est pas.
+const BRUIT_COUPURE_HZ = 120;
+
+class PasseBas {
+  constructor(fc, fs) {
+    var w0 = 2 * Math.PI * fc / fs;
+    var alpha = Math.sin(w0) / (2 * Math.SQRT1_2);
+    var cosw = Math.cos(w0);
+    var a0 = 1 + alpha;
+    this.b0 = ((1 - cosw) / 2) / a0;
+    this.b1 = (1 - cosw) / a0;
+    this.b2 = ((1 - cosw) / 2) / a0;
+    this.a1 = (-2 * cosw) / a0;
+    this.a2 = (1 - alpha) / a0;
+    this.x1 = this.x2 = this.y1 = this.y2 = 0;
+  }
+  filtrer(x) {
+    var y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
+          - this.a1 * this.y1 - this.a2 * this.y2;
+    this.x2 = this.x1; this.x1 = x;
+    this.y2 = this.y1; this.y1 = y;
+    return y;
+  }
+}
+
 class EnregistreurProcesseur extends AudioWorkletProcessor {
   constructor(options) {
     super();
@@ -82,6 +119,11 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
     // Suivi du zéro numérique, en échantillons.
     this.echantillonsAZeroDeSuite = 0;
     this.debutTrame = 0;
+
+    // La mesure de bruit tourne sur demande, pendant un nombre d'échantillons fixé par le
+    // module. Elle accumule l'énergie totale et l'énergie qui ressort du passe-bas, plus la
+    // crête — trois grandeurs brutes, dont le module tirera les décibels et le verdict.
+    this.bruit = null;
     this.seuilSilence = Math.round(SECONDES_DE_SILENCE_AVANT_ALERTE * sampleRate);
     this.muetAnnonce = false;
     this.blocsDepuisReleve = 0;
@@ -144,6 +186,25 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
           // temps contre lequel le compte de blocs du worklet se confronte.
           tramesEcoulees: currentFrame - (this.debutTrame || 0),
         });
+      } else if (m.type === 'mesurer-bruit') {
+        // Le filtre est construit ICI, avec la fréquence RÉELLE du contexte : ses coefficients
+        // en dépendent, et un filtre calculé pour 48 kHz appliqué à 44,1 kHz couperait ailleurs
+        // qu'à 120 Hz.
+        this.bruit = {
+          restants: Math.max(1, Math.round(m.echantillons || sampleRate * 3)),
+          demandes: Math.max(1, Math.round(m.echantillons || sampleRate * 3)),
+          n: 0, sommeCarre: 0, sommeCarreGrave: 0, crete: 0, zeros: 0,
+          // DEUX MOITIÉS, pour savoir si le silence initial en était un. T13 porte la trace du
+          // contraire : au lot 0, « un silence initial de 3 s n'a jamais été silencieux ». Si la
+          // seconde moitié est nettement plus forte que la première, quelqu'un a commencé à
+          // parler et la mesure de bruit ne mesure plus le bruit. Le module le dira plutôt que
+          // de rendre un verdict faux.
+          n1: 0, sommeCarre1: 0, n2: 0, sommeCarre2: 0,
+          filtre: new PasseBas(BRUIT_COUPURE_HZ, sampleRate),
+          canal: m.canal || 'gauche',
+        };
+        this.port.postMessage({ type: 'bruit-demarre', echantillons: this.bruit.demandes,
+                                coupureHz: BRUIT_COUPURE_HZ, echantillonnage: sampleRate });
       } else if (m.type === 'vider-maintenant') {
         // Appelé quand la page se masque ou se décharge : on pousse le morceau PARTIEL plutôt
         // que de le perdre. Ce qui est RÉELLEMENT garanti est écrit dans le module, pas ici :
@@ -194,6 +255,39 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
     this.echantillonsVus += g.length;
     accumuler(this.releve, g, d, entree.length);
     accumuler(this.total, g, d, entree.length);
+
+    // ── LA MESURE DU BRUIT DE PIÈCE, quand elle est en cours ────────────────────────────────
+    // Elle tourne en mode analyse comme en mode prise : le silence initial de 3 s appartient à
+    // la prise (T13), et c'est là qu'on veut la mesurer.
+    if (this.bruit && this.bruit.restants > 0) {
+      const b = this.bruit;
+      const prendre = Math.min(b.restants, g.length);
+      for (let i = 0; i < prendre; i++) {
+        const v = b.canal === 'droit' ? (d ? d[i] : 0)
+                : b.canal === 'moyenne' ? (d ? (g[i] + d[i]) / 2 : g[i])
+                : g[i];
+        const grave = b.filtre.filtrer(v);
+        b.sommeCarre += v * v;
+        b.sommeCarreGrave += grave * grave;
+        if (b.n < b.demandes / 2) { b.n1++; b.sommeCarre1 += v * v; }
+        else { b.n2++; b.sommeCarre2 += v * v; }
+        const a = v < 0 ? -v : v;
+        if (a > b.crete) b.crete = a;
+        if (v === 0) b.zeros++;
+        b.n++;
+      }
+      b.restants -= prendre;
+      if (b.restants <= 0) {
+        this.port.postMessage({
+          type: 'bruit', n: b.n, demandes: b.demandes,
+          sommeCarre: b.sommeCarre, sommeCarreGrave: b.sommeCarreGrave,
+          crete: b.crete, zeros: b.zeros, canal: b.canal,
+          n1: b.n1, sommeCarre1: b.sommeCarre1, n2: b.n2, sommeCarre2: b.sommeCarre2,
+          coupureHz: BRUIT_COUPURE_HZ, echantillonnage: sampleRate,
+        });
+        this.bruit = null;
+      }
+    }
 
     if (this.mode === 'prise') {
       const canal = this.canal;
