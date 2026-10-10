@@ -2497,3 +2497,30 @@ place au lot E3, pas ici.
 **Ce qui reste à faire avant E2**, et qui ne dépend que de vous : le déploiement ci-dessus, puis
 le jeu de questions réelles — trente à cinquante, tirées des recherches qui comptent pour celle
 qui s'en sert, et non de ce qu'on imagine qu'elle cherche.
+
+### Le déploiement d'E1 — ce qu'il demande, et pourquoi il attend
+
+La configuration du Worker a changé : trois liaisons là où il n'y en avait aucune — `REGISTRE`,
+`BIB_1`, `MEDIAS`. Un essai à blanc les montre toutes les trois et ne signale rien
+(910 Kio, 155 Kio compressés).
+
+**Deux réglages à poser à la main**, tous deux en secrets, hors du dépôt :
+
+| Réglage | Ce qu'il vaut | Pourquoi |
+|---|---|---|
+| `SECRET_LAISSEZ` | une longue valeur aléatoire | signe les laissez-passer des fichiers (SEC-05) |
+| `BIBLIOTHEQUE_FACADE` | `essai` | dit quelle bibliothèque la façade sert |
+
+**Une erreur de jugement, et le test qui l'a corrigée.** `BIBLIOTHEQUE_FACADE` n'est pas un
+secret, et j'ai voulu le déclarer en `[vars]` dans la configuration : visible, versionné, relu
+sans commande — ce qui me semblait meilleur pour une valeur dont dépend ce que la façade sert.
+Un test l'a refusé, et son intitulé dit pourquoi : « n'écrit aucun secret, **et n'ouvre même pas
+de section pour en mettre** ». Dans un dépôt public, un mur sans porte est plus sûr qu'un mur
+avec une porte, et le bénéfice que je cherchais — pouvoir relire la valeur — s'obtient
+exactement ici, dans ce tableau, sans rien ouvrir. Le garde-fou avait raison contre moi.
+
+**Après le déploiement, une dernière écriture** pour que la façade ait quelque chose à servir :
+`scripts/preparer-essai.ts` inscrit la bibliothèque d'essai au registre, la publie sur `BIB_1` et
+dépose la correspondance que la façade lit. Sans elle, les quatre routes répondent
+« indisponible » — ce qui est le bon comportement, mais ne prouve rien. Le script refuse toute
+base dont le nom ne finit pas par `-essai`.

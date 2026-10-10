@@ -43,8 +43,19 @@ preview_urls = false
 # ignoré par git et ne doit jamais y entrer.
 #
 # Aucune section [vars] : une variable déclarée ici serait en clair dans le
-# dépôt public. Les deux secrets sont lus par le code depuis les liaisons de
+# dépôt public. Les secrets sont lus par le code depuis les liaisons de
 # l'hébergeur, et la route refuse d'ouvrir si l'un manque.
+#
+# Un test interdit la section elle-même, et pas seulement les secrets qu'on y
+# mettrait. J'ai voulu y placer « BIBLIOTHEQUE_FACADE », qui n'est pas un
+# secret, pour qu'on puisse le relire sans commande. Le test a refusé, et il a
+# raison : dans un dépôt public, un mur sans porte est plus sûr qu'un mur avec
+# une porte, et la valeur attendue se consigne très bien dans docs/decisions.md.
+#
+# Les réglages à poser à la main, hors du dépôt :
+#
+#     npx wrangler secret put SECRET_LAISSEZ       --config wrangler.toml
+#     npx wrangler secret put BIBLIOTHEQUE_FACADE  --config wrangler.toml
 
 # ── Le registre des bibliothèques publiées (lot E1, étape 1) ──────────────────
 #
