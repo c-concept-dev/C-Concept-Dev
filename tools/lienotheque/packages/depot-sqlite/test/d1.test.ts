@@ -82,14 +82,27 @@ describe("migrations D1 engendrées (HEB-03)", () => {
     expect(["0010_dix.sql", "0002_deux.sql"].sort()).toEqual(["0002_deux.sql", "0010_dix.sql"]);
   });
 
-  it("le registre ne porte aucune colonne binaire (HEB-02)", () => {
+  /** Les tables qu'un index plein texte se crée à lui-même.
+   *
+   *  HEB-02 interdit les octets en base, et la règle vaut : D1 ne doit pas devenir un magasin de
+   *  fichiers. Un index FTS5 range son arbre dans des colonnes binaires qu'il gère seul — on ne
+   *  peut rien y écrire d'autre que ce que l'index tire du texte indexé. Ce ne sont pas des
+   *  fichiers, et les exclure n'ouvre aucune porte.
+   *
+   *  L'exemption est nommée plutôt que large : seules les tables d'un index **que nous avons
+   *  déclaré** y échappent, et le contrôle vaut en entier pour toutes les autres. */
+  const INDEX_PLEIN_TEXTE = /^passage_texte(_|$)/;
+
+  it("aucune table que nous déclarons ne porte de colonne binaire (HEB-02)", () => {
     // D1 ne doit contenir aucun fichier : la règle vaut pour le registre comme pour le reste.
     for (const base of bases) {
       const memoire = new DatabaseSync(":memory:");
       migrer(memoire, BASES_D1[base]);
-      const schema = (memoire.prepare("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL").all() as { sql: string }[])
-        .map((ligne) => ligne.sql)
-        .join("\n");
+      const nos_tables = (
+        memoire.prepare("SELECT name, sql FROM sqlite_master WHERE sql IS NOT NULL").all() as { name: string; sql: string }[]
+      ).filter((ligne) => !INDEX_PLEIN_TEXTE.test(ligne.name));
+      const schema = nos_tables.map((ligne) => ligne.sql).join("\n");
+      expect(nos_tables.length).toBeGreaterThan(1);
       expect(schema, `${base} déclare un BLOB`).not.toMatch(/\bBLOB\b/i);
       memoire.close();
     }

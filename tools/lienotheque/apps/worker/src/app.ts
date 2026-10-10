@@ -1,5 +1,8 @@
 import { DemandeVision, EstimationVision, EtatService, ReponseVision, reponseRepondA, type Capacite } from "@lienotheque/contrats";
 import { verifier } from "@lienotheque/noyau";
+import { Correspondance, chercher, compter } from "./facade.js";
+import { baseDeLaPlace } from "./reserve.js";
+import { laBibliotheque, type BaseSql } from "./registre.js";
 import { Hono } from "hono";
 import {
   compterParModele,
@@ -15,7 +18,7 @@ export const SERVICE = "lienotheque-api";
 export const VERSION = "0.2.0";
 
 /** Ce que le service sait faire. La liste grandit avec les routes (HEB-01). */
-export const CAPACITES: readonly Capacite[] = ["sante", "vision", "fichiers"];
+export const CAPACITES: readonly Capacite[] = ["sante", "vision", "fichiers", "recherche"];
 
 /** Ce que l'hébergeur fournit. Jamais écrit dans un fichier du dépôt, jamais rendu dans une
  *  réponse, jamais consigné : ce sont des secrets posés à la main sur le Worker (règle 6). */
@@ -26,6 +29,11 @@ export type Liaisons = {
   readonly SECRET_LAISSEZ?: string;
   /** Le compartiment des fichiers. Jamais lu sans laissez-passer vérifié. */
   readonly MEDIAS?: { readonly get: (cle: string, options?: unknown) => Promise<ObjetServi | null> };
+  /** Le registre des bibliothèques publiées. */
+  readonly REGISTRE?: BaseSql;
+  /** La bibliothèque que la façade sert. Une seule : la façade existe pour une application qui
+   *  n'en connaît qu'une, et lui en proposer plusieurs serait lui demander de changer. */
+  readonly BIBLIOTHEQUE_FACADE?: string;
 };
 
 /** Ce qu'un objet du compartiment doit savoir rendre pour qu'on le serve. */
@@ -164,6 +172,85 @@ export function creerApp({ maintenant = () => new Date(), lecteur = lireParModel
     if (objet.size !== undefined) entetes.set("content-length", String(objet.size));
     if (objet.httpEtag !== undefined) entetes.set("etag", objet.httpEtag);
     return new Response(objet.body, { headers: entetes });
+  });
+
+  /** La façade de compatibilité (INT-04, RCH-12).
+   *
+   *  Quatre routes, les corps et les formes de réponse de l'application qui existe. Elle ne doit
+   *  rien changer chez elle : la bascule est une valeur de configuration, pas une migration.
+   *
+   *  La bibliothèque servie vient de la configuration, jamais de la requête — demander laquelle
+   *  servir reviendrait à laisser choisir celui qui appelle. */
+  const ouvrirFacade = async (contexte: {
+    env: Liaisons;
+    req: { raw: Request };
+  }): Promise<{ base: BaseSql; correspondance: Correspondance } | Response> => {
+    const cle = contexte.env.BIBLIOTHEQUE_FACADE;
+    const registre = contexte.env.REGISTRE;
+    if (cle === undefined || cle.length === 0 || registre === undefined)
+      return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
+
+    const attendu = contexte.env.JETON_ACCES;
+    if (attendu === undefined || attendu.length === 0)
+      return Response.json({ erreur: "Le jeton d'accès n'est pas configuré" }, { status: 503 });
+    const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
+    if (donne === undefined || !memeJeton(donne, attendu)) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+
+    const inscrite = await laBibliotheque(registre, cle);
+    if (inscrite === undefined || inscrite.liaison === undefined)
+      return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
+
+    const base = baseDeLaPlace(contexte.env as unknown as Record<string, unknown>, inscrite.liaison) as BaseSql | undefined;
+    if (base === undefined) return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
+
+    const ligne = await base
+      .prepare("SELECT contenu FROM schema_bibliotheque WHERE cle = ?")
+      .bind("facade")
+      .first<{ contenu: string }>();
+    if (ligne === null) return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
+
+    const lue = Correspondance.safeParse(JSON.parse(ligne.contenu));
+    // Une correspondance illisible ne se devine pas : mieux vaut un service indisponible qu'un
+    // service qui rend des champs vides sans le dire.
+    if (!lue.success) return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
+    return { base, correspondance: lue.data };
+  };
+
+  const corpsDe = async (contexte: { req: { json: () => Promise<unknown> } }): Promise<Record<string, unknown>> => {
+    try {
+      const lu = await contexte.req.json();
+      return typeof lu === "object" && lu !== null ? (lu as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  for (const route of ["/search-library", "/rag-search", "/d1-query"] as const) {
+    app.post(route, async (contexte) => {
+      const ouverte = await ouvrirFacade(contexte);
+      if (ouverte instanceof Response) return ouverte;
+      const corps = await corpsDe(contexte);
+      const trouves = await chercher(ouverte.base, ouverte.correspondance, {
+        // `/d1-query` reçoit une intention et non une phrase : ses termes sont déjà séparés.
+        query: typeof corps["query"] === "string" ? corps["query"] : Array.isArray(corps["terms"]) ? corps["terms"].join(" ") : "",
+        topK: corps["topK"],
+      });
+      // Chaque route garde le nom que son appelant attend. Les deux noms désignent la même
+      // chose : c'est l'application qui a deux habitudes, pas nous deux réponses.
+      return contexte.json(route === "/rag-search" ? { chunks: trouves } : { results: trouves });
+    });
+  }
+
+  app.post("/library-facets", async (contexte) => {
+    const ouverte = await ouvrirFacade(contexte);
+    if (ouverte instanceof Response) return ouverte;
+    const corps = await corpsDe(contexte);
+    // Les champs comptés sont ceux que la correspondance déclare depuis un axe : le code ne sait
+    // pas lesquels, et n'a pas à le savoir (CLA-01).
+    const champs = Object.entries(ouverte.correspondance)
+      .filter(([, source]) => source !== null && "axe" in source)
+      .map(([champ]) => champ);
+    return contexte.json({ facets: await compter(ouverte.base, ouverte.correspondance, champs, { query: corps["query"] }) });
   });
 
   app.notFound((contexte) => contexte.json({ erreur: "Route inconnue" }, 404));

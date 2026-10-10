@@ -17,9 +17,11 @@
   "dependencies": {
     "@lienotheque/contrats": "workspace:*",
     "@lienotheque/noyau": "workspace:*",
-    "hono": "^4.13.12"
+    "hono": "^4.13.12",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@lienotheque/depot-sqlite": "workspace:*",
     "@types/node": "^22.0.0",
     "typescript": "^5.6.0",
     "vitest": "^3.2.0",

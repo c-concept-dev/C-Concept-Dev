@@ -219,12 +219,24 @@ describe("nomenclature et classement (CLA)", () => {
   });
 });
 
+/** Les tables qu'un index plein texte se crée à lui-même.
+ *
+ *  HEB-02 interdit les octets en base, et la règle vaut : D1 ne doit pas devenir un magasin de
+ *  fichiers. Un index FTS5 range son arbre dans des colonnes binaires qu'il gère seul — on ne
+ *  peut rien y écrire d'autre que ce que l'index tire du texte indexé. Ce ne sont pas des
+ *  fichiers, et les exclure n'ouvre aucune porte.
+ *
+ *  L'exemption est nommée plutôt que large : seules les tables d'un index **que nous avons
+ *  déclaré** y échappent, et le contrôle vaut en entier pour toutes les autres. */
+const INDEX_PLEIN_TEXTE = /^passage_texte(_|$)/;
+
 describe("HEB-02 : aucun binaire en base", () => {
   it("ne déclare aucune colonne qui puisse accueillir des octets", () => {
     const base = new DatabaseSync(join(dossier, DOSSIERS_BIBLIOTHEQUE.base, "bibliotheque.sqlite"), { readOnly: true });
     const tables = (base.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((t) => t.name);
     const binaires: string[] = [];
     for (const table of tables) {
+      if (INDEX_PLEIN_TEXTE.test(table)) continue;
       for (const colonne of base.prepare(`PRAGMA table_info(${table})`).all() as { name: string; type: string }[]) {
         if (/BLOB/i.test(colonne.type)) binaires.push(`${table}.${colonne.name}`);
       }

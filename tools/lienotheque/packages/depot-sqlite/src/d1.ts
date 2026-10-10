@@ -1,3 +1,5 @@
+import { DatabaseSync } from "node:sqlite";
+import { migrer } from "./depot.js";
 import { MIGRATIONS, MIGRATIONS_REGISTRE_EN_LIGNE, type Migration } from "./migrations.js";
 
 /** Les migrations telles que Wrangler les veut : un fichier `.sql` par migration, numéroté.
@@ -54,4 +56,41 @@ export function fichiersDe(base: BaseD1): readonly { readonly nom: string; reado
   return [...BASES_D1[base]]
     .sort((a, b) => a.version - b.version)
     .map((migration) => ({ nom: nomDeFichier(migration), contenu: contenuDeFichier(migration, base) }));
+}
+
+/** Une base en mémoire, au schéma demandé, derrière l'interface minimale qu'un appelant attend.
+ *
+ *  Elle vit ici parce que l'adaptateur est le seul à avoir le droit de connaître `node:sqlite`
+ *  (décision du lot 0, et un contrôle d'architecture le vérifie). Les éprouver contre une vraie
+ *  base plutôt que contre un faux a une raison : le schéma refuse ce qu'il refuse — deux
+ *  bibliothèques sur la même place, un préfixe en double —, et un faux dirait seulement ce qu'on
+ *  lui a appris à dire.
+ */
+export type BaseMinimale = {
+  readonly prepare: (sql: string) => {
+    readonly bind: (...valeurs: unknown[]) => {
+      readonly all: <T>() => Promise<{ results: T[] }>;
+      readonly first: <T>() => Promise<T | null>;
+      readonly run: () => Promise<unknown>;
+    };
+  };
+};
+
+export function baseEnMemoire(migrations: readonly Migration[]): BaseMinimale & {
+  readonly executer: (sql: string) => void;
+  readonly fermer: () => void;
+} {
+  const base = new DatabaseSync(":memory:");
+  migrer(base, migrations);
+  return {
+    prepare: (sql: string) => ({
+      bind: (...valeurs: unknown[]) => ({
+        all: async <T>() => ({ results: base.prepare(sql).all(...(valeurs as never[])) as T[] }),
+        first: async <T>() => (base.prepare(sql).get(...(valeurs as never[])) as T | undefined) ?? null,
+        run: async () => base.prepare(sql).run(...(valeurs as never[])),
+      }),
+    }),
+    executer: (sql: string) => base.exec(sql),
+    fermer: () => base.close(),
+  };
 }

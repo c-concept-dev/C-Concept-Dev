@@ -2404,3 +2404,63 @@ publique a sa colonne, et la cérémonie se branchera avec le client qui en a be
 
 SEC-02 dit « **idéalement** déverrouillée par Touch ID ou clé d'accès » : l'exigence dure est la
 session de 90 jours sans ressaisie, révocable à distance, et elle est tenue.
+
+### Étapes 8 à 10 — publier, servir, comparer (10 octobre 2026)
+
+**Publier, c'est inscrire sur une place déjà reliée** — jamais créer une base. Le Worker n'en a
+pas le pouvoir et c'est voulu (SEC-08). Une bibliothèque entre toujours comme **locale**, même
+quand on va la publier dans la seconde : « publiée » dit que quelque chose est servi, et tant que
+rien ne l'est, l'état ment.
+
+**Dépublier ne détruit rien.** La ligne reste, la base garde ses lignes, le compartiment ses
+objets, et la place se libère. Un test le vérifie en publiant, dépubliant, republiant. Aucune
+suppression ne se cache dans un changement d'état : supprimer est une décision à part.
+
+Le journal d'audit s'écrit **dans le même geste** que l'opération, et un test compte les lignes
+pour s'en assurer. Si c'était un second appel qu'on peut oublier, une publication sans trace
+serait possible — et la trace qui manque est toujours celle qu'on cherche.
+
+**La façade est pilotée par une correspondance rangée dans la bibliothèque.** Le code ne connaît
+ni auteur, ni approche, ni langue : il connaît « un champ de sortie, et où le prendre ». La
+correspondance choisit **où lire dans un résultat**, jamais **ce qu'on demande à la base** — la
+requête est écrite une fois, en clair, et il n'y a donc rien à prouver sur l'injection. Les
+colonnes atteignables sont une liste close ; une correspondance qui désignerait autre chose est
+refusée par son contrat.
+
+Une correspondance illisible rend **503**, pas des champs vides : rendre des champs vides sans le
+dire ferait croire à l'application que la bibliothèque ne contient rien. C'est la leçon des
+quatre pannes de l'ancien outil, appliquée avant d'en avoir une.
+
+**L'index plein texte entre maintenant** (migration 4), pour la même raison que la table qu'il
+indexe : une mécanique découverte nécessaire plus tard devient une migration sur une base en
+service. Et la bibliothèque qu'on doit égaler en a un — comparer deux recherches dont l'une
+procède par balayage ne dirait rien sur la pertinence. La phrase de l'utilisateur n'est jamais
+passée telle quelle à l'index : chaque mot est cité, faute de quoi un guillemet ferait répondre
+une erreur là où l'on attend zéro résultat.
+
+**HEB-02, une règle que j'ai dû préciser.** L'index range son arbre dans des colonnes binaires.
+La règle interdit les octets en base pour que D1 ne devienne pas un magasin de fichiers ; un
+index n'en est pas un, et l'on ne peut rien y écrire d'autre que ce qu'il tire du texte indexé.
+L'exemption est donc nommée — les tables d'un index **que nous avons déclaré** — et le contrôle
+vaut en entier partout ailleurs. Je le signale parce que relâcher un contrôle pour faire passer
+son propre code est exactement ce qu'il ne faut pas faire sans le dire.
+
+**Le banc de comparaison existe avant d'en avoir besoin, et ses seuils sont écrits avant la
+première mesure** : un seuil choisi après coup mesure la patience de celui qui l'a choisi. Aucun
+ouvrage perdu et aucune citation non vérifiée sont bloquants ; le recouvrement est rapporté et ne
+bloque pas, parce qu'un passage mieux découpé n'est pas une régression. La latence au 95ᵉ centile
+s'interpole : avec trente questions, un centile pris par simple index vaudrait la plus lente et
+ferait croire à une mesure plus sévère qu'elle n'est.
+
+Ce que le banc **ne** juge pas : l'exactitude des pages. Elle se relit à la main sur un
+échantillon, parce que c'est le seul endroit où une divergence entre les deux systèmes est une
+amélioration — et aucune mesure automatique ne sait faire cette différence.
+
+**Quatre collisions de noms, toutes signalées par le typage** avant toute revue : `placesLibres`,
+`Action`, `Verdict`, `Resultat`. Le ré-export à plat du noyau rend visible la paresse de nommage,
+et c'est un service qu'il rend.
+
+**Un garde-fou d'architecture m'a repris** : mes tests importaient `node:sqlite` hors de
+l'adaptateur. Plutôt que d'assouplir la règle, l'aide « base en mémoire » a été déplacée dans
+l'adaptateur — ce qui a supprimé au passage une duplication que j'avais laissée dans trois
+fichiers de test.

@@ -92,7 +92,13 @@ importers:
       hono:
         specifier: ^4.13.12
         version: 4.13.12
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
     devDependencies:
+      '@lienotheque/depot-sqlite':
+        specifier: workspace:*
+        version: link:../../packages/depot-sqlite
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
