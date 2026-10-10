@@ -1,0 +1,67 @@
+{
+  // evidenceforge-llm-proxy — Worker Cloudflare dédié, mode delegated de
+  // MONO-08 v0.6. NON DÉPLOYÉ par ce lot (implémentation + preuves
+  // LOCAL_CONTROLLED uniquement — voir README.md "Statut de déploiement").
+  //
+  // Aucune valeur de secret n'apparaît ni ne doit jamais apparaître dans ce
+  // fichier ou dans le dépôt. WORKER_API_KEY et ANTHROPIC_API_KEY sont des
+  // secrets Cloudflare à définir via `wrangler secret put` au moment du
+  // déploiement réel (hors périmètre de ce lot).
+  "name": "evidenceforge-llm-proxy",
+  "main": "src/worker.js",
+  "compatibility_date": "2024-09-23",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Rate limiting (CDC section 7.11) — binding natif Cloudflare Rate
+  // Limiting API, syntaxe STABLE (top-level "ratelimits", schéma
+  // RawConfig/properties/ratelimits de wrangler 4.127.1 — vérifié
+  // localement dans config-schema.json, wrangler deploy --dry-run PASS).
+  // Correctif d'audit : la version précédente utilisait
+  // `unsafe.bindings[].type:"ratelimit"`, marqué expérimental par
+  // Wrangler lui-même ("unsafe fields are experimental and may change or
+  // break at any time") ; la syntaxe ci-dessous est la forme stable
+  // recommandée pour un binding Rate Limiting, sans "unsafe". Seuil
+  // documenté ici, à ajuster par l'opérateur au moment du déploiement réel
+  // selon le volume attendu ; jamais codé en dur dans src/worker.js (le
+  // code lit uniquement env.RATE_LIMITER.limit(), voir
+  // src/worker.js::checkRateLimit()).
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1",
+      // simple : compteur glissant. period en secondes — le schéma stable
+      // n'autorise que 10 ou 60 (pas de valeur arbitraire). limit = nombre
+      // de requêtes autorisées par période et par clé (voir
+      // checkRateLimit() : clé = hash de EVIDENCEFORGE_WORKER_API_KEY).
+      // Valeur de démarrage prudente, à ajuster par l'opérateur avant tout
+      // déploiement réel — jamais laissée "illimitée".
+      "simple": { "limit": 30, "period": 60 }
+    }
+  ],
+
+  // Secrets attendus (jamais définis ici — `wrangler secret put <name>`
+  // uniquement, hors dépôt) :
+  //   WORKER_API_KEY      — credential d'entrée, connu du Worker et du
+  //                          runtime EvidenceForge (EVIDENCEFORGE_WORKER_API_KEY
+  //                          côté client).
+  //   ANTHROPIC_API_KEY   — secret upstream, connu du Worker seul.
+  //
+  // v0.8 — DÉLAIS SÉPARÉS (variables non secrètes, fournies par Cloudflare EN CHAÎNE ; le Worker les normalise strictement :
+  // Number(), fini, entier, bornes ; valeur absente => défaut ; invalide / hors bornes => défaut sûr + trace `config_*`).
+  //   HEADER_TIMEOUT_MS            — SEUL délai appliqué par le Worker : attente des EN-TÊTES de la réponse Anthropic (pré-flux).
+  //                                  Défaut 60000 (bornes 1000–90000). Justification : PROXY-v0.8-TIMEOUT-DESIGN-v1.md
+  //                                  (max mesuré 7,0 s ; fenêtre edge ≈ 100 s ; client premier octet 180 s). L'ancien
+  //                                  défaut implicite de 8000 ms (v0.6/v0.7, `TIMEOUT_MS` jamais posé) a produit le 504 à 8,187 s.
+  //   STREAM_INACTIVITY_TIMEOUT_MS — INFORMATIF : garde CLIENT (MONOLITH llm.streaming.inactivityMs = 90000). Le Worker ne coupe
+  //                                  jamais un flux ; si posée, la valeur est seulement annoncée (X-EvidenceForge-Timeouts).
+  //   STREAM_MAX_DURATION_MS       — INFORMATIF : garde CLIENT (llm.streaming.maxTotalMs = 900000). Idem.
+  // `TIMEOUT_MS` (v0.6/v0.7) reste accepté comme alias hérité de HEADER_TIMEOUT_MS.
+  "vars": {
+    "HEADER_TIMEOUT_MS": "60000"
+  }
+
+  // Aucune route publique large (ex. workers.dev par défaut au déploiement,
+  // ou une route personnalisée) n'est fixée ici : à décider par l'opérateur
+  // au moment du déploiement réel, hors périmètre de ce lot (CDC section 7,
+  // "pas de wildcard de sécurité implicite" — CDC section 8).
+}

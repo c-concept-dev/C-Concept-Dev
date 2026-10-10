@@ -13,6 +13,13 @@
 //! **La pause est une décision, pas une panne.** Elle s'écrit dans le fichier du travail ; le fil
 //! qui le mène la voit au message suivant, arrête le moteur proprement et rend la place. Aucun
 //! délai ne lève une pause : elle attend une reprise explicite (JOB-08).
+//!
+//! **Le volume absent n'est l'échec de personne.** Une bibliothèque peut vivre sur un disque
+//! externe, et un disque s'absente. Avant chaque tour, le roulement demande au volume s'il est
+//! là ; s'il ne l'est pas, il **suspend** : il ne prend aucun travail, n'en fait échouer aucun,
+//! ne consomme aucune tentative, et retente au tour suivant. Dès que le volume répond, il repart
+//! sans qu'on ait rien à relancer. Et un travail interrompu par cette absence revient
+//! « en file », pas « en échec » — il n'a pas échoué, il n'a pas pu travailler.
 
 use crate::{
     depot::Depot,
@@ -22,6 +29,7 @@ use crate::{
     moteur::{Lancement, Message, Session},
     traitement::Emplacements,
     travail::{self, Travail},
+    volume::{self, Presence},
 };
 use std::{
     collections::HashSet,
@@ -49,6 +57,9 @@ pub struct Roulement {
     /// monde ; cet ensemble protège du cas où un bail n'a pas encore été relu.
     menes: Mutex<HashSet<String>>,
     arret: AtomicBool,
+    /// Vrai tant que le volume de la bibliothèque ne répond pas. Ce n'est pas une panne et ce
+    /// n'est pas une pause décidée : c'est une attente, et elle se lève d'elle-même.
+    suspendu: AtomicBool,
 }
 
 impl Roulement {
@@ -61,6 +72,7 @@ impl Roulement {
             cache,
             menes: Mutex::new(HashSet::new()),
             arret: AtomicBool::new(false),
+            suspendu: AtomicBool::new(false),
         });
         let fil = Arc::clone(&roulement);
         std::thread::spawn(move || fil.boucler());
@@ -77,10 +89,41 @@ impl Roulement {
         self.arret.load(Ordering::Relaxed)
     }
 
+    /// Le dossier de la bibliothèque répond-il ?
+    ///
+    /// Posée à chaque tour, et pas une fois au démarrage : un disque s'absente en cours de route,
+    /// c'est tout l'objet. La réponse est gardée pour que l'écran puisse la montrer en mots.
+    ///
+    /// Depuis le lot E2 ce dossier porte la base et la file, et il vit sur le disque interne : son
+    /// absence relève donc de `Role::Base`, qui ne se suspend pas. Les dérivés, eux, peuvent vivre
+    /// ailleurs, et c'est `presence_des_derives` qui les regarde.
+    pub fn presence(&self) -> Presence {
+        volume::demander(self.depot.racine(), &volume::marque(&self.appareil, travail::maintenant()))
+    }
+
+    /// Vrai tant que le volume manque. L'écran s'en sert pour dire « le traitement reprendra ».
+    pub fn suspendu(&self) -> bool {
+        self.suspendu.load(Ordering::Relaxed)
+    }
+
     fn boucler(self: Arc<Self>) {
         while !self.arrete() {
-            if let Err(e) = self.un_tour() {
-                eprintln!("roulement : {e}");
+            match self.presence() {
+                Presence::La => {
+                    // Le volume était-il parti ? On le dit, parce qu'une reprise silencieuse
+                    // laisse croire qu'il ne s'est rien passé.
+                    if self.suspendu.swap(false, Ordering::Relaxed) {
+                        eprintln!("roulement : le volume est revenu, le traitement reprend");
+                    }
+                    if let Err(e) = self.un_tour() {
+                        eprintln!("roulement : {e}");
+                    }
+                }
+                Presence::Absent(pourquoi) => {
+                    if !self.suspendu.swap(true, Ordering::Relaxed) {
+                        eprintln!("roulement : volume absent ({pourquoi}) — suspension, aucun travail n'échoue");
+                    }
+                }
             }
             std::thread::sleep(PAS);
         }
@@ -280,7 +323,31 @@ impl Roulement {
     }
 
     /// Applique une transition d'échec et enregistre, en passant par la seule porte qui les tient.
+    /// Conclut un travail — sauf si ce qui l'a arrêté est l'absence du volume.
+    ///
+    /// Dans ce cas, le travail n'a pas échoué : **nous n'avons pas pu travailler**. Il revient
+    /// « en file », sans consommer de tentative, et repartira dès que le disque répondra. Sans
+    /// cette distinction, trois tentatives à trente secondes suffisaient à déclarer un document
+    /// définitivement perdu parce qu'un disque s'était absenté une minute et demie.
+    ///
+    /// La question n'est posée que sur le chemin de l'échec : un travail qui s'est terminé l'a
+    /// fait pour de bon, et l'on n'a pas à interroger le disque pour l'écrire.
     fn conclure(&self, chemin: &std::path::Path, courant: &Travail, action: &str, cause: Option<String>) {
+        let echoue = action == "echouerRecuperable" || action == "echouerDefinitif";
+        if echoue {
+            if let Presence::Absent(pourquoi) = self.presence() {
+                self.suspendu.store(true, Ordering::Relaxed);
+                eprintln!("roulement : volume absent ({pourquoi}) — « {} » revient en file, aucune tentative consommée", courant.id);
+                // « reprendre » depuis « en_cours » rend le travail à la file sans toucher au
+                // compteur de tentatives : c'est exactement ce qu'on veut dire.
+                if let Some(mut rendu) = file::appliquer(courant, "reprendre", travail::maintenant()) {
+                    rendu.reprise_possible = true;
+                    rendu.cause = Some(format!("volume absent : {pourquoi}"));
+                    let _ = travail::enregistrer(chemin, &rendu);
+                }
+                return;
+            }
+        }
         let Some(mut apres) = file::appliquer(courant, action, travail::maintenant()) else { return };
         apres.reprise_possible = apres.etat == "en_echec_recuperable";
         apres.cause = cause;
@@ -334,6 +401,44 @@ mod tests {
         chemin
     }
 
+    /// Un travail **en vol** quand le volume disparaît revient en file, sans perdre de tentative.
+    ///
+    /// L'épreuve réelle ne montre que l'autre moitié : un travail qui *attendait* n'échoue pas.
+    /// Celui-ci éprouve le chemin de l'échec, qui est le seul endroit où la confusion coûtait
+    /// cher — c'est lui qui transformait une absence d'une minute et demie en document perdu.
+    ///
+    /// Le dépôt pointe un dossier absent ; le fichier du travail, lui, est bien là. C'est
+    /// exactement la situation : la question posée au volume est celle du dépôt, pas celle du
+    /// fichier qu'on est en train d'écrire.
+    #[test]
+    fn un_travail_en_vol_revient_en_file_quand_le_volume_s_absente() {
+        let bac = bac("en-vol");
+        let roul = roulement(bac.clone());
+
+        // On fait disparaître le dossier du dépôt, et on met un fichier à sa place : c'est ce
+        // qu'un point de montage laisse derrière lui quand le volume s'en va, et c'est ce qui
+        // fait échouer la création comme l'écriture.
+        let racine = bac.join("bibliotheque");
+        std::fs::remove_dir_all(&racine).expect("dossier retiré");
+        std::fs::write(&racine, b"un volume qui n'est plus la").expect("obstacle");
+        assert!(!roul.presence().est_la(), "le dépôt devrait être injoignable : {}", racine.display());
+
+        let mut en_cours = Travail::neuf("t-en-vol", "lecture-de-pages", 1);
+        en_cours.etat = "en_cours".to_owned();
+        en_cours.tentative = 2;
+        let chemin = bac.join("t-en-vol.json");
+        travail::enregistrer(&chemin, &en_cours).expect("travail posé");
+
+        roul.conclure(&chemin, &en_cours, "echouerRecuperable", Some("le moteur s'est arrêté".to_owned()));
+
+        let relu = travail::charger(&chemin).expect("lecture").expect("travail relu");
+        assert_eq!(relu.etat, "en_file", "un volume absent a fait échouer un travail en vol");
+        assert_eq!(relu.tentative, 2, "une absence de volume a consommé une tentative");
+        assert!(relu.cause.unwrap_or_default().contains("volume absent"), "la cause ne dit pas pourquoi");
+        assert!(roul.suspendu(), "le roulement devrait s'être suspendu");
+        std::fs::remove_dir_all(&bac).ok();
+    }
+
     fn roulement(racine: PathBuf) -> Roulement {
         Roulement {
             depot: Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt"),
@@ -342,6 +447,7 @@ mod tests {
             cache: racine.join("cache"),
             menes: Mutex::new(HashSet::new()),
             arret: AtomicBool::new(false),
+            suspendu: AtomicBool::new(false),
         }
     }
 

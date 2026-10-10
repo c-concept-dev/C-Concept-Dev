@@ -148,9 +148,77 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX idx_journal_index ON journal_indexation(index_nom);
     `,
   },
+  {
+    version: 3,
+    nom: "passages",
+    sql: `
+      -- Le texte d'un passage, là où une requête peut l'atteindre.
+      --
+      -- Jusqu'ici le texte lisible d'une bibliothèque vivait dans la vue — un fichier JSON à
+      -- côté de la base — et la recherche locale le parcourait en entier. C'est tenable pour une
+      -- bibliothèque ouverte sur un ordinateur ; ça ne l'est pas pour une bibliothèque servie,
+      -- où chaque requête devrait rapatrier la vue entière avant de chercher dedans.
+      --
+      -- La façade de compatibilité le réclame en clair : elle doit rendre un champ « content ».
+      -- Un texte qui n'existe que dans un fichier JSON ne se cherche pas en SQL.
+      --
+      -- Ce n'est pas un second magasin à tenir à jour à la main : la table est **produite** à
+      -- partir de la vue au moment où une version est activée, et refaite si la version change.
+      -- La vue reste ce qui fait foi.
+      CREATE TABLE passage (
+        id          TEXT PRIMARY KEY,
+        version_id  TEXT NOT NULL REFERENCES version(id) ON DELETE CASCADE,
+        ancre_id    TEXT REFERENCES ancre(id) ON DELETE SET NULL,
+        rang        INTEGER NOT NULL,
+        texte       TEXT NOT NULL,
+        UNIQUE (version_id, rang)
+      );
+      CREATE INDEX idx_passage_version ON passage(version_id);
+      CREATE INDEX idx_passage_ancre ON passage(ancre_id);
+    `,
+  },
+  {
+    version: 4,
+    nom: "recherche-plein-texte",
+    sql: `
+      -- L'index plein texte des passages.
+      --
+      -- Il entre maintenant et non quand la recherche en aura besoin, pour la même raison que la
+      -- table qu'il indexe : une mécanique découverte nécessaire plus tard devient une migration
+      -- sur une base en service. Et la bibliothèque qu'on doit égaler en a un — comparer deux
+      -- recherches dont l'une cherche par balayage ne dirait rien sur la pertinence.
+      --
+      -- « contentless » : l'index ne recopie pas le texte, il renvoie à la table \`passage\` par
+      -- son identifiant de ligne. Un seul magasin, donc rien à tenir d'accord.
+      CREATE VIRTUAL TABLE passage_texte USING fts5(
+        texte,
+        content = 'passage',
+        content_rowid = 'rowid',
+        tokenize = 'unicode61 remove_diacritics 2'
+      );
+
+      -- L'index suit la table, sans que personne ait à y penser. Un index qu'on met à jour à la
+      -- main est un index qui se désaccorde le jour où l'on oublie.
+      CREATE TRIGGER passage_ajoute AFTER INSERT ON passage BEGIN
+        INSERT INTO passage_texte (rowid, texte) VALUES (new.rowid, new.texte);
+      END;
+      CREATE TRIGGER passage_retire AFTER DELETE ON passage BEGIN
+        INSERT INTO passage_texte (passage_texte, rowid, texte) VALUES ('delete', old.rowid, old.texte);
+      END;
+      CREATE TRIGGER passage_change AFTER UPDATE ON passage BEGIN
+        INSERT INTO passage_texte (passage_texte, rowid, texte) VALUES ('delete', old.rowid, old.texte);
+        INSERT INTO passage_texte (rowid, texte) VALUES (new.rowid, new.texte);
+      END;
+    `,
+  },
 ];
 
-/** Registre des bibliothèques connues de cet ordinateur. */
+/** Registre des bibliothèques connues de cet ordinateur.
+ *
+ *  À ne pas confondre avec `MIGRATIONS_REGISTRE_EN_LIGNE` ci-dessous : celui-ci dit où une
+ *  bibliothèque se trouve **sur cette machine**, celui-là dit où elle est **publiée**. Les deux
+ *  portent le mot « registre » parce qu'ils répondent à la même question — où est quoi ? — mais
+ *  ils ne se recouvrent pas et ne vivent pas dans la même base. */
 export const MIGRATIONS_REGISTRE: readonly Migration[] = [
   {
     version: 1,
@@ -161,6 +229,109 @@ export const MIGRATIONS_REGISTRE: readonly Migration[] = [
         nom      TEXT NOT NULL,
         dossier  TEXT NOT NULL,
         cree_le  TEXT NOT NULL
+      );
+    `,
+  },
+];
+
+/** Registre des bibliothèques publiées (lot E1).
+ *
+ *  Une base à part, sur D1, qui ne contient **aucun contenu de bibliothèque** : seulement de quoi
+ *  savoir laquelle existe, où elle est servie et dans quel état. Les bases des bibliothèques
+ *  elles-mêmes restent une par bibliothèque — c'est ce qui rend leur isolation structurelle et
+ *  non conditionnelle : aucune requête ne peut en atteindre deux.
+ *
+ *  Pourquoi une `liaison` et pas l'identifiant de la base : une liaison D1 se déclare dans la
+ *  configuration au déploiement. Plutôt que de donner au Worker un jeton de compte capable de
+ *  créer et de supprimer des bases — ce que SEC-08 interdit —, on déclare une réserve de places
+ *  nommées et le registre dit laquelle est occupée par qui. */
+export const MIGRATIONS_REGISTRE_EN_LIGNE: readonly Migration[] = [
+  {
+    version: 1,
+    nom: "registre-en-ligne",
+    sql: `
+      CREATE TABLE bibliotheque_publiee (
+        cle            TEXT PRIMARY KEY,
+        nom            TEXT NOT NULL,
+        -- locale, mixte ou publiee. L'état commande ce que l'interface a le droit d'annoncer
+        -- avant confirmation (HEB-01), et il se lit ici plutôt que de se deviner.
+        etat           TEXT NOT NULL,
+        -- La place prise dans la réserve de liaisons, nulle tant que la bibliothèque n'est pas
+        -- servie. Une place ne porte qu'une bibliothèque : la contrainte vit dans la base.
+        liaison        TEXT,
+        prefixe        TEXT NOT NULL UNIQUE,
+        -- Choisie explicitement à la création, jamais implicite (HEB-05).
+        region         TEXT NOT NULL,
+        schema_version INTEGER NOT NULL,
+        publiee_le     TEXT,
+        maj_le         TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX idx_registre_liaison ON bibliotheque_publiee(liaison) WHERE liaison IS NOT NULL;
+      CREATE INDEX idx_registre_etat ON bibliotheque_publiee(etat);
+
+      -- Journal des opérations sensibles (SEC-07) : publication, dépublication, changement
+      -- d'hébergement, révocation. Chaque ligne dit qui, quoi, quand — et rien ne l'efface.
+      CREATE TABLE journal_audit (
+        id        TEXT PRIMARY KEY,
+        objet     TEXT NOT NULL,
+        operation TEXT NOT NULL,
+        auteur    TEXT NOT NULL,
+        detail    TEXT,
+        fait_le   TEXT NOT NULL
+      );
+      CREATE INDEX idx_audit_objet ON journal_audit(objet);
+      CREATE INDEX idx_audit_date ON journal_audit(fait_le);
+    `,
+  },
+  {
+    version: 2,
+    nom: "qui-entre",
+    sql: `
+      -- Les personnes qui ont le droit d'entrer. Deux, nommées, et pas d'inscription ouverte :
+      -- une bibliothèque personnelle n'a pas de visiteurs (SEC-02).
+      CREATE TABLE utilisateur (
+        id      TEXT PRIMARY KEY,
+        nom     TEXT NOT NULL,
+        cree_le TEXT NOT NULL
+      );
+
+      -- Une clé d'accès enrôlée : la partie publique, jamais de secret. Le navigateur garde la
+      -- partie privée, l'appareil la déverrouille, et rien de tout cela ne traverse le réseau.
+      CREATE TABLE cle_acces (
+        id              TEXT PRIMARY KEY,
+        utilisateur_id  TEXT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+        cle_publique    TEXT NOT NULL,
+        compteur        INTEGER NOT NULL DEFAULT 0,
+        appareil        TEXT,
+        enrolee_le      TEXT NOT NULL,
+        revoquee_le     TEXT
+      );
+      CREATE INDEX idx_cle_utilisateur ON cle_acces(utilisateur_id);
+
+      -- Une session ouverte sur un appareil de confiance. Quatre-vingt-dix jours, repoussés à
+      -- chaque usage : c'est ce qui fait qu'on ne ressaisit rien.
+      --
+      -- La table garde une **empreinte** du jeton, jamais le jeton : une base lue ne doit pas
+      -- livrer de quoi se faire passer pour quelqu'un.
+      CREATE TABLE session (
+        id             TEXT PRIMARY KEY,
+        utilisateur_id TEXT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+        empreinte      TEXT NOT NULL UNIQUE,
+        appareil       TEXT,
+        ouverte_le     TEXT NOT NULL,
+        vue_le         TEXT NOT NULL,
+        expire_le      TEXT NOT NULL,
+        revoquee_le    TEXT
+      );
+      CREATE INDEX idx_session_utilisateur ON session(utilisateur_id);
+      CREATE INDEX idx_session_expire ON session(expire_le);
+
+      -- Ce qu'une personne a le droit de faire, bibliothèque par bibliothèque (SEC-03).
+      CREATE TABLE droit (
+        utilisateur_id TEXT NOT NULL REFERENCES utilisateur(id) ON DELETE CASCADE,
+        bibliotheque   TEXT NOT NULL,
+        niveau         TEXT NOT NULL,
+        PRIMARY KEY (utilisateur_id, bibliotheque)
       );
     `,
   },

@@ -1,0 +1,198 @@
+[
+  {
+    "path": "MANIFEST.json",
+    "classification": "MANIFEST/PROVENANCE",
+    "change": "MODIFIED",
+    "beforeSha256": "21d7db91d043b2ad5b1d9795442c47827aa2ef7ea95418596913f1b2255b2811",
+    "afterSha256": "f93bfab2934892fbb1ecd1ccd54a3be06ad4e7850698c26bfe706e3c6845e0d6"
+  },
+  {
+    "path": "README.md",
+    "classification": "DOC",
+    "change": "MODIFIED",
+    "beforeSha256": "48876e8d56db8cb896fd198c406dca6e347051308cf2e37f72be3d7a03c5c2e0",
+    "afterSha256": "a7d8a9bcb93060c72833c1131aff36400d5531c1c71e8e2b7ab5823b9fcd3842"
+  },
+  {
+    "path": "SHA256SUMS.txt",
+    "classification": "MANIFEST/PROVENANCE",
+    "change": "MODIFIED",
+    "beforeSha256": "b5844d29ce7a3928cb3b252ab5e77cdcb3de6b6b8a0f4182fef4035263545d13",
+    "afterSha256": "4d1ec94b8ccae7dc06dcd8d8fe905c1554650902f784bdcc316e0cd7451dddf4"
+  },
+  {
+    "path": "config/monolith.config.json",
+    "classification": "PRODUCTION",
+    "change": "MODIFIED",
+    "beforeSha256": "09290f45324ec028fc5a36eb425a08ae79f1a7857bdc0518d281dd0182e6dc02",
+    "afterSha256": "da64f6dbb79298bc5facb6f9d6a84e6b0faf37689ef7d1f11fc765ff9deb1e16"
+  },
+  {
+    "path": "docs/V1019-EF01-TRANSPORT-AUTOPSY.md",
+    "classification": "DOC",
+    "change": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "4d9fced098f63e7cbb312922eddcad1e5c1cf3ec903b70405dc74aac0e6d392c"
+  },
+  {
+    "path": "docs/V1019-EF01-TRANSPORT-POLICY.md",
+    "classification": "DOC",
+    "change": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "577163c8f5e94d1eaaa99b19e8cd7a800ce1f1f6ea83e1996c0276948a3cf819"
+  },
+  {
+    "path": "docs/V1019-EF01-TRANSPORT-REPORT.md",
+    "classification": "DOC",
+    "change": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "130d0917ea055e202acfbd86f39b2874d2e5356cdc0c0f5c108d8b1d404fa3c5"
+  },
+  {
+    "path": "docs/V1019-EF01-UNKNOWN-OUTCOME-CONTRACT.md",
+    "classification": "DOC",
+    "change": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "57ca00f3e2544ce8be3a89c5174838dc9bb8eeb4bc61806a8bea3c0d4f08203b"
+  },
+  {
+    "path": "lib/cost-ledger.js",
+    "classification": "PRODUCTION",
+    "change": "MODIFIED",
+    "beforeSha256": "f6ed481e66a194d35285dc8882dfe502d5ae3e37b65f5a145f3c6f2b5ebd2eb9",
+    "afterSha256": "154095f9b2ee552ba636c77a49196f10c88cf50e06834eb7dd116e32bc326b8e"
+  },
+  {
+    "path": "lib/ef01-transport-policy.js",
+    "classification": "PRODUCTION",
+    "change": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "861ef80101c133ae897e4b7b2e00110e144e472019455af3a99039f6407f699b"
+  },
+  {
+    "path": "lib/mono04-fence-adapter.js",
+    "classification": "PRODUCTION",
+    "change": "MODIFIED",
+    "beforeSha256": "8884b2ff107fc078876b0f41eb8fa77f28b3931fbb2e1cf8d8be14c06a0ca6d9",
+    "afterSha256": "252eeb6a1a455c2caea859356a377ad5877fa68c4183b6a3418063173f63e720"
+  },
+  {
+    "path": "test/browser-results-v1017.json",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "448204bd5527c5c1fdebbc211646e452b391919e8ac5364bd3d36cbb9624f425",
+    "afterSha256": "15b8b6f00fdb610312b0d8a62733355450a10b623210fe9e7c5f5ba34012c636"
+  },
+  {
+    "path": "test/browser-results-v105.json",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "1cb35245c19abdbe7413763675c255248157f194334c05432553e8c6e6b3f3aa",
+    "afterSha256": "b0349fd9f11f6c7fc8bc7f24dfc5ea0eb6c95776ee2cec5204d934b2a7d283c2"
+  },
+  {
+    "path": "test/browser-results-v106.json",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "ce117e40abc3de9a5679bd40aa7041fada25a072d0a97c30cebf8decbdf1c586",
+    "afterSha256": "2b7f4388eb99a36bd29e091f1b0d5586f4cf3ceb6975136121e9ca1e6233e392"
+  },
+  {
+    "path": "test/browser-results-v107.json",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "5f0a6aaec9ddfa923842d64bc557cfc8f4653c989f4f1727a82241f69b8678d7",
+    "afterSha256": "59cd1127c61d020ae303686137c1658561f77dc072065dea7eb46afd8d6ccb4b"
+  },
+  {
+    "path": "test/browser-results-v108.json",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "fd63850149494430e355ec70d4983fb7b59d7a068b68ce705276311c0aa8a13d",
+    "afterSha256": "893977ce87fd0529a333cc096e7b4ab70d576eb50c8bbfcfc5ff98c74d369ee0"
+  },
+  {
+    "path": "test/results-chunking.json",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "950733a8ef3d5528ae6b068cc1fe4e48f1aea6edf3bf3c09461a11430748281c",
+    "afterSha256": "a4bf7f3b0b519f25f4d16c3feecca05b62a3215b808333709ecebe142607c0bb"
+  },
+  {
+    "path": "test/results-v1018-create-only.json",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "e9ebfeb46f9873027350693c295177833ffd9ed61121683a6ca51551ede2544a",
+    "afterSha256": "eff3eea8f2e00b9ea19f55b7677c02a489e383da655acf55f527e90d88f34f79"
+  },
+  {
+    "path": "test/results-v1018-process.json",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "0d336e329800482a751b58c6075b602bdb7feb0657f5386af21c2913221aba20",
+    "afterSha256": "202cec53242489cc1300c312f8113313757676d3308accfda17485b80bc51aaa"
+  },
+  {
+    "path": "test/results-v1019-transport.json",
+    "classification": "TEST",
+    "change": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "5572afbf0839a0509ecf5f405d73e031025c3a1a4e7a4bd53c3a8c44f38e1227"
+  },
+  {
+    "path": "test/results.json",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "af4f70efb7cff767d72e84fb61c48047db51713e45bd0553672499079819d17b",
+    "afterSha256": "00ea96dae9467b1348d74733607bad91e19a07c4a655514e5c1c9386e1252c0d"
+  },
+  {
+    "path": "test/test-stream.js",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "7a82a086da6dc2c312ee4561f1bb33d5b48b593827b85fda0821e22ba1e7fac8",
+    "afterSha256": "5b78254c4671678652744983eba7f7f61a6f93932a520c411a921489a526d898"
+  },
+  {
+    "path": "test/test-v1012-lineage-parity.js",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "31fadfdf6c9eb3d12cc24d09b8f99080a9901e347cd7b822fd26daaa90b79332",
+    "afterSha256": "76fa8f270b6b516c5bb474d094f8859575b4090759d36b4263fca18dced0cb8e"
+  },
+  {
+    "path": "test/test-v1018-create-only.js",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "b79cf55bc70f496e2e3eb8c5a3bd6cc3382d601c48440c26c986b966b57d7547",
+    "afterSha256": "7344bceadd27ae237e8bca596ddf309ac7348268c461ab51b5967966c6978dab"
+  },
+  {
+    "path": "test/test-v1019-transport.js",
+    "classification": "TEST",
+    "change": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "7c8e8798e23cdbe53d80dd3534241b0b8932477ade44150687fbe6397c67819a"
+  },
+  {
+    "path": "test/v1019-browser-network-guard.cjs",
+    "classification": "TEST",
+    "change": "ADDED",
+    "beforeSha256": null,
+    "afterSha256": "4226a1b6a93315933b134a63e51ef116d11e7cb2e65ecb83a230ae5ae5833101"
+  },
+  {
+    "path": "tools/browser-tests-v1017.js",
+    "classification": "TEST",
+    "change": "MODIFIED",
+    "beforeSha256": "58d0b58b146a1eb82416e17c5a89791feef452e451d7e9bb99724c277613cfa2",
+    "afterSha256": "909b7408e738bdb4f55db322e48f9f1960945f005afcc500c7caea900385cf33"
+  },
+  {
+    "path": "tools/build-manifest.js",
+    "classification": "MANIFEST/PROVENANCE",
+    "change": "MODIFIED",
+    "beforeSha256": "4f2b03da4a795c927eeb956fc89fc44193128175cce3ef98c997d5017bb35763",
+    "afterSha256": "52087486967d97a425ca46f49e52bdd2da83c2030badc94ccde0880c0e44d193"
+  }
+]

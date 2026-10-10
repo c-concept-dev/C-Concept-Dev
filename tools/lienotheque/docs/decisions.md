@@ -31,6 +31,7 @@
 | 2026-10-06 | Portage Rust intégral de la chaîne **écarté** : il faudrait réécrire pdf.js et les codecs, et refaire la preuve des 84/92 et 95/95 | Lot D2, étape 0 |
 | 2026-10-06 | Allègement du moteur (Node sans ICU, binaire compilé) **reporté après la bêta**, et sans toucher la chaîne | Lot D2, étape 0 |
 | 2026-10-08 | **La recherche n'a pas d'index à elle** : elle lit la vue, et tout se passe sur la machine. Le surlignage porte sur le texte d'origine, pas sur sa forme repliée | Lot D2, étape 4, section ci-dessous |
+| 2026-10-09 | **Lot E1, étape 1 faite** : registre `lienotheque-registre` créé en Europe de l'Ouest, schéma appliqué. Les migrations D1 sont **engendrées** depuis `packages/depot-sqlite/src/migrations.ts`, et un test échoue si le disque dérive du tableau | Lot E1, section ci-dessous |
 | 2026-10-09 | **Lot D2 clos.** Quatre questions restées ouvertes sont tranchées : agencement d'un paquet Windows **reporté à la phase Windows** ; critère F4 à 84 / 92 **non revérifié**, le témoin gratuit en tient lieu et on ne remesurera que si cette zone du code est retouchée ; **pages invisibles de F5 laissées en l'état**, sujet d'un lot futur ; **allègement du moteur confirmé après la bêta** | Lot D2, clôture, section ci-dessous |
 | 2026-10-09 | **Les écrans lisent la version active du dépôt**, relue après chaque traitement, et les images de page arrivent une par une dans la réponse de l'hôte | Lot D2, étape 6, section ci-dessous |
 | 2026-10-09 | **Le parcours entier passe sans ligne de commande** : créer, organiser, déposer, apprendre à lire, traiter, lire — 234 s sur F3, 95/95 | Lot D2, étape 7, section ci-dessous |
@@ -2215,3 +2216,381 @@ d'un lot futur, pas une dette de celui-ci.
 
 **L'allègement du moteur** reste après la bêta, sans toucher la chaîne : la décision du 6 octobre
 est confirmée telle quelle.
+
+## Lot E1 — journal de construction
+
+Le plan approuvé est `docs/lot-e-proposition.md`. Ce journal dit ce qui existe réellement, étape
+par étape. Chaque étape vérifie, et consigne, que **rien de réel n'a bougé** : l'ancienne base de
+Studio Clinique doit porter 22 022 passages et peser 168 738 816 octets, comme au 9 octobre 2026.
+
+### Étape 1 — le registre (faite le 9 octobre 2026)
+
+| | |
+|---|---|
+| Base | `lienotheque-registre`, D1, **région WEUR** choisie explicitement (HEB-05) |
+| Schéma | `bibliotheque_publiee` et `journal_audit` — aucune colonne binaire (HEB-02) |
+| Migrations | engendrées depuis `MIGRATIONS_REGISTRE_EN_LIGNE`, appliquées à distance |
+| Contrôle | `therapeute-library` : 22 022 passages, 168 738 816 octets, **0 écriture** |
+
+**Les migrations D1 ne s'écrivent pas à la main.** Elles sont engendrées depuis les tableaux de
+`packages/depot-sqlite/src/migrations.ts` par `pnpm build`, et un test compare les fichiers du
+disque à ce que le générateur rendrait. Sans lui, le schéma local et le schéma en ligne divergent
+le jour où quelqu'un corrige un seul des deux — et la divergence ne se voit qu'au moment où elle
+coûte cher. Chaque fichier engendré porte en tête d'où il vient, parce qu'un fichier engendré qu'on
+prend pour une source se fait corriger à la main une fois, et une seule.
+
+**Une place nommée plutôt qu'un identifiant.** Le registre ne retient pas l'identifiant de la base
+d'une bibliothèque mais la **place** qu'elle occupe dans une réserve de liaisons déclarées
+(`BIB_1`…`BIB_4`). C'est ce qui permet au Worker de n'avoir aucun jeton de compte : il ne crée ni
+ne supprime de base, il lit celle qu'on lui a reliée. SEC-08 est tenue par construction, pas par
+discipline. Le prix est assumé : publier une bibliothèque de plus est un déploiement, pas un clic.
+
+Le registre porte aussi le **journal d'audit** (SEC-07) dès cette étape, plutôt qu'après coup : une
+opération sensible qui n'est pas journalisée au moment où on l'écrit ne le sera jamais.
+
+### Étape 2 — le schéma d'une bibliothèque, et la réserve (faite le 10 octobre 2026)
+
+| | |
+|---|---|
+| Base | `lienotheque-essai`, D1, région WEUR — **nommée pour qu'on ne la confonde jamais avec une vraie** |
+| Schéma | les deux migrations de `MIGRATIONS`, appliquées à distance : 15 tables |
+| Réserve | `BIB_1` déclarée et reliée ; les suivantes s'ajouteront quand une bibliothèque en aura besoin |
+| Contrôle | `therapeute-library` : 22 022 passages, 168 738 816 octets, **0 écriture** |
+
+**La réserve se lit, elle ne se redéclare pas.** `placesDeclarees` parcourt les liaisons que
+l'hébergeur fournit vraiment et ne retient que celles qui sont des bases. Une liste écrite à deux
+endroits finit par diverger, et le jour où elle diverge, le Worker propose une place qui ne mène à
+aucune base. Une place proposée est une promesse d'hébergement.
+
+**Aucune place vide n'a été créée d'avance.** Déclarer `BIB_2` à `BIB_4` imposerait de créer trois
+bases que personne n'utilise. La mécanique est éprouvée par les tests sur une réserve de quatre ;
+la quatrième base existera le jour où une quatrième bibliothèque la réclamera.
+
+**Le garde-fou qui compte** se vérifie sur le fichier de configuration lui-même : aucune liaison
+vers `therapeute-library` ni vers `clone-proxy`. Le test lit les **déclarations** et non les
+commentaires — le fichier parle de clone-proxy, c'est tout le propos de son avertissement en tête,
+et un test qui confondrait les deux interdirait d'expliquer un danger là où il se présente.
+
+Deux noms ont été corrigés en chemin par le typage : `placesLibres` existait déjà pour les places
+de la file de travaux. Les liaisons libres s'appellent donc `liaisonsLibres`. Deux choses
+différentes ne doivent pas porter le même nom, et c'est le compilateur qui l'a dit en premier.
+
+### Étape 3 — la sauvegarde, et ce qu'elle a révélé (10 octobre 2026)
+
+**Une découverte avant la mesure : le texte des passages ne vit pas dans la base.** `Ancre` porte
+une position — une zone, un temps, une page —, jamais un texte. Le texte lisible d'une
+bibliothèque vit dans la **vue**, un fichier JSON posé à côté de la base, que la recherche locale
+parcourt en entier.
+
+C'est tenable pour une bibliothèque ouverte sur un ordinateur. Ça ne l'est pas pour une
+bibliothèque servie : chaque requête devrait rapatrier la vue entière avant de chercher dedans. Et
+la façade de compatibilité le réclame en clair — elle doit rendre un champ `content`. **Un texte
+qui n'existe que dans un fichier JSON ne se cherche pas en SQL.**
+
+D'où une table `passage` (migration 3), ajoutée maintenant et non à l'étape 9, pour deux raisons.
+La première est que le chronomètre de SEC-10 doit porter sur le schéma qui tiendra vraiment les
+données : restaurer une base de métadonnées puis annoncer un temps serait mesurer autre chose. La
+seconde est qu'une table qu'on découvre nécessaire à l'étape 9 est une migration de plus sur une
+base déjà en service.
+
+Ce n'est pas un second magasin à tenir à la main : la table est **produite** depuis la vue au
+moment où une version est activée, et refaite si la version change. La vue reste ce qui fait foi.
+
+**L'épreuve, chronométrée (SEC-10).** Sur une base d'essai semée de 22 022 passages de texte
+inventé — le compte de la bibliothèque à reprendre, avec sa longueur moyenne de passage, parce
+qu'un chronomètre pris sur des lignes courtes ne dirait rien :
+
+| | |
+|---|---:|
+| Semence | 85 Mo poussés en **84,6 s** |
+| Sauvegarde, vers le volume externe | 85,4 Mo en **74,5 s** |
+| **Restauration**, dans `lienotheque-restauration-essai` | **17,9 s** |
+| Comparaison | 16 tables, **aucun écart** |
+
+La restauration est quatre fois plus rapide que la sauvegarde. C'est rassurant dans le bon sens :
+le geste qu'on fait sous la contrainte est le moins long des deux.
+
+**Ce que l'épreuve ne couvre pas, et pourquoi elle n'a pas à le couvrir.** Les objets du
+compartiment ne sont pas sauvegardés : ils sont adressés par leur empreinte, jamais réécrits, et
+l'ordinateur en garde l'original. **R2 est la copie, le Mac est l'original.** La sauvegarde des
+fichiers, c'est le dossier de la bibliothèque, qui existe déjà.
+
+**Trois erreurs à mon compte, toutes dans le banc, aucune dans la sauvegarde.** La comparaison a
+d'abord buté sur une limite de D1 (« too many terms in compound SELECT ») : une requête par table
+plutôt qu'un grand SELECT composé. Puis le vidage de la cible a échoué deux fois sur l'ordre des
+suppressions — retirer `document` relance une cascade vers `ancre`, que l'ordre alphabétique avait
+déjà retiré, et les contraintes différées n'y changent rien : le problème n'est pas le moment de
+la vérification, c'est la table absente. L'ordre se calcule donc depuis le schéma, **les filles
+avant leurs parents**, et six contrôles le vérifient en six millisecondes — là où chaque erreur
+coûtait quatre-vingts secondes d'envoi avant de se montrer.
+
+**Un garde-fou dans le banc lui-même** : il refuse toute cible dont le nom ne finit pas par
+`-essai`. Une épreuve capable d'effacer une vraie base est une épreuve que personne ne devrait
+lancer, et la règle vit dans le code plutôt que dans la prudence de qui tape la commande.
+
+### Étapes 4 et 5 — les fichiers, et ce qui les ouvre (10 octobre 2026)
+
+| | |
+|---|---|
+| Compartiment | `lienotheque-medias`, R2, région WEUR, vide au départ |
+| Clés | `<clé>/sources/<2 premiers>/<empreinte>` et `<clé>/derives/<version>/…` |
+| Laissez-passer | signature HMAC, trois minutes, vérifiée avant toute lecture |
+| Contrôle | `therapeute-library` : 22 022 passages, 168 738 816 octets, **0 écriture** |
+
+**Un seul endroit compose une clé**, et un test refuse qu'un second s'y mette. Pour les bases,
+l'isolation est structurelle — une base par bibliothèque, aucune requête ne peut en atteindre
+deux. Pour les fichiers elle ne l'est pas, et il faut le dire : un compartiment unique, des
+préfixes, et du code qui tient la frontière. Le concentrer en une fonction est la seule façon de
+rendre cette frontière relisable.
+
+Le piège qu'un `startsWith` ne voit pas a son test : **`essai-bis/` commence par `essai`**. La
+comparaison porte donc sur la clé recomposée, jamais sur un préfixe de texte.
+
+**Ce n'est pas la clé de l'objet qui autorise, c'est la signature.** Un laissez-passer dit quel
+fichier, de quelle bibliothèque, jusqu'à quand. Trois minutes : assez pour qu'un navigateur
+charge une page, trop peu pour qu'une adresse recopiée dans un message serve encore demain. Et
+même signée, une clé qui n'appartient pas à la bibliothèque annoncée ne s'ouvre pas — une
+signature atteste qu'on a écrit le laissez-passer, pas qu'on avait raison de l'écrire.
+
+Le Worker **retransmet** au lieu de signer une adresse chez l'hébergeur de fichiers : un secret de
+moins (SEC-06), et la sortie ne coûte rien. Le jour où une mesure montrera que retransmettre pèse
+trop, on changera — pas avant.
+
+Trois détails que les tests imposent et qu'on aurait pu manquer : le compartiment n'est **jamais**
+touché avant que le laissez-passer soit vérifié ; la réponse porte `private, no-store`, sans quoi
+un cache partagé resservirait le fichier après l'expiration ; et un fichier absent se distingue
+d'un accès refusé **par le code** — 404 dit « pas là », 403 dit « pas vous » — jamais par un
+message qui apprendrait ce qui existe.
+
+**Le garde-fou CLA-01 m'a repris en chemin** : j'avais écrit un mot de domaine comme nom de
+bibliothèque d'exemple dans des tests génériques. Il avait raison, et c'est exactement à cela
+qu'il sert.
+
+### Étapes 6 et 7 — qui entre, et ce qu'il a le droit de faire (10 octobre 2026)
+
+Le registre gagne quatre tables : `utilisateur`, `cle_acces`, `session`, `droit`.
+
+**La session tient SEC-02 par trois propriétés, et un test les mesure ensemble** : on simule
+365 jours d'usage quotidien, et la session ne périme pas une fois. Quatre-vingt-dix jours
+**repoussés à chaque usage** — une session à date fixe demanderait une ressaisie le
+quatre-vingt-onzième jour quoi qu'on fasse ; une session glissante n'expire que si l'on cesse de
+s'en servir, ce qui est précisément le moment où elle doit expirer.
+
+Le registre garde une **empreinte** du jeton, jamais le jeton : une base lue ne doit pas livrer de
+quoi se faire passer pour quelqu'un. Et la révocation vit dans le registre, pas dans le jeton —
+un jeton ne peut pas se retirer lui-même, et c'est la seule raison pour laquelle on consulte le
+registre à chaque usage au lieu de se fier à la signature.
+
+L'écriture ne se fait qu'**une fois par jour**, pas à chaque requête : une page qui en fait trente
+réécrirait trente fois la même échéance.
+
+**Les droits sont une échelle, pas une liste de cases.** Qui peut administrer peut contribuer, qui
+peut contribuer peut lire. Une liste de cases se désaccorde — on ajoute une action quelque part et
+on oublie de la cocher ailleurs. Une action absente de la table est **refusée à tout le monde** :
+un geste qu'on a oublié de classer doit être refusé, jamais autorisé par défaut.
+
+Un refus pour « bibliothèque qui n'est pas la vôtre » et un refus pour « droits insuffisants »
+rendent **exactement la même phrase**. Distinguer les deux apprendrait l'existence d'une
+bibliothèque à qui n'a pas le droit de la voir.
+
+**Ce que je ne fais pas dans ce lot, et pourquoi.** La cérémonie WebAuthn elle-même — l'échange
+avec l'appareil qui déverrouille la clé — n'est pas écrite. Deux raisons. Il n'existe pas encore
+de page web pour l'exécuter : la version en ligne est au lot E5 (PLT-03), et le bureau ne passe
+pas par là. Et la bibliothèque de référence apporte dix dépendances transitives, pour l'essentiel
+de la vérification de certificats d'attestation dont deux utilisateurs connus n'ont pas l'usage.
+Écrire moi-même l'analyse CBOR et COSE dans un chemin d'authentification serait pire ; ajouter dix
+dépendances pour du code que rien n'appelle ne vaut pas mieux. Les tables l'attendent, la clé
+publique a sa colonne, et la cérémonie se branchera avec le client qui en a besoin.
+
+SEC-02 dit « **idéalement** déverrouillée par Touch ID ou clé d'accès » : l'exigence dure est la
+session de 90 jours sans ressaisie, révocable à distance, et elle est tenue.
+
+### Étapes 8 à 10 — publier, servir, comparer (10 octobre 2026)
+
+**Publier, c'est inscrire sur une place déjà reliée** — jamais créer une base. Le Worker n'en a
+pas le pouvoir et c'est voulu (SEC-08). Une bibliothèque entre toujours comme **locale**, même
+quand on va la publier dans la seconde : « publiée » dit que quelque chose est servi, et tant que
+rien ne l'est, l'état ment.
+
+**Dépublier ne détruit rien.** La ligne reste, la base garde ses lignes, le compartiment ses
+objets, et la place se libère. Un test le vérifie en publiant, dépubliant, republiant. Aucune
+suppression ne se cache dans un changement d'état : supprimer est une décision à part.
+
+Le journal d'audit s'écrit **dans le même geste** que l'opération, et un test compte les lignes
+pour s'en assurer. Si c'était un second appel qu'on peut oublier, une publication sans trace
+serait possible — et la trace qui manque est toujours celle qu'on cherche.
+
+**La façade est pilotée par une correspondance rangée dans la bibliothèque.** Le code ne connaît
+ni auteur, ni approche, ni langue : il connaît « un champ de sortie, et où le prendre ». La
+correspondance choisit **où lire dans un résultat**, jamais **ce qu'on demande à la base** — la
+requête est écrite une fois, en clair, et il n'y a donc rien à prouver sur l'injection. Les
+colonnes atteignables sont une liste close ; une correspondance qui désignerait autre chose est
+refusée par son contrat.
+
+Une correspondance illisible rend **503**, pas des champs vides : rendre des champs vides sans le
+dire ferait croire à l'application que la bibliothèque ne contient rien. C'est la leçon des
+quatre pannes de l'ancien outil, appliquée avant d'en avoir une.
+
+**L'index plein texte entre maintenant** (migration 4), pour la même raison que la table qu'il
+indexe : une mécanique découverte nécessaire plus tard devient une migration sur une base en
+service. Et la bibliothèque qu'on doit égaler en a un — comparer deux recherches dont l'une
+procède par balayage ne dirait rien sur la pertinence. La phrase de l'utilisateur n'est jamais
+passée telle quelle à l'index : chaque mot est cité, faute de quoi un guillemet ferait répondre
+une erreur là où l'on attend zéro résultat.
+
+**HEB-02, une règle que j'ai dû préciser.** L'index range son arbre dans des colonnes binaires.
+La règle interdit les octets en base pour que D1 ne devienne pas un magasin de fichiers ; un
+index n'en est pas un, et l'on ne peut rien y écrire d'autre que ce qu'il tire du texte indexé.
+L'exemption est donc nommée — les tables d'un index **que nous avons déclaré** — et le contrôle
+vaut en entier partout ailleurs. Je le signale parce que relâcher un contrôle pour faire passer
+son propre code est exactement ce qu'il ne faut pas faire sans le dire.
+
+**Le banc de comparaison existe avant d'en avoir besoin, et ses seuils sont écrits avant la
+première mesure** : un seuil choisi après coup mesure la patience de celui qui l'a choisi. Aucun
+ouvrage perdu et aucune citation non vérifiée sont bloquants ; le recouvrement est rapporté et ne
+bloque pas, parce qu'un passage mieux découpé n'est pas une régression. La latence au 95ᵉ centile
+s'interpole : avec trente questions, un centile pris par simple index vaudrait la plus lente et
+ferait croire à une mesure plus sévère qu'elle n'est.
+
+Ce que le banc **ne** juge pas : l'exactitude des pages. Elle se relit à la main sur un
+échantillon, parce que c'est le seul endroit où une divergence entre les deux systèmes est une
+amélioration — et aucune mesure automatique ne sait faire cette différence.
+
+**Quatre collisions de noms, toutes signalées par le typage** avant toute revue : `placesLibres`,
+`Action`, `Verdict`, `Resultat`. Le ré-export à plat du noyau rend visible la paresse de nommage,
+et c'est un service qu'il rend.
+
+**Un garde-fou d'architecture m'a repris** : mes tests importaient `node:sqlite` hors de
+l'adaptateur. Plutôt que d'assouplir la règle, l'aide « base en mémoire » a été déplacée dans
+l'adaptateur — ce qui a supprimé au passage une duplication que j'avais laissée dans trois
+fichiers de test.
+
+### Lot E1 — clôture, et ce qui attend une décision
+
+**Les dix étapes sont construites et éprouvées.** Ce qui a été créé chez l'hébergeur, et rien
+d'autre :
+
+| Ressource | Région | Rôle |
+|---|---|---|
+| D1 `lienotheque-registre` | WEUR | le registre, 6 tables |
+| D1 `lienotheque-essai` | WEUR | la bibliothèque d'**essai**, 4 migrations |
+| D1 `lienotheque-restauration-essai` | WEUR | cible de l'épreuve de restauration |
+| R2 `lienotheque-medias` | WEUR | les fichiers, vide |
+
+Coût : **zéro au-dessus de l'abonnement**.
+
+**Ce qui n'est pas fait, et pourquoi il faut votre mot.** Le Worker **n'est pas déployé**. Sa
+configuration a changé — deux liaisons D1, une liaison R2 — et il lui faut deux réglages qui
+n'existent pas encore : `SECRET_LAISSEZ`, qui signe les laissez-passer, et `BIBLIOTHEQUE_FACADE`,
+qui dit quelle bibliothèque la façade sert. La règle 7 de CLAUDE.md soumet tout changement de
+configuration ou de secret avant de l'appliquer, et c'est exactement le cas.
+
+Tant que ce déploiement n'a pas eu lieu, la façade est éprouvée **dans le processus** — routes,
+corps, formes de réponse, refus — mais pas encore par-dessus le réseau. C'est la dernière marche
+du critère de passage de BAS-01, et elle se franchit en une commande une fois les deux réglages
+posés.
+
+**Le banc de comparaison attend une seconde adresse.** Il tourne sur ses mesures, qui sont
+testées ; la comparaison réelle demande l'adresse et le jeton de l'ancienne API, et elle a sa
+place au lot E3, pas ici.
+
+**Ce qui reste à faire avant E2**, et qui ne dépend que de vous : le déploiement ci-dessus, puis
+le jeu de questions réelles — trente à cinquante, tirées des recherches qui comptent pour celle
+qui s'en sert, et non de ce qu'on imagine qu'elle cherche.
+
+### Le déploiement d'E1 — ce qu'il demande, et pourquoi il attend
+
+La configuration du Worker a changé : trois liaisons là où il n'y en avait aucune — `REGISTRE`,
+`BIB_1`, `MEDIAS`. Un essai à blanc les montre toutes les trois et ne signale rien
+(910 Kio, 155 Kio compressés).
+
+**Deux réglages à poser à la main**, tous deux en secrets, hors du dépôt :
+
+| Réglage | Ce qu'il vaut | Pourquoi |
+|---|---|---|
+| `SECRET_LAISSEZ` | une longue valeur aléatoire | signe les laissez-passer des fichiers (SEC-05) |
+| `BIBLIOTHEQUE_FACADE` | `essai` | dit quelle bibliothèque la façade sert |
+
+**Une erreur de jugement, et le test qui l'a corrigée.** `BIBLIOTHEQUE_FACADE` n'est pas un
+secret, et j'ai voulu le déclarer en `[vars]` dans la configuration : visible, versionné, relu
+sans commande — ce qui me semblait meilleur pour une valeur dont dépend ce que la façade sert.
+Un test l'a refusé, et son intitulé dit pourquoi : « n'écrit aucun secret, **et n'ouvre même pas
+de section pour en mettre** ». Dans un dépôt public, un mur sans porte est plus sûr qu'un mur
+avec une porte, et le bénéfice que je cherchais — pouvoir relire la valeur — s'obtient
+exactement ici, dans ce tableau, sans rien ouvrir. Le garde-fou avait raison contre moi.
+
+**Après le déploiement, une dernière écriture** pour que la façade ait quelque chose à servir :
+`scripts/preparer-essai.ts` inscrit la bibliothèque d'essai au registre, la publie sur `BIB_1` et
+dépose la correspondance que la façade lit. Sans elle, les quatre routes répondent
+« indisponible » — ce qui est le bon comportement, mais ne prouve rien. Le script refuse toute
+base dont le nom ne finit pas par `-essai`.
+
+### BAS-01 franchi — les quatre routes répondent par-dessus le réseau (10 octobre 2026)
+
+| Route | Réponse | Latence |
+|---|---|---:|
+| `/search-library` | `results` : passage, titre, page imprimée, axes | 168 ms |
+| `/d1-query` | `results`, depuis une intention à termes | 162 ms |
+| `/rag-search` | `chunks` — le même contenu sous le nom que l'appelant attend | 167 ms |
+| `/library-facets` | `facets` : comptes par axe | 163 ms |
+
+**Deux secrets vides, et pourquoi on ne s'en apercevait pas.** Les quatre routes refusaient avec
+« la façade n'est pas configurée » alors que `wrangler secret list` montrait les quatre secrets.
+Le motif a nommé le coupable : le secret posé de longue date arrivait, les deux posés le matin
+même non. `wrangler secret put` lit l'entrée standard et enregistre une entrée vide sans
+protester ; le code traite une chaîne vide comme « non configuré », ce qui est juste — mais
+l'écart entre « le secret existe » et « le secret vaut quelque chose » ne se voit nulle part.
+
+**Un défaut d'ordre, invisible aux tests et visible au premier appel réel.** La façade vérifiait
+sa configuration **avant** le jeton. Un appelant anonyme apprenait donc si elle est configurée, et
+sur quelle bibliothèque elle bute — exactement ce qui est refusé ailleurs, où « pas votre
+bibliothèque » et « droits insuffisants » rendent la même phrase. Les tests passaient tous : ils
+regardaient chacun une question à la fois, aucun ne regardait leur **ordre**. Corrigé, et deux
+contrôles l'exigent désormais, dont un qui vérifie qu'un jeton de service manquant se dit
+« jeton refusé » et non « service non configuré ».
+
+**Un script qui se croyait rejouable.** `preparer-essai.ts` employait `INSERT OR REPLACE` avec des
+identifiants tirés au hasard à chaque passage : il créait donc un document de plus à chaque
+exécution au lieu de remplacer le précédent. Le défaut s'est trahi par une contradiction — les
+facettes comptaient trois valeurs d'axe quand la recherche rendait des axes vides, parce que les
+deux regardaient des documents différents. Les identifiants sont désormais dérivés de la clé de
+la bibliothèque. C'est la faute relevée dans l'ancien outil d'administration, où le rang d'un
+passage était recalculé par lot : **une identité qui n'est pas stable n'est pas une identité.**
+
+### Lot E2, étape 0 — le volume, éprouvé pour de vrai (10 octobre 2026)
+
+| L'épreuve | Ce qu'on a vu |
+|---|---|
+| Volume démonté en cours | « le dossier n'existe pas — volume démonté ou débranché ? », à 12 s |
+| Le travail pendant l'absence | **en file**, tentative 1 — pas d'échec, pas de tentative consommée |
+| Volume remonté | reprise annoncée à 32 s, sans rien relancer |
+| Travail **en vol** au moment de l'absence | revient en file, tentative inchangée (contrôle Rust) |
+
+**Le message disait faux, et seul l'essai réel l'a montré.** Démonter une carte sous `/Volumes`
+rend « Permission denied » : c'est `/Volumes` qui refuse qu'on y crée un dossier, pas le volume,
+qui n'est plus là. Le message envoyait chercher un problème de droits là où il fallait rebrancher
+un disque. On regarde désormais ce qui existe avant de nommer la cause.
+
+**L'essai ne prouvait qu'une moitié.** Le travail *attendait* ; le chemin que j'avais écrit pour
+rendre un travail *en vol* n'était pas éprouvé — et c'est pourtant le seul endroit où la
+confusion coûtait cher, puisque c'est lui qui transformait une absence d'une minute et demie en
+document perdu. Un contrôle le couvre maintenant, et sa première version échouait sur sa propre
+prémisse : le dossier que je croyais injoignable était simplement créable.
+
+**Le support de données a changé, et pas par préférence.** La carte de 1 To porte une corruption
+de catalogue — « Invalid node structure » — et **refuse de remonter après chaque démontage** :
+trois fois, dont une après une vérification qui n'écrit rien, et `fsck_hfs -fy` ne sait pas
+reconstruire un catalogue. Un support qui ne survit pas à un démontage ne peut porter ni une
+base, ni une sauvegarde.
+
+La clé « Macbook » a passé ce que la carte échoue : 20 Mo écrits puis relus à l'identique, et
+**quatre cycles démontage-remontage sans incident**. Elle reçoit les sauvegardes, et rien d'autre
+— ExFAT n'a pas de journal, une coupure peut y laisser un fichier incomplet.
+
+**D'où le découpage, maintenant écrit au plan** : base, file et dérivés sur le disque interne,
+originaux inchangés, sauvegardes sur la clé. **Aucun support amovible n'est nécessaire au
+fonctionnement** ; si la clé s'absente, la sauvegarde attend et n'arrête rien.
+
+**Deux absences, deux réponses**, et les confondre serait refaire la faute corrigée ici : les
+dérivés injoignables suspendent, la base injoignable ne se suspend pas — la file vit dessus, on
+ne peut ni lire ce qui restait à faire ni écrire qu'on attend.

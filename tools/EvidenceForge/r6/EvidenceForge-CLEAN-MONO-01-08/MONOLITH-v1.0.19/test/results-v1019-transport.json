@@ -1,0 +1,175 @@
+{
+  "schema": "EvidenceForge.V1019OfflineTransportTests",
+  "results": [
+    {
+      "id": "V1019-TP-01",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-02",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-03",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-04",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-05",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-06",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-07",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-08",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-09",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-10",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-11",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-12",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-13",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-14",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-15",
+      "pass": true
+    },
+    {
+      "id": "V1019-TP-16",
+      "pass": true
+    },
+    {
+      "id": "strict-policy",
+      "pass": true
+    },
+    {
+      "id": "explicit-request-policy",
+      "pass": true
+    },
+    {
+      "id": "http-ambiguity-matrix",
+      "pass": true
+    },
+    {
+      "id": "safe-retry-exhausted",
+      "pass": true
+    },
+    {
+      "id": "unscoped-diagnostic",
+      "pass": true
+    },
+    {
+      "id": "known-usage-success",
+      "pass": true
+    },
+    {
+      "id": "idempotence-unknown",
+      "pass": true
+    },
+    {
+      "id": "stage-output-parity",
+      "pass": true
+    },
+    {
+      "id": "pipeline-unknown-stop",
+      "pass": true
+    },
+    {
+      "id": "ledger-legacy-parity",
+      "pass": true
+    },
+    {
+      "id": "safe-refusal-then-unknown",
+      "pass": true
+    },
+    {
+      "id": "successful-envelope-without-usage",
+      "pass": true
+    },
+    {
+      "id": "idempotence-success-ledger",
+      "pass": true
+    },
+    {
+      "id": "known-usage-on-failure",
+      "pass": true
+    },
+    {
+      "id": "optional-ledger-does-not-disable-policy",
+      "pass": true
+    }
+  ],
+  "passed": 31,
+  "total": 31,
+  "mutations": [
+    {
+      "mutant": "M19-01",
+      "killed": true,
+      "error": "ifError got unwanted exception: [LLM_PROVIDER_UNAVAILABLE] appel LLM echoue : EXTERNAL_OUTCOME_UNKNOWN: aucune nouvelle tentative automatique autorisée."
+    },
+    {
+      "mutant": "M19-02",
+      "killed": true,
+      "error": "ifError got unwanted exception: [LLM_PROVIDER_UNAVAILABLE] appel LLM echoue : Toutes les tentatives (2) ont échoué pour le provider \"llm-worker\" — dernière erreur : EXTERNAL_TIMEOUT."
+    },
+    {
+      "mutant": "M19-03",
+      "killed": true,
+      "error": "Expected values to be strictly equal:\n\n2 !== 1\n"
+    },
+    {
+      "mutant": "M19-04",
+      "killed": true,
+      "error": "VIRTUAL_CLOCK_UNSETTLED"
+    },
+    {
+      "mutant": "M19-05",
+      "killed": true,
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ {\n+   cacheReadUsd: 0,\n+   cacheWriteUsd: 0,\n+   inputUsd: 0,\n+   outputUsd: 0,\n+   totalUsd: 0\n+ }\n- null\n"
+    },
+    {
+      "mutant": "M19-06",
+      "killed": true,
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'SUCCESS'\n- 'FAILED'\n"
+    },
+    {
+      "mutant": "M19-07",
+      "killed": true,
+      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   max_tokens: 1,\n-   max_tokens: 4096,\n    messages: [\n      {\n        content: 'untouched prompt',\n        role: 'user'\n      }\n"
+    },
+    {
+      "mutant": "M19-08",
+      "killed": true,
+      "error": "Expected values to be strictly equal:\n\n2 !== 1\n"
+    }
+  ],
+  "realProviderCalls": 0,
+  "realProviderCostUsd": 0
+}

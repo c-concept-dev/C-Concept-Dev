@@ -1,0 +1,94 @@
+{
+  "realProviderCalls": 0,
+  "realProviderCostUsd": 0,
+  "credentialSourceRead": false,
+  "environment": "env -i; synthetic fixtures only",
+  "nodeSocketPolicy": "loopback only",
+  "browserPolicy": "fresh headless profile; unreachable loopback proxy; external DNS blocked; explicit loopback exclusions",
+  "logs": [
+    {
+      "log": "browser-baseline.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": true
+    },
+    {
+      "log": "browser-diagnostic.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": true
+    },
+    {
+      "log": "browser-v1017.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    },
+    {
+      "log": "browser-v105.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    },
+    {
+      "log": "browser-v106.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    },
+    {
+      "log": "browser-v107.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    },
+    {
+      "log": "browser-v108.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    },
+    {
+      "log": "chunking.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    },
+    {
+      "log": "create-only.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    },
+    {
+      "log": "historical.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    },
+    {
+      "log": "process.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    },
+    {
+      "log": "transport.log",
+      "guard": [
+        "NETWORK_GUARD {\"externalAttempts\":0}"
+      ],
+      "diagnosticAttempt": false
+    }
+  ]
+}

@@ -1,0 +1,1339 @@
+--- a/MANIFEST.json
++++ b/MANIFEST.json
+@@ -2,9 +2,9 @@
+   "schema": "EvidenceForge.MonolithManifest",
+   "product": {
+     "name": "EvidenceForge",
+-    "version": "MONOLITH-v1.0.18"
++    "version": "MONOLITH-v1.0.19"
+   },
+-  "generatedAt": "2026-10-09T12:47:12.019Z",
++  "generatedAt": "2026-10-09T14:28:01.251Z",
+   "frozenLots": {
+     "MONO-10": {
+       "dir": "MONO-10/v0.19",
+@@ -168,7 +168,7 @@
+       "total": 377,
+       "passed": 377,
+       "failed": 0,
+-      "ranAt": "2026-10-09T12:46:27.675Z"
++      "ranAt": "2026-10-09T14:26:53.804Z"
+     },
+     "professionals": {
+       "maxCandidatesToEvaluate": 150,
+@@ -210,12 +210,27 @@
+       "secondaryReuseStore": "v1.0.16 (PB-B7) : llm-reuse-store.jsonl (partage) — pour EF-03B, reutilisation seulement si entree.{targetId, documentAuthoritySha256, validationContract, sourceSealHash} === appel courant (sceau obligatoire) ; entree EF-03B sans cible/autorite = NON_REUSABLE_FOR_EF03B_V3 ; finalites non EF-03B inchangees",
+       "replay": "POST /api/runs/:id/replay-reviews (depuis le checkpoint professionnel ; aval seul)"
+     },
+-    "provenance": "MONOLITH v1.0.18 CANDIDATE : POST /api/runs/create + createRunOnly ; creation persistante sans fournisseur ni advance. Historique v1.0.17 inchange. Audit independant requis ; ni gelee ni activee.",
++    "provenance": "MONOLITH v1.0.19 CANDIDATE : EF01_TRANSPORT_POLICY_V1 par composition, timeout explicite, lecture JSON bornee, reprise seulement apres refus sur, cout inconnu conserve. v1.0.18 et lots geles inchanges. Audit independant requis ; ni gelee ni activee.",
+     "status": "CANDIDAT (v1.0.17) — NON GELE, NON ACTIVE, NON FUME : MISSION CONTRACT ENFORCEMENT (R-A) ; tests MD-01..22 + navigateur v1.0.17 ; matrice de mutation M01..M16 (16 tues) ; audit independant requis avant gel ; ACTIVE_VERSION inchangee (MONOLITH-v1.0.16) ; aucun appel fournisseur. Historique v1.0.16 : CANDIDAT (v1.0.16) — NON GELE, NON ACTIVE, NON FUME : fermeture candidate de PB-B7 (reutilisation secondaire EF-03B liee a cible + autorite + contrat + sceau) ; tests PB7-01..13 ; audit independant requis avant gel ; ACTIVE_VERSION inchangee (MONOLITH-v1.0.10). Historique v1.0.15 : CANDIDAT (v1.0.15) — NON GELE, NON ACTIVE, NON FUME : durcissement R1 / R2 / R4 ; 332 tests passes (313 de v1.0.14 conserves + R1-01..06, R2-01..08, R4-01..05) ; matrice de mutation M1..M7 : chaque mutant tue par un test nomme (M7 = le mutant X1 survivant de l audit v1.0.14) ; audit independant requis AVANT gel ; ACTIVE_VERSION inchangee (MONOLITH-v1.0.10) ; aucun run reel, aucun appel fournisseur ; smoke reel requis avant activation ; statut de lignee maximal avant audit : GLOBAL_LINEAGE_PRESERVATION_HARDENED_CANDIDATE",
+-    "predecessorV1017": {
+-      "version": "MONOLITH-v1.0.17",
+-      "contentHash": "b12b66d13c094f38db156afd3b23e9496b2631445f1edfcb4ee79e8805e43514",
+-      "fileCount": 197
++    "predecessorV1018": {
++      "version": "MONOLITH-v1.0.18",
++      "contentHash": "720bb6820422becbfc9b3de093684c2f321ad4f10963da2393702e608737c913",
++      "fileCount": 205
++    },
++    "ef01Transport": {
++      "policy": {
++        "id": "EF01_TRANSPORT_POLICY_V1",
++        "responseStartTimeoutMs": 180000,
++        "bodyReadTimeoutMs": 90000,
++        "maxAttempts": 2,
++        "backoffMs": 2000,
++        "issueUnknown": "STOP_NO_RETRY"
++      },
++      "testsPassed": 31,
++      "testsTotal": 31,
++      "mutantsKilled": 8,
++      "frozen": false,
++      "activated": false
+     },
+     "createOnly": {
+       "endpoint": "POST /api/runs/create",
+@@ -468,6 +483,31 @@
+       "bytes": 12650
+     },
+     {
++      "path": "EVIDENCEFORGE-v1.0.18-CREATE-ONLY-INDEPENDENT-AUDIT.md",
++      "sha256": "542ace875d08cb69665371223a108cd6fefe14eb12be605c32fa1656c82f3feb",
++      "bytes": 5818
++    },
++    {
++      "path": "EVIDENCEFORGE-v1.0.18-FREEZE-MUTATION-EVIDENCE.json",
++      "sha256": "5de43f568a344e2441cb573a77abca148ab31bc20d06d9f23db6e2d3a5e4e628",
++      "bytes": 1011
++    },
++    {
++      "path": "EVIDENCEFORGE-v1.0.18-FREEZE-RECORD.json",
++      "sha256": "cc0bc87f1b4586049ac8611e3e2a38f0d8860faad7c46a12c1c4dd64325d0767",
++      "bytes": 7393
++    },
++    {
++      "path": "EVIDENCEFORGE-v1.0.18-FREEZE-RECORD.md",
++      "sha256": "d50d5c158737a47e2c3fe80754ab02e6faec64ba56035fe4993eb3b0f588f85e",
++      "bytes": 2331
++    },
++    {
++      "path": "EVIDENCEFORGE-v1.0.18-GOVERNANCE.SHA256SUMS.txt",
++      "sha256": "4b6754b3644859ca37e736a1f5505606d04b4fb4314bcb16ff52036fc6a39b44",
++      "bytes": 702
++    },
++    {
+       "path": "FROZEN-HASHES-BEFORE-AFTER.md",
+       "sha256": "0316c7cb8c5a0cc8fd62f81f5378a2fc769986febeaa08d851071dbb11d534af",
+       "bytes": 3563
+@@ -614,8 +654,8 @@
+     },
+     {
+       "path": "README.md",
+-      "sha256": "48876e8d56db8cb896fd198c406dca6e347051308cf2e37f72be3d7a03c5c2e0",
+-      "bytes": 47235
++      "sha256": "a7d8a9bcb93060c72833c1131aff36400d5531c1c71e8e2b7ab5823b9fcd3842",
++      "bytes": 47629
+     },
+     {
+       "path": "REVIEW-RESUME-DESIGN-v1.md",
+@@ -689,8 +729,8 @@
+     },
+     {
+       "path": "config/monolith.config.json",
+-      "sha256": "09290f45324ec028fc5a36eb425a08ae79f1a7857bdc0518d281dd0182e6dc02",
+-      "bytes": 14001
++      "sha256": "da64f6dbb79298bc5facb6f9d6a84e6b0faf37689ef7d1f11fc765ff9deb1e16",
++      "bytes": 14296
+     },
+     {
+       "path": "docs/V1018-CREATE-ONLY-AUTOPSY.md",
+@@ -708,6 +748,26 @@
+       "bytes": 2317
+     },
+     {
++      "path": "docs/V1019-EF01-TRANSPORT-AUTOPSY.md",
++      "sha256": "4d9fced098f63e7cbb312922eddcad1e5c1cf3ec903b70405dc74aac0e6d392c",
++      "bytes": 5337
++    },
++    {
++      "path": "docs/V1019-EF01-TRANSPORT-POLICY.md",
++      "sha256": "577163c8f5e94d1eaaa99b19e8cd7a800ce1f1f6ea83e1996c0276948a3cf819",
++      "bytes": 6449
++    },
++    {
++      "path": "docs/V1019-EF01-TRANSPORT-REPORT.md",
++      "sha256": "130d0917ea055e202acfbd86f39b2874d2e5356cdc0c0f5c108d8b1d404fa3c5",
++      "bytes": 7532
++    },
++    {
++      "path": "docs/V1019-EF01-UNKNOWN-OUTCOME-CONTRACT.md",
++      "sha256": "57ca00f3e2544ce8be3a89c5174838dc9bb8eeb4bc61806a8bea3c0d4f08203b",
++      "bytes": 3269
++    },
++    {
+       "path": "fixtures/real-documents/D103-CDC-v4.1.md",
+       "sha256": "45714242444e5c20338e12d5e87f839d599d6f01d9039282e1e57641edfd9134",
+       "bytes": 33490
+@@ -759,8 +819,8 @@
+     },
+     {
+       "path": "lib/cost-ledger.js",
+-      "sha256": "f6ed481e66a194d35285dc8882dfe502d5ae3e37b65f5a145f3c6f2b5ebd2eb9",
+-      "bytes": 9745
++      "sha256": "154095f9b2ee552ba636c77a49196f10c88cf50e06834eb7dd116e32bc326b8e",
++      "bytes": 9998
+     },
+     {
+       "path": "lib/cost-view.js",
+@@ -778,6 +838,11 @@
+       "bytes": 30192
+     },
+     {
++      "path": "lib/ef01-transport-policy.js",
++      "sha256": "861ef80101c133ae897e4b7b2e00110e144e472019455af3a99039f6407f699b",
++      "bytes": 8991
++    },
++    {
+       "path": "lib/ef03b-resilience.js",
+       "sha256": "0ec0a08a836b9f0e24a787e3aa1900476d055138a0d937d17b16a294f1f5a0ae",
+       "bytes": 51071
+@@ -809,8 +874,8 @@
+     },
+     {
+       "path": "lib/mono04-fence-adapter.js",
+-      "sha256": "8884b2ff107fc078876b0f41eb8fa77f28b3931fbb2e1cf8d8be14c06a0ca6d9",
+-      "bytes": 4633
++      "sha256": "252eeb6a1a455c2caea859356a377ad5877fa68c4183b6a3418063173f63e720",
++      "bytes": 5598
+     },
+     {
+       "path": "lib/panel-sufficiency.js",
+@@ -919,27 +984,27 @@
+     },
+     {
+       "path": "test/browser-results-v1017.json",
+-      "sha256": "448204bd5527c5c1fdebbc211646e452b391919e8ac5364bd3d36cbb9624f425",
++      "sha256": "15b8b6f00fdb610312b0d8a62733355450a10b623210fe9e7c5f5ba34012c636",
+       "bytes": 1631
+     },
+     {
+       "path": "test/browser-results-v105.json",
+-      "sha256": "1cb35245c19abdbe7413763675c255248157f194334c05432553e8c6e6b3f3aa",
++      "sha256": "b0349fd9f11f6c7fc8bc7f24dfc5ea0eb6c95776ee2cec5204d934b2a7d283c2",
+       "bytes": 8340
+     },
+     {
+       "path": "test/browser-results-v106.json",
+-      "sha256": "ce117e40abc3de9a5679bd40aa7041fada25a072d0a97c30cebf8decbdf1c586",
++      "sha256": "2b7f4388eb99a36bd29e091f1b0d5586f4cf3ceb6975136121e9ca1e6233e392",
+       "bytes": 1774
+     },
+     {
+       "path": "test/browser-results-v107.json",
+-      "sha256": "5f0a6aaec9ddfa923842d64bc557cfc8f4653c989f4f1727a82241f69b8678d7",
++      "sha256": "59cd1127c61d020ae303686137c1658561f77dc072065dea7eb46afd8d6ccb4b",
+       "bytes": 1870
+     },
+     {
+       "path": "test/browser-results-v108.json",
+-      "sha256": "fd63850149494430e355ec70d4983fb7b59d7a068b68ce705276311c0aa8a13d",
++      "sha256": "893977ce87fd0529a333cc096e7b4ab70d576eb50c8bbfcfc5ff98c74d369ee0",
+       "bytes": 1577
+     },
+     {
+@@ -959,22 +1024,27 @@
+     },
+     {
+       "path": "test/results-chunking.json",
+-      "sha256": "950733a8ef3d5528ae6b068cc1fe4e48f1aea6edf3bf3c09461a11430748281c",
++      "sha256": "a4bf7f3b0b519f25f4d16c3feecca05b62a3215b808333709ecebe142607c0bb",
+       "bytes": 4290
+     },
+     {
+       "path": "test/results-v1018-create-only.json",
+-      "sha256": "e9ebfeb46f9873027350693c295177833ffd9ed61121683a6ca51551ede2544a",
+-      "bytes": 221582
++      "sha256": "eff3eea8f2e00b9ea19f55b7677c02a489e383da655acf55f527e90d88f34f79",
++      "bytes": 221538
+     },
+     {
+       "path": "test/results-v1018-process.json",
+-      "sha256": "0d336e329800482a751b58c6075b602bdb7feb0657f5386af21c2913221aba20",
++      "sha256": "202cec53242489cc1300c312f8113313757676d3308accfda17485b80bc51aaa",
+       "bytes": 1284
+     },
+     {
++      "path": "test/results-v1019-transport.json",
++      "sha256": "5572afbf0839a0509ecf5f405d73e031025c3a1a4e7a4bd53c3a8c44f38e1227",
++      "bytes": 3760
++    },
++    {
+       "path": "test/results.json",
+-      "sha256": "af4f70efb7cff767d72e84fb61c48047db51713e45bd0553672499079819d17b",
++      "sha256": "00ea96dae9467b1348d74733607bad91e19a07c4a655514e5c1c9386e1252c0d",
+       "bytes": 97401
+     },
+     {
+@@ -1024,7 +1094,7 @@
+     },
+     {
+       "path": "test/test-stream.js",
+-      "sha256": "7a82a086da6dc2c312ee4561f1bb33d5b48b593827b85fda0821e22ba1e7fac8",
++      "sha256": "5b78254c4671678652744983eba7f7f61a6f93932a520c411a921489a526d898",
+       "bytes": 46952
+     },
+     {
+@@ -1034,7 +1104,7 @@
+     },
+     {
+       "path": "test/test-v1012-lineage-parity.js",
+-      "sha256": "31fadfdf6c9eb3d12cc24d09b8f99080a9901e347cd7b822fd26daaa90b79332",
++      "sha256": "76fa8f270b6b516c5bb474d094f8859575b4090759d36b4263fca18dced0cb8e",
+       "bytes": 22695
+     },
+     {
+@@ -1064,7 +1134,7 @@
+     },
+     {
+       "path": "test/test-v1018-create-only.js",
+-      "sha256": "b79cf55bc70f496e2e3eb8c5a3bd6cc3382d601c48440c26c986b966b57d7547",
++      "sha256": "7344bceadd27ae237e8bca596ddf309ac7348268c461ab51b5967966c6978dab",
+       "bytes": 12565
+     },
+     {
+@@ -1073,6 +1143,11 @@
+       "bytes": 2623
+     },
+     {
++      "path": "test/test-v1019-transport.js",
++      "sha256": "7c8e8798e23cdbe53d80dd3534241b0b8932477ade44150687fbe6397c67819a",
++      "bytes": 19810
++    },
++    {
+       "path": "test/test-v105.js",
+       "sha256": "a682411efccbaab7112858f3a13dc66d59ba247c1aaf32c33a34e88b7ff2922d",
+       "bytes": 64280
+@@ -1083,6 +1158,11 @@
+       "bytes": 647
+     },
+     {
++      "path": "test/v1019-browser-network-guard.cjs",
++      "sha256": "4226a1b6a93315933b134a63e51ef116d11e7cb2e65ecb83a230ae5ae5833101",
++      "bytes": 634
++    },
++    {
+       "path": "tools/anti-hardcoding-scan.js",
+       "sha256": "259f71433f25a329ec2e5e06fe645dc2e21109989e3fd8da7c9792dd301877e8",
+       "bytes": 3474
+@@ -1094,7 +1174,7 @@
+     },
+     {
+       "path": "tools/browser-tests-v1017.js",
+-      "sha256": "58d0b58b146a1eb82416e17c5a89791feef452e451d7e9bb99724c277613cfa2",
++      "sha256": "909b7408e738bdb4f55db322e48f9f1960945f005afcc500c7caea900385cf33",
+       "bytes": 11518
+     },
+     {
+@@ -1124,8 +1204,8 @@
+     },
+     {
+       "path": "tools/build-manifest.js",
+-      "sha256": "4f2b03da4a795c927eeb956fc89fc44193128175cce3ef98c997d5017bb35763",
+-      "bytes": 18781
++      "sha256": "52087486967d97a425ca46f49e52bdd2da83c2030badc94ccde0880c0e44d193",
++      "bytes": 19185
+     },
+     {
+       "path": "tools/economic-replay.js",
+@@ -1253,6 +1333,6 @@
+       "bytes": 4100
+     }
+   ],
+-  "fileCount": 205,
+-  "contentHash": "720bb6820422becbfc9b3de093684c2f321ad4f10963da2393702e608737c913"
++  "fileCount": 218,
++  "contentHash": "48af5e2629d93cdd4005bb7920a13dad3b8272789df5f27153727269785774ed"
+ }
+--- a/README.md
++++ b/README.md
+@@ -1,3 +1,7 @@
++# MONOLITH-v1.0.19 — candidate transport EF-01
++
++Candidate séparée de v1.0.18 gelée ; ni gel ni activation ni intégration Desktop. Voir [rapport](docs/V1019-EF01-TRANSPORT-REPORT.md), [politique](docs/V1019-EF01-TRANSPORT-POLICY.md) et [issue inconnue](docs/V1019-EF01-UNKNOWN-OUTCOME-CONTRACT.md). Les documents/versionnements plus anciens ci-dessous et dans le paquet sont historiques.
++
+ # EvidenceForge MONOLITH v1.0.17 — MISSION CONTRACT ENFORCEMENT (candidat)
+ 
+ > **v1.0.17 — MISSION CONTRACT ENFORCEMENT, correctif R-A (2026-10-02, 0 USD). CANDIDAT = v1.0.16 GELÉE et ACTIVÉE + contrôle des livrables de mission, et rien d'autre.** Cause (audit `JMMJS-P0.1-CLOSURE-AUDIT`, run `efm-20260930-77f94b06`) : le livrable confirmé à la Porte 1 (`livrableAttendu` : verdict, matrice de décision, contrat conditionnel) était affiché puis jamais consommé ; aucune étape ne pouvait le produire et le run terminait `COMPLETED` sans le signaler.
+--- a/SHA256SUMS.txt
++++ b/SHA256SUMS.txt
+@@ -46,6 +46,11 @@
+ 92a8667adf3bf0f661a6965a1e0e3e507146479dd58d426a107d6ee726773fe1  EVIDENCEFORGE-v1.0.16-INDEPENDENT-FREEZE-AUDIT.md
+ 7e692e81a0bd6e1567da3dae3587acce40556fca4d614e8121a80500429ee177  EVIDENCEFORGE-v1.0.16-PB-B7-SECONDARY-REUSE-FIX-AUDIT.json
+ 6b86a66255a8e90d887a5c5c0dffd1ca3a74371e76f13169ed74d19cf6013249  EVIDENCEFORGE-v1.0.16-PB-B7-SECONDARY-REUSE-FIX-AUDIT.md
++542ace875d08cb69665371223a108cd6fefe14eb12be605c32fa1656c82f3feb  EVIDENCEFORGE-v1.0.18-CREATE-ONLY-INDEPENDENT-AUDIT.md
++5de43f568a344e2441cb573a77abca148ab31bc20d06d9f23db6e2d3a5e4e628  EVIDENCEFORGE-v1.0.18-FREEZE-MUTATION-EVIDENCE.json
++cc0bc87f1b4586049ac8611e3e2a38f0d8860faad7c46a12c1c4dd64325d0767  EVIDENCEFORGE-v1.0.18-FREEZE-RECORD.json
++d50d5c158737a47e2c3fe80754ab02e6faec64ba56035fe4993eb3b0f588f85e  EVIDENCEFORGE-v1.0.18-FREEZE-RECORD.md
++4b6754b3644859ca37e736a1f5505606d04b4fb4314bcb16ff52036fc6a39b44  EVIDENCEFORGE-v1.0.18-GOVERNANCE.SHA256SUMS.txt
+ 0316c7cb8c5a0cc8fd62f81f5378a2fc769986febeaa08d851071dbb11d534af  FROZEN-HASHES-BEFORE-AFTER.md
+ c74a17c1513b90a19cf241e5e8c3b2387fd95a816df8f6d61b52db03c9bbbeb2  FROZEN-INTEGRITY.md
+ e9f53148c1afc3b28d6084d365f05c6fed02d05049bc236de85e1fa18136beea  FUNCTIONAL-TEST-REPORT.md
+@@ -75,7 +80,7 @@
+ d77cf10e471affaaf550e58b689cbbff426cf1b8aed8f6a0b8dc10714729b835  RAPPORT-PANEL-SUFFICIENCY-v2-REAL-VALIDATION.md
+ 4aed5a96d392a4fcf5851a537427ac6265662c142645308d8637311f923bc76e  RAPPORT-RUN-SAFETY-REAL-SMOKE.md
+ 86aec2b5599b6660f6d9f39a7b3fa8bc7a42ecc25e9273250712001e51e69ea6  RAPPORT-SCREENING-COST-OPTIMIZER-REAL-SMOKE.md
+-48876e8d56db8cb896fd198c406dca6e347051308cf2e37f72be3d7a03c5c2e0  README.md
++a7d8a9bcb93060c72833c1131aff36400d5531c1c71e8e2b7ab5823b9fcd3842  README.md
+ 8b1ff32a380898d982768acbad235ea12aca9b7c03012f0bbf7abe7b60dba7c0  REVIEW-RESUME-DESIGN-v1.md
+ 159678b3ba65d1a86c138557e5877b311f4ab83a53ee22aaeb2fb29fcf807bab  ROOT-CAUSE-504-8S-AUTOPSY-v1.md
+ cb3d909aca15f9328b9c3b2b0cf5bf5d9f60d837e53c7ae9f13937dd6f3480a1  ROOT-CAUSE-524-AUTOPSY-v1.md
+@@ -90,10 +95,14 @@
+ 3919c9828ecbfa361090099ba448467505a051d95e5648d6375b00cc1371d832  TEST-REPORT-MONOLITH-MONO11-v0.3-r1.md
+ f654f2741b5d4a33e2fb88786924b628477a3ec657f443e161f85b99d6845305  UX-ACCEPTANCE.md
+ 802cd2ce05e2f3a7006d4aebc25df9f923788b5ca50983e9402e85d4169bcd06  config/llm-pricing.json
+-09290f45324ec028fc5a36eb425a08ae79f1a7857bdc0518d281dd0182e6dc02  config/monolith.config.json
++da64f6dbb79298bc5facb6f9d6a84e6b0faf37689ef7d1f11fc765ff9deb1e16  config/monolith.config.json
+ 5a115159fe03bbc1ac8cd6a11bf578b74bdc64441a832ad5f86bb3a9067f8fe3  docs/V1018-CREATE-ONLY-AUTOPSY.md
+ c03b259a704ed039a7ea841a5c7743e3d417ca202fb49b544c3f12b1c576d1cc  docs/V1018-CREATE-ONLY-REPORT.md
+ be9479265f36ce24d87b22b4efa9da7535f444f16f61097cc3282b923dee2b7e  docs/V1018-CREATE-ONLY-TRANSITION-MAP.md
++4d9fced098f63e7cbb312922eddcad1e5c1cf3ec903b70405dc74aac0e6d392c  docs/V1019-EF01-TRANSPORT-AUTOPSY.md
++577163c8f5e94d1eaaa99b19e8cd7a800ce1f1f6ea83e1996c0276948a3cf819  docs/V1019-EF01-TRANSPORT-POLICY.md
++130d0917ea055e202acfbd86f39b2874d2e5356cdc0c0f5c108d8b1d404fa3c5  docs/V1019-EF01-TRANSPORT-REPORT.md
++57ca00f3e2544ce8be3a89c5174838dc9bb8eeb4bc61806a8bea3c0d4f08203b  docs/V1019-EF01-UNKNOWN-OUTCOME-CONTRACT.md
+ 45714242444e5c20338e12d5e87f839d599d6f01d9039282e1e57641edfd9134  fixtures/real-documents/D103-CDC-v4.1.md
+ a46c67bd8c2ce5919c0249154e0ff758e3ea4c48a8548d28744d174569e8f65e  fixtures/real-documents/D103-anti-derive-v1.3.md
+ e3916c766aa726b956fe08d4a4a92e6b42c3c90236bd5d15bf1092100c4b4713  fixtures/real-documents/D103P0.1-grille-revue-professionnelle-structure-v0.2.md
+@@ -104,17 +113,18 @@
+ c55049449c74ebedcb1b6b05015c5aa11a814573f2c0e130f4285ae86d2e3878  lib/budget-guard.js
+ 912a56fb7442dbc1a4959ab2c61cccadba7e29508138e02dd9148782b64ba67f  lib/corpus-portfolio-review.js
+ 07665b75af26bedcb80fd2cb1d7f218df4daba623161d9f549a2606e3f1972bf  lib/cost-forecast.js
+-f6ed481e66a194d35285dc8882dfe502d5ae3e37b65f5a145f3c6f2b5ebd2eb9  lib/cost-ledger.js
++154095f9b2ee552ba636c77a49196f10c88cf50e06834eb7dd116e32bc326b8e  lib/cost-ledger.js
+ b1c39b6c8b834d5783c8263adc6e75a9cf1a2bb1e4104e32097c639746ef1712  lib/cost-view.js
+ 6a7953968a7d7472273ef2a09869b8f4813af3606ae19e482ac6295d164e9935  lib/document-chunker.js
+ cbf4307cddb74569b1aceff98e08fc10d72c5f5c11707db9dfeda3e67cf54ebb  lib/economic-panel.js
++861ef80101c133ae897e4b7b2e00110e144e472019455af3a99039f6407f699b  lib/ef01-transport-policy.js
+ 0ec0a08a836b9f0e24a787e3aa1900476d055138a0d937d17b16a294f1f5a0ae  lib/ef03b-resilience.js
+ ce2a733a318dc61f38158bfc99d08191d4829ea4d5a763ee64235a5ebf4d1c2c  lib/live-status.js
+ 25e14d2720d5494a88ef878049a2e323730b6030a4e6575ff49c8a230d2468cf  lib/llm-stream.js
+ a15c5240620c0f150d65627d1ba0bfab1f0c143c0556306844e0cdc6fb1230ee  lib/llm-transport.js
+ 9012d8884db08cf523e62bfe355bc1171b5b339b2e6dc620591189ccee2fecb5  lib/llm.js
+ 529796d03091448b56318e1ef7d1e720e80a7f2d2a8c46439238390d5b6d14cd  lib/mission-deliverables.js
+-8884b2ff107fc078876b0f41eb8fa77f28b3931fbb2e1cf8d8be14c06a0ca6d9  lib/mono04-fence-adapter.js
++252eeb6a1a455c2caea859356a377ad5877fa68c4183b6a3418063173f63e720  lib/mono04-fence-adapter.js
+ fd05e26b708c4d4cdc59595838145669d05a267393629dbd922827c289bf7a3e  lib/panel-sufficiency.js
+ 504789ac05f9e6299ebd709153c79497991525bbec2e454dd2d58f80a636d873  lib/paths.js
+ 19586a3259779aca03fec2dfa35b92f95ea965b1cff38b58dd79a13c15a34b93  lib/pipeline.js
+@@ -136,18 +146,19 @@
+ 02f6d2e90bf846359f3ba6163c022e0391d8b832570f29c5939f8509b6cf16ad  lib/target-identity.js
+ 5eec1f7753bd8c8021f441cc9a88f94a6bc6888e68571c9f3d32fd5ca35ce38f  lib/workref-normalization.js
+ 7883559e7820ad0f1540114914475e8f2faabe9ef523c5a3e1dda801db0ce93f  server.js
+-448204bd5527c5c1fdebbc211646e452b391919e8ac5364bd3d36cbb9624f425  test/browser-results-v1017.json
+-1cb35245c19abdbe7413763675c255248157f194334c05432553e8c6e6b3f3aa  test/browser-results-v105.json
+-ce117e40abc3de9a5679bd40aa7041fada25a072d0a97c30cebf8decbdf1c586  test/browser-results-v106.json
+-5f0a6aaec9ddfa923842d64bc557cfc8f4653c989f4f1727a82241f69b8678d7  test/browser-results-v107.json
+-fd63850149494430e355ec70d4983fb7b59d7a068b68ce705276311c0aa8a13d  test/browser-results-v108.json
++15b8b6f00fdb610312b0d8a62733355450a10b623210fe9e7c5f5ba34012c636  test/browser-results-v1017.json
++b0349fd9f11f6c7fc8bc7f24dfc5ea0eb6c95776ee2cec5204d934b2a7d283c2  test/browser-results-v105.json
++2b7f4388eb99a36bd29e091f1b0d5586f4cf3ceb6975136121e9ca1e6233e392  test/browser-results-v106.json
++59cd1127c61d020ae303686137c1658561f77dc072065dea7eb46afd8d6ccb4b  test/browser-results-v107.json
++893977ce87fd0529a333cc096e7b4ab70d576eb50c8bbfcfc5ff98c74d369ee0  test/browser-results-v108.json
+ 557b118885ef1d0bc531ddede309632735180755a4dbb8e43bf42a9a6c9fea64  test/fixtures/ef03b-lineage-a10-cases.json
+ 37841668f1a19bb2f6327cf0592a6a49a327971c9b2261ff43aa57fd0ae0bd46  test/fixtures/pb7-phaseB-ef03b-store-entries.json
+ 60fd497f7a64ecc00735d28dbb1d84c7f539fac2c9d598971c24291cf14245ec  test/fixtures/portfolio-incident.json
+-950733a8ef3d5528ae6b068cc1fe4e48f1aea6edf3bf3c09461a11430748281c  test/results-chunking.json
+-e9ebfeb46f9873027350693c295177833ffd9ed61121683a6ca51551ede2544a  test/results-v1018-create-only.json
+-0d336e329800482a751b58c6075b602bdb7feb0657f5386af21c2913221aba20  test/results-v1018-process.json
+-af4f70efb7cff767d72e84fb61c48047db51713e45bd0553672499079819d17b  test/results.json
++a4bf7f3b0b519f25f4d16c3feecca05b62a3215b808333709ecebe142607c0bb  test/results-chunking.json
++eff3eea8f2e00b9ea19f55b7677c02a489e383da655acf55f527e90d88f34f79  test/results-v1018-create-only.json
++202cec53242489cc1300c312f8113313757676d3308accfda17485b80bc51aaa  test/results-v1018-process.json
++5572afbf0839a0509ecf5f405d73e031025c3a1a4e7a4bd53c3a8c44f38e1227  test/results-v1019-transport.json
++00ea96dae9467b1348d74733607bad91e19a07c4a655514e5c1c9386e1252c0d  test/results.json
+ 69f70532af19fe3763955621298a3b52901864187fd89bec4f4a1261017a83cb  test/test-chunking.js
+ dadc5ce0cefbb61045b61916d2253673ec64f16b79bbcea9a18e202a03a1c0ee  test/test-economic-panel.js
+ 1749be9089abc222bda9436adc8d01fb11a22bfd81c04e7c6fd54151d1f2dad8  test/test-ef03b-lineage.js
+@@ -157,27 +168,29 @@
+ c5090bf8cd0477327f9b180190f9e6654aae72180715bc7861eee4e9f94d9628  test/test-portfolio-balancing.js
+ 553016abfec2e986d123954c648d7ebea84b585db2bed9ab73f4547eebad1c39  test/test-run-safety.js
+ d5769b735d7d034b04df4559c452d055d4ce54ae1b9aeab83776e53c2b13331d  test/test-screening-cost.js
+-7a82a086da6dc2c312ee4561f1bb33d5b48b593827b85fda0821e22ba1e7fac8  test/test-stream.js
++5b78254c4671678652744983eba7f7f61a6f93932a520c411a921489a526d898  test/test-stream.js
+ 51226d4dea4205930c4788d3a9ee27fb3a5204b837bb0a6b392601509b4070a9  test/test-sufficiency.js
+-31fadfdf6c9eb3d12cc24d09b8f99080a9901e347cd7b822fd26daaa90b79332  test/test-v1012-lineage-parity.js
++76fa8f270b6b516c5bb474d094f8859575b4090759d36b4263fca18dced0cb8e  test/test-v1012-lineage-parity.js
+ 73a15455ca2bbed1193a144f68dc9f7ab333103f7f75718ca04fa89fd9d90059  test/test-v1014-e2e-wiring.js
+ 3b0938fe4b0dd3f33f02df66eb1d4249fb568f476868e8acd9f1b8c83eafe7da  test/test-v1014-normalized-authority.js
+ 1cdbc59ba9848987b2b310d995273183fce958e1bb4c62d25c283e62db2497e5  test/test-v1015-authority-identity.js
+ 82c9e9e733a86d01c6f91b191468162a9fd7252bc263c5644b589314fc2fb85b  test/test-v1016-pb7-secondary-reuse.js
+ 75491b88934a5062650a7ca0d9c957474f0a0480623139fcbd97f322f693b545  test/test-v1017-mission-deliverables.js
+-b79cf55bc70f496e2e3eb8c5a3bd6cc3382d601c48440c26c986b966b57d7547  test/test-v1018-create-only.js
++7344bceadd27ae237e8bca596ddf309ac7348268c461ab51b5967966c6978dab  test/test-v1018-create-only.js
+ 8cb0b0206cfdd602effb9c6231217841b5734f99fd86cf0a915982067f7f194f  test/test-v1018-process.js
++7c8e8798e23cdbe53d80dd3534241b0b8932477ade44150687fbe6397c67819a  test/test-v1019-transport.js
+ a682411efccbaab7112858f3a13dc66d59ba247c1aaf32c33a34e88b7ff2922d  test/test-v105.js
+ 99bafb27dc290b3cb86fb38128d6348b52e0c28e61b42cd230d5e7c7b9ed027a  test/v1018-network-guard.cjs
++4226a1b6a93315933b134a63e51ef116d11e7cb2e65ecb83a230ae5ae5833101  test/v1019-browser-network-guard.cjs
+ 259f71433f25a329ec2e5e06fe645dc2e21109989e3fd8da7c9792dd301877e8  tools/anti-hardcoding-scan.js
+ 25ac2c4e763fdce1946cd31b488d06cfe11f71908de2441aba659edbe4fa69dc  tools/bench-oracle-model.js
+-58d0b58b146a1eb82416e17c5a89791feef452e451d7e9bb99724c277613cfa2  tools/browser-tests-v1017.js
++909b7408e738bdb4f55db322e48f9f1960945f005afcc500c7caea900385cf33  tools/browser-tests-v1017.js
+ 4d356f7dab06c6b19bde6b7888d4a4cb33c974d0323eede908b52bdbc23fa098  tools/browser-tests-v105.js
+ 8f03ecaed4eccf5a35096c13719d21a8c39eefb7878bae820d87ad79a9207a05  tools/browser-tests-v106.js
+ d701c16795f721f39c2fe063405487ab96a78c415e110637c69f5e873dcbc545  tools/browser-tests-v107.js
+ d65dae2eb74d9d5d2e0aa93ab1ccfb0d454744dadfce5d189a9abcf0bba14b1e  tools/browser-tests-v108.js
+ 329fab905c7ae31dc51fc8c3d3b00ee18d16817480a649f0ba8fe368b6f192e3  tools/browser-tests.js
+-4f2b03da4a795c927eeb956fc89fc44193128175cce3ef98c997d5017bb35763  tools/build-manifest.js
++52087486967d97a425ca46f49e52bdd2da83c2030badc94ccde0880c0e44d193  tools/build-manifest.js
+ a23347a9ec750a220dc047d60b5f4815954783c476a9b6e7f2e2b307791068ec  tools/economic-replay.js
+ 922a149c35d338fdad0bc446abac48adfe8e5b187c2834c70fc5b8dc89a5ef7f  tools/ef03b-autopsy.js
+ 70502a66a14134c41f2c0f2aae63b85f47f469b8fa32a267a2de14ab69d7b1c5  tools/ef03b-registry-import.js
+--- a/config/monolith.config.json
++++ b/config/monolith.config.json
+@@ -1,8 +1,8 @@
+ {
+-  "$comment": "v1.0.18 CANDIDATE : creation seule additive ; historique inchange. Base : EvidenceForge MONOLITH v1.0.17 (CANDIDAT = v1.0.16 gelee et activee + MISSION CONTRACT ENFORCEMENT R-A : livrables demandes (livrableAttendu) compares aux capacites declarees de la version (registre MISSION-DELIVERABLES-v1, lib/mission-deliverables.js), affichage et reconnaissance explicite avant la Porte 1, statut terminal INCOMPLETE_DELIVERABLES si un livrable accepte est absent, missionDeliverables au rapport ; aucun lot gele modifie) ; v1.0.16 = MONOLITH v1.0.16 (CANDIDAT = v1.0.15 gelee + PB-B7 SECONDARY REUSE FIX : le magasin generique llm-reuse-store n est reutilisable pour EF-03B que si l entree porte exactement cible + documentAuthoritySha256 + contrat + sceau de l appel courant ; entree EF-03B sans identite = NON_REUSABLE_FOR_EF03B_V3) ; v1.0.15 = MONOLITH v1.0.15 (CANDIDAT = v1.0.14 gelee + AUTHORITY IDENTITY HARDENING (R1 : identite cible <-> document, source unique lib/target-identity.js ; R2 : identite du document et non simple point fixe de normalisation ; R4 : couverture comportementale de l import de registre) ; v1.0.14 = v1.0.12 gelee + SINGLE NORMALIZED DOCUMENT AUTHORITY (R-A2) + RA1 TRACE PARITY + correctif d import de registre ; la candidate v1.0.13 est REJETEE apres audit independant) ; v1.0.12 = v1.0.11 + MONO-11 v0.4 gele : GLOBAL LINEAGE PRESERVATION sur les deux chemins — litteralisation (v1.0.11, adaptateur) et reparation ciblee (v0.4, lot gele) ; miroir de l'adaptateur aligne sur MONO-11-v3 ; contrat de validation MONO-11-v3 ; registre et cache fail-closed inter-sceau) — configuration d'exploitation. AUCUN SECRET ICI : les identifiants viennent de l'environnement (EVIDENCEFORGE_WORKER_API_KEY, LLM_WORKER_BASE_URL, LLM_AUTH_MODE). Les chemins sont relatifs a la racine du bundle sauf indication.",
++  "$comment": "v1.0.19 CANDIDATE : EF01_TRANSPORT_POLICY_V1, composition technique seulement. Historique v1.0.18 : creation seule additive ; historique inchange. Base : EvidenceForge MONOLITH v1.0.17 (CANDIDAT = v1.0.16 gelee et activee + MISSION CONTRACT ENFORCEMENT R-A : livrables demandes (livrableAttendu) compares aux capacites declarees de la version (registre MISSION-DELIVERABLES-v1, lib/mission-deliverables.js), affichage et reconnaissance explicite avant la Porte 1, statut terminal INCOMPLETE_DELIVERABLES si un livrable accepte est absent, missionDeliverables au rapport ; aucun lot gele modifie) ; v1.0.16 = MONOLITH v1.0.16 (CANDIDAT = v1.0.15 gelee + PB-B7 SECONDARY REUSE FIX : le magasin generique llm-reuse-store n est reutilisable pour EF-03B que si l entree porte exactement cible + documentAuthoritySha256 + contrat + sceau de l appel courant ; entree EF-03B sans identite = NON_REUSABLE_FOR_EF03B_V3) ; v1.0.15 = MONOLITH v1.0.15 (CANDIDAT = v1.0.14 gelee + AUTHORITY IDENTITY HARDENING (R1 : identite cible <-> document, source unique lib/target-identity.js ; R2 : identite du document et non simple point fixe de normalisation ; R4 : couverture comportementale de l import de registre) ; v1.0.14 = v1.0.12 gelee + SINGLE NORMALIZED DOCUMENT AUTHORITY (R-A2) + RA1 TRACE PARITY + correctif d import de registre ; la candidate v1.0.13 est REJETEE apres audit independant) ; v1.0.12 = v1.0.11 + MONO-11 v0.4 gele : GLOBAL LINEAGE PRESERVATION sur les deux chemins — litteralisation (v1.0.11, adaptateur) et reparation ciblee (v0.4, lot gele) ; miroir de l'adaptateur aligne sur MONO-11-v3 ; contrat de validation MONO-11-v3 ; registre et cache fail-closed inter-sceau) — configuration d'exploitation. AUCUN SECRET ICI : les identifiants viennent de l'environnement (EVIDENCEFORGE_WORKER_API_KEY, LLM_WORKER_BASE_URL, LLM_AUTH_MODE). Les chemins sont relatifs a la racine du bundle sauf indication.",
+   "product": {
+     "name": "EvidenceForge",
+-    "version": "MONOLITH-v1.0.18"
++    "version": "MONOLITH-v1.0.19"
+   },
+   "bundleRoot": "..",
+   "frozenLots": {
+@@ -167,5 +167,13 @@
+       }
+     },
+     "$comment": "MAX_PROFESSIONAL_CANDIDATES_TO_EVALUATE — decision produit du proprietaire (2026-09-16) : nombre maximal de professionnels entrant dans l evaluation LLM (REAL ou REUSE). Selection deterministe PROFESSIONAL-SELECTION-v1 (lib/professional-selection.js), persistee avant tout appel payant. v1.0.5 : ce plafond est une GARDE, pas une cible ; evaluationOrder = SELECTION_ORDER (tourniquet par discipline) ; workRefNormalization = normalisation typographique des references d'oeuvres avant le validateur gele EF-02D2 (MONOLITH-WORKREF-NORMALIZATION-v1, journalisee) ; earlyStop = suffisance du panel (voir ci-dessous)."
++  },
++  "ef01Transport": {
++    "id": "EF01_TRANSPORT_POLICY_V1",
++    "responseStartTimeoutMs": 180000,
++    "bodyReadTimeoutMs": 90000,
++    "maxAttempts": 2,
++    "backoffMs": 2000,
++    "issueUnknown": "STOP_NO_RETRY"
+   }
+ }
+--- /dev/null
++++ b/docs/V1019-EF01-TRANSPORT-AUTOPSY.md
+@@ -0,0 +1,25 @@
++# V1.0.19 — autopsie avant codage
++
++Base vérifiée : v1.0.18, 205 fichiers, contentHash 720bb6820422becbfc9b3de093684c2f321ad4f10963da2393702e608737c913. Candidate séparée. Source : autopsie APP-04B et lecture des modules pipeline, stage-ef01, fence-adapter, builder, gateway, configs MONO-08, real-llm-call EF-01B/C1, llm, llm-stream, cost-ledger, budget-guard. Aucun credential lu.
++
++1. Point de composition : stage-ef01 construit une instance MONO-04 dédiée pour DISCIPLINES ou PLAN. Le builder vendored appartient au monolithe ; createMono04 accepte déjà fetchImpl. La composition peut injecter ce port et décorer gateway.executeRequest, sans éditer les lots.
++2. Données : stage explicite, provider, moduleId=real-llm-call, operation=call, requestId/runId/model, policies, statut/enveloppe HTTP, ledger/budget. Aucun signal fetch standard ne prouve que zéro octet a été envoyé. Un ENOTFOUND déclaré par une exception n'est pas une attestation de non-acceptation.
++3. Injecter timeoutPolicy.timeoutMs sur une copie de requête ; providerRegistry reste intact. Les deux kits ont une policy vide. Une valeur explicite valide prime ; valeur invalide refusée avant départ.
++4. MONO-04 reprend EXTERNAL_TIMEOUT/EXTERNAL_NETWORK_ERROR et HTTP429/5xx. Il efface son timer avant response.text. Toute exception fetch est écrasée en NETWORK_ERROR. Donc un simple wrapper de résultat arrive trop tard pour empêcher une réémission.
++5. Solution retenue : une seule tentative Gateway pour les appels ciblés ; les reprises admissibles restent dans le fetch décoré (maximum 2, backoff 2000ms, contrat versionné). MONO-04 garde secret, sérialisation, validation, cache d'idempotence et circuit-breaker. Pas de changement de requestId/payload. Le circuit compte désormais les appels logiques EF-01, pas chaque refus transitoire. Les départs physiques ont leur propre trace.
++6. Ambiguïté dès l'invocation fetch, faute d'attestation d'absence d'envoi. Timeout/envoi interrompu/body incomplet : UNKNOWN et aucune reprise. HTTP5xx/504 ne prouve pas une non-acceptation : pas de retry. Parsing invalide : pas de reprise transport, pas de succès.
++7. Seul refus sûr repris dans V1 : HTTP429 + enveloppe JSON type=error/error.type=rate_limit_error, sans usage/id/content, content-type JSON. Le contrat de cette catégorie est refus avant génération. HTTP429 seul ou corps illisible n'est pas une preuve suffisante. Refus locaux avant fetch (configuration/secret/budget) : aucun départ, pas de retry inutile. Aucun classement par message d'exception arbitraire.
++8. Une issue inconnue crée une entrée KIT_CALL interrupted/usageIncomplete avec usage null, cost null/priced false selon le ledger existant. Les usages reçus restent comptabilisés. Le budget LIMITED existant bloque les appels ultérieurs non tarifés. Totaux historiques = somme connue, pas vérité du débit distant. Aucune nouvelle comptabilité scientifique.
++9. EF-01B et C1 partagent la même composition ; le fence-adapter conserve le seul enregistrement du succès. La trace transport est indépendante, sans prompt/secret/réponse brute. Pipeline inchangé : LLM_PROVIDER_UNAVAILABLE enveloppe la cause technique, STOPPED ; aucune reprise automatique du kit pour ce code.
++
++Politique proposée : EF01_TRANSPORT_POLICY_V1, contrat explicite JSON bufferisé. Response-start budget 180000ms aligné sur la fenêtre LLM existante (choix produit, non mesure de latence et non promesse du Worker), lecture du corps 90000ms alignée sur la tolérance de lecture existante, ici borne TOTALE après headers. Le budget response-start inclut les éventuels refus sûrs lus et backoff avant les headers terminaux ; il n'est jamais réarmé par un retry. Lecture bornée même si fetch/text ignore AbortSignal. Bornes strictes 1000..900000ms, maxAttempts=2, backoff=2000. Aucun SSE requis, aucun timeout global provider modifié.
++
++Ces choix sont des contrats candidats à auditer hors ligne, pas une autorisation de smoke ni une garantie du temps de génération distant. Le défaut 8500ms sera reproduit par le vrai Gateway et les vrais kits avec horloge virtuelle.
++
++## Affinement découvert par le test TP-10
++
++Le test exécuté contredit l'hypothèse du point 8 : le ledger historique normalise usage null en compteurs nuls et prix zéro si le modèle est tarifé. Extension minimale nécessaire dans le ledger du NOUVEAU monolithe seulement : opt-in transportOutcome=EXTERNAL_OUTCOME_UNKNOWN, kind=KIT_CALL et usage absent donnent usage=null/cost=null/priced=false. Tous les anciens appels et les usages connus conservent le calcul historique. Aucun budget, tarif ni lot gelé modifié.
++
++## Composition finale après contrôle des assertions historiques
++
++Deux assertions historiques exigent stage-ef01 et le builder vendored byte-identiques. Elles ne sont pas affaiblies. Le point final est donc l'adaptateur monolithe EXISTANT mono04-fence-adapter, qui reçoit déjà cost.stage=DISCIPLINES/PLAN et les ports registry/secretProvider de l'instance construite par le builder. Il compose une instance du Gateway gelé avec le même registre et le même secretProvider, et le fetch décoré. stage-ef01 et build-real-mono04 sont restaurés byte-identiques à v1.0.18. Le transport non ciblé sera délégué au Gateway original. Aucun hook global ni patch du lot.
+--- /dev/null
++++ b/docs/V1019-EF01-TRANSPORT-POLICY.md
+@@ -0,0 +1,47 @@
++# EF01_TRANSPORT_POLICY_V1
++
++Candidate MONOLITH-v1.0.19. Configuration normative : `config/monolith.config.json:ef01Transport`.
++
++| Champ | Valeur candidate | Contrat |
++|---|---:|---|
++| responseStartTimeoutMs | 180000 | Budget jusqu'aux headers terminaux du fetch composé, incluant lecture des refus sûrs et backoff. Aligné explicitement sur llm.timeoutMs de v1.0.18. Pas une mesure du Worker ni une garantie de latence. |
++| bodyReadTimeoutMs | 90000 | Borne TOTALE de lecture JSON après headers ; alignée sur la tolérance de lecture historique 90s, sans en reprendre la sémantique d'inactivité SSE. |
++| maxAttempts | 2 | Maximum de départs, seulement après refus sûr reconnu. Contrat EF-01 historique conservé en nombre maximal. |
++| backoffMs | 2000 | Attente historique, incluse dans le budget response-start ; pas de réarmement du budget lors d'un retry. |
++| issueUnknown | STOP_NO_RETRY | Aucune réémission après résultat distant ambigu. |
++
++Délais : nombres entiers stricts entre 1000 et 900000ms, borne supérieure égale au plafond technique de durée LLM historique. Strings (même numériques), NaN, Infinity, zéro, négatifs, fractions, champs inconnus, politique absente/version inconnue sont refusés avant réseau. Les deux délais sont indépendants. L'enveloppe maximale est response-start + body ; elle ne contourne pas une limite distante plus courte. L'option explicite `request.timeoutPolicy.timeoutMs` valide prime sur responseStartTimeoutMs ; absence seule autorise le défaut versionné. Le providerConfig à 8000 reste intact.
++
++## Composition et périmètre
++
++`stage-ef01` et `build-real-mono04` byte-identiques construisent MONO-04 ; `mono04-fence-adapter` reçoit déjà cost.stage DISCIPLINES/PLAN et compose alors le transport sur le Gateway canonique. Les doubles historiques sans schéma Gateway gardent leur contrat de test. Une instance Gateway gelée utilise le même registre/secretProvider et un fetch décoré ; aucune configuration gelée mutée.
++
++La nouvelle requête est une copie qui ne modifie que timeoutPolicy/retryPolicy. Les retries natifs indifférenciés sont remplacés sur cette instance par une tentative Gateway et jusqu'à deux départs **conditionnels** dans le port fetch. Ce n'est pas une désactivation globale : TP-09 exerce refus sûr puis succès avec deux départs. Le cache de résultat/fingerprint et le circuit-breaker du Gateway restent actifs ; le circuit compte les appels logiques EF-01 (une tentative Gateway), la trace compte les départs physiques. Une couche d'idempotence autour du résultat enrichi empêche de comptabiliser deux fois un même échec inconnu.
++
++Sans objet cost, le même adaptateur exclusivement appelé par stage-ef01 applique la portée EF01 ; l'absence optionnelle de ledger ne désactive pas la protection (test dédié pour les deux kits). Filtre cumulatif : stage DISCIPLINES/PLAN ou EF01 dans ce cas, provider llm-worker, module real-llm-call, operation call. OpenAlex/Crossref/diagnostic passent au Gateway original, avec sa politique intacte. Aucun effet sur llm.js, llm-stream.js, llm-transport.js, Worker, prompts, scientific validators, payload, lineage, reuse, qualification, rapports ou gates. Aucun passage à SSE.
++
++Le timer natif MONO-04 applique le budget response-start explicite. Une course Promise/AbortSignal borne aussi un fetch non coopératif. Après headers, une course de lecture dédiée arme la borne body et annule le contrôleur local en cas d'expiration. Aucune réponse partielle ne devient SUCCESS. La fin locale n'atteste jamais l'annulation distante.
++
++## Matrice de reprise
++
++| Observation | Retry | Justification |
++|---|---|---|
++| Configuration/secret/budget refusé avant fetch | Non, zéro départ | Corriger/revoir explicitement ; attendre ne corrige pas ces refus. |
++| Exception réseau déclarant DNS/refus de connexion | Non | fetch ne fournit pas de preuve contractuelle de zéro octet/absence d'acceptation ; aucun diagnostic déduit d'un message libre. |
++| HTTP429, JSON type=error, error.type=rate_limit_error, sans usage/id/content | Oui, au plus 2 départs | Contrat technique du refus de génération explicite ; même payload, identité locale et délai total borné. |
++| HTTP429 sans cette enveloppe, 5xx, 504 | Non | Statut seul insuffisant pour exclure une génération amont acceptée. |
++| HTTP400/401/403/404 + enveloppe d'erreur explicite reconnue | Non | Refus terminal explicite, distinct de UNKNOWN. |
++| Timeout après départ possible | Non | OUTCOME_UNKNOWN. |
++| Connexion interrompue / body tronqué ou bloqué | Non | OUTCOME_UNKNOWN. |
++| Parsing de l'enveloppe HTTP invalide | Non | Le serveur a pu générer ; pas de retry transport. |
++| Sortie scientifique invalide après enveloppe complète réussie | Contrat historique du kit | Les validations et kitAttempts sont inchangés : ce n'est pas une issue transport inconnue. Usage connu conservé. |
++
++Aucune autre catégorie n'est affirmée « sûre ». Les réponses d'overload ne sont pas ajoutées à une liste spéculative. Une expansion de cette liste demanderait une preuve et une nouvelle version de politique.
++
++## Comptabilité et preuves
++
++Succès : chemin fence/ledger historique, une écriture KIT_CALL. Le résultat EF-01 déjà comptabilisé est reconnu par identité objet pour éviter une double écriture lors d'une répétition du même requestId. Une enveloppe réussie sans usage reste une sortie réussie, mais son coût devient explicitement non tarifé sur ce chemin ciblé (aucun zéro inventé). Échec après départ potentiellement accepté : une écriture KIT_CALL interrupted/usageIncomplete ; usage connu conservé, absence d'usage explicitement null/cost null/priced false grâce à une extension opt-in du ledger monolithe. Aucun tarif ni règle du budget modifié. Le budget LIMITED bloque ensuite un ledger non tarifé. Les anciens appels ledger sans le marqueur technique sont couverts par parité différentielle.
++
++`ef01-evidence/transport-policy.jsonl` contient politique effective, stage, runId/requestId/provider/model, phases, nombre de départs et statuts. Aucun prompt, header Authorization ou corps de réponse n'y est stocké. Les preuves natives des kits restent intactes.
++
++Test8500 : une frontière de régression, pas le timeout produit. Tests utilisent une politique explicite 12000/3000 et une horloge virtuelle ; les défauts produit versionnés sont également validés strictement.
+--- /dev/null
++++ b/docs/V1019-EF01-TRANSPORT-REPORT.md
+@@ -0,0 +1,72 @@
++# MONOLITH-v1.0.19 — rapport de candidate transport EF-01
++
++**V1.0.19_EF01_TRANSPORT_GELABLE** — sur preuves hors ligne, pour audit indépendant. Ni gel, ni activation, ni intégration Desktop, ni nouveau smoke.
++
++Base : MONOLITH-v1.0.18 FROZEN_WITH_RESERVATIONS, 205 fichiers scellés, contentHash `720bb6820422becbfc9b3de093684c2f321ad4f10963da2393702e608737c913`. Copie séparée dans le même bundle ; source et lots protégés inchangés. ACTIVE_VERSION reste MONOLITH-v1.0.16.
++
++## Résultat
++
++Le vrai chemin stage-ef01 → builder inchangé → kit EF-01B/C1 → Gateway MONO-04 reproduit l'abandon à 8000ms sur v1.0.18. Les mêmes réponses JSON, arrivant après 8500ms, réussissent sur la candidate avec **un seul départ** sous politique explicite. Les prompts, payloads et hashes de provenance sont comparés entre baseline et candidate.
++
++La composition applique EF01_TRANSPORT_POLICY_V1 dans l'adaptateur monolithe existant. La configuration dédiée définit les bornes response-start/lecture du corps, sans variable globale ni mutation du registre gelé. Le corps bloqué expire ; une issue ambiguë ne produit aucun deuxième départ ni succès partiel. Le refus rate-limit explicitement reconnu reste repris, avec maximum 2 départs et backoff 2000ms dans une fenêtre totale non réarmée.
++
++Une découverte des tests a nécessité l'extension opt-in du ledger : usage null sur modèle tarifé donnait zéro dans la baseline. Pour le chemin EF-01 marqué comme non mesuré, la candidate conserve null/priced=false. Usage connu et anciennes écritures ledger restent identiques. Le garde LIMITED existant bloque les coûts non tarifés. Aucune règle scientifique ni budget propriétaire changé.
++
++## Preuves exécutées
++
++| Vérification | Résultat |
++|---|---:|
++| Suite historique, comprenant transports/SSE/lineage/reuse/gates/missionDeliverables | 377/377 |
++| Suite transport dédiée, vrais kits et Gateway, horloge virtuelle | 31/31 |
++| Mutants transport M19-01..08 | 8/8 tués |
++| CREATE_ONLY : persistance, parité HTTP/SSE, refus et budget | PASS |
++| Mutants CREATE_ONLY historiques | 6/6 tués |
++| Redémarrage serveur : état créé identique | PASS |
++| Chunking | 21/21 |
++| Navigateurs : suites v105/v106/v107/v108/v1017 | 33/33 + 12/12 + 11/11 + 9/9 + 10/10 = 75/75 |
++| Secret scan | 0 hit |
++| Anti-hardcoding canonique | 0 hit |
++| Arbres protégés, inventaire exhaustif | 2430 fichiers, 0 divergence |
++| Runtime Desktop comparé à l'inventaire du smoke | 1118 entrées, 0 divergence |
++| Appels fournisseur réels / coût réel de cette mission | 0 / 0 USD |
++
++Les montants des ledgers de test sont simulés. Le coût historique connu de 0,01201 USD et l'inconnu des timeouts du run efm-20261009-d16ac129 ne sont pas modifiés ni réinterprétés.
++
++La suite dédiée inclut les seize axes TP-01..16, configuration stricte, HTTP ambigu/refus terminal, reprise sûre épuisée, succès sans usage, répétition d'identité sans double ledger, coût connu malgré HTTP en échec, parité de sorties et **pipeline réel arrêté à DISCIPLINES** (preflight simulé, aucune gate PLAN confirmée). Le test sans objet cost couvre également les deux kits : l'absence optionnelle de ledger ne désactive pas la politique.
++
++TP-13/14/15 contrôlent les fichiers pipeline/serveur/stop byte-identiques ; la suite CREATE_ONLY exerce réellement leurs routes locales, transitions historiques simulées et redémarrage. Les autres transports restent couverts par les suites historiques et le passage au Gateway original pour OpenAlex/Crossref/diagnostic.
++
++Les assertions historiques ne sont pas affaiblies : seules les attentes de numéro de produit ont été adaptées. Les contraintes d'identité byte à byte sur stage-ef01 et le builder sont conservées et satisfaites. Les échecs initiaux de browser venaient du garde DNS de test qui bloquait aussi 127.0.0.1 (page chrome-error DNS_PROBE_FINISHED_NXDOMAIN, reproduite aussi sur baseline) ; correction du garde **de test seulement**, puis 75/75 avec les assertions existantes. Aucune correction UI.
++
++## Diff de production
++
++- `lib/ef01-transport-policy.js` : nouvelle composition technique, validation stricte, borne de lecture, reprise sûre, issue inconnue, trace et cache de résultat enrichi.
++- `lib/mono04-fence-adapter.js` : branche EF-01 sur Gateway canonique, intégration de la composition, déduplication comptable des résultats EF-01 identiques, usage absent non converti en zéro.
++- `lib/cost-ledger.js` : opt-in KIT_CALL/EXTERNAL_OUTCOME_UNKNOWN/usage absent → usage et coût null ; aucune modification pour les appels historiques ou usages connus.
++- `config/monolith.config.json` : version et politique technique EF-01 explicite ; toutes les autres valeurs inchangées.
++
++Tout autre changement est TEST, DOC ou MANIFEST/PROVENANCE. `diff-v1018-v1019.patch` et `changes.json` sont les autorités exhaustives de comparaison ; les résultats de tests copiés du prédécesseur sont remplacés par ceux de cette campagne. Le dossier contient des records de gel de versions historiques : aucun ne gèle v1.0.19.
++
++## Limites à conserver pour l'audit
++
++- Délais produit = choix technique versionné aligné sur les tolérances existantes, pas une latence fournisseur validée. Le Worker déployé peut imposer une limite plus courte. Aucun changement Worker justifié ou effectué.
++- « Reprise sûre » est limitée au refus HTTP429 typé défini dans le contrat. Un 5xx, un 504 ou une exception DNS textuelle ne suffit pas. Aucun idempotency distant ni garantie d'annulation/facturation.
++- Circuit-breaker du Gateway composé compte les appels logiques ; départs physiques détaillés séparément. Cache local au processus, pas de déduplication distribuée.
++- Trace et ledger ne constituent pas une transaction distribuée. Un crash brutal avant persistance reste hors garantie. Reprise explicite et règles scientifiques du kit inchangées ; aucun mécanisme de réconciliation de facture ajouté.
++- Les totaux du ledger restent une somme connue ; coût inconnu signalé par null/priced=false/unpriced, pas total fournisseur certifié. Aucun écran Desktop modifié.
++- Les tests traversent le code réel avec transport simulé et secrets factices injectés ; ils ne prouvent ni disponibilité réelle ni performance réelle du Worker. L'audit indépendant et le gel séparé précèdent toute nouvelle intégration/smoke.
++
++## Reproduction et livrables
++
++Depuis la candidate, environnement vierge, exemple :
++
++```sh
++env -i PATH=/usr/local/bin:/usr/bin:/bin node --require ./test/v1018-network-guard.cjs test/test-v1019-transport.js
++env -i PATH=/usr/local/bin:/usr/bin:/bin node --require ./test/v1018-network-guard.cjs test/test-monolith.js
++```
++
++Les suites HTTP locales utilisent le même garde. Les navigateurs utilisent `NODE_OPTIONS='--require ./test/v1019-browser-network-guard.cjs'` : sockets Node loopback uniquement ; Chrome neuf, proxy local sans sortie externe et résolution externe refusée.
++
++Dans la candidate : autopsie, politique, contrat UNKNOWN, présent rapport, tests/résultats, MANIFEST.json et SHA256SUMS.txt. Sidecars dans `tools/EvidenceForge/reports/MONOLITH-v1.0.19-transport/` : candidate record, logs, mutations, patch, classification, inventaires protégés, preuves réseau, vérification de manifeste et empreintes. Le record est externe pour éviter un contentHash autoréférentiel.
++
++**STOP. Aucune décision de gel/activation, aucun commit/push, aucune reprise App ou smoke, aucune confirmation PLAN, aucun APP-05.**
+--- /dev/null
++++ b/docs/V1019-EF01-UNKNOWN-OUTCOME-CONTRACT.md
+@@ -0,0 +1,22 @@
++# EXTERNAL_OUTCOME_UNKNOWN — contrat technique EF-01 V1
++
++Une invocation fetch ne prouve ni livraison ni refus. Dès le départ possible, timeout/rupture/body incomplet/statut ambigu entraîne EXTERNAL_OUTCOME_UNKNOWN, sans deuxième départ automatique. Ce code n'est pas un verdict scientifique.
++
++MONO-04 conserve sa structure de résultat. La composition remplace le diagnostic technique ambigu et conserve requestId/provider/operation, statut FAILED, httpStatus observé et compte de départs. EF-01B/C1 enveloppent nativement cette cause en LLM_PROVIDER_UNAVAILABLE. Pipeline inchangé : STOPPED à l'étape courante, pas de PLAN confirmé ni de traitement aval. L'erreur et la trace exposent remoteCostUsd=null/remoteCostKnown=false. Aucun succès ni montant nul n'est déduit du silence.
++
++Une erreur HTTP terminale explicitement reconnue reste EXTERNAL_HTTP_ERROR. Un refus rate-limit complet peut autoriser une seconde tentative ; si celle-ci devient ambiguë, arrêt immédiat. La durée totale avant headers n'est pas réarmée par ce refus. On ne prétend pas connaître le code Worker déployé, annuler sa requête amont, ni dédupliquer la facturation à distance.
++
++Le ledger v1.0.18 convertissait usage null en coût 0 sur modèle tarifé. La candidate corrige uniquement les enregistrements KIT_CALL portant transportOutcome=EXTERNAL_OUTCOME_UNKNOWN avec usage absent : null/cost null/priced false, interrupted=true, usageIncomplete=true. Un usage effectivement reçu conserve sa tarification. Totaux historiques = somme des coûts connus ; calls.unpriced signale que le total facturé est incomplet. L'UI et le budget scientifiques ne sont pas réécrits.
++
++Pas de réémission automatique à la suite de cette cause, ni dans MONO-04 ni dans kitAttempts. Le cache in-process conserve l'échec enrichi pour le même requestId. Ce n'est pas une garantie distribuée : un arrêt brutal du processus peut précéder l'écriture des preuves, et la route de reprise explicite reste historique. Le contrat ne fournit pas de réconciliation fournisseur automatique ni de récupération de facture. Pour un run LIMITED, l'entrée non tarifée bloque les appels suivants avec le garde budgétaire existant ; ne pas relever/contourner ce garde pour « essayer ».
++
++## Après audit indépendant et gel séparé seulement
++
++1. Examiner les preuves de cette candidate et la configuration du Worker déployé lors d'une préparation autorisée ; aucun réseau dans cette mission.
++2. Intégrer séparément la version gelée dans le Desktop, épingler son identité et vérifier son workspace isolé.
++3. Obtenir une nouvelle autorisation explicite propriétaire pour un unique smoke et son plafond. L'autorisation historique a déjà été consommée.
++4. Nouveau run dédié ; ne pas reprendre efm-20261009-d16ac129. Credentials injectés seulement dans cette future mission autorisée.
++5. Un lancement, traces de chaque départ, coûts connus/inconnus distincts ; STOP à toute issue ambiguë, aucun deuxième POST automatique.
++6. Si WAITING_USER/CONFIRM_PLAN est atteint, conserver gate/reformulation/missionDeliverables/coût puis STOP AVANT confirmation PLAN.
++
++Cette candidate n'est ni gelée ni activée ; aucun smoke n'est autorisé ou exécuté par ce document.
+--- a/lib/cost-ledger.js
++++ b/lib/cost-ledger.js
+@@ -79,8 +79,10 @@
+     e = e || {}; if (KINDS.indexOf(e.kind) === -1) throw Object.assign(new Error("COST_LEDGER_KIND_INVALID: " + e.kind), { code: "COST_LEDGER_KIND_INVALID" });
+     const p = ensurePricing(); const at = e.at || new Date().toISOString();
+     const isReuse = e.kind === "REUSE"; const entry = p.resolve(e.model, at);
+-    const usage = isReuse ? null : p.normalizeUsage(e.usage);
+-    const cost = isReuse ? { inputUsd: 0, outputUsd: 0, cacheWriteUsd: 0, cacheReadUsd: 0, totalUsd: 0 } : p.costOf(e.usage, entry);
++    /* v1.0.19: opt-in EF-01 transport uncertainty; existing callers unchanged. */
++    const unknownEf01Usage = e.transportOutcome === "EXTERNAL_OUTCOME_UNKNOWN" && e.kind === "KIT_CALL" && e.usage == null;
++    const usage = isReuse || unknownEf01Usage ? null : p.normalizeUsage(e.usage);
++    const cost = isReuse ? { inputUsd: 0, outputUsd: 0, cacheWriteUsd: 0, cacheReadUsd: 0, totalUsd: 0 } : unknownEf01Usage ? null : p.costOf(e.usage, entry);
+     const line = { schema: "EvidenceForge.CostLedgerEntry", seq: entries().length + 1, at, runId: opts.runId, attemptId: e.attemptId != null ? e.attemptId : attemptId, stage: e.stage || stage || null, kind: e.kind, purpose: e.purpose || null, pass: e.pass != null ? e.pass : null,
+       model: e.model || null, providerRequestId: e.providerRequestId || null, callId: e.callId || null, localRequestId: e.localRequestId || null, httpStatus: e.httpStatus != null ? e.httpStatus : null, reused: isReuse,
+       usage, cost, priced: isReuse ? true : !!cost, pricingVersion: p.version, pricingSnapshotHash: p.hash, pricedModel: entry ? entry.model : null,
+--- /dev/null
++++ b/lib/ef01-transport-policy.js
+@@ -0,0 +1,111 @@
++'use strict';
++// EF01_TRANSPORT_POLICY_V1: technical composition only; frozen Gateway validates responses.
++const fs = require('fs'), path = require('path');
++const { AsyncLocalStorage } = require('async_hooks');
++const POLICY_ID = 'EF01_TRANSPORT_POLICY_V1';
++const UNKNOWN = 'EXTERNAL_OUTCOME_UNKNOWN';
++function configError() { return Object.assign(new Error('EF01_TRANSPORT_POLICY_INVALID'), { code: 'EF01_TRANSPORT_POLICY_INVALID' }); }
++function timeout(value) { if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1000 || value > 900000) throw configError(); return value; }
++function validatePolicy(p) {
++  const keys = ['id', 'responseStartTimeoutMs', 'bodyReadTimeoutMs', 'maxAttempts', 'backoffMs', 'issueUnknown'];
++  if (!p || Object.keys(p).some(k => !keys.includes(k)) || p.id !== POLICY_ID || p.maxAttempts !== 2 || p.backoffMs !== 2000 || p.issueUnknown !== 'STOP_NO_RETRY') throw configError();
++  return Object.freeze({ ...p, responseStartTimeoutMs: timeout(p.responseStartTimeoutMs), bodyReadTimeoutMs: timeout(p.bodyReadTimeoutMs) });
++}
++function scoped(req, stage) { return ['DISCIPLINES', 'PLAN', 'EF01'].includes(stage) && req.provider === 'llm-worker' && req.moduleId === 'real-llm-call' && req.operation === 'call'; }
++function technicalError(code) { return Object.assign(new Error(code), { code }); }
++// Race, not only abort: also bounds a non-cooperative injected transport. Never expose exception text.
++function bounded(operation, ms, signal, cancel, code) {
++  return new Promise((resolve, reject) => {
++    let timer, done = false;
++    const finish = (fn, v) => { if (done) return; done = true; clearTimeout(timer); if (signal) signal.removeEventListener('abort', abort); fn(v); };
++    const abort = () => { cancel(); finish(reject, technicalError(code)); };
++    if (signal && signal.aborted) return abort();
++    if (signal) signal.addEventListener('abort', abort, { once: true });
++    if (ms != null) timer = setTimeout(abort, ms);
++    Promise.resolve().then(operation).then(v => finish(resolve, v), () => finish(reject, technicalError(code)));
++  });
++}
++function safeRateLimit(res, parsed) {
++  return res.status === 429 && /application\/json/i.test(res.headers.get('content-type') || '') && parsed && typeof parsed === 'object' && parsed.type === 'error' && parsed.error && parsed.error.type === 'rate_limit_error' && !('usage' in parsed) && !('content' in parsed) && !('id' in parsed);
++}
++function composeEf01TransportPolicy(mono04, opts, dependencies = {}) {
++  const policy = validatePolicy(opts.policy);
++  const storage = new AsyncLocalStorage();
++  const rawFetch = dependencies.fetchImpl || globalThis.fetch;
++  async function transport(url, init) {
++    const ctx = storage.getStore();
++    if (!ctx) return rawFetch(url, init);
++    for (let n = 1; n <= policy.maxAttempts; n++) {
++      if (init.signal.aborted) throw technicalError(UNKNOWN);
++      if (opts.cost && opts.cost.budget) opts.cost.budget.assertAllowed({ model: ctx.req.payload.model, purpose: opts.stage, where: 'ef01-transport' });
++      const ac = new AbortController();
++      const abort = () => ac.abort();
++      init.signal.addEventListener('abort', abort, { once: true });
++      const release = () => init.signal.removeEventListener('abort', abort);
++      const attempt = { attempt: n, departedAt: new Date().toISOString(), httpStatus: null, outcome: 'PENDING', usage: null };
++      ctx.safeRejected = false;
++      ctx.attempts.push(attempt);
++      let res;
++      try {
++        res = await bounded(() => rawFetch(url, { ...init, signal: ac.signal }), null, init.signal, abort, 'RESPONSE_START_INTERRUPTED');
++        attempt.httpStatus = res.status;
++      } catch (_) { release(); attempt.outcome = UNKNOWN; attempt.phase = 'RESPONSE_START'; ctx.unknown = true; throw technicalError(UNKNOWN); }
++      let bodyPromise;
++      const text = () => bodyPromise || (bodyPromise = bounded(() => res.text(), policy.bodyReadTimeoutMs, init.signal, abort, 'BODY_READ_INTERRUPTED').then(raw => {
++        try { const parsed = JSON.parse(raw); ctx.observed = parsed; attempt.usage = parsed.usage || null; } catch (_) { ctx.observed = null; }
++        attempt.outcome = 'HTTP_RESPONSE';
++        const p = ctx.observed;
++        if ([400, 401, 403, 404].includes(res.status) && p && p.type === 'error' && ['invalid_request_error', 'authentication_error', 'permission_error', 'not_found_error'].includes(p.error?.type) && !p.usage && !p.content && !p.id) { ctx.safeRejected = true; attempt.outcome = 'EXPLICIT_REJECTION'; }
++        release(); return raw;
++      }, () => { attempt.outcome = UNKNOWN; attempt.phase = 'BODY_READ'; ctx.unknown = true; release(); throw technicalError(UNKNOWN); }));
++      // Only a complete typed rate-limit refusal authorizes another paid departure.
++      if (res.status === 429) {
++        const raw = await text(); let parsed; try { parsed = JSON.parse(raw); } catch (_) { parsed = null; }
++        if (safeRateLimit(res, parsed)) {
++          attempt.outcome = 'SAFE_REJECTION'; ctx.safeRejected = true;
++          if (n < policy.maxAttempts) {
++            await bounded(() => new Promise(r => setTimeout(r, policy.backoffMs)), null, init.signal, () => {}, 'RETRY_WAIT_INTERRUPTED');
++            continue;
++          }
++        }
++      }
++      return { status: res.status, headers: res.headers, text };
++    }
++  }
++  const { createExternalExecutionGateway } = require(path.join(opts.bundleRoot, 'MONO-04/lib/external-execution-gateway.js'));
++  const gateway = createExternalExecutionGateway({ providerRegistry: mono04.providerRegistry, secretProvider: mono04.secretProvider, fetchImpl: transport });
++  const fingerprint = require(path.join(opts.bundleRoot, 'MONO-04/lib/request-fingerprint.js')).computeRequestFingerprint;
++  const cache = new Map();
++  function persist(rec) {
++    if (!opts.recordsPath) return;
++    fs.mkdirSync(path.dirname(opts.recordsPath), { recursive: true });
++    fs.appendFileSync(opts.recordsPath, JSON.stringify(rec) + '\n');
++  }
++  async function execute(req) {
++    const responseStartTimeoutMs = req.timeoutPolicy && Object.hasOwn(req.timeoutPolicy, 'timeoutMs') ? timeout(req.timeoutPolicy.timeoutMs) : policy.responseStartTimeoutMs;
++    const ctx = { req, attempts: [], unknown: false, safeRejected: false, observed: null };
++    const effective = { ...req, timeoutPolicy: { ...req.timeoutPolicy, timeoutMs: responseStartTimeoutMs }, retryPolicy: { maxAttempts: 1, backoffMs: 0 } };
++    let result = await storage.run(ctx, () => gateway.executeRequest(effective));
++    const failedAfterDeparture = result.status !== 'SUCCESS' && ctx.attempts.length > 0 && !ctx.safeRejected;
++    if (failedAfterDeparture) {
++      ctx.unknown = true;
++      const details = { phase: ctx.attempts.at(-1).phase || 'HTTP_RESPONSE', httpStatus: result.technicalDiagnostics.httpStatus, networkDepartures: ctx.attempts.length, remoteCostUsd: null, remoteCostKnown: false, retryAuthorized: false };
++      result = { ...result, technicalDiagnostics: { ...result.technicalDiagnostics, error: { code: UNKNOWN, message: UNKNOWN + ': aucune nouvelle tentative automatique autorisée.', details } } };
++      // Existing ledger supports null usage/cost and blocks further LIMITED calls when unpriced.
++      if (opts.cost && opts.cost.ledger) opts.cost.ledger.record({ kind: 'KIT_CALL', stage: opts.stage, purpose: 'EF-01 transport interrupted', model: ctx.observed?.model || req.payload.model, usage: ctx.observed?.usage || null, providerRequestId: ctx.observed?.id || null, localRequestId: req.requestId, httpStatus: details.httpStatus, interrupted: true, usageIncomplete: true, transportOutcome: UNKNOWN });
++    }
++    const rec = { schema: 'EvidenceForge.EF01TransportTrace', policy: policy.id, at: new Date().toISOString(), runId: req.runId, requestId: req.requestId, provider: req.provider, model: req.payload.model, stage: opts.stage, responseStartTimeoutMs, bodyReadTimeoutMs: policy.bodyReadTimeoutMs, networkDepartures: ctx.attempts.length, attempts: ctx.attempts, outcome: ctx.unknown ? UNKNOWN : result.status, remoteCostKnown: ctx.unknown ? false : null, remoteCostUsd: null };
++    persist(rec);
++    return { ...result, attemptCount: ctx.attempts.length || result.attemptCount, ef01Transport: rec };
++  }
++  return { ...mono04, ef01PolicyApplied: POLICY_ID, gateway: { ...gateway, getCircuitState(provider) {
++    return provider === 'llm-worker' ? gateway.getCircuitState(provider) : mono04.gateway.getCircuitState(provider);
++  }, executeRequest(req) {
++    if (!req || !scoped(req, opts.stage)) return mono04.gateway.executeRequest(req);
++    if (!req.requestId) return gateway.executeRequest(req);
++    const hash = fingerprint(req), prior = cache.get(req.requestId);
++    if (prior) { if (prior.hash !== hash) throw technicalError('EXTERNAL_REQUEST_CONFLICT'); return prior.promise; }
++    const promise = execute(req); cache.set(req.requestId, { hash, promise }); return promise;
++  } } };
++}
++module.exports = { composeEf01TransportPolicy, validatePolicy, POLICY_ID, UNKNOWN };
+--- a/lib/mono04-fence-adapter.js
++++ b/lib/mono04-fence-adapter.js
+@@ -25,14 +25,24 @@
+ 
+ /** wrapMono04(mono04, { recordsPath, rawDir, cost? }) -> mono04 de meme interface, gateway.executeRequest normalise et journalise. */
+ function wrapMono04(mono04, opts) {
+-  opts = opts || {}; const g = mono04.gateway;
++  opts = opts || {};
++  /* v1.0.19: EF-01 transport composition at the existing adapter boundary only. */
++  if (!mono04.ef01PolicyApplied && mono04.gateway.schema === "EvidenceForge.ExternalExecutionGateway" && (!opts.cost || ["DISCIPLINES", "PLAN"].includes(opts.cost.stage))) {
++    const P = require("./paths.js");
++    mono04 = require("./ef01-transport-policy.js").composeEf01TransportPolicy(mono04, {
++      bundleRoot: P.BUNDLE, policy: P.CONFIG.ef01Transport, stage: opts.cost ? opts.cost.stage : "EF01", cost: opts.cost,
++      recordsPath: opts.recordsPath ? path.join(path.dirname(opts.recordsPath), "transport-policy.jsonl") : null,
++    });
++  }
++  const g = mono04.gateway;
++  const accountedEf01 = new WeakSet();
+   const gateway = Object.assign(Object.create(Object.getPrototypeOf(g) || null), g, {
+     async executeRequest(req) {
+       const cost = opts.cost || null; const model = req && req.payload && req.payload.model;
+       if (cost && cost.budget) cost.budget.assertAllowed({ model: model || null, purpose: cost.purpose || (req && req.moduleId) || null, where: "kit" });   /* v1.0.5 : AVANT l'appel reel du kit */
+       const result = await g.executeRequest.call(g, req);
+-      if (cost && cost.ledger && result && result.status === "SUCCESS" && result.result && typeof result.result === "object") {
+-        try { cost.ledger.record({ kind: "KIT_CALL", stage: cost.stage || null, purpose: cost.purpose || (req && req.moduleId) || null, model: result.result.model || model || null, usage: result.result.usage || null, providerRequestId: result.result.id || null, localRequestId: req && req.requestId, httpStatus: 200 }); }
++      if (cost && cost.ledger && result && result.status === "SUCCESS" && result.result && typeof result.result === "object" && !(result.ef01Transport && accountedEf01.has(result))) {
++        try { cost.ledger.record({ kind: "KIT_CALL", stage: cost.stage || null, purpose: cost.purpose || (req && req.moduleId) || null, model: result.result.model || model || null, usage: result.result.usage || null, providerRequestId: result.result.id || null, localRequestId: req && req.requestId, httpStatus: 200, transportOutcome: result.ef01Transport && result.result.usage == null ? "EXTERNAL_OUTCOME_UNKNOWN" : undefined, usageIncomplete: !!result.ef01Transport && result.result.usage == null }); if (result.ef01Transport) accountedEf01.add(result); }
+         catch (x) { if (opts.recordsPath) { fs.mkdirSync(path.dirname(opts.recordsPath), { recursive: true }); fs.appendFileSync(opts.recordsPath, JSON.stringify({ at: new Date().toISOString(), kind: "COST_LEDGER_ERROR", message: String(x.message).slice(0, 300) }) + "\n"); } }
+       }
+       const c = result && result.result && result.result.content;
+--- a/test/browser-results-v1017.json
++++ b/test/browser-results-v1017.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": "EvidenceForge.MonolithBrowserTestResults",
+   "version": "MONOLITH-v1.0.17",
+-  "ranAt": "2026-10-02T17:18:50.793Z",
++  "ranAt": "2026-10-09T14:21:02.437Z",
+   "total": 10,
+   "passed": 10,
+   "failed": 0,
+--- a/test/browser-results-v105.json
++++ b/test/browser-results-v105.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": "EvidenceForge.MonolithBrowserTestResults",
+   "version": "MONOLITH-v1.0.5",
+-  "ranAt": "2026-10-02T17:19:23.348Z",
++  "ranAt": "2026-10-09T14:23:45.363Z",
+   "total": 33,
+   "passed": 33,
+   "failed": 0,
+@@ -44,7 +44,7 @@
+     {
+       "name": "mise à jour du budget depuis la page : budget.json = 25 / 20, historique conservé, marque d'arrêt effacée",
+       "ok": true,
+-      "info": "{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-ui105bud\",\"currency\":\"USD\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"updatedAt\":\"2026-10-02T17:19:02.812Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-10-02T17:18:57.928Z\",\"mode\":\"LIMITED\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5,\"previous\":{\"mode\":null,\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"},{\"at\":\"2026-10-02T17:19:02.812Z\",\"mode\":\"LIMITED\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"previous\":{\"mode\":\"LIMITED\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5},\"setBy\":\"user\"}],\"mode\":\"LIMITED\",\"confirmedUnlimited\":false,\"createdAt\":\"2026-10-02T17:18:57.928Z\",\"setBy\":\"user\",\"warningRaisedSpentUsd\":3.1,\"limitReachedSpentUsd\":3.1}"
++      "info": "{\"schema\":\"EvidenceForge.RunBudget\",\"runId\":\"efm-20260917-ui105bud\",\"currency\":\"USD\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"updatedAt\":\"2026-10-09T14:23:25.008Z\",\"warningRaisedAt\":null,\"limitReachedAt\":null,\"history\":[{\"at\":\"2026-10-09T14:23:19.740Z\",\"mode\":\"LIMITED\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5,\"previous\":{\"mode\":null,\"costBudgetUsd\":null,\"warningThresholdUsd\":null},\"setBy\":\"user\"},{\"at\":\"2026-10-09T14:23:25.008Z\",\"mode\":\"LIMITED\",\"costBudgetUsd\":25,\"warningThresholdUsd\":20,\"previous\":{\"mode\":\"LIMITED\",\"costBudgetUsd\":1,\"warningThresholdUsd\":0.5},\"setBy\":\"user\"}],\"mode\":\"LIMITED\",\"confirmedUnlimited\":false,\"createdAt\":\"2026-10-09T14:23:19.740Z\",\"setBy\":\"user\",\"warningRaisedSpentUsd\":3.1,\"limitReachedSpentUsd\":3.1}"
+     },
+     {
+       "name": "affichage : reste avant plafond 21.9x USD, plus de badge « plafond atteint »",
+--- a/test/browser-results-v106.json
++++ b/test/browser-results-v106.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": "EvidenceForge.MonolithBrowserTestResults",
+   "version": "MONOLITH-v1.0.6",
+-  "ranAt": "2026-10-02T17:19:28.547Z",
++  "ranAt": "2026-10-09T14:23:25.600Z",
+   "total": 12,
+   "passed": 12,
+   "failed": 0,
+--- a/test/browser-results-v107.json
++++ b/test/browser-results-v107.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": "EvidenceForge.MonolithBrowserTestResults",
+   "version": "MONOLITH-v1.0.7",
+-  "ranAt": "2026-10-02T17:19:35.710Z",
++  "ranAt": "2026-10-09T14:23:27.311Z",
+   "total": 11,
+   "passed": 11,
+   "failed": 0,
+--- a/test/browser-results-v108.json
++++ b/test/browser-results-v108.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": "EvidenceForge.MonolithBrowserTestResults",
+   "version": "MONOLITH-v1.0.8",
+-  "ranAt": "2026-10-02T17:19:45.156Z",
++  "ranAt": "2026-10-09T14:23:29.054Z",
+   "total": 9,
+   "passed": 9,
+   "failed": 0,
+--- a/test/results-chunking.json
++++ b/test/results-chunking.json
+@@ -1,7 +1,7 @@
+ {
+   "schema": "EvidenceForge.MonolithChunkingTestResults",
+-  "version": "MONOLITH-v1.0.17",
+-  "ranAt": "2026-10-02T17:18:25.619Z",
++  "version": "MONOLITH-v1.0.19",
++  "ranAt": "2026-10-09T14:17:36.231Z",
+   "maxChunkChars": 4500,
+   "fixtureExternalCaseAnalysis": true,
+   "total": 21,
+--- a/test/results-v1018-create-only.json
++++ b/test/results-v1018-create-only.json
+@@ -5,10 +5,10 @@
+       "id": "BASELINE",
+       "ok": true,
+       "baseline": {
+-        "runId": "efm-20261009-0b13e878",
+-        "runs": "/var/folders/b7/cxjmmkvn62b3lv04rkqp98r00000gn/T/ef-v1018-pp3Sr1/runs-HGHXnd",
++        "runId": "efm-20261009-85258239",
++        "runs": "/tmp/ef-v1018-Gf3PG5/runs-fqPjCW",
+         "state": {
+-          "runId": "efm-20261009-0b13e878",
++          "runId": "efm-20261009-85258239",
+           "status": "CREATED",
+           "stage": "MISSION",
+           "stageLabel": "Comprendre votre demande",
+@@ -58,8 +58,8 @@
+             ]
+           },
+           "summary": null,
+-          "createdAt": "2026-10-09T12:45:40.431Z",
+-          "updatedAt": "2026-10-09T12:45:40.437Z",
++          "createdAt": "2026-10-09T14:16:07.831Z",
++          "updatedAt": "2026-10-09T14:16:07.847Z",
+           "seal": null,
+           "counters": {
+             "llmReal": 0,
+@@ -87,13 +87,13 @@
+               "remainingUsd": 2,
+               "warningReached": false,
+               "limitReached": false,
+-              "updatedAt": "2026-10-09T12:45:40.432Z"
++              "updatedAt": "2026-10-09T14:16:07.831Z"
+             }
+           }
+         },
+         "cost": {
+           "schema": "EvidenceForge.CostView",
+-          "runId": "efm-20261009-0b13e878",
++          "runId": "efm-20261009-85258239",
+           "status": "CREATED",
+           "stage": "MISSION",
+           "ledgerPresent": false,
+@@ -108,7 +108,7 @@
+             "remainingUsd": 2,
+             "warningReached": false,
+             "limitReached": false,
+-            "updatedAt": "2026-10-09T12:45:40.432Z",
++            "updatedAt": "2026-10-09T14:16:07.831Z",
+             "limitReachedAt": null,
+             "warningRaisedAt": null,
+             "forecastExceedsBudget": false
+@@ -237,7 +237,7 @@
+             "costPerInformationGain": null
+           },
+           "live": null,
+-          "generatedAt": "2026-10-09T12:45:40.447Z"
++          "generatedAt": "2026-10-09T14:16:07.858Z"
+         }
+       }
+     },
+@@ -1520,7 +1520,7 @@
+     {
+       "id": "M-CO-06",
+       "killed": true,
+-      "error": "CO-05/06\n+ actual - expected\n... Skipped lines\n\n  {\n    attempts: 0,\n    checkpoints: null,\n    cost: {\n      budget: {\n...\n    },\n+   status: 'READY',\n-   status: 'CREATED',\n    stop: null,\n    summary: null,\n    updatedAt: '2026-10-09T12:45:40.938Z',\n    userMessage: null\n  }\n"
++      "error": "CO-05/06\n+ actual - expected\n... Skipped lines\n\n  {\n    attempts: 0,\n    checkpoints: null,\n    cost: {\n      budget: {\n...\n    },\n+   status: 'READY',\n-   status: 'CREATED',\n    stop: null,\n    summary: null,\n    updatedAt: '2026-10-09T14:16:08.370Z',\n    userMessage: null\n  }\n"
+     }
+   ],
+   "scope": "Loopback HTTP, real persistence; provider readiness and advance simulated only for historical success compatibility. No real provider."
+--- a/test/results-v1018-process.json
++++ b/test/results-v1018-process.json
+@@ -1,10 +1,10 @@
+ {
+   "pass": true,
+-  "runId": "efm-20261009-76c834ec",
++  "runId": "efm-20261009-7a218bb6",
+   "processRestarts": 1,
+   "stateByteIdentical": true,
+   "providerCalls": 0,
+   "providerCostUsd": 0,
+   "externalAttempts": 0,
+-  "output": "EvidenceForge MONOLITH-v1.0.18 — http://127.0.0.1:0\n  lots gelés vérifiés : MONO-10 (79 fichiers), MONO-11 (55 fichiers), MONO-09 (9 fichiers), MONO-01 (106 fichiers)\n  fournisseur d'analyse : identifiants ABSENTS (jamais affichés)\n  tarification : 2026-09-17-r1 · modèle claude-opus-4-8 tarifé\nTEST_PORT=64508\n  diagnostic fournisseur : PROVIDER_NOT_CONFIGURED — Le service d'analyse n'est pas configuré sur cette machine (identifiants absents). Lancez ./tools/EvidenceForge/setup.sh.\nNETWORK_GUARD {\"externalAttempts\":0}\nEvidenceForge MONOLITH-v1.0.18 — http://127.0.0.1:0\n  lots gelés vérifiés : MONO-10 (79 fichiers), MONO-11 (55 fichiers), MONO-09 (9 fichiers), MONO-01 (106 fichiers)\n  fournisseur d'analyse : identifiants ABSENTS (jamais affichés)\n  tarification : 2026-09-17-r1 · modèle claude-opus-4-8 tarifé\nTEST_PORT=64510\n  diagnostic fournisseur : PROVIDER_NOT_CONFIGURED — Le service d'analyse n'est pas configuré sur cette machine (identifiants absents). Lancez ./tools/EvidenceForge/setup.sh.\nNETWORK_GUARD {\"externalAttempts\":0}\n"
++  "output": "EvidenceForge MONOLITH-v1.0.19 — http://127.0.0.1:0\n  lots gelés vérifiés : MONO-10 (79 fichiers), MONO-11 (55 fichiers), MONO-09 (9 fichiers), MONO-01 (106 fichiers)\n  fournisseur d'analyse : identifiants ABSENTS (jamais affichés)\n  tarification : 2026-09-17-r1 · modèle claude-opus-4-8 tarifé\nTEST_PORT=54145\n  diagnostic fournisseur : PROVIDER_NOT_CONFIGURED — Le service d'analyse n'est pas configuré sur cette machine (identifiants absents). Lancez ./tools/EvidenceForge/setup.sh.\nNETWORK_GUARD {\"externalAttempts\":0}\nEvidenceForge MONOLITH-v1.0.19 — http://127.0.0.1:0\n  lots gelés vérifiés : MONO-10 (79 fichiers), MONO-11 (55 fichiers), MONO-09 (9 fichiers), MONO-01 (106 fichiers)\n  fournisseur d'analyse : identifiants ABSENTS (jamais affichés)\n  tarification : 2026-09-17-r1 · modèle claude-opus-4-8 tarifé\nTEST_PORT=54151\n  diagnostic fournisseur : PROVIDER_NOT_CONFIGURED — Le service d'analyse n'est pas configuré sur cette machine (identifiants absents). Lancez ./tools/EvidenceForge/setup.sh.\nNETWORK_GUARD {\"externalAttempts\":0}\n"
+ }
+--- /dev/null
++++ b/test/results-v1019-transport.json
+@@ -0,0 +1,175 @@
++{
++  "schema": "EvidenceForge.V1019OfflineTransportTests",
++  "results": [
++    {
++      "id": "V1019-TP-01",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-02",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-03",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-04",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-05",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-06",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-07",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-08",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-09",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-10",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-11",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-12",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-13",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-14",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-15",
++      "pass": true
++    },
++    {
++      "id": "V1019-TP-16",
++      "pass": true
++    },
++    {
++      "id": "strict-policy",
++      "pass": true
++    },
++    {
++      "id": "explicit-request-policy",
++      "pass": true
++    },
++    {
++      "id": "http-ambiguity-matrix",
++      "pass": true
++    },
++    {
++      "id": "safe-retry-exhausted",
++      "pass": true
++    },
++    {
++      "id": "unscoped-diagnostic",
++      "pass": true
++    },
++    {
++      "id": "known-usage-success",
++      "pass": true
++    },
++    {
++      "id": "idempotence-unknown",
++      "pass": true
++    },
++    {
++      "id": "stage-output-parity",
++      "pass": true
++    },
++    {
++      "id": "pipeline-unknown-stop",
++      "pass": true
++    },
++    {
++      "id": "ledger-legacy-parity",
++      "pass": true
++    },
++    {
++      "id": "safe-refusal-then-unknown",
++      "pass": true
++    },
++    {
++      "id": "successful-envelope-without-usage",
++      "pass": true
++    },
++    {
++      "id": "idempotence-success-ledger",
++      "pass": true
++    },
++    {
++      "id": "known-usage-on-failure",
++      "pass": true
++    },
++    {
++      "id": "optional-ledger-does-not-disable-policy",
++      "pass": true
++    }
++  ],
++  "passed": 31,
++  "total": 31,
++  "mutations": [
++    {
++      "mutant": "M19-01",
++      "killed": true,
++      "error": "ifError got unwanted exception: [LLM_PROVIDER_UNAVAILABLE] appel LLM echoue : EXTERNAL_OUTCOME_UNKNOWN: aucune nouvelle tentative automatique autorisée."
++    },
++    {
++      "mutant": "M19-02",
++      "killed": true,
++      "error": "ifError got unwanted exception: [LLM_PROVIDER_UNAVAILABLE] appel LLM echoue : Toutes les tentatives (2) ont échoué pour le provider \"llm-worker\" — dernière erreur : EXTERNAL_TIMEOUT."
++    },
++    {
++      "mutant": "M19-03",
++      "killed": true,
++      "error": "Expected values to be strictly equal:\n\n2 !== 1\n"
++    },
++    {
++      "mutant": "M19-04",
++      "killed": true,
++      "error": "VIRTUAL_CLOCK_UNSETTLED"
++    },
++    {
++      "mutant": "M19-05",
++      "killed": true,
++      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ {\n+   cacheReadUsd: 0,\n+   cacheWriteUsd: 0,\n+   inputUsd: 0,\n+   outputUsd: 0,\n+   totalUsd: 0\n+ }\n- null\n"
++    },
++    {
++      "mutant": "M19-06",
++      "killed": true,
++      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'SUCCESS'\n- 'FAILED'\n"
++    },
++    {
++      "mutant": "M19-07",
++      "killed": true,
++      "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   max_tokens: 1,\n-   max_tokens: 4096,\n    messages: [\n      {\n        content: 'untouched prompt',\n        role: 'user'\n      }\n"
++    },
++    {
++      "mutant": "M19-08",
++      "killed": true,
++      "error": "Expected values to be strictly equal:\n\n2 !== 1\n"
++    }
++  ],
++  "realProviderCalls": 0,
++  "realProviderCostUsd": 0
++}
+--- a/test/results.json
++++ b/test/results.json
+@@ -1,6 +1,6 @@
+ {
+   "schema": "EvidenceForge.MonolithTestResults",
+-  "ranAt": "2026-10-09T12:46:27.675Z",
++  "ranAt": "2026-10-09T14:26:53.804Z",
+   "total": 377,
+   "passed": 377,
+   "failed": 0,
+@@ -1462,7 +1462,7 @@
+     },
+     {
+       "id": "V12-18",
+-      "name": "version du produit et frontiere : config MONOLITH-v1.0.18, lot MONO-11 v0.4 ; le monolithe ne fabrique aucun prompt de revue (hors adaptateur EF-03B) ; lots geles 0 divergence",
++      "name": "version du produit et frontiere : config MONOLITH-v1.0.19, lot MONO-11 v0.4 ; le monolithe ne fabrique aucun prompt de revue (hors adaptateur EF-03B) ; lots geles 0 divergence",
+       "ok": true
+     },
+     {
+--- a/test/test-stream.js
++++ b/test/test-stream.js
+@@ -155,7 +155,7 @@
+     /* v1.0.9 — proxy v0.8 : delais separes, seul HEADER_TIMEOUT_MS applique (defaut 60 000, bornes 1 000–90 000), lecture stricte (jamais typeof === "number" seul), variable explicite dans wrangler.jsonc, un seul setTimeout */
+     assert(/DEFAULT_HEADER_TIMEOUT_MS = 60000/.test(w7) && /HEADER_TIMEOUT_BOUNDS = \{ min: 1000, max: 90000 \}/.test(w7) && /function readTimeoutConfig/.test(w7) && /function parseBoundedMs/.test(w7) && !/typeof env\.TIMEOUT_MS === "number"/.test(w7) && (w7.match(/setTimeout\(/g) || []).length === 1 && /STREAM_INACTIVITY_TIMEOUT_MS/.test(w7) && /STREAM_MAX_DURATION_MS/.test(w7) && /phase: "upstream_headers"/.test(w7), "proxy v0.8 : delais separes");
+     const wr = fs.readFileSync(path.join(ROOT, "worker", "evidenceforge-llm-proxy-v0.8", "wrangler.jsonc"), "utf8"); assert(/"HEADER_TIMEOUT_MS": "60000"/.test(wr) && !/"vars": \{\}/.test(wr), "wrangler : HEADER_TIMEOUT_MS explicite (chaine)"); assert(JSON.parse(fs.readFileSync(path.join(ROOT, "worker", "evidenceforge-llm-proxy-v0.8", "package.json"), "utf8")).version === "0.8.0", "proxy 0.8.0");
+-    const cfg = P.CONFIG; assert(cfg.llm.streaming && cfg.llm.streaming.enabled === true && cfg.llm.streaming.inactivityMs >= 30000 && cfg.llm.streaming.maxTotalMs >= 300000 && cfg.observability && cfg.observability.heartbeatMs >= 5000 && cfg.observability.heartbeatMs <= 15000, "config"); assert(PL.RESUMABLE.indexOf(LS.CODE_INTERRUPTED) !== -1 && cfg.product.version === "MONOLITH-v1.0.18", "reprenable + version"); });   /* v1.0.18 : seule adaptation (numero de version) */
++    const cfg = P.CONFIG; assert(cfg.llm.streaming && cfg.llm.streaming.enabled === true && cfg.llm.streaming.inactivityMs >= 30000 && cfg.llm.streaming.maxTotalMs >= 300000 && cfg.observability && cfg.observability.heartbeatMs >= 5000 && cfg.observability.heartbeatMs <= 15000, "config"); assert(PL.RESUMABLE.indexOf(LS.CODE_INTERRUPTED) !== -1 && cfg.product.version === "MONOLITH-v1.0.19", "reprenable + version"); });   /* v1.0.18 : seule adaptation (numero de version) */
+ 
+   await T("T-STREAM-21", "PIPELINE bout en bout (lots geles patches, transport reel streame vers le Worker factice) : flux coupe pendant TWINS_REVIEWS => STOPPED / PROVIDER_STREAM_INTERRUPTED reprenable, etape INTERRUPTED, aucun checkpoint aval, compteurs exacts, live-status persiste (FAILED, code, cible), state.live public, vue de cout `live` ; reprise explicite => flux complet, COMPLETED, checkpoint, revue journalisee SSE_STREAM", async () => {
+     const r = seedRunAtProfessionals("Examinez cette demande de test de transport streame"); const un = patchSeal(); let down = 0; const seen = [];
+--- a/test/test-v1012-lineage-parity.js
++++ b/test/test-v1012-lineage-parity.js
+@@ -157,8 +157,8 @@
+     const t = A.trace.find((x) => x.lineage); assert(t && t.lineage["DIM-02"] && JSON.stringify(t.lineage["DIM-02"].preservedRefs) === JSON.stringify([VALID_A]), JSON.stringify(t && t.lineage));
+     const raw = fs.readFileSync(path.join(A.dir, EF3.TRACE_FILE), "utf8"); assert((/CONTRAT DE BUDGET|DOCUMENT CIBLE|Introduction generale/.test(raw)) === (false), "trace sans prompt"); });
+ 
+-  await T("V12-18", "version du produit et frontiere : config MONOLITH-v1.0.18, lot MONO-11 v0.4 ; le monolithe ne fabrique aucun prompt de revue (hors adaptateur EF-03B) ; lots geles 0 divergence", () => {
+-    assert((P.CONFIG.product.version) === ("MONOLITH-v1.0.18"));   /* v1.0.18 : seule adaptation (numero de version) */ assert((P.CONFIG.frozenLots["MONO-11"].dir) === ("MONO-11/v0.4"));
++  await T("V12-18", "version du produit et frontiere : config MONOLITH-v1.0.19, lot MONO-11 v0.4 ; le monolithe ne fabrique aucun prompt de revue (hors adaptateur EF-03B) ; lots geles 0 divergence", () => {
++    assert((P.CONFIG.product.version) === ("MONOLITH-v1.0.19"));   /* v1.0.18 : seule adaptation (numero de version) */ assert((P.CONFIG.frozenLots["MONO-11"].dir) === ("MONO-11/v0.4"));
+     const libSrc = fs.readdirSync(path.join(P.ROOT, "lib")).filter((f) => f !== "ef03b-resilience.js").map((f) => fs.readFileSync(path.join(P.ROOT, "lib", f), "utf8")).join("\n");
+     assert((/targetedRepairPrompt|informedRepairPrompt|buildReviewPrompt|REPRISE CIBLEE/.test(libSrc)) === false);
+     const ad = fs.readFileSync(path.join(P.ROOT, "lib", "ef03b-resilience.js"), "utf8"); assert((/RE\.targetedRepairPrompt|RE\.informedRepairPrompt/.test(ad)) === (false), "l'adaptateur n'appelle aucun constructeur de prompt gele"); });
+--- a/test/test-v1018-create-only.js
++++ b/test/test-v1018-create-only.js
+@@ -71,7 +71,7 @@
+  const created=await a.request('POST','/api/runs',payload);assert.equal(created.status,201);const id=created.data.runId;
+  const cases=[['GET','/'],['GET','/index.html'],['GET','/api/config'],['GET','/api/provider'],['POST','/api/preflight',{}],['POST','/api/runs',{...payload,question:'x'}],['POST','/api/runs',{...payload,files:[{name:'x.pdf',contentBase64:'eA=='}]}],['POST','/api/runs',{...payload,budget:null}],['POST','/api/documents/preview',payload],['POST','/api/reports/import',{}],['GET','/api/runs'],...['','log','gate','cost','economics','projection','report','artifacts','artifacts/state.json','artifacts/absent.json','evidence/absent'].map(x=>['GET','/api/runs/'+id+(x?'/'+x:'')]),...['confirm-plan','ratify-sources','confirm-economics','replay-reviews','budget','stop','resume'].map(x=>['POST','/api/runs/'+id+'/'+x,{}]),['GET','/unknown']];
+  const sse=await new Promise((resolve,reject)=>{const req=http.get({host:'127.0.0.1',port:a.server.address().port,path:'/api/runs/'+id+'/events'},res=>{let text='';res.on('data',b=>{text+=b;const line=/^data: (.+)\n/m.exec(text);if(line){resolve(JSON.parse(line[1]));req.destroy();}});});req.on('error',reject);});
+- const rows=[{method:'GET',url:'/api/runs/:id/events',firstEvent:norm(sse)}];for(const [method,url,body]of cases){const r=await a.request(method,url,body);if(url==='/api/config'){assert.equal(r.data.version,root===OLD?'MONOLITH-v1.0.17':'MONOLITH-v1.0.18');r.data.version='<expected-version>';}rows.push({method,url:url.replaceAll(id,':id'),...norm(r)});}
++ const rows=[{method:'GET',url:'/api/runs/:id/events',firstEvent:norm(sse)}];for(const [method,url,body]of cases){const r=await a.request(method,url,body);if(url==='/api/config'){assert.equal(r.data.version,root===OLD?'MONOLITH-v1.0.17':'MONOLITH-v1.0.19');r.data.version='<expected-version>';}rows.push({method,url:url.replaceAll(id,':id'),...norm(r)});}
+  const files=fs.readdirSync(path.join(runs,id)).filter(f=>f.endsWith('.json')).map(f=>[f,norm(JSON.parse(fs.readFileSync(path.join(runs,id,f))))]);
+  answers.push({creation:norm(created),rows,files});await close();}
+  assert.deepEqual(answers[1],answers[0],'historical differential');return answers[1];
+--- /dev/null
++++ b/test/test-v1019-transport.js
+@@ -0,0 +1,89 @@
++'use strict';
++const fs=require('fs'),path=require('path'),os=require('os'),assert=require('assert/strict'),Module=require('module');
++const ROOT=path.resolve(__dirname,'..'), OLD=path.join(ROOT,'../MONOLITH-v1.0.18');
++for(const k of Object.keys(process.env)) if(/^(EVIDENCEFORGE|LLM_|ANTHROPIC|OPENAI)/.test(k)) delete process.env[k];
++const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'ef-v1019-'));
++process.env.EVIDENCEFORGE_RUNS_ROOT=scratch;
++const P=require('../lib/paths.js'),TP=require('../lib/ef01-transport-policy.js'),CL=require('../lib/cost-ledger.js'),BG=require('../lib/budget-guard.js');
++const model=P.CONFIG.llm.model;
++const POLICY={...P.CONFIG.ef01Transport,responseStartTimeoutMs:12000,bodyReadTimeoutMs:3000};
++const secretProvider={getSecret:()=> 'local-controlled-not-a-credential'};
++const SP=require(path.join(P.MONO04,'lib/secret-provider.js'));SP.createEnvSecretProvider=()=>secretProvider;
++process.env.LLM_REAL_MODEL=model;
++const results=[];
++const mutants={
++ 'M19-01':["const responseStartTimeoutMs =", "const responseStartTimeoutMs ="],
++ 'M19-02':["['DISCIPLINES', 'PLAN', 'EF01'].includes(stage)","['DISCIPLINES'].includes(stage)"],
++ 'M19-03':["retryPolicy: { maxAttempts: 1, backoffMs: 0 }","retryPolicy: { maxAttempts: 2, backoffMs: 0 }"],
++ 'M19-04':["policy.bodyReadTimeoutMs, init.signal","null, init.signal"],
++ 'M19-05':["remoteCostUsd: null, remoteCostKnown: false","remoteCostUsd: 0, remoteCostKnown: true"],
++ 'M19-06':["req.provider === 'llm-worker'","['llm-worker', 'openalex', 'crossref'].includes(req.provider)"],
++ 'M19-07':["const effective = { ...req,","const effective = { ...req, payload: { ...req.payload, max_tokens: 1 },"],
++ 'M19-08':["persist(rec);","if (result.status === 'SUCCESS' && opts.cost?.ledger) opts.cost.ledger.record({kind: 'KIT_CALL', model: req.payload.model, usage: result.result.usage}); persist(rec);"]
++};
++function loadTP(mutant){ if(!mutant)return TP;const file=path.join(ROOT,'lib/ef01-transport-policy.js');let s=fs.readFileSync(file,'utf8');if(mutant==='M19-01')s=s.replace(': policy.responseStartTimeoutMs;',": (opts.stage === 'DISCIPLINES' ? 8000 : policy.responseStartTimeoutMs);");else{const [a,b]=mutants[mutant];assert(s.includes(a));s=s.replace(a,b);}const m=new Module(file,module);m.filename=file;m.paths=Module._nodeModulePaths(path.dirname(file));m._compile(s,file);return m.exports;}
++async function virtual(fn){
++ const old={setTimeout:global.setTimeout,clearTimeout:global.clearTimeout,now:Date.now};let t=0,id=0,done=false,value,error;const q=new Map();
++ global.setTimeout=(cb,ms=0,...args)=>{const i=++id;q.set(i,{at:t+Math.max(0,Number(ms)),cb:()=>cb(...args)});return i;};global.clearTimeout=i=>q.delete(i);Date.now=()=>1760000000000+t;
++ Promise.resolve().then(fn).then(v=>{value=v;done=true;},e=>{error=e;done=true;});
++ try{for(let n=0;n<2000&&!done;n++){await new Promise(r=>setImmediate(r));if(done)break;const next=[...q.entries()].sort((a,b)=>a[1].at-b[1].at)[0];if(next){t=next[1].at;q.delete(next[0]);next[1].cb();}}
++ if(!done)throw Error('VIRTUAL_CLOCK_UNSETTLED');if(error)throw error;return value;
++ }finally{global.setTimeout=old.setTimeout;global.clearTimeout=old.clearTimeout;Date.now=old.now;}
++}
++const response=(body,status=200)=>({status,headers:new Headers({'content-type':'application/json'}),text:async()=>typeof body==='string'?body:JSON.stringify(body)});
++const envelope=text=>({id:'test-provider-id',model,usage:{input_tokens:11,output_tokens:7},content:[{type:'text',text:JSON.stringify(text)}]});
++const resolver={proposals:[{disciplineId:'angle-a',label:'Angle documentaire',rationale:'Étudier les méthodes décrites.',evidenceContextRefs:[]}],targetContextReport:[]};
++const planner={sources:[{connectorId:'openalex',justification:'Couverture documentaire.'}],queries:[{connectorId:'openalex',discipline:'Angle documentaire',requete:'méthodes documentaires',justification:'Question examinée.'}],retrieval:[{connectorId:'openalex',sortMode:'relevance',stopCondition:'pagination épuisée',retryPolicy:'2 tentatives',rateLimitPolicy:'débit limité',budgetMax:'20 résultats',pageSize:10,maxPages:2,maxResults:20}],criteresInclusion:['pertinence'],criteresExclusion:['doublon'],regleDedoublonnage:'DOI',methodeQualification:'lecture documentaire',fenetreTemporelle:{debut:2000,fin:2026},langues:['fr'],typesDocumentsAdmis:['article']};
++function fakeFetch(steps){const calls=[];const fetchImpl=(url,init)=>{const n=calls.length;calls.push({url,body:init.body,signal:init.signal,at:Date.now()});const s=steps[Math.min(n,steps.length-1)];return new Promise((resolve,reject)=>{const fail=()=>{const e=Error('test abort');e.name='AbortError';reject(e);};if(init.signal?.aborted)return fail();init.signal?.addEventListener('abort',fail,{once:true});if(s.header===Infinity)return;if(s.error)return reject(Error('network interruption'));setTimeout(()=>{init.signal?.removeEventListener('abort',fail);const r=response(s.body??envelope(resolver),s.status??200);if(s.bodyDelay!==undefined)r.text=()=>s.bodyDelay===Infinity?new Promise(()=>{}):new Promise(r=>setTimeout(()=>r(JSON.stringify(s.body??envelope(resolver))),s.bodyDelay));resolve(r);},s.header??10);});};return {fetchImpl,calls};}
++function cost(){const dir=fs.mkdtempSync(path.join(scratch,'cost-'));const ledger=CL.createCostLedger({runDir:dir,runId:'test'});const budget=BG.createBudgetGuard({runDir:dir,ledger});budget.set({costBudgetUsd:1});return {ledger,budget};}
++const req=(provider='llm-worker')=>({requestId:'test-request',runId:'test-run',moduleId:'real-llm-call',provider,operation:'call',dependencyType:'worker',payload:{model,max_tokens:4096,messages:[{role:'user',content:'untouched prompt'}]},timeoutPolicy:{},retryPolicy:{maxAttempts:2,backoffMs:2000}});
++async function direct(steps,{stage='DISCIPLINES',mutant,provider,request,policy=POLICY,c=cost(),wrap=true}={}){const f=fakeFetch(steps),tp=loadTP(mutant);const previousFetch=global.fetch;global.fetch=f.fetchImpl;let mono;try{mono=require('../vendor/operator-kit-r1.3/build-real-mono04.js').buildRealMono04(P.BUNDLE,{});}finally{global.fetch=previousFetch;}mono=tp.composeEf01TransportPolicy(mono,{bundleRoot:P.BUNDLE,stage,policy,cost:c,recordsPath:path.join(c.ledger.runDir,'trace.jsonl')},{fetchImpl:f.fetchImpl});if(wrap)mono=require('../lib/mono04-fence-adapter.js').wrapMono04(mono,{cost:{...c,stage}});const requestValue=request||req(provider);const result=await virtual(()=>mono.gateway.executeRequest(requestValue));return {result,calls:f.calls,c,mono,request:requestValue};}
++async function stageCall(root,kind,steps,mutant,noCost=false){const f=fakeFetch(steps),orig=global.fetch;global.fetch=f.fetchImpl;const config=require(path.join(root,'lib/paths.js')).CONFIG;const prev=config.ef01Transport;config.ef01Transport=POLICY;const tpFile=path.join(ROOT,'lib/ef01-transport-policy.js'),prevModule=require.cache[tpFile];if(mutant)require.cache[tpFile]={id:tpFile,filename:tpFile,loaded:true,exports:loadTP(mutant)};
++ const dir=fs.mkdtempSync(path.join(scratch,'stage-'));const c=cost();let result,error;
++ try{const S=require(path.join(root,'lib/stage-ef01.js'));result=await virtual(()=>kind==='DISCIPLINES'?S.runDisciplines({runDir:dir,runId:'test-run',missionId:'test-mission',missionQuestion:'Comparer les méthodes documentaires disponibles.',documents:[],cost:noCost?null:c}):S.runPlanner({runDir:dir,runId:'test-run',missionId:'test-mission',missionQuestion:'Comparer les méthodes documentaires disponibles.',runContract:{statut:'confirme',runContractHash:'a'.repeat(64),disciplinesProposees:[{discipline:'Angle documentaire',statut:'retenue',justification:'Question documentaire.'}]},resolverOutputHash:'b'.repeat(64),cost:noCost?null:c}));}catch(e){error=e;}finally{global.fetch=orig;config.ef01Transport=prev;require.cache[tpFile]=prevModule;}return {result,error,calls:f.calls,c};}
++async function T(id,fn){try{await fn();results.push({id,pass:true});console.log('PASS '+id);}catch(e){results.push({id,pass:false,error:e.stack});console.error('FAIL '+id+' '+e.stack);}}
++async function rootSuccess(stage,mutant){const r=await stageCall(ROOT,stage,[{header:8500,body:envelope(stage==='PLAN'?planner:resolver)}],mutant);assert.ifError(r.error);assert.equal(r.calls.length,1);assert.equal(r.c.ledger.entries().length,1);assert.equal(r.result.provenance?.model||r.result.resolver.provenance.model,model);return r;}
++(async()=>{try{
++ await T('V1019-TP-01',async()=>{for(const stage of ['DISCIPLINES','PLAN']){const r=await stageCall(OLD,stage,[{header:8500,body:envelope(stage==='PLAN'?planner:resolver)}]);assert.equal(r.error?.code,'LLM_PROVIDER_UNAVAILABLE');assert.equal(r.calls.length,2);assert(r.calls.every(c=>c.signal.aborted));}});
++ await T('V1019-TP-02',()=>rootSuccess('DISCIPLINES'));
++ await T('V1019-TP-03',()=>rootSuccess('PLAN'));
++ for(const [id,provider]of [['04','openalex'],['05','crossref']])await T('V1019-TP-'+id,async()=>{const r=await direct([{header:8500}],{provider});assert.equal(r.result.status,'FAILED');assert.equal(r.result.ef01Transport,undefined);assert.equal(r.calls.length,2);assert.equal(r.mono.gateway.getCircuitState(provider).consecutiveFailures,2);});
++ await T('V1019-TP-06',async()=>{const r=await direct([{bodyDelay:Infinity}]);assert.equal(r.result.status,'FAILED');assert.equal(r.result.technicalDiagnostics.error.details.phase,'BODY_READ');assert.equal(r.calls.length,1);assert(r.calls[0].signal.aborted);});
++ await T('V1019-TP-07',async()=>{const r=await direct([{header:Infinity}]);assert.equal(r.result.technicalDiagnostics.error.code,TP.UNKNOWN);assert.equal(r.result.technicalDiagnostics.error.details.remoteCostKnown,false);});
++ await T('V1019-TP-08',async()=>{const r=await direct([{error:true}]);assert.equal(r.calls.length,1);assert.equal(r.result.technicalDiagnostics.error.code,TP.UNKNOWN);});
++ await T('V1019-TP-09',async()=>{const r=await direct([{status:429,body:{type:'error',error:{type:'rate_limit_error'}}},{body:envelope(resolver)}]);assert.equal(r.result.status,'SUCCESS');assert.equal(r.calls.length,2);assert.equal(r.result.ef01Transport.attempts[0].outcome,'SAFE_REJECTION');assert.equal(r.calls[0].body,r.calls[1].body);assert.equal(r.c.ledger.entries().length,1);});
++ await T('V1019-TP-10',async()=>{const r=await direct([{header:Infinity}]);const e=r.c.ledger.entries();assert.equal(e.length,1);assert.equal(e[0].cost,null);assert.equal(e[0].usage,null);assert.equal(e[0].priced,false);assert.equal(e[0].interrupted,true);assert.equal(r.result.technicalDiagnostics.error.details.remoteCostUsd,null);assert.throws(()=>r.c.budget.assertAllowed({model}),{code:'PRICING_UNKNOWN_FOR_MODEL'});});
++ await T('V1019-TP-11',async()=>{const c=cost();c.budget.set({costBudgetUsd:0});await assert.rejects(direct([{body:envelope(resolver)}],{c}),{code:'BUDGET_LIMIT_REACHED'});});
++ await T('V1019-TP-12',async()=>{const request=req();const r=await direct([{body:envelope(resolver)}],{request});assert.deepEqual(JSON.parse(r.calls[0].body),request.payload);assert.equal(r.result.requestId,request.requestId);assert.equal(r.result.result.id,'test-provider-id');assert.deepEqual(r.result.result.usage,{input_tokens:11,output_tokens:7});assert.equal(r.c.ledger.entries().length,1);assert.equal(r.c.ledger.entries()[0].localRequestId,request.requestId);});
++ for(const [id,file]of [['13','lib/pipeline.js'],['14','server.js'],['15','lib/run-stop.js']])await T('V1019-TP-'+id,()=>assert.equal(fs.readFileSync(path.join(ROOT,file),'utf8'),fs.readFileSync(path.join(OLD,file),'utf8')));
++ await T('V1019-TP-16',()=>{assert(Object.values(P.verifyFrozenLots()).every(x=>x.verified));});
++ await T('strict-policy',()=>{for(const v of [0,-1,NaN,Infinity,'180000junk','180000',999,900001,null]){assert.throws(()=>TP.validatePolicy({...POLICY,responseStartTimeoutMs:v}));assert.throws(()=>TP.validatePolicy({...POLICY,bodyReadTimeoutMs:v}));}assert.throws(()=>TP.validatePolicy({...POLICY,maxAttempts:3}));});
++ await T('explicit-request-policy',async()=>{const request=req();request.timeoutPolicy={timeoutMs:10000};const r=await direct([{header:9500}],{request});assert.equal(r.result.status,'SUCCESS');assert.equal(r.result.ef01Transport.responseStartTimeoutMs,10000);request.timeoutPolicy.timeoutMs=0;await assert.rejects(direct([{}],{request}),{code:'EF01_TRANSPORT_POLICY_INVALID'});});
++ await T('http-ambiguity-matrix',async()=>{for(const s of [{status:504,body:{error:'upstream_timeout'}},{status:500,body:{}},{status:429,body:{error:'untyped'}},{status:200,body:'{bad'}]){const r=await direct([s]);assert.equal(r.calls.length,1);assert.equal(r.result.technicalDiagnostics.error.code,TP.UNKNOWN);}const r=await direct([{status:401,body:{type:'error',error:{type:'authentication_error'}}}]);assert.equal(r.result.technicalDiagnostics.error.code,'EXTERNAL_HTTP_ERROR');assert.equal(r.calls.length,1);});
++ await T('safe-retry-exhausted',async()=>{const r=await direct([{status:429,body:{type:'error',error:{type:'rate_limit_error'}}}]);assert.equal(r.calls.length,2);assert.equal(r.result.status,'FAILED');assert.equal(r.result.technicalDiagnostics.error.code,'EXTERNAL_HTTP_ERROR');});
++ await T('unscoped-diagnostic',async()=>{const request={...req(),moduleId:'diagnostic'};const r=await direct([{header:8500}],{request});assert.equal(r.result.ef01Transport,undefined);assert.equal(r.calls.length,2);});
++ await T('known-usage-success',async()=>{const r=await direct([{body:envelope(resolver)}]);assert(r.c.ledger.entries()[0].cost.totalUsd>0);assert.equal(r.c.ledger.entries().length,1);});
++ await T('idempotence-unknown',async()=>{const r=await direct([{header:Infinity}],{wrap:false});const b=await r.mono.gateway.executeRequest(r.request);assert.deepEqual(b,r.result);assert.equal(r.calls.length,1);assert.equal(r.c.ledger.entries().length,1);assert.throws(()=>r.mono.gateway.executeRequest({...r.request,payload:{model}}),{code:'EXTERNAL_REQUEST_CONFLICT'});});
++ await T('stage-output-parity',async()=>{for(const stage of ['DISCIPLINES','PLAN']){const data=envelope(stage==='PLAN'?planner:resolver);const a=await stageCall(OLD,stage,[{body:data}]);const b=await stageCall(ROOT,stage,[{body:data}]);assert.ifError(a.error);assert.ifError(b.error);assert.equal(a.calls[0].body,b.calls[0].body);const pa=a.result.provenance||a.result.resolver.provenance,pb=b.result.provenance||b.result.resolver.provenance;for(const key of ['model','provider','inputHash','rawResponseHash','promptVersion'])assert.equal(pa[key],pb[key]);}});
++ await T('pipeline-unknown-stop',async()=>{const lm=require('../lib/llm.js'),original=lm.createLlm,fetch=global.fetch,policy=P.CONFIG.ef01Transport;const f=fakeFetch([{header:Infinity}]);lm.createLlm=()=>({model,preflight:async()=>({ok:true,code:'OK',model}),counts:()=>({real:0,reused:0}),onValidation:()=>{}});delete require.cache[require.resolve('../lib/pipeline.js')];const PL=require('../lib/pipeline.js'),RS=require('../lib/run-store.js');global.fetch=f.fetchImpl;P.CONFIG.ef01Transport=POLICY;
++ try{const cr=await PL.createRunOnly({question:'Examiner les méthodes documentaires disponibles.',files:[],budget:{mode:'LIMITED',costBudgetUsd:1}});const store=RS.createRunStore(cr.runId),st=store.read();st.stages.MISSION.status='DONE';st.mission.reformulated={missionReformulee:'Question documentaire.'};store.write(st);await virtual(()=>PL.advance(cr.runId));const after=store.read();assert.equal(after.status,'STOPPED');assert.equal(after.stage,'DISCIPLINES');assert.equal(after.error.code,'LLM_PROVIDER_UNAVAILABLE');assert(JSON.stringify(after.error).includes(TP.UNKNOWN));assert.equal(after.stages.PLAN.status,'PENDING');assert.equal(f.calls.length,1);assert.equal(CL.readEntries(store.dir)[0].cost,null);assert(!fs.existsSync(path.join(store.dir,'plan-confirmation.json')));}
++ finally{lm.createLlm=original;global.fetch=fetch;P.CONFIG.ef01Transport=policy;delete require.cache[require.resolve('../lib/pipeline.js')];}});
++ await T('ledger-legacy-parity',()=>{const oldCL=require(path.join(OLD,'lib/cost-ledger.js'));for(const usage of [null,{input_tokens:12,output_tokens:8}]){const d1=fs.mkdtempSync(path.join(scratch,'old-ledger-')),d2=fs.mkdtempSync(path.join(scratch,'new-ledger-'));const input={kind:'KIT_CALL',model,usage,at:'2026-01-01T00:00:00Z'};const a=oldCL.createCostLedger({runDir:d1,runId:'same'}).record(input),b=CL.createCostLedger({runDir:d2,runId:'same'}).record(input);assert.deepEqual(a,b);}});
++ await T('safe-refusal-then-unknown',async()=>{const r=await direct([{status:429,body:{type:'error',error:{type:'rate_limit_error'}}},{header:Infinity}]);assert.equal(r.calls.length,2);assert.equal(r.result.technicalDiagnostics.error.code,TP.UNKNOWN);assert.equal(r.c.ledger.entries().length,1);assert.equal(r.c.ledger.entries()[0].cost,null);});
++ await T('successful-envelope-without-usage',async()=>{const body=envelope(resolver);delete body.usage;const r=await direct([{body}]);assert.equal(r.result.status,'SUCCESS');assert.equal(r.c.ledger.entries()[0].cost,null);assert.equal(r.c.ledger.entries()[0].usage,null);assert.equal(r.c.ledger.entries()[0].priced,false);});
++ await T('idempotence-success-ledger',async()=>{const r=await direct([{}]);const again=await r.mono.gateway.executeRequest(r.request);assert.equal(again.status,'SUCCESS');assert.equal(r.calls.length,1);assert.equal(r.c.ledger.entries().length,1);});
++ await T('known-usage-on-failure',async()=>{const r=await direct([{status:500,body:envelope(resolver)}]);assert.equal(r.result.technicalDiagnostics.error.code,TP.UNKNOWN);assert(r.c.ledger.entries()[0].cost.totalUsd>0);assert.equal(r.c.ledger.entries()[0].usage.input,11);assert.equal(r.c.ledger.entries().length,1);});
++ await T('optional-ledger-does-not-disable-policy',async()=>{for(const stage of ['DISCIPLINES','PLAN']){const r=await stageCall(ROOT,stage,[{header:8500,body:envelope(stage==='PLAN'?planner:resolver)}],null,true);assert.ifError(r.error);assert.equal(r.calls.length,1);}});
++ const kills=[];
++ for(const mutant of Object.keys(mutants)){let killed=false,error;try{
++ if(mutant==='M19-01'||mutant==='M19-02')await rootSuccess(mutant==='M19-01'?'DISCIPLINES':'PLAN',mutant);
++ else if(mutant==='M19-03'){const r=await direct([{header:Infinity}],{mutant});assert.equal(r.calls.length,1);}
++ else if(mutant==='M19-04'){const r=await direct([{bodyDelay:Infinity}],{mutant});assert.equal(r.result.status,'FAILED');}
++ else if(mutant==='M19-05'){const ledgerFile=path.join(ROOT,'lib/cost-ledger.js');const lm=new Module(ledgerFile,module);lm.filename=ledgerFile;lm.paths=Module._nodeModulePaths(path.dirname(ledgerFile));lm._compile(fs.readFileSync(ledgerFile,'utf8').replace('const unknownEf01Usage =','const unknownEf01Usage = false &&'),ledgerFile);const dir=fs.mkdtempSync(path.join(scratch,'mut-ledger-'));const ledger=lm.exports.createCostLedger({runDir:dir,runId:'mutant'});const r=await direct([{header:Infinity}],{c:{ledger}});assert.equal(r.c.ledger.entries()[0].cost,null);}
++ else if(mutant==='M19-06'){const r=await direct([{header:8500}],{mutant,provider:'openalex'});assert.equal(r.result.status,'FAILED');assert.equal(r.calls.length,2);}
++ else if(mutant==='M19-07'){const r=await direct([{}],{mutant});assert.deepEqual(JSON.parse(r.calls[0].body),r.request.payload);}
++ else if(mutant==='M19-08'){const r=await direct([{}],{mutant});assert.equal(r.c.ledger.entries().length,1);}
++ }catch(e){killed=true;error=e.message;}kills.push({mutant,killed,error});console.log(mutant+' '+(killed?'KILLED':'SURVIVED'));}
++ const out={schema:'EvidenceForge.V1019OfflineTransportTests',results,passed:results.filter(r=>r.pass).length,total:results.length,mutations:kills,realProviderCalls:0,realProviderCostUsd:0};
++ fs.writeFileSync(path.join(__dirname,'results-v1019-transport.json'),JSON.stringify(out,null,2)+'\n');if(results.some(r=>!r.pass)||kills.some(r=>!r.killed))process.exitCode=1;
++ }finally{fs.rmSync(scratch,{recursive:true,force:true});}})();
+--- /dev/null
++++ b/test/v1019-browser-network-guard.cjs
+@@ -0,0 +1,8 @@
++'use strict';
++require('./v1018-network-guard.cjs');
++// Fresh headless profiles only; external browser requests go to an unreachable loopback proxy.
++const cp=require('child_process'),spawn=cp.spawn;
++cp.spawn=function(file,args,options){
++ if(String(file).includes('Google Chrome')) args=[...args,'--disable-background-networking','--disable-component-update','--disable-sync','--disable-quic','--no-first-run','--proxy-server=http://127.0.0.1:9','--proxy-bypass-list=localhost;127.0.0.1;[::1]','--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1, EXCLUDE [::1]'];
++ return spawn.call(this,file,args,options);
++};
+--- a/tools/browser-tests-v1017.js
++++ b/tools/browser-tests-v1017.js
+@@ -29,7 +29,7 @@
+   const rep2 = MD.attachToReport(base, MD.evaluate({ assessment: MD.assess(RICH), report: base, acceptance: null }), SRP.computeReportHash); r2.saveJson("report.json", rep2);
+   /* seed 3 : run COMPLETED avec un rapport ANTERIEUR (sans missionDeliverables) */
+   const r3 = mk("efm-20261002-ui1017old", "COMPLETED", RS.STAGES.slice(), { summary: { PROCESS_QUALIFICATION: "QUALIFIED_WITH_RESERVATIONS" } }); r3.saveJson("report.json", Object.assign({}, base, { runId: r3.runId }));
+-  const cfg = await (await fetch(BASE + "/api/config")).json(); ok("serveur v1.0.17 : /api/config version", cfg.version === require("../config/monolith.config.json").product.version && cfg.version === "MONOLITH-v1.0.17", JSON.stringify(cfg).slice(0, 200));
++  const cfg = await (await fetch(BASE + "/api/config")).json(); ok("serveur v1.0.17 : /api/config version", cfg.version === require("../config/monolith.config.json").product.version && cfg.version === "MONOLITH-v1.0.19", JSON.stringify(cfg).slice(0, 200));
+   const g = await (await fetch(BASE + "/api/runs/" + r1.runId + "/gate")).json(); ok("API gate : evaluation des livrables (4 non produits, reconnaissance requise)", g.deliverables && g.deliverables.notSupported.length === 4 && g.deliverables.acknowledgementRequired === true, JSON.stringify(g).slice(0, 300));
+   const chrome = spawn(CH, ["--headless=new", "--disable-gpu", "--no-sandbox", "--remote-debugging-port=" + CDP, "--window-size=1280,1600", "--user-data-dir=" + fs.mkdtempSync(path.join(os.tmpdir(), "cdp1017-")), "about:blank"], { stdio: "ignore" }); for (let i = 0; i < 80; i++) { try { const r = await fetch("http://127.0.0.1:" + CDP + "/json/version"); if (r.ok) break; } catch (e) { /* attente */ } await sleep(250); }
+   async function page(url) {
+--- a/tools/build-manifest.js
++++ b/tools/build-manifest.js
+@@ -33,9 +33,11 @@
+     provenance: "MONOLITH v1.0.17 = v1.0.16 GELEE et ACTIVEE + MISSION CONTRACT ENFORCEMENT (R-A, audit JMMJS-P0.1-CLOSURE-AUDIT) : livrables demandes (livrableAttendu) evalues par le registre lexical deterministe MISSION-DELIVERABLES-v1 contre les capacites declarees de la version, affiches avant la Porte 1 ; tout livrable non garanti exige une reconnaissance explicite liee a l empreinte de l evaluation ; un run dont un livrable ACCEPTE est absent termine INCOMPLETE_DELIVERABLES (jamais COMPLETED) ; missionDeliverables (REQUESTED -> PRODUCED / NOT_PRODUCED_BY_DESIGN / NOT_PRODUCED_ERROR) et en-tete MISSION_DELIVERABLES au rapport ; aucun verdict metier, aucun mapping depuis PROCESS_QUALIFICATION / SCIENTIFICALLY_USABLE. MONOLITH v1.0.16 = v1.0.15 GELEE (FROZEN_WITH_RESERVATIONS, ACTIVATION_BLOCKED_BY_PB_B7) + PB-B7 SECONDARY REUSE FIX : le magasin generique llm-reuse-store ne reutilise une reponse EF-03B que si l entree porte EXACTEMENT la cible, l empreinte d autorite normalisee, le contrat et le sceau de l appel courant (lib/llm.js checkEf03bReuseIdentity ; option A : memes contraintes que le registre) ; entree EF-03B sans cible ou sans empreinte = NON_REUSABLE_FOR_EF03B_V3 (aucune migration) ; l adaptateur transmet l identite canonique a chaque appel de transport. MONOLITH v1.0.15 = v1.0.14 GELEE + AUTHORITY IDENTITY HARDENING (R1 identite cible <-> document ; R2 identite du document et non simple point fixe de normalisation ; R4 couverture comportementale de l import de registre) — portee strictement limitee aux trois reserves bloquantes pour activation de l audit independant de v1.0.14. MONOLITH v1.0.14 = v1.0.12 GELEE + SINGLE NORMALIZED DOCUMENT AUTHORITY (R-A2 : la litteralite est jugee sur le document NORMALISE que MONO-11 examine, jamais sur le brut ni sur une reconstruction du prompt) + RA1 TRACE PARITY + correctif d import de registre (B4) — la candidate v1.0.13 (autorite BRUTE) est REJETEE et conservee comme artefact historique. MONOLITH v1.0.12 = MONOLITH v1.0.12 = v1.0.11 (inchangee : correctif de litteralisation, transport streame, proxy v0.8, Panel Sufficiency, economic-panel, stage-professionals) + LOT GELE MONO-11 v0.4 (TARGETED REPAIR LINEAGE PRESERVATION, contrat MONO-11-v3 : LINEAGE_MONOTONICITY_DURING_REPAIR) : GLOBAL LINEAGE PRESERVATION sur les deux chemins connus — litteralisation (adaptateur, v1.0.11) et reparation ciblee (lot gele, v0.4). Conditions d integration de l audit independant v1.0.11 traitees : R5 (miroir de l adaptateur aligne sur le lot : RE.mergeRepairLineage avant RE.recompose) et R6 (contrat de validation lu dans la configuration du lot ; registre et cache fail-closed inter-sceau / inter-contrat ; import hors ligne refusant un autre sceau ou un autre contrat). MONOLITH v1.0.11 = v1.0.10 (inchangee : prompts, validateurs, registre, troncature, agregation, rapport, transport, proxy v0.8, lots geles) + EF-03B LITERALIZATION LINEAGE PRESERVATION : lib/ef03b-resilience.js bloc G — la recomposition apres litteralisation conserve les references originales deja litterales et ajoute les references reparees litterales (fusion pure, ordre brut puis modele, deduplication stable) au lieu de remplacer le tableau entier ; cause racine v1.0.10 = references litterales exclues des propositions puis RE.recompose (gele) remplacant le tableau : 12 citations valides perdues et 3 constats vides au run efm-20260918-a64167c0 t.10 (audit independant + reconstruction hors ligne LINEAGE_RESTORATION_PASS) ; tests T-EF03B-27..35 (T1..T6, non-regression semantique, purete, shadow historique lecture seule). MONOLITH v1.0.10 = v1.0.9 (inchangee : transport streame, proxy v0.8, Panel Sufficiency, economic-panel, stage-professionals) + EF-03B REVIEW RESILIENCE : adaptateur additif lib/ef03b-resilience.js autour de llmCall (registre des revues logiques VALID servies a 0 appel puis revalidees par le lot gele ; contrat de budget de sortie = forme seule ; max_tokens dimensionne au contrat (12288) ; troncature => REVIEW_OUTPUT_TRUNCATED, sauvetage structurel des findings complets + completion ciblee des dimensions manquantes, fusion deterministe ; litteralisation sur extraits (spans exacts proposes, choix du modele, empreinte de contexte) ; replay cible des revues depuis le checkpoint professionnel ; trace EF-03B par passe ; outils d autopsie / import de registre hors ligne) — correctif des 8 revues ERROR (21 sorties tronquees a 8192, 173 citations non litterales dont 74 % par mise en forme Markdown) du run reel (EF03B-REAL-RUN-AUTOPSY-v1.md). v1.0.9 = v1.0.8 (inchangee cote client : streaming valide en reel) + proxy v0.8 : delais separes HEADER_TIMEOUT_MS (seul applique par le Worker, attente des en-tetes amont, defaut 60 s justifie par la mesure : max 7,0 s sur 56 appels reels, fenetre edge ~100 s, client premier octet 180 s) / STREAM_INACTIVITY_TIMEOUT_MS / STREAM_MAX_DURATION_MS (gardes client, annoncees jamais appliquees), lecture stricte des variables Cloudflare (chaine/nombre, bornes, defaut sur + trace non sensible), alias TIMEOUT_MS herite — correctif du 504 upstream_timeout a 8,187 s (ROOT-CAUSE-504-8S-AUTOPSY-v1.md). v1.0.8 = v1.0.7 (inchangee : Panel Sufficiency, economic-panel, contrats scientifiques, semantique et independance des jumeaux, fanout 1 revue par jumeau x cible dossier) + STREAMING TRANSPORT (Anthropic stream:true -> Worker v0.7 relais SSE -> client lib/llm-stream.js reconstruction canonique deterministe -> validation / cache / reuse / ledger inchanges ; interruption fail-closed PROVIDER_STREAM_INTERRUPTED, aucun retry automatique, cout connu inscrit) + LIVE OBSERVABILITY (lib/live-status.js : live-status.json, state.live, heartbeat borne, trace console optionnelle EVIDENCEFORGE_TRACE_REVIEWS=1) — correctif des HTTP 524 edge sur les revues de dossier (ROOT-CAUSE-524-AUTOPSY-v1.md). v1.0.7 : ECONOMIC PANEL OPTIMIZATION + EARLY SUFFICIENCY + MARGINAL VALUE CONTROL + REVIEW FANOUT CONTROL : politique SUFFICIENCY_FIRST (lib/economic-panel.js) — panel initial compact, lots d expansion reevalues, contribution marginale par composantes, DIMINISHING_INFORMATION_RETURNS descriptif, arret budgetaire AVANT un lot (PANEL_INCOMPLETE_BUDGET_LIMIT reprenable, jamais une suffisance), plafond = garde ; cibles de revue = dossier de mission (1 revue complete par jumeau et par mission, PER_DOCUMENT explicite) ; compteurs reviewDocuments / reviewItems distincts ; projection avant la premiere revue, ECONOMIC_OUTLIER_WARNING, porte humaine ECONOMIC_REVIEW ; PANEL-SUFFICIENCY-v2 inchangee = seule autorite scientifique ; lots geles inchanges",
+     status: "CANDIDAT (v1.0.17) — NON GELE, NON ACTIVE, NON FUME : MISSION CONTRACT ENFORCEMENT (R-A) ; tests MD-01..22 + navigateur v1.0.17 ; matrice de mutation M01..M16 (16 tues) ; audit independant requis avant gel ; ACTIVE_VERSION inchangee (MONOLITH-v1.0.16) ; aucun appel fournisseur. Historique v1.0.16 : CANDIDAT (v1.0.16) — NON GELE, NON ACTIVE, NON FUME : fermeture candidate de PB-B7 (reutilisation secondaire EF-03B liee a cible + autorite + contrat + sceau) ; tests PB7-01..13 ; audit independant requis avant gel ; ACTIVE_VERSION inchangee (MONOLITH-v1.0.10). Historique v1.0.15 : CANDIDAT (v1.0.15) — NON GELE, NON ACTIVE, NON FUME : durcissement R1 / R2 / R4 ; 332 tests passes (313 de v1.0.14 conserves + R1-01..06, R2-01..08, R4-01..05) ; matrice de mutation M1..M7 : chaque mutant tue par un test nomme (M7 = le mutant X1 survivant de l audit v1.0.14) ; audit independant requis AVANT gel ; ACTIVE_VERSION inchangee (MONOLITH-v1.0.10) ; aucun run reel, aucun appel fournisseur ; smoke reel requis avant activation ; statut de lignee maximal avant audit : GLOBAL_LINEAGE_PRESERVATION_HARDENED_CANDIDATE" };
+   // v1.0.18 : provenance candidate mesuree, sans decision de gel/activation.
+-  const previous = JSON.parse(fs.readFileSync(path.join(ROOT, "..", "MONOLITH-v1.0.17", "MANIFEST.json"), "utf8"));
+-  integration.predecessorV1017 = { version: previous.product.version, contentHash: previous.contentHash, fileCount: previous.fileCount };
+-  integration.provenance = "MONOLITH v1.0.18 CANDIDATE : POST /api/runs/create + createRunOnly ; creation persistante sans fournisseur ni advance. Historique v1.0.17 inchange. Audit independant requis ; ni gelee ni activee.";
++  const previous = JSON.parse(fs.readFileSync(path.join(ROOT, "..", "MONOLITH-v1.0.18", "MANIFEST.json"), "utf8"));
++  integration.predecessorV1018 = { version: previous.product.version, contentHash: previous.contentHash, fileCount: previous.fileCount };
++  integration.provenance = "MONOLITH v1.0.19 CANDIDATE : EF01_TRANSPORT_POLICY_V1 par composition, timeout explicite, lecture JSON bornee, reprise seulement apres refus sur, cout inconnu conserve. v1.0.18 et lots geles inchanges. Audit independant requis ; ni gelee ni activee.";
++  const transportTests = JSON.parse(fs.readFileSync(path.join(ROOT, "test/results-v1019-transport.json"), "utf8"));
++  integration.ef01Transport = { policy: cfg.ef01Transport, testsPassed: transportTests.passed, testsTotal: transportTests.total, mutantsKilled: transportTests.mutations.filter(x => x.killed).length, frozen: false, activated: false };
+   const co = JSON.parse(fs.readFileSync(path.join(ROOT, "test", "results-v1018-create-only.json"), "utf8"));
+   const restart = JSON.parse(fs.readFileSync(path.join(ROOT, "test", "results-v1018-process.json"), "utf8"));
+   integration.createOnly = { endpoint: "POST /api/runs/create", passed: co.passed, processRestartPassed: restart.pass, mutantsKilled: co.results.filter(r => r.killed === true).length, frozen: false, activated: false };

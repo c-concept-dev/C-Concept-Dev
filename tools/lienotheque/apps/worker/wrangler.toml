@@ -43,5 +43,70 @@ preview_urls = false
 # ignoré par git et ne doit jamais y entrer.
 #
 # Aucune section [vars] : une variable déclarée ici serait en clair dans le
-# dépôt public. Les deux secrets sont lus par le code depuis les liaisons de
+# dépôt public. Les secrets sont lus par le code depuis les liaisons de
 # l'hébergeur, et la route refuse d'ouvrir si l'un manque.
+#
+# Un test interdit la section elle-même, et pas seulement les secrets qu'on y
+# mettrait. J'ai voulu y placer « BIBLIOTHEQUE_FACADE », qui n'est pas un
+# secret, pour qu'on puisse le relire sans commande. Le test a refusé, et il a
+# raison : dans un dépôt public, un mur sans porte est plus sûr qu'un mur avec
+# une porte, et la valeur attendue se consigne très bien dans docs/decisions.md.
+#
+# Les réglages à poser à la main, hors du dépôt :
+#
+#     npx wrangler secret put SECRET_LAISSEZ       --config wrangler.toml
+#     npx wrangler secret put BIBLIOTHEQUE_FACADE  --config wrangler.toml
+
+# ── Le registre des bibliothèques publiées (lot E1, étape 1) ──────────────────
+#
+# Une base à part, qui ne contient aucun contenu de bibliothèque : seulement de
+# quoi savoir laquelle existe, où elle est servie et dans quel état.
+#
+# Les bibliothèques elles-mêmes auront chacune leur base, déclarée ici sur une
+# place nommée de la réserve (BIB_1…BIB_4) — c'est ce qui évite de donner au
+# Worker un jeton de compte capable de créer ou de supprimer une base, ce que
+# SEC-08 interdit. La réserve s'ajoutera quand la première base existera.
+#
+# Les migrations ne s'écrivent pas à la main : elles sont engendrées depuis
+# packages/depot-sqlite/src/migrations.ts par « pnpm build », et un test échoue
+# si le disque a dérivé du tableau. Pour les appliquer :
+#
+#     npx wrangler d1 migrations apply lienotheque-registre --config wrangler.toml --remote
+#
+[[d1_databases]]
+binding = "REGISTRE"
+database_name = "lienotheque-registre"
+database_id = "a4a21d00-c8a0-459a-a279-7b083ffa1794"
+migrations_dir = "migrations/registre"
+
+# ── La réserve de liaisons ────────────────────────────────────────────────────
+#
+# Une place par bibliothèque servie. Le registre dit laquelle est occupée par
+# qui ; le Worker ne fait que lire la base qu'on lui a reliée.
+#
+# BIB_1 porte pour l'instant « lienotheque-essai », la bibliothèque d'essai du
+# lot E1 — nommée ainsi pour qu'on ne la confonde jamais avec une vraie. Les
+# places suivantes s'ajoutent quand une bibliothèque en a besoin : déclarer des
+# places vides reviendrait à créer des bases que personne n'utilise.
+#
+#     npx wrangler d1 migrations apply lienotheque-essai --config wrangler.toml --remote
+#
+[[d1_databases]]
+binding = "BIB_1"
+database_name = "lienotheque-essai"
+database_id = "5c4aba81-9504-4551-bd75-4d9761e7bc2c"
+migrations_dir = "migrations/bibliotheque"
+
+# ── Les fichiers ──────────────────────────────────────────────────────────────
+#
+# Un seul compartiment, préfixé par bibliothèque. Un compartiment par
+# bibliothèque imposerait un redéploiement à chaque création, puisqu'une liaison
+# se déclare ici ; un préfixe n'impose rien.
+#
+# Le prix est assumé et dit : pour les fichiers, l'isolation est tenue par le
+# code et non par la structure. Tout ce qui compose une clé passe par
+# packages/noyau/src/objets.ts, et un test refuse qu'un second module s'y mette.
+#
+[[r2_buckets]]
+binding = "MEDIAS"
+bucket_name = "lienotheque-medias"

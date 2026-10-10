@@ -1,0 +1,396 @@
+{
+ "schema": "EvidenceForge.EF03BLineageFixture",
+ "version": "v1",
+ "note": "derive des cas observes lors d'une tentative reelle (4 revues : 3 litteralisations + 1 reparation ciblee) : references brutes, reparations tracees et resultat attendu par dimension. Le document cible reel n'est PAS inclus : `content` est un document synthetique forme des seuls passages litteraux (originales valides + reparees valides) ; les references non litterales du brut restent ABSENTES de ce document (verifie a la generation et par le test). Les jetons de cas (identifiants, noms de projet, de phase, de cas sentinelle) sont remplaces de facon coherente et injective : les relations de litteralite sont preservees. Aucun secret, aucun appel fournisseur, aucune dependance au run.",
+ "cases": [
+  {
+   "case": "CASE-A",
+   "content": "Mouvements/positions qui posent question (réponse libre)\n\nréaction pendant l'activité ;\n- réaction juste après ;\n- récupération ;\n- persistance éventuelle le lendemain\n\nCAS-A / CAS-B\n= cas d'observation\n≠ profils produit\n≠ règles métier\n≠ catégories\n≠ seuils\n≠ exceptions codées\n\nrecommandations déjà reçues ;\n- consignes à éviter / arrêter / privilégier.\n\nAucune valeur, préférence, difficulté, activité, formulation, combinaison ou chiffre propre à CAS-A ou CAS-B ne doit devenir directement\n\nCONSERVER** — la structure actuelle paraît suffisante ;\n- **MODIFIER** — le besoin est pertinent mais la formulation / structure est insuffisante\n\nQue doit pouvoir conserver une structure longitudinale sans imposer la même mémoire à tout le monde ?\n\n**Une donnée absente reste inconnue.**\n\nLa fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable ;\n- information ancienne non confirmée aujourd'hui ?",
+   "contentSha256": "4bd04bd2e512f3d8e4456ad4d2afab2dd5fe7ac60604a2269325bd4770267c78",
+   "expectedLostByV110": 4,
+   "expectedEmptiedRestored": [
+    "DISC-07"
+   ],
+   "dims": [
+    {
+     "dimensionId": "DISC-02",
+     "raw": [
+      "Mouvements/positions qui posent question (réponse libre)",
+      "réaction pendant l'activité ; réaction juste après ; récupération ; persistance éventuelle le lendemain"
+     ],
+     "repairs": [
+      [
+       "réaction pendant l'activité ;\n- réaction juste après ;\n- récupération ;\n- persistance éventuelle le lendemain"
+      ]
+     ],
+     "expectedFinal": [
+      "Mouvements/positions qui posent question (réponse libre)",
+      "réaction pendant l'activité ;\n- réaction juste après ;\n- récupération ;\n- persistance éventuelle le lendemain"
+     ],
+     "persistedA10": [
+      "réaction pendant l'activité ;\n- réaction juste après ;\n- récupération ;\n- persistance éventuelle le lendemain"
+     ],
+     "lostByV110": [
+      "Mouvements/positions qui posent question (réponse libre)"
+     ]
+    },
+    {
+     "dimensionId": "DISC-03",
+     "raw": [
+      "CAS-A / CAS-B = cas d'observation ≠ profils produit ≠ règles métier ≠ catégories ≠ seuils ≠ exceptions codées",
+      "Ajouter une relance facultative, ou modifier la formulation ?"
+     ],
+     "repairs": [
+      [
+       "CAS-A / CAS-B\n= cas d'observation\n≠ profils produit\n≠ règles métier\n≠ catégories\n≠ seuils\n≠ exceptions codées",
+       ""
+      ],
+      [
+       "CAS-A / CAS-B\n= cas d'observation\n≠ profils produit\n≠ règles métier\n≠ catégories\n≠ seuils\n≠ exceptions codées"
+      ]
+     ],
+     "expectedFinal": [
+      "CAS-A / CAS-B\n= cas d'observation\n≠ profils produit\n≠ règles métier\n≠ catégories\n≠ seuils\n≠ exceptions codées"
+     ],
+     "persistedA10": [
+      "CAS-A / CAS-B\n= cas d'observation\n≠ profils produit\n≠ règles métier\n≠ catégories\n≠ seuils\n≠ exceptions codées"
+     ],
+     "lostByV110": []
+    },
+    {
+     "dimensionId": "DISC-04",
+     "raw": [
+      "recommandations déjà reçues ; consignes à éviter / arrêter / privilégier.",
+      "La qualification réglementaire de la branche Activite n'est pas presumee."
+     ],
+     "repairs": [
+      [
+       "recommandations déjà reçues ;\n- consignes à éviter / arrêter / privilégier.",
+       ""
+      ],
+      [
+       "recommandations déjà reçues ;\n- consignes à éviter / arrêter / privilégier."
+      ]
+     ],
+     "expectedFinal": [
+      "recommandations déjà reçues ;\n- consignes à éviter / arrêter / privilégier."
+     ],
+     "persistedA10": [
+      "recommandations déjà reçues ;\n- consignes à éviter / arrêter / privilégier."
+     ],
+     "lostByV110": []
+    },
+    {
+     "dimensionId": "DISC-06",
+     "raw": [
+      "**CONSERVER** — la structure actuelle paraît suffisante ; **MODIFIER** — le besoin est pertinent mais la formulation / structure est insuffisante",
+      "Aucune valeur, préférence, difficulté, activité, formulation, combinaison ou chiffre propre à CAS-A ou CAS-B ne doit devenir directement"
+     ],
+     "repairs": [
+      [
+       "CONSERVER** — la structure actuelle paraît suffisante ;\n- **MODIFIER** — le besoin est pertinent mais la formulation / structure est insuffisante"
+      ]
+     ],
+     "expectedFinal": [
+      "Aucune valeur, préférence, difficulté, activité, formulation, combinaison ou chiffre propre à CAS-A ou CAS-B ne doit devenir directement",
+      "CONSERVER** — la structure actuelle paraît suffisante ;\n- **MODIFIER** — le besoin est pertinent mais la formulation / structure est insuffisante"
+     ],
+     "persistedA10": [
+      "CONSERVER** — la structure actuelle paraît suffisante ;\n- **MODIFIER** — le besoin est pertinent mais la formulation / structure est insuffisante"
+     ],
+     "lostByV110": [
+      "Aucune valeur, préférence, difficulté, activité, formulation, combinaison ou chiffre propre à CAS-A ou CAS-B ne doit devenir directement"
+     ]
+    },
+    {
+     "dimensionId": "DISC-07",
+     "raw": [
+      "Que doit pouvoir conserver une structure longitudinale sans imposer la même mémoire à tout le monde ?",
+      "La structure permet-elle de séparer correctement : Données plutôt stables ... Données variables"
+     ],
+     "repairs": [
+      [
+       ""
+      ],
+      []
+     ],
+     "expectedFinal": [
+      "Que doit pouvoir conserver une structure longitudinale sans imposer la même mémoire à tout le monde ?"
+     ],
+     "persistedA10": [],
+     "lostByV110": [
+      "Que doit pouvoir conserver une structure longitudinale sans imposer la même mémoire à tout le monde ?"
+     ]
+    },
+    {
+     "dimensionId": "DISC-09",
+     "raw": [
+      "**Une donnée absente reste inconnue.**",
+      "La fiche actuelle permet-elle de distinguer : « non » ; « je ne sais pas » ; non renseigné ; non applicable ; information ancienne non confirmée aujourd'hui ?"
+     ],
+     "repairs": [
+      [
+       "La fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable ;\n- information ancienne non confirmée aujourd'hui ?"
+      ]
+     ],
+     "expectedFinal": [
+      "**Une donnée absente reste inconnue.**",
+      "La fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable ;\n- information ancienne non confirmée aujourd'hui ?"
+     ],
+     "persistedA10": [
+      "La fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable ;\n- information ancienne non confirmée aujourd'hui ?"
+     ],
+     "lostByV110": [
+      "**Une donnée absente reste inconnue.**"
+     ]
+    }
+   ]
+  },
+  {
+   "case": "CASE-B",
+   "content": "Faut-il demander ce qui est :\n   - difficile ;\n   - impossible ;\n   - évité ;\n   - douloureux ;\n   - seulement inconfortable ?\n\nLa fiche permet-elle suffisamment de documenter :\n\n- réaction pendant l'activité ;\n- réaction juste après ;\n- récupération\n\nLes deux cas montrent qu'une activité actuellement difficile ou évitée peut néanmoins être souhaitée à terme.\n\nRisque-t-elle d'être interprétée comme une mesure clinique alors qu'elle est déclarative ?\n\nLa fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable\n\nToute décision doit être justifiée.\n\nCette section est la sortie principale de P0.1.\n\n**Elle ne doit contenir ni nom de profil, ni règle, ni seuil, ni valeur propre à CAS-A/CAS-B.**\n\nUne donnée absente reste inconnue.\n\nLa structure permet-elle de séparer correctement :\n\n### Données plutôt stables\n\nComment préserver l'état `unknown` si l'information est absente ?\n\nLa fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable ;\n- information ancienne non confirmée aujourd'hui ?",
+   "contentSha256": "ece1ca484a7f05d729ac8800fbfe255b17e83a439cffa0d7fbcf6cfc08aec05b",
+   "expectedLostByV110": 5,
+   "expectedEmptiedRestored": [
+    "DISC-03"
+   ],
+   "dims": [
+    {
+     "dimensionId": "DISC-02",
+     "raw": [
+      "Faut-il demander ce qui est : - difficile ; - impossible ; - évité ; - douloureux ; - seulement inconfortable ?",
+      "La fiche permet-elle suffisamment de documenter : - réaction pendant l'activité ; - réaction juste après ; - récupération"
+     ],
+     "repairs": [
+      [
+       "Faut-il demander ce qui est :\n   - difficile ;\n   - impossible ;\n   - évité ;\n   - douloureux ;\n   - seulement inconfortable ?",
+       "La fiche permet-elle suffisamment de documenter :\n\n- réaction pendant l'activité ;\n- réaction juste après ;\n- récupération"
+      ]
+     ],
+     "expectedFinal": [
+      "Faut-il demander ce qui est :\n   - difficile ;\n   - impossible ;\n   - évité ;\n   - douloureux ;\n   - seulement inconfortable ?",
+      "La fiche permet-elle suffisamment de documenter :\n\n- réaction pendant l'activité ;\n- réaction juste après ;\n- récupération"
+     ],
+     "persistedA10": [
+      "Faut-il demander ce qui est :\n   - difficile ;\n   - impossible ;\n   - évité ;\n   - douloureux ;\n   - seulement inconfortable ?",
+      "La fiche permet-elle suffisamment de documenter :\n\n- réaction pendant l'activité ;\n- réaction juste après ;\n- récupération"
+     ],
+     "lostByV110": []
+    },
+    {
+     "dimensionId": "DISC-03",
+     "raw": [
+      "Les deux cas montrent qu'une activité actuellement difficile ou évitée peut néanmoins être souhaitée à terme.",
+      "La structure doit-elle distinguer explicitement : habituel ≠ prévu ≠ réalisé ≠ réaction après réalisation"
+     ],
+     "repairs": [
+      []
+     ],
+     "expectedFinal": [
+      "Les deux cas montrent qu'une activité actuellement difficile ou évitée peut néanmoins être souhaitée à terme."
+     ],
+     "persistedA10": [],
+     "lostByV110": [
+      "Les deux cas montrent qu'une activité actuellement difficile ou évitée peut néanmoins être souhaitée à terme."
+     ]
+    },
+    {
+     "dimensionId": "DISC-05",
+     "raw": [
+      "Risque-t-elle d'être interprétée comme une mesure clinique alors qu'elle est déclarative ?",
+      "La fiche actuelle permet-elle de distinguer : - « non » ; - « je ne sais pas » ; - non renseigné ; - non applicable"
+     ],
+     "repairs": [
+      [
+       "La fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable"
+      ]
+     ],
+     "expectedFinal": [
+      "Risque-t-elle d'être interprétée comme une mesure clinique alors qu'elle est déclarative ?",
+      "La fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable"
+     ],
+     "persistedA10": [
+      "La fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable"
+     ],
+     "lostByV110": [
+      "Risque-t-elle d'être interprétée comme une mesure clinique alors qu'elle est déclarative ?"
+     ]
+    },
+    {
+     "dimensionId": "DISC-06",
+     "raw": [
+      "Toute décision doit être justifiée.",
+      "Cette section est la sortie principale de P0.1. **Elle ne doit contenir ni nom de profil, ni règle, ni seuil, ni valeur propre à CAS-A/CAS-B.**"
+     ],
+     "repairs": [
+      [
+       "Cette section est la sortie principale de P0.1.\n\n**Elle ne doit contenir ni nom de profil, ni règle, ni seuil, ni valeur propre à CAS-A/CAS-B.**"
+      ]
+     ],
+     "expectedFinal": [
+      "Toute décision doit être justifiée.",
+      "Cette section est la sortie principale de P0.1.\n\n**Elle ne doit contenir ni nom de profil, ni règle, ni seuil, ni valeur propre à CAS-A/CAS-B.**"
+     ],
+     "persistedA10": [
+      "Cette section est la sortie principale de P0.1.\n\n**Elle ne doit contenir ni nom de profil, ni règle, ni seuil, ni valeur propre à CAS-A/CAS-B.**"
+     ],
+     "lostByV110": [
+      "Toute décision doit être justifiée."
+     ]
+    },
+    {
+     "dimensionId": "DISC-07",
+     "raw": [
+      "La structure permet-elle de séparer correctement : Données plutôt stables",
+      "Une donnée absente reste inconnue."
+     ],
+     "repairs": [
+      [
+       "La structure permet-elle de séparer correctement :\n\n### Données plutôt stables"
+      ]
+     ],
+     "expectedFinal": [
+      "Une donnée absente reste inconnue.",
+      "La structure permet-elle de séparer correctement :\n\n### Données plutôt stables"
+     ],
+     "persistedA10": [
+      "La structure permet-elle de séparer correctement :\n\n### Données plutôt stables"
+     ],
+     "lostByV110": [
+      "Une donnée absente reste inconnue."
+     ]
+    },
+    {
+     "dimensionId": "DISC-09",
+     "raw": [
+      "Comment préserver l'état `unknown` si l'information est absente ?",
+      "La fiche actuelle permet-elle de distinguer : - « non » ; - « je ne sais pas » ; - non renseigné ; - non applicable ; - information ancienne non confirmée aujourd'hui ?"
+     ],
+     "repairs": [
+      [
+       "La fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable ;\n- information ancienne non confirmée aujourd'hui ?"
+      ]
+     ],
+     "expectedFinal": [
+      "Comment préserver l'état `unknown` si l'information est absente ?",
+      "La fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable ;\n- information ancienne non confirmée aujourd'hui ?"
+     ],
+     "persistedA10": [
+      "La fiche actuelle permet-elle de distinguer :\n\n- « non » ;\n- « je ne sais pas » ;\n- non renseigné ;\n- non applicable ;\n- information ancienne non confirmée aujourd'hui ?"
+     ],
+     "lostByV110": [
+      "Comment préserver l'état `unknown` si l'information est absente ?"
+     ]
+    }
+   ]
+  },
+  {
+   "case": "CASE-C",
+   "content": "**Elle ne doit contenir ni nom de profil, ni règle, ni seuil, ni valeur propre à CAS-A/CAS-B.**\n\nprevu != reel\n\nDonnées plutôt stables\n\nDonnées variables\n\n- [ ] Export brut CAS-A\n\nLa structure permet-elle de recueillir une telle explication sans la transformer en fait clinique validé ?",
+   "contentSha256": "799a0440ffacc06cca9753b5b1066daaf1a1bea4c64fe89f8cf78236396d8662",
+   "expectedLostByV110": 3,
+   "expectedEmptiedRestored": [
+    "DISC-06"
+   ],
+   "dims": [
+    {
+     "dimensionId": "DISC-06",
+     "raw": [
+      "**Elle ne doit contenir ni nom de profil, ni règle, ni seuil, ni valeur propre à CAS-A/CAS-B.**",
+      "**BESOINS DE REPRÉSENTATION**"
+     ],
+     "repairs": [
+      []
+     ],
+     "expectedFinal": [
+      "**Elle ne doit contenir ni nom de profil, ni règle, ni seuil, ni valeur propre à CAS-A/CAS-B.**"
+     ],
+     "persistedA10": [],
+     "lostByV110": [
+      "**Elle ne doit contenir ni nom de profil, ni règle, ni seuil, ni valeur propre à CAS-A/CAS-B.**"
+     ]
+    },
+    {
+     "dimensionId": "DISC-07",
+     "raw": [
+      "**Données plutôt stables**",
+      "**Données variables**",
+      "prevu != reel"
+     ],
+     "repairs": [
+      [
+       "Données plutôt stables",
+       "Données variables"
+      ]
+     ],
+     "expectedFinal": [
+      "prevu != reel",
+      "Données plutôt stables",
+      "Données variables"
+     ],
+     "persistedA10": [
+      "Données plutôt stables",
+      "Données variables"
+     ],
+     "lostByV110": [
+      "prevu != reel"
+     ]
+    },
+    {
+     "dimensionId": "DISC-08",
+     "raw": [
+      "- [ ] Export brut CAS-A",
+      "**La structure permet-elle de recueillir une telle explication sans la transformer en fait clinique validé ?**"
+     ],
+     "repairs": [
+      [
+       "La structure permet-elle de recueillir une telle explication sans la transformer en fait clinique validé ?"
+      ]
+     ],
+     "expectedFinal": [
+      "- [ ] Export brut CAS-A",
+      "La structure permet-elle de recueillir une telle explication sans la transformer en fait clinique validé ?"
+     ],
+     "persistedA10": [
+      "La structure permet-elle de recueillir une telle explication sans la transformer en fait clinique validé ?"
+     ],
+     "lostByV110": [
+      "- [ ] Export brut CAS-A"
+     ]
+    }
+   ]
+  },
+  {
+   "case": "CASE-D",
+   "content": "La fiche demande à partir de quand une activité choisie devient difficile.\n\nréaction pendant l'activité ;",
+   "contentSha256": "dd88158b590f32f2520a050b1d6200638c19c30cc31b6a5ef38a8da03599b961",
+   "expectedLostByV110": 0,
+   "expectedEmptiedRestored": [],
+   "dims": [
+    {
+     "dimensionId": "DISC-01",
+     "raw": [
+      "La fiche demande à partir de quand une activité choisie devient difficile.",
+      "réaction pendant l'activité ;",
+      "terminée comme prevu ou non ;"
+     ],
+     "repairs": [
+      [
+       "La fiche demande à partir de quand une activité choisie devient difficile.",
+       "réaction pendant l'activité ;"
+      ]
+     ],
+     "expectedFinal": [
+      "La fiche demande à partir de quand une activité choisie devient difficile.",
+      "réaction pendant l'activité ;"
+     ],
+     "persistedA10": [
+      "La fiche demande à partir de quand une activité choisie devient difficile.",
+      "réaction pendant l'activité ;"
+     ],
+     "lostByV110": []
+    }
+   ]
+  }
+ ]
+}
