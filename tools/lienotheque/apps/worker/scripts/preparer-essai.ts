@@ -47,6 +47,11 @@ const CORRESPONDANCE = {
   content: { colonne: "passage.texte" },
   chunk_index: { colonne: "passage.rang" },
   page_number: { colonne: "ancre.page" },
+  // Deux champs tirés d'un axe du classement : sans eux, `/library-facets` rend un objet vide,
+  // ce qui est juste mais ne prouve rien. Les noms d'axes sont sans domaine — la bibliothèque
+  // d'essai n'en a pas.
+  rayon: { axe: "axe_un" },
+  langue: { axe: "axe_deux" },
   chapter: null,
   page_end: null,
 };
@@ -68,9 +73,31 @@ executer(
    VALUES ('facade', 1, '${JSON.stringify(CORRESPONDANCE).replaceAll("'", "''")}');`,
 );
 
+console.log("Retrait de ce qu'un passage précédent aurait laissé…");
+executer(
+  BIBLIOTHEQUE,
+  `DELETE FROM passage WHERE version_id IN (SELECT id FROM version WHERE document_id IN (SELECT id FROM document WHERE titre = 'Document d''essai'));
+   DELETE FROM document WHERE titre = 'Document d''essai';`,
+);
+
 console.log("Semis de quelques passages lisibles…");
-const document = crypto.randomUUID();
-const version = crypto.randomUUID();
+
+/** Les identifiants sont **stables**, dérivés de la clé de la bibliothèque, et non tirés au
+ *  hasard à chaque passage.
+ *
+ *  Un `INSERT OR REPLACE` ne remplace que sur le même identifiant : avec des identifiants neufs,
+ *  le script se croyait rejouable et créait en réalité un document de plus à chaque fois. C'est
+ *  la même faute que celle relevée dans l'ancien outil d'administration, où le rang d'un passage
+ *  était recalculé par lot et créait des doublons — une identité qui n'est pas stable n'est pas
+ *  une identité. */
+const stable = (quoi: string): string => {
+  // Un UUID de forme valide, lisible, et le même d'un passage à l'autre.
+  const graine = [...`${CLE}/${quoi}`].reduce((somme, lettre) => (somme * 31 + lettre.codePointAt(0)!) >>> 0, 7);
+  const hexa = graine.toString(16).padStart(8, "0");
+  return `${hexa}-0000-7000-8000-${hexa}0000`;
+};
+const document = stable("document");
+const version = stable("version");
 const phrases = [
   "Le premier passage parle de mesure et de page imprimée.",
   "Le deuxième passage parle de version active et de repère.",
@@ -82,11 +109,13 @@ executer(
     `INSERT OR REPLACE INTO document (id, bibliotheque_id, titre, cree_le) VALUES ('${document}', '${CLE}', 'Document d''essai', '${maintenant}');`,
     `INSERT OR REPLACE INTO version (id, document_id, numero, etat, active, recette_id, recette_ver, cree_le) ` +
       `VALUES ('${version}', '${document}', 1, 'active', 1, 'essai', 1, '${maintenant}');`,
+    `INSERT OR REPLACE INTO classement (document_id, schema_cle, schema_version, axes) ` +
+      `VALUES ('${document}', 'essai', 1, '{"axe_un":"Premier rayon","axe_deux":"fr"}');`,
     ...phrases.flatMap((phrase, rang) => {
-      const ancre = crypto.randomUUID();
+      const ancre = stable(`ancre-${rang}`);
       return [
         `INSERT OR REPLACE INTO ancre (id, version_id, fichier, selecteur) VALUES ('${ancre}', '${version}', '${"e".repeat(64)}', '{"type":"page","page":${rang + 1}}');`,
-        `INSERT OR REPLACE INTO passage (id, version_id, ancre_id, rang, texte) VALUES ('${crypto.randomUUID()}', '${version}', '${ancre}', ${rang}, '${phrase.replaceAll("'", "''")}');`,
+        `INSERT OR REPLACE INTO passage (id, version_id, ancre_id, rang, texte) VALUES ('${stable(`passage-${rang}`)}', '${version}', '${ancre}', ${rang}, '${phrase.replaceAll("'", "''")}');`,
       ];
     }),
   ].join("\n"),

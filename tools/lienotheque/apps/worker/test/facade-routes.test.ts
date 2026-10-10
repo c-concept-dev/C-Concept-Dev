@@ -80,6 +80,22 @@ describe("la façade, de bout en bout (INT-04, RCH-12)", () => {
     expect((await appeler("/search-library", { query: "mesure" })).status).toBe(503);
   });
 
+  it("refuse sans jeton avant même de regarder sa configuration", async () => {
+    // Sinon un appelant anonyme apprend si la façade est configurée, et sur quelle bibliothèque
+    // elle bute. Le défaut s'était glissé là et ne s'est vu qu'en appelant le service déployé :
+    // chaque test regardait une question à la fois, et aucun ne regardait leur ordre.
+    liaisons = { JETON_ACCES: JETON };
+    const sansJeton = await appeler("/search-library", { query: "mesure" }, {});
+    expect(sansJeton.status).toBe(401);
+    expect(await sansJeton.json()).toEqual({ erreur: "Jeton refusé" });
+  });
+
+  it("dit « jeton refusé » même quand c'est le jeton du service qui manque", async () => {
+    // « Le jeton n'est pas configuré » renseignerait sur l'état du service sans y avoir droit.
+    liaisons = {};
+    expect((await appeler("/search-library", { query: "mesure" })).status).toBe(401);
+  });
+
   it("répond « indisponible » plutôt que n'importe quoi si la bibliothèque n'est pas servie", async () => {
     liaisons = { ...liaisons, BIBLIOTHEQUE_FACADE: "jamais-inscrite" };
     expect((await appeler("/search-library", { query: "mesure" })).status).toBe(503);

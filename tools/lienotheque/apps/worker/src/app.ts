@@ -185,16 +185,23 @@ export function creerApp({ maintenant = () => new Date(), lecteur = lireParModel
     env: Liaisons;
     req: { raw: Request };
   }): Promise<{ base: BaseSql; correspondance: Correspondance } | Response> => {
+    // La porte d'abord, la configuration ensuite.
+    //
+    // L'inverse — vérifier la configuration avant le jeton — apprenait à un appelant anonyme si
+    // la façade est configurée, et sur quelle bibliothèque elle bute. C'est le même principe que
+    // les refus indiscernables des droits : qui n'a pas le jeton n'apprend rien, pas même
+    // l'état du service. Le défaut s'est vu en éprouvant les routes par-dessus le réseau, pas
+    // dans les tests — ils passaient tous, chacun regardant une question à la fois.
+    const attendu = contexte.env.JETON_ACCES;
+    if (attendu === undefined || attendu.length === 0)
+      return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+    const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
+    if (donne === undefined || !memeJeton(donne, attendu)) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+
     const cle = contexte.env.BIBLIOTHEQUE_FACADE;
     const registre = contexte.env.REGISTRE;
     if (cle === undefined || cle.length === 0 || registre === undefined)
       return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
-
-    const attendu = contexte.env.JETON_ACCES;
-    if (attendu === undefined || attendu.length === 0)
-      return Response.json({ erreur: "Le jeton d'accès n'est pas configuré" }, { status: 503 });
-    const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
-    if (donne === undefined || !memeJeton(donne, attendu)) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
 
     const inscrite = await laBibliotheque(registre, cle);
     if (inscrite === undefined || inscrite.liaison === undefined)

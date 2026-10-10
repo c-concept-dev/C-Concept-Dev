@@ -2524,3 +2524,35 @@ exactement ici, dans ce tableau, sans rien ouvrir. Le garde-fou avait raison con
 dépose la correspondance que la façade lit. Sans elle, les quatre routes répondent
 « indisponible » — ce qui est le bon comportement, mais ne prouve rien. Le script refuse toute
 base dont le nom ne finit pas par `-essai`.
+
+### BAS-01 franchi — les quatre routes répondent par-dessus le réseau (10 octobre 2026)
+
+| Route | Réponse | Latence |
+|---|---|---:|
+| `/search-library` | `results` : passage, titre, page imprimée, axes | 168 ms |
+| `/d1-query` | `results`, depuis une intention à termes | 162 ms |
+| `/rag-search` | `chunks` — le même contenu sous le nom que l'appelant attend | 167 ms |
+| `/library-facets` | `facets` : comptes par axe | 163 ms |
+
+**Deux secrets vides, et pourquoi on ne s'en apercevait pas.** Les quatre routes refusaient avec
+« la façade n'est pas configurée » alors que `wrangler secret list` montrait les quatre secrets.
+Le motif a nommé le coupable : le secret posé de longue date arrivait, les deux posés le matin
+même non. `wrangler secret put` lit l'entrée standard et enregistre une entrée vide sans
+protester ; le code traite une chaîne vide comme « non configuré », ce qui est juste — mais
+l'écart entre « le secret existe » et « le secret vaut quelque chose » ne se voit nulle part.
+
+**Un défaut d'ordre, invisible aux tests et visible au premier appel réel.** La façade vérifiait
+sa configuration **avant** le jeton. Un appelant anonyme apprenait donc si elle est configurée, et
+sur quelle bibliothèque elle bute — exactement ce qui est refusé ailleurs, où « pas votre
+bibliothèque » et « droits insuffisants » rendent la même phrase. Les tests passaient tous : ils
+regardaient chacun une question à la fois, aucun ne regardait leur **ordre**. Corrigé, et deux
+contrôles l'exigent désormais, dont un qui vérifie qu'un jeton de service manquant se dit
+« jeton refusé » et non « service non configuré ».
+
+**Un script qui se croyait rejouable.** `preparer-essai.ts` employait `INSERT OR REPLACE` avec des
+identifiants tirés au hasard à chaque passage : il créait donc un document de plus à chaque
+exécution au lieu de remplacer le précédent. Le défaut s'est trahi par une contradiction — les
+facettes comptaient trois valeurs d'axe quand la recherche rendait des axes vides, parce que les
+deux regardaient des documents différents. Les identifiants sont désormais dérivés de la clé de
+la bibliothèque. C'est la faute relevée dans l'ancien outil d'administration, où le rang d'un
+passage était recalculé par lot : **une identité qui n'est pas stable n'est pas une identité.**
