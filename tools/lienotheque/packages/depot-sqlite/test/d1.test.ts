@@ -11,6 +11,17 @@ const RACINE = fileURLToPath(new URL("../../..", import.meta.url));
 const DOSSIER = join(RACINE, "apps/worker/migrations");
 const bases = Object.keys(BASES_D1) as BaseD1[];
 
+/** La première ligne qui diffère, et rien d'autre. Un message d'échec qui recrache deux fichiers
+ *  entiers oblige à chercher ; celui-ci montre. */
+function premiereDifference(sur_disque: string, attendu: string): string | undefined {
+  const a = sur_disque.split("\n");
+  const b = attendu.split("\n");
+  for (let rang = 0; rang < Math.max(a.length, b.length); rang += 1) {
+    if (a[rang] !== b[rang]) return `ligne ${rang + 1} : disque « ${a[rang] ?? "(fin)"} », attendu « ${b[rang] ?? "(fin)"} »`;
+  }
+  return undefined;
+}
+
 describe("migrations D1 engendrées (HEB-03)", () => {
   it.each(bases)("%s : les fichiers sur le disque sont ceux qu'on engendrerait", (base) => {
     const dossier = join(DOSSIER, base);
@@ -21,8 +32,14 @@ describe("migrations D1 engendrées (HEB-03)", () => {
     expect(presents, `le dossier ${base} a dérivé — relancez « pnpm build »`).toEqual(attendus.map((f) => f.nom).sort());
 
     for (const fichier of attendus) {
-      const sur_disque = readFileSync(join(dossier, fichier.nom), "utf8");
-      expect(sur_disque, `${base}/${fichier.nom} a été modifié à la main — relancez « pnpm build »`).toBe(fichier.contenu);
+      // Les fins de ligne sont mises de côté avant la comparaison. Le dépôt normalise en
+      // « text=auto », donc une sortie sur Windows rend des CRLF : le test échouerait alors en
+      // montrant deux textes rigoureusement identiques à l'écran, ce qui est la pire façon
+      // d'échouer. Le `.gitattributes` du dossier fige les fins de ligne ; ceci est la ceinture
+      // qui va avec la bretelle, et le message dit ce qui diffère vraiment.
+      const sur_disque = readFileSync(join(dossier, fichier.nom), "utf8").replace(/\r\n/g, "\n");
+      const ecart = premiereDifference(sur_disque, fichier.contenu);
+      expect(ecart, `${base}/${fichier.nom} a dérivé du tableau — relancez « pnpm build »`).toBeUndefined();
     }
   });
 
