@@ -38,7 +38,15 @@ restent sur votre Mac.
 
 - `therapeute-library` et son index : rien, à aucun moment. Le contrôle habituel (22 022
   passages, 168 738 816 octets) est repassé au début et à la fin de chaque séance.
-- Cloudflare : **aucun envoi pendant E2**. Publier est un geste séparé, qui vient après.
+- Cloudflare, **pour la publication** : aucun envoi. Ni base, ni fichier, ni dérivé ne part chez
+  l'hébergeur pendant E2 — publier est un geste séparé, qui vient après.
+
+  La formulation mérite d'être exacte, parce qu'il y a **une exception et une seule** : si la
+  vision ciblée est engagée, elle envoie au Worker de **petits recadrages d'images** — les zones
+  qui résistent, pas les pages entières, pas les documents. Ces recadrages ne sont ni stockés ni
+  publiés : ils traversent le Worker, qui les relaie au modèle et rend une lecture. Rien n'en
+  reste. Et cela n'arrive **qu'après que je vous aie montré le nombre de zones et le coût**, comme
+  prévu plus bas.
 - Le dépôt git : rien du corpus n'y entre.
 
 ---
@@ -96,6 +104,7 @@ Chaque étape rend un relevé, et chacune peut s'arrêter sans abîmer la préc�
 
 | | Étape | Ce qu'elle fait | Durée attendue |
 |---:|---|---|---|
+| 0 | **Protection du volume** | Le témoin de présence, la suspension sans échec, la reprise d'elle-même, et leurs contrôles | 2 à 3 h |
 | 1 | **Inventaire** | Ouvre les 267 fichiers, calcule les empreintes, compte les pages, repère les doublons exacts | 20 à 40 min |
 | 2 | **Couche texte** | L'épreuve ci-dessus, sur 30 pages | 30 min, plus votre relecture |
 | 3 | **Correspondance avec l'ancienne base** | Associe chaque fichier à son `book_id` d'origine, par le titre, et **vous soumet tout ce qui n'est pas certain** | 1 h, dont une relecture |
@@ -157,6 +166,29 @@ fixé. Je vous présenterai le nombre de zones concernées **avant** d'en traite
 C'est la propriété la plus importante de ce plan, et elle ne repose pas sur ma prudence : elle
 est déjà dans le code, éprouvée au lot D2.
 
+### Les garde-fous de ressources, à l'échelle des 234 ouvrages
+
+Ils ne sont pas réglés par document : ils sont réglés par la **file**, et c'est ce qui les rend
+valables à n'importe quelle échelle. Les valeurs vivent dans `packages/contrats/limites.json`,
+lues une fois et jamais recopiées — l'hôte Rust et le moteur lisent le même fichier, et un
+contrôle refuse toute constante qui porterait un de ces nombres en dur.
+
+| Garde-fou | Valeur | Comment il tient à 234 documents |
+|---|---|---|
+| Travaux lourds simultanés | **2** | La file compte les travaux **en cours sur l'ensemble**, pas par document, et n'en lance un de plus que s'il reste une place. Deux cents travaux en attente n'en font pas partir trois |
+| Mémoire par processus | **2 048 Mo** | Chaque traitement part dans son propre processus, lancé avec ce plafond. Deux processus au plus, donc **4 Go au pire**, quel que soit le nombre de documents en attente |
+| Bail et battement | 15 s, renouvelé toutes les 5 s | Un processus mort libère sa place au bout de quinze secondes. Sans cela, un plantage bloquerait une place pour toujours |
+| Tentatives | 3, espacées de 30 s | Au-delà, l'échec est dit franchement plutôt que caché |
+
+Le relevé du lot D2 situe le besoin réel : le parcours complet sur un document de 29 pages a
+culminé à **643 Mo** pour le plus lourd des processus — un tiers du plafond. La marge est là
+pour les gros volumes, pas pour l'ordinaire.
+
+**Ce que ces garde-fous ne promettent pas :** que deux processus à 2 Go et le reste du système
+tiennent sur une machine chargée. Si la mémoire manque, c'est le plafond qui agit, et le travail
+échoue proprement plutôt que de faire ramer la machine. Le relevé de chaque séance donnera la
+pointe réelle atteinte.
+
 **Un travail par document.** Les 234 ouvrages ne forment pas une opération, mais 234 opérations
 indépendantes. S'arrêter au cent-douzième laisse cent onze ouvrages complets et cent
 vingt-trois intacts — jamais un ouvrage à moitié.
@@ -179,6 +211,40 @@ l'ancienne bibliothèque n'a pas bougé, et Cloudflare n'a rien reçu.
 **Ce qui ne peut pas arriver :** un état incohérent qu'il faudrait réparer à la main. Il n'y a pas
 de migration en place, pas d'écriture dans l'ancienne base, pas de fichier d'origine modifié. Le
 pire incident possible est un dossier à refaire.
+
+### Le volume externe qui disparaît — ce qui manque, et ce que je construis d'abord
+
+C'est arrivé au lot D2, et vous avez raison de ne pas vous contenter de ma parole. J'ai vérifié
+le code plutôt que de répondre de mémoire, et la réponse honnête est : **cette protection n'existe
+pas, et le comportement actuel est faux pour ce cas.**
+
+Une erreur du moteur est classée « récupérable ». Avec trois tentatives espacées de trente
+secondes, un disque absent épuise les tentatives d'un travail en **quatre-vingt-dix secondes**, et
+le travail passe en échec **définitif**. Un volume qui revient au bout de deux minutes arrive trop
+tard. Pire : la file elle-même vit sur ce volume — si le disque part, elle ne peut même plus
+écrire qu'elle a échoué.
+
+La cause tient en une confusion que le code ne fait pas encore : **« le travail a échoué » et
+« nous n'avons pas pu travailler » ne sont pas la même chose.** Le premier consomme une tentative,
+le second non.
+
+**Ce qui sera construit avant tout traitement massif**, comme première tâche d'E2 :
+
+| | |
+|---|---|
+| **Un témoin de présence** | Avant de prendre un travail, l'hôte vérifie que le dossier de la bibliothèque existe et accepte une écriture. Un fichier témoin, écrit et relu — l'existence d'un dossier ne prouve pas qu'on peut y écrire, et un volume démonté laisse parfois un point de montage vide qui ressemble à un dossier |
+| **Une suspension, pas un échec** | Volume absent : la file **se met en pause** et ne consomme aucune tentative. Aucun travail ne passe en échec parce que le disque n'était pas là |
+| **Une reprise d'elle-même** | La file reteste le témoin à intervalle régulier et repart dès qu'il répond, sans qu'on ait à relancer quoi que ce soit |
+| **Un arrêt net du travail en cours** | Le processus en vol est arrêté proprement plutôt que laissé à écrire dans le vide, et son travail revient « en file », pas « en échec » |
+| **L'écran le dit** | « Volume absent — le traitement reprendra quand il reviendra », et non un sablier ou une erreur rouge |
+
+Ce que la conception rend déjà sûr, et qui ne change pas : une version s'active en un seul geste,
+après écriture complète. Un disque qui part au milieu d'une écriture laisse donc la **version
+précédente** intacte, et le document à refaire — jamais un document à moitié converti. Les
+fichiers partiels portent un nom temporaire et ne sont renommés qu'une fois complets.
+
+Cette protection sera livrée avec ses contrôles — dont un qui simule la disparition du volume en
+cours de traitement — **et rien de massif ne démarre avant qu'ils soient verts.**
 
 ---
 
