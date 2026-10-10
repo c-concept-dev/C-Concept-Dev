@@ -64,8 +64,16 @@ function servir() {
     if (!abs.startsWith(RACINE) || !fs.existsSync(abs) || fs.statSync(abs).isDirectory()) {
       s.writeHead(404); s.end('introuvable'); return;
     }
-    s.writeHead(200, { 'content-type': TYPES[path.extname(abs)] || 'application/octet-stream' });
-    fs.createReadStream(abs).pipe(s);
+    // `?lent=NNN` retarde la réponse de NNN millisecondes. Un seul usage : rendre
+    // DÉTERMINISTE l'ordre de résolution de deux constructions de graphe concurrentes (§19b).
+    // Sans cela, la course ne se reproduit qu'au hasard des caches, et un contrôle qui échoue
+    // une fois sur trois ne contrôle rien.
+    const lent = Number(new URL(q.url, 'http://x').searchParams.get('lent') || 0);
+    const envoyer = () => {
+      s.writeHead(200, { 'content-type': TYPES[path.extname(abs)] || 'application/octet-stream' });
+      fs.createReadStream(abs).pipe(s);
+    };
+    if (lent > 0) setTimeout(envoyer, Math.min(5000, lent)); else envoyer();
   });
   return new Promise((r) => srv.listen(0, '127.0.0.1', () => r(srv)));
 }
@@ -137,6 +145,7 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
         sbMorceaux: document.querySelector('[data-sb-morceaux]').textContent,
         sbPiste: document.querySelector('[data-sb-piste]').textContent,
         sbFrequence: document.querySelector('[data-sb-frequence]').textContent,
+        sbMicro: (document.querySelector('[data-sb-micro]') || {}).textContent,
         bruit: (document.querySelector('[data-bruit]') || {}).textContent,
         messages: [...document.querySelectorAll('[data-messages] .sc-bm-message')]
           .map((m) => ({ etat: m.getAttribute('data-state'), texte: m.querySelector('span').textContent,
@@ -750,7 +759,26 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       'sur tout l\'historique, le droit compte encore — c\'est ce que la fenêtre neutralise. ' +
       'Obtenu : ' + r.surToutDepuisLAutorisation.canal + ' (' +
       r.surToutDepuisLAutorisation.raison + ')');
+
+    // ET LA DÉCISION RÉELLE, celle que le module gèle en démarrant. Sans cette partie, le
+    // contrôle n'éprouvait que `choisirCanal` sur deux jeux de sommes : une mutation qui fait
+    // décider le module sur tout l'historique passait sans être vue.
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(1200);
+    const gele = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { canalRetenu: e.canalRetenu, raison: e.canalRaison,
+               affiche: document.querySelector('[data-sb-canal]').textContent };
+    });
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => /terminée|muette/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
     await ctx.close();
+    assert.equal(gele.canalRetenu, 'gauche',
+      'le canal RÉELLEMENT gelé par le module doit suivre la fenêtre, non l\'historique : ' +
+      gele.canalRetenu + ' (' + gele.raison + ')');
+    assert.ok(/canal gauche/.test(gele.affiche),
+      'et la page doit l\'afficher : ' + gele.affiche);
     console.log('        fenêtre ' + r.fenetre_s.toFixed(2) + ' s → ' + r.surLaFenetre.canal +
       ' · tout l\'historique → ' + r.surToutDepuisLAutorisation.canal);
   });
@@ -773,6 +801,41 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     assert.ok(v.regle && v.regle.length > 40, 'la règle doit être nommée');
     console.log('        gelé ' + v.geleAvantLaPrise + ' · recalculé ' + v.recalculeSurLaPrise +
       ' · accord ' + v.accord + ' · fenêtre ' + v.fenetreDeDecision.secondes + ' s');
+  });
+
+  await controle('§17c le canal qui CHANGE pendant la prise : désaccord dit, raison de la prise', async () => {
+    // LE SEUL CAS OÙ LA REVÉRIFICATION A QUELQUE CHOSE À DIRE. Le droit est à zéro pendant les
+    // quatre premières secondes — la fenêtre d'avant-prise voit donc « droit vide → gauche » —
+    // puis il devient actif et plus fort. La prise, elle, dit « le plus fort → droit ». Sans
+    // cette fixture, la revérification s'exécutait toujours sur un cas d'accord et ne prouvait
+    // rien : trois mutations passaient.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/droit-devient-actif-pendant.wav');
+    const r = await prendre(page, { attendreMs: 9000 });
+    await ctx.close();
+
+    const v = r.module.mesures.verificationDuCanal;
+    assert.equal(v.geleAvantLaPrise, 'gauche',
+      'la fenêtre d\'avant-prise voit le droit vide : ' + v.raisonAvantLaPrise);
+    assert.equal(v.recalculeSurLaPrise, 'droit',
+      'la prise elle-même porte un droit actif et plus fort : ' + v.raisonSurLaPrise);
+    assert.equal(v.accord, false, 'les deux verdicts diffèrent, et cela doit être dit');
+    // LA RAISON DU RAPPORT EST CELLE DE LA PRISE, et elle diffère ici de celle de la fenêtre.
+    assert.equal(r.module.mesures.raisonDuCanal, v.raisonSurLaPrise,
+      'le rapport doit porter la raison calculée sur la prise');
+    assert.notEqual(r.module.mesures.raisonDuCanal, v.raisonAvantLaPrise,
+      'et non celle de la fenêtre d\'avant : les deux sont différentes dans ce cas');
+    // LE DÉSACCORD EST AFFICHÉ, et journalisé.
+    const bandeau = r.affiche.messages.find((m) => /ne correspond pas à ce que la prise/.test(m.texte));
+    assert.ok(bandeau, 'un avis doit être AFFICHÉ ; messages : ' +
+      JSON.stringify(r.affiche.messages.map((m) => m.texte.slice(0, 50))));
+    assert.equal(bandeau.etat, 'error', 'et signalé comme une erreur');
+    assert.ok(r.module.journal.some((x) => x.quoi === 'canal démenti par la prise'),
+      'et journalisé ; journal : ' + JSON.stringify(r.module.journal.map((x) => x.quoi)));
+    // RIEN N'EST BLOQUÉ : la prise est enregistrée malgré le désaccord.
+    assert.ok(r.stockage.echantillons > 0, 'la prise doit être enregistrée');
+    console.log('        gelé ' + v.geleAvantLaPrise + ' · prise ' + v.recalculeSurLaPrise +
+      ' · accord false · avis affiché et journalisé');
   });
 
   // ── §18 — (d) LE BRUIT DE PIÈCE (T13) ─────────────────────────────────────────────────────
@@ -849,6 +912,29 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       'avec la grandeur dont le verdict découle : ' + affiche);
     assert.ok(/filtre le réduira au mixage/.test(affiche),
       'et la mention de grave : ' + affiche);
+    // LES DEUX MOITIÉS DOIVENT ÊTRE MESURÉES SUR LE VRAI CHEMIN. Sans cette vérification, une
+    // mutation du worklet qui cesse de les compter laisse monteeDb à 0 et personne ne le voit :
+    // le contrôle exact (§18c) travaille sur des sommes fabriquées, pas sur le worklet.
+    assert.ok(typeof b.efficaceDbfsPremiereMoitie === 'number' &&
+              isFinite(b.efficaceDbfsPremiereMoitie),
+      'la première moitié doit porter un niveau fini : ' + b.efficaceDbfsPremiereMoitie);
+    assert.ok(typeof b.efficaceDbfsSecondeMoitie === 'number' &&
+              isFinite(b.efficaceDbfsSecondeMoitie),
+      'la seconde moitié aussi : ' + b.efficaceDbfsSecondeMoitie);
+    assert.ok(b.efficaceDbfsPremiereMoitie < -40 && b.efficaceDbfsSecondeMoitie < -40,
+      'et toutes deux au niveau d\'un bruit de pièce : ' +
+      b.efficaceDbfsPremiereMoitie.toFixed(1) + ' et ' + b.efficaceDbfsSecondeMoitie.toFixed(1));
+    assert.ok(Math.abs(b.monteeEntreLesDeuxMoities_db) < 3,
+      'le bruit étant régulier, les deux moitiés doivent s\'accorder : ' +
+      b.monteeEntreLesDeuxMoities_db.toFixed(2) + ' dB');
+    // T13 N'EST JAMAIS BLOQUANT : l'avis est une INFORMATION, pas une erreur.
+    const avis = r.affiche.messages.find((m) => /La pièce est bruyante/.test(m.texte));
+    assert.ok(avis, 'l\'avis de pièce bruyante doit être affiché : ' +
+      JSON.stringify(r.affiche.messages.map((m) => m.texte.slice(0, 40))));
+    assert.equal(avis.etat, 'info',
+      'T13 n\'est JAMAIS bloquant : l\'avis doit être une information, pas une erreur. Obtenu : '
+      + avis.etat);
+    assert.equal(avis.icone, '#icon-info', 'avec l\'icône d\'information du sprite du kit');
     // JAMAIS BLOQUANT : la prise s'est faite.
     assert.ok(r.stockage.echantillons > 0, 'la prise doit avoir été enregistrée malgré le bruit');
     assert.notEqual(r.stockage.prise.etat, 'muette', 'et ne pas être muette');
@@ -928,6 +1014,187 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     console.log('        tenu 0,0 dB → verdict rendu · 5,0 dB → rendu · ' +
       r.justeAuDessus.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB → douteux · ' +
       v.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB (voix) → douteux');
+  });
+
+  await controle('§18d le passe-bas coupe à 120 Hz, mesuré sur un son pur à 120 Hz', async () => {
+    // LE SEUL SON QUI RÉVÈLE LA COUPURE. Un passe-bas de Butterworth du 2e ordre laisse passer
+    // la MOITIÉ de l'énergie à sa fréquence de coupure : la part de grave doit donc valoir 0,50.
+    // Un filtre calculé pour 48 kHz mais appliqué à 44,1 kHz couperait à 110 Hz et donnerait
+    // environ 0,42. Avec un bruit à 50 et 100 Hz, les deux filtres donnent presque la même
+    // chose, et la mutation passait : il faut un son À la coupure pour la voir.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/bruit-120hz.wav');
+    const r = await prendre(page, {
+      jusqua: () => !!window.EnregistreurVoix._etat().bruit,
+    });
+    await ctx.close();
+    const b = r.module.mesures.bruitDePiece;
+    assert.ok(b && b.mesure, 'le bruit doit être mesuré : ' + JSON.stringify(b));
+    assert.equal(b.coupureHz, 120, 'la coupure annoncée : ' + b.coupureHz);
+    assert.ok(Math.abs(b.partGrave - 0.5) < 0.03,
+      'à 120 Hz pile, un Butterworth du 2e ordre laisse passer la moitié de l\'énergie : ' +
+      'part attendue 0,50 ± 0,03, mesurée ' + b.partGrave.toFixed(4) +
+      '. Une valeur vers 0,42 signifie que le filtre coupe à 110 Hz — calculé pour 48 kHz et ' +
+      'appliqué à ' + r.module.echantillonnage + ' Hz.');
+    console.log('        son pur à 120 Hz, contexte à ' + r.module.echantillonnage +
+      ' Hz → part de grave ' + b.partGrave.toFixed(4) + ' (attendu 0,50)');
+  });
+
+  // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────
+  await controle('§19 deux constructions concurrentes : le nœud appartient au contexte vivant', async () => {
+    // LA COURSE QUI A FAIT UNE « PRISE MUETTE ». Changer la taille de morceau lance une
+    // construction, cliquer « Autoriser » en lance une seconde ; `addModule` étant asynchrone,
+    // la seconde fermait le contexte de la première, qui installait ensuite SON nœud — orphelin.
+    // §15 ne le voyait plus depuis que la fenêtre est vidée à la reconstruction : l'attente
+    // d'une fenêtre pleine masquait le défaut. Ce contrôle vise donc l'INVARIANT, pas le symptôme.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+
+    // DEUX CONSTRUCTIONS LANCÉES DOS À DOS, sans laisser la première finir.
+    const apres = await page.evaluate(async () => {
+      const A = window.EnregistreurVoix;
+      // Le changement de taille déclenche une reconstruction…
+      const sel = document.querySelector('[data-taille-morceau]');
+      sel.value = '2';
+      sel.dispatchEvent(new Event('change'));
+      // …et le clic sur « Autoriser » une seconde, aussitôt.
+      document.querySelector('[data-action="autoriser"]').click();
+      // On laisse les deux se résoudre.
+      await new Promise((r) => setTimeout(r, 2500));
+      const e = A._etat();
+      return {
+        etatDuContexte: e.ctx ? e.ctx.state : 'absent',
+        noeudSurLeContexteVivant: !!(e.noeud && e.ctx && e.noeud.context === e.ctx),
+        frequenceAffichee: document.querySelector('[data-sb-frequence]').textContent,
+      };
+    });
+    assert.notEqual(apres.etatDuContexte, 'closed',
+      'le contexte installé ne doit JAMAIS être fermé : ' + apres.etatDuContexte);
+    assert.equal(apres.noeudSurLeContexteVivant, true,
+      'le nœud installé doit appartenir au contexte installé — sinon il est orphelin et la ' +
+      'prise suivante n\'enregistre rien');
+
+    // ET LA FENÊTRE EST VIDÉE À LA RECONSTRUCTION : des relevés d'un contexte fermé ne doivent
+    // pas décider du canal du suivant.
+    const fenetre = await page.evaluate(() => {
+      const A = window.EnregistreurVoix;
+      const avant = A._fenetreDeDecision().sommes.n;
+      const sel = document.querySelector('[data-taille-morceau]');
+      sel.value = '5';
+      sel.dispatchEvent(new Event('change'));
+      return { avant, aussitotApres: A._fenetreDeDecision().sommes.n };
+    });
+    assert.ok(fenetre.avant > 0, 'la fenêtre était pleine avant : ' + fenetre.avant);
+    assert.equal(fenetre.aussitotApres, 0,
+      'et vide aussitôt après la reconstruction : ' + fenetre.aussitotApres + ' échantillons');
+
+    // Puis la prise redevient possible : le graphe est vivant.
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(1500);
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => /terminée|muette/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    const prise = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { ech: e.echantillonsEcrits, mode: document.querySelector('[data-mode]').textContent };
+    });
+    await ctx.close();
+    assert.ok(prise.ech > 0,
+      'après deux constructions concurrentes, la prise doit enregistrer : ' + prise.ech +
+      ' échantillons, état « ' + prise.mode + ' »');
+    assert.ok(!/muette/i.test(prise.mode), 'et ne pas être muette : ' + prise.mode);
+    console.log('        contexte ' + apres.etatDuContexte + ' · nœud sur le contexte vivant · ' +
+      'fenêtre ' + fenetre.avant + ' → ' + fenetre.aussitotApres + ' · prise ' + prise.ech + ' éch');
+  });
+
+  await controle('§19b la construction DÉPASSÉE n\'installe jamais son nœud (ordre forcé)', async () => {
+    // LA COURSE, REPRODUITE À COUP SÛR. Le défaut ne se manifeste que si la construction la plus
+    // ANCIENNE finit la DERNIÈRE : elle installe alors son nœud par-dessus le graphe récent, et
+    // comme son propre contexte a été fermé entre-temps, ce nœud est orphelin — la prise
+    // suivante n'enregistre rien et se déclare « muette ». En laissant faire le hasard des
+    // caches, l'ordre défavorable n'arrive qu'une fois sur deux ; on le FORCE donc en servant le
+    // worklet de la première construction avec un retard.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+
+    const r = await page.evaluate(async () => {
+      const A = window.EnregistreurVoix;
+      const S = window.__bancServices;
+      const normal = S.urlWorklet;
+      // 1) construction LENTE : son `addModule` mettra 1,5 s à répondre.
+      S.urlWorklet = normal + '?lent=1500';
+      const sel = document.querySelector('[data-taille-morceau]');
+      sel.value = '2'; sel.dispatchEvent(new Event('change'));
+      // 2) construction RAPIDE, lancée aussitôt : elle finira la première et fermera le
+      //    contexte de la lente.
+      await new Promise((r2) => setTimeout(r2, 50));
+      S.urlWorklet = normal;
+      sel.value = '5'; sel.dispatchEvent(new Event('change'));
+      // 3) on laisse la LENTE se résoudre, bien après la rapide.
+      await new Promise((r2) => setTimeout(r2, 3000));
+      const e = A._etat();
+      return {
+        etatDuContexte: e.ctx ? e.ctx.state : 'absent',
+        noeudSurLeContexteVivant: !!(e.noeud && e.ctx && e.noeud.context === e.ctx),
+        etatDuContexteDuNoeud: (e.noeud && e.noeud.context) ? e.noeud.context.state : 'absent',
+        // CE QUI REND LA COURSE OBSERVABLE. Mesuré : `new AudioWorkletNode` sur un contexte
+        // fermé LÈVE InvalidStateError. Sans le compteur de génération, la construction dépassée
+        // ne parvient donc pas à installer son nœud — mais sa promesse REJETTE, et le gestionnaire
+        // du sélecteur affiche alors à Christophe « Le graphe audio n'a pas pu être reconstruit »
+        // pour une reconstruction qui, elle, a parfaitement réussi. Un bandeau d'erreur qui
+        // apparaît sans qu'il y ait d'erreur est précisément ce qu'on ne veut pas.
+        erreurDeGraphe: (() => {
+          const m = document.querySelector('[data-messages] [data-cle="graphe"]');
+          return m ? m.querySelector('span').textContent : null;
+        })(),
+      };
+    });
+    assert.notEqual(r.etatDuContexte, 'closed',
+      'le contexte installé ne doit pas être fermé : ' + r.etatDuContexte);
+    assert.equal(r.etatDuContexteDuNoeud, 'running',
+      'le contexte DU NŒUD doit tourner ; « closed » signifie qu\'une construction dépassée a ' +
+      'installé son nœud orphelin. Obtenu : ' + r.etatDuContexteDuNoeud);
+    assert.equal(r.noeudSurLeContexteVivant, true,
+      'et le nœud doit appartenir au contexte installé');
+    assert.equal(r.erreurDeGraphe, null,
+      'AUCUN bandeau d\'erreur de graphe ne doit apparaître : la construction dépassée doit se ' +
+      'retirer proprement, non échouer. Affiché : ' + JSON.stringify(r.erreurDeGraphe));
+
+    // LA PREUVE PAR LA PRISE : un graphe sain enregistre.
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(1500);
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => /terminée|muette/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    const prise = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { ech: e.echantillonsEcrits, mode: document.querySelector('[data-mode]').textContent };
+    });
+    await ctx.close();
+    assert.ok(prise.ech > 0,
+      'après l\'ordre défavorable forcé, la prise doit enregistrer : ' + prise.ech +
+      ' échantillons, état « ' + prise.mode + ' »');
+    assert.ok(!/muette/i.test(prise.mode), 'et ne pas être muette : ' + prise.mode);
+    console.log('        ordre défavorable forcé (worklet lent 1,5 s puis rapide) · contexte du ' +
+      'nœud ' + r.etatDuContexteDuNoeud + ' · prise ' + prise.ech + ' éch');
   });
 
   // ── §7 — LA REPRISE APRÈS FERMETURE (E5) ───────────────────────────────────────────────────
@@ -1047,6 +1314,76 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     console.log('        micro réel (factice Chromium) à ' + r.module.echantillonnage +
       ' Hz · ' + r.stockage.morceaux + ' morceaux · ' + r.stockage.echantillons + ' éch · ' +
       'traitements navigateur désactivés');
+  });
+
+  // ── §20 — (e) LE PÉRIPHÉRIQUE ET LES LATENCES : MESURÉS, PAS DEVINÉS ──────────────────────
+  await controle('§20 nom du micro, fréquence du contexte, latences — et « indisponible » quand ça l\'est', async () => {
+    // Sur le VRAI chemin micro : la piste existe, donc le libellé et les latences existent.
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await prendre(page, { attendreMs: 2500 });
+    await ctx.close();
+    const m = r.module.mesures.microphone;
+    const l = r.module.mesures.latences;
+
+    assert.ok(m && typeof m === 'object', 'le périphérique doit être au rapport : ' + JSON.stringify(m));
+    assert.ok(typeof m.nom === 'string' && m.nom.length > 0, 'avec son nom : ' + m.nom);
+    assert.ok(!/indisponible/.test(m.nom),
+      'le libellé existe après autorisation : ' + m.nom);
+    assert.equal(m.annulationEcho, false, 'et les traitements désactivés sont consignés (E3)');
+    assert.equal(m.suppressionBruit, false);
+    assert.equal(m.gainAutomatique, false);
+    assert.equal(m.echantillonnageDeLaPiste, r.module.echantillonnage,
+      'la fréquence de la PISTE, à côté de celle du contexte');
+
+    assert.equal(r.module.mesures.contexteAudio.echantillonnage, r.module.echantillonnage,
+      'la fréquence du contexte audio doit être au rapport');
+
+    // LA LATENCE DE SORTIE EST LUE TARD, graphe en marche. Mesuré : elle vaut 0 avant qu'une
+    // source ne soit connectée. Un zéro à cet endroit serait un faux chiffre.
+    assert.ok(l && typeof l === 'object', 'les latences doivent être au rapport : ' + JSON.stringify(l));
+    assert.ok(typeof l.sortie_s === 'number' || /absente/.test(String(l.sortie_s)),
+      'la latence de sortie est un nombre, ou dit explicitement qu\'elle est absente de l\'API : '
+      + JSON.stringify(l.sortie_s));
+    if (typeof l.sortie_s === 'number') {
+      assert.ok(l.sortie_s > 0 && l.sortie_s < 1,
+        'lue graphe en marche, elle doit être non nulle et plausible : ' + l.sortie_s +
+        ' s — un zéro signifie qu\'elle a été lue trop tôt');
+    }
+    assert.ok(typeof l.base_s === 'number' || /absente/.test(String(l.base_s)),
+      'baseLatency : ' + JSON.stringify(l.base_s));
+    assert.ok(/arrêt de la prise/.test(l.releveeQuand),
+      'le rapport doit dire QUAND la mesure a été prise : ' + l.releveeQuand);
+    assert.ok(l.regle && l.regle.length > 40, 'et nommer sa règle');
+
+    // CE QUE LA PAGE AFFICHE.
+    assert.ok(/Micro : /.test(r.affiche.sbMicro || ''),
+      'la page doit afficher le micro : ' + r.affiche.sbMicro);
+    assert.ok((r.affiche.sbMicro || '').includes(m.nom.slice(0, 12)),
+      'et le même nom que le rapport : « ' + r.affiche.sbMicro + ' » contre « ' + m.nom + ' »');
+
+    console.log('        micro « ' + m.nom + ' » · piste ' + m.echantillonnageDeLaPiste +
+      ' Hz · contexte ' + r.module.mesures.contexteAudio.echantillonnage + ' Hz · entrée ' +
+      m.latenceEntree_s + ' s · sortie ' + l.sortie_s + ' s · base ' +
+      (typeof l.base_s === 'number' ? l.base_s.toFixed(6) : l.base_s) + ' s');
+  });
+
+  await controle('§20b sans piste réelle, le rapport dit « indisponible » au lieu d\'inventer', async () => {
+    // Avec une source de fixture il n'y a PAS de piste : le rapport doit le dire, pas combler.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    const r = await prendre(page, { attendreMs: 2500 });
+    await ctx.close();
+    assert.ok(/indisponible/.test(String(r.module.mesures.microphone)),
+      'sans piste, le périphérique doit être déclaré indisponible : ' +
+      JSON.stringify(r.module.mesures.microphone));
+    // Les latences, elles, viennent du CONTEXTE : elles existent même sans piste.
+    const l = r.module.mesures.latences;
+    assert.ok(l && typeof l === 'object', 'les latences du contexte existent sans piste : ' +
+      JSON.stringify(l));
+    assert.equal(l.entree_s, 'indisponible',
+      'mais la latence d\'ENTRÉE vient de la piste : elle doit être déclarée indisponible');
+    console.log('        sans piste : périphérique « indisponible », latence d\'entrée ' +
+      '« indisponible », latences du contexte présentes');
   });
 
   // ── §9 — L'EXPORT WAV (E7), confronté à un générateur indépendant ──────────────────────────

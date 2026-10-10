@@ -344,7 +344,7 @@ const ESSAIS = [
     fichier: "module",
     de: "        var surLaPrise = choisirCanal(_etat.sommesTotal || f.total, _etat.reglageCanal);",
     vers: "        var surLaPrise = { canal: _etat.canalRetenu, raison: _etat.canalRaison };",
-    sections: "§17b",
+    sections: "§17c",
     attendu: "la prise dure parfois cinq minutes : son canal se revérifie sur elle",
   },
   {
@@ -352,7 +352,7 @@ const ESSAIS = [
     fichier: "module",
     de: "      raisonDuCanal: (_etat.verificationCanal && _etat.verificationCanal.raisonSurLaPrise)\n        || _etat.canalRaison,",
     vers: "      raisonDuCanal: _etat.canalRaison,",
-    sections: "§17b",
+    sections: "§17c",
     attendu: "la raison écrite doit être calculée SUR LA PRISE, jamais sur la fenêtre d'avant",
   },
   {
@@ -360,7 +360,7 @@ const ESSAIS = [
     fichier: "module",
     de: "        if (!_etat.verificationCanal.accord) {",
     vers: "        if (false) {",
-    sections: "§17b",
+    sections: "§17c",
     attendu: "un canal retenu qui contredit la mesure de la prise est ce qu'on ne doit pas taire",
   },
   // ── (c) UNE SEULE GRANDEUR DE TAILLE ───────────────────────────────────────────────────
@@ -402,7 +402,7 @@ const ESSAIS = [
     fichier: "worklet",
     de: "          filtre: new PasseBas(BRUIT_COUPURE_HZ, sampleRate),",
     vers: "          filtre: new PasseBas(BRUIT_COUPURE_HZ, 48000),",
-    sections: "§18b",
+    sections: "§18d",
     attendu: "à 44,1 kHz, un filtre calculé pour 48 kHz ne coupe plus à 120 Hz",
   },
   {
@@ -418,7 +418,7 @@ const ESSAIS = [
     fichier: "worklet",
     de: "        if (b.n < b.demandes / 2) { b.n1++; b.sommeCarre1 += v * v; }\n        else { b.n2++; b.sommeCarre2 += v * v; }",
     vers: "        void 0;",
-    sections: "§18c",
+    sections: "§18b,§18c",
     attendu: "sans les deux moitiés, on ne peut plus voir qu'une voix a démarré",
   },
   {
@@ -431,19 +431,28 @@ const ESSAIS = [
   },
   // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────
   {
-    nom: "le compteur de génération est retiré : deux constructions se marchent dessus",
-    fichier: "module",
-    de: "      if (moi !== _generation) {\n        try { ctx.close(); } catch (e) {}\n        return false;\n      }",
+    nom: "le garde de génération est retiré du chemin de SUCCÈS",
+    fichier: 'module',
+    de: "      // Dépassée pendant l'attente de `addModule` : on ferme ce qu'on a créé et on ne touche à\n      // rien. Sans ce retour, ce nœud-ci s'installerait par-dessus le graphe le plus récent.\n      if (moi !== _generation) {\n        try { ctx.close(); } catch (e) {}\n        return false;\n      }",
     vers: "      void 0;",
-    sections: "§15",
-    attendu: "la seconde construction fermait le contexte de la première, qui installait ensuite un nœud orphelin : zéro échantillon et « prise muette »",
+    sections: "§19b,§19",
+    equivalente: "MESURÉ, pas raisonné. Dans tout scénario reproductible, une construction dépassée voit son `addModule` REJETER — son contexte a été fermé par la construction suivante — et c'est le garde du chemin de REJET qui s'en occupe (mutation suivante, elle, bien attrapée). La branche de SUCCÈS est donc inatteignable pour une construction dépassée : il faudrait qu'elle soit dépassée dans l'intervalle de micro-tâches entre la résolution d'`addModule` et la construction du nœud, ce qu'aucun contrôle ne sait épingler. Ce garde RESTE à ce titre, et parce qu'il énonce l'invariant au lieu de s'en remettre à un comportement de navigateur que nous ne choisissons pas — mesuré ce soir : `new AudioWorkletNode` sur un contexte fermé lève InvalidStateError. Le jour où cette mutation fait échouer un contrôle, la branche est devenue atteignable et c'est cet inventaire qui est faux.",
+    attendu: "les contrôles doivent PASSER : la mutation est équivalente sur le périmètre atteignable",
+  },
+  {
+    nom: "le garde de génération est retiré du chemin de REJET",
+    fichier: 'module',
+    de: "      if (moi !== _generation) {\n        try { ctx.close(); } catch (e) {}\n        return false;\n      }\n      throw err;",
+    vers: "      throw err;",
+    sections: "§19b",
+    attendu: "quand une seconde construction ferme le contexte de la première, l'addModule de celle-ci échoue : sans ce garde, Christophe voit « le graphe n'a pas pu être reconstruit » alors que la reconstruction a réussi",
   },
   {
     nom: "la fenêtre n'est plus vidée quand le graphe est reconstruit",
     fichier: "module",
     de: "    _etat.fenetre = [];\n    _etat.sommesAnalyse = null;",
     vers: "    void 0;",
-    sections: "§17",
+    sections: "§19,§17",
     attendu: "des relevés d'un contexte fermé décideraient du canal du suivant",
   },
 

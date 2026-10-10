@@ -120,6 +120,11 @@ body { margin: 0; padding: 24px 16px; }
     };
   }
 
+  // Exposé pour les contrôles : l'URL du worklet se lit à CHAQUE construction du graphe, donc
+  // un contrôle peut la remplacer par une URL lente et reproduire à coup sûr l'ordre de
+  // résolution défavorable — la construction la plus ancienne finissant la dernière.
+  window.__bancServices = services;
+
   window.EnregistreurVoix.brancher(document.querySelector('[data-enregistreur]'), services)
     .then(function () { window.__bancPret = true; })
     .catch(function (e) {

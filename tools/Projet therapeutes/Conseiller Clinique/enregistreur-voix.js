@@ -119,6 +119,7 @@
       reglageCanal: 'auto',
       tailleMorceau_s: TAILLE_MORCEAU_S_DEFAUT,
       fenetre: [],           // (b) les relevés des 2 dernières secondes, pour décider du canal
+      microphone: null,      // (e) ce que la piste dit du périphérique, relevé à l'ouverture
       bruit: null,           // (d) le verdict de bruit de pièce de la prise en cours
       bruitEnCours: false,
       sommesAnalyse: null,   // sommes cumulées depuis l'autorisation (pour le repli seulement)
@@ -423,6 +424,7 @@
     '<span data-sb-piste>Piste : inconnue</span>' +
     '<span data-sb-canal>Canal : —</span>' +
     '<span data-sb-frequence>Fréquence : —</span>' +
+    '<span data-sb-micro>Micro : —</span>' +
   '</footer>' +
 '</div>';
   }
@@ -780,6 +782,24 @@
         // prise, et l'ouverture de piste, elle, décrit le périphérique pour TOUTES les prises de
         // la session. L'écraser revenait à perdre la preuve que les traitements du navigateur
         // sont bien désactivés (E3) — trouvé par un contrôle qui ne retrouvait plus l'entrée.
+        // (e) LE NOM DU PÉRIPHÉRIQUE, tel que la piste le donne. Il n'existe qu'APRÈS
+        // l'autorisation : avant, les libellés sont vides, par protection de la vie privée.
+        // On le relève donc ici, et on dit « indisponible » plutôt que d'inventer.
+        _etat.microphone = {
+          nom: piste.label || 'indisponible (libellé vide : autorisation refusée ou non accordée)',
+          identifiant: reglages.deviceId || 'indisponible',
+          canauxLivres: (typeof reglages.channelCount === 'number') ? reglages.channelCount : 'indisponible',
+          echantillonnageDeLaPiste: (typeof reglages.sampleRate === 'number') ? reglages.sampleRate : 'indisponible',
+          latenceEntree_s: (typeof reglages.latency === 'number') ? reglages.latency : 'indisponible',
+          annulationEcho: reglages.echoCancellation,
+          suppressionBruit: reglages.noiseSuppression,
+          gainAutomatique: reglages.autoGainControl,
+        };
+        // L'AFFICHAGE VIENT ICI, et pas plus haut : plus haut, `_etat.microphone` n'est pas
+        // encore renseigné et la barre d'état montrait « Micro : — » alors que le rapport portait
+        // le bon nom. Un contrôle qui compare la page au rapport l'a dit.
+        var sbm = q('[data-sb-micro]');
+        if (sbm) sbm.textContent = 'Micro : ' + _etat.microphone.nom;
         _etat.ouverturePiste = journaliser('piste ouverte', 0, {
           canaux: reglages.channelCount, echantillonnage: reglages.sampleRate,
           annulationEcho: reglages.echoCancellation,
@@ -796,6 +816,10 @@
           message('piste', 'error', 'La piste audio s\'est terminée : le périphérique a été retiré ou repris par une autre application.');
         });
       }
+      if (!piste) {
+        var sbm0 = q('[data-sb-micro]');
+        if (sbm0) sbm0.textContent = 'Micro : aucune piste (source d\'essai)';
+      }
       ctx.onstatechange = function () {
         journaliser('contexte ' + ctx.state, echantillonsCourants());
         if (ctx.state === 'suspended' && _etat.enPrise) {
@@ -803,6 +827,19 @@
         }
       };
       return true;
+    }, function (err) {
+      // ── LE REJET D'UNE CONSTRUCTION DÉPASSÉE SE TAIT ─────────────────────────────────────
+      // Trouvé par un contrôle, et c'était un défaut à moi : quand une seconde construction
+      // ferme le contexte de la première, l'`addModule` de celle-ci échoue avec « Unable to
+      // load a worklet's module ». Comme le garde de génération vivait dans le `then`, ce rejet
+      // passait devant lui et remontait au gestionnaire du sélecteur, qui annonçait « le graphe
+      // n'a pas pu être reconstruit » — pour une reconstruction qui venait de réussir. Un
+      // bandeau d'erreur sans erreur est pire que pas de bandeau : il apprend à les ignorer.
+      if (moi !== _generation) {
+        try { ctx.close(); } catch (e) {}
+        return false;
+      }
+      throw err;
     });
   }
 
@@ -983,6 +1020,25 @@
             + '. La prise est utilisable, mais le mixage n\'est peut-être pas le bon.');
         }
 
+        // (e) LA LATENCE DE SORTIE SE LIT TARD, et c'est une mesure, pas une devinette.
+        // Mesuré ce soir : `ctx.outputLatency` vaut 0 tant qu'aucune source n'est connectée, puis
+        // 0,029 s une fois le graphe vivant. La lire à la création du contexte donnerait donc un
+        // zéro qui RESSEMBLE à une mesure et n'en est pas. On la relève à l'arrêt de la prise,
+        // graphe en marche, et on distingue « absente de cette API » de « nulle ».
+        _etat.latences = {
+          sortie_s: ('outputLatency' in _etat.ctx)
+            ? _etat.ctx.outputLatency
+            : 'propriété outputLatency absente de ce navigateur',
+          base_s: ('baseLatency' in _etat.ctx)
+            ? _etat.ctx.baseLatency
+            : 'propriété baseLatency absente de ce navigateur',
+          entree_s: (_etat.microphone && _etat.microphone.latenceEntree_s) || 'indisponible',
+          releveeQuand: 'à l\'arrêt de la prise, graphe en marche',
+          regle: 'outputLatency vaut 0 tant qu\'aucune source n\'est connectée : la lire à la '
+            + 'création du contexte donnerait un zéro qui n\'est pas une mesure. Le calibrage '
+            + 'micro-haut-parleur, lui, est du lot 3B.',
+        };
+
         var mesures = rapportDUnePrise(f, perdus, muette, passageMuet);
         _etat.mesures = mesures;
 
@@ -1040,6 +1096,13 @@
           + '`new AudioContext({ sampleRate: 48000 })`, mais la piste du micro reste à sa propre '
           + 'fréquence et le contexte interpole en amont — d\'où le choix du natif, pour que la '
           + 'prise porte la fréquence où la voix est née.',
+      },
+      // (e) LE PÉRIPHÉRIQUE ET LES LATENCES, mesurés et non devinés.
+      microphone: _etat.microphone || 'indisponible (aucune piste réelle : source de fixture)',
+      latences: _etat.latences || 'non relevées',
+      contexteAudio: {
+        echantillonnage: _etat.echantillonnage,
+        etat: _etat.ctx ? _etat.ctx.state : 'indisponible',
       },
       echantillonnage: _etat.echantillonnage,
       canauxALEntree: s ? s.canaux : 0,
