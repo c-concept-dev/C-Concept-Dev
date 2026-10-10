@@ -332,9 +332,17 @@
       'éléments, ou posez une seule question qui les résume. Pour un questionnaire, ne lisez',
       'jamais les questions : invitez le spectateur à y répondre pour lui-même, en une ou deux',
       'phrases. N\'ajoutez aucune question qui ne figure pas à l\'écran.',
+      'LA RÈGLE EST UN COMPTE, pas une impression : SI VOUS EN NOMMEZ PLUS D\'UNE, VOUS PARCOUREZ',
+      'LA LISTE. Nommez-en UNE SEULE, ou AUCUNE. « Retenez une idée » puis trois idées énumérées',
+      'est un parcours de liste, même annoncé comme un choix — et c\'est exactement ce qui a été',
+      'relevé sur une étape à quatre idées.',
       '',
       'SI VOUS CITEZ LE DOCUMENT.',
       'Reprenez ses mots exacts, entre guillemets français, sans en retirer ni en ajouter.',
+      'Un DIALOGUE IMAGINÉ peut s\'écrire entre guillemets français, à condition d\'être introduit',
+      'comme imaginé — « imaginez quelqu\'un qui dirait : « … » ». Une CITATION DU DOCUMENT, elle,',
+      'reste mot pour mot. Les deux s\'écrivent entre guillemets ; ce qui les sépare est',
+      'l\'introduction, et elle doit être explicite.',
       'N\'attribuez jamais une phrase ou une idée à un groupe (« les chercheurs », « les',
       'spécialistes », « ceux qui travaillent avec des couples ») que le document ne nomme pas.',
       'Si le document ne dit pas qui parle, ne dites pas qui parle.',
@@ -549,9 +557,31 @@
     return false;
   }
 
+  // LE DÉCOUPAGE EN PHRASES, UNE SEULE FOIS — et sa différence est un PARAMÈTRE, pas une
+  // seconde implémentation (régression #11(f) : une grandeur, une fonction ; quand deux endroits
+  // doivent la connaître, le second appelle le premier).
+  //
+  // Les points de suspension coupent une phrase pour qui COMPTE SA LONGUEUR — celui qui dit le
+  // texte y reprend son souffle. Ils ne la coupent PAS pour qui compare une citation à l'écran :
+  // « Imaginez… » introduit ce qui suit, il ne le termine pas, et couper là séparerait
+  // l'introduction de son dialogue, donc ferait chuter la part de mots partagés sur deux
+  // moitiés au lieu d'une phrase. D'où le drapeau, nommé et justifié ici plutôt que deux
+  // fonctions qui divergeraient un jour.
+  function phrasesDe(texte, options) {
+    var couperSurSuspension = !!(options && options.couperSurSuspension);
+    var brut = String(texte || '');
+    if (!couperSurSuspension) brut = brut.replace(/\u2026/g, ' ');
+    var separateur = couperSurSuspension ? /[.!?\u2026]+/ : /[.!?]+[\s\u00a0]+|[.!?]+$|\n+/;
+    return brut.split(separateur)
+      .map(function (p) { return p.trim(); })
+      .filter(Boolean);
+  }
+
   function phrasesLongues(texte) {
-    return String(texte || '').replace(pauseRe(), ' ')
-      .split(/[.!?\u2026]+/)
+    // Le découpage vient de `phrasesDe`, avec la coupure sur les points de suspension : pour
+    // celui qui dit le texte, « … » est une respiration, donc une fin de phrase. Comportement
+    // identique à celui d'avant cette correction, et c'est un contrôle qui le vérifie.
+    return phrasesDe(String(texte || '').replace(pauseRe(), ' '), { couperSurSuspension: true })
       .map(function (p) { return normaliserMots(p).length; })
       .filter(function (n) { return n > SEUIL_PHRASE_LONGUE; });
   }
@@ -567,9 +597,38 @@
     return [];
   }
 
+  // ── LES BORNES DE MOT, EN UNICODE ET NON EN ASCII ─────────────────────────────────────────
+  //
+  // `\b` ne connaît que les lettres ASCII. En JavaScript, sans le drapeau `u`, « ê » est une
+  // NON-lettre : il y a donc une borne de mot entre « ê » et « t », et `/\btes\b/` se retrouve
+  // dans « êtes ». C'est ce qui a fait dire au relevé « passe au tu » sur deux étapes de la
+  // présentation de Christophe dont le seul mot commun était « êtes » — « vous êtes ensemble »
+  // et « vous en êtes réellement ».
+  //
+  // LA FAMILLE EST PLUS LARGE QUE « êtes », et c'est la mesure qui l'a dit, pas le raisonnement :
+  // quinze faux positifs sur une liste de mots français ordinaires. « fêtes », « têtes »,
+  // « bêtes », « quêtes », « arrêtes », « tempêtes », « prêtes », « pâtes » (par `tes`) ;
+  // « béton », « bâton », « piéton » (par `ton`) ; « appâta » (par `ta`). Toute lettre accentuée
+  // placée juste avant l'un de ces pronoms ouvre la même porte.
+  //
+  // Les bornes Unicode la ferment : `(?<![\p{L}\p{N}_])` et `(?![\p{L}\p{N}_])` avec le drapeau
+  // `u` traitent « ê » pour ce qu'elle est — une lettre. Le lookbehind demande Safari 16.4 ou
+  // plus récent ; Christophe est en 26.3, et un contrôle le vérifie DANS la page plutôt que de
+  // s'en remettre à une table de compatibilité.
+  var BORNE_AVANT = '(?<![\\p{L}\\p{N}_])';
+  var BORNE_APRES = '(?![\\p{L}\\p{N}_])';
+  function borneMot(alternatives) {
+    return new RegExp(BORNE_AVANT + '(' + alternatives + ')' + BORNE_APRES, 'iu');
+  }
+  // Part de mots qu'un passage entre guillemets doit partager avec UNE phrase de l'écran pour
+  // être tenu pour une citation abîmée plutôt que pour un propos imaginé. 60 %, valeur de
+  // Christophe du 10 octobre : au-dessus, les deux phrases parlent de la même chose et l'écart
+  // est un défaut ; en dessous, le passage raconte autre chose.
+  var SEUIL_CITATION_PROCHE = 0.60;
+
   var PRONOMS = {
-    vous: /\b(toi|tu|ton|ta|tes)\b/i,
-    tu: /\b(vous|votre|vos)\b/i,
+    vous: borneMot('toi|tu|ton|ta|tes'),
+    tu: borneMot('vous|votre|vos'),
   };
 
   // ── LES AVERTISSEMENTS, par étape. AUCUN n'est bloquant. ──────────────────────────────────
@@ -622,12 +681,61 @@
       out.push({ type: 'adresse', texte: adresse === 'vous' ? 'passe au tu' : 'passe au vous' });
     }
 
-    // Toute citation doit se retrouver TELLE QUELLE à l'écran, mots normalisés.
-    var texteDocument = o.texteDocument || ecran;
+    // ── CITATION DU DOCUMENT, OU PROPOS IMAGINÉ ? ───────────────────────────────────────────
+    //
+    // La règle d'avant signalait TOUT passage entre guillemets qui ne se retrouvait pas mot pour
+    // mot à l'écran. Elle a donc crié sur deux phrases de dialogue imaginé introduites par
+    // « Imaginez… » — qui ne citent rien et n'ont pas à être identiques. Un relevé qui crie à
+    // tort s'apprend à être ignoré, et c'est le vrai défaut.
+    //
+    // Règle de Christophe du 10 octobre : un passage entre guillemets n'est un défaut que s'il
+    // est PROCHE d'une phrase de l'écran sans lui être identique — au moins 60 % de ses mots en
+    // commun avec UNE phrase. C'est là qu'une citation a été abîmée. En dessous, c'est un propos
+    // imaginé : affiché comme information neutre, et il ne compte pas comme avertissement.
+    // DEUX FORMES, DEUX USAGES, et il ne faut pas les confondre — c'est ce que le contrôle a
+    // attrapé. `texteDocument` arrive des appelants DÉJÀ NORMALISÉ en tableau de mots : c'est ce
+    // qu'il faut à `contient`, qui compare mot à mot. Mais les PHRASES, elles, ne se découpent
+    // que sur une chaîne : passer le tableau à `phrasesDe` en aurait fait une seule phrase géante
+    // (« mot1,mot2,mot3 »), et la part de mots partagés aurait été calculée contre le document
+    // entier au lieu d'une phrase — ce qui aurait classé un dialogue imaginé en citation abîmée
+    // dès qu'il emploie des mots courants.
+    var brutDocument = (typeof o.texteDocumentBrut === 'string')
+      ? o.texteDocumentBrut
+      : String((etape && etape.texte) || '');
+    // Tolérant sur la forme reçue, pour que le prochain appelant ne retombe pas dans le piège :
+    // un tableau passe tel quel, une chaîne est normalisée ici.
+    var motsDocument = Array.isArray(o.texteDocument)
+      ? o.texteDocument
+      : (o.texteDocument ? normaliserMots(o.texteDocument) : ecran);
+    var phrasesDoc = phrasesDe(brutDocument).map(normaliserMots)
+      .filter(function (m) { return m.length; });
     citations(texteCommentaire).forEach(function (c) {
-      if (!contient(texteDocument, normaliserMots(c))) {
-        out.push({ type: 'citation', texte: 'citation non identique à l\u2019écran : « '
-          + c.slice(0, 60) + (c.length > 60 ? '…' : '') + ' »' });
+      var motsC = normaliserMots(c);
+      if (!motsC.length) return;
+      // Identique à l'écran : rien à signaler, c'est une citation en règle.
+      if (contient(motsDocument, motsC)) return;
+      // La phrase de l'écran dont elle est la PLUS proche, et la part de mots partagés.
+      var part = 0;
+      phrasesDoc.forEach(function (phrase) {
+        var vus = {};
+        phrase.forEach(function (m) { vus[m] = true; });
+        var dedans = 0;
+        motsC.forEach(function (m) { if (vus[m]) dedans++; });
+        var p = dedans / motsC.length;
+        if (p > part) part = p;
+      });
+      var extrait = c.slice(0, 60) + (c.length > 60 ? '…' : '');
+      if (part >= SEUIL_CITATION_PROCHE) {
+        out.push({ type: 'citation', part: part,
+          texte: 'citation non identique à l\u2019écran (' + Math.round(part * 100)
+            + ' % des mots d\u2019une phrase affichée) : « ' + extrait + ' »' });
+      } else {
+        // INFORMATION, PAS DÉFAUT. `information: true` la retire du compte des avertissements :
+        // un chiffre qui enfle sur des propos légitimes ne veut plus rien dire.
+        out.push({ type: 'propos-imagine', part: part, information: true,
+          texte: 'propos imaginé entre guillemets (' + Math.round(part * 100)
+            + ' % des mots de la phrase la plus proche) : « ' + extrait
+            + ' » — rien à corriger, pour information' });
       }
     });
 
@@ -828,9 +936,14 @@
     var dernierBrut = '';
     // Le texte de TOUTE la présentation, normalisé : une citation peut venir d'une autre
     // diapositive que celle de l'étape, et elle reste légitime si elle y figure telle quelle.
-    var texteDocument = normaliserMots(toutes.map(function (e) {
-      return (e.cardTitle || '') + ' ' + (e.texte || ''); }).join(' '));
+    // DEUX FORMES du même document, chacune pour son usage : le tableau de mots pour comparer
+    // une citation mot à mot, la chaîne brute pour en découper les PHRASES. Une seule source,
+    // deux dérivations — et non deux sources qui finiraient par différer.
+    var brutDocument = toutes.map(function (e) {
+      return (e.cardTitle || '') + ' ' + (e.texte || ''); }).join(' ');
+    var texteDocument = normaliserMots(brutDocument);
     var opts = Object.assign({}, o, { texteDocument: texteDocument,
+                                      texteDocumentBrut: brutDocument,
                                       adresse: o.adresse === 'tu' ? 'tu' : 'vous' });
 
     for (var tour = 0; tour < 2; tour++) {
@@ -920,9 +1033,14 @@
     var system = promptSysteme(Object.assign({}, o, { titre: doc.title, public: doc.audience }));
     var transport = o.transport || transportReel;
     var repartition = { cibles: [{ stepId: stepId, mots: cible }] };
-    var texteDocument = normaliserMots(toutes.map(function (e) {
-      return (e.cardTitle || '') + ' ' + (e.texte || ''); }).join(' '));
+    // DEUX FORMES du même document, chacune pour son usage : le tableau de mots pour comparer
+    // une citation mot à mot, la chaîne brute pour en découper les PHRASES. Une seule source,
+    // deux dérivations — et non deux sources qui finiraient par différer.
+    var brutDocument = toutes.map(function (e) {
+      return (e.cardTitle || '') + ' ' + (e.texte || ''); }).join(' ');
+    var texteDocument = normaliserMots(brutDocument);
     var opts = Object.assign({}, o, { texteDocument: texteDocument,
+                                      texteDocumentBrut: brutDocument,
                                       adresse: o.adresse === 'tu' ? 'tu' : 'vous' });
     var messages = [{ role: 'user', content: message }];
     var journal = [];
@@ -965,6 +1083,8 @@
     normaliserMots: normaliserMots, plusLongueSuite: plusLongueSuite,
     partTrigrammesCommuns: partTrigrammesCommuns, citations: citations,
     phrasesLongues: phrasesLongues, avertissementsEtape: avertissementsEtape,
+    phrasesDe: phrasesDe, borneMot: borneMot, PRONOMS: PRONOMS,
+    SEUIL_CITATION_PROCHE: SEUIL_CITATION_PROCHE,
     SEUIL_SUITE_MOTS: SEUIL_SUITE_MOTS, SEUIL_TRIGRAMMES: SEUIL_TRIGRAMMES,
     SEUIL_PHRASE_LONGUE: SEUIL_PHRASE_LONGUE, TOLERANCE_PLANCHER_TITRE: TOLERANCE_PLANCHER_TITRE,
     PART_ETAPES_HORS_TOLERANCE: PART_ETAPES_HORS_TOLERANCE,
@@ -1221,7 +1341,12 @@
         // page a reçu, pas ce que le code avait demandé.
         var ecart = r.total_reparti ? (res.mots_recus - r.total_reparti) / r.total_reparti : 0;
         var signe = ecart >= 0 ? '+' : '−';
-        var nAvertis = (res.avertissements || []).reduce(function (a, x) { return a + x.liste.length; }, 0);
+        // LES INFORMATIONS NEUTRES NE COMPTENT PAS. Un propos imaginé entre guillemets est
+        // légitime : le faire entrer dans le compte ferait monter un chiffre que Christophe lit
+        // comme « ce qu'il reste à corriger », et ce chiffre deviendrait faux.
+        var nAvertis = (res.avertissements || []).reduce(function (a, x) {
+          return a + x.liste.filter(function (av) { return !av.information; }).length;
+        }, 0);
         dire(panneau, res.entrees.length + ' étape(s) rédigée(s).'
           + '\n' + res.mots_recus + ' mots reçus, cible ' + r.total_reparti + ', '
           + signe + Math.abs(Math.round(ecart * 100)) + ' %, environ '
