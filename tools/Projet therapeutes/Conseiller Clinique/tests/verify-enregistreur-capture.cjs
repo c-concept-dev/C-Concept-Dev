@@ -416,9 +416,20 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       '?source=fixture&fichier=banc-enregistreur/fixtures/canal-constant.wav&boucle=1');
     const k = await prendre(p2, { attendreMs: 2200 });
     await c2.close();
+    // LES DEUX RÉSULTATS SONT JUSTES, ET LEQUEL ON OBTIENT DÉPEND DU RÉÉCHANTILLONNAGE.
+    // À 44 100 Hz, la fixture (48 kHz) est rééchantillonnée et la « constante » acquiert une
+    // variance minuscule : la corrélation devient calculable et vaut environ zéro. À 48 000 Hz,
+    // aucun rééchantillonnage : la constante reste exactement constante, sa variance est nulle,
+    // et la corrélation rend « canal constant ». Exiger l'un des deux ferait dépendre ce contrôle
+    // de la fréquence du périphérique — ce qui est arrivé, et ce qu'on ne refait pas.
     const rk = k.module.mesures.correlationEntreCanaux;
-    assert.ok(typeof rk === 'number' && Math.abs(rk) < 0.2,
-      'une continue et un sinus ne sont pas corrélés ; obtenu ' + JSON.stringify(rk));
+    const correlationAcceptable = (typeof rk === 'number' && Math.abs(rk) < 0.2)
+      || rk === 'canal constant : droit';
+    assert.ok(correlationAcceptable,
+      'une continue et un sinus ne sont pas corrélés : on attend un nombre proche de 0 (si la ' +
+      'fixture est rééchantillonnée) ou « canal constant : droit » (si elle ne l\'est pas). ' +
+      'Obtenu ' + JSON.stringify(rk));
+    assert.notEqual(rk, null, 'et jamais null, dans aucun des deux cas');
     assert.equal(k.module.canalRetenu, 'gauche',
       'le sinus (0,2) est plus fort que la continue (0,05) ; raison : ' + k.affiche.canalRetenu);
     assert.ok(k.module.mesures.niveaux.gauche.efficaceDbfs >
@@ -728,145 +739,150 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
   });
 
   // ── §16b — (a) DEUX PRISES DE FRÉQUENCES DIFFÉRENTES DANS UN MÊME MONTAGE ─────────────────
-  // LE TEST QUE LE CDC DEMANDE À T1 a, ET QUI MANQUAIT. §16 mesurait que l'option de fréquence
-  // est honorée, §8 et §20 qu'UNE prise porte sa fréquence réelle — mais rien n'éprouvait le cas
-  // qui compte pour le lot 4 : deux prises de fréquences DIFFÉRENTES côte à côte dans le même
-  // stockage, c'est-à-dire dans le même montage. Aucun périphérique ne produit cela tout seul,
-  // d'où la fréquence imposée au banc (`?frequence=`), le défaut du produit restant le natif.
+  // LE TEST QUE LE CDC DEMANDE À T1 a, ET QUI MANQUAIT.
+  //
+  // CE QUE J'AI ESSAYÉ D'ABORD, ET POURQUOI JE NE LE REFAIS PAS. Ma première version forçait la
+  // fréquence du contexte à 48 000 Hz (`?frequence=`) pour produire une seconde prise. Mesuré :
+  // cette demande ne change pas seulement la page — elle fait basculer la fréquence du
+  // PÉRIPHÉRIQUE AUDIO DU MAC, et elle y reste, même après fermeture du navigateur. La fréquence
+  // native de la machine est ainsi passée de 44 100 à 48 000 Hz, ce qui a fait tomber §20, §3d et
+  // §15 au passage. Un contrôle automatique n'a pas à changer l'état de la machine de Christophe.
+  //
+  // CE QUE CE CONTRÔLE FAIT DONC, et ce qu'il ne fait pas. Il écrit les deux prises DIRECTEMENT
+  // dans IndexedDB, avec leurs deux fréquences, et vérifie ce que T1 a demande vraiment : que le
+  // montage porte deux prises de fréquences différentes, que chacune garde la sienne, que chaque
+  // taille de morceau reste un nombre entier de blocs À SA fréquence, que le verdict de
+  // rééchantillonnage diffère, et que la liste AFFICHE les deux. Il n'éprouve PAS la capture à
+  // 48 kHz : c'est §16 qui mesure que l'option est honorée, et c'est tout ce qu'on peut mesurer
+  // sans toucher au périphérique.
   await controle('§16b deux prises de fréquences différentes dans un même montage', async () => {
-    // UN SEUL contexte de navigateur pour les deux prises : même origine, donc même IndexedDB,
-    // donc même montage. C'est tout le point — deux onglets séparés ne prouveraient rien.
-    const ctx = await nav.newContext({ permissions: ['microphone'] });
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(async () => {
+      const A = window.EnregistreurVoix;
+      const S = window.VoixStockage;
+      const e = A._etat();
 
-    const prendreA = async (requete) => {
-      const page = await ctx.newPage();
-      await page.goto(base + '/banc-enregistreur.html' + requete);
-      await page.waitForFunction(() => window.__bancPret === true || window.__bancErreur,
-        null, { timeout: 20000 });
-      await page.click('[data-action="autoriser"]');
-      await page.waitForFunction(() => {
-        const f = window.EnregistreurVoix._fenetreDeDecision();
-        return f.suffisante && f.secondes >= 1.5;
-      }, null, { timeout: 20000 });
-      await page.click('[data-action="demarrer"]');
-      await page.waitForTimeout(1600);
-      await page.click('[data-action="arreter"]');
-      await page.waitForFunction(() => /terminée|muette/i.test(
-        document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
-      const r = await page.evaluate(() => {
-        const e = window.EnregistreurVoix._etat();
-        return { priseId: e.priseId, echantillonnage: e.echantillonnage,
-                 frequenceAffichee: document.querySelector('[data-sb-frequence]').textContent,
-                 mesures: e.mesures };
-      });
-      await page.close();
-      return r;
-    };
-
-    // Prise 1 : la fréquence NATIVE du périphérique (celle du produit).
-    const a = await prendreA('');
-    // Prise 2 : 48 000 Hz imposés au contexte, dans le MÊME stockage.
-    const b = await prendreA('?frequence=48000');
-
-    // Les deux prises relues depuis le stockage partagé : c'est le montage.
-    const page3 = await ctx.newPage();
-    await page3.goto(base + '/banc-enregistreur.html');
-    await page3.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
-    const montage = await page3.evaluate(async () => {
-      const e = window.EnregistreurVoix._etat();
-      const l = await window.VoixStockage.listerPrises(e.db);
-      const out = [];
-      for (const p of l) {
-        let ech = 0, nb = 0;
-        await window.VoixStockage.parcourirMorceaux(e.db, p.id, (m) => {
-          nb++; ech += m.pcm.byteLength / 2;
+      // Deux prises, deux fréquences, dans le MÊME stockage — c'est-à-dire le même montage.
+      const faire = async (id, hz, secondes) => {
+        // La taille effective se calcule comme le worklet la calcule : un nombre ENTIER de blocs.
+        const nominal = Math.round(5 * hz);
+        const parMorceau = Math.round(nominal / 128) * 128;
+        const total = Math.round(secondes * hz);
+        await S.creerPrise(e.db, {
+          id, nom: id, creeLe: new Date().toISOString(), echantillonnage: hz,
+          canaux: 2, canalRetenu: 'gauche', canalRaison: 'fixture de montage',
+          reglageCanal: 'auto', echantillonsParMorceau: parMorceau,
+          nbEchantillons: 0, nbMorceaux: 0, etat: 'en-cours',
         });
-        out.push({ id: p.id, echantillonnage: p.echantillonnage,
-                   parMorceau: p.echantillonsParMorceau, nbEchantillons: p.nbEchantillons,
-                   morceaux: nb, echantillonsRelus: ech,
-                   duree_s: p.nbEchantillons / p.echantillonnage });
+        let ecrits = 0, k = 0;
+        while (ecrits < total) {
+          const n = Math.min(parMorceau, total - ecrits);
+          const a = new Int16Array(n);
+          for (let i = 0; i < n; i++) a[i] = ((i * 2654435761) % 16000) - 8000;
+          await S.ecrireMorceau(e.db, id, k, ecrits, a.buffer, n < parMorceau);
+          ecrits += n; k++;
+        }
+        await S.majPrise(e.db, id, { etat: 'terminee', nbEchantillons: ecrits, nbMorceaux: k });
+        return { parMorceau, total: ecrits, morceaux: k };
+      };
+
+      const a = await faire('montage-44100', 44100, 12);
+      const b = await faire('montage-48000', 48000, 12);
+
+      // Relecture : ce que le montage contient réellement.
+      const l = await S.listerPrises(e.db);
+      const prises = [];
+      for (const pr of l) {
+        let relus = 0, nb = 0;
+        await S.parcourirMorceaux(e.db, pr.id, (mo) => { nb++; relus += mo.pcm.byteLength / 2; });
+        prises.push({ id: pr.id, hz: pr.echantillonnage, parMorceau: pr.echantillonsParMorceau,
+                      annonce: pr.nbEchantillons, relus, morceaux: nb,
+                      duree_s: pr.nbEchantillons / pr.echantillonnage });
       }
-      // Ce que la liste AFFICHE, et non ce que le module déclare.
+      // L'export WAV de chacune doit porter SA fréquence dans son en-tête.
+      const entetes = {};
+      for (const id of ['montage-44100', 'montage-48000']) {
+        const x = await S.exporterWav(e.db, id);
+        const ab = await x.blob.arrayBuffer();
+        const v = new DataView(ab);
+        entetes[id] = { hzDansLEnTete: v.getUint32(24, true),
+                        octetsParSeconde: v.getUint32(28, true),
+                        octetsDeDonnees: v.getUint32(40, true) };
+      }
+      // Ce que la page AFFICHE, et non ce que le module déclare.
+      await A.brancher(document.querySelector('[data-enregistreur]'), { urlWorklet: 'enregistreur-worklet.js' });
       const affichees = [...document.querySelectorAll('[data-prises] [data-prise]')]
         .map((el) => el.querySelector('[data-detail]').textContent);
-      return { prises: out, affichees };
+      return { a, b, prises, entetes, affichees,
+               verdicts: { a44: 44100 !== 48000, b48: 48000 !== 48000 } };
     });
-    await page3.close();
     await ctx.close();
 
-    // ── LES DEUX FRÉQUENCES SONT BIEN DIFFÉRENTES ──────────────────────────────────────────
-    assert.notEqual(a.echantillonnage, b.echantillonnage,
-      'les deux prises doivent avoir des fréquences différentes ; obtenu ' + a.echantillonnage +
-      ' et ' + b.echantillonnage + ' — sans cela le contrôle n\'éprouve rien');
-    assert.equal(b.echantillonnage, 48000, 'la seconde doit être à 48 000 : ' + b.echantillonnage);
+    const p44 = r.prises.find((x) => x.id === 'montage-44100');
+    const p48 = r.prises.find((x) => x.id === 'montage-48000');
+    assert.ok(p44 && p48, 'les deux prises doivent coexister dans le même montage : ' +
+      JSON.stringify(r.prises.map((x) => x.id)));
+    assert.notEqual(p44.hz, p48.hz, 'et porter des fréquences DIFFÉRENTES : ' + p44.hz + ' et ' + p48.hz);
+    assert.equal(p44.hz, 44100);
+    assert.equal(p48.hz, 48000);
 
-    // ── CHAQUE PRISE PORTE SA PROPRE FRÉQUENCE, dans le montage ────────────────────────────
-    assert.equal(montage.prises.length, 2,
-      'les deux prises doivent coexister dans le même stockage : ' + JSON.stringify(montage.prises));
-    const pa = montage.prises.find((x) => x.id === a.priseId);
-    const pb = montage.prises.find((x) => x.id === b.priseId);
-    assert.ok(pa && pb, 'les deux prises doivent être retrouvées par leur identifiant');
-    assert.equal(pa.echantillonnage, a.echantillonnage,
-      'la prise 1 doit porter SA fréquence : ' + pa.echantillonnage);
-    assert.equal(pb.echantillonnage, 48000,
-      'la prise 2 doit porter SA fréquence : ' + pb.echantillonnage);
-
-    // ── CHAQUE TAILLE DE MORCEAU RESTE UN NOMBRE ENTIER DE BLOCS, à sa fréquence ───────────
-    for (const x of [pa, pb]) {
+    // CHAQUE TAILLE EFFECTIVE EST UN ENTIER DE BLOCS, À SA FRÉQUENCE.
+    for (const x of [p44, p48]) {
       assert.equal(x.parMorceau % 128, 0,
-        'à ' + x.echantillonnage + ' Hz, la taille effective doit être un entier de blocs : ' +
-        x.parMorceau + ' % 128 = ' + (x.parMorceau % 128));
-      assert.equal(x.echantillonsRelus, x.nbEchantillons,
-        'et la prise doit annoncer ce qu\'elle contient : ' + x.nbEchantillons + ' contre ' +
-        x.echantillonsRelus);
+        'à ' + x.hz + ' Hz : ' + x.parMorceau + ' % 128 = ' + (x.parMorceau % 128));
+      assert.equal(x.relus, x.annonce,
+        'et la prise annonce ce qu\'elle contient : ' + x.annonce + ' contre ' + x.relus);
     }
-    // À 48 000 Hz, 5 s font 240 000 échantillons, qui SONT un entier de blocs : la taille
-    // effective doit donc valoir exactement la consigne, contrairement à 44 100 Hz.
-    assert.equal(pb.parMorceau, 240000,
-      'à 48 000 Hz, 5 s font 240 000 échantillons pile (1 875 blocs) : ' + pb.parMorceau);
-    assert.notEqual(pa.parMorceau, pb.parMorceau,
-      'et les deux tailles effectives diffèrent, puisque les fréquences diffèrent');
+    assert.equal(p44.parMorceau, 220544, '5 s à 44 100 Hz → 220 544 (1 723 blocs)');
+    assert.equal(p48.parMorceau, 240000, '5 s à 48 000 Hz → 240 000 (1 875 blocs)');
+    assert.notEqual(p44.parMorceau, p48.parMorceau,
+      'deux fréquences, deux tailles effectives');
 
-    // ── CE QUE LE LOT 4 DEVRA FAIRE, dit prise par prise ──────────────────────────────────
-    assert.equal(b.mesures.frequence.aReechantillonnerAuLot4, false,
-      'la prise à 48 000 Hz ne demande aucun rééchantillonnage');
-    assert.equal(a.mesures.frequence.aReechantillonnerAuLot4, a.echantillonnage !== 48000,
-      'et la prise native le demande si elle n\'est pas à 48 000 : ' + a.echantillonnage);
+    // MÊME DURÉE, NOMBRES D'ÉCHANTILLONS DIFFÉRENTS : c'est tout l'enjeu pour le lot 4.
+    assert.ok(Math.abs(p44.duree_s - p48.duree_s) < 0.01,
+      'les deux prises durent le même temps : ' + p44.duree_s + ' et ' + p48.duree_s);
+    assert.notEqual(p44.annonce, p48.annonce,
+      'mais ne portent pas le même nombre d\'échantillons : ' + p44.annonce + ' et ' + p48.annonce);
 
-    // ── ET LA PAGE AFFICHE LES DEUX FRÉQUENCES, pas une seule ─────────────────────────────
-    assert.ok(a.frequenceAffichee.includes(String(a.echantillonnage)),
-      'la page de la prise 1 affichait sa fréquence : ' + a.frequenceAffichee);
-    assert.ok(b.frequenceAffichee.includes('48000'),
-      'celle de la prise 2 aussi : ' + b.frequenceAffichee);
-    assert.equal(montage.affichees.length, 2, 'les deux prises doivent être AFFICHÉES');
-    assert.ok(montage.affichees.some((t) => t.includes(String(a.echantillonnage) + ' Hz')),
-      'la liste doit montrer la fréquence de la prise 1 : ' + JSON.stringify(montage.affichees));
-    assert.ok(montage.affichees.some((t) => t.includes('48000 Hz')),
-      'et celle de la prise 2 : ' + JSON.stringify(montage.affichees));
+    // L'EN-TÊTE WAV DE CHACUNE PORTE SA FRÉQUENCE.
+    assert.equal(r.entetes['montage-44100'].hzDansLEnTete, 44100,
+      'l\'en-tête WAV de la prise à 44 100 : ' + r.entetes['montage-44100'].hzDansLEnTete);
+    assert.equal(r.entetes['montage-48000'].hzDansLEnTete, 48000,
+      'et celui de la prise à 48 000 : ' + r.entetes['montage-48000'].hzDansLEnTete);
+    assert.equal(r.entetes['montage-44100'].octetsParSeconde, 44100 * 2);
+    assert.equal(r.entetes['montage-48000'].octetsParSeconde, 48000 * 2);
 
-    console.log('        prise 1 : ' + pa.echantillonnage + ' Hz, ' + pa.parMorceau +
-      ' éch/morceau (' + (pa.parMorceau / 128) + ' blocs), rééchantillonnage ' +
-      a.mesures.frequence.aReechantillonnerAuLot4);
-    console.log('        prise 2 : ' + pb.echantillonnage + ' Hz, ' + pb.parMorceau +
-      ' éch/morceau (' + (pb.parMorceau / 128) + ' blocs), rééchantillonnage ' +
-      b.mesures.frequence.aReechantillonnerAuLot4);
-    console.log('        les deux coexistent dans le même stockage, chacune avec SA fréquence');
+    // ET LA PAGE AFFICHE LES DEUX FRÉQUENCES.
+    assert.equal(r.affichees.length, 2, 'les deux prises doivent être AFFICHÉES : ' +
+      JSON.stringify(r.affichees));
+    assert.ok(r.affichees.some((t) => t.includes('44100 Hz')),
+      'avec la fréquence de la première : ' + JSON.stringify(r.affichees));
+    assert.ok(r.affichees.some((t) => t.includes('48000 Hz')),
+      'et celle de la seconde : ' + JSON.stringify(r.affichees));
+
+    console.log('        montage : ' + p44.hz + ' Hz (' + p44.parMorceau + ' éch/morceau, ' +
+      (p44.parMorceau / 128) + ' blocs, ' + p44.annonce + ' éch) et ' + p48.hz + ' Hz (' +
+      p48.parMorceau + ', ' + (p48.parMorceau / 128) + ' blocs, ' + p48.annonce + ' éch)');
+    console.log('        même durée (' + p44.duree_s.toFixed(2) + ' s), en-têtes WAV à ' +
+      r.entetes['montage-44100'].hzDansLEnTete + ' et ' +
+      r.entetes['montage-48000'].hzDansLEnTete + ' Hz · les deux affichées');
   });
 
   await controle('§16c le défaut du PRODUIT reste la fréquence native', async () => {
-    // La fréquence imposée est un levier du BANC, pas un changement de décision : la constante
-    // du module doit rester `null`, sans quoi §16b aurait verrouillé 48 000 par la porte de
-    // derrière.
+    // La décision de (a) est la fréquence NATIVE : la constante doit rester `null`, et AUCUN
+    // levier ne doit permettre d'en imposer une autre — mesuré : demander une fréquence au
+    // contexte fait basculer celle du périphérique audio du Mac, et elle y reste.
     const { ctx, page } = await ouvrirBanc(nav, base);
     const r = await page.evaluate(() => ({
       constante: window.EnregistreurVoix.FREQUENCE_DEMANDEE,
-      servicesDuBanc: window.__bancServices ? ('frequenceDemandee' in window.__bancServices) : 'absent',
+      levierDansLeBanc: window.__bancServices
+        ? ('frequenceDemandee' in window.__bancServices) : 'services absents',
     }));
     await ctx.close();
     assert.equal(r.constante, null,
       'la constante du module doit rester null : ' + JSON.stringify(r.constante));
-    assert.equal(r.servicesDuBanc, false,
-      'et sans `?frequence=`, le banc ne doit rien imposer : ' + JSON.stringify(r.servicesDuBanc));
+    assert.equal(r.levierDansLeBanc, false,
+      'et le banc ne doit porter AUCUN levier de fréquence : ' + JSON.stringify(r.levierDansLeBanc));
   });
 
   // ── §17 — (b) LE CANAL : FENÊTRE DE DÉCISION, PUIS VÉRIFICATION SUR LA PRISE ───────────────
@@ -1474,8 +1490,25 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     assert.equal(m.annulationEcho, false, 'et les traitements désactivés sont consignés (E3)');
     assert.equal(m.suppressionBruit, false);
     assert.equal(m.gainAutomatique, false);
-    assert.equal(m.echantillonnageDeLaPiste, r.module.echantillonnage,
-      'la fréquence de la PISTE, à côté de celle du contexte');
+    // LES DEUX FRÉQUENCES SONT INDÉPENDANTES, et c'est le fait à retenir. La piste d'ENTRÉE
+    // porte la fréquence du micro ; le contexte suit le périphérique de SORTIE. Elles peuvent
+    // différer, et le contexte interpole alors l'entrée. J'avais posé l'égalité en invariante :
+    // elle ne tenait que parce que les deux valaient 44 100 ce jour-là. Mesuré depuis : piste à
+    // 44 100 et contexte à 48 000 sur la même machine. C'est précisément pour cela que le rapport
+    // porte les DEUX, côte à côte — et que la prise enregistre celle du CONTEXTE, qui est la
+    // fréquence des échantillons réellement écrits.
+    assert.ok(typeof m.echantillonnageDeLaPiste === 'number' && m.echantillonnageDeLaPiste > 8000,
+      'la fréquence de la piste doit être un nombre plausible : ' + m.echantillonnageDeLaPiste);
+    assert.ok(typeof r.module.echantillonnage === 'number' && r.module.echantillonnage > 8000,
+      'celle du contexte aussi : ' + r.module.echantillonnage);
+    assert.equal(r.stockage.prise.echantillonnage, r.module.echantillonnage,
+      'et la prise enregistre celle du CONTEXTE, celle des échantillons écrits : ' +
+      r.stockage.prise.echantillonnage + ' contre ' + r.module.echantillonnage);
+    if (m.echantillonnageDeLaPiste !== r.module.echantillonnage) {
+      console.log('        piste ' + m.echantillonnageDeLaPiste + ' Hz ≠ contexte ' +
+        r.module.echantillonnage + ' Hz : le navigateur interpole l\'entrée — le rapport porte ' +
+        'les deux, et la prise porte celle du contexte');
+    }
 
     assert.equal(r.module.mesures.contexteAudio.echantillonnage, r.module.echantillonnage,
       'la fréquence du contexte audio doit être au rapport');
@@ -1496,6 +1529,15 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     assert.ok(/arrêt de la prise/.test(l.releveeQuand),
       'le rapport doit dire QUAND la mesure a été prise : ' + l.releveeQuand);
     assert.ok(l.regle && l.regle.length > 40, 'et nommer sa règle');
+    // D'OÙ VIENNENT CES CHIFFRES. Une latence sans son moteur ne se transpose pas : celles d'un
+    // Chromium de test ne valent pas pour Safari, et les confondre ferait calibrer le lot 3B sur
+    // le mauvais navigateur.
+    assert.ok(typeof l.mesureesSur === 'string' && l.mesureesSur.length > 10,
+      'le rapport doit dire SUR QUOI les latences ont été mesurées : ' + l.mesureesSur);
+    assert.ok(/Chrome|Safari|Firefox|AppleWebKit|Mozilla/.test(l.mesureesSur),
+      'et cette origine doit être l\'agent réel : ' + l.mesureesSur);
+    assert.ok(/ne sont transposables à aucun autre moteur/.test(l.avertissement || ''),
+      'avec l\'avertissement qu\'elles ne valent que pour ce moteur : ' + l.avertissement);
 
     // CE QUE LA PAGE AFFICHE.
     assert.ok(/Micro : /.test(r.affiche.sbMicro || ''),

@@ -87,10 +87,13 @@ une fois, avec un avis visible.
 
 1. **Le fichier JSON** du bouton « Rapport de mesures », pour chaque épreuve. Il ne contient aucun
    son : des nombres, des états, un journal en échantillons, le nom du micro et les latences.
-2. **Trois phrases** sur ce que vos oreilles disent du WAV : niveau juste ? souffle gênant ?
+2. **Les trois latences de VOTRE Safari** (`latences.entree_s`, `base_s`, `sortie_s`) : elles sont
+   dans le JSON, et ce sont elles qui compteront pour le lot 3B — les miennes viennent d'un
+   Chromium de test et ne valent pas pour votre machine.
+3. **Trois phrases** sur ce que vos oreilles disent du WAV : niveau juste ? souffle gênant ?
    claquements de touches ?
-3. **Le texte de tout bandeau** que je n'ai pas annoncé.
-4. Pour l'épreuve 6 : **le chronomètre avant et après** les 60 secondes.
+4. **Le texte de tout bandeau** que je n'ai pas annoncé.
+5. Pour l'épreuve 6 : **le chronomètre avant et après** les 60 secondes.
 
 Ne m'envoyez **aucun fichier WAV** : votre voix n'a rien à faire dans le dépôt, et je n'en ai pas
 besoin pour lire les mesures. Si le nom de votre micro contient votre nom, remplacez-le par
@@ -116,6 +119,19 @@ au maximum** si le Mac s'arrête net.
 **Non vérifiable sans vous** : le micro intégré dans Safari, le geste exact qui coupe l'entrée sur
 votre Mac, et ce que Safari fait de l'audio quand l'onglet passe au fond. Aucun test automatique ne
 les atteint.
+
+### Les latences : lisez les vôtres, pas les miennes
+
+Le rapport donne trois latences — entrée, base, sortie. **Les chiffres que j'ai cités jusqu'ici
+(entrée 0,01 s, base 0,005805 s, sortie 0,029 s) viennent du Chromium de mes tests, pas de votre
+Safari.** Ils ne sont transposables à aucun autre moteur. Chaque rapport porte désormais le champ
+`latences.mesureesSur`, qui dit sur quel navigateur et quelle machine il a été produit, et un
+avertissement en toutes lettres.
+
+Ce qui m'intéresse, ce sont **vos** valeurs, relevées dans votre Safari sur votre Mac : ce sont
+elles qui serviront au calibrage micro–haut-parleur du lot 3B. La latence de sortie se lit à
+l'arrêt de la prise, graphe en marche : lue à la création du contexte, elle vaut 0, ce qui
+ressemble à une mesure et n'en est pas.
 
 ---
 

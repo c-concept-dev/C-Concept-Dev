@@ -735,13 +735,13 @@
     // (a) La fréquence demandée, ou rien du tout. Mesuré : les deux moteurs honorent l'option,
     // mais la piste du micro garde la sienne et le contexte interpole — voir la constante.
     //
-    // `services.frequenceDemandee` permet au BANC d'en imposer une autre. Seul usage : éprouver
-    // deux prises de fréquences DIFFÉRENTES dans un même montage, ce que le CDC demande (T1 a) et
-    // qu'aucun périphérique ne produit tout seul. Le défaut du produit reste la constante
-    // ci-dessus, et un contrôle vérifie qu'elle vaut bien `null`.
-    var demandee = (_services && typeof _services.frequenceDemandee === 'number')
-      ? _services.frequenceDemandee : FREQUENCE_DEMANDEE;
-    var ctx = (demandee === null) ? new AC() : new AC({ sampleRate: demandee });
+    // IL N'Y A AUCUN LEVIER POUR EN IMPOSER UNE AUTRE, et c'est une décision mesurée. J'en avais
+    // ajouté un pour produire deux prises de fréquences différentes (T1 a) : demander une
+    // fréquence au contexte fait basculer celle du PÉRIPHÉRIQUE AUDIO DU MAC, et elle y reste,
+    // même après fermeture du navigateur — la machine de Christophe est ainsi passée de 44 100 à
+    // 48 000 Hz. Un levier qui change l'état de sa machine n'a rien à faire ici. Le test de T1 a
+    // écrit désormais les deux prises directement dans le stockage (§16b).
+    var ctx = (FREQUENCE_DEMANDEE === null) ? new AC() : new AC({ sampleRate: FREQUENCE_DEMANDEE });
     _etat.ctx = ctx;
     _etat.echantillonnage = ctx.sampleRate;
 
@@ -1041,6 +1041,14 @@
             : 'propriété baseLatency absente de ce navigateur',
           entree_s: (_etat.microphone && _etat.microphone.latenceEntree_s) || 'indisponible',
           releveeQuand: 'à l\'arrêt de la prise, graphe en marche',
+          // ── D'OÙ VIENNENT CES CHIFFRES, ÉCRIT DANS LE RAPPORT LUI-MÊME ──────────────────
+          // Une latence n'a de sens qu'avec le moteur et la machine qui l'ont produite : celles
+          // d'un Chromium de test ne valent pas pour Safari, et les confondre ferait calibrer le
+          // lot 3B sur les chiffres d'un autre navigateur. Le rapport porte donc son origine.
+          mesureesSur: (self.navigator && self.navigator.userAgent) || 'agent indisponible',
+          avertissement: 'CES LATENCES SONT CELLES DU NAVIGATEUR ET DE LA MACHINE QUI ONT PRODUIT '
+            + 'CETTE PRISE, lisibles dans `mesureesSur`. Elles ne sont transposables à aucun '
+            + 'autre moteur : une valeur relevée dans un Chromium de test ne dit rien de Safari.',
           regle: 'outputLatency vaut 0 tant qu\'aucune source n\'est connectée : la lire à la '
             + 'création du contexte donnerait un zéro qui n\'est pas une mesure. Le calibrage '
             + 'micro-haut-parleur, lui, est du lot 3B.',
