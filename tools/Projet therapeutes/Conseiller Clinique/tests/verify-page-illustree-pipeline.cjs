@@ -61,7 +61,7 @@ const PAGES = [
     paragraphs: ['Mettre en commun ne règle pas la question du pouvoir.'], deepDiveLinks: [] },
 ];
 const CARTES = [
-  { title: 'L\'argent dans le couple', coverImageQuery: 'couple finances', coverImageAlt: 'Deux mains et une calculatrice',
+  { title: 'Presentation d essai illustree', coverImageQuery: 'couple finances', coverImageAlt: 'Deux mains et une calculatrice',
     coverDeepDiveLinks: [], blocks: [
       flatBlock({ type: 'paragraph', text: 'La dette invisible pèse sur la relation plus que son montant.',
                   deepDiveLinks: [{ text: 'La dette invisible', targetId: 'n1' }] }),
@@ -71,7 +71,7 @@ const CARTES = [
 const sseDoc = (cards, deepDives) => sse([
   { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_img', name: 'emit_presentation_document' } },
   { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta',
-    partial_json: JSON.stringify({ title: 'L\'argent dans le couple', purpose: 'formation', audience: 'praticien', cards: cards, deepDives: deepDives }) } },
+    partial_json: JSON.stringify({ title: 'Presentation d essai illustree', purpose: 'formation', audience: 'praticien', cards: cards, deepDives: deepDives }) } },
   { type: 'content_block_stop', index: 0 },
   { type: 'message_delta', delta: { stop_reason: 'tool_use' } },
   { type: 'message_stop' },
@@ -145,7 +145,7 @@ const sseDoc = (cards, deepDives) => sse([
       const plan = { needs_rag: true, documentKind: 'presentation', intent: 'chat', duree_minutes: 10,
                      audience_type: 'praticien', _formatClarityResolved: true };
       const rag = { chunks: [{ content: 'Passage.', book_title: 'Livre', author: 'Auteur', page_number: 1, _score: 0.9 }] };
-      await window.adocRunGenerationPipeline('Prépare un exposé sur l\'argent dans le couple.', plan, 'typing-img', 'https://clone-proxy.test.local', rag);
+      await window.adocRunGenerationPipeline('Prépare un exposé d essai avec une page illustree.', plan, 'typing-img', 'https://clone-proxy.test.local', rag);
     });
     const storeKey = await page.evaluate(() => Object.keys(window._adocArtifacts || {})[0]);
     if (!storeKey) {
