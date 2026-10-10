@@ -2464,3 +2464,36 @@ et c'est un service qu'il rend.
 l'adaptateur. Plutôt que d'assouplir la règle, l'aide « base en mémoire » a été déplacée dans
 l'adaptateur — ce qui a supprimé au passage une duplication que j'avais laissée dans trois
 fichiers de test.
+
+### Lot E1 — clôture, et ce qui attend une décision
+
+**Les dix étapes sont construites et éprouvées.** Ce qui a été créé chez l'hébergeur, et rien
+d'autre :
+
+| Ressource | Région | Rôle |
+|---|---|---|
+| D1 `lienotheque-registre` | WEUR | le registre, 6 tables |
+| D1 `lienotheque-essai` | WEUR | la bibliothèque d'**essai**, 4 migrations |
+| D1 `lienotheque-restauration-essai` | WEUR | cible de l'épreuve de restauration |
+| R2 `lienotheque-medias` | WEUR | les fichiers, vide |
+
+Coût : **zéro au-dessus de l'abonnement**.
+
+**Ce qui n'est pas fait, et pourquoi il faut votre mot.** Le Worker **n'est pas déployé**. Sa
+configuration a changé — deux liaisons D1, une liaison R2 — et il lui faut deux réglages qui
+n'existent pas encore : `SECRET_LAISSEZ`, qui signe les laissez-passer, et `BIBLIOTHEQUE_FACADE`,
+qui dit quelle bibliothèque la façade sert. La règle 7 de CLAUDE.md soumet tout changement de
+configuration ou de secret avant de l'appliquer, et c'est exactement le cas.
+
+Tant que ce déploiement n'a pas eu lieu, la façade est éprouvée **dans le processus** — routes,
+corps, formes de réponse, refus — mais pas encore par-dessus le réseau. C'est la dernière marche
+du critère de passage de BAS-01, et elle se franchit en une commande une fois les deux réglages
+posés.
+
+**Le banc de comparaison attend une seconde adresse.** Il tourne sur ses mesures, qui sont
+testées ; la comparaison réelle demande l'adresse et le jeton de l'ancienne API, et elle a sa
+place au lot E3, pas ici.
+
+**Ce qui reste à faire avant E2**, et qui ne dépend que de vous : le déploiement ci-dessus, puis
+le jeu de questions réelles — trente à cinquante, tirées des recherches qui comptent pour celle
+qui s'en sert, et non de ce qu'on imagine qu'elle cherche.
