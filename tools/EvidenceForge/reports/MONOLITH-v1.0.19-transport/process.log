@@ -1,0 +1,2 @@
+PROCESS_RESTART_PASS
+NETWORK_GUARD {"externalAttempts":0}

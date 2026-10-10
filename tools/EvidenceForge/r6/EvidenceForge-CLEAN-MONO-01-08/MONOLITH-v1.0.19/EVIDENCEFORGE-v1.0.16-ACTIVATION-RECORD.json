@@ -1,0 +1,184 @@
+{
+  "schema": "EvidenceForge.ActivationRecord",
+  "version": "MONOLITH-v1.0.16",
+  "decision": "OWNER ACTIVATION GATE — MONOLITH v1.0.16 : ACTIVATE_WITH_RESERVATIONS",
+  "validatedBy": "Christophe Bonnet",
+  "activatedAt": "2026-09-24",
+  "activeVersion": {
+    "before": "MONOLITH-v1.0.10",
+    "after": "MONOLITH-v1.0.16",
+    "mechanism": "tools/EvidenceForge/ACTIVE_VERSION (pointeur unique lu par tools/EvidenceForge/bin/launcher.js : activeVersion() / activeDir())",
+    "fileBytesAfter": "MONOLITH-v1.0.16\\n",
+    "onlyRepoChange": "tools/EvidenceForge/ACTIVE_VERSION"
+  },
+  "status": "ACTIVE (FROZEN_WITH_RESERVATIONS)",
+  "governanceChain": {
+    "codeCommit": "766db22a (« studio », code v1.0.16 deja sur origin/main)",
+    "freezeCommit": "e4050d4f (freeze(evidenceforge): v1.0.16 PB-B7 reuse identity fix)",
+    "freezeRecord": {
+      "json": "d06f701bc7c37683757965ee340818f2fe1c8b42851162cf2afa573ea7c06c6c",
+      "md": "dac1746388ce446e3a95ef12ace09bf7baadcac14f77f99d125038b8d47a1f4f",
+      "governanceSums": "2bde597fc40f806eccd0b89c33ab64753d87c37ae66c6e8e9212440259bd6117"
+    },
+    "implementationAudit": {
+      "md": "6b86a66255a8e90d887a5c5c0dffd1ca3a74371e76f13169ed74d19cf6013249",
+      "json": "7e692e81a0bd6e1567da3dae3587acce40556fca4d614e8121a80500429ee177"
+    },
+    "independentAudit": {
+      "verdict": "V1_0_16_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+      "blockers": 0,
+      "md": "92a8667adf3bf0f661a6965a1e0e3e507146479dd58d426a107d6ee726773fe1",
+      "json": "93f52c428dcf71e03e8592d38830aa80bc9fc3ef4c9a26b147961607206c1fa8"
+    },
+    "microSmoke": {
+      "verdict": "PB_B7_MICRO_SMOKE_PASS",
+      "runId": "pbb7ms-202609232121-a44872",
+      "realCalls": 3,
+      "costUsd": 0.558981,
+      "reportMd": "5529a3145cfbebdb45e3becbfca6e11dfa6741f9fa0121178e438d6c6faa6ad9",
+      "reportJson": "b62ffef8c52ce222b1eb45a3cf44d48d6423f59d1f81c1374197462fdfb05b1b",
+      "evidenceSums": "a3a0ef2a7f6e283dec726fb6282697eda727bbe9921209086f10b5c1a6a3d486",
+      "location": "~/evidenceforge-work/reports/pb-b7-microsmoke-v1016/ (hors depot)",
+      "scenarios": {
+        "S1": "revue reelle creee sous (target-01, A)",
+        "S2": "reuse nominal reel, 0 appel",
+        "S3": "A refusee par le registre ET par le magasin (EF03B_REUSE_AUTHORITY_MISMATCH), recalcul, seule la reponse recalculee inscrite sous B",
+        "S4": "chemin naturel B valide"
+      }
+    }
+  },
+  "statuses": {
+    "PB_B7": "CLOSED (ne pas rouvrir sans nouvelle preuve factuelle)",
+    "R3": "CLOSED (micro-smoke reel sur modules geles de production)",
+    "pbB7Evidence": [
+      "defaut v1.0.15 reproduit",
+      "correctif v1.0.16 audite independamment",
+      "T3b ferme hors ligne",
+      "micro-smoke reel S3 confirme",
+      "aucune reponse de A enregistree sous B",
+      "reuse nominal fonctionnel"
+    ]
+  },
+  "remainingReservations": [
+    {
+      "id": "R1",
+      "severity": "MEDIUM",
+      "text": "Mutant M11 (identity guard restricted to base purpose 'EF-03B review') survives 345/345: non-base passes (informed-retry, completion, literalization) are protected by code (harness C9e refused) but not by any test.",
+      "disposition": "ACCEPT_RESERVATION",
+      "activationDisposition": "ACCEPTED_RESERVATION — ne bloque pas l activation"
+    },
+    {
+      "id": "R2",
+      "severity": "MEDIUM",
+      "text": "MONOLITH-v1.0.16 (184 files) is already committed in 766db22a ('studio', 2026-09-23 22:03 +0200) and present on origin/main, contrary to the declared status 'NON COMMITEE'.",
+      "disposition": "DOCUMENTED"
+    },
+    {
+      "id": "R4",
+      "severity": "LOW",
+      "text": "RUN-SAFETY-12 weakened: with pass:1 the resume reuse is served by the EF-03B registry, no longer by the store cache; mutant W1 (store reuse disabled) was killed by RUN-SAFETY-12 in v1.0.15 and is not in v1.0.16 (still killed by 19 other tests).",
+      "disposition": "ACCEPT_RESERVATION"
+    },
+    {
+      "id": "R5",
+      "severity": "LOW",
+      "text": "Mutant M12 survives; transport trusts caller-declared identity (C9c). No production effect: only the adapter calls EF-03B; frozen MONO-11 v0.4 never sets documentAuthoritySha256.",
+      "disposition": "ACCEPT_RESERVATION_CURRENTLY_NON_RUNTIME",
+      "activationDisposition": "ACCEPTED_RESERVATION — clause maintenue : IF_NEW_RUNTIME_CALLER_CAN_SUPPLY_EF03B_IDENTITY -> R5 MUST BE REOPENED BEFORE THAT CALLER IS AUTHORIZED"
+    },
+    {
+      "id": "R6",
+      "severity": "LOW",
+      "text": "M3, M4, M4c killed only by refusal-code assertions (historical reuseContextCheck keeps final safety); M4b killed by code on first assertion while no-seal behavior regresses.",
+      "disposition": "ACCEPT_RESERVATION"
+    },
+    {
+      "id": "R7",
+      "severity": "LOW",
+      "text": "Frozen policy proposes only the most recent VALID entry; divergent identity => refusal even if an older matching entry exists (C9f): extra cost, fail-closed.",
+      "disposition": "ACCEPT_RESERVATION",
+      "activationDisposition": "ACCEPTED_OPERATIONAL_RESERVATION — constatee au micro-smoke (MS-O1) ; surcout possible uniquement, aucun risque d identite documentaire demontre"
+    },
+    {
+      "id": "R8",
+      "severity": "INFO",
+      "text": "markValidation propagates by responseSha256 to all entries sharing the hash regardless of identity (C9g); requires byte-identical responses incl. provider id: theoretical, pre-existing.",
+      "disposition": "ACCEPT_RESERVATION"
+    },
+    {
+      "id": "R9",
+      "severity": "INFO",
+      "text": "RUN-SAFETY-21 old-contract sub-assertion now shadowed by identity guard (contract refusal covered by V12-12, PB7-05).",
+      "disposition": "ACCEPT_RESERVATION"
+    },
+    {
+      "id": "R10",
+      "severity": "INFO",
+      "text": "Cross-purpose collisions now refused (stricter than v1.0.15); legacy EF-03B store entries no longer reusable.",
+      "disposition": "ACCEPT_RESERVATION"
+    }
+  ],
+  "postActivationChecks": {
+    "ACTIVE_VERSION": "MONOLITH-v1.0.16",
+    "launcherResolution": "activeDir -> r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.16",
+    "manifestV1016": "180/180 OK",
+    "contentHash": "54266d0db6a0ce73bb88309a3bb8d53fcaa378c2af3b3e34dadf479f12ada490 (inchange)",
+    "governanceSums": "8/8 OK",
+    "mono11": "v0.4 55/55 OK ; doctor : MONO-10 (79), MONO-11 (55), MONO-09 (9), MONO-01 (106) verifies",
+    "runtimeV1016Unchanged": "401 fichiers (v1.0.10 + v1.0.16 + MONO-11 v0.4, hors runs/) byte-identiques avant/apres",
+    "historicalReportsUnchanged": "106 fichiers de gouvernance / audit / gel du bundle byte-identiques avant/apres",
+    "v1010PresentIntact": "149/149 OK, contentHash 9b129453fd7ad421de70514ebfd2b95d4c7b8cf960188e9466a5150fc9e1ea40",
+    "doctor": "tout en ordre : version active v1.0.16, worker joignable (sonde gratuite), claude-sonnet-4-6 tarife, lots geles verifies, port 8768 libre"
+  },
+  "rollback": {
+    "version": "MONOLITH-v1.0.10",
+    "present": true,
+    "manifest": "149/149",
+    "contentHash": "9b129453fd7ad421de70514ebfd2b95d4c7b8cf960188e9466a5150fc9e1ea40",
+    "procedure": "ecrire MONOLITH-v1.0.10 dans tools/EvidenceForge/ACTIVE_VERSION (une seule ligne), relancer ./tools/EvidenceForge/doctor.sh ; aucune ancienne version supprimee",
+    "triggers": [
+      "corruption de lineage",
+      "cross-target reuse",
+      "authority mismatch accepte",
+      "comportement scientifique divergent",
+      "erreur de contrat nouvelle"
+    ],
+    "onTrigger": "STOP puis retour a MONOLITH-v1.0.10 AVANT analyse"
+  },
+  "firstHumanUse": {
+    "authorized": true,
+    "launchedAutomatically": false,
+    "nature": "mission reelle mais non critique ; pas de Phase A/B",
+    "monitor": [
+      "cout",
+      "lineage",
+      "authority identity",
+      "reuse",
+      "erreurs runtime"
+    ],
+    "preRunRecommendations": [
+      {
+        "id": "ACT-N1",
+        "severity": "MEDIUM",
+        "statement": "La racine des runs configuree dans .env.local (EVIDENCEFORGE_RUNS_ROOT) est ~/evidenceforge-work/reports/h1-v105-runs : un dossier d artefacts historiques, lu en lecture seule par RUN-SAFETY-21, avec son propre llm-reuse-store.jsonl partage. Un premier run humain y ecrirait (nouveau run + ajouts au magasin partage). Recommande : definir une racine neuve et dediee avant le premier run (decision proprietaire ; .env.local non modifie)."
+      },
+      {
+        "id": "ACT-N2",
+        "severity": "INFO",
+        "statement": "Une autre instance EvidenceForge tourne sur le port 8767 (MONOLITH-v1.0.4). v1.0.16 demarrera sur 8768. Arret eventuel : ./tools/EvidenceForge/stop.sh 8767."
+      },
+      {
+        "id": "ACT-N3",
+        "severity": "INFO",
+        "statement": "Consequence attendue (EXPECTED_FAIL_CLOSED_RECOMPUTATION) : les entrees EF-03B existantes dans le magasin partage ne sont pas reutilisables sous v1.0.16 ; recalcul si le contexte revient."
+      }
+    ]
+  },
+  "notDone": [
+    "aucun fichier runtime gele modifie",
+    "aucune version supprimee",
+    "aucun run humain lance",
+    ".env.local non modifie",
+    "runtime v1.0.16 non recommite"
+  ]
+}

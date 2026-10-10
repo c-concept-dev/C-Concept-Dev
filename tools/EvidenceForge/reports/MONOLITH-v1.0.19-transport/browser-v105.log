@@ -1,0 +1,36 @@
+  ok   serveur v1.0.5 : /api/config version + tarification exposee
+  ok   statut : « budget atteint (reprenable après augmentation) »
+  ok   bloc « Coût du run » visible avec le dépensé réel (3.0x USD)
+  ok   coût par étape courante + progression 1 / 10 professionnels
+  ok   projection marquée ESTIMATE — NOT GUARANTEE, jamais presentee comme certaine
+  ok   budget : plafond 1.00 USD, reste 0.00, badge « plafond atteint »
+  ok   CTA « Reprendre le run » visible (reprenable)
+  ok   mise à jour du budget depuis la page : budget.json = 25 / 20, historique conservé, marque d'arrêt effacée
+  ok   affichage : reste avant plafond 21.9x USD, plus de badge « plafond atteint »
+  ok   aucune exception console (run budget)
+  ok   Porte 2 visible avec la revue d'ensemble (signaux, pas une décision)
+  ok   groupe redondant affiché (titres un et deux) et méthode hors domaine (titre quatre)
+  ok   étiquettes sur les sources signalées ; la liste garde ses boutons inclus/exclu ; nom obligatoire ; aucun bouton d'optimisation
+  ok   ratification sans nom refusée (HUMAN_IDENTITY_REQUIRED) : la porte reste ouverte
+  ok   aucune exception console (porte 2)
+  ok   portfolio équilibré : états résolu/non résolu et trace visibles
+  ok   portfolio équilibré : compteur conforme au backend
+  ok   choix humain modifie le compteur sans ratifier
+  ok   rechargement conserve le choix humain et la porte ouverte
+  ok   aucune exception console (rééquilibrage)
+  ok   aide masquée par défaut, bouton Aide présent
+  ok   clic Aide : panneau visible avec Porte 1 / Porte 2 / jumeaux / coût ; le formulaire reste utilisable
+  ok   Fermer : aide masquée
+  ok   bouton « Vérifier ma demande avec l'IA » et champs de budget présents ; fournisseur non configuré => « Analyser » désactivé
+  ok   RUN-SAFETY UI : panneau budget ouvert, mode « plafond » coché, aperçu « Plafond requis » tant que le champ est vide
+  ok   RUN-SAFETY UI : mode « sans plafond » => aperçu explicite « SANS PLAFOND … jusqu'à votre arrêt manuel », champ plafond désactivé
+  ok   RUN-SAFETY UI : lancement sans plafond => confirm() obligatoire ; refus => aucune requête POST /api/runs
+  ok   RUN-SAFETY UI : mode plafond avec champ vide => alerte, aucune requête POST /api/runs
+  ok   aucune exception console (accueil)
+  ok   RUN-SAFETY UI : run RUNNING => bouton « Arrêter le run » visible, « Reprendre » masqué
+  ok   RUN-SAFETY UI : clic Arrêter + confirmation => POST /stop, run STOPPED / STOPPED_BY_USER, libellé « arrêté à votre demande », bouton stop masqué, résumé avant reprise (dépensé, étape, budget)
+  ok   RUN-SAFETY UI : artefacts d'arrêt persistés (stop-request.json honoré, run-stop-state.json notAVerdict, cause USER_STOP)
+  ok   aucune exception console (arrêt)
+
+33/33 tests navigateur v1.0.5 OK
+NETWORK_GUARD {"externalAttempts":0}
