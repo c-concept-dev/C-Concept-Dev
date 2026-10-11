@@ -1352,6 +1352,271 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       + b.echantillons + ' · page : ' + affiche.slice(0, 64));
   });
 
+  // ── §22 — (D4) AUCUNE POSITION DU JOURNAL N'APPARTIENT À UNE AUTRE PRISE ──────────────────
+  //
+  // DÉFAUT 4 DU RELEVÉ D'ESSAIS, reproduit par sa cause et non par son symptôme. Christophe a
+  // relevé que « contexte running » était daté à l'échantillon 1 071 616, puis 2 962 176, puis
+  // 3 963 008 — la longueur EXACTE de la prise précédente à chaque fois. Le mécanisme : le
+  // `resume()` du contexte a lieu AU DÉBUT de `demarrer`, avant que la prise existe ; la position
+  // était alors lue dans le dernier relevé du worklet, dont le compteur restait figé à la valeur
+  // de la prise qui venait de finir.
+  //
+  // CE CONTRÔLE REJOUE CE MÉCANISME : première prise LONGUE, contexte suspendu, seconde prise
+  // COURTE. Le chiffre périmé dépasse donc la longueur de la prise où il s'écrit, et l'invariant
+  // le prend. Avec le code d'avant, « contexte running » valait la longueur de la première.
+  await controle('§22 deux prises de suite : toute position du journal tient dans SA prise', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+
+    // PREMIÈRE PRISE, LONGUE (environ 6 s).
+    const p1 = await prendre(page, { attendreMs: 6000 });
+
+    // ON SUSPEND LE CONTEXTE ENTRE LES DEUX : c'est ce que fait Safari quand l'onglet passe au
+    // fond, et c'est ce qui provoque le `resume()` au début de la prise suivante.
+    await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      await e.ctx.suspend();
+    });
+    await page.waitForTimeout(300);
+
+    // SECONDE PRISE, COURTE (environ 2,5 s) : plus courte que la première, exprès.
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(2500);
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => /terminée|muette/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+
+    const deux = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      const liste = await window.VoixStockage.listerPrises(e.db);
+      return liste.map((p) => ({ id: p.id, nom: p.nom, nbEchantillons: p.nbEchantillons,
+                                 journal: p.journal || [] }));
+    });
+    await ctx.close();
+
+    assert.equal(deux.length, 2, 'deux prises doivent exister : ' + deux.length);
+    const longue = deux.find((p) => p.nbEchantillons > 200000);
+    const courte = deux.find((p) => p !== longue);
+    assert.ok(longue && courte, 'une longue et une courte : ' +
+      JSON.stringify(deux.map((p) => p.nbEchantillons)));
+    assert.ok(longue.nbEchantillons > courte.nbEchantillons,
+      'la première doit être la plus longue, sinon le contrôle ne prouve rien : ' +
+      longue.nbEchantillons + ' contre ' + courte.nbEchantillons);
+
+    // L'INVARIANT, sur les DEUX prises : toute position est dans SA prise.
+    // DEUX PASSES, DANS CET ORDRE, et l'ordre compte. La première éprouve LE DÉFAUT : une
+    // position qui dépasse la longueur de sa prise. La seconde éprouve l'attribution, qui est un
+    // champ nouveau. Mélangées, la seconde échouait d'abord sur le code d'avant et masquait la
+    // première : le contrôle tombait pour la bonne cause mais au mauvais endroit, et son message
+    // ne désignait plus le défaut 4.
+    let verifiees = 0;
+    deux.forEach((p) => {
+      p.journal.forEach((e) => {
+        if (typeof e.aEchantillon !== 'number') return;
+        verifiees++;
+        assert.ok(e.aEchantillon <= p.nbEchantillons,
+          'POSITION HORS DE SA PRISE (défaut 4) : « ' + e.quoi + ' » daté ' + e.aEchantillon +
+          ' dans une prise de ' + p.nbEchantillons + ' échantillons (' + p.nom + ')');
+        if (e.horsPrise) {
+          assert.equal(e.aEchantillon, 0,
+            'un événement HORS prise n\'a pas de position : « ' + e.quoi + ' » daté ' +
+            e.aEchantillon + ' dans ' + p.nom);
+        }
+      });
+    });
+    deux.forEach((p) => {
+      p.journal.forEach((e) => {
+        if (typeof e.aEchantillon !== 'number') return;
+        assert.ok(e.horsPrise === true || e.priseId === p.id,
+          'chaque entrée doit nommer sa prise ou se dire hors prise : ' +
+          JSON.stringify(e) + ' dans ' + p.id);
+      });
+    });
+    assert.ok(verifiees >= 4, 'il faut des entrées à vérifier : ' + verifiees + ' — journaux : ' +
+      JSON.stringify(deux.map((p) => p.journal.map((e) => e.quoi + '@' + e.aEchantillon +
+        (e.horsPrise ? ' (hors prise)' : '')))));
+
+    // LE CAS EXACT DU DÉFAUT : le `resume()` du contexte au début de la seconde prise.
+    const running = courte.journal.filter((e) => /^contexte running/.test(e.quoi));
+    assert.ok(running.length >= 1,
+      'le contexte a été suspendu puis repris : l\'événement doit être au journal de la seconde ' +
+      'prise. Journal : ' + JSON.stringify(courte.journal.map((e) => e.quoi)));
+    // MESURÉ PAR CE CONTRÔLE, et c'est pourquoi l'assertion est celle-ci et pas une autre :
+    // `onstatechange` arrive APRÈS que la promesse de `resume()` est tenue, donc après que la
+    // prise a commencé. L'événement appartient bien à la seconde prise, à sa position zéro. Ma
+    // première version exigeait « hors prise » et était trop rigide : l'invariant juste est que
+    // la position tienne dans SA prise, et zéro y tient. Ce qui est interdit, et qui était le
+    // défaut, c'est la longueur de la prise PRÉCÉDENTE.
+    running.forEach((e) => {
+      assert.equal(e.aEchantillon, 0,
+        'le contexte repart au tout début de la prise : sa position est zéro. Obtenu : ' +
+        e.aEchantillon + ' (longueur de la prise précédente : ' + longue.nbEchantillons + ')');
+      assert.notEqual(e.aEchantillon, longue.nbEchantillons,
+        'et surtout PAS la longueur de la prise précédente (' + longue.nbEchantillons + ') : ' +
+        'c\'était exactement le défaut 4');
+      assert.ok(e.aEchantillon <= courte.nbEchantillons,
+        'et jamais au-delà de la prise où il est écrit : ' + e.aEchantillon + ' > ' +
+        courte.nbEchantillons);
+    });
+
+    console.log('        prise longue ' + longue.nbEchantillons + ' éch · prise courte ' +
+      courte.nbEchantillons + ' éch · ' + verifiees + ' positions vérifiées · ' +
+      running.length + ' « contexte running » daté 0 dans SA prise (valait ' +
+      longue.nbEchantillons + ' avant la correction)');
+  });
+
+  await controle('§22b hors prise, la position courante est ZÉRO — éprouvé à sa source', async () => {
+    // LE CONTRÔLE DÉTERMINANT DU DÉFAUT 4. §22 tient l'invariant, mais il ne reproduit pas le
+    // chiffre périmé à coup sûr : mesuré, Chromium livre le premier relevé de la nouvelle prise
+    // AVANT de délivrer `onstatechange`, si bien que la position lue est déjà celle de la bonne
+    // prise. Safari, lui, les ordonne dans l'autre sens — c'est pourquoi Christophe l'a vu et
+    // pourquoi mes contrôles ne l'avaient pas vu. On éprouve donc la FONCTION, là où la règle
+    // vit, avec un dernier relevé laissé exprès en place : c'est l'état exact du module entre
+    // deux prises.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    const r = await prendre(page, { attendreMs: 3000 });
+    const apres = await page.evaluate(() => {
+      const A = window.EnregistreurVoix, e = A._etat();
+      return {
+        enPrise: e.enPrise,
+        dernierReleve: e.dernierReleve ? e.dernierReleve.echantillonsEcrits : 'aucun',
+        echantillonsEcritsDuModule: e.echantillonsEcrits,
+        position: A._echantillonsCourants(),
+        longueurDeLaPrise: e.mesures.morceaux.echantillonsEcrits,
+      };
+    });
+    await ctx.close();
+    assert.equal(apres.enPrise, false, 'la prise est finie');
+    assert.ok(apres.longueurDeLaPrise > 100000,
+      'la prise doit avoir une longueur à périmer : ' + apres.longueurDeLaPrise);
+    // 1. LA FONCTION REND ZÉRO. Avec le code d'avant, elle rendait la longueur de la prise.
+    assert.equal(apres.position, 0,
+      'hors prise il n\'y a pas de position : zéro attendu, obtenu ' + apres.position +
+      ' (longueur de la prise : ' + apres.longueurDeLaPrise + ')');
+    assert.notEqual(apres.position, apres.longueurDeLaPrise,
+      'et surtout pas la longueur de la prise qui vient de finir — c\'était le défaut 4');
+    // 2. LA GARDE DU WORKLET, ÉPROUVÉE À PART : son compteur est remis à zéro dès que son message
+    //    d'arrêt est parti, donc le relevé qu'il envoie entre deux prises porte zéro. Deux gardes
+    //    indépendantes pour un chiffre qui a déjà menti.
+    assert.ok(apres.dernierReleve === 0 || apres.dernierReleve === 'aucun',
+      'le relevé du worklet entre deux prises doit porter zéro : ' + apres.dernierReleve);
+    console.log('        prise de ' + apres.longueurDeLaPrise + ' éch · position hors prise ' +
+      apres.position + ' · dernier relevé du worklet ' + apres.dernierReleve);
+  });
+
+  // ── §23 — (D3) L'ÉTAT DE LA PISTE EST CELUI DE LA PISTE ───────────────────────────────────
+  //
+  // DÉFAUT 3 : « la barre du bas affiche Piste : contexte running au lieu de terminée ». Ce
+  // contrôle passe par le VRAI `getUserMedia` (pas par la source de fixture, qui n'a pas de
+  // piste) et arrête la piste PENDANT la prise, ce qui est exactement ce qu'une autre
+  // application fait en reprenant le périphérique.
+  await controle('§23 piste arrêtée pendant la prise : la barre dit « terminée », pas l\'état du contexte', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(1500);
+
+    // ON ARRÊTE LA PISTE, comme le ferait une autre application qui prend le micro.
+    await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      e.flux.getAudioTracks().forEach((t) => t.stop());
+    });
+    await page.waitForTimeout(1200);
+
+    const pendant = await page.evaluate(() => ({
+      sbPiste: document.querySelector('[data-sb-piste]').textContent,
+      sbContexte: document.querySelector('[data-sb-contexte]').textContent,
+      sbSignal: document.querySelector('[data-sb-signal]').textContent,
+      etatCtx: window.EnregistreurVoix._etat().ctx.state,
+    }));
+
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => /terminée|muette/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    const apres = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { journal: e.journal.map((x) => x.quoi), mesures: e.mesures,
+               sbPiste: document.querySelector('[data-sb-piste]').textContent };
+    });
+    await ctx.close();
+
+    // 1. LA CASE « PISTE » PARLE DE LA PISTE.
+    assert.ok(/terminée/.test(pendant.sbPiste),
+      'la case Piste doit dire « terminée » : ' + pendant.sbPiste);
+    assert.ok(!/contexte|running/i.test(pendant.sbPiste),
+      'et ne jamais porter l\'état du contexte : ' + pendant.sbPiste);
+    // 2. LE CONTEXTE A SA PROPRE CASE, et il est bien running : les deux faits coexistent, ce
+    //    qui est précisément ce que l'ancienne barre rendait impossible à lire.
+    assert.ok(pendant.sbContexte.includes(pendant.etatCtx),
+      'la case Contexte doit porter l\'état du contexte (' + pendant.etatCtx + ') : ' +
+      pendant.sbContexte);
+    // 3. LE SIGNAL A LA SIENNE.
+    assert.ok(/Signal/.test(pendant.sbSignal), 'la case Signal doit exister : ' + pendant.sbSignal);
+    // 4. PAS DE DOUBLON AU JOURNAL. FAIT MESURÉ PAR CE CONTRÔLE, et qui vaut d'être écrit :
+    //    `track.stop()` ne déclenche PAS l'événement `ended` (la spécification le réserve aux
+    //    fins qui ne viennent pas de l'application). Il n'y a donc ici aucune entrée attendue —
+    //    et c'est exactement pourquoi la case « Piste » doit être LUE sur la piste à chaque
+    //    relevé, ce que vérifie le point 1, plutôt que peinte sur un événement qui ne vient pas.
+    const fins = apres.journal.filter((q) => q === 'piste terminée');
+    assert.ok(fins.length <= 1,
+      'jamais deux « piste terminée » (il y en avait deux aux essais) : ' +
+      JSON.stringify(apres.journal));
+    // 5. LA DETTE EST VISIBLE, ET NOMMÉE : E8 demande que la prise se METTE EN PAUSE quand la
+    //    piste se termine, et la pause est de T1 ter (E12). En attendant, ce que la prise a fait
+    //    doit au moins être DIT par le rapport, en échantillons.
+    assert.ok(apres.mesures && apres.mesures.etatDeLaPiste,
+      'le rapport doit porter un état de piste : ' + JSON.stringify(apres.mesures && apres.mesures.etatDeLaPiste));
+    console.log('        pendant : ' + pendant.sbPiste + ' | ' + pendant.sbContexte + ' | ' +
+      pendant.sbSignal + '\n        rapport : ' + apres.mesures.etatDeLaPiste +
+      ' · journal : ' + JSON.stringify(apres.journal));
+  });
+
+  await controle('§23b deux autorisations : les pistes du flux précédent sont ARRÊTÉES', async () => {
+    // LA CAUSE DU DOUBLON « piste terminée », mesurée là où elle est. `autoriser` remplaçait
+    // `_etat.flux` sans arrêter les pistes de l'ancien : elles restaient vivantes, avec leurs
+    // écouteurs, et une reprise du périphérique par une autre application les terminait TOUTES —
+    // d'où deux entrées au journal pour un seul fait. On ne peut pas simuler cette reprise dans
+    // un navigateur de contrôle ; on peut en revanche vérifier le fait qui la rendait possible :
+    // après une seconde autorisation, une seule piste doit être vivante.
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => !!window.EnregistreurVoix._etat().piste, null, { timeout: 20000 });
+    const premier = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      window.__pistesAnciennes = e.flux.getAudioTracks();
+      return window.__pistesAnciennes.map((t) => t.readyState);
+    });
+    assert.deepEqual(premier, ['live'], 'la première piste doit être vivante : ' + JSON.stringify(premier));
+    // SECONDE AUTORISATION : un nouveau flux, donc une nouvelle piste.
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const e = window.EnregistreurVoix._etat();
+      return e.piste && e.flux.getAudioTracks()[0] !== window.__pistesAnciennes[0];
+    }, null, { timeout: 20000 });
+    const apres = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { anciennes: window.__pistesAnciennes.map((t) => t.readyState),
+               nouvelle: e.flux.getAudioTracks().map((t) => t.readyState),
+               memeObjet: e.flux.getAudioTracks()[0] === window.__pistesAnciennes[0] };
+    });
+    await ctx.close();
+    assert.equal(apres.memeObjet, false, 'la seconde autorisation doit livrer une AUTRE piste');
+    apres.anciennes.forEach((e) => {
+      assert.equal(e, 'ended',
+        'les pistes du flux précédent doivent être arrêtées, sinon elles parleront encore : ' +
+        JSON.stringify(apres.anciennes));
+    });
+    assert.deepEqual(apres.nouvelle, ['live'], 'et la nouvelle doit être vivante : ' +
+      JSON.stringify(apres.nouvelle));
+    console.log('        anciennes ' + JSON.stringify(apres.anciennes) +
+      ' · nouvelle ' + JSON.stringify(apres.nouvelle));
+  });
+
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────
   await controle('§19 deux constructions concurrentes : le nœud appartient au contexte vivant', async () => {
     // LA COURSE QUI A FAIT UNE « PRISE MUETTE ». Changer la taille de morceau lance une

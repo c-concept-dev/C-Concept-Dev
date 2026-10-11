@@ -148,6 +148,9 @@
   function neuf() {
     return {
       ctx: null, source: null, noeud: null, flux: null,
+      piste: null,           // (D3) la MediaStreamTrack : seule autorité sur l'état de la piste
+      priseEnCloture: false, // (D4) la prise est finie mais ses mesures de fin s'écrivent encore
+      muetDepuis: 0,         // (D3) l'échantillon où le signal est tombé à zéro
       db: null,
       priseId: null,
       echantillonnage: 0,
@@ -705,7 +708,14 @@
   '<footer class="sc-bm-statebar">' +
     '<span class="sc-bm-time" data-sb-duree>Durée 00:00,000</span>' +
     '<span data-sb-morceaux>0 morceau</span>' +
+    // (D3) TROIS GRANDEURS, TROIS CASES, chacune lue à sa propre source. La barre ne montrait
+    // qu'une case « Piste », remplie par le DERNIER ÉVÉNEMENT du journal : elle affichait donc
+    // « contexte running » ou « son revenu » comme si c'était l'état de la piste audio. Un état
+    // de piste doit venir de la piste, un état de contexte du contexte, et l'état du signal du
+    // signal (régression #11(f) : une grandeur, une source).
     '<span data-sb-piste>Piste : inconnue</span>' +
+    '<span data-sb-contexte>Contexte : —</span>' +
+    '<span data-sb-signal>Signal : —</span>' +
     '<span data-sb-canal>Canal : —</span>' +
     '<span data-sb-frequence>Fréquence : —</span>' +
     '<span data-sb-micro>Micro : —</span>' +
@@ -735,13 +745,60 @@
     el.querySelector('span').textContent = texte;
   }
 
+  // (D4) CHAQUE ENTRÉE DIT À QUELLE PRISE SA POSITION SE RAPPORTE, et le dit quand il n'y en a
+  // aucune. Sans cela, rien ne permet de constater après coup qu'une position appartient bien à
+  // sa prise — c'est ce qui a laissé passer le chiffre périmé pendant toute une session d'essais.
   function journaliser(quoi, aEchantillon, extra) {
     var e = { quoi: quoi, aEchantillon: aEchantillon };
+    // UN ÉVÉNEMENT DE CLÔTURE APPARTIENT ENCORE À SA PRISE. `enPrise` tombe à faux dès la
+    // première ligne de `arreter`, pour qu'aucune autre prise ne démarre pendant la fermeture —
+    // mais le verdict de bruit, la revérification du canal et le canal démenti sont des mesures
+    // DE cette prise, datées à sa fin. Les marquer « hors prise » les aurait privés de leur
+    // position et rendu l'invariant du §22 faux pour une bonne raison, ce qui est la pire espèce
+    // de contrôle. Trouvé par ce contrôle, pas par relecture.
+    if (_etat.enPrise || _etat.priseEnCloture) e.priseId = _etat.priseId;
+    else e.horsPrise = true;
     if (extra) Object.keys(extra).forEach(function (k) { e[k] = extra[k]; });
     _etat.journal.push(e);
-    var p = q('[data-sb-piste]');
-    if (p) p.textContent = 'Piste : ' + quoi;
     return e;
+  }
+
+  // ── (D3) L'ÉTAT DE LA PISTE, LU SUR LA PISTE ──────────────────────────────────────────────
+  //
+  // DÉFAUT 3 DU RELEVÉ D'ESSAIS : « la barre du bas affiche Piste : contexte running au lieu de
+  // terminée ». La cause était que `journaliser` écrivait son propre libellé dans la case
+  // « Piste » à chaque événement, quel qu'il soit. Désormais la case est peinte à partir de
+  // l'objet `MediaStreamTrack` lui-même — `readyState` et `muted` —, qui est la seule autorité
+  // sur l'état d'une piste. Le journal garde les événements ; il ne décrit plus l'état.
+  function etatDeLaPisteMaintenant(piste) {
+    if (!piste) return 'aucune piste (source d\'essai ou autorisation non accordée)';
+    if (piste.readyState === 'ended') return 'terminée (périphérique retiré ou repris)';
+    if (piste.muted) return 'muette (le périphérique la déclare muette)';
+    return 'vivante';
+  }
+
+  // L'ÉTAT DU SIGNAL, qui est une AUTRE grandeur que l'état de la piste : une piste vivante peut
+  // ne livrer que des zéros, et c'est précisément le cas du défaut 3. « son revenu » n'est pas
+  // un état mais un événement : au retour du son, l'état redevient « sonore ».
+  function etatDuSignalMaintenant() {
+    if (!_etat.enPrise) return 'hors prise';
+    if (_etat.muet) return 'à zéro numérique depuis l\'échantillon ' + (_etat.muetDepuis || 0);
+    return 'sonore';
+  }
+
+  // L'ÉTAT EST LU, JAMAIS MÉMORISÉ. Mesuré par le contrôle §23 : `MediaStreamTrack.stop()` fait
+  // passer `readyState` à « ended » SANS déclencher l'événement `ended` (la spécification le
+  // réserve aux fins qui ne viennent pas de l'application). Une barre peinte uniquement sur
+  // événement affichait donc « vivante » sur une piste morte — le même genre de mensonge que le
+  // défaut 3, par un autre chemin. `peindreEtats` est donc appelée à CHAQUE relevé du worklet,
+  // c'est-à-dire une vingtaine de fois par seconde, et elle relit la piste à chaque fois.
+  function peindreEtats() {
+    var p = q('[data-sb-piste]');
+    if (p) p.textContent = 'Piste : ' + etatDeLaPisteMaintenant(_etat.piste);
+    var c = q('[data-sb-contexte]');
+    if (c) c.textContent = 'Contexte : ' + ((_etat.ctx && _etat.ctx.state) || '—');
+    var g = q('[data-sb-signal]');
+    if (g) g.textContent = 'Signal : ' + etatDuSignalMaintenant();
   }
 
   function fmtTemps(echantillons, echantillonnage) {
@@ -757,6 +814,7 @@
   // Jamais une cible, jamais une valeur demandée (régression #11(e)). Le chiffre vient des
   // sommes du worklet, et la barre vient du même chiffre — pas d'un second calcul.
   function peindreReleve(m) {
+    peindreEtats();
     _etat.echantillonnage = m.echantillonnage || _etat.echantillonnage;
     _etat.canaux = (m.releve && m.releve.canaux) || _etat.canaux;
     _etat.dernierReleve = m;
@@ -949,6 +1007,8 @@
     if (m.type === 'muet') {
       // E8 : le bandeau, aussitôt. Et le journal, en ÉCHANTILLONS.
       _etat.muet = true;
+      _etat.muetDepuis = m.depuisEchantillon;
+      peindreEtats();
       journaliser('piste muette', m.depuisEchantillon, { echantillonsAZero: m.echantillonsAZero });
       message('muet', 'error', 'Aucun son reçu du micro. Le signal est à zéro numérique depuis ' +
         (m.echantillonsAZero / (_etat.echantillonnage || 48000)).toFixed(1) + ' s (échantillon ' +
@@ -957,7 +1017,11 @@
     }
 
     if (m.type === 'son-revenu') {
+      // (D3) « son revenu » est un ÉVÉNEMENT, pas un état : l'état redevient « sonore ». Le
+      // relevé d'essais notait « Piste : son revenu reste affiché longtemps après le retour du
+      // son » — c'était un libellé d'événement collé dans une case d'état.
       _etat.muet = false;
+      peindreEtats();
       journaliser('son revenu', m.aEchantillon, null);
       message('muet', 'info', 'Le son est revenu à l\'échantillon ' + m.aEchantillon +
         '. Le passage muet reste consigné dans le journal de la prise.');
@@ -965,7 +1029,15 @@
     }
 
     if (m.type === 'vide-force') {
-      journaliser('morceau partiel poussé', _etat.echantillonsEcrits,
+      // (D3) PAS DEUX FOIS LE MÊME ÉVÉNEMENT POUR DEUX FAITS DIFFÉRENTS. Le journal d'essai
+      // portait « morceau partiel poussé » deux fois, dont une à 0 échantillon : `visibilitychange`
+      // et `pagehide` demandent tous deux la vidange, et la seconde n'avait plus rien à pousser.
+      // Les deux demandes sont consignées — les taire masquerait l'ordre réel des événements —
+      // mais sous deux libellés, parce que ce sont deux faits : un morceau poussé, et rien à
+      // pousser.
+      journaliser(m.echantillonsPousses > 0 ? 'morceau partiel poussé'
+                                            : 'vidange demandée, rien à pousser',
+        _etat.echantillonsEcrits,
         { raison: m.raison, echantillonsPousses: m.echantillonsPousses });
       return;
     }
@@ -997,6 +1069,12 @@
       ? _services.obtenirFlux(contraintes(deviceId))
       : navigator.mediaDevices.getUserMedia(contraintes(deviceId));
     return Promise.resolve(obtenir).then(function (flux) {
+      // (D3) LES PISTES DU FLUX PRÉCÉDENT SONT ARRÊTÉES. Sans cela elles restaient vivantes,
+      // leurs écouteurs aussi, et une reprise du périphérique écrivait « piste terminée » autant
+      // de fois qu'il y avait eu d'autorisations. Constaté dans le journal d'essai, deux fois.
+      if (_etat.flux && _etat.flux !== flux && _etat.flux.getAudioTracks) {
+        _etat.flux.getAudioTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      }
       _etat.flux = flux;
       return listerMicros();
     }).then(function () {
@@ -1137,22 +1215,43 @@
           suppressionBruit: reglages.noiseSuppression,
           gainAutomatique: reglages.autoGainControl,
         });
+        // (D3) LA PISTE EST GARDÉE : c'est elle, et non le journal, qui dira son état.
+        _etat.piste = piste;
+        peindreEtats();
+        // (D3) UNE GARDE DE GÉNÉRATION SUR CHAQUE ÉCOUTEUR. Le journal d'essai portait
+        // « piste terminée » DEUX FOIS : `autoriser` remplaçait `_etat.flux` sans arrêter les
+        // pistes du flux précédent, qui restaient vivantes avec leurs écouteurs. Quand le
+        // périphérique a été repris, les deux pistes se sont terminées et les deux l'ont écrit.
+        // Les pistes anciennes sont maintenant arrêtées (voir `autoriser`), et cette garde est la
+        // seconde barrière : un écouteur d'une génération dépassée se tait.
+        var maGeneration = moi;
         piste.addEventListener('mute', function () {
+          if (maGeneration !== _generation) return;
           journaliser('piste muette (événement)', echantillonsCourants());
+          peindreEtats();
           message('piste', 'error', 'La piste audio s\'est déclarée muette.');
         });
-        piste.addEventListener('unmute', function () { journaliser('piste non muette', echantillonsCourants()); });
+        piste.addEventListener('unmute', function () {
+          if (maGeneration !== _generation) return;
+          journaliser('piste non muette', echantillonsCourants());
+          peindreEtats();
+        });
         piste.addEventListener('ended', function () {
+          if (maGeneration !== _generation) return;
           journaliser('piste terminée', echantillonsCourants());
+          peindreEtats();
           message('piste', 'error', 'La piste audio s\'est terminée : le périphérique a été retiré ou repris par une autre application.');
         });
       }
       if (!piste) {
+        _etat.piste = null;
+        peindreEtats();
         var sbm0 = q('[data-sb-micro]');
         if (sbm0) sbm0.textContent = 'Micro : aucune piste (source d\'essai)';
       }
       ctx.onstatechange = function () {
         journaliser('contexte ' + ctx.state, echantillonsCourants());
+        peindreEtats();
         if (ctx.state === 'suspended' && _etat.enPrise) {
           message('contexte', 'error', 'Le contexte audio est suspendu pendant la prise : les échantillons n\'arrivent plus. Consigné en échantillons.');
         }
@@ -1186,8 +1285,27 @@
     };
   }
 
+  // ── (D4) LA POSITION COURANTE DANS LA PRISE EN COURS ──────────────────────────────────────
+  //
+  // DÉFAUT 4 DU RELEVÉ D'ESSAIS, et sa cause exacte. Christophe a relevé que l'événement
+  // « contexte running » était daté à l'échantillon 1 071 616, puis 2 962 176, puis 3 963 008,
+  // puis 1 666 816 — à chaque fois la longueur EXACTE de la prise précédente. Ce n'était pas un
+  // décalage ni un arrondi : c'était un compteur résiduel. Cette fonction rendait
+  // `_etat.dernierReleve.echantillonsEcrits`, et le worklet, hors prise, continuait d'envoyer
+  // ses relevés avec ce compteur figé à la valeur de la prise qui venait de finir. Un événement
+  // survenu ENTRE deux prises était donc daté dans la précédente.
+  //
+  // LA RÈGLE : hors prise, il n'y a pas de position, et zéro est la vérité. Le worklet remet son
+  // compteur à zéro dès que son message d'arrêt est parti ; cette garde est la seconde, et elle
+  // est indépendante — un chiffre qui a menti une fois mérite deux gardes.
   function echantillonsCourants() {
-    return _etat.dernierReleve ? _etat.dernierReleve.echantillonsEcrits : _etat.echantillonsEcrits;
+    if (!_etat.enPrise) return 0;
+    var r = _etat.dernierReleve;
+    var duReleve = (r && typeof r.echantillonsEcrits === 'number') ? r.echantillonsEcrits : 0;
+    // Le relevé est plus fin que le compte de morceaux (toutes les 50 ms contre toutes les 5 s) ;
+    // le compte de morceaux est plus sûr. On prend le plus avancé des deux, qui est toujours une
+    // position de CETTE prise.
+    return Math.max(duReleve, _etat.echantillonsEcrits);
   }
 
   // ── DÉMARRER, ARRÊTER ──────────────────────────────────────────────────────────────────────
@@ -1284,6 +1402,7 @@
       q('[data-action="arreter"]').hidden = false;
       q('[data-chrono-ligne]').hidden = false;
       q('[data-mode]').textContent = 'Prise en cours';
+      peindreEtats();
       journaliser('prise démarrée', 0, { canal: dec.canal, raison: dec.raison,
         echantillonsParMorceau: _etat.echantillonsParMorceauReels });
       // (d) T13 : LE BRUIT SE MESURE PENDANT LE SILENCE INITIAL, donc sur les premières
@@ -1301,6 +1420,7 @@
   function arreter() {
     if (!_etat.enPrise) return Promise.resolve(null);
     _etat.enPrise = false;
+    _etat.priseEnCloture = true;
     _etat.noeud.port.postMessage({ type: 'arreter-prise' });
 
     // On attend que le worklet ait rendu son dernier morceau ET que toutes les écritures soient
@@ -1428,6 +1548,7 @@
           q('[data-action="demarrer"]').hidden = false;
           q('[data-action="arreter"]').hidden = true;
           q('[data-mode]').textContent = muette ? 'Prise muette' : 'Prise terminée';
+          peindreEtats();
           // Clé DISTINCTE de celle du bandeau E8 : le verdict final s'ajoute au bandeau au lieu
           // de l'effacer. Avec la même clé, l'instant où le signal est tombé à zéro — la seule
           // information utile pour comprendre ce qui s'est passé — disparaissait à l'arrêt.
@@ -1447,6 +1568,7 @@
               'passage à zéro numérique de plus de 2 secondes, suivi d\'un retour du son. Il ' +
               'reste consigné au journal, en échantillons.');
           }
+          _etat.priseEnCloture = false;
           return peindreListe().then(function () { return mesures; });
         });
       });
@@ -1819,6 +1941,11 @@
     FENETRE_CANAL_S: FENETRE_CANAL_S, FENETRE_CANAL_MIN_S: FENETRE_CANAL_MIN_S,
     fusionnerSommes: fusionnerSommes, verdictBruit: verdictBruit,
     _fenetreDeDecision: fenetreDeDecision,
+    // (D4) exposée pour que le chiffre périmé s'éprouve à sa SOURCE, sans dépendre de
+    // l'ordre d'arrivée des événements — qui diffère d'un moteur à l'autre.
+    _echantillonsCourants: echantillonsCourants,
+    _centile: centile,
+    _etatDeLaPisteMaintenant: etatDeLaPisteMaintenant,
     CORRELATION_MEME_SIGNAL: CORRELATION_MEME_SIGNAL,
     DBFS_QUASI_VIDE: DBFS_QUASI_VIDE,
     // Pour qu'un contrôle lise l'état sans le déduire de l'affichage.
