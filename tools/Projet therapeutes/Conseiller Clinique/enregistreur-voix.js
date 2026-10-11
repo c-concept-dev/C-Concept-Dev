@@ -488,6 +488,13 @@
       etat: etat,
       plancherDbfs: plancher,
       plancherSource: source,
+      // LE DÉNOMINATEUR DU PLANCHER, et non celui de la prise entière. Un trou du falsifieur l'a
+      // exigé : mon assertion comparait les fenêtres de la part de grave au nombre TOTAL de
+      // fenêtres pleines de la prise, si bien qu'une part de grave calculée sur toutes les
+      // fenêtres du silence initial passait quand même. Le bon témoin est la population d'où
+      // sort le plancher.
+      plancherCalculeSur: { fenetres: population.length,
+                            echantillons: population.reduce(function (t, f) { return t + f.n; }, 0) },
       pauseRetenue: pauseRetenue ? { debutEchantillon: pauseRetenue.debutEchantillon,
                                      echantillons: pauseRetenue.echantillons,
                                      fenetres: pauseRetenue.fenetres } : 'sans objet',

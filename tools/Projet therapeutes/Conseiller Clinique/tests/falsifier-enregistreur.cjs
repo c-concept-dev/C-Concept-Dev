@@ -385,57 +385,236 @@ const ESSAIS = [
     sections: "§6",
     attendu: "la taille nominale n'entre ni dans la prise ni dans le rapport",
   },
-  // ── (d) LE BRUIT DE PIÈCE (T13) ────────────────────────────────────────────────────────
+  // ── (d) LE BRUIT DE PIÈCE (T13), ESTIMATEUR ROBUSTE ────────────────────────────────────
   {
     nom: "les seuils de bruit changent",
     fichier: "module",
     de: "    calmeMax_dbfs: -65,      // ≤ −65 : calme",
     vers: "    calmeMax_dbfs: -50,",
     sections: "§18",
-    attendu: "les paliers viennent des faits : −71 à −73 en pièce calme, −55,7 à −57,9 en salle de soins",
+    attendu: "les paliers sont ceux du CDC : −71 à −73 en pièce calme, −55,7 à −57,9 en salle de soins",
   },
   {
-    nom: "la part de grave n'est plus mesurée : le passe-bas est contourné",
+    nom: "le plancher robuste redevient la valeur efficace de la fenêtre entière",
     fichier: "module",
-    de: "    var partGrave = b.sommeCarre > 0 ? (b.sommeCarreGrave / b.sommeCarre) : 0;",
-    vers: "    var partGrave = 0;",
+    de: "    var plancher = centile(population.map(function (f) { return f.niveau; }), BRUIT.centile);",
+    vers: "    var plancher = dbFenetreEntiere;",
+    sections: "§18c,§18f",
+    attendu: "C'EST LE DÉFAUT 1 LUI-MÊME : une moyenne d'énergie annonce « correct » là où le plancher est à −75 dBFS",
+  },
+  {
+    nom: "le 20e centile devient le 95e : le plancher attrape les bruits brefs",
+    fichier: "module",
+    de: "    centile: 20,",
+    vers: "    centile: 95,",
+    sections: "§18c",
+    attendu: "un centile haut décrit les événements, pas le plancher de la pièce",
+  },
+  {
+    nom: "le centile devient un minimum (rang 0)",
+    fichier: "module",
+    de: "    var rang = Math.floor((pourCent / 100) * (tries.length - 1));",
+    vers: "    var rang = 0;",
+    sections: "§18g",
+    attendu: "la convention du produit doit être celle du témoin du générateur, au millième de dB",
+  },
+  {
+    nom: "la fenêtre de l'estimateur passe de 100 ms à 1 s",
+    fichier: "worklet",
+    de: "const BRUIT_FENETRE_S = 0.1;",
+    vers: "const BRUIT_FENETRE_S = 1.0;",
+    sections: "§18c,§18g",
+    attendu: "à 1 s, chaque fenêtre contient plusieurs bruits brefs : le centile redevient une moyenne",
+  },
+  {
+    nom: "le worklet ne livre plus aucune fenêtre",
+    fichier: "worklet",
+    de: "        if (f.n >= f.parFenetre) {",
+    vers: "        if (false) {",
+    sections: "§18b,§18c",
+    attendu: "sans fenêtres, aucun plancher n'existe : la mesure doit se dire non concluante, pas inventer",
+  },
+  {
+    nom: "l'état « aucun signal » est retiré : un micro muet redevient « calme »",
+    fichier: "module",
+    de: "    if (b.zeros === b.n) {",
+    vers: "    if (false) {",
+    sections: "§21,§18",
+    attendu: "T13 : un micro muet n'est JAMAIS calme — c'était « CALME — −∞ dB » aux essais",
+  },
+  {
+    nom: "la détection de voix dans le silence initial est retirée",
+    fichier: "module",
+    de: "    var silenceRespecte = voix.length === 0;",
+    vers: "    var silenceRespecte = true;",
+    sections: "§18f",
+    attendu: "T13 : le silence n'est déclaré respecté que si la fenêtre ne contient pas de voix",
+  },
+  {
+    nom: "le repli sur la pause la plus calme est retiré",
+    fichier: "module",
+    de: "    } else if (lesPauses.length) {",
+    vers: "    } else if (false) {",
+    sections: "§18f",
+    attendu: "T13 : quand le silence initial n'est pas tenu, l'ambiance se prélève dans une pause",
+  },
+  {
+    nom: "un bruit bref de 80 ms est désormais compté comme de la voix",
+    fichier: "module",
+    de: "    dureeVoixMin_s: 0.3,",
+    vers: "    dureeVoixMin_s: 0.002,",
+    sections: "§18c",
+    attendu: "les claquements de touche durent 50 à 80 ms : ils ne sont pas de la voix",
+  },
+  {
+    nom: "la marge d'occupation passe à 40 dB : plus rien n'est jamais occupé",
+    fichier: "module",
+    de: "    margeOccupee_db: 12,",
+    vers: "    margeOccupee_db: 40,",
+    sections: "§18c,§18f",
+    attendu: "ni les bruits brefs ni la voix ne seraient plus vus : 12 dB est encadré par deux mesures",
+  },
+  {
+    nom: "la part de grave est calculée sur TOUTES les fenêtres, bruits brefs compris",
+    fichier: "module",
+    de: "      return f.niveau !== null && f.niveau <= plancher + tolerance;",
+    vers: "      return f.niveau !== null;",
+    sections: "§18c",
+    attendu: "T13 : « grave dominant » se recalcule sur le plancher robuste, un clic étant large bande",
+  },
+  {
+    nom: "la part de grave n'est plus mesurée du tout",
+    fichier: "module",
+    de: "    var pg = partDeGraveDuPlancher(population, plancher, BRUIT.tolerancePlancher_db);",
+    vers: "    var pg = { part: 0, fenetres: 0 };",
     sections: "§18,§18b",
     attendu: "la salle de Christophe a son énergie sous 120 Hz : un filtre la réduira au mixage",
   },
   {
     nom: "le passe-bas est calculé pour 48 kHz quelle que soit la fréquence réelle",
     fichier: "worklet",
-    de: "          filtre: new PasseBas(BRUIT_COUPURE_HZ, sampleRate),",
-    vers: "          filtre: new PasseBas(BRUIT_COUPURE_HZ, 48000),",
+    de: "        this.filtreGrave = new PasseBas(BRUIT_COUPURE_HZ, sampleRate);",
+    vers: "        this.filtreGrave = new PasseBas(BRUIT_COUPURE_HZ, 48000);",
     exigeAutreQue48k: true,
     sections: "§18d",
     attendu: "à 44,1 kHz, un filtre calculé pour 48 kHz ne coupe plus à 120 Hz",
   },
   {
-    nom: "le silence initial non respecté n'est plus détecté",
-    fichier: "module",
-    de: "    var douteux = monteeDb > BRUIT.monteeMax_db;",
-    vers: "    var douteux = false;",
-    sections: "§18c",
-    attendu: "le fait du lot 0 : « un silence initial de 3 s n'a jamais été silencieux »",
-  },
-  {
-    nom: "les deux moitiés de la fenêtre de bruit ne sont plus comptées",
-    fichier: "worklet",
-    de: "        if (b.n < b.demandes / 2) { b.n1++; b.sommeCarre1 += v * v; }\n        else { b.n2++; b.sommeCarre2 += v * v; }",
-    vers: "        void 0;",
-    sections: "§18b,§18c",
-    attendu: "sans les deux moitiés, on ne peut plus voir qu'une voix a démarré",
-  },
-  {
     nom: "le bruit bloque la prise quand la pièce est bruyante",
     fichier: "module",
-    de: "        message('bruit', 'info', 'La pièce est bruyante (' + fmtDb(v.efficaceDbfs)",
-    vers: "        message('bruit', 'error', 'La pièce est bruyante (' + fmtDb(v.efficaceDbfs)",
+    de: "      message('bruit', 'info', 'La pièce est bruyante (plancher ' + fmtDb(v.plancherDbfs)",
+    vers: "      message('bruit', 'error', 'La pièce est bruyante (plancher ' + fmtDb(v.plancherDbfs)",
     sections: "§18b",
     attendu: "T13 n'est JAMAIS bloquant : la prise se fait quand même",
   },
-  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────
+
+  // ── (D4) LE CHIFFRE PÉRIMÉ ─────────────────────────────────────────────────────────────
+  {
+    nom: "hors prise, la position courante redevient celle du dernier relevé",
+    fichier: "module",
+    de: "    if (!_etat.enPrise) return 0;",
+    vers: "    if (false) return 0;",
+    sections: "§22b",
+    attendu: "DÉFAUT 4 : « contexte running » daté à la longueur exacte de la prise précédente",
+  },
+  {
+    nom: "le worklet garde son compteur d'échantillons après l'arrêt",
+    fichier: "worklet",
+    de: "        this.echantillonsEcrits = 0;\n      } else if (m.type === 'mesurer-bruit') {",
+    vers: "      } else if (m.type === 'mesurer-bruit') {",
+    sections: "§22b",
+    attendu: "la seconde garde : entre deux prises, le relevé du worklet doit porter zéro",
+  },
+  {
+    nom: "le journal ne dit plus quand une entrée est hors prise",
+    fichier: "module",
+    de: "    else e.horsPrise = true;",
+    vers: "    else void 0;",
+    sections: "§22",
+    attendu: "sans attribution, rien ne permet de constater qu'une position appartient à sa prise",
+  },
+
+  // ── (D3) L'ÉTAT DE LA PISTE ────────────────────────────────────────────────────────────
+  {
+    nom: "l'état de la piste n'est plus relu à chaque relevé",
+    fichier: "module",
+    de: "  function peindreReleve(m) {\n    peindreEtats();",
+    vers: "  function peindreReleve(m) {",
+    sections: "§23",
+    attendu: "`track.stop()` ne déclenche pas `ended` : un état peint sur événement ment",
+  },
+  {
+    nom: "une piste terminée est annoncée vivante",
+    fichier: "module",
+    de: "    if (piste.readyState === 'ended') return 'terminée (périphérique retiré ou repris)';",
+    vers: "    if (false) return 'terminée (périphérique retiré ou repris)';",
+    sections: "§23",
+    attendu: "DÉFAUT 3 : la barre affichait « contexte running » au lieu de « terminée »",
+  },
+  {
+    nom: "les pistes du flux précédent ne sont plus arrêtées",
+    fichier: "module",
+    de: "        _etat.flux.getAudioTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });",
+    vers: "        void 0;",
+    sections: "§23b",
+    attendu: "deux pistes vivantes écrivaient deux fois « piste terminée » pour un seul fait",
+  },
+
+  // ── (D5) SIGNAL PERDU CONTRE PASSAGE MUET ──────────────────────────────────────────────
+  {
+    nom: "un signal perdu jusqu'à la fin redevient « un passage muet »",
+    fichier: "module",
+    de: "    var signalPerdu = !muette && dernierMuet >= 0 && dernierRetour < dernierMuet;",
+    vers: "    var signalPerdu = false;",
+    sections: "§26",
+    attendu: "DÉFAUT 5 : une prise à 68 % de zéros jusqu'à la fin n'a pas « un passage » muet",
+  },
+
+  // ── (D6) LA FICHE D'UNE PRISE INACHEVÉE ────────────────────────────────────────────────
+  {
+    nom: "une prise inachevée n'est plus relue : la fiche reprend ses compteurs",
+    fichier: "module",
+    de: "    if (p.etat !== 'en-cours') {",
+    vers: "    if (true) {",
+    sections: "§25",
+    attendu: "DÉFAUT 6 : « 0 morceau, 0,00 Mo » alors que 7 morceaux étaient en base",
+  },
+
+  // ── (D2) LES ALERTES (E8) ──────────────────────────────────────────────────────────────
+  {
+    nom: "l'alerte retombe parmi les avis, qui peuvent la repousser",
+    fichier: "module",
+    de: "    var hote = q(CLES_ALERTE[cle] ? '[data-alerte]' : '[data-messages]');",
+    vers: "    var hote = q('[data-messages]');",
+    sections: "§24,§24b",
+    attendu: "E8 : l'alerte est fixée en haut ; les avis passés ne doivent pas l'empiler dessous",
+  },
+  {
+    nom: "le bandeau n'est plus rafraîchi : sa durée se figE",
+    fichier: "module",
+    de: "    if (_etat.muet && _etat.enPrise) {\n      message('muet', 'error', texteAlerteMuette(_etat.muetDepuis,",
+    vers: "    if (false) {\n      message('muet', 'error', texteAlerteMuette(_etat.muetDepuis,",
+    sections: "§24",
+    attendu: "DÉFAUT 2 : « depuis 2,0 s » figé alors que le signal manquait depuis plus de 5 s",
+  },
+  {
+    nom: "les avis de la prise précédente survivent à la suivante",
+    fichier: "module",
+    de: "    viderTousLesAvis();",
+    vers: "    void 0;",
+    sections: "§24b",
+    attendu: "E8 : l'alerte ne reste pas affichée à la prise suivante",
+  },
+  {
+    nom: "l'intitulé reste « Enregistrement » après l'arrêt",
+    fichier: "module",
+    de: "          if (intitule) intitule.textContent = 'Dernière prise';",
+    vers: "          void 0;",
+    sections: "§24",
+    attendu: "DÉFAUT 2 : « Enregistrement 01:16,221 » restait affiché après l'arrêt",
+  },
+
+  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────
   {
     nom: "le garde de génération est retiré du chemin de SUCCÈS",
     fichier: 'module',
@@ -558,6 +737,16 @@ function lancer(sections) {
 (function main() {
   const i = process.argv.indexOf('--essai');
   const seul = i >= 0 ? Number(process.argv[i + 1]) : null;
+  // ── UNE TRANCHE, POUR TENIR DANS UNE ATTENTE BORNÉE ──────────────────────────────────────
+  // `--de 1 --a 20` ne joue que les mutations 1 à 20. Le régime de travail borne chaque attente
+  // à quinze minutes, et soixante-et-onze mutations demandent davantage : les jouer par tranches
+  // au premier plan vaut mieux qu'une attente de fond qu'on ne surveille plus. Le journal de
+  // reprise et la vérification des ancres restent entiers à chaque tranche, donc une tranche
+  // interrompue se répare comme une exécution complète.
+  const iDe = process.argv.indexOf('--de');
+  const iA = process.argv.indexOf('--a');
+  const de = iDe >= 0 ? Number(process.argv[iDe + 1]) : 1;
+  const a = iA >= 0 ? Number(process.argv[iA + 1]) : ESSAIS.length;
 
   // ── D'ABORD LE JOURNAL, AVANT LA PREMIÈRE MUTATION ────────────────────────────────────────
   fs.mkdirSync(path.dirname(JOURNAL), { recursive: true });
@@ -603,6 +792,7 @@ function lancer(sections) {
   const indecidables = [];
   ESSAIS.forEach((e, k) => {
     if (seul !== null && seul !== k + 1) return;
+    if (seul === null && (k + 1 < de || k + 1 > a)) return;
     const num = '#' + String(k + 1).padStart(2, ' ');
     const etiquette = e.equivalente ? ' [ÉQUIVALENTE]' : '';
     if (e.exigeAutreQue48k && hz === 48000) {

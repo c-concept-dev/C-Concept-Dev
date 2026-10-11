@@ -427,6 +427,22 @@ const FIXTURES = [
     },
   },
   {
+    nom: 'signal-perdu-au-milieu.wav',
+    pourquoi: 'T1 bis (défaut 5) — LE SIGNAL PERDU JUSQU\'À LA FIN, qui n\'est PAS un passage ' +
+              'muet. Quatre secondes de voix, puis le zéro numérique jusqu\'au bout. Sur une ' +
+              'prise de ce profil (68 % à zéro jusqu\'à la fin), le Studio annonçait « sonore ' +
+              'avec un passage muet » : il laissait croire qu\'il y avait quelque chose après.',
+    attendu: 'bandeau E8 à 2 s de zéro, aucun « son revenu », état « signal perdu à l\'échantillon N »',
+    faire: () => {
+      const n = ECH * 14;
+      const a = new Float32Array(n);
+      const voix = sinusPlusBruit(ECH * 4, 196, 0.22, 0.0006, 106);
+      for (let i = 0; i < ECH * 4; i++) a[i] = voix[i];
+      // Le reste est le ZÉRO EXACT, pas un bruit faible : E8 parle de zéro numérique.
+      return { canaux: [a, zeros(n)] };
+    },
+  },
+  {
     nom: 'voix-5min.wav',
     longue: true,
     pourquoi: 'Critère de sortie du lot 3 : une prise de 5 minutes sans perte. Niveau choisi au ' +

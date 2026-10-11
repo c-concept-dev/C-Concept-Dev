@@ -144,6 +144,8 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
         sbCanal: document.querySelector('[data-sb-canal]').textContent,
         sbMorceaux: document.querySelector('[data-sb-morceaux]').textContent,
         sbPiste: document.querySelector('[data-sb-piste]').textContent,
+        sbContexte: (document.querySelector('[data-sb-contexte]') || {}).textContent,
+        sbSignal: (document.querySelector('[data-sb-signal]') || {}).textContent,
         sbFrequence: document.querySelector('[data-sb-frequence]').textContent,
         sbMicro: (document.querySelector('[data-sb-micro]') || {}).textContent,
         bruit: (document.querySelector('[data-bruit]') || {}).textContent,
@@ -555,6 +557,19 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     assert.ok(quoi.includes('piste muette'), 'journal : ' + JSON.stringify(quoi));
     assert.ok(quoi.includes('son revenu'), 'journal : ' + JSON.stringify(quoi));
     assert.ok(quoi.indexOf('piste muette') < quoi.indexOf('son revenu'), 'dans cet ordre');
+    // (D3) « son revenu » EST UN ÉVÉNEMENT, PAS UN ÉTAT : la case Signal doit être revenue à
+    // « sonore ». Le relevé d'essais notait « Piste : son revenu reste affiché longtemps après
+    // le retour du son » — un libellé d'événement collé dans une case d'état.
+    assert.ok(/Signal : sonore|Signal : hors prise/.test(r.affiche.sbSignal || ''),
+      'au retour du son, la case Signal redevient « sonore » : ' + r.affiche.sbSignal);
+    // (D2 / E8) et l'alerte est devenue un résumé NEUTRE, puisque le signal est revenu.
+    const alerteRevenue = r.affiche.alertes.find((m) => m.cle === 'muet');
+    assert.ok(alerteRevenue, 'le résumé du passage muet doit rester : ' +
+      JSON.stringify(r.affiche.alertes));
+    assert.equal(alerteRevenue.etat, 'info',
+      'neutre, le signal étant revenu : ' + alerteRevenue.etat + ' — ' + alerteRevenue.texte);
+    assert.ok(/Le son est revenu/.test(alerteRevenue.texte),
+      'et le dire : ' + alerteRevenue.texte);
     // La prise n'est PAS muette : elle a du son, et le passage muet reste consigné.
     assert.equal(r.stockage.prise.etat, 'terminee');
     assert.ok(r.stockage.prise.journal.some((x) => x.quoi === 'piste muette'),
@@ -1186,7 +1201,27 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     // 4. UN BRUIT BREF NE DISQUALIFIE PAS LE SILENCE INITIAL : il n'y a pas de voix.
     assert.equal(b.silenceInitialRespecte, true,
       'des bruits brefs ne sont pas de la voix : ' + b.raisonDuSilence);
-    // 5. CE QUE LA PAGE AFFICHE.
+    // 5. « GRAVE DOMINANT » EST RECALCULÉ SUR LE PLANCHER (T13), et non sur la fenêtre entière.
+    //    Le témoin est un COMPTE : les fenêtres retenues pour la part de grave doivent être
+    //    moins nombreuses que les fenêtres pleines, puisque les fenêtres des bruits brefs en
+    //    sont exclues. Un clic de touche est large bande : le compter ferait paraître la pièce
+    //    moins grave qu'elle n'est.
+    assert.ok(b.partGraveCalculeeSur.fenetres > 0,
+      'la part de grave doit être calculée sur des fenêtres nommées : ' +
+      JSON.stringify(b.partGraveCalculeeSur));
+    // LE DÉNOMINATEUR EST CELUI DU PLANCHER, pas celui de la prise. Première version de cette
+    // assertion : « moins que toutes les fenêtres pleines » — elle comparait 30 fenêtres de
+    // silence initial à 42 fenêtres de prise et passait donc même quand la part de grave était
+    // calculée sur TOUT le silence initial, bruits brefs compris. Le falsifieur a trouvé ce trou
+    // (#50), et c'était mon assertion qui était fausse, pas le produit.
+    assert.ok(b.partGraveCalculeeSur.fenetres < b.plancherCalculeSur.fenetres,
+      'la part de grave doit se calculer sur les SEULES fenêtres du plancher, donc moins que la '
+      + 'population qui donne le plancher : ' + b.partGraveCalculeeSur.fenetres + ' sur ' +
+      b.plancherCalculeSur.fenetres);
+    assert.ok(b.plancherCalculeSur.fenetres >= 20,
+      'et cette population doit être celle du silence initial (environ 30 fenêtres) : ' +
+      b.plancherCalculeSur.fenetres);
+    // 6. CE QUE LA PAGE AFFICHE.
     const affiche = r.affiche.bruit || '';
     assert.ok(/CALME/.test(affiche), 'la page doit afficher CALME : ' + affiche);
     assert.ok(/bruit\(s\) bref\(s\) écarté\(s\)/.test(affiche),
@@ -1410,6 +1445,21 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     await page.waitForFunction(() => /terminée|muette/i.test(
       document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
 
+    // UN ÉVÉNEMENT VRAIMENT HORS PRISE, ÉPROUVÉ POUR LUI-MÊME. Le falsifieur a trouvé un trou
+    // (#56) : retirer le marquage « hors prise » ne faisait échouer aucun contrôle, parce que
+    // dans Chromium aucun événement ne tombe hors prise — `onstatechange` arrive après que la
+    // prise a commencé, et la branche n'était donc jamais empruntée. On la provoque : on change
+    // l'état du contexte alors qu'AUCUNE prise ne court, et on lit le journal en mémoire.
+    const dehors = await page.evaluate(async () => {
+      const A = window.EnregistreurVoix, e = A._etat();
+      const avant = e.journal.length;
+      if (e.ctx.state !== 'suspended') await e.ctx.suspend(); else await e.ctx.resume();
+      await new Promise((r) => setTimeout(r, 400));
+      const nouvelles = e.journal.slice(avant);
+      return { enPrise: e.enPrise, journal: e.journal.map((x) => x.quoi),
+               entree: nouvelles.filter((x) => /^contexte /.test(x.quoi))[0] || null };
+    });
+
     const deux = await page.evaluate(async () => {
       const e = window.EnregistreurVoix._etat();
       const liste = await window.VoixStockage.listerPrises(e.db);
@@ -1459,6 +1509,17 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     assert.ok(verifiees >= 4, 'il faut des entrées à vérifier : ' + verifiees + ' — journaux : ' +
       JSON.stringify(deux.map((p) => p.journal.map((e) => e.quoi + '@' + e.aEchantillon +
         (e.horsPrise ? ' (hors prise)' : '')))));
+
+    assert.equal(dehors.enPrise, false, 'aucune prise ne doit courir à cet instant');
+    assert.ok(dehors.entree,
+      'changer l\'état du contexte hors prise doit laisser une entrée au journal : ' +
+      JSON.stringify(dehors.journal));
+    assert.equal(dehors.entree.horsPrise, true,
+      'et elle doit être MARQUÉE hors prise : ' + JSON.stringify(dehors.entree));
+    assert.equal(dehors.entree.aEchantillon, 0,
+      'avec une position nulle, puisqu\'aucune prise ne court : ' + dehors.entree.aEchantillon);
+    assert.ok(!('priseId' in dehors.entree),
+      'et sans nommer de prise : ' + JSON.stringify(dehors.entree));
 
     // LE CAS EXACT DU DÉFAUT : le `resume()` du contexte au début de la seconde prise.
     const running = courte.journal.filter((e) => /^contexte running/.test(e.quoi));
@@ -1843,6 +1904,42 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       'l\'encadré de reprise doit annoncer le même compte : ' + vu.encadre);
     console.log('        compteurs de la prise 0 morceau · en base ' + vu.enBase.morceaux +
       ' morceaux / ' + vu.enBase.echantillons + ' éch · fiche : ' + vu.carte.slice(0, 72));
+  });
+
+  // ── §26 — (D5) SIGNAL PERDU JUSQU'À LA FIN N'EST PAS « UN PASSAGE MUET » ──────────────────
+  await controle('§26 signal perdu et jamais revenu : l\'état le DIT, avec son instant', async () => {
+    // DÉFAUT 5 DU RELEVÉ D'ESSAIS : « l'état sonore avec un passage muet est donné à une prise
+    // dont 68 % est à zéro jusqu'à la fin ». Ce n'est pas un passage, c'est une perte : appeler
+    // cela un passage laisse croire qu'il y a quelque chose après. Le fait qui sépare les deux
+    // est au journal : le son est-il revenu après la dernière chute à zéro ?
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/signal-perdu-au-milieu.wav');
+    // On laisse courir bien au-delà des 2 s de zéro qui lèvent l'alerte, sans aller jusqu'au bout
+    // de la fixture : la perte doit durer JUSQU'À L'ARRÊT.
+    const r = await prendre(page, { attendreMs: 9000 });
+    await ctx.close();
+    const quoi = r.module.journal.map((e) => e.quoi);
+    assert.ok(quoi.includes('piste muette'),
+      'l\'alerte E8 doit être tombée : ' + JSON.stringify(quoi));
+    assert.ok(!quoi.includes('son revenu'),
+      'et le son ne doit PAS être revenu : ' + JSON.stringify(quoi));
+    // 1. L'ÉTAT DU RAPPORT NOMME LA PERTE ET SON INSTANT.
+    const etat = r.module.mesures.etatDeLaPiste;
+    assert.ok(/signal perdu à l'échantillon \d+/.test(etat),
+      'l\'état doit nommer la perte et son échantillon : ' + etat);
+    assert.ok(!/passage muet/.test(etat),
+      'et ne jamais parler d\'un « passage » : ' + etat);
+    assert.ok(typeof r.module.mesures.signalPerduAEchantillon === 'number',
+      'avec l\'échantillon en clair, pour le refaire : ' + r.module.mesures.signalPerduAEchantillon);
+    // 2. LA PRISE PORTE CET ÉTAT EN STOCKAGE, donc après rechargement aussi.
+    assert.equal(r.stockage.prise.etat, 'signal-perdu',
+      'la prise doit être rangée comme telle : ' + r.stockage.prise.etat);
+    // 3. ET LA PRISE N'EST PAS DÉCLARÉE MUETTE : son début est utilisable.
+    assert.ok(r.stockage.echantillons > 0, 'des échantillons ont bien été écrits');
+    assert.ok(r.affiche.messages.some((m) => /SIGNAL PERDU/.test(m.texte)),
+      'et la page doit le dire : ' + JSON.stringify(r.affiche.messages.map((m) => m.texte.slice(0, 40))));
+    console.log('        ' + etat + ' · prise « ' + r.stockage.prise.etat + ' » · ' +
+      r.stockage.echantillons + ' échantillons écrits');
   });
 
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────
