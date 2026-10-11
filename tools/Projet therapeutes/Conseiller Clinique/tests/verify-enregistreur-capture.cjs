@@ -147,9 +147,23 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
         sbFrequence: document.querySelector('[data-sb-frequence]').textContent,
         sbMicro: (document.querySelector('[data-sb-micro]') || {}).textContent,
         bruit: (document.querySelector('[data-bruit]') || {}).textContent,
-        messages: [...document.querySelectorAll('[data-messages] .sc-bm-message')]
+        // (D2) DEUX ZONES DEPUIS T1 BIS : les alertes de signal sont dans `[data-alerte]`,
+        // placée AVANT les avis pour qu'aucun avis ne puisse les repousser hors de vue (E8).
+        // `messages` réunit les deux, dans l'ordre du document, pour les contrôles qui cherchent
+        // un texte sans se soucier de sa zone ; `alertes` et `avis` les séparent pour ceux qui
+        // vérifient justement la zone.
+        messages: [...document.querySelectorAll('[data-alerte] .sc-bm-message, [data-messages] .sc-bm-message')]
           .map((m) => ({ etat: m.getAttribute('data-state'), texte: m.querySelector('span').textContent,
-                         icone: m.querySelector('use').getAttribute('href') })),
+                         icone: m.querySelector('use').getAttribute('href'),
+                         cle: m.getAttribute('data-cle'),
+                         zone: m.closest('[data-alerte]') ? 'alerte' : 'avis' })),
+        alertes: [...document.querySelectorAll('[data-alerte] .sc-bm-message')]
+          .map((m) => ({ etat: m.getAttribute('data-state'), texte: m.querySelector('span').textContent,
+                         cle: m.getAttribute('data-cle') })),
+        avis: [...document.querySelectorAll('[data-messages] .sc-bm-message')]
+          .map((m) => ({ etat: m.getAttribute('data-state'), texte: m.querySelector('span').textContent,
+                         cle: m.getAttribute('data-cle') })),
+        chronoIntitule: (document.querySelector('[data-chrono-intitule]') || {}).textContent,
       },
       // ce que le MODULE croit
       module: {
@@ -462,10 +476,11 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     // aussitôt, comme E8 l'exige, et non à la fin.
     let bandeauPendant = null;
     const r = await prendre(page, {
-      jusqua: () => !!document.querySelector('[data-messages] [data-cle="muet"]'),
+      // (D2) LE BANDEAU A SA ZONE PROPRE DEPUIS T1 BIS : `[data-alerte]`, placée avant les avis.
+      jusqua: () => !!document.querySelector('[data-alerte] [data-cle="muet"]'),
       pendant: async () => {
         bandeauPendant = await page.evaluate(() => {
-          const m = document.querySelector('[data-messages] [data-cle="muet"]');
+          const m = document.querySelector('[data-alerte] [data-cle="muet"]');
           return m ? { etat: m.getAttribute('data-state'), texte: m.querySelector('span').textContent,
                        icone: m.querySelector('use').getAttribute('href'),
                        modeAffiche: document.querySelector('[data-mode]').textContent } : null;
@@ -481,8 +496,17 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     // Et le verdict final doit s'AJOUTER, sans effacer l'alerte.
     const verdict = r.affiche.messages.find((m) => /Cette prise est MUETTE/.test(m.texte));
     assert.ok(verdict, 'le verdict final doit être affiché : ' + JSON.stringify(r.affiche.messages));
-    assert.ok(r.affiche.messages.some((m) => /Aucun son reçu du micro/.test(m.texte)),
-      'et l\'alerte E8 doit SURVIVRE au verdict : ' + JSON.stringify(r.affiche.messages));
+    // (D2 / E8) L'ALERTE SURVIT AU VERDICT, mais sous la forme que E8 demande désormais : « au
+    // retour du signal ou à l'arrêt, elle devient un RÉSUMÉ NEUTRE ». Ce qui doit survivre est le
+    // FAIT — l'échantillon où le signal est tombé — et non le rouge, qui décrirait au passé une
+    // urgence présente. Le relevé d'essais reprochait exactement l'inverse : un bandeau rouge
+    // laissé en place après l'arrêt.
+    const resume = r.affiche.alertes.find((m) => m.cle === 'muet');
+    assert.ok(resume, 'le résumé du passage muet doit rester : ' + JSON.stringify(r.affiche.alertes));
+    assert.equal(resume.etat, 'info',
+      'et il doit être NEUTRE après l\'arrêt, non rouge : ' + resume.etat + ' — ' + resume.texte);
+    assert.ok(/zéro numérique de l\'échantillon \d+/.test(resume.texte),
+      'en portant l\'échantillon de début, qui est la seule information utile : ' + resume.texte);
     assert.ok(bandeau, 'le bandeau E8 doit être AFFICHÉ ; messages : ' +
       JSON.stringify(r.affiche.messages));
     assert.equal(bandeau.etat, 'error', 'le bandeau doit être une erreur');
@@ -1615,6 +1639,210 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       JSON.stringify(apres.nouvelle));
     console.log('        anciennes ' + JSON.stringify(apres.anciennes) +
       ' · nouvelle ' + JSON.stringify(apres.nouvelle));
+  });
+
+  // ── §24 — (D2 / E8) LE BANDEAU AVANCE, IL EST EN TÊTE, ET IL DEVIENT NEUTRE ───────────────
+  await controle('§24 le bandeau E8 dit la durée COURANTE, pas une durée figée', async () => {
+    // DÉFAUT 2 DU RELEVÉ D'ESSAIS : « le bandeau rouge ne se met pas à jour (depuis 2,0 s figé
+    // alors que le signal manque depuis 5 s ou plus) ». On lit donc le bandeau DEUX FOIS, à
+    // quelques secondes d'intervalle, et la durée qu'il annonce doit avoir grandi d'autant.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/zeros-71s.wav');
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    // Le bandeau tombe à 2 s de zéro (E8).
+    await page.waitForFunction(() => !!document.querySelector('[data-alerte] [data-cle="muet"]'),
+      null, { timeout: 20000 });
+
+    const lire = () => page.evaluate(() => {
+      const m = document.querySelector('[data-alerte] [data-cle="muet"]');
+      const t = m ? m.querySelector('span').textContent : '';
+      const secondes = (t.match(/soit ([\d.,]+) s/) || [])[1];
+      return { texte: t, etat: m && m.getAttribute('data-state'),
+               secondes: secondes ? parseFloat(secondes.replace(',', '.')) : null,
+               // LA ZONE, ET SA POSITION DANS LE DOCUMENT : l'alerte doit précéder les avis.
+               alerteAvantAvis: !!(document.querySelector('[data-alerte]').compareDocumentPosition(
+                 document.querySelector('[data-messages]')) & Node.DOCUMENT_POSITION_FOLLOWING),
+               collee: getComputedStyle(document.querySelector('[data-alerte]')).position };
+    });
+
+    const t1 = await lire();
+    await page.waitForTimeout(3000);
+    const t2 = await lire();
+
+    assert.equal(t1.etat, 'error', 'pendant la prise, le bandeau est une alerte : ' + t1.etat);
+    assert.ok(typeof t1.secondes === 'number' && typeof t2.secondes === 'number',
+      'le bandeau doit annoncer une durée en secondes : « ' + t1.texte + ' » puis « ' + t2.texte + ' »');
+    assert.ok(t2.secondes - t1.secondes > 2,
+      'LA DURÉE DOIT AVANCER (défaut 2) : ' + t1.secondes + ' s puis ' + t2.secondes +
+      ' s après 3 s d\'attente — écart ' + (t2.secondes - t1.secondes).toFixed(1) + ' s');
+    assert.ok(/échantillon \d+/.test(t1.texte),
+      'et porter l\'échantillon de début (E8) : ' + t1.texte);
+    assert.ok(/\(\d\d:\d\d,\d\d\d\)/.test(t1.texte),
+      'et l\'instant correspondant : ' + t1.texte);
+    assert.equal(t1.alerteAvantAvis, true,
+      'la zone d\'alerte doit PRÉCÉDER les avis, pour qu\'aucun avis ne la repousse (E8)');
+    assert.equal(t1.collee, 'sticky',
+      'et rester fixée en haut quand la page défile (E8) : position ' + t1.collee);
+
+    // L'INTITULÉ PENDANT, PUIS APRÈS L'ARRÊT.
+    const pendant = await page.evaluate(() => document.querySelector('[data-chrono-intitule]').textContent);
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => /terminée|muette/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    const apres = await page.evaluate(() => {
+      const m = document.querySelector('[data-alerte] [data-cle="muet"]');
+      return { intitule: document.querySelector('[data-chrono-intitule]').textContent,
+               etat: m && m.getAttribute('data-state'),
+               texte: m && m.querySelector('span').textContent };
+    });
+    await ctx.close();
+    assert.equal(pendant, 'Enregistrement', 'pendant la prise : ' + pendant);
+    assert.equal(apres.intitule, 'Dernière prise',
+      'après l\'arrêt l\'intitulé doit changer (défaut 2) : ' + apres.intitule);
+    assert.equal(apres.etat, 'info',
+      'et le bandeau devient NEUTRE à l\'arrêt (E8) : ' + apres.etat + ' — ' + apres.texte);
+    assert.ok(/avait été à zéro/.test(apres.texte),
+      'au passé, puisque c\'est un résumé : ' + apres.texte);
+    console.log('        ' + t1.secondes + ' s → ' + t2.secondes + ' s en 3 s · sticky · ' +
+      'alerte avant avis · « Enregistrement » → « ' + apres.intitule + ' » · résumé ' + apres.etat);
+  });
+
+  await controle('§24b aucune alerte ne survit à la prise suivante, et aucun avis ne la couvre', async () => {
+    // DÉFAUT 2, deux autres volets : « reste affiché à la prise suivante » et « les avis
+    // d'opérations passées (Prise récupérée, WAV exporté) s'empilent et repoussent l'alerte ».
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/zeros-71s.wav');
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    // PREMIÈRE PRISE, muette : elle laisse une alerte et un verdict.
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => !!document.querySelector('[data-alerte] [data-cle="muet"]'),
+      null, { timeout: 20000 });
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => /terminée|muette/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    // UN AVIS D'OPÉRATION PASSÉE : l'export WAV de cette prise.
+    await page.evaluate(() => {
+      const el = [...document.querySelectorAll('[data-prise] [data-action="wav"]')][0];
+      if (el) el.click();
+    });
+    await page.waitForFunction(() => !!document.querySelector('[data-cle="wav"]'),
+      null, { timeout: 20000 }).catch(() => {});
+    const avant = await page.evaluate(() => ({
+      alertes: [...document.querySelectorAll('[data-alerte] .sc-bm-message')].map((m) => m.getAttribute('data-cle')),
+      avis: [...document.querySelectorAll('[data-messages] .sc-bm-message')].map((m) => m.getAttribute('data-cle')),
+    }));
+    // SECONDE PRISE : tout doit avoir disparu au démarrage.
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(400);
+    const auDemarrage = await page.evaluate(() => ({
+      alertes: [...document.querySelectorAll('[data-alerte] .sc-bm-message')].map((m) => m.getAttribute('data-cle')),
+      avis: [...document.querySelectorAll('[data-messages] .sc-bm-message')].map((m) => m.getAttribute('data-cle')),
+      mode: document.querySelector('[data-mode]').textContent,
+    }));
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => /terminée|muette/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    await ctx.close();
+
+    // 1. L'AVIS D'EXPORT EXISTE, ET IL EST DANS L'AUTRE ZONE : il ne peut pas couvrir l'alerte.
+    assert.ok(avant.avis.includes('wav'),
+      'l\'avis d\'export WAV doit avoir été émis : ' + JSON.stringify(avant));
+    assert.ok(!avant.alertes.includes('wav'),
+      'et il ne doit JAMAIS entrer dans la zone d\'alerte : ' + JSON.stringify(avant.alertes));
+    assert.ok(avant.alertes.includes('muet') || avant.alertes.includes('prise-muette'),
+      'la zone d\'alerte, elle, porte le passage muet : ' + JSON.stringify(avant.alertes));
+    // 2. AU DÉMARRAGE DE LA PRISE SUIVANTE, LES DEUX ZONES SONT VIDES.
+    assert.equal(auDemarrage.mode, 'Prise en cours', 'la seconde prise tourne : ' + auDemarrage.mode);
+    assert.deepEqual(auDemarrage.alertes, [],
+      'aucune alerte de la prise précédente ne survit (défaut 2) : ' + JSON.stringify(auDemarrage.alertes));
+    assert.deepEqual(auDemarrage.avis, [],
+      'et aucun avis non plus : ' + JSON.stringify(auDemarrage.avis));
+    console.log('        avant : alertes ' + JSON.stringify(avant.alertes) + ' avis ' +
+      JSON.stringify(avant.avis) + ' → au démarrage suivant : les deux zones vides');
+  });
+
+  // ── §25 — (D6) LA FICHE D'UNE PRISE INACHEVÉE DIT CE QUI EST LÀ ───────────────────────────
+  await controle('§25 prise inachevée : la fiche affiche les morceaux RELUS, jamais 0', async () => {
+    // DÉFAUT 6 DU RELEVÉ D'ESSAIS : « une prise inachevée affiche 0 morceau, 0,00 Mo alors que
+    // l'encadré de reprise en retrouve 7 (35 s) ». Deux chiffres, deux sources, et c'est le faux
+    // qui s'affichait — celui qui conduit un opérateur à supprimer une prise récupérable.
+    const ctx = await nav.newContext({ permissions: ['microphone'] });
+    const page = await ctx.newPage();
+    await page.goto(base + '/banc-enregistreur.html' +
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const e = window.EnregistreurVoix._etat();
+      return e.sommesAnalyse && e.sommesAnalyse.n > 20000;
+    }, null, { timeout: 15000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().morceauxEcrits >= 3,
+      null, { timeout: 20000 });
+    const priseId = await page.evaluate(() => window.EnregistreurVoix._etat().priseId);
+    await page.close();   // la page meurt en pleine prise : la prise reste 'en-cours'
+
+    const page2 = await ctx.newPage();
+    await page2.goto(base + '/banc-enregistreur.html');
+    await page2.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await page2.waitForFunction(() => !!document.querySelector('[data-prise]'), null, { timeout: 20000 });
+
+    const vu = await page2.evaluate(async (id) => {
+      const carte = document.querySelector('[data-prise="' + id + '"]');
+      const e = window.EnregistreurVoix._etat();
+      // LE TÉMOIN : les octets réellement en base, relus par le curseur.
+      let morceaux = 0, echantillons = 0;
+      await window.VoixStockage.parcourirMorceaux(e.db, id, (m) => {
+        morceaux++; echantillons += m.pcm.byteLength / 2;
+      });
+      const prise = await window.VoixStockage.lirePrise(e.db, id);
+      const boite = document.querySelector('[data-reprise] [data-reprise-detail]');
+      return {
+        carte: carte ? carte.querySelector('[data-detail]').textContent : null,
+        badge: carte ? carte.querySelector('.sc-bm-badge').textContent : null,
+        enBase: { morceaux, echantillons },
+        comptteursDeLaPrise: { nbMorceaux: prise.nbMorceaux, nbEchantillons: prise.nbEchantillons,
+                               etat: prise.etat },
+        encadre: boite ? boite.textContent : null,
+      };
+    }, priseId);
+    await ctx.close();
+
+    assert.ok(vu.carte, 'la fiche de la prise inachevée doit exister');
+    assert.equal(vu.badge, 'Inachevée', 'avec son état : ' + vu.badge);
+    assert.equal(vu.comptteursDeLaPrise.etat, 'en-cours',
+      'la prise est bien restée en cours : ' + vu.comptteursDeLaPrise.etat);
+    // 1. CE QUE LE DÉFAUT MONTRAIT : les compteurs de la prise sont à zéro. On le VÉRIFIE, pour
+    //    que le contrôle prouve que la fiche ne les lit plus, et non qu'ils auraient changé.
+    assert.equal(vu.comptteursDeLaPrise.nbMorceaux, 0,
+      'les compteurs de la prise sont à zéro, c\'est normal : elle n\'a pas eu le temps de se clore');
+    assert.ok(vu.enBase.morceaux >= 3,
+      'alors que les morceaux sont bien en base : ' + vu.enBase.morceaux);
+    // 2. CE QUE LA FICHE AFFICHE : les chiffres RELUS.
+    assert.ok(vu.carte.includes(vu.enBase.morceaux + ' morceaux'),
+      'la fiche doit afficher les morceaux relus (' + vu.enBase.morceaux + ') : ' + vu.carte);
+    assert.ok(!/\b0 morceaux\b/.test(vu.carte),
+      'et jamais 0 morceau pour une prise qui en a : ' + vu.carte);
+    assert.ok(!/0\.00 Mo/.test(vu.carte), 'ni 0,00 Mo : ' + vu.carte);
+    assert.ok(/relu dans IndexedDB/.test(vu.carte),
+      'et dire d\'où viennent ses chiffres : ' + vu.carte);
+    // 3. LA FICHE ET L'ENCADRÉ DE REPRISE DISENT LA MÊME CHOSE : c'est la divergence entre les
+    //    deux qui a révélé le défaut à Christophe.
+    assert.ok(vu.encadre && vu.encadre.includes(vu.enBase.morceaux + ' morceaux retrouvés'),
+      'l\'encadré de reprise doit annoncer le même compte : ' + vu.encadre);
+    console.log('        compteurs de la prise 0 morceau · en base ' + vu.enBase.morceaux +
+      ' morceaux / ' + vu.enBase.echantillons + ' éch · fiche : ' + vu.carte.slice(0, 72));
   });
 
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────

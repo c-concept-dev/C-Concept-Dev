@@ -649,9 +649,21 @@
       '<header class="sc-bm-panel-title"><h2>Votre voix, à votre rythme</h2>' +
         '<span class="sc-bm-badge" data-mode>Prêt</span></header>' +
 
+      // ── (D2 / E8) L'ALERTE A SA PROPRE ZONE, ET ELLE EST LA PREMIÈRE ────────────────────
+      // E8 : « l'alerte reste affichée, FIXÉE EN HAUT DE LA FENÊTRE, tant que le signal
+      // manque ». Deux défauts du relevé d'essais sont ici : l'alerte n'était pas fixée, et les
+      // avis d'opérations passées (« Prise récupérée », « WAV exporté ») s'empilaient
+      // AU-DESSUS d'elle et la repoussaient hors de vue. Une zone séparée, placée avant les
+      // avis dans le document, rend le second défaut impossible par construction plutôt que
+      // par vigilance. Le `position: sticky` est posé en ligne sur un conteneur que ce module
+      // crée : aucun composant du kit n'est modifié.
+      '<div data-alerte style="position:sticky;top:0;z-index:5"></div>' +
       '<div data-messages></div>' +
 
-      '<div class="sc-bm-recording" aria-live="polite" data-chrono-ligne hidden>Enregistrement ' +
+      // (D2) L'INTITULÉ EST UNE VARIABLE, PAS UN MOT FIGÉ : « Enregistrement 01:16,221 » restait
+      // affiché après l'arrêt, ce qui laissait croire que la prise courait encore.
+      '<div class="sc-bm-recording" aria-live="polite" data-chrono-ligne hidden>' +
+        '<span data-chrono-intitule>Enregistrement</span> ' +
         '<span class="sc-bm-time" data-chrono>00:00,000</span></div>' +
 
       '<div class="sc-bm-meter" data-lot="3">' +
@@ -725,8 +737,13 @@
 
   function q(sel) { return _boite ? _boite.querySelector(sel) : null; }
 
+  // LES CLÉS QUI VONT DANS LA ZONE D'ALERTE, et non parmi les avis : celles qui décrivent un
+  // signal ou un périphérique qui manque MAINTENANT. Écrite une fois, ici, pour qu'un avis
+  // ajouté demain ne se retrouve pas par hasard au-dessus d'une alerte.
+  var CLES_ALERTE = { muet: true, piste: true, contexte: true, 'prise-muette': true };
+
   function message(cle, etat, texte) {
-    var hote = q('[data-messages]');
+    var hote = q(CLES_ALERTE[cle] ? '[data-alerte]' : '[data-messages]');
     if (!hote) return;
     var el = hote.querySelector('[data-cle="' + cle + '"]');
     if (!texte) { if (el) el.remove(); return; }
@@ -748,6 +765,18 @@
   // (D4) CHAQUE ENTRÉE DIT À QUELLE PRISE SA POSITION SE RAPPORTE, et le dit quand il n'y en a
   // aucune. Sans cela, rien ne permet de constater après coup qu'une position appartient bien à
   // sa prise — c'est ce qui a laissé passer le chiffre périmé pendant toute une session d'essais.
+  // (D2 / E8) « les alertes et avis d'une prise ne persistent pas à la prise suivante ». Le
+  // relevé d'essais montrait le bandeau rouge d'une prise encore affiché sur la suivante, ce qui
+  // est le pire des deux mondes : il décrit un fait ancien avec l'urgence d'un fait présent.
+  // On vide les DEUX zones au démarrage, et rien n'est épargné : un avis qui mérite de survivre
+  // à une prise n'existe pas dans ce jalon.
+  function viderTousLesAvis() {
+    ['[data-alerte]', '[data-messages]'].forEach(function (sel) {
+      var h = q(sel);
+      if (h) h.innerHTML = '';
+    });
+  }
+
   function journaliser(quoi, aEchantillon, extra) {
     var e = { quoi: quoi, aEchantillon: aEchantillon };
     // UN ÉVÉNEMENT DE CLÔTURE APPARTIENT ENCORE À SA PRISE. `enPrise` tombe à faux dès la
@@ -792,6 +821,31 @@
   // événement affichait donc « vivante » sur une piste morte — le même genre de mensonge que le
   // défaut 3, par un autre chemin. `peindreEtats` est donc appelée à CHAQUE relevé du worklet,
   // c'est-à-dire une vingtaine de fois par seconde, et elle relit la piste à chaque fois.
+  // ── (D2 / E8) LE TEXTE DU BANDEAU, ÉCRIT UNE SEULE FOIS ───────────────────────────────────
+  //
+  // E8 demande « l'échantillon de début et la durée courante ». Le relevé d'essais a montré le
+  // bandeau figé sur « depuis 2,0 s » alors que le signal manquait depuis plus de cinq secondes :
+  // le texte était calculé une fois, à l'instant de l'alerte, et jamais revu. Il est désormais
+  // recalculé à chaque relevé du worklet — une vingtaine de fois par seconde — à partir de la
+  // position courante de la prise. Une seule fonction le compose, pour que le bandeau vivant et
+  // le résumé final ne puissent pas raconter deux choses différentes (#11(f)).
+  function texteAlerteMuette(depuis, position, echantillonnage) {
+    var manquants = Math.max(0, position - depuis);
+    return 'Aucun son reçu du micro. Le signal est à zéro numérique depuis l\'échantillon '
+      + depuis + ' (' + fmtTemps(depuis, echantillonnage) + '), soit '
+      + (manquants / (echantillonnage || 48000)).toFixed(1) + ' s.';
+  }
+
+  // LE RÉSUMÉ NEUTRE, à l'arrêt ou au retour du son. E8 : « au retour du signal ou à l'arrêt,
+  // elle devient un résumé neutre ». Neutre veut dire : plus de rouge, et un fait au passé.
+  function resumeAlerteMuette(depuis, jusqua, echantillonnage) {
+    var duree = Math.max(0, jusqua - depuis);
+    return 'Le signal avait été à zéro numérique de l\'échantillon ' + depuis + ' ('
+      + fmtTemps(depuis, echantillonnage) + ') à ' + jusqua + ' ('
+      + fmtTemps(jusqua, echantillonnage) + '), soit '
+      + (duree / (echantillonnage || 48000)).toFixed(1) + ' s. Consigné au journal de la prise.';
+  }
+
   function peindreEtats() {
     var p = q('[data-sb-piste]');
     if (p) p.textContent = 'Piste : ' + etatDeLaPisteMaintenant(_etat.piste);
@@ -815,6 +869,11 @@
   // sommes du worklet, et la barre vient du même chiffre — pas d'un second calcul.
   function peindreReleve(m) {
     peindreEtats();
+    // (D2 / E8) LA DURÉE COURANTE DU BANDEAU, à chaque relevé.
+    if (_etat.muet && _etat.enPrise) {
+      message('muet', 'error', texteAlerteMuette(_etat.muetDepuis,
+        Math.max(m.echantillonsEcrits || 0, _etat.echantillonsEcrits), _etat.echantillonnage));
+    }
     _etat.echantillonnage = m.echantillonnage || _etat.echantillonnage;
     _etat.canaux = (m.releve && m.releve.canaux) || _etat.canaux;
     _etat.dernierReleve = m;
@@ -1010,9 +1069,8 @@
       _etat.muetDepuis = m.depuisEchantillon;
       peindreEtats();
       journaliser('piste muette', m.depuisEchantillon, { echantillonsAZero: m.echantillonsAZero });
-      message('muet', 'error', 'Aucun son reçu du micro. Le signal est à zéro numérique depuis ' +
-        (m.echantillonsAZero / (_etat.echantillonnage || 48000)).toFixed(1) + ' s (échantillon ' +
-        m.depuisEchantillon + ').');
+      message('muet', 'error', texteAlerteMuette(m.depuisEchantillon,
+        m.depuisEchantillon + m.echantillonsAZero, _etat.echantillonnage));
       return;
     }
 
@@ -1023,8 +1081,8 @@
       _etat.muet = false;
       peindreEtats();
       journaliser('son revenu', m.aEchantillon, null);
-      message('muet', 'info', 'Le son est revenu à l\'échantillon ' + m.aEchantillon +
-        '. Le passage muet reste consigné dans le journal de la prise.');
+      message('muet', 'info', resumeAlerteMuette(_etat.muetDepuis, m.aEchantillon,
+        _etat.echantillonnage) + ' Le son est revenu.');
       return;
     }
 
@@ -1357,8 +1415,7 @@
     _etat.fenetresBruit = [];
     _etat.bruitProvisoireRendu = false;
     _etat.bruit = null;
-    message('muet', '', null);
-    message('prise-muette', '', null);
+    viderTousLesAvis();
 
     return (_etat.ctx.state === 'suspended' ? _etat.ctx.resume() : Promise.resolve()).then(function () {
       _etat.debutPrise_ctxTemps = _etat.ctx.currentTime;
@@ -1402,6 +1459,8 @@
       q('[data-action="arreter"]').hidden = false;
       q('[data-chrono-ligne]').hidden = false;
       q('[data-mode]').textContent = 'Prise en cours';
+      var intituleEnCours = q('[data-chrono-intitule]');
+      if (intituleEnCours) intituleEnCours.textContent = 'Enregistrement';
       peindreEtats();
       journaliser('prise démarrée', 0, { canal: dec.canal, raison: dec.raison,
         echantillonsParMorceau: _etat.echantillonsParMorceauReels });
@@ -1548,6 +1607,18 @@
           q('[data-action="demarrer"]').hidden = false;
           q('[data-action="arreter"]').hidden = true;
           q('[data-mode]').textContent = muette ? 'Prise muette' : 'Prise terminée';
+          // (D2) L'INTITULÉ DIT CE QU'IL EST : « Enregistrement 01:16,221 » après l'arrêt
+          // laissait croire que la prise courait encore.
+          var intitule = q('[data-chrono-intitule]');
+          if (intitule) intitule.textContent = 'Dernière prise';
+          // (D2 / E8) LE BANDEAU DEVIENT UN RÉSUMÉ NEUTRE. Il ne disparaît pas : l'instant où
+          // le signal est tombé est la seule information utile pour comprendre la prise.
+          if (_etat.muet) {
+            message('muet', 'info', resumeAlerteMuette(_etat.muetDepuis,
+              _etat.echantillonsEcrits, _etat.echantillonnage)
+              + ' Le son n\'est pas revenu avant l\'arrêt.');
+            _etat.muet = false;
+          }
           peindreEtats();
           // Clé DISTINCTE de celle du bandeau E8 : le verdict final s'ajoute au bandeau au lieu
           // de l'effacer. Avec la même clé, l'instant où le signal est tombé à zéro — la seule
@@ -1670,6 +1741,36 @@
 
   // ── LA LISTE DES PRISES ET LA REPRISE (E5) ─────────────────────────────────────────────────
 
+  // ── (D6) UNE PRISE INACHEVÉE AFFICHE CE QUI EST RÉELLEMENT LÀ ─────────────────────────────
+  //
+  // DÉFAUT 6 DU RELEVÉ D'ESSAIS : « une prise inachevée affiche 0 morceau, 0,00 Mo alors que
+  // l'encadré de reprise en retrouve 7 (35 s) ». Les deux chiffres venaient de deux sources :
+  // la fiche lisait les compteurs ÉCRITS DANS LA PRISE, qui restent à zéro justement parce que
+  // la prise n'a pas eu le temps de se clore, tandis que l'encadré de reprise relisait les
+  // morceaux. Deux vérités pour une grandeur (#11(f)), et c'est la plus pessimiste qui
+  // s'affichait : un opérateur qui lit « 0 morceau » supprime la prise.
+  //
+  // Désormais une prise 'en-cours' est RELUE, morceau par morceau, comme l'encadré le fait, et
+  // la fiche dit d'où viennent ses chiffres. Une prise close garde ses compteurs : ils ont été
+  // écrits après que toutes les écritures ont été attendues (§6b), ils ne peuvent pas mentir.
+  function relireSiInachevee(p) {
+    if (p.etat !== 'en-cours') {
+      return Promise.resolve({ nbMorceaux: p.nbMorceaux || 0, nbEchantillons: p.nbEchantillons || 0,
+                               relu: false });
+    }
+    var nb = 0, ech = 0;
+    return window.VoixStockage.parcourirMorceaux(_etat.db, p.id, function (m) {
+      nb++; ech += m.pcm.byteLength / 2;
+    }).then(function () {
+      return { nbMorceaux: nb, nbEchantillons: ech, relu: true };
+    }, function () {
+      // La relecture a échoué : on le DIT plutôt que de retomber sur des compteurs qu'on sait
+      // faux. Un zéro affiché sans explication est ce qui a fait ce défaut.
+      return { nbMorceaux: p.nbMorceaux || 0, nbEchantillons: p.nbEchantillons || 0,
+               relu: false, echecDeRelecture: true };
+    });
+  }
+
   function peindreListe() {
     return window.VoixStockage.listerPrises(_etat.db).then(function (liste) {
       var hote = q('[data-prises]');
@@ -1681,30 +1782,40 @@
         return liste;
       }
       hote.innerHTML = '';
-      liste.forEach(function (p) {
-        var el = document.createElement('div');
-        el.className = 'sc-bm-resume';
-        el.setAttribute('data-prise', p.id);
-        el.setAttribute('data-etat', p.etat);
-        var dur = fmtTemps(p.nbEchantillons || 0, p.echantillonnage || 48000);
-        el.innerHTML =
-          '<header class="sc-bm-panel-title"><h2></h2><span class="sc-bm-badge"></span></header>' +
-          '<p data-detail></p>' +
-          '<div class="sc-bm-row">' +
-            '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="wav" data-lot="3">Exporter en WAV</button>' +
-            '<button type="button" class="sc-bm-button sc-bm-button--destructive" data-action="supprimer" data-lot="3">Supprimer</button>' +
-          '</div>';
-        el.querySelector('h2').textContent = p.nom || p.id;
-        el.querySelector('.sc-bm-badge').textContent =
-          p.etat === 'terminee' ? 'Terminée' : p.etat === 'muette' ? 'MUETTE' : 'Inachevée';
-        el.querySelector('[data-detail]').textContent =
-          dur + ' · ' + (p.nbMorceaux || 0) + ' morceaux · ' +
-          ((p.nbEchantillons || 0) * 2 / 1048576).toFixed(2) + ' Mo · ' +
-          (p.echantillonnage || 0) + ' Hz · ' + nomCanal(p.canalRetenu) +
-          ' · ' + (p.creeLe || '').replace('T', ' ').slice(0, 19);
-        hote.appendChild(el);
+      // (D6) Les relectures d'abord, l'affichage ensuite : une fiche ne s'écrit qu'avec des
+      // chiffres qu'on a en main, jamais avec un zéro en attendant.
+      return Promise.all(liste.map(relireSiInachevee)).then(function (relus) {
+        liste.forEach(function (p, k) {
+          var vrai = relus[k];
+          var el = document.createElement('div');
+          el.className = 'sc-bm-resume';
+          el.setAttribute('data-prise', p.id);
+          el.setAttribute('data-etat', p.etat);
+          var dur = fmtTemps(vrai.nbEchantillons, p.echantillonnage || 48000);
+          el.innerHTML =
+            '<header class="sc-bm-panel-title"><h2></h2><span class="sc-bm-badge"></span></header>' +
+            '<p data-detail></p>' +
+            '<div class="sc-bm-row">' +
+              '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="wav" data-lot="3">Exporter en WAV</button>' +
+              '<button type="button" class="sc-bm-button sc-bm-button--destructive" data-action="supprimer" data-lot="3">Supprimer</button>' +
+            '</div>';
+          el.querySelector('h2').textContent = p.nom || p.id;
+          el.querySelector('.sc-bm-badge').textContent =
+            p.etat === 'terminee' ? 'Terminée'
+            : p.etat === 'muette' ? 'MUETTE'
+            : p.etat === 'signal-perdu' ? 'SIGNAL PERDU'
+            : 'Inachevée';
+          el.querySelector('[data-detail]').textContent =
+            dur + ' · ' + vrai.nbMorceaux + ' morceaux · ' +
+            (vrai.nbEchantillons * 2 / 1048576).toFixed(2) + ' Mo · ' +
+            (p.echantillonnage || 0) + ' Hz · ' + nomCanal(p.canalRetenu) +
+            ' · ' + (p.creeLe || '').replace('T', ' ').slice(0, 19) +
+            (vrai.relu ? ' · relu dans IndexedDB, pas déduit des compteurs de la prise' : '') +
+            (vrai.echecDeRelecture ? ' · RELECTURE IMPOSSIBLE : ces chiffres sont ceux de la prise, qui est inachevée' : '');
+          hote.appendChild(el);
+        });
+        return liste;
       });
-      return liste;
     });
   }
 
