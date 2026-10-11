@@ -20,12 +20,20 @@
  *  Le banc ne décide pas du nombre de recettes : il montre les groupes et leur poids. Deux
  *  familles qui se lisent de la même façon peuvent partager une recette, et c'est à l'éditeur
  *  visuel de le dire — pas à un calcul.
+ *
+ *  **Il rend aussi son classement en données**, et pas seulement en tableaux. Les tableaux sont
+ *  tronqués pour rester lisibles ; un programme qui les relit n'obtient donc qu'un sixième du
+ *  classement et prend le reste pour des cas indécis. Cela m'est arrivé trois fois dans ce lot,
+ *  dont une qui aurait envoyé cent quarante-deux documents à la vérification manuelle sans
+ *  raison. Un relevé destiné à être relu par une machine se rend en données ; les tableaux sont
+ *  pour les yeux.
  */
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { objetsPdf, pagesPdf } from "@lienotheque/formats";
 import { lireCoucheTexte } from "@lienotheque/lecteur-texte";
 
 const chemin = process.argv[2];
+const sortie = process.argv[3];
 if (chemin === undefined) {
   console.error("Attendu : <inventaire.json>");
   process.exit(2);
@@ -130,4 +138,26 @@ for (const [nom, membres] of [...familles.entries()].sort((a, b) => b[1].length 
       `| ${m.releve.chemin.slice(inventaire.dossier.length + 1, inventaire.dossier.length + 50)} | ${m.releve.pages} | ${Math.round(m.motsParPage)} |`,
     );
   if (membres.length > 6) console.log(`| … et ${membres.length - 6} autres | | |`);
+}
+
+if (sortie !== undefined) {
+  await writeFile(
+    sortie,
+    JSON.stringify(
+      {
+        mesure_le: new Date().toISOString(),
+        traits: traits.map((t) => ({
+          chemin: t.releve.chemin.slice(inventaire.dossier.length + 1),
+          empreinte: t.releve.empreinte,
+          pages: t.releve.pages,
+          famille: t.famille,
+          forme: t.forme,
+          motsParPage: t.motsParPage,
+        })),
+      },
+      null,
+      2,
+    ),
+  );
+  console.error(`Classement complet écrit dans ${sortie}`);
 }

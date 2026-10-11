@@ -32,7 +32,8 @@ use crate::{
     volume::{self, Presence},
 };
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
+    fs,
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -47,6 +48,22 @@ const PAS: Duration = Duration::from_millis(1000);
 
 /// Le nom du fichier qui porte la manière de lire d'une bibliothèque.
 pub const RECETTE: &str = "recette.json";
+
+/// Qui se lit comment, quand une bibliothèque a plusieurs manières de lire.
+///
+/// Une bibliothèque d'un seul tenant n'en a qu'une, et `recette.json` suffit. Un corpus
+/// rassemblé au fil des ans n'a pas cette chance : des pages natives, des livres photographiés
+/// une page ou deux par feuille, des feuillets sans pagination suivie. Leur appliquer une seule
+/// manière de lire reviendrait à chercher un numéro là où il n'y en a pas, et à n'en lire qu'un
+/// là où la feuille en porte deux.
+///
+/// L'affectation est une **donnée** — un objet qui associe le nom d'un document à l'identifiant
+/// de sa manière de lire — et non une branche de code. Absente, rien ne change : `recette.json`
+/// reprend son rôle, et une bibliothèque d'un seul tenant ignore que ceci existe.
+pub const MANIERES: &str = "manieres.json";
+
+/// Où vivent les manières de lire nommées.
+pub const RECETTES: &str = "recettes";
 
 pub struct Roulement {
     depot: Depot,
@@ -145,10 +162,9 @@ impl Roulement {
                 return Ok(());
             }
 
-            let mut parti = prochain.clone();
-            parti.battre(&self.appareil, maintenant, travail::expiration_secondes());
-            parti.etat = "en_cours".to_owned();
-            parti.maj_le = maintenant;
+            // Prendre en charge passe par la porte commune : une reprise d'échec récupérable
+            // consomme une tentative, qu'elle vienne de l'écran ou de la file.
+            let parti = file::prendre(prochain, &self.appareil, maintenant);
             travail::enregistrer(&dossier.join(format!("{}.json", parti.id)), &parti)?;
             self.menes.lock().expect("ensemble des travaux menés").insert(parti.id.clone());
 
@@ -359,14 +375,48 @@ impl Roulement {
     /// L'hôte la monte mais ne la lit pas : ce qu'elle décrit appartient à l'outil. Il vérifie
     /// seulement que ce qu'elle désigne existe — une demande qui pointe un fichier absent échoue
     /// trois minutes plus tard, et pour une raison qu'on ne comprend plus.
+    /// La manière de lire qui revient à ce document.
+    ///
+    /// Celle que l'affectation lui donne, quand elle en donne une **et** que le fichier existe ;
+    /// sinon celle de la bibliothèque. On ne se rabat jamais en silence sur une manière nommée
+    /// mais absente : ce serait en appliquer une autre, et le résultat aurait l'air juste. On se
+    /// rabat sur celle de la bibliothèque, qui est un défaut assumé, et on le dit.
+    fn maniere_de(&self, empreinte: &str) -> PathBuf {
+        let base = self.depot.racine().join("base");
+        let defaut = base.join(RECETTE);
+        let Ok(texte) = fs::read_to_string(base.join(MANIERES)) else { return defaut };
+        let Ok(affectation) = serde_json::from_str::<HashMap<String, String>>(&texte) else {
+            eprintln!("roulement : {MANIERES} est illisible — on s'en tient à la manière de la bibliothèque");
+            return defaut;
+        };
+        let Some(identifiant) = affectation.get(empreinte) else { return defaut };
+        let nommee = base.join(RECETTES).join(format!("{identifiant}.json"));
+        if nommee.exists() {
+            return nommee;
+        }
+        eprintln!("roulement : « {identifiant} » est affectée à l'empreinte {empreinte} mais introuvable");
+        defaut
+    }
+
     fn charge_de(&self, travail: &Travail) -> Result<serde_json::Value, String> {
         let sujet = travail.sujet.as_ref().ok_or("Ce travail ne désigne aucun fichier.")?;
         let racine = self.depot.racine();
-        let document = racine.join(crate::depot::SOURCES).join(&sujet.nom);
+        // La source se retrouve par son **empreinte**, jamais par son nom.
+        //
+        // Deux documents peuvent porter le même nom dans deux dossiers et n'avoir rien à voir :
+        // ce corpus en contient. Nommés par leur nom, le second écrasait le premier au dépôt, et
+        // l'on traitait deux fois le même fichier en croyant en traiter deux.
+        let empreinte = travail.empreinte.as_deref().ok_or("Ce travail ne porte pas l’empreinte de son fichier.")?;
+        let extension = std::path::Path::new(&sujet.nom)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("bin")
+            .to_lowercase();
+        let document = self.depot.source(empreinte, &extension);
         if !document.exists() {
             return Err(format!("Le fichier « {} » n’est plus dans la bibliothèque.", sujet.nom));
         }
-        let recette = racine.join("base").join(RECETTE);
+        let recette = self.maniere_de(empreinte);
         if !recette.exists() {
             return Err(
                 "Cette bibliothèque n’a pas encore de manière de lire. Apprenez-en une, puis reprenez ce travail."
@@ -393,6 +443,40 @@ impl Roulement {
 mod tests {
     use super::*;
     use std::fs;
+
+    /// Chaque document reçoit **sa** manière de lire, et jamais celle du voisin.
+    ///
+    /// Les quatre cas tiennent ensemble, parce que c'est leur combinaison qui est dangereuse :
+    /// se rabattre en silence sur une autre manière de lire donnerait un résultat d'apparence
+    /// juste — des pages lues, des ancres posées — et faux. Mieux vaut le défaut assumé de la
+    /// bibliothèque, qui se voit, qu'une manière voisine, qui ne se voit pas.
+    #[test]
+    fn chaque_document_recoit_sa_maniere_de_lire() {
+        let bac = bac("manieres");
+        let roul = roulement(bac.clone());
+        let base = bac.join("bibliotheque").join("base");
+        fs::create_dir_all(base.join(RECETTES)).expect("dossiers");
+        fs::write(base.join(RECETTE), b"{}").expect("manière par défaut");
+        fs::write(base.join(RECETTES).join("couchee.json"), b"{}").expect("manière nommée");
+        fs::write(
+            base.join(MANIERES),
+            br#"{"couche.pdf": "couchee", "orpheline.pdf": "jamais-ecrite"}"#,
+        )
+        .expect("affectation");
+
+        // Affectée et présente : c'est elle qu'on prend.
+        assert!(roul.maniere_de("couche.pdf").ends_with("recettes/couchee.json"));
+        // Pas affectée : la manière de la bibliothèque, qui est le défaut assumé.
+        assert!(roul.maniere_de("inconnue.pdf").ends_with(RECETTE));
+        // Affectée mais introuvable : surtout pas une autre. Le défaut, et un mot sur la sortie.
+        assert!(roul.maniere_de("orpheline.pdf").ends_with(RECETTE));
+
+        // Sans affectation du tout, une bibliothèque d'un seul tenant ne change pas de
+        // comportement — c'est la condition pour que ceci n'abîme rien de ce qui marchait.
+        fs::remove_file(base.join(MANIERES)).expect("retrait");
+        assert!(roul.maniere_de("couche.pdf").ends_with(RECETTE));
+        fs::remove_dir_all(&bac).ok();
+    }
 
     fn bac(nom: &str) -> PathBuf {
         let chemin = std::env::temp_dir().join(format!("lienotheque-roulement-{nom}-{}", std::process::id()));
@@ -451,11 +535,23 @@ mod tests {
         }
     }
 
+    /// L'empreinte d'essai : c'est elle qui nomme la source depuis que deux documents peuvent
+    /// porter le même nom sans être le même document.
+    const EMPREINTE: &str = "1111111111111111111111111111111111111111111111111111111111111111";
+
     fn travail_de(nom: &str) -> Travail {
         let mut t = Travail::neuf("0190f0a0-0000-7000-8000-000000000001", "traitement-de-lot", 0);
         t.version_cible = "0190f0a0-0000-7000-8000-0000000000a1".to_owned();
         t.sujet = Some(crate::travail::Sujet { nom: nom.to_owned(), contenu: "documents".to_owned() });
+        t.empreinte = Some(EMPREINTE.to_owned());
         t
+    }
+
+    /// Pose une source là où le dépôt la rangera : sous son empreinte, pas sous son nom.
+    fn poser_source(r: &Roulement, extension: &str) {
+        let chemin = r.depot.source(EMPREINTE, extension);
+        fs::create_dir_all(chemin.parent().expect("palier")).expect("palier");
+        fs::write(chemin, b"x").expect("document");
     }
 
     #[test]
@@ -472,7 +568,7 @@ mod tests {
         let racine = bac("sans-recette");
         let r = roulement(racine.clone());
         fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
-        fs::write(r.depot.racine().join(crate::depot::SOURCES).join("un.pdf"), b"x").expect("document");
+        poser_source(&r, "pdf");
 
         let erreur = r.charge_de(&travail_de("un.pdf")).expect_err("doit refuser");
         assert!(erreur.contains("manière de lire"), "{erreur}");
@@ -486,7 +582,7 @@ mod tests {
         let base = r.depot.racine().join("base");
         fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
         fs::create_dir_all(&base).expect("base");
-        fs::write(r.depot.racine().join(crate::depot::SOURCES).join("un.pdf"), b"x").expect("document");
+        poser_source(&r, "pdf");
         fs::write(base.join(RECETTE), b"{}").expect("recette");
         fs::write(base.join("bibliotheque.json"), b"{}").expect("description");
 

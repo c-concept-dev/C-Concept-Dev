@@ -72,7 +72,14 @@ fn voir(arguments: &[String]) -> ExitCode {
         eprintln!("Description impossible à poser : {e}");
         return ExitCode::from(1);
     }
-    let copie = match depot.deposer_source(&PathBuf::from(document)) {
+    let empreinte = match lienotheque_bureau::arrivee::empreinte_de(&PathBuf::from(document)) {
+        Ok(e) => e,
+        Err(e) => {
+            eprintln!("Empreinte impossible à calculer : {e}");
+            return ExitCode::from(1);
+        }
+    };
+    let copie = match depot.deposer_source(&PathBuf::from(document), &empreinte) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Document impossible à copier : {e}");

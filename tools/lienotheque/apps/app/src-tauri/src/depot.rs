@@ -88,13 +88,23 @@ impl Depot {
 
     /// Copie un original dans la bibliothèque. C'est ce qui la rend portable : le document
     /// voyage avec elle, et rien ne dépend plus de l'endroit d'où il venait.
-    pub fn deposer_source(&self, origine: &Path) -> io::Result<PathBuf> {
-        let nom = origine
-            .file_name()
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "chemin sans nom de fichier"))?;
-        let destination = self.racine.join(SOURCES).join(nom);
+    pub fn deposer_source(&self, origine: &Path, empreinte: &str) -> io::Result<PathBuf> {
+        let extension = origine.extension().and_then(|e| e.to_str()).unwrap_or("bin").to_lowercase();
+        let palier = self.racine.join(SOURCES).join(&empreinte[..2]);
+        fs::create_dir_all(&palier)?;
+        let destination = palier.join(format!("{empreinte}.{extension}"));
+        // Déjà là, et au bit près puisque c'est son empreinte qui le nomme : recopier huit cents
+        // mégaoctets pour obtenir le même fichier serait du temps et de la place pour rien.
+        if destination.exists() {
+            return Ok(destination);
+        }
         fs::copy(origine, &destination)?;
         Ok(destination)
+    }
+
+    /// Où se trouve une source, d'après son empreinte.
+    pub fn source(&self, empreinte: &str, extension: &str) -> PathBuf {
+        self.racine.join(SOURCES).join(&empreinte[..2]).join(format!("{empreinte}.{extension}"))
     }
 
     /// Écrit la description de la bibliothèque : son identifiant, son nom, ses mots, son schéma.
@@ -222,15 +232,58 @@ mod tests {
         fs::remove_dir_all(&racine).ok();
     }
 
+    /// Deux documents différents portant le même nom ne se marchent pas dessus.
+    ///
+    /// Le corpus du lot E en contient : « Le corps n'oublie rien.pdf » existe dans deux dossiers,
+    /// avec deux contenus. Nommées par leur nom, les copies s'écrasaient — et l'on croyait avoir
+    /// déposé deux documents en n'en ayant qu'un, sans qu'aucune erreur ne le dise.
+    #[test]
+    fn deux_fichiers_de_meme_nom_restent_deux_fichiers() {
+        let (depot, racine) = depot_neuf("homonymes");
+        let dossier_un = racine.join("un");
+        let dossier_deux = racine.join("deux");
+        fs::create_dir_all(&dossier_un).expect("dossier");
+        fs::create_dir_all(&dossier_deux).expect("dossier");
+        let un = dossier_un.join("meme-nom.pdf");
+        let deux = dossier_deux.join("meme-nom.pdf");
+        fs::write(&un, b"le premier").expect("premier");
+        fs::write(&deux, b"le second, qui n'a rien a voir").expect("second");
+
+        let copie_un = depot.deposer_source(&un, &"1".repeat(64)).expect("premier déposé");
+        let copie_deux = depot.deposer_source(&deux, &"2".repeat(64)).expect("second déposé");
+
+        assert_ne!(copie_un, copie_deux, "deux documents distincts partagent une destination");
+        assert_eq!(fs::read(&copie_un).expect("premier lisible"), b"le premier");
+        assert_eq!(fs::read(&copie_deux).expect("second lisible"), b"le second, qui n'a rien a voir");
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Le même fichier déposé deux fois ne se recopie pas : son empreinte le nomme.
+    #[test]
+    fn un_fichier_depose_deux_fois_ne_se_recopie_pas() {
+        let (depot, racine) = depot_neuf("deux-fois");
+        let origine = racine.join("une-fois.pdf");
+        fs::write(&origine, b"des octets").expect("original");
+        let empreinte = "c".repeat(64);
+        let premier = depot.deposer_source(&origine, &empreinte).expect("premier dépôt");
+        let second = depot.deposer_source(&origine, &empreinte).expect("second dépôt");
+        assert_eq!(premier, second);
+        fs::remove_dir_all(&racine).ok();
+    }
+
     #[test]
     fn un_original_depose_voyage_avec_la_bibliotheque() {
         let (depot, racine) = depot_neuf("source");
         let origine = std::env::temp_dir().join(format!("original-{}.txt", std::process::id()));
         fs::write(&origine, b"des octets").expect("original écrit");
 
-        let copie = depot.deposer_source(&origine).expect("source déposée");
+        let empreinte = "a".repeat(64);
+        let copie = depot.deposer_source(&origine, &empreinte).expect("source déposée");
         assert!(copie.starts_with(racine.join(SOURCES)));
         assert_eq!(fs::read(&copie).expect("copie lisible"), b"des octets");
+        // Nommée par son empreinte, et rangée sous un palier : deux documents de même nom ne se
+        // marchent plus dessus, et un listing ne rend pas des milliers d'entrées d'un coup.
+        assert_eq!(copie, depot.source(&empreinte, "txt"));
 
         // L'original peut disparaître : la bibliothèque n'en dépend plus.
         fs::remove_file(&origine).ok();
