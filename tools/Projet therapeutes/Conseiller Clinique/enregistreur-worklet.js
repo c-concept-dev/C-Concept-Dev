@@ -175,8 +175,14 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
         this.canal = m.canal || 'gauche';
         this.total = sommesNeuves();
         this.dansLeMorceau = 0;
-        this.indexMorceau = 0;
-        this.echantillonsEcrits = 0;
+        // ── (E12) UNE PRISE SE PROLONGE : ON REPREND SES COMPTEURS LÀ OÙ ILS ÉTAIENT ───────
+        // Une continuation n'est pas une nouvelle prise. Le module fournit l'index du prochain
+        // morceau et le nombre d'échantillons déjà écrits, RELUS dans le stockage et non
+        // déduits : le worklet les adopte, si bien que les positions du journal et les
+        // `debutEchantillon` des morceaux restent comptés depuis le début de la prise, comme
+        // E12 l'exige pour les repères.
+        this.indexMorceau = Math.max(0, Math.round(m.indexDepart || 0));
+        this.echantillonsEcrits = Math.max(0, Math.round(m.echantillonsDepart || 0));
         this.echantillonsVus = 0;
         this.blocsVus = 0;
         this.blocsSansEntree = 0;
@@ -250,6 +256,57 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
         // court. Le module s'en garde une seconde fois de son côté (deux gardes indépendantes
         // pour un chiffre qui a déjà menti).
         this.echantillonsEcrits = 0;
+      } else if (m.type === 'mettre-en-pause') {
+        // ── (E12) LA PAUSE N'ÉCRIT RIEN, ET N'OCCUPE AUCUN TEMPS DANS LA VOIX ─────────────
+        // On repasse en mode 'analyse' : le worklet continue de MESURER (le vu-mètre vit, le
+        // flux du micro reste ouvert, comme le prompt l'exige) mais n'écrit plus un échantillon.
+        // Le morceau partiel est vidé D'ABORD, pour que la frontière de la pause tombe à
+        // l'échantillon exact : sans cela, la reprise collerait sa première salve à la fin du
+        // morceau en cours et le raccord ne serait plus datable. Les morceaux n'ont donc plus
+        // tous la même taille, ce que le modèle de T1 ter prévoit explicitement.
+        //
+        // `retirerZerosDeFin` sert à la PERTE DU MICRO (E8) : quand le module s'aperçoit que la
+        // piste est morte, les derniers échantillons écrits sont des zéros qu'aucune voix n'a
+        // produits. On les retire du morceau partiel avant de le vider. Ce qui a déjà été vidé
+        // ne peut plus l'être : le worklet DIT combien il n'a pas pu retirer, au lieu de laisser
+        // croire que « aucun zéro n'est écrit » sans réserve.
+        let retires = 0, nonRetires = 0;
+        if (m.retirerZerosDeFin) {
+          const zeros = this.echantillonsAZeroDeSuite;
+          retires = Math.min(zeros, this.dansLeMorceau);
+          nonRetires = zeros - retires;
+          this.dansLeMorceau -= retires;
+          this.echantillonsEcrits -= retires;
+        }
+        this._viderLeMorceau(true);
+        this.mode = 'analyse';
+        this.port.postMessage({
+          type: 'en-pause',
+          aEchantillon: this.echantillonsEcrits,
+          morceaux: this.indexMorceau,
+          raison: m.raison || 'demandée',
+          // LA COMPTABILITÉ DES ZÉROS, ENTIÈRE. Sans `zerosVus`, aucun contrôle ne peut
+          // vérifier que tout ce que le worklet a vu a été soit retiré, soit déclaré
+          // non retirable : un trou du falsifieur l'a exigé. L'invariant est
+          // `zerosVus === zerosRetires + zerosNonRetires`, et c'est lui qui garantit
+          // « aucun zéro n'est écrit » (E8) autrement que par une promesse.
+          zerosVus: m.retirerZerosDeFin ? this.echantillonsAZeroDeSuite : 0,
+          zerosRetires: retires,
+          zerosNonRetires: nonRetires,
+        });
+      } else if (m.type === 'reprendre') {
+        // La reprise ne touche à aucun compteur : elle rouvre l'écriture, c'est tout. C'est ce
+        // qui fait que la pause n'occupe aucun temps dans la voix.
+        this.canal = m.canal || this.canal;
+        this.mode = 'prise';
+        this.echantillonsAZeroDeSuite = 0;
+        this.muetAnnonce = false;
+        this.port.postMessage({
+          type: 'reprise-faite',
+          aEchantillon: this.echantillonsEcrits,
+          morceaux: this.indexMorceau,
+          canal: this.canal,
+        });
       } else if (m.type === 'mesurer-bruit') {
         // Le filtre est construit ICI, avec la fréquence RÉELLE du contexte : ses coefficients
         // en dépendent, et un filtre calculé pour 48 kHz appliqué à 44,1 kHz couperait ailleurs

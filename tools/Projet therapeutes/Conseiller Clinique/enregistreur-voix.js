@@ -149,6 +149,14 @@
     return {
       ctx: null, source: null, noeud: null, flux: null,
       piste: null,           // (D3) la MediaStreamTrack : seule autorité sur l'état de la piste
+      // ── (E12) LA PAUSE, LA REPRISE, LA CONTINUATION ────────────────────────────────────
+      enPause: false,
+      entreeDePause: null,   // l'entrée de journal à compléter quand le worklet répondra
+      pauseCommenceeA_ms: 0,  // horloge du fil principal : sert à NOTER la durée, jamais à dater
+      indexDepart: 0,         // index du prochain morceau quand on PROLONGE une prise
+      continuationDe: null,   // l'identifiant de la prise qu'on prolonge, ou null
+      microPerdu: false,      // (E8) la piste s'est terminée ou le contexte a été interrompu
+      toucheBascule: ' ',     // (E4) Espace par défaut, réglable et apprenable
       priseEnCloture: false, // (D4) la prise est finie mais ses mesures de fin s'écrivent encore
       muetDepuis: 0,         // (D3) l'échantillon où le signal est tombé à zéro
       db: null,
@@ -709,6 +717,14 @@
       '<div class="sc-bm-row">' +
         '<button type="button" class="sc-bm-button sc-bm-button--primary" data-action="demarrer" data-lot="3">' +
           '<svg class="sc-bm-icon" aria-hidden="true"><use href="#sc-bm-icon-record"></use></svg>Commencer la prise</button>' +
+        // ── (E12 / E4) LA PAUSE : UN BOUTON ET UNE TOUCHE ──────────────────────────────
+        // LE SYMBOLE VIENT DU KIT. `sc-bm-pause-symbol` existe dans `banc-montage.css` (deux
+        // barres verticales) : on l'emploie plutôt que de dessiner une icône. En revanche le
+        // kit n'a PAS d'état de badge « pause » — le badge y est un composant à texte libre,
+        // celui qui porte déjà « Prise en cours » et « Prise terminée ». Rien n'est inventé :
+        // le badge dit « Prise en pause », comme il dit les autres états.
+        '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="pause" data-lot="3" hidden>' +
+          '<span class="sc-bm-pause-symbol" aria-hidden="true"></span><span data-pause-libelle>Pause</span></button>' +
         '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="arreter" data-lot="3" hidden>' +
           '<svg class="sc-bm-icon" aria-hidden="true"><use href="#icon-stop"></use></svg>Arrêter la prise</button>' +
         '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="autoriser" data-lot="3">' +
@@ -716,8 +732,21 @@
         '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="bruit" data-lot="3">' +
           '<svg class="sc-bm-icon" aria-hidden="true"><use href="#sc-bm-icon-mic"></use></svg>Mesurer le bruit de la pièce</button>' +
       '</div>' +
+      // (E4) LA TOUCHE DE BASCULE, RÉGLABLE ET APPRENABLE. Espace par défaut. « Apprenable
+      // depuis la télécommande » (E4) suppose une télécommande, qui est du lot 4 : ici elle
+      // s'apprend du clavier, ce qui est le même geste — on presse la touche qu'on veut.
+      '<label class="sc-bm-field" data-lot="3">Touche pause / reprise' +
+        '<input class="sc-bm-input" data-touche readonly value="Espace" aria-label="Touche pause et reprise"/></label>' +
+      '<div class="sc-bm-row">' +
+        '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="apprendre-touche" data-lot="3">Apprendre une touche</button>' +
+      '</div>' +
+      // (E12, point 5) L'IMPORT D'UNE VOIX, pour la continuer ensuite.
+      '<label class="sc-bm-field" data-lot="3">Importer une voix (WAV PCM 16 ou 24 bits)' +
+        '<input class="sc-bm-input" type="file" accept=".wav,audio/wav,audio/x-wav" data-import aria-label="Importer un fichier WAV"/></label>' +
       '<p class="sc-bm-help">Le jalon I ne pose aucun repère et n\'affiche aucune bande rythmo : ' +
-        'ils arrivent au jalon II. Rien n\'est grisé — ce qui n\'existe pas est absent.</p>' +
+        'ils arrivent au jalon II. Rien n\'est grisé — ce qui n\'existe pas est absent. ' +
+        'La pause est journalisée comme un RACCORD (échantillon et durée) ; son tracé sur la ' +
+        'forme d\'onde appartient au jalon II, où la forme d\'onde existe.</p>' +
     '</section>' +
 
     '<aside class="sc-bm-panel sc-bm-record-side">' +
@@ -754,9 +783,10 @@
   // LES CLÉS QUI VONT DANS LA ZONE D'ALERTE, et non parmi les avis : celles qui décrivent un
   // signal ou un périphérique qui manque MAINTENANT. Écrite une fois, ici, pour qu'un avis
   // ajouté demain ne se retrouve pas par hasard au-dessus d'une alerte.
-  var CLES_ALERTE = { muet: true, piste: true, contexte: true, 'prise-muette': true };
+  var CLES_ALERTE = { muet: true, piste: true, contexte: true, 'prise-muette': true,
+                      micro: true, frequence: true };
 
-  function message(cle, etat, texte) {
+  function message(cle, etat, texte, action) {
     var hote = q(CLES_ALERTE[cle] ? '[data-alerte]' : '[data-messages]');
     if (!hote) return;
     var el = hote.querySelector('[data-cle="' + cle + '"]');
@@ -766,7 +796,8 @@
       el.className = 'sc-bm-message';
       el.setAttribute('role', 'status');
       el.setAttribute('data-cle', cle);
-      el.innerHTML = '<svg class="sc-bm-icon" aria-hidden="true"><use></use></svg><span></span>';
+      el.innerHTML = '<svg class="sc-bm-icon" aria-hidden="true"><use></use></svg><span></span>' +
+        '<span data-message-action></span>';
       hote.appendChild(el);
     }
     el.setAttribute('data-state', etat);
@@ -774,6 +805,18 @@
     // symboles viennent du sprite du kit, aucun n'est dessiné ici.
     el.querySelector('use').setAttribute('href', etat === 'info' ? '#icon-info' : '#icon-warning');
     el.querySelector('span').textContent = texte;
+    // (E8) « le Studio l'annonce et propose Reprendre » : l'avis peut porter un bouton. Le
+    // bouton est celui du kit, et son `data-action` passe par le même aiguillage que les autres.
+    var zone = el.querySelector('[data-message-action]');
+    if (zone) {
+      if (action && action.nom) {
+        zone.innerHTML = '<button type="button" class="sc-bm-button sc-bm-button--primary" ' +
+          'data-action="' + action.nom + '" data-lot="3"></button>';
+        zone.querySelector('button').textContent = action.libelle;
+      } else {
+        zone.innerHTML = '';
+      }
+    }
   }
 
   // (D4) CHAQUE ENTRÉE DIT À QUELLE PRISE SA POSITION SE RAPPORTE, et le dit quand il n'y en a
@@ -883,6 +926,9 @@
   // sommes du worklet, et la barre vient du même chiffre — pas d'un second calcul.
   function peindreReleve(m) {
     peindreEtats();
+    // (E8) LA PERTE DU MICRO SE CONSTATE ICI, vingt fois par seconde : `track.stop()` ne
+    // déclenche aucun événement, et une piste morte continue de livrer des zéros.
+    surveillerLeMicro();
     // (D2 / E8) LA DURÉE COURANTE DU BANDEAU, à chaque relevé.
     if (_etat.muet && _etat.enPrise) {
       message('muet', 'error', texteAlerteMuette(_etat.muetDepuis,
@@ -1061,14 +1107,42 @@
       // on attend que tout soit réellement écrit avant d'annoncer quoi que ce soit.
       var priseId = _etat.priseId;
       var idx = m.index, debut = m.debutEchantillon, pcm = m.pcm, partiel = m.partiel;
+      var vers = _etat.reechantillonnerVers;
+      var de = _etat.echantillonnage;
       _etat.ecrituresEnVol = _etat.ecrituresEnVol.then(function () {
-        return window.VoixStockage.ecrireMorceau(_etat.db, priseId, idx, debut, pcm, partiel);
+        if (!vers || vers === de) return pcm;
+        return reechantillonnerPcm(pcm, de, vers);
+      }).then(function (donnees) {
+        pcm = donnees;
+        // QUAND ON RÉÉCHANTILLONNE, LA POSITION DU MORCEAU EST CELLE DE LA PRISE, pas celle du
+        // worklet : le worklet compte dans la fréquence du PÉRIPHÉRIQUE, la prise vit dans la
+        // sienne. On écrit donc le total déjà écrit dans la prise, qui est la seule position
+        // dont l'en-tête WAV et les repères auront besoin.
+        var position = (vers && vers !== de) ? _etat.echantillonsEcrits : debut;
+        return window.VoixStockage.ecrireMorceau(_etat.db, priseId, idx, position, pcm, partiel);
       }).then(function () {
         _etat.morceauxEcrits++;
         _etat.echantillonsEcrits += pcm.byteLength / 2;
         var sb = q('[data-sb-morceaux]');
         if (sb) sb.textContent = _etat.morceauxEcrits + (_etat.morceauxEcrits > 1 ? ' morceaux' : ' morceau') +
           ' · ' + (_etat.echantillonsEcrits * 2 / 1048576).toFixed(2) + ' Mo écrits';
+        // ── (E5 / E12) LE JOURNAL SUIT LA PRISE SUR LE DISQUE, morceau par morceau ────────
+        // Trouvé par le contrôle de la continuation après crash : le journal n'était écrit QU'À
+        // L'ARRÊT. Une prise tuée en route perdait donc tous ses raccords — ses pauses, l'instant
+        // où le micro avait été perdu, le retour du son —, et E12 demande que chaque pause soit
+        // journalisée et marquée sur la forme d'onde. Une prise qu'on peut continuer doit se
+        // souvenir de ce qui lui est arrivé avant le crash.
+        //
+        // L'écriture est CHAÎNÉE derrière celle du morceau, donc elle ne double aucune
+        // transaction, et elle ne coûte qu'un enregistrement toutes les deux à cinq secondes.
+        // Ces compteurs restent en RETARD d'au plus un morceau sur ce qui est réellement là :
+        // la relecture reste l'autorité (défaut 6), et un contrôle vérifie qu'ils ne sont jamais
+        // en AVANCE.
+        return window.VoixStockage.majPrise(_etat.db, priseId, {
+          nbEchantillons: _etat.echantillonsEcrits,
+          nbMorceaux: _etat.morceauxEcrits,
+          journal: _etat.journal.slice(),
+        }).catch(function () { /* un journal non écrit ne doit pas perdre le morceau */ });
       }, function (err) {
         message('ecriture', 'error', 'Un morceau n\'a pas pu être écrit : ' + (err && err.message) +
           '. La prise n\'est pas complète et n\'est pas présentée comme réussie.');
@@ -1111,6 +1185,57 @@
                                             : 'vidange demandée, rien à pousser',
         _etat.echantillonsEcrits,
         { raison: m.raison, echantillonsPousses: m.echantillonsPousses });
+      return;
+    }
+
+    if (m.type === 'en-pause') {
+      _etat.enPause = true;
+      if (m.raison === 'micro perdu' && _etat.entreeDePause) {
+        // L'ENTRÉE EXISTE DÉJÀ : la surveillance l'a écrite avec la position qu'elle connaissait.
+        // On la COMPLÈTE avec ce que seul le worklet sait — combien de zéros il a pu retirer de
+        // la fin et combien étaient déjà dans un morceau clos. En créer une seconde ferait le
+        // doublon que §29 interdit.
+        _etat.entreeDePause.zerosVusParLeWorklet = m.zerosVus;
+        _etat.entreeDePause.zerosRetiresDeLaFin = m.zerosRetires;
+        _etat.entreeDePause.zerosDejaEcrits = m.zerosNonRetires;
+        _etat.entreeDePause.aEchantillonSelonLeWorklet = m.aEchantillon;
+        _etat.entreeDePause = null;
+        var el = q('[data-alerte] [data-cle="micro"] span');
+        if (el && (m.zerosRetires || m.zerosNonRetires)) {
+          el.textContent += (m.zerosRetires
+            ? ' ' + m.zerosRetires + ' échantillons à zéro ont été retirés de la fin.' : '')
+            + (m.zerosNonRetires
+            ? ' ' + m.zerosNonRetires + ' zéros étaient déjà dans un morceau clos et n\'ont pas '
+              + 'pu être retirés.' : '');
+        }
+      } else {
+        // (E12) LE RACCORD d'une pause DEMANDÉE : échantillon de la prise, et la raison. La
+        // DURÉE n'est connue qu'à la reprise — on ne l'invente pas ici.
+        journaliser('pause', m.aEchantillon, { raison: m.raison, morceaux: m.morceaux,
+          zerosVusParLeWorklet: m.zerosVus,
+          zerosRetiresDeLaFin: m.zerosRetires, zerosDejaEcrits: m.zerosNonRetires });
+      }
+      peindrePause();
+      peindreEtats();
+      return;
+    }
+
+    if (m.type === 'reprise-faite') {
+      _etat.enPause = false;
+      var duree = _etat.pauseCommenceeA_ms
+        ? (((self.performance && performance.now()) || Date.now()) - _etat.pauseCommenceeA_ms) / 1000
+        : 0;
+      // (E12) « sa durée est seulement notée au journal » : elle est mesurée sur l'horloge du
+      // fil principal, et elle ne sert à DATER aucun échantillon — la position du raccord, elle,
+      // est en échantillons, et c'est la même qu'à la pause.
+      journaliser('reprise', m.aEchantillon, { dureePause_s: +duree.toFixed(3),
+        morceaux: m.morceaux, canal: m.canal,
+        regle: 'la pause n\'occupe aucun temps dans la voix : la reprise repart de l\'échantillon '
+          + 'où la pause a commencé (E12). La durée ci-dessus est une mesure d\'horloge, notée '
+          + 'pour mémoire, et elle ne date aucun échantillon.' });
+      _etat.pauseCommenceeA_ms = 0;
+      peindrePause();
+      peindreEtats();
       return;
     }
 
@@ -1324,6 +1449,10 @@
       ctx.onstatechange = function () {
         journaliser('contexte ' + ctx.state, echantillonsCourants());
         peindreEtats();
+        // (E8) UN CONTEXTE INTERROMPU EST UNE PERTE DE MICRO. Et c'est le SEUL endroit où elle
+        // peut se constater : un contexte suspendu ne produit plus de relevé, donc la
+        // surveillance qui vit dans le relevé ne tournerait jamais pour ce cas-là.
+        surveillerLeMicro();
         if (ctx.state === 'suspended' && _etat.enPrise) {
           message('contexte', 'error', 'Le contexte audio est suspendu pendant la prise : les échantillons n\'arrivent plus. Consigné en échantillons.');
         }
@@ -1372,6 +1501,13 @@
   // est indépendante — un chiffre qui a menti une fois mérite deux gardes.
   function echantillonsCourants() {
     if (!_etat.enPrise) return 0;
+    // (E12) QUAND LA NOUVELLE PARTIE EST RÉÉCHANTILLONNÉE, le compteur du worklet est dans la
+    // fréquence du PÉRIPHÉRIQUE et celui du module dans celle de la PRISE : les deux ne sont
+    // plus comparables, et c'est celui de la prise qui compte, puisque c'est lui que l'en-tête
+    // WAV et les repères emploient.
+    if (_etat.reechantillonnerVers && _etat.reechantillonnerVers !== _etat.echantillonnage) {
+      return _etat.echantillonsEcrits;
+    }
     var r = _etat.dernierReleve;
     var duReleve = (r && typeof r.echantillonsEcrits === 'number') ? r.echantillonsEcrits : 0;
     // Le relevé est plus fin que le compte de morceaux (toutes les 50 ms contre toutes les 5 s) ;
@@ -1380,11 +1516,420 @@
     return Math.max(duReleve, _etat.echantillonsEcrits);
   }
 
+  // ── (E12, point 5) L'IMPORT D'UNE VOIX : L'EN-TÊTE EST LU À LA MAIN ──────────────────────
+  //
+  // POURQUOI À LA MAIN, et non par `decodeAudioData`. Trois raisons mesurables : `decodeAudioData`
+  // rééchantillonne D'OFFICE vers la fréquence du contexte, ce qui perdrait la fréquence du
+  // fichier que E11 demande de conserver ; il ne dit pas combien de bits portait l'original ; et
+  // il accepterait des formats que T1 ter laisse au jalon III réduit en les convertissant en
+  // silence. Lire l'en-tête, c'est pouvoir REFUSER ce qu'on ne sait pas faire en le disant.
+  //
+  // Ce qui est accepté, et rien de plus : RIFF/WAVE, PCM entier (format 1), 16 ou 24 bits, un ou
+  // deux canaux, n'importe quelle fréquence. Tout le reste est refusé avec sa raison.
+  function lireEnTeteWav(tampon) {
+    var o = new DataView(tampon);
+    var lire4 = function (p) {
+      return String.fromCharCode(o.getUint8(p), o.getUint8(p + 1), o.getUint8(p + 2), o.getUint8(p + 3));
+    };
+    if (tampon.byteLength < 44) throw new Error('fichier trop court pour un WAV : ' + tampon.byteLength + ' octets');
+    if (lire4(0) !== 'RIFF') throw new Error('ce n\'est pas un RIFF : « ' + lire4(0) + ' »');
+    if (lire4(8) !== 'WAVE') throw new Error('ce n\'est pas un WAVE : « ' + lire4(8) + ' »');
+    // LES MORCEAUX DE L'EN-TÊTE SE PARCOURENT, ils ne se supposent pas à 12 et 36 octets : un
+    // WAV écrit par un autre outil peut porter un `LIST` ou un `fact` avant `data`.
+    var p = 12, fmt = null, donnees = null;
+    while (p + 8 <= tampon.byteLength) {
+      var nom = lire4(p);
+      var taille = o.getUint32(p + 4, true);
+      var corps = p + 8;
+      if (nom === 'fmt ') {
+        fmt = {
+          format: o.getUint16(corps, true),
+          canaux: o.getUint16(corps + 2, true),
+          echantillonnage: o.getUint32(corps + 4, true),
+          bits: o.getUint16(corps + 14, true),
+        };
+      } else if (nom === 'data') {
+        donnees = { debut: corps, octets: Math.min(taille, tampon.byteLength - corps) };
+        break;   // on s'arrête au premier `data` : c'est la voix
+      }
+      p = corps + taille + (taille % 2);   // les morceaux RIFF sont alignés sur 2 octets
+    }
+    if (!fmt) throw new Error('aucun morceau « fmt » dans ce WAV');
+    if (!donnees) throw new Error('aucun morceau « data » dans ce WAV');
+    if (fmt.format !== 1) {
+      throw new Error('format ' + fmt.format + ' : seul le PCM entier (format 1) est accepté à '
+        + 'cette étape ; les autres formats sont du jalon III réduit');
+    }
+    if (fmt.bits !== 16 && fmt.bits !== 24) {
+      throw new Error(fmt.bits + ' bits : seuls 16 et 24 bits sont acceptés (E12)');
+    }
+    if (fmt.canaux !== 1 && fmt.canaux !== 2) {
+      throw new Error(fmt.canaux + ' canaux : seuls le mono et la stéréo sont acceptés (E12)');
+    }
+    if (!fmt.echantillonnage) throw new Error('fréquence nulle dans l\'en-tête');
+    var parTrame = fmt.canaux * (fmt.bits / 8);
+    return {
+      format: fmt.format, canaux: fmt.canaux, bits: fmt.bits,
+      echantillonnage: fmt.echantillonnage,
+      debutDonnees: donnees.debut, octetsDonnees: donnees.octets,
+      octetsParTrame: parTrame,
+      nbEchantillons: Math.floor(donnees.octets / parTrame),
+    };
+  }
+
+  // LES ÉCHANTILLONS D'UN WAV, CANAL PAR CANAL, en flottants. Un entier 24 bits se lit en trois
+  // octets de poids croissant, avec extension du signe ; on le ramène à l'échelle du 16 bits par
+  // division, pas par décalage — un décalage tronquerait toujours vers le bas et introduirait un
+  // biais continu de un demi-pas, mesurable sur un silence.
+  function echantillonsDuWav(tampon, t) {
+    var o = new DataView(tampon);
+    var g = new Float32Array(t.nbEchantillons);
+    var d = t.canaux === 2 ? new Float32Array(t.nbEchantillons) : null;
+    var octets = t.bits / 8;
+    for (var i = 0; i < t.nbEchantillons; i++) {
+      for (var c = 0; c < t.canaux; c++) {
+        var p = t.debutDonnees + i * t.octetsParTrame + c * octets;
+        var v;
+        if (t.bits === 16) {
+          var e16 = o.getInt16(p, true);
+          v = e16 < 0 ? e16 / 32768 : e16 / 32767;
+        } else {
+          var b0 = o.getUint8(p), b1 = o.getUint8(p + 1), b2 = o.getUint8(p + 2);
+          var e24 = b0 | (b1 << 8) | (b2 << 16);
+          if (e24 & 0x800000) e24 -= 0x1000000;
+          v = e24 < 0 ? e24 / 8388608 : e24 / 8388607;
+        }
+        if (c === 0) g[i] = v; else d[i] = v;
+      }
+    }
+    return { g: g, d: d };
+  }
+
+  // LES SOMMES D'UN SIGNAL IMPORTÉ, dans la forme EXACTE que la règle du canal attend. On ne
+  // réécrit pas la règle E3 pour l'import : on lui donne à manger ce qu'elle mange déjà, et
+  // `choisirCanal` décide — un seul canal actif on le prend, deux corrélés on moyenne, deux
+  // différents le plus fort. Une seconde règle écrite ici aurait divergé de la première.
+  function sommesDUnSignal(g, d) {
+    var acc = { n: 0, canaux: d ? 2 : 1, sommeG: 0, sommeD: 0, sommeCarreG: 0, sommeCarreD: 0,
+                sommeProduit: 0, creteG: 0, creteD: 0, zerosG: 0, zerosD: 0 };
+    for (var i = 0; i < g.length; i++) {
+      var vg = g[i];
+      acc.sommeG += vg; acc.sommeCarreG += vg * vg;
+      var ag = vg < 0 ? -vg : vg;
+      if (ag > acc.creteG) acc.creteG = ag;
+      if (vg === 0) acc.zerosG++;
+      if (d) {
+        var vd = d[i];
+        acc.sommeD += vd; acc.sommeCarreD += vd * vd;
+        var ad = vd < 0 ? -vd : vd;
+        if (ad > acc.creteD) acc.creteD = ad;
+        if (vd === 0) acc.zerosD++;
+        acc.sommeProduit += vg * vd;
+      }
+      acc.n++;
+    }
+    return acc;
+  }
+
+  // ── (E12, point 5) IMPORTER UNE VOIX ET EN FAIRE UNE PRISE QU'ON PEUT CONTINUER ──────────
+  //
+  // La prise importée est une prise comme les autres : des morceaux de 16 bits mono, à la
+  // fréquence DU FICHIER (E11 : « chaque prise garde la fréquence réelle de la capture »), avec
+  // son journal et sa raison de canal. Elle naît « terminée », donc « Continuer cette prise »
+  // s'y applique — et c'est tout l'objet de l'import.
+  function importerWav(fichier) {
+    if (!fichier) return Promise.reject(new Error('aucun fichier'));
+    if (!_etat.db) return Promise.reject(new Error('stockage non ouvert'));
+    return fichier.arrayBuffer().then(function (tampon) {
+      var t = lireEnTeteWav(tampon);
+      var ech = echantillonsDuWav(tampon, t);
+      var sommes = sommesDUnSignal(ech.g, ech.d);
+      // (E3) LA MÊME RÈGLE QUE POUR LE MICRO, appliquée au fichier.
+      var dec = choisirCanal(sommes, _etat.reglageCanal);
+      var mono = new Int16Array(t.nbEchantillons);
+      for (var i = 0; i < t.nbEchantillons; i++) {
+        var v = dec.canal === 'droit' ? (ech.d ? ech.d[i] : 0)
+              : dec.canal === 'moyenne' ? (ech.d ? (ech.g[i] + ech.d[i]) / 2 : ech.g[i])
+              : ech.g[i];
+        var borne = v < 0 ? (v < -1 ? -1 : v) * 32768 : (v > 1 ? 1 : v) * 32767;
+        mono[i] = Math.round(borne);
+      }
+      // LA TAILLE DES MORCEAUX EST CELLE DU PRODUIT : un nombre entier de blocs de 128, calculé
+      // sur la fréquence DU FICHIER (E11). Le worklet en est l'auteur pour les prises du micro ;
+      // ici il n'y a pas de worklet, et la règle est appliquée telle quelle, à un seul endroit.
+      var demandee = Math.round(_etat.tailleMorceau_s * t.echantillonnage);
+      var parMorceau = Math.max(128, Math.round(demandee / 128) * 128);
+      var id = 'prise-import-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+      var nom = (fichier.name || 'voix importée').replace(/\.wav$/i, '');
+      var journal = [{ quoi: 'voix importée', aEchantillon: 0, priseId: id,
+                       fichierBits: t.bits, fichierCanaux: t.canaux,
+                       echantillonnage: t.echantillonnage, echantillons: t.nbEchantillons,
+                       canalRetenu: dec.canal, canalRaison: dec.raison,
+                       regle: 'en-tête lu à la main (RIFF/WAVE, PCM entier) ; la fréquence du '
+                         + 'fichier est conservée (E11) ; la stéréo suit la règle du canal (E3) ; '
+                         + 'la conversion est en 16 bits mono.' }];
+      var descripteur = descripteurDePrise({
+        id: id, nom: nom, creeLe: new Date().toISOString(),
+        echantillonnage: t.echantillonnage,
+        canaux: t.canaux, canalRetenu: dec.canal, canalRaison: dec.raison,
+        reglageCanal: _etat.reglageCanal,
+        echantillonsParMorceauAppliquee: parMorceau,
+      });
+      descripteur.origine = 'import WAV';
+      descripteur.journal = journal;
+      return window.VoixStockage.creerPrise(_etat.db, descripteur).then(function () {
+        // Les morceaux à la file, chaînés : on n'ouvre pas trois cents transactions d'un coup.
+        var chaine = Promise.resolve();
+        var nb = 0, ecrits = 0;
+        for (var debut = 0, idx = 0; debut < mono.length; debut += parMorceau, idx++) {
+          (function (debut, idx) {
+            chaine = chaine.then(function () {
+              var bout = mono.slice(debut, Math.min(debut + parMorceau, mono.length));
+              var partiel = bout.length < parMorceau;
+              return window.VoixStockage.ecrireMorceau(_etat.db, id, idx, debut, bout.buffer, partiel)
+                .then(function () { nb++; ecrits += bout.length; });
+            });
+          })(debut, idx);
+        }
+        return chaine.then(function () {
+          return window.VoixStockage.majPrise(_etat.db, id, {
+            etat: 'terminee', nbEchantillons: ecrits, nbMorceaux: nb, journal: journal,
+          });
+        }).then(function () {
+          message('import', 'info', 'Voix importée : ' + t.nbEchantillons + ' échantillons, '
+            + t.echantillonnage + ' Hz, ' + t.bits + ' bits, ' + t.canaux + ' canal(aux) → '
+            + nb + ' morceaux de 16 bits mono (' + ecrits + ' échantillons écrits, '
+            + nomCanal(dec.canal) + ' : ' + dec.raison + '). Vous pouvez la CONTINUER.');
+          return peindreListe().then(function () {
+            return { id: id, echantillonnage: t.echantillonnage, bits: t.bits,
+                     canaux: t.canaux, morceaux: nb, echantillons: ecrits,
+                     canalRetenu: dec.canal, canalRaison: dec.raison };
+          });
+        });
+      });
+    }).catch(function (e) {
+      // `.then(f, r)` n'attrape PAS ce que `f` lève : il ne couvrirait que la lecture du
+      // fichier, et un en-tête refusé serait remonté nu. C'est `.catch` qu'il faut ici.
+      message('import', 'error', 'Import refusé : ' + (e && e.message)
+        + '. Rien n\'a été écrit dans le stockage.');
+      throw e;
+    });
+  }
+
+  // ── (E11 / E12) RÉÉCHANTILLONNER LA NOUVELLE PARTIE D'UNE PRISE ──────────────────────────
+  //
+  // E12 : « si le périphérique a changé de fréquence, le Studio le dit et rééchantillonne la
+  // nouvelle partie ». Une prise à deux fréquences est une prise dont aucune durée n'est juste :
+  // l'en-tête WAV n'en porte qu'une, et la moitié du fichier jouerait trop vite.
+  //
+  // C'EST LE RÉÉCHANTILLONNEUR DU NAVIGATEUR QUI TRAVAILLE, dans un `OfflineAudioContext` à la
+  // fréquence de la prise — le même code que celui qui a produit toutes les autres prises, et
+  // AUCUN périphérique audio n'est ouvert (règle du 11 octobre : rien ne touche à la
+  // configuration de la machine). Une interpolation linéaire écrite à la main serait plus
+  // courte et ferait entendre la différence sur une voix.
+  function reechantillonnerPcm(tampon, deHz, versHz) {
+    if (!deHz || !versHz || deHz === versHz) return Promise.resolve(tampon);
+    var entree = new Int16Array(tampon);
+    if (!entree.length) return Promise.resolve(tampon);
+    var OAC = self.OfflineAudioContext || self.webkitOfflineAudioContext;
+    if (!OAC) return Promise.reject(new Error('OfflineAudioContext absent : rééchantillonnage impossible'));
+    var cible = Math.max(1, Math.round(entree.length * versHz / deHz));
+    var oc = new OAC(1, cible, versHz);
+    var source = oc.createBuffer(1, entree.length, deHz);
+    var flottants = source.getChannelData(0);
+    for (var i = 0; i < entree.length; i++) {
+      // L'inverse exact de l'écriture : le format est asymétrique, la lecture doit l'être aussi.
+      flottants[i] = entree[i] < 0 ? entree[i] / 32768 : entree[i] / 32767;
+    }
+    var n = oc.createBufferSource();
+    n.buffer = source;
+    n.connect(oc.destination);
+    n.start();
+    return oc.startRendering().then(function (rendu) {
+      var sortie = rendu.getChannelData(0);
+      var out = new Int16Array(sortie.length);
+      for (var k = 0; k < sortie.length; k++) {
+        var v = sortie[k];
+        var borne = v < 0 ? (v < -1 ? -1 : v) * 32768 : (v > 1 ? 1 : v) * 32767;
+        out[k] = Math.round(borne);
+      }
+      return out.buffer;
+    });
+  }
+
+  // ── (E12) LA PAUSE ET LA REPRISE ──────────────────────────────────────────────────────────
+  //
+  // UNE SEULE TOUCHE, UN SEUL BOUTON, UNE SEULE FONCTION. E12 : « une seule touche bascule pause
+  // et reprise ». Écrire deux fonctions, une pour chaque sens, ferait deux chemins pour un seul
+  // geste et laisserait l'état se contredire. Le flux du micro RESTE OUVERT pendant la pause :
+  // on ne ferme rien, on cesse seulement d'écrire. C'est ce qui permet au vu-mètre de continuer
+  // à vivre et à la reprise d'être immédiate.
+  function basculerPause(raison) {
+    if (!_etat.enPrise || !_etat.noeud) return Promise.resolve(null);
+    if (_etat.enPause) {
+      // ── REPRISE ───────────────────────────────────────────────────────────────────────────
+      // Si le micro avait été perdu, la reprise passe par `reprendreLeMicro` : il faut un
+      // nouveau `getUserMedia`, et il faut un geste de l'utilisateur pour l'obtenir.
+      if (_etat.microPerdu) return reprendreLeMicro();
+      _etat.noeud.port.postMessage({ type: 'reprendre', canal: _etat.canalRetenu });
+      return Promise.resolve('reprise');
+    }
+    // ── PAUSE ───────────────────────────────────────────────────────────────────────────────
+    _etat.pauseCommenceeA_ms = (self.performance && performance.now()) || Date.now();
+    _etat.noeud.port.postMessage({ type: 'mettre-en-pause', raison: raison || 'demandée',
+      retirerZerosDeFin: raison === 'micro perdu' });
+    return Promise.resolve('pause');
+  }
+
+  // L'INTERFACE DE LA PAUSE, peinte depuis l'état et nulle part ailleurs.
+  function peindrePause() {
+    var mode = q('[data-mode]');
+    if (mode && _etat.enPrise) mode.textContent = _etat.enPause ? 'Prise en pause' : 'Prise en cours';
+    var lib = q('[data-pause-libelle]');
+    if (lib) lib.textContent = _etat.enPause ? 'Reprendre' : 'Pause';
+    var b = q('[data-action="pause"]');
+    if (b) b.hidden = !_etat.enPrise;
+    var intitule = q('[data-chrono-intitule]');
+    if (intitule && _etat.enPrise) {
+      intitule.textContent = _etat.enPause ? 'Prise en pause' : 'Enregistrement';
+    }
+  }
+
+  // ── (E8) LA PERTE DU MICRO MET LA PRISE EN PAUSE D'ELLE-MÊME ──────────────────────────────
+  //
+  // E8 : « Quand la piste audio se termine ou que le contexte audio est interrompu, la prise se
+  // met en pause (E12) : aucun zéro n'est écrit, le Studio l'annonce et propose Reprendre. »
+  // Mesuré aux essais du 10 octobre : la prise avait écrit 52,13 s de zéros après la perte, et
+  // le Studio affichait toujours « Enregistrement ». La détection ne peut PAS venir du worklet :
+  // une piste morte continue de livrer des canaux pleins de zéros, et un zéro ne se distingue
+  // pas d'un silence volontaire. Elle vient donc de la piste elle-même et du contexte, relus à
+  // chaque relevé — vingt fois par seconde — parce que `track.stop()` ne déclenche aucun
+  // événement (mesuré au §23).
+  function surveillerLeMicro() {
+    if (!_etat.enPrise || _etat.enPause || _etat.microPerdu) return;
+    var piste = _etat.piste;
+    var ctxEtat = _etat.ctx ? _etat.ctx.state : 'indisponible';
+    var cause = null;
+    if (piste && piste.readyState === 'ended') cause = 'la piste audio s\'est terminée';
+    else if (piste && piste.muted) cause = 'le périphérique a déclaré la piste muette';
+    else if (ctxEtat === 'suspended' || ctxEtat === 'interrupted') cause = 'le contexte audio est ' + ctxEtat;
+    else if (ctxEtat === 'closed') cause = 'le contexte audio est fermé';
+    if (!cause) return;
+    _etat.microPerdu = true;
+    _etat.causeDeLaPerte = cause;
+
+    // ── LA PAUSE EST PRONONCÉE PAR LE MODULE, PAS ATTENDUE DU WORKLET ────────────────────
+    // Trouvé en écrivant le contrôle du contexte interrompu : quand le contexte est suspendu,
+    // le worklet ne tourne plus — il ne traite plus aucun message et n'en envoie plus. Attendre
+    // son accusé « en-pause » pour déclarer la prise en pause aurait donc marché pour une piste
+    // morte et JAMAIS pour un contexte suspendu, c'est-à-dire pour la moitié de ce que E8
+    // nomme. Le module prononce donc la pause lui-même, avec la position qu'il connaît, et le
+    // message au worklet n'est qu'une demande de ménage (retirer les zéros de fin) dont la
+    // réponse viendra si elle peut venir.
+    var position = echantillonsCourants();
+    _etat.enPause = true;
+    _etat.pauseCommenceeA_ms = (self.performance && performance.now()) || Date.now();
+    _etat.entreeDePause = journaliser('pause', position,
+      { raison: 'micro perdu', cause: cause,
+        zerosRetiresDeLaFin: 'en attente du worklet', zerosDejaEcrits: 'en attente du worklet' });
+    peindrePause();
+    peindreEtats();
+    // (E8) LE BANDEAU FIXÉ À LA FENÊTRE, AVEC « REPRENDRE ».
+    message('micro', 'error', 'Le micro a été perdu à l\'échantillon ' + position
+      + ' (' + fmtTemps(position, _etat.echantillonnage) + ') : ' + cause
+      + '. La prise est EN PAUSE et n\'écrit plus rien.',
+      { nom: 'reprendre-micro', libelle: 'Reprendre' });
+    if (_etat.noeud) {
+      _etat.noeud.port.postMessage({ type: 'mettre-en-pause', raison: 'micro perdu',
+        retirerZerosDeFin: true });
+    }
+  }
+
+  // LA REPRISE APRÈS UNE PERTE : un NOUVEAU getUserMedia, qui exige un geste de l'utilisateur.
+  // On ne le tente donc jamais tout seul : le bandeau porte un bouton, et c'est le clic qui
+  // l'appelle. Si le périphérique est revenu à une autre fréquence, on le DIT et la nouvelle
+  // partie sera rééchantillonnée à celle de la prise (E11, E12).
+  function reprendreLeMicro() {
+    var frequenceDeLaPrise = _etat.frequenceDeLaPrise || _etat.echantillonnage;
+    return autoriser(q('[data-micro]') ? (q('[data-micro]').value || null) : null).then(function () {
+      var nouvelle = _etat.echantillonnage;
+      _etat.microPerdu = false;
+      _etat.causeDeLaPerte = null;
+      if (nouvelle !== frequenceDeLaPrise) {
+        _etat.reechantillonnerVers = frequenceDeLaPrise;
+        journaliser('fréquence du périphérique changée', echantillonsCourants(),
+          { deLaPrise: frequenceDeLaPrise, duPeripherique: nouvelle });
+        message('frequence', 'warning', 'Le périphérique est revenu à ' + nouvelle + ' Hz alors '
+          + 'que cette prise est à ' + frequenceDeLaPrise + ' Hz : la nouvelle partie est '
+          + 'rééchantillonnée vers ' + frequenceDeLaPrise + ' Hz pour que la prise reste à une '
+          + 'seule fréquence (E11).');
+      }
+      // Le graphe a été reconstruit : le worklet est NEUF et ne sait rien de la prise. On le lui
+      // dit, avec les compteurs RELUS du stockage.
+      return reprendreDansLeWorklet();
+    }, function (err) {
+      message('micro', 'error', 'Le micro n\'a pas pu être rouvert : ' + (err && err.message)
+        + '. La prise reste en pause, et rien n\'est écrit.');
+      throw err;
+    });
+  }
+
+  // Redit au worklet où la prise en est, puis rouvre l'écriture. Les compteurs viennent du
+  // STOCKAGE, relus morceau par morceau : après une reconstruction du graphe, c'est la seule
+  // source qui n'ait pas pu mentir.
+  function reprendreDansLeWorklet() {
+    return relireLesCompteurs(_etat.priseId).then(function (vrai) {
+      _etat.morceauxEcrits = vrai.nbMorceaux;
+      _etat.echantillonsEcrits = vrai.nbEchantillons;
+      _etat.indexDepart = vrai.prochainIndex;
+      // LE DRAPEAU D'ACCUSÉ DE RÉCEPTION EST REMIS À FAUX AVANT D'ATTENDRE. Il est resté vrai
+      // depuis le démarrage de la prise : sans cette remise, l'attente serait satisfaite
+      // AUSSITÔT, par l'accusé du worklet PRÉCÉDENT — celui d'un contexte qu'on vient de fermer.
+      // On croirait le nouveau worklet prêt alors qu'il n'a rien reçu.
+      _etat.priseDemarreeRecue = false;
+      _etat.noeud.port.postMessage({ type: 'demarrer-prise', canal: _etat.canalRetenu,
+        indexDepart: vrai.prochainIndex, echantillonsDepart: vrai.nbEchantillons });
+      return attendre(function () { return _etat.priseDemarreeRecue; }, 5000).then(function () {
+        _etat.enPause = false;
+        peindrePause();
+        peindreEtats();
+        journaliser('reprise après perte du micro', vrai.nbEchantillons,
+          { morceaux: vrai.nbMorceaux, prochainIndex: vrai.prochainIndex });
+        message('micro', 'info', 'Le micro a été rouvert et la prise continue à l\'échantillon '
+          + vrai.nbEchantillons + '. Aucun zéro n\'a été écrit pendant la perte.');
+        return 'reprise';
+      });
+    });
+  }
+
+  // LES COMPTEURS D'UNE PRISE, RELUS DANS LE STOCKAGE. Une seule fonction, employée par la
+  // continuation, la reprise après perte et la fiche d'une prise inachevée : trois endroits qui
+  // posaient la même question et auraient pu se répondre trois choses (#11(f)).
+  function relireLesCompteurs(priseId) {
+    var nb = 0, ech = 0, maxIndex = -1;
+    return window.VoixStockage.parcourirMorceaux(_etat.db, priseId, function (m) {
+      nb++;
+      ech += m.pcm.byteLength / 2;
+      if (m.index > maxIndex) maxIndex = m.index;
+    }).then(function () {
+      return { nbMorceaux: nb, nbEchantillons: ech, prochainIndex: maxIndex + 1 };
+    });
+  }
+
   // ── DÉMARRER, ARRÊTER ──────────────────────────────────────────────────────────────────────
 
-  function demarrer() {
+  // ── (E12) DÉMARRER UNE PRISE, OU PROLONGER CELLE QU'ON LUI DÉSIGNE ───────────────────────
+  //
+  // `demarrer()` ouvre une prise neuve. `demarrer({ continuer: id })` PROLONGE la prise `id` :
+  // c'est le même chemin, les mêmes contrôles, le même worklet — seuls les compteurs de départ
+  // changent, et ils sont RELUS dans le stockage. Deux fonctions séparées auraient dupliqué le
+  // choix du canal, l'attente de l'accusé de réception et l'ordre d'écriture, soit trois
+  // occasions de diverger (#11(f)). Ce que le CDC distingue, et que ce code ne confond pas : une
+  // reprise de PASSAGE (R7) est une prise SÉPARÉE, et ne passe pas par ici.
+  function demarrer(options) {
     if (_etat.enPrise) return Promise.resolve(null);
     if (!_etat.noeud) return Promise.reject(new Error('micro non autorisé : rien à enregistrer'));
+    var prolonge = options && options.continuer ? String(options.continuer) : null;
 
     // (b) LE CANAL EST DÉCIDÉ SUR LA FENÊTRE DES DEUX DERNIÈRES SECONDES, et gelé : on ne peut
     // pas remixer après coup des échantillons déjà écrits. Si la fenêtre est trop courte — moins
@@ -1409,9 +1954,17 @@
         + 'tourner deux secondes avant de commencer.');
     }
 
-    var id = 'prise-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+    var id = prolonge
+      || ('prise-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7));
     var nom = (q('[data-nom-prise]') && q('[data-nom-prise]').value) || 'Prise';
     _etat.priseId = id;
+    _etat.continuationDe = prolonge;
+    _etat.enPause = false;
+    _etat.microPerdu = false;
+    _etat.causeDeLaPerte = null;
+    _etat.reechantillonnerVers = null;
+    _etat.indexDepart = 0;
+    _etat.pauseCommenceeA_ms = 0;
     // Le journal de la prise commence par le contexte du périphérique, puis ne porte que ce qui
     // arrive PENDANT la prise.
     _etat.journal = _etat.ouverturePiste ? [_etat.ouverturePiste] : [];
@@ -1431,7 +1984,39 @@
     _etat.bruit = null;
     viderTousLesAvis();
 
-    return (_etat.ctx.state === 'suspended' ? _etat.ctx.resume() : Promise.resolve()).then(function () {
+    // CE QUI PRÉCÈDE TOUT LE RESTE QUAND ON PROLONGE : relire la prise et ses morceaux. Les
+    // compteurs ne sont jamais déduits ni repris d'un affichage ; ils viennent du stockage.
+    var depart = prolonge
+      ? window.VoixStockage.lirePrise(_etat.db, prolonge).then(function (p) {
+          if (!p) throw new Error('prise introuvable : ' + prolonge);
+          return relireLesCompteurs(prolonge).then(function (vrai) {
+            return { prise: p, vrai: vrai };
+          });
+        })
+      : Promise.resolve({ prise: null, vrai: { nbMorceaux: 0, nbEchantillons: 0, prochainIndex: 0 } });
+
+    return depart.then(function (d) {
+      _etat.morceauxEcrits = d.vrai.nbMorceaux;
+      _etat.echantillonsEcrits = d.vrai.nbEchantillons;
+      _etat.indexDepart = d.vrai.prochainIndex;
+      if (d.prise) {
+        // (E12) LA NOUVELLE PARTIE GARDE LA FRÉQUENCE DE LA PRISE. Si le périphérique n'est plus
+        // à la même, on le DIT et on rééchantillonne — une prise à deux fréquences serait une
+        // prise dont aucune durée n'est juste.
+        _etat.frequenceDeLaPrise = d.prise.echantillonnage;
+        _etat.journal = (d.prise.journal || []).slice();
+        if (d.prise.echantillonnage !== _etat.echantillonnage) {
+          _etat.reechantillonnerVers = d.prise.echantillonnage;
+          message('frequence', 'warning', 'Cette prise est à ' + d.prise.echantillonnage
+            + ' Hz et le périphérique est à ' + _etat.echantillonnage + ' Hz : la partie qui '
+            + 'vient est rééchantillonnée vers ' + d.prise.echantillonnage + ' Hz, pour que la '
+            + 'prise reste à une seule fréquence (E11, E12).');
+        }
+      } else {
+        _etat.frequenceDeLaPrise = _etat.echantillonnage;
+      }
+      return (_etat.ctx.state === 'suspended' ? _etat.ctx.resume() : Promise.resolve());
+    }).then(function () {
       _etat.debutPrise_ctxTemps = _etat.ctx.currentTime;
       // ORDRE VOULU : on démarre le worklet D'ABORD, et on n'écrit la prise qu'une fois qu'il a
       // accusé réception. C'est lui qui connaît la taille de morceau réellement appliquée (un
@@ -1439,9 +2024,17 @@
       // demandée. Un morceau peut arriver avant la fin de l'écriture de la prise : les écritures
       // de morceaux sont chaînées derrière cette promesse, donc l'ordre est tenu.
       _etat.enPrise = true;
-      _etat.noeud.port.postMessage({ type: 'demarrer-prise', canal: dec.canal });
+      _etat.noeud.port.postMessage({ type: 'demarrer-prise', canal: dec.canal,
+        indexDepart: _etat.indexDepart, echantillonsDepart: _etat.echantillonsEcrits });
       return attendre(function () { return _etat.priseDemarreeRecue; }, 5000);
     }).then(function () {
+      // QUAND ON PROLONGE, LA PRISE EXISTE DÉJÀ : on ne la recrée pas, on la rouvre. La recréer
+      // écraserait son journal et ses compteurs, c'est-à-dire tout ce qu'on vient de relire.
+      if (prolonge) {
+        var reouverture = window.VoixStockage.majPrise(_etat.db, prolonge, { etat: 'en-cours' });
+        _etat.ecrituresEnVol = reouverture;
+        return reouverture;
+      }
       var creation = window.VoixStockage.creerPrise(_etat.db, descripteurDePrise({
         id: id,
         nom: nom,
@@ -1465,8 +2058,19 @@
       var intituleEnCours = q('[data-chrono-intitule]');
       if (intituleEnCours) intituleEnCours.textContent = 'Enregistrement';
       peindreEtats();
-      journaliser('prise démarrée', 0, { canal: dec.canal, raison: dec.raison,
-        echantillonsParMorceau: _etat.echantillonsParMorceauReels });
+      peindrePause();
+      if (prolonge) {
+        // (E12) LE RACCORD DE CONTINUATION, daté en échantillons depuis le DÉBUT de la prise.
+        journaliser('continuation', _etat.echantillonsEcrits, {
+          morceauxDejaLa: _etat.morceauxEcrits, prochainIndex: _etat.indexDepart,
+          frequenceDeLaPrise: _etat.frequenceDeLaPrise,
+          frequenceDuPeripherique: _etat.echantillonnage,
+          reechantillonnageVers: _etat.reechantillonnerVers || 'sans objet',
+          canal: dec.canal, raison: dec.raison });
+      } else {
+        journaliser('prise démarrée', 0, { canal: dec.canal, raison: dec.raison,
+          echantillonsParMorceau: _etat.echantillonsParMorceauReels });
+      }
       // (d) T13 : LE BRUIT SE MESURE PENDANT LE SILENCE INITIAL, donc sur les premières
       // secondes de la prise — pas sur une fenêtre d'avant, qui ne serait pas dans le fichier.
       _etat.bruit = null;
@@ -1614,6 +2218,9 @@
           // laissait croire que la prise courait encore.
           var intitule = q('[data-chrono-intitule]');
           if (intitule) intitule.textContent = 'Dernière prise';
+          _etat.enPause = false;
+          _etat.microPerdu = false;
+          q('[data-action="pause"]').hidden = true;
           // (D2 / E8) LE BANDEAU DEVIENT UN RÉSUMÉ NEUTRE. Il ne disparaît pas : l'instant où
           // le signal est tombé est la seule information utile pour comprendre la prise.
           if (_etat.muet) {
@@ -1847,12 +2454,17 @@
             '<header class="sc-bm-panel-title"><h2></h2><span class="sc-bm-badge"></span></header>' +
             '<p data-detail></p>' +
             '<div class="sc-bm-row">' +
+              // (E12) « Toute prise peut être continuée par Continuer cette prise » : une prise
+              // terminée, une prise récupérée, une prise importée. Le bouton est donc sur
+              // CHAQUE fiche, et il prolonge la MÊME prise — à ne pas confondre avec la reprise
+              // d'un passage (R7), qui crée une prise séparée et n'existe pas à ce jalon.
+              '<button type="button" class="sc-bm-button sc-bm-button--primary" data-action="continuer" data-lot="3">Continuer cette prise</button>' +
               '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="wav" data-lot="3">Exporter en WAV</button>' +
               '<button type="button" class="sc-bm-button sc-bm-button--destructive" data-action="supprimer" data-lot="3">Supprimer</button>' +
             '</div>';
           el.querySelector('h2').textContent = p.nom || p.id;
           el.querySelector('.sc-bm-badge').textContent =
-            p.etat === 'terminee' ? 'Terminée'
+            p.etat === 'terminee' ? (p.origine === 'import WAV' ? 'Importée' : 'Terminée')
             : p.etat === 'muette' ? 'MUETTE'
             : p.etat === 'signal-perdu' ? 'SIGNAL PERDU'
             : 'Inachevée';
@@ -1861,6 +2473,7 @@
             (vrai.nbEchantillons * 2 / 1048576).toFixed(2) + ' Mo · ' +
             (p.echantillonnage || 0) + ' Hz · ' + nomCanal(p.canalRetenu) +
             ' · ' + (p.creeLe || '').replace('T', ' ').slice(0, 19) +
+            (p.origine ? ' · ' + p.origine : '') +
             (vrai.relu ? ' · relu dans IndexedDB, pas déduit des compteurs de la prise' : '') +
             (vrai.echecDeRelecture ? ' · RELECTURE IMPOSSIBLE : ces chiffres sont ceux de la prise, qui est inachevée' : '');
           hote.appendChild(el);
@@ -1881,15 +2494,17 @@
       var p = inachevees[0];
       // On compte ce qui est RÉELLEMENT là, morceau par morceau. La prise annonçait 0 : c'est
       // justement parce qu'elle n'a pas eu le temps de se clore.
-      var ech = 0, nb = 0;
-      return window.VoixStockage.parcourirMorceaux(_etat.db, p.id, function (m) {
-        nb++; ech += m.pcm.byteLength / 2;
-      }).then(function () {
+      return relireLesCompteurs(p.id).then(function (vrai) {
+        var nb = vrai.nbMorceaux, ech = vrai.nbEchantillons;
         hote.innerHTML = '<section class="sc-bm-resume" data-lot="3" data-reprise-prise="' + p.id + '">' +
           '<header class="sc-bm-panel-title"><h2>Reprendre la prise interrompue</h2>' +
           '<span class="sc-bm-badge">Inachevée</span></header>' +
           '<p data-reprise-detail></p>' +
           '<div class="sc-bm-row">' +
+            // (E5) « reprise proposée après une fermeture accidentelle : Récupérer, OU Continuer
+            // cette prise comme après une pause (E12) ». Les deux, donc, et côte à côte : le
+            // premier clôt la prise sur ce qui a survécu, le second la PROLONGE.
+            '<button type="button" class="sc-bm-button sc-bm-button--primary" data-action="continuer" data-lot="3">Continuer cette prise</button>' +
             '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="recuperer" data-lot="3">Récupérer ce qui a survécu</button>' +
           '</div></section>';
         hote.querySelector('[data-reprise-detail]').textContent =
@@ -2015,6 +2630,44 @@
           '. La prise reste inachevée plutôt que d\'être annoncée terminée.');
       });
     });
+    // ── (E12 / E4) LA PAUSE : LE BOUTON ET LA TOUCHE, UNE SEULE FONCTION ──────────────────
+    q('[data-action="pause"]').addEventListener('click', function () {
+      basculerPause('demandée').catch(function (e) {
+        message('pause', 'error', 'La pause n\'a pas abouti : ' + (e && e.message));
+      });
+    });
+    // (E4) ESPACE PAR DÉFAUT, RÉGLABLE. On n'intercepte pas la touche quand le curseur est dans
+    // un champ : taper un espace dans le nom de la prise ne doit pas mettre la prise en pause.
+    document.addEventListener('keydown', function (ev) {
+      var cible = ev.target;
+      var dansUnChamp = cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA'
+                                  || cible.tagName === 'SELECT' || cible.isContentEditable);
+      if (_etat.apprendLaTouche) {
+        ev.preventDefault();
+        _etat.toucheBascule = ev.key;
+        _etat.apprendLaTouche = false;
+        var champ = q('[data-touche]');
+        if (champ) champ.value = (ev.key === ' ' ? 'Espace' : ev.key);
+        message('touche', 'info', 'La touche de pause est maintenant « '
+          + (ev.key === ' ' ? 'Espace' : ev.key) + ' ».');
+        return;
+      }
+      if (dansUnChamp) return;
+      if (ev.key !== _etat.toucheBascule) return;
+      if (!_etat.enPrise) return;
+      ev.preventDefault();
+      basculerPause('touche').catch(function () {});
+    });
+    q('[data-action="apprendre-touche"]').addEventListener('click', function () {
+      _etat.apprendLaTouche = true;
+      message('touche', 'info', 'Pressez la touche que vous voulez employer pour la pause.');
+    });
+    // (E12, point 5) L'IMPORT D'UNE VOIX.
+    q('[data-import]').addEventListener('change', function (ev) {
+      var f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      importerWav(f).catch(function () {}).then(function () { ev.target.value = ''; });
+    });
     q('[data-action="bruit"]').addEventListener('click', function () {
       if (!_etat.noeud) {
         message('bruit', 'error', 'Autorisez d\'abord le micro : sans lui, il n\'y a rien à mesurer.');
@@ -2054,6 +2707,27 @@
       } else if (act === 'recuperer') {
         var s = b.closest('[data-reprise-prise]');
         if (s) recuperer(s.getAttribute('data-reprise-prise'));
+      } else if (act === 'continuer') {
+        // (E12) « Continuer cette prise » : sur une prise terminée, une prise récupérée après
+        // crash ou fermeture, une prise importée. Le même chemin pour les trois.
+        var hote = b.closest('[data-prise]') || b.closest('[data-reprise-prise]');
+        var cible = hote && (hote.getAttribute('data-prise')
+                             || hote.getAttribute('data-reprise-prise'));
+        if (!cible) return;
+        if (!_etat.noeud) {
+          message('continuation', 'error', 'Autorisez d\'abord le micro : une prise se continue '
+            + 'en enregistrant.');
+          return;
+        }
+        demarrer({ continuer: cible }).then(function () {
+          return peindreListe().then(proposerReprise);
+        }).catch(function (e) {
+          message('continuation', 'error', 'La continuation n\'a pas abouti : ' + (e && e.message)
+            + '. La prise n\'a pas été modifiée.');
+        });
+      } else if (act === 'reprendre-micro') {
+        // (E8) « propose Reprendre » : un NOUVEAU getUserMedia, qui exige ce geste-ci.
+        reprendreLeMicro().catch(function () {});
       }
     });
 
@@ -2117,6 +2791,15 @@
     // Pour qu'un contrôle lise l'état sans le déduire de l'affichage.
     _etat: function () { return _etat; },
     _demarrer: demarrer,
+    // (E12 / T1 ter) exposés pour les contrôles : le chemin réel passe par les boutons et la
+    // touche, mais la lecture d'en-tête et le rééchantillonnage sont des fonctions pures qu'un
+    // contrôle doit pouvoir éprouver sans micro et sans périphérique.
+    _basculerPause: basculerPause,
+    _importerWav: importerWav,
+    lireEnTeteWav: lireEnTeteWav,
+    sommesDUnSignal: sommesDUnSignal,
+    reechantillonnerPcm: reechantillonnerPcm,
+    _relireLesCompteurs: function (id) { return relireLesCompteurs(id); },
     _arreter: arreter,
     _autoriser: autoriser,
   };

@@ -180,6 +180,48 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
   });
 }
 
+// Arrête la prise en cours par le VRAI bouton et relève ce que la page affiche, ce que le
+// module croit et ce qu'IndexedDB contient. `prendre` ne convient pas aux contrôles de T1 ter :
+// il mène la prise du début à la fin, et la pause, la reprise et la continuation s'intercalent.
+async function prendreLaFin(page) {
+  await page.click('[data-action="arreter"]');
+  await page.waitForFunction(() => {
+    const t = document.querySelector('[data-mode]');
+    return t && /terminée|muette|perdu/i.test(t.textContent);
+  }, null, { timeout: 20000 });
+  return page.evaluate(async () => {
+    const e = window.EnregistreurVoix._etat();
+    let morceaux = 0, echantillons = 0, indexVus = [], tailles = [], debuts = [], dernier = null;
+    await window.VoixStockage.parcourirMorceaux(e.db, e.priseId, (m) => {
+      morceaux++; indexVus.push(m.index); debuts.push(m.debutEchantillon);
+      const a = new Int16Array(m.pcm);
+      echantillons += a.length; tailles.push(a.length);
+      dernier = a;
+    });
+    // LA QUEUE DE LA PRISE, relue : « aucun zéro n'est écrit » (E8) se vérifie là, sur les
+    // octets, et non sur un compteur. On compte les zéros CONSÉCUTIFS de la fin.
+    let zerosDeFin = 0;
+    if (dernier) {
+      for (let i = dernier.length - 1; i >= 0 && dernier[i] === 0; i--) zerosDeFin++;
+    }
+    const prise = await window.VoixStockage.lirePrise(e.db, e.priseId);
+    const liste = await window.VoixStockage.listerPrises(e.db);
+    return {
+      affiche: {
+        mode: document.querySelector('[data-mode]').textContent,
+        alertes: [...document.querySelectorAll('[data-alerte] .sc-bm-message')]
+          .map((m) => ({ etat: m.getAttribute('data-state'), cle: m.getAttribute('data-cle'),
+                         texte: m.querySelector('span').textContent })),
+      },
+      module: { priseId: e.priseId, echantillonnage: e.echantillonnage,
+                echantillonsEcrits: e.echantillonsEcrits, morceauxEcrits: e.morceauxEcrits,
+                journal: e.journal, mesures: e.mesures },
+      stockage: { morceaux, echantillons, indexVus, tailles, debuts, prise, zerosDeFin },
+      nbPrises: liste.length,
+    };
+  });
+}
+
 (async () => {
   console.log('\nCONTRÔLES DU JALON I — enregistreur de voix\n');
 
@@ -2024,7 +2066,8 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
         badge: carte ? carte.querySelector('.sc-bm-badge').textContent : null,
         enBase: { morceaux, echantillons },
         comptteursDeLaPrise: { nbMorceaux: prise.nbMorceaux, nbEchantillons: prise.nbEchantillons,
-                               etat: prise.etat },
+                               etat: prise.etat,
+                               journal: (prise.journal || []).map((x) => x.quoi) },
         encadre: boite ? boite.textContent : null,
       };
     }, priseId);
@@ -2034,12 +2077,26 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     assert.equal(vu.badge, 'Inachevée', 'avec son état : ' + vu.badge);
     assert.equal(vu.comptteursDeLaPrise.etat, 'en-cours',
       'la prise est bien restée en cours : ' + vu.comptteursDeLaPrise.etat);
-    // 1. CE QUE LE DÉFAUT MONTRAIT : les compteurs de la prise sont à zéro. On le VÉRIFIE, pour
-    //    que le contrôle prouve que la fiche ne les lit plus, et non qu'ils auraient changé.
-    assert.equal(vu.comptteursDeLaPrise.nbMorceaux, 0,
-      'les compteurs de la prise sont à zéro, c\'est normal : elle n\'a pas eu le temps de se clore');
+    // 1. LES COMPTEURS DE LA PRISE NE SONT PLUS À ZÉRO — et c'est une amélioration de T1 ter.
+    //    Première version de ce contrôle : « ils valent zéro, c'est normal, elle n'a pas eu le
+    //    temps de se clore ». Depuis que le journal et les compteurs sont écrits à chaque
+    //    morceau (il le fallait : une prise tuée perdait tous ses raccords, voir §32), ils
+    //    valent ce qui a été écrit. Ce qui doit rester vrai, et qui est la garantie du défaut 6,
+    //    c'est qu'ils ne sont JAMAIS EN AVANCE sur ce qui est réellement là : un compteur en
+    //    avance ferait annoncer une durée que le fichier ne porte pas.
     assert.ok(vu.enBase.morceaux >= 3,
-      'alors que les morceaux sont bien en base : ' + vu.enBase.morceaux);
+      'les morceaux doivent être en base : ' + vu.enBase.morceaux);
+    assert.ok(vu.comptteursDeLaPrise.nbMorceaux <= vu.enBase.morceaux,
+      'les compteurs de la prise ne doivent jamais DÉPASSER ce qui est relu : ' +
+      vu.comptteursDeLaPrise.nbMorceaux + ' annoncés contre ' + vu.enBase.morceaux + ' relus');
+    assert.ok(vu.comptteursDeLaPrise.nbEchantillons <= vu.enBase.echantillons,
+      'ni en échantillons : ' + vu.comptteursDeLaPrise.nbEchantillons + ' contre ' +
+      vu.enBase.echantillons);
+    // ET LE JOURNAL A SURVÉCU À LA MORT DE LA PAGE : c'est ce que §32 exige pour pouvoir
+    // continuer une prise sans perdre ses raccords.
+    assert.ok((vu.comptteursDeLaPrise.journal || []).length >= 1,
+      'le journal de la prise doit avoir survécu : ' +
+      JSON.stringify(vu.comptteursDeLaPrise.journal));
     // 2. CE QUE LA FICHE AFFICHE : les chiffres RELUS.
     assert.ok(vu.carte.includes(vu.enBase.morceaux + ' morceaux'),
       'la fiche doit afficher les morceaux relus (' + vu.enBase.morceaux + ') : ' + vu.carte);
@@ -2052,8 +2109,10 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
     //    deux qui a révélé le défaut à Christophe.
     assert.ok(vu.encadre && vu.encadre.includes(vu.enBase.morceaux + ' morceaux retrouvés'),
       'l\'encadré de reprise doit annoncer le même compte : ' + vu.encadre);
-    console.log('        compteurs de la prise 0 morceau · en base ' + vu.enBase.morceaux +
-      ' morceaux / ' + vu.enBase.echantillons + ' éch · fiche : ' + vu.carte.slice(0, 72));
+    console.log('        compteurs de la prise ' + vu.comptteursDeLaPrise.nbMorceaux +
+      ' morceaux · en base ' + vu.enBase.morceaux + ' morceaux / ' + vu.enBase.echantillons +
+      ' éch · journal survivant ' + JSON.stringify(vu.comptteursDeLaPrise.journal) +
+      ' · fiche : ' + vu.carte.slice(0, 64));
   });
 
   // ── §26 — (D5) SIGNAL PERDU JUSQU'À LA FIN N'EST PAS « UN PASSAGE MUET » ──────────────────
@@ -2276,6 +2335,790 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
 
     console.log('        44 100 Hz → rapport 44100, lot 4 oui, prise 220544 (demandé 220500) · ' +
       '48 000 Hz → rapport 48000, lot 4 non, prise 240000');
+  });
+
+  // ── §30 — (E12, point 2) EN PAUSE, AUCUN ÉCHANTILLON N'EST ÉCRIT ──────────────────────────
+  //
+  // CE CONTRÔLE EST ÉCRIT AVANT TOUT CODE DE T1 TER, à la demande de Christophe, et il doit
+  // donc échouer à sa première exécution : la pause n'existe pas encore.
+  //
+  // E12, mot pour mot : « en pause, l'enregistrement est suspendu (aucun échantillon écrit : la
+  // pause n'occupe aucun temps dans la voix, sa durée est seulement notée au journal) ». Deux
+  // mesures séparées le prouvent, parce qu'aucune des deux ne suffit :
+  //   · L'INVARIANT EXACT, sans horloge : le compteur d'échantillons écrits ne bouge pas d'une
+  //     unité pendant la pause. On le relève cinq fois pendant les trois secondes de pause.
+  //   · LA SOMME, contre l'horloge : le total écrit vaut la durée des segments ACTIFS et non
+  //     celle de la prise. Sans cette seconde mesure, une pause qui écrirait des zéros passerait
+  //     l'invariant dès lors qu'elle le ferait en dehors des instants relevés.
+  await controle('§30 une prise en pause n\'écrit AUCUN échantillon (E12)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+
+    const ACTIF_1 = 2000, PAUSE = 3000, ACTIF_2 = 2000;
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(ACTIF_1);
+
+    // LA PAUSE PASSE PAR LE VRAI BOUTON, pas par une fonction interne (#11(a)).
+    await page.click('[data-action="pause"]');
+    await page.waitForFunction(() => /pause/i.test(document.querySelector('[data-mode]').textContent),
+      null, { timeout: 10000 });
+
+    // CINQ RELEVÉS PENDANT LA PAUSE : le compteur ne doit pas bouger d'une unité.
+    const pendant = [];
+    for (let k = 0; k < 5; k++) {
+      await page.waitForTimeout(PAUSE / 5);
+      pendant.push(await page.evaluate(() => {
+        const e = window.EnregistreurVoix._etat();
+        return { ecrits: e.echantillonsEcrits, morceaux: e.morceauxEcrits,
+                 priseId: e.priseId, enPause: e.enPause };
+      }));
+    }
+
+    await page.click('[data-action="pause"]');   // la même touche/le même bouton reprend
+    await page.waitForFunction(() => /en cours/i.test(document.querySelector('[data-mode]').textContent),
+      null, { timeout: 10000 });
+    await page.waitForTimeout(ACTIF_2);
+
+    const r = await prendreLaFin(page);
+    await ctx.close();
+
+    const hz = r.module.echantillonnage;
+    // ── 1. L'INVARIANT EXACT : rien n'a été écrit pendant la pause ───────────────────────────
+    const ecrits = pendant.map((x) => x.ecrits);
+    assert.equal(new Set(ecrits).size, 1,
+      'le compteur d\'échantillons écrits ne doit pas bouger pendant la pause : ' +
+      JSON.stringify(ecrits));
+    const morceaux = pendant.map((x) => x.morceaux);
+    assert.equal(new Set(morceaux).size, 1,
+      'et aucun morceau ne doit être écrit pendant la pause : ' + JSON.stringify(morceaux));
+    pendant.forEach((x) => {
+      assert.equal(x.enPause, true, 'l\'état doit porter la pause : ' + JSON.stringify(x));
+    });
+
+    // ── 2. LA MÊME PRISE, pas une nouvelle (E12) ────────────────────────────────────────────
+    assert.equal(new Set(pendant.map((x) => x.priseId)).size, 1, 'une seule prise pendant la pause');
+    assert.equal(r.module.priseId, pendant[0].priseId,
+      'et c\'est toujours la même après la reprise : ' + r.module.priseId);
+    assert.equal(r.nbPrises, 1,
+      'la reprise ne doit créer NI prise NI bout à part (E12) : ' + r.nbPrises + ' prise(s)');
+
+    // ── 3. LA SOMME, contre l'horloge ───────────────────────────────────────────────────────
+    const attenduActif = ((ACTIF_1 + ACTIF_2) / 1000) * hz;
+    const attenduAvecPause = ((ACTIF_1 + PAUSE + ACTIF_2) / 1000) * hz;
+    const ecart = Math.abs(r.stockage.echantillons - attenduActif);
+    assert.ok(ecart < 0.35 * hz,
+      'le total écrit doit valoir la durée des segments ACTIFS (' + Math.round(attenduActif) +
+      ' échantillons) : relu ' + r.stockage.echantillons + ', écart ' + Math.round(ecart) +
+      ' échantillons (' + (ecart / hz).toFixed(2) + ' s)');
+    assert.ok(r.stockage.echantillons < attenduAvecPause - 2 * hz,
+      'et SURTOUT PAS celle de la prise entière (' + Math.round(attenduAvecPause) +
+      ') : relu ' + r.stockage.echantillons);
+
+    // ── 4. LE JOURNAL PORTE LE RACCORD ET LA DURÉE DE LA PAUSE (E12) ────────────────────────
+    const raccords = r.module.journal.filter((e) => /pause|reprise/i.test(e.quoi));
+    assert.ok(raccords.length >= 2,
+      'la pause et la reprise doivent être journalisées : ' +
+      JSON.stringify(r.module.journal.map((e) => e.quoi)));
+    const laPause = raccords.find((e) => /^pause/.test(e.quoi));
+    const laReprise = raccords.find((e) => /^reprise/.test(e.quoi));
+    assert.ok(laPause && laReprise, 'une pause et une reprise : ' + JSON.stringify(raccords));
+    assert.equal(laPause.aEchantillon, laReprise.aEchantillon,
+      'LA PAUSE N\'OCCUPE AUCUN TEMPS DANS LA VOIX : la reprise repart de l\'échantillon où la ' +
+      'pause a commencé. Pause à ' + laPause.aEchantillon + ', reprise à ' + laReprise.aEchantillon);
+    assert.ok(typeof laReprise.dureePause_s === 'number',
+      'et la durée de la pause doit être notée au journal (E12) : ' +
+      JSON.stringify(laReprise));
+    assert.ok(Math.abs(laReprise.dureePause_s - PAUSE / 1000) < 0.8,
+      'durée de pause attendue ' + (PAUSE / 1000) + ' s, notée ' + laReprise.dureePause_s + ' s');
+
+    // ── 5. LES MORCEAUX N'ONT PLUS TOUS LA MÊME TAILLE (point 1), et c'est voulu ────────────
+    const tailles = r.stockage.tailles;
+    assert.ok(tailles.length >= 2, 'il faut plusieurs morceaux : ' + JSON.stringify(tailles));
+    assert.ok(r.stockage.indexVus.every((v, i) => v === i),
+      'et leurs index restent continus : ' + JSON.stringify(r.stockage.indexVus));
+
+    console.log('        actif ' + (ACTIF_1 + ACTIF_2) / 1000 + ' s + pause ' + PAUSE / 1000 +
+      ' s · écrit ' + r.stockage.echantillons + ' éch (' +
+      (r.stockage.echantillons / hz).toFixed(2) + ' s, attendu ' + (attenduActif / hz).toFixed(2) +
+      ') · compteur immobile pendant la pause : ' + ecrits[0] + ' · pause et reprise au même ' +
+      'échantillon ' + laPause.aEchantillon + ' · durée notée ' + laReprise.dureePause_s + ' s · ' +
+      'tailles de morceaux ' + JSON.stringify(tailles));
+  });
+
+  // ── §31 — (E8 / E12) LA PERTE DU MICRO MET LA PRISE EN PAUSE, SANS ÉCRIRE DE ZÉRO ────────
+  await controle('§31 micro perdu : pause d\'elle-même, aucun zéro, bandeau et « Reprendre »', async () => {
+    // E8 : « Quand la piste audio se termine ou que le contexte audio est interrompu, la prise se
+    // met en pause (E12) : aucun zéro n'est écrit, le Studio l'annonce et propose Reprendre. »
+    // Mesuré aux essais du 10 octobre : 52,13 s de zéros écrits, et « Enregistrement » toujours
+    // affiché. Ce contrôle passe par le VRAI `getUserMedia` — la source de fixture n'a pas de
+    // piste, et c'est la piste qui meurt ici.
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(2500);
+
+    // ON TUE LA PISTE, comme le fait une autre application qui prend le micro.
+    await page.evaluate(() => {
+      window.__avantLaPerte = window.EnregistreurVoix._etat().echantillonsEcrits;
+      window.EnregistreurVoix._etat().flux.getAudioTracks().forEach((t) => t.stop());
+    });
+    // La prise doit se mettre en pause d'elle-même, sans qu'on touche à rien.
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().enPause === true,
+      null, { timeout: 10000 });
+
+    // ON LAISSE COURIR : c'est pendant ce temps-là que 52 secondes de zéros s'écrivaient.
+    const suivi = [];
+    for (let k = 0; k < 4; k++) {
+      await page.waitForTimeout(700);
+      suivi.push(await page.evaluate(() => window.EnregistreurVoix._etat().echantillonsEcrits));
+    }
+
+    const pendant = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      const m = document.querySelector('[data-alerte] [data-cle="micro"]');
+      const r = m ? m.getBoundingClientRect() : null;
+      return {
+        enPause: e.enPause, microPerdu: e.microPerdu, priseId: e.priseId,
+        mode: document.querySelector('[data-mode]').textContent,
+        intitule: document.querySelector('[data-chrono-intitule]').textContent,
+        sbPiste: document.querySelector('[data-sb-piste]').textContent,
+        alerte: m ? { etat: m.getAttribute('data-state'),
+                      texte: m.querySelector('span').textContent,
+                      bouton: !!m.querySelector('[data-action="reprendre-micro"]'),
+                      libelleBouton: (m.querySelector('[data-action="reprendre-micro"]') || {}).textContent,
+                      hautDansLaFenetre: Math.round(r.top),
+                      collee: getComputedStyle(document.querySelector('[data-alerte]')).position }
+                 : null,
+        journal: e.journal,
+        avantLaPerte: window.__avantLaPerte,
+      };
+    });
+
+    // ── « REPRENDRE » : un nouveau getUserMedia, sur geste de l'utilisateur ────────────────
+    await page.click('[data-alerte] [data-action="reprendre-micro"]');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().enPause === false,
+      null, { timeout: 20000 });
+    const apresReprise = await page.evaluate(() => window.EnregistreurVoix._etat().echantillonsEcrits);
+    await page.waitForTimeout(1800);
+    const r = await prendreLaFin(page);
+    await ctx.close();
+
+    const hz = r.module.echantillonnage;
+    // 1. LA PRISE S'EST MISE EN PAUSE D'ELLE-MÊME.
+    assert.equal(pendant.enPause, true, 'la prise doit être en pause : ' + JSON.stringify(pendant.mode));
+    assert.equal(pendant.microPerdu, true, 'et savoir que le micro est perdu');
+    assert.ok(/pause/i.test(pendant.mode), 'le badge doit le dire : ' + pendant.mode);
+    assert.ok(/pause/i.test(pendant.intitule),
+      'et l\'intitulé aussi, au lieu de « Enregistrement » : ' + pendant.intitule);
+    assert.ok(/terminée/.test(pendant.sbPiste),
+      'la case Piste doit dire « terminée » : ' + pendant.sbPiste);
+    // 2. AUCUN ZÉRO N'EST ÉCRIT PENDANT LA PERTE : le compteur ne bouge plus d'une unité.
+    assert.equal(new Set(suivi).size, 1,
+      'le compteur d\'échantillons ne doit plus bouger après la perte (52,13 s de zéros aux '
+      + 'essais du 10 octobre) : ' + JSON.stringify(suivi));
+    // 3. LE BANDEAU : fixé à la FENÊTRE, rouge, daté, avec « Reprendre » (E8).
+    assert.ok(pendant.alerte, 'un bandeau doit être affiché dans la zone d\'alerte');
+    assert.equal(pendant.alerte.etat, 'error', 'rouge : ' + pendant.alerte.etat);
+    assert.equal(pendant.alerte.collee, 'fixed',
+      'fixé en haut de la FENÊTRE (E8) : position ' + pendant.alerte.collee);
+    assert.ok(pendant.alerte.hautDansLaFenetre >= 0 && pendant.alerte.hautDansLaFenetre <= 24,
+      'et visible en haut : ' + pendant.alerte.hautDansLaFenetre + ' px');
+    assert.ok(/micro a été perdu à l'échantillon \d+/.test(pendant.alerte.texte),
+      'il doit dire À QUEL INSTANT, en échantillons : ' + pendant.alerte.texte);
+    assert.ok(/EN PAUSE/.test(pendant.alerte.texte),
+      'et que la prise est en pause : ' + pendant.alerte.texte);
+    assert.equal(pendant.alerte.bouton, true, 'avec un bouton « Reprendre » (E8)');
+    assert.equal(pendant.alerte.libelleBouton, 'Reprendre',
+      'libellé : ' + pendant.alerte.libelleBouton);
+    // 4. LE JOURNAL PORTE LE RACCORD, SA RAISON ET LE COMPTE DES ZÉROS.
+    const pause = pendant.journal.filter((e) => e.quoi === 'pause').pop();
+    assert.ok(pause, 'la pause doit être journalisée : ' +
+      JSON.stringify(pendant.journal.map((e) => e.quoi)));
+    assert.equal(pause.raison, 'micro perdu', 'avec sa raison : ' + pause.raison);
+    // LA COMPTABILITÉ DES ZÉROS, ENTIÈRE. C'est elle qui porte la garantie « aucun zéro n'est
+    // écrit » (E8), et non une promesse : tout zéro que le worklet a vu à la pause a été soit
+    // RETIRÉ de la prise, soit déclaré NON RETIRABLE parce qu'il était déjà dans un morceau
+    // clos. Un trou du falsifieur a exigé cet invariant : sans lui, cesser de retirer les zéros
+    // ne faisait échouer personne, le micro factice de Chromium étant lui-même à 96 % de zéros.
+    assert.ok(typeof pause.zerosVusParLeWorklet === 'number',
+      'le worklet doit dire combien de zéros il a vus : ' + JSON.stringify(pause));
+    assert.equal(pause.zerosVusParLeWorklet, pause.zerosRetiresDeLaFin + pause.zerosDejaEcrits,
+      'COMPTABILITÉ DES ZÉROS : ' + pause.zerosVusParLeWorklet + ' vus, ' +
+      pause.zerosRetiresDeLaFin + ' retirés + ' + pause.zerosDejaEcrits + ' non retirables');
+    assert.equal(pause.zerosDejaEcrits, 0,
+      'et aucun ne doit être resté dans un morceau déjà clos : ' + pause.zerosDejaEcrits);
+    // 5. LA REPRISE CONTINUE LA MÊME PRISE, et repart de l'échantillon de la pause.
+    assert.equal(r.module.priseId, pendant.priseId,
+      'la reprise ne crée pas de nouvelle prise (E12) : ' + r.module.priseId);
+    assert.equal(r.nbPrises, 1, 'une seule prise en stockage : ' + r.nbPrises);
+    assert.equal(apresReprise, suivi[0],
+      'et elle repart de l\'échantillon où la perte l\'a arrêtée : ' + apresReprise +
+      ' contre ' + suivi[0]);
+    assert.ok(r.stockage.echantillons > suivi[0],
+      'puis la prise grandit de nouveau : ' + r.stockage.echantillons + ' > ' + suivi[0]);
+    // 6. CE CONTRÔLE NE VÉRIFIE PAS LES OCTETS DE LA QUEUE, et il faut dire pourquoi : mesuré
+    //    en l'écrivant, le micro FACTICE de Chromium est lui-même à 96 % de zéros (3 844
+    //    échantillons non nuls sur 96 000 — il émet de brèves salves, pas un son continu). Une
+    //    assertion sur les zéros de fin mesurerait donc l'appareil d'essai et non le produit.
+    //    La garantie « aucun zéro écrit » est vérifiée ici par l'immobilité du compteur et par
+    //    `zerosDejaEcrits === 0` ; elle l'est SUR LES OCTETS en §31b, sur une fixture dont le
+    //    signal est dense.
+    assert.ok(r.module.journal.some((e) => e.quoi === 'reprise après perte du micro'),
+      'la reprise doit être journalisée : ' +
+      JSON.stringify(r.module.journal.map((e) => e.quoi)));
+    console.log('        perte à ' + suivi[0] + ' éch (' + (suivi[0] / hz).toFixed(2) + ' s) · ' +
+      'compteur immobile pendant ' + (4 * 0.7) + ' s : ' + JSON.stringify(suivi) + ' · ' +
+      pause.zerosRetiresDeLaFin + ' zéros retirés, ' + pause.zerosDejaEcrits + ' non retirés · ' +
+      'bandeau fixed à ' + pendant.alerte.hautDansLaFenetre + ' px · reprise à ' + apresReprise +
+      ' → ' + r.stockage.echantillons + ' éch, 1 seule prise');
+  });
+
+  await controle('§31b contexte interrompu : pause d\'elle-même, et aucun zéro AJOUTÉ (octets relus)', async () => {
+    // E8 nomme DEUX pertes : « la piste audio se termine » (§31) ou « le contexte audio est
+    // interrompu (périphérique repris par une autre application, passage en arrière-plan) ».
+    // Le second cas est celui-ci, et il a révélé un trou en l'écrivant : un contexte suspendu ne
+    // produit plus de relevé, donc la surveillance qui vit dans le relevé ne tournait jamais
+    // pour lui. Elle tourne désormais aussi sur `onstatechange`.
+    //
+    // ON L'ÉPROUVE SUR UNE FIXTURE AU SIGNAL DENSE — un sinus à 220 Hz —, ce qui permet de
+    // vérifier la garantie « aucun zéro écrit » SUR LES OCTETS relus, ce que le micro factice de
+    // Chromium ne permet pas (il est à 96 % de zéros).
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(2500);
+
+    // ON INTERROMPT LE CONTEXTE, comme Safari le fait quand l'onglet passe au fond.
+    await page.evaluate(async () => {
+      window.__avant = window.EnregistreurVoix._etat().echantillonsEcrits;
+      await window.EnregistreurVoix._etat().ctx.suspend();
+    });
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().enPause === true,
+      null, { timeout: 10000 });
+    await page.waitForTimeout(1500);
+
+    const pendant = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      const m = document.querySelector('[data-alerte] [data-cle="micro"]');
+      return {
+        enPause: e.enPause, microPerdu: e.microPerdu, cause: e.causeDeLaPerte,
+        mode: document.querySelector('[data-mode]').textContent,
+        sbContexte: document.querySelector('[data-sb-contexte]').textContent,
+        alerte: m ? { etat: m.getAttribute('data-state'),
+                      texte: m.querySelector('span').textContent,
+                      bouton: !!m.querySelector('[data-action="reprendre-micro"]') } : null,
+        journal: e.journal,
+      };
+    });
+
+    // ON REPREND LE CONTEXTE À LA MAIN pour pouvoir clore la prise et relire les octets ; la
+    // reprise par le bouton est éprouvée en §31, où le micro est réel.
+    await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      await e.ctx.resume();
+      e.microPerdu = false;
+      e.enPause = false;
+    });
+    await page.waitForTimeout(300);
+    const r = await prendreLaFin(page);
+    await ctx.close();
+
+    assert.equal(pendant.enPause, true,
+      'un contexte interrompu doit mettre la prise en pause (E8) : ' + pendant.mode);
+    assert.ok(/pause/i.test(pendant.mode), 'le badge doit le dire : ' + pendant.mode);
+    assert.ok(/suspended|interrupted/.test(pendant.sbContexte),
+      'et la case Contexte porter son état : ' + pendant.sbContexte);
+    assert.ok(/contexte audio est (suspended|interrupted)/.test(pendant.cause || ''),
+      'la cause doit nommer le contexte : ' + pendant.cause);
+    assert.ok(pendant.alerte && pendant.alerte.etat === 'error',
+      'un bandeau rouge : ' + JSON.stringify(pendant.alerte));
+    assert.equal(pendant.alerte.bouton, true, 'avec « Reprendre » (E8)');
+    assert.ok(/micro a été perdu à l'échantillon \d+/.test(pendant.alerte.texte),
+      'daté en échantillons : ' + pendant.alerte.texte);
+    // UN SEUL RACCORD DE PAUSE, malgré deux chemins de détection (relevé et `onstatechange`).
+    const pauses = pendant.journal.filter((e) => e.quoi === 'pause');
+    assert.equal(pauses.length, 1,
+      'une seule entrée de pause, quels que soient les chemins de détection : ' +
+      JSON.stringify(pendant.journal.map((e) => e.quoi)));
+    // LA GARANTIE SUR LES OCTETS : la prise ne finit pas sur une traînée de zéros. Le signal de
+    // la fixture est dense, donc tout zéro de fin serait un zéro AJOUTÉ par l'interruption.
+    assert.ok(r.stockage.zerosDeFin < 200,
+      'aucun zéro ne doit avoir été ajouté en fin de prise (E8) : ' + r.stockage.zerosDeFin +
+      ' zéros consécutifs relus en fin de dernier morceau, sur un signal dense');
+    console.log('        contexte ' + pendant.sbContexte + ' → ' + pendant.mode + ' · ' +
+      pauses.length + ' raccord de pause · zéros relus en fin de prise : ' +
+      r.stockage.zerosDeFin + ' · ' + r.stockage.echantillons + ' échantillons');
+  });
+
+  // ── §32 — (E5 / E12) CONTINUER UNE PRISE APRÈS UNE FERMETURE D'ONGLET ────────────────────
+  await controle('§32 crash simulé puis « Continuer » : la MÊME prise se prolonge', async () => {
+    // E5 : « reprise proposée après une fermeture accidentelle : Récupérer, OU Continuer cette
+    // prise comme après une pause (E12) ». E12 : « une prise récupérée après un crash ou une
+    // fermeture de fenêtre (elle se continue comme si elle avait été mise en pause) ». Le point
+    // à prouver n'est pas qu'on peut réenregistrer, c'est que c'est la MÊME prise : même
+    // identifiant, index de morceaux qui continuent, total qui s'ajoute, et une seule prise en
+    // stockage. Une continuation qui créerait une seconde prise serait une reprise de PASSAGE
+    // (R7), qui est une autre chose et n'est pas demandée ici.
+    const ctx = await nav.newContext({ permissions: ['microphone'] });
+    const page = await ctx.newPage();
+    await page.goto(base + '/banc-enregistreur.html' +
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const e = window.EnregistreurVoix._etat();
+      return e.sommesAnalyse && e.sommesAnalyse.n > 20000;
+    }, null, { timeout: 15000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().morceauxEcrits >= 2,
+      null, { timeout: 20000 });
+    const priseId = await page.evaluate(() => window.EnregistreurVoix._etat().priseId);
+    await page.close();   // la page meurt en pleine prise
+
+    // ── ON ROUVRE : l'encadré de reprise doit proposer LES DEUX (E5) ─────────────────────
+    const page2 = await ctx.newPage();
+    await page2.goto(base + '/banc-enregistreur.html' +
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page2.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await page2.waitForFunction(() => !!document.querySelector('[data-reprise-prise]'),
+      null, { timeout: 20000 });
+    const propose = await page2.evaluate(() => {
+      const s = document.querySelector('[data-reprise-prise]');
+      return {
+        id: s.getAttribute('data-reprise-prise'),
+        continuer: !!s.querySelector('[data-action="continuer"]'),
+        recuperer: !!s.querySelector('[data-action="recuperer"]'),
+        detail: s.querySelector('[data-reprise-detail]').textContent,
+      };
+    });
+    const avant = await page2.evaluate(async (id) => {
+      const e = window.EnregistreurVoix._etat();
+      return window.EnregistreurVoix._relireLesCompteurs(id);
+    }, priseId);
+
+    // Le micro d'abord : une prise se continue en enregistrant.
+    await page2.click('[data-action="autoriser"]');
+    await page2.waitForFunction(() => {
+      const e = window.EnregistreurVoix._etat();
+      return e.sommesAnalyse && e.sommesAnalyse.n > 20000;
+    }, null, { timeout: 15000 });
+    await page2.click('[data-reprise] [data-action="continuer"]');
+    await page2.waitForFunction(() => /en cours/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    await page2.waitForTimeout(2500);
+    const r = await prendreLaFin(page2);
+    await ctx.close();
+
+    // 1. L'ENCADRÉ PROPOSE LES DEUX (E5).
+    assert.equal(propose.id, priseId, 'la prise proposée est celle qui a été coupée');
+    assert.equal(propose.continuer, true, '« Continuer cette prise » doit être proposé (E5, E12)');
+    assert.equal(propose.recuperer, true, '« Récupérer » aussi : E5 nomme les deux');
+    assert.ok(/relu dans IndexedDB/.test(propose.detail),
+      'et le compte doit être relu, pas déduit : ' + propose.detail);
+    // 2. C'EST LA MÊME PRISE.
+    assert.equal(r.module.priseId, priseId,
+      'la continuation prolonge la MÊME prise (E12) : ' + r.module.priseId + ' ≠ ' + priseId);
+    assert.equal(r.nbPrises, 1,
+      'et ne crée NI prise NI bout à part : ' + r.nbPrises + ' prise(s) en stockage');
+    // 3. LES MORCEAUX CONTINUENT : index sans trou ni recouvrement, total qui s'ajoute.
+    assert.ok(r.stockage.indexVus.every((v, i) => v === i),
+      'les index des morceaux doivent rester continus depuis 0 : ' +
+      JSON.stringify(r.stockage.indexVus));
+    // (E12) « les repères restent comptés en échantillons depuis le DÉBUT de la prise ». Les
+    // positions des morceaux doivent donc se suivre SANS TROU : la position du morceau k est la
+    // somme des longueurs des précédents. Un trou du falsifieur a exigé cette assertion : une
+    // continuation qui repartait de l'échantillon 0 passait tous les autres contrôles, et aurait
+    // posé les repères de la seconde moitié par-dessus ceux de la première.
+    let attendue = 0;
+    r.stockage.debuts.forEach((d, k) => {
+      assert.equal(d, attendue,
+        'la position du morceau ' + k + ' doit être ' + attendue + ' (somme des longueurs ' +
+        'précédentes) et vaut ' + d + ' — positions ' + JSON.stringify(r.stockage.debuts) +
+        ', longueurs ' + JSON.stringify(r.stockage.tailles));
+      attendue += r.stockage.tailles[k];
+    });
+    assert.ok(r.stockage.morceaux > avant.nbMorceaux,
+      'il doit y avoir plus de morceaux qu\'avant : ' + r.stockage.morceaux + ' contre ' +
+      avant.nbMorceaux);
+    assert.ok(r.stockage.echantillons > avant.nbEchantillons,
+      'et plus d\'échantillons : ' + r.stockage.echantillons + ' contre ' + avant.nbEchantillons);
+    // 4. LE RACCORD DE CONTINUATION EST JOURNALISÉ, à la position où la prise reprend.
+    const raccord = r.module.journal.filter((e) => e.quoi === 'continuation').pop();
+    assert.ok(raccord, 'la continuation doit être un raccord journalisé (E12) : ' +
+      JSON.stringify(r.module.journal.map((e) => e.quoi)));
+    assert.equal(raccord.aEchantillon, avant.nbEchantillons,
+      'daté à l\'échantillon où la prise s\'était arrêtée : ' + raccord.aEchantillon +
+      ' contre ' + avant.nbEchantillons);
+    assert.equal(raccord.prochainIndex, avant.prochainIndex,
+      'et portant l\'index du prochain morceau : ' + raccord.prochainIndex);
+    // 5. LE JOURNAL D'AVANT N'EST PAS PERDU : une continuation ne recommence pas la prise.
+    assert.ok(r.module.journal.some((e) => e.quoi === 'prise démarrée'),
+      'le journal doit encore porter le démarrage d\'origine : ' +
+      JSON.stringify(r.module.journal.map((e) => e.quoi)));
+    console.log('        coupée à ' + avant.nbMorceaux + ' morceaux / ' + avant.nbEchantillons +
+      ' éch · continuée → ' + r.stockage.morceaux + ' morceaux / ' + r.stockage.echantillons +
+      ' éch · 1 seule prise · raccord à ' + raccord.aEchantillon +
+      ' · index ' + JSON.stringify(r.stockage.indexVus));
+  });
+
+  // ── §33 — (E12, point 5) L'IMPORT D'UNE VOIX : EN-TÊTE LU À LA MAIN, 16 ET 24 BITS ───────
+  await controle('§33 import WAV : 16 bits mono, 24 bits stéréo (E3), et 8 bits REFUSÉ', async () => {
+    // E12 : « une voix importée d'un fichier WAV (PCM 16 ou 24 bits, mono ou stéréo, toute
+    // fréquence) ». Le prompt ajoute : « décodage manuel de l'en-tête », « stéréo traitée comme
+    // E3 », « fréquence conservée (E11) ». Trois faits, et un quatrième qui compte autant : ce
+    // qui n'est pas accepté doit être REFUSÉ avec sa raison, sans rien écrire.
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const dossier = FIXTURES;
+
+    // ── (1) 16 BITS MONO À 44 100 Hz ────────────────────────────────────────────────────
+    await page.setInputFiles('[data-import]', path.join(dossier, 'import-mono-16-44100.wav'));
+    await page.waitForFunction(() => !!document.querySelector('[data-cle="import"]'),
+      null, { timeout: 20000 });
+    const mono = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      const liste = await window.VoixStockage.listerPrises(e.db);
+      const p = liste[0];
+      let morceaux = 0, echantillons = 0, tailles = [];
+      await window.VoixStockage.parcourirMorceaux(e.db, p.id, (m) => {
+        morceaux++; const a = new Int16Array(m.pcm); echantillons += a.length; tailles.push(a.length);
+      });
+      return { prise: p, morceaux, echantillons, tailles,
+               avis: document.querySelector('[data-cle="import"] span').textContent };
+    });
+    assert.equal(mono.prise.echantillonnage, 44100,
+      'LA FRÉQUENCE DU FICHIER EST CONSERVÉE (E11) : ' + mono.prise.echantillonnage + ' Hz');
+    assert.equal(mono.echantillons, 132300,
+      '3 s à 44 100 Hz font 132 300 échantillons : ' + mono.echantillons);
+    assert.equal(mono.prise.echantillonsParMorceau % 128, 0,
+      'la taille d\'un morceau reste un nombre entier de blocs de 128 (E11) : ' +
+      mono.prise.echantillonsParMorceau);
+    assert.equal(mono.prise.echantillonsParMorceau, 220544,
+      'soit 220 544 à 44 100 Hz, et non 220 500 : ' + mono.prise.echantillonsParMorceau);
+    assert.equal(mono.prise.etat, 'terminee',
+      'une prise importée naît terminée, donc on peut la CONTINUER : ' + mono.prise.etat);
+    assert.equal(mono.prise.origine, 'import WAV', 'et porte son origine : ' + mono.prise.origine);
+    assert.ok(/entrée mono/.test(mono.prise.canalRaison),
+      'un fichier mono doit le dire, sans inventer de corrélation : ' + mono.prise.canalRaison);
+    assert.ok(/44100 Hz, 16 bits, 1 canal/.test(mono.avis),
+      'l\'avis doit porter ce que l\'en-tête a dit : ' + mono.avis);
+
+    // ── (2) 24 BITS STÉRÉO, canal droit vide → la règle E3 ───────────────────────────────
+    await page.setInputFiles('[data-import]', path.join(dossier, 'import-stereo-24-48000.wav'));
+    await page.waitForFunction(() => /24 bits/.test(
+      document.querySelector('[data-cle="import"] span').textContent), null, { timeout: 20000 });
+    const stereo = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      const liste = await window.VoixStockage.listerPrises(e.db);
+      const p = liste.find((x) => x.canaux === 2 && x.origine === 'import WAV');
+      let echantillons = 0, crete = 0;
+      await window.VoixStockage.parcourirMorceaux(e.db, p.id, (m) => {
+        const a = new Int16Array(m.pcm);
+        echantillons += a.length;
+        for (let i = 0; i < a.length; i++) { const v = Math.abs(a[i]); if (v > crete) crete = v; }
+      });
+      return { prise: p, echantillons, crete };
+    });
+    assert.equal(stereo.prise.echantillonnage, 48000, 'fréquence du fichier : ' + stereo.prise.echantillonnage);
+    assert.equal(stereo.echantillons, 96000, '2 s à 48 000 Hz : ' + stereo.echantillons);
+    assert.equal(stereo.prise.canalRetenu, 'gauche',
+      '(E3) le canal droit est vide : on prend le gauche tel quel : ' + stereo.prise.canalRetenu);
+    // L'ASSERTION PORTE SUR LE CANAL RETENU, PAS SUR LE MOT. Première version : « la raison ne
+    // doit pas contenir "moyenne" » — elle échouait sur la raison JUSTE, qui dit « canal actif
+    // pris tel quel, SANS MOYENNE ». C'était mon assertion qui était fausse.
+    assert.notEqual(stereo.prise.canalRetenu, 'moyenne',
+      'JAMAIS la moyenne sur un canal vide : elle coûterait 6 dB (E3)');
+    assert.ok(/droit/.test(stereo.prise.canalRaison) && /sans moyenne/.test(stereo.prise.canalRaison),
+      'et la raison doit le dire : ' + stereo.prise.canalRaison);
+    // LA CRÊTE PROUVE QU'AUCUNE MOYENNE N'A ÉTÉ FAITE : le fichier est à 0,25 de pleine
+    // échelle, soit 8 192 en 16 bits. Une moyenne avec un canal vide donnerait 4 096.
+    assert.ok(Math.abs(stereo.crete - 8192) < 120,
+      'la crête doit valoir 0,25 de pleine échelle (environ 8 192) et non sa moitié : ' +
+      stereo.crete);
+
+    // ── (3) 8 BITS : REFUSÉ, avec sa raison, et rien d'écrit ────────────────────────────
+    const avantRefus = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      return (await window.VoixStockage.listerPrises(e.db)).length;
+    });
+    await page.setInputFiles('[data-import]', path.join(dossier, 'import-refuse-8bits.wav'));
+    await page.waitForFunction(() => {
+      const m = document.querySelector('[data-cle="import"]');
+      return m && m.getAttribute('data-state') === 'error';
+    }, null, { timeout: 20000 });
+    const refus = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      return { texte: document.querySelector('[data-cle="import"] span').textContent,
+               nbPrises: (await window.VoixStockage.listerPrises(e.db)).length };
+    });
+
+    // ── (4) TROIS CANAUX : REFUSÉ aussi. E12 nomme le mono et la stéréo, et E3 ne tranche la
+    //    règle de mixage que pour deux canaux. Sans cette épreuve, la garde sur le nombre de
+    //    canaux n'était éprouvée par personne (trou trouvé par le falsifieur).
+    await page.setInputFiles('[data-import]', path.join(dossier, 'import-refuse-3canaux.wav'));
+    await page.waitForFunction(() => {
+      const m = document.querySelector('[data-cle="import"]');
+      return m && m.getAttribute('data-state') === 'error' && /canaux/.test(m.querySelector('span').textContent);
+    }, null, { timeout: 20000 });
+    const refus3 = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      return { texte: document.querySelector('[data-cle="import"] span').textContent,
+               nbPrises: (await window.VoixStockage.listerPrises(e.db)).length };
+    });
+    assert.ok(/3 canaux/.test(refus3.texte),
+      'le refus doit nommer le nombre de canaux : ' + refus3.texte);
+    assert.ok(/mono et la stéréo/.test(refus3.texte),
+      'et dire ce qui est accepté : ' + refus3.texte);
+    assert.equal(refus3.nbPrises, avantRefus,
+      'aucune prise ne doit avoir été créée : ' + refus3.nbPrises + ' contre ' + avantRefus);
+
+    await ctx.close();
+    assert.ok(/8 bits/.test(refus.texte), 'le refus doit nommer la profondeur : ' + refus.texte);
+    assert.ok(/16 et 24 bits/.test(refus.texte),
+      'et dire ce qui est accepté : ' + refus.texte);
+    assert.ok(/Rien n'a été écrit/.test(refus.texte),
+      'et que rien n\'a été écrit : ' + refus.texte);
+    assert.equal(refus.nbPrises, avantRefus,
+      'aucune prise ne doit avoir été créée : ' + refus.nbPrises + ' contre ' + avantRefus);
+
+    console.log('        16/mono/44100 → ' + mono.echantillons + ' éch, morceau ' +
+      mono.prise.echantillonsParMorceau + ', ' + mono.prise.canalRaison.slice(0, 28) +
+      ' · 24/stéréo/48000 → ' + stereo.echantillons + ' éch, canal ' + stereo.prise.canalRetenu +
+      ', crête ' + stereo.crete + ' (moyenne aurait donné ~4096) · 8 bits et 3 canaux ' +
+      'refusés, ' + refus.nbPrises + ' prises inchangées');
+  });
+
+  // ── §34 — (E11 / E12) CONTINUER UNE PRISE À UNE AUTRE FRÉQUENCE QUE LE PÉRIPHÉRIQUE ──────
+  await controle('§34 prise à 44 100 Hz continuée sur un périphérique à 48 000 Hz : rééchantillonnée', async () => {
+    // E12 : « La nouvelle partie garde la fréquence de la prise ; si le périphérique a changé de
+    // fréquence, le Studio le dit et rééchantillonne la nouvelle partie. » Une prise à deux
+    // fréquences serait une prise dont aucune durée n'est juste : l'en-tête WAV n'en porte qu'une.
+    //
+    // ON L'ÉPROUVE SANS TOUCHER À LA MACHINE (règle du 11 octobre) : la prise importée est à
+    // 44 100 Hz, le périphérique de ce navigateur est à 48 000 Hz. Le changement de fréquence est
+    // donc réel et ne demande aucune configuration.
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    await page.setInputFiles('[data-import]', path.join(FIXTURES, 'import-mono-16-44100.wav'));
+    await page.waitForFunction(() => !!document.querySelector('[data-cle="import"]'),
+      null, { timeout: 20000 });
+    const avant = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      const liste = await window.VoixStockage.listerPrises(e.db);
+      return { id: liste[0].id, hz: liste[0].echantillonnage,
+               compteurs: await window.EnregistreurVoix._relireLesCompteurs(liste[0].id) };
+    });
+    // DES MORCEAUX COURTS ET UNE PRISE ASSEZ LONGUE POUR EN PRODUIRE PLUSIEURS. Un trou du
+    // falsifieur l'a exigé : avec un seul morceau neuf, sa position est celle du raccord dans
+    // les deux cas — juste ou faux — et la dérive de 8,8 % ne peut pas se voir. Il faut au moins
+    // deux morceaux pleins pour que l'erreur s'accumule.
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    const hzDuPeripherique = await page.evaluate(() => window.EnregistreurVoix._etat().echantillonnage);
+
+    await page.click('[data-prise="' + avant.id + '"] [data-action="continuer"]');
+    await page.waitForFunction(() => /en cours/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    const avis = await page.evaluate(() => {
+      const m = document.querySelector('[data-cle="frequence"]');
+      return m ? { etat: m.getAttribute('data-state'), texte: m.querySelector('span').textContent } : null;
+    });
+    const SECONDES = 5;
+    await page.waitForTimeout(SECONDES * 1000);
+    const r = await prendreLaFin(page);
+    const wav = await page.evaluate(async (id) => {
+      const e = window.EnregistreurVoix._etat();
+      const x = await window.VoixStockage.exporterWav(e.db, id);
+      return { nbEchantillons: x.nbEchantillons, echantillonnage: x.echantillonnage,
+               octets: x.octets };
+    }, avant.id);
+    await ctx.close();
+
+    assert.notEqual(hzDuPeripherique, avant.hz,
+      'le contrôle n\'a de sens que si les deux fréquences diffèrent : périphérique ' +
+      hzDuPeripherique + ' Hz, prise ' + avant.hz + ' Hz');
+    // 1. LE STUDIO LE DIT (E12).
+    assert.ok(avis, 'un avis doit être affiché : aucun');
+    assert.equal(avis.etat, 'warning', 'un avertissement, pas une erreur : ' + avis.etat);
+    assert.ok(new RegExp(avant.hz + ' Hz').test(avis.texte) &&
+              new RegExp(hzDuPeripherique + ' Hz').test(avis.texte),
+      'il doit nommer LES DEUX fréquences : ' + avis.texte);
+    assert.ok(/rééchantillonn/.test(avis.texte), 'et dire ce qui est fait : ' + avis.texte);
+    // 2. LA PRISE GARDE SA FRÉQUENCE.
+    assert.equal(r.stockage.prise.echantillonnage, avant.hz,
+      'la prise garde SA fréquence (E12) : ' + r.stockage.prise.echantillonnage);
+    assert.equal(wav.echantillonnage, avant.hz,
+      'et l\'en-tête WAV la porte : ' + wav.echantillonnage + ' Hz');
+    // 3. LA NOUVELLE PARTIE EST RÉÉCHANTILLONNÉE : son compte d'échantillons suit la fréquence
+    //    de la PRISE, pas celle du périphérique. Cinq secondes à 44 100 Hz font 220 500
+    //    échantillons ; sans rééchantillonnage on en aurait écrit 240 000, soit 8,8 % de trop —
+    //    et le WAV aurait joué la nouvelle partie 8,8 % trop lentement.
+    const ajoutes = r.stockage.echantillons - avant.compteurs.nbEchantillons;
+    const attendu = SECONDES * avant.hz;
+    const sansReechantillonnage = SECONDES * hzDuPeripherique;
+    // LA COMPARAISON EST RELATIVE, et il faut dire pourquoi. Les deux valeurs candidates ne
+    // diffèrent que de 8,8 % — 132 300 contre 144 000 pour trois secondes. Une tolérance
+    // absolue assez large pour absorber la latence du démarrage (quelques dizaines de
+    // millisecondes) serait plus large que l'écart à distinguer : elle accepterait les deux. Le
+    // critère juste est donc : le compte obtenu doit être PLUS PROCHE de la fréquence de la
+    // prise que de celle du périphérique.
+    assert.ok(Math.abs(ajoutes - attendu) < Math.abs(ajoutes - sansReechantillonnage),
+      'la nouvelle partie doit compter ' + attendu + ' échantillons (' + SECONDES + ' s à ' +
+      avant.hz + ' Hz) et non ' + sansReechantillonnage + ' (' + SECONDES + ' s à ' +
+      hzDuPeripherique + ' Hz) : ' +
+      ajoutes + ' ajoutés, soit à ' + Math.abs(ajoutes - attendu) + ' de l\'un et ' +
+      Math.abs(ajoutes - sansReechantillonnage) + ' de l\'autre');
+    assert.ok(Math.abs(ajoutes - attendu) < 0.2 * avant.hz,
+      'et rester à moins de 0,2 s de la valeur attendue : ' + ajoutes + ' contre ' + attendu +
+      ' (' + (Math.abs(ajoutes - attendu) / avant.hz).toFixed(3) + ' s d\'écart)');
+    // 4. LE RACCORD DIT CE QUI A ÉTÉ FAIT.
+    const raccord = r.module.journal.filter((e) => e.quoi === 'continuation').pop();
+    assert.ok(raccord, 'un raccord de continuation : ' +
+      JSON.stringify(r.module.journal.map((e) => e.quoi)));
+    assert.equal(raccord.reechantillonnageVers, avant.hz,
+      'et il doit porter la fréquence de destination : ' + raccord.reechantillonnageVers);
+    assert.equal(raccord.frequenceDuPeripherique, hzDuPeripherique,
+      'et celle du périphérique : ' + raccord.frequenceDuPeripherique);
+    // 5. LES POSITIONS DES MORCEAUX SONT DANS LE DOMAINE DE LA PRISE, pas du périphérique.
+    //    Un trou du falsifieur a exigé cette assertion : garder la position du worklet (qui
+    //    compte à 48 000 Hz) sur des morceaux rééchantillonnés à 44 100 Hz passait tous les
+    //    autres contrôles, et aurait décalé les repères de 8,8 % sur toute la nouvelle partie.
+    let somme = 0;
+    r.stockage.debuts.forEach((d, k) => {
+      assert.equal(d, somme,
+        'la position du morceau ' + k + ' doit être ' + somme + ' et vaut ' + d +
+        ' — positions ' + JSON.stringify(r.stockage.debuts) + ', longueurs ' +
+        JSON.stringify(r.stockage.tailles));
+      somme += r.stockage.tailles[k];
+    });
+    // 6. L'EN-TÊTE WAV EST COHÉRENT avec ce qui est relu.
+    assert.equal(wav.nbEchantillons, r.stockage.echantillons,
+      'l\'en-tête porte le nombre RELU : ' + wav.nbEchantillons + ' contre ' +
+      r.stockage.echantillons);
+    assert.equal(wav.octets, 44 + r.stockage.echantillons * 2,
+      'et la taille suit : ' + wav.octets);
+    console.log('        prise ' + avant.hz + ' Hz · périphérique ' + hzDuPeripherique +
+      ' Hz · morceaux de 2 s · ' + SECONDES + ' s ajoutées = ' + ajoutes + ' éch (attendu ' + attendu +
+      ', sans rééchantillonnage ' + sansReechantillonnage + ') · WAV ' + wav.nbEchantillons +
+      ' éch à ' + wav.echantillonnage + ' Hz');
+  });
+
+  // ── §7b — (E5) CE QUI EST ANNONCÉ EST CE QUI EST LÀ, MÊME SI LA PRISE DIT AUTRE CHOSE ────
+  await controle('§7b la reprise compte les morceaux RELUS, pas ceux que la prise déclare', async () => {
+    // POURQUOI CE CONTRÔLE EXISTE EN PLUS DE §7. Depuis T1 ter, le journal et les compteurs de
+    // la prise sont écrits à CHAQUE morceau — il le fallait, sans quoi une prise tuée perdait
+    // tous ses raccords (§32). L'effet de bord est que « ce que la prise déclare » et « ce qui
+    // est là » coïncident presque toujours : §7 ne distinguait plus les deux, et le falsifieur
+    // l'a dit (la mutation qui fait lire les compteurs déclarés ne faisait plus échouer personne).
+    //
+    // ON FABRIQUE DONC L'ÉCART À COUP SÛR : un morceau est écrit DIRECTEMENT dans le stockage,
+    // sans passer par le module, donc la prise ne peut pas le savoir. Ce qui est annoncé doit
+    // alors compter ce morceau-là. C'est exactement la situation d'un crash survenu entre
+    // l'écriture d'un morceau et la mise à jour de la prise.
+    const ctx = await nav.newContext({ permissions: ['microphone'] });
+    const page = await ctx.newPage();
+    await page.goto(base + '/banc-enregistreur.html' +
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const e = window.EnregistreurVoix._etat();
+      return e.sommesAnalyse && e.sommesAnalyse.n > 20000;
+    }, null, { timeout: 15000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().morceauxEcrits >= 2,
+      null, { timeout: 20000 });
+    const priseId = await page.evaluate(() => window.EnregistreurVoix._etat().priseId);
+    await page.close();
+
+    const page2 = await ctx.newPage();
+    await page2.goto(base + '/banc-enregistreur.html');
+    await page2.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    // ON AJOUTE UN MORCEAU DANS LE DOS DE LA PRISE.
+    const ajout = await page2.evaluate(async (id) => {
+      const e = window.EnregistreurVoix._etat();
+      const vrai = await window.EnregistreurVoix._relireLesCompteurs(id);
+      const prise = await window.VoixStockage.lirePrise(e.db, id);
+      const bout = new Int16Array(12345);
+      for (let i = 0; i < bout.length; i++) bout[i] = ((i % 200) - 100) * 50;
+      await window.VoixStockage.ecrireMorceau(e.db, id, vrai.prochainIndex,
+        vrai.nbEchantillons, bout.buffer, true);
+      return { declareAvant: { nbMorceaux: prise.nbMorceaux, nbEchantillons: prise.nbEchantillons },
+               relusAvant: vrai, ajoutes: bout.length };
+    }, priseId);
+    await page2.reload();
+    await page2.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await page2.waitForFunction(() => !!document.querySelector('[data-reprise-prise]'),
+      null, { timeout: 20000 });
+    const vu = await page2.evaluate(async (id) => {
+      const e = window.EnregistreurVoix._etat();
+      const prise = await window.VoixStockage.lirePrise(e.db, id);
+      const vrai = await window.EnregistreurVoix._relireLesCompteurs(id);
+      const boite = document.querySelector('[data-reprise] [data-reprise-detail]');
+      const carte = document.querySelector('[data-prise="' + id + '"] [data-detail]');
+      return { declare: { nbMorceaux: prise.nbMorceaux, nbEchantillons: prise.nbEchantillons },
+               relus: vrai, boite: boite ? boite.textContent : null,
+               carte: carte ? carte.textContent : null };
+    }, priseId);
+    await ctx.close();
+
+    // 1. L'ÉCART EXISTE BIEN : sans lui le contrôle ne prouverait rien.
+    // L'ÉCART EST D'AU MOINS UN MORCEAU — et pas exactement un : la fermeture en avait déjà
+    // laissé un (le dernier morceau écrit avant la mort de la page n'a pas eu le temps d'être
+    // déclaré), auquel s'ajoute celui qu'on vient d'écrire dans le dos de la prise. Première
+    // version de cette assertion : « exactement un », et elle était fausse pour cette raison.
+    assert.equal(vu.relus.nbMorceaux, ajout.relusAvant.nbMorceaux + 1,
+      'le morceau ajouté doit être le seul ajout : ' + vu.relus.nbMorceaux + ' contre ' +
+      ajout.relusAvant.nbMorceaux + ' avant');
+    assert.ok(vu.relus.nbMorceaux > vu.declare.nbMorceaux,
+      'et il doit exister un écart entre ce qui est là et ce que la prise déclare, sinon le ' +
+      'contrôle ne prouve rien : ' + vu.relus.nbMorceaux + ' relus contre ' +
+      vu.declare.nbMorceaux + ' déclarés');
+    assert.ok(vu.relus.nbEchantillons >= vu.declare.nbEchantillons + ajout.ajoutes,
+      'l\'écart en échantillons doit au moins porter les ' + ajout.ajoutes + ' ajoutés : ' +
+      vu.relus.nbEchantillons + ' contre ' + vu.declare.nbEchantillons);
+    // 2. L'ENCADRÉ DE REPRISE ANNONCE CE QUI EST LÀ.
+    assert.ok(vu.boite, 'l\'encadré de reprise doit être affiché');
+    assert.ok(vu.boite.includes(vu.relus.nbMorceaux + ' morceaux retrouvés'),
+      'il doit annoncer les ' + vu.relus.nbMorceaux + ' morceaux RELUS, et non les ' +
+      vu.declare.nbMorceaux + ' déclarés : ' + vu.boite);
+    assert.ok(vu.boite.includes(vu.relus.nbEchantillons + ' échantillons'),
+      'et les échantillons relus : ' + vu.boite);
+    assert.ok(/relu dans IndexedDB, pas déduit/.test(vu.boite),
+      'et dire d\'où vient son compte : ' + vu.boite);
+    // 3. LA FICHE DE LA PRISE DIT LA MÊME CHOSE (défaut 6).
+    assert.ok(vu.carte && vu.carte.includes(vu.relus.nbMorceaux + ' morceaux'),
+      'la fiche doit annoncer le même compte : ' + vu.carte);
+    console.log('        déclaré ' + vu.declare.nbMorceaux + ' morceaux / ' +
+      vu.declare.nbEchantillons + ' éch · réellement là ' + vu.relus.nbMorceaux + ' / ' +
+      vu.relus.nbEchantillons + ' · annoncé : ' + vu.boite.slice(0, 80));
   });
 
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────

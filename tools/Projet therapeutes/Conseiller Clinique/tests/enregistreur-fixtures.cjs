@@ -54,6 +54,55 @@ function ecrireWav(chemin, canaux, echantillonnage) {
   return { octets: tampon.length, echantillons: n, canaux: nbCanaux };
 }
 
+// ── ÉCRITURE WAV À UNE PROFONDEUR CHOISIE, pour les fixtures d'IMPORT (E12) ─────────────────
+// Le produit n'écrit que du 16 bits mono ; l'import, lui, doit accepter 16 et 24 bits, mono et
+// stéréo, et REFUSER le reste. Il faut donc un générateur capable d'écrire ce que le produit
+// n'écrit pas — y compris du 8 bits, qui doit être refusé avec sa raison.
+function ecrireWavProfond(chemin, canaux, echantillonnage, bits) {
+  const nbCanaux = canaux.length;
+  const n = canaux[0].length;
+  const octets = bits / 8;
+  const octetsDonnees = n * nbCanaux * octets;
+  const tampon = Buffer.alloc(44 + octetsDonnees);
+  tampon.write('RIFF', 0, 'ascii');
+  tampon.writeUInt32LE(36 + octetsDonnees, 4);
+  tampon.write('WAVE', 8, 'ascii');
+  tampon.write('fmt ', 12, 'ascii');
+  tampon.writeUInt32LE(16, 16);
+  tampon.writeUInt16LE(1, 20);                                  // PCM entier
+  tampon.writeUInt16LE(nbCanaux, 22);
+  tampon.writeUInt32LE(echantillonnage, 24);
+  tampon.writeUInt32LE(echantillonnage * nbCanaux * octets, 28);
+  tampon.writeUInt16LE(nbCanaux * octets, 32);
+  tampon.writeUInt16LE(bits, 34);
+  tampon.write('data', 36, 'ascii');
+  tampon.writeUInt32LE(octetsDonnees, 40);
+  let p = 44;
+  for (let i = 0; i < n; i++) {
+    for (let c = 0; c < nbCanaux; c++) {
+      const v = Math.max(-1, Math.min(1, canaux[c][i]));
+      if (bits === 8) {
+        // Le 8 bits d'un WAV est NON signé, centré sur 128 : c'est le format, et il doit être
+        // refusé par l'import — mais il doit d'abord être écrit correctement, sinon le refus
+        // porterait sur un fichier malformé et ne prouverait rien.
+        tampon.writeUInt8(Math.max(0, Math.min(255, Math.round(v * 127) + 128)), p);
+      } else if (bits === 16) {
+        tampon.writeInt16LE(Math.round(v < 0 ? v * 32768 : v * 32767), p);
+      } else {
+        const e = Math.round(v < 0 ? v * 8388608 : v * 8388607);
+        tampon.writeUInt8(e & 0xff, p);
+        tampon.writeUInt8((e >> 8) & 0xff, p + 1);
+        tampon.writeUInt8((e >> 16) & 0xff, p + 2);
+      }
+      p += octets;
+    }
+  }
+  fs.mkdirSync(path.dirname(chemin), { recursive: true });
+  fs.writeFileSync(chemin, tampon);
+  return { octets: tampon.length, echantillons: n, canaux: nbCanaux, bits: bits,
+           echantillonnage: echantillonnage };
+}
+
 // Un générateur pseudo-aléatoire À GRAINE : une fixture doit être identique d'une exécution à
 // l'autre, sinon un contrôle qui échoue une fois sur dix est indébogable.
 function alea(graine) {
@@ -443,6 +492,69 @@ const FIXTURES = [
     },
   },
   {
+    nom: 'import-mono-16-44100.wav',
+    bits: 16, hz: 44100,
+    pourquoi: 'T1 ter (E12, point 5) — IMPORT 16 BITS MONO À 44 100 Hz. Deux faits à la fois : ' +
+              'l\'en-tête est lu à la main et la fréquence du FICHIER est conservée (E11), et ' +
+              'cette prise à 44 100 Hz, continuée sur une machine à 48 000 Hz, force le ' +
+              'rééchantillonnage de la nouvelle partie SANS toucher à la configuration du Mac.',
+    attendu: '44 100 Hz conservés ; morceau de 220 544 échantillons (1 723 blocs) ; canal « entrée mono »',
+    faire: () => {
+      const n = 44100 * 3;
+      const a = new Float32Array(n);
+      for (let i = 0; i < n; i++) a[i] = 0.3 * Math.sin((2 * Math.PI * 220 * i) / 44100);
+      return { canaux: [a] };
+    },
+  },
+  {
+    nom: 'import-stereo-24-48000.wav',
+    bits: 24, hz: 48000,
+    pourquoi: 'T1 ter (E12, point 5) — IMPORT 24 BITS STÉRÉO, canal droit à zéro numérique. La ' +
+              'conversion doit descendre en 16 bits mono et la stéréo suivre la règle E3: le ' +
+              'canal actif pris tel quel, jamais la moyenne, qui coûterait 6 dB.',
+    attendu: 'canal retenu = gauche, raison « droit vide » ; 16 bits mono en sortie ; 48 000 Hz',
+    faire: () => {
+      const n = 48000 * 2;
+      const g = new Float32Array(n);
+      for (let i = 0; i < n; i++) g[i] = 0.25 * Math.sin((2 * Math.PI * 196 * i) / 48000);
+      return { canaux: [g, zeros(n)] };
+    },
+  },
+  {
+    nom: 'import-refuse-3canaux.wav',
+    bits: 16, hz: 48000,
+    pourquoi: 'T1 ter (E12, point 5) — CE QUI DOIT ÊTRE REFUSÉ, second cas. E12 nomme le mono ' +
+              'et la stéréo. Trois canaux n\'ont pas de règle de mixage décidée : les accepter ' +
+              'obligerait à en inventer une, et E3 ne tranche que pour deux. Sans cette ' +
+              'fixture, la garde sur le nombre de canaux n\'était éprouvée par personne — un ' +
+              'trou trouvé par le falsifieur.',
+    attendu: 'import refusé, raison « 3 canaux », aucune prise créée',
+    faire: () => {
+      const n = 48000;
+      const a = new Float32Array(n), b = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        a[i] = 0.2 * Math.sin((2 * Math.PI * 220 * i) / 48000);
+        b[i] = 0.1 * Math.sin((2 * Math.PI * 330 * i) / 48000);
+      }
+      return { canaux: [a, b, zeros(n)] };
+    },
+  },
+  {
+    nom: 'import-refuse-8bits.wav',
+    bits: 8, hz: 48000,
+    pourquoi: 'T1 ter (E12, point 5) — CE QUI DOIT ÊTRE REFUSÉ. E12 nomme le PCM 16 ou 24 bits ; ' +
+              'le 8 bits n\'en fait pas partie. Un import qui l\'accepterait silencieusement ' +
+              'écrirait une voix dont personne n\'a vérifié l\'échelle. Le refus doit porter sa ' +
+              'raison, et rien ne doit entrer dans le stockage.',
+    attendu: 'import refusé, raison « 8 bits », aucune prise créée',
+    faire: () => {
+      const n = 48000;
+      const a = new Float32Array(n);
+      for (let i = 0; i < n; i++) a[i] = 0.4 * Math.sin((2 * Math.PI * 300 * i) / 48000);
+      return { canaux: [a] };
+    },
+  },
+  {
     nom: 'voix-5min.wav',
     longue: true,
     pourquoi: 'Critère de sortie du lot 3 : une prise de 5 minutes sans perte. Niveau choisi au ' +
@@ -492,11 +604,16 @@ function main() {
   retenues.forEach((f) => {
     const { canaux } = f.faire();
     const chemin = path.join(SORTIE, f.nom);
-    const r = ecrireWav(chemin, canaux, ECH);
+    // Les fixtures d'import portent leur propre profondeur et leur propre fréquence : c'est ce
+    // qu'elles éprouvent. Toutes les autres restent du 16 bits à 48 kHz.
+    const r = (f.bits && f.bits !== 16) || f.hz
+      ? ecrireWavProfond(chemin, canaux, f.hz || ECH, f.bits || 16)
+      : ecrireWav(chemin, canaux, ECH);
     index.push({ nom: f.nom, pourquoi: f.pourquoi, attendu: f.attendu, ...r,
-                 duree_s: r.echantillons / ECH });
+                 duree_s: r.echantillons / (f.hz || ECH) });
     console.log('écrit  ' + f.nom.padEnd(34) + r.echantillons + ' éch · ' + r.canaux +
-                ' canal(aux) · ' + (r.octets / 1048576).toFixed(2) + ' Mo');
+                ' canal(aux) · ' + (f.bits || 16) + ' bits · ' + (f.hz || ECH) + ' Hz · ' +
+                (r.octets / 1048576).toFixed(2) + ' Mo');
   });
   fs.writeFileSync(path.join(SORTIE, 'index.json'), JSON.stringify(index, null, 2));
   console.log('\n' + index.length + ' fixtures dans ' + SORTIE +
@@ -504,6 +621,6 @@ function main() {
   console.log('Dossier ignoré par git : rien de tout cela n\'entre dans le dépôt.');
 }
 
-module.exports = { FIXTURES, ecrireWav, sinusPlusBruit, zeros, alea, SORTIE, ECH,
+module.exports = { FIXTURES, ecrireWav, ecrireWavProfond, sinusPlusBruit, zeros, alea, SORTIE, ECH,
                    bruitAuNiveau, efficaceDbfs, centile20DesFenetresDe100ms };
 if (require.main === module) main();

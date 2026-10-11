@@ -191,7 +191,7 @@ const ESSAIS = [
   {
     nom: 'une prise écrase la précédente (T9 rompu)',
     fichier: 'module',
-    de: "    var id = 'prise-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);",
+    de: "    var id = prolonge\n      || ('prise-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7));",
     vers: "    var id = 'prise-unique';",
     sections: '§15',
     attendu: 'T9 : chaque prise est nommée, datée, et JAMAIS écrasée',
@@ -199,10 +199,10 @@ const ESSAIS = [
   {
     nom: 'la reprise annonce ce que la prise déclarait au lieu de relire les morceaux',
     fichier: 'module',
-    de: '      return window.VoixStockage.parcourirMorceaux(_etat.db, p.id, function (m) {\n        nb++; ech += m.pcm.byteLength / 2;\n      }).then(function () {',
-    vers: '      return Promise.resolve().then(function () {\n        nb = p.nbMorceaux || 0; ech = p.nbEchantillons || 0;\n      }).then(function () {',
-    sections: '§7',
-    attendu: 'une prise coupée déclare 0 : seul le relevé des morceaux dit ce qui a survécu (E5)',
+    de: '      return relireLesCompteurs(p.id).then(function (vrai) {\n        var nb = vrai.nbMorceaux, ech = vrai.nbEchantillons;',
+    vers: '      return Promise.resolve().then(function () {\n        var nb = p.nbMorceaux || 0, ech = p.nbEchantillons || 0;',
+    sections: '§7b',
+    attendu: 'seul le relevé des morceaux dit ce qui est là : depuis T1 ter les compteurs de la prise sont écrits à chaque morceau, donc §7b fabrique l\'écart à coup sûr (E5)',
   },
   {
     nom: 'le morceau partiel n\'est plus poussé quand la page se masque',
@@ -514,8 +514,8 @@ const ESSAIS = [
   {
     nom: "le worklet garde son compteur d'échantillons après l'arrêt",
     fichier: "worklet",
-    de: "        this.echantillonsEcrits = 0;\n      } else if (m.type === 'mesurer-bruit') {",
-    vers: "      } else if (m.type === 'mesurer-bruit') {",
+    de: "        this.echantillonsEcrits = 0;\n      } else if (m.type === 'mettre-en-pause') {",
+    vers: "      } else if (m.type === 'mettre-en-pause') {",
     sections: "§22b",
     attendu: "la seconde garde : entre deux prises, le relevé du worklet doit porter zéro",
   },
@@ -534,8 +534,24 @@ const ESSAIS = [
     fichier: "module",
     de: "  function peindreReleve(m) {\n    peindreEtats();",
     vers: "  function peindreReleve(m) {",
+    equivalente: true,
     sections: "§23",
-    attendu: "`track.stop()` ne déclenche pas `ended` : un état peint sur événement ment",
+    attendu: "ÉQUIVALENTE DEPUIS T1 TER, et la raison se dit : ce repeint par relevé était, à "
+      + "T1 bis, le SEUL chemin qui rendait une piste morte visible, `track.stop()` ne "
+      + "déclenchant aucun événement. Depuis que la perte du micro met la prise en pause (E8), "
+      + "c'est `surveillerLeMicro` qui constate la mort et qui repeint elle-même : tous les "
+      + "états affichés sont désormais repeints par leur propre gestionnaire, et aucun contrôle "
+      + "ne peut voir l'absence de ce repeint-là. Il reste en place comme filet — un état lu "
+      + "vaut mieux qu'un état mémorisé — et la garde qui porte réellement la garantie est la "
+      + "SURVEILLANCE à chaque relevé, que la mutation suivante éprouve.",
+  },
+  {
+    nom: "la surveillance du micro ne tourne plus à chaque relevé",
+    fichier: "module",
+    de: "    // (E8) LA PERTE DU MICRO SE CONSTATE ICI, vingt fois par seconde : `track.stop()` ne\n    // déclenche aucun événement, et une piste morte continue de livrer des zéros.\n    surveillerLeMicro();",
+    vers: "    void 0;",
+    sections: "§31",
+    attendu: "une piste morte ne déclenche AUCUN événement et le contexte reste running : le relevé est le seul chemin de détection (E8)",
   },
   {
     nom: "une piste terminée est annoncée vivante",
@@ -624,7 +640,166 @@ const ESSAIS = [
     attendu: "DÉFAUT 2 : « Enregistrement 01:16,221 » restait affiché après l'arrêt",
   },
 
-  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────
+  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────  // ── (E12) LA PAUSE, LA REPRISE, LA CONTINUATION ────────────────────────────────────────
+  {
+    nom: "la pause continue d'écrire : elle ne change pas de mode",
+    fichier: "worklet",
+    de: "        this.mode = 'analyse';\n        this.port.postMessage({\n          type: 'en-pause',",
+    vers: "        this.port.postMessage({\n          type: 'en-pause',",
+    sections: "§30",
+    attendu: "E12 : en pause, AUCUN échantillon n'est écrit et la pause n'occupe aucun temps dans la voix",
+  },
+  {
+    nom: "les zéros de la fin ne sont plus retirés quand le micro est perdu",
+    fichier: "worklet",
+    de: "          this.dansLeMorceau -= retires;\n          this.echantillonsEcrits -= retires;",
+    vers: "          retires = 0;",
+    sections: "§31",
+    attendu: "E8 : « aucun zéro n'est écrit » quand la piste se termine ou que le contexte est interrompu",
+  },
+  {
+    nom: "une continuation repart de l'index 0 : elle écrase les morceaux de la prise",
+    fichier: "worklet",
+    de: "        this.indexMorceau = Math.max(0, Math.round(m.indexDepart || 0));",
+    vers: "        this.indexMorceau = 0;",
+    sections: "§32",
+    attendu: "E12 : la continuation prolonge la MÊME prise, sans créer de bout à part",
+  },
+  {
+    nom: "une continuation repart de l'échantillon 0 : les positions du journal mentent",
+    fichier: "worklet",
+    de: "        this.echantillonsEcrits = Math.max(0, Math.round(m.echantillonsDepart || 0));",
+    vers: "        this.echantillonsEcrits = 0;",
+    sections: "§32",
+    attendu: "E12 : les repères restent comptés en échantillons depuis le DÉBUT de la prise",
+  },
+  {
+    nom: "la touche et le bouton ne font plus que mettre en pause, jamais reprendre",
+    fichier: "module",
+    de: "    if (!_etat.enPrise || !_etat.noeud) return Promise.resolve(null);\n    if (_etat.enPause) {",
+    vers: "    if (!_etat.enPrise || !_etat.noeud) return Promise.resolve(null);\n    if (false) {",
+    sections: "§30",
+    attendu: "E12 : « une seule touche bascule pause ET reprise »",
+  },
+  {
+    nom: "une piste terminée n'est plus vue comme une perte de micro",
+    fichier: "module",
+    de: "    if (piste && piste.readyState === 'ended') cause = 'la piste audio s\\'est terminée';",
+    vers: "    if (false) cause = 'la piste audio s\\'est terminée';",
+    sections: "§31",
+    attendu: "E8 : quand la piste se termine, la prise se met en pause d'elle-même",
+  },
+  {
+    nom: "un contexte interrompu n'est plus vu comme une perte de micro",
+    fichier: "module",
+    de: "    else if (ctxEtat === 'suspended' || ctxEtat === 'interrupted') cause = 'le contexte audio est ' + ctxEtat;",
+    vers: "    else if (false) cause = 'le contexte audio est ' + ctxEtat;",
+    sections: "§31b",
+    attendu: "E8 nomme les deux : piste terminée OU contexte interrompu",
+  },
+  {
+    nom: "la surveillance ne tourne plus sur le changement d'état du contexte",
+    fichier: "module",
+    de: "        surveillerLeMicro();",
+    vers: "        void 0;",
+    sections: "§31b",
+    attendu: "un contexte suspendu ne produit plus de relevé : c'est le seul chemin de détection",
+  },
+  {
+    nom: "le worklet ajoute une SECONDE entrée de pause au lieu de compléter la première",
+    fichier: "module",
+    de: "      if (m.raison === 'micro perdu' && _etat.entreeDePause) {",
+    vers: "      if (false) {",
+    sections: "§31b",
+    attendu: "un seul raccord de pause, quels que soient les chemins de détection (§29)",
+  },
+  {
+    nom: "le journal n'est plus écrit qu'à l'arrêt : un crash perd tous les raccords",
+    fichier: "module",
+    de: "        return window.VoixStockage.majPrise(_etat.db, priseId, {\n          nbEchantillons: _etat.echantillonsEcrits,",
+    vers: "        return Promise.resolve(0) || window.VoixStockage.majPrise(_etat.db, priseId, {\n          nbEchantillons: _etat.echantillonsEcrits,",
+    sections: "§32",
+    attendu: "E12 : chaque pause est journalisée ; une prise qu'on peut continuer se souvient",
+  },
+  {
+    nom: "la reprise après perte n'attend plus l'accusé du NOUVEAU worklet",
+    fichier: "module",
+    de: "      _etat.priseDemarreeRecue = false;\n      _etat.noeud.port.postMessage({ type: 'demarrer-prise', canal: _etat.canalRetenu,",
+    vers: "      _etat.noeud.port.postMessage({ type: 'demarrer-prise', canal: _etat.canalRetenu,",
+    equivalente: true,
+    sections: "§31",
+    attendu: "ÉQUIVALENTE DANS CE NAVIGATEUR, et la raison se dit : sans cette remise à faux, "
+      + "l'attente est satisfaite par l'accusé du worklet PRÉCÉDENT — celui d'un contexte qu'on "
+      + "vient de fermer. Le défaut est donc une COURSE : le module croit le nouveau worklet "
+      + "prêt avant qu'il ait rien reçu. Chromium reconstruit le graphe en quelques "
+      + "millisecondes et le nouveau worklet accuse réception dans le même tour, si bien "
+      + "qu'aucun contrôle ne peut séparer les deux cas. Ce qui la rendrait décidable : servir "
+      + "le worklet avec le levier `?lent=NNN` du serveur de contrôle (celui dont se sert §19b) "
+      + "pendant la reprise, pour que l'accusé du neuf arrive après la suite du code. La garde "
+      + "reste en place : une course qu'on ne sait pas reproduire reste une course.",
+  },
+  {
+    nom: "une continuation jette le journal de la prise au lieu de le reprendre",
+    fichier: "module",
+    de: "        _etat.journal = (d.prise.journal || []).slice();",
+    vers: "        _etat.journal = [];",
+    sections: "§32",
+    attendu: "E12 : une prise continuée se souvient de ses raccords ; les jeter les perdrait pour de bon",
+  },
+
+  // ── (E12, point 5) L'IMPORT D'UNE VOIX ─────────────────────────────────────────────────
+  {
+    nom: "l'import accepte n'importe quelle profondeur de bits",
+    fichier: "module",
+    de: "    if (fmt.bits !== 16 && fmt.bits !== 24) {",
+    vers: "    if (false) {",
+    sections: "§33",
+    attendu: "E12 nomme le PCM 16 ou 24 bits : accepter du 8 bits écrirait une voix sans échelle vérifiée",
+  },
+  {
+    nom: "l'import accepte n'importe quel nombre de canaux",
+    fichier: "module",
+    de: "    if (fmt.canaux !== 1 && fmt.canaux !== 2) {",
+    vers: "    if (false) {",
+    sections: "§33",
+    attendu: "E12 nomme le mono et la stéréo, et rien d'autre",
+  },
+  {
+    nom: "un morceau importé n'est plus un nombre entier de blocs de 128",
+    fichier: "module",
+    de: "      var parMorceau = Math.max(128, Math.round(demandee / 128) * 128);",
+    vers: "      var parMorceau = demandee;",
+    sections: "§33",
+    attendu: "E11 vaut aussi pour une prise importée : 220 500 n'est pas un entier de blocs",
+  },
+
+  // ── (E11 / E12) LE RÉÉCHANTILLONNAGE DE LA NOUVELLE PARTIE ─────────────────────────────
+  {
+    nom: "la nouvelle partie n'est plus rééchantillonnée",
+    fichier: "module",
+    de: "        if (!vers || vers === de) return pcm;",
+    vers: "        return pcm;",
+    sections: "§34",
+    attendu: "E12 : si le périphérique a changé de fréquence, la nouvelle partie est rééchantillonnée",
+  },
+  {
+    nom: "la position d'un morceau rééchantillonné reste celle du worklet",
+    fichier: "module",
+    de: "        var position = (vers && vers !== de) ? _etat.echantillonsEcrits : debut;",
+    vers: "        var position = debut;",
+    sections: "§34",
+    attendu: "le worklet compte dans la fréquence du périphérique, la prise vit dans la sienne",
+  },
+  {
+    nom: "le changement de fréquence n'est plus dit",
+    fichier: "module",
+    de: "          _etat.reechantillonnerVers = d.prise.echantillonnage;",
+    vers: "          _etat.reechantillonnerVers = null;",
+    sections: "§34",
+    attendu: "E12 : « le Studio LE DIT et rééchantillonne la nouvelle partie »",
+  },
+
+  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────
   {
     nom: "le garde de génération est retiré du chemin de SUCCÈS",
     fichier: 'module',
