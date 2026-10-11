@@ -1747,8 +1747,9 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       'et l\'instant correspondant : ' + t1.texte);
     assert.equal(t1.alerteAvantAvis, true,
       'la zone d\'alerte doit PRÉCÉDER les avis, pour qu\'aucun avis ne la repousse (E8)');
-    assert.equal(t1.collee, 'sticky',
-      'et rester fixée en haut quand la page défile (E8) : position ' + t1.collee);
+    assert.equal(t1.collee, 'fixed',
+      'et être rattachée à la FENÊTRE, non au panneau (E8 : « fixée en haut de la fenêtre ») : '
+      + 'position ' + t1.collee + '. Le défilement lui-même est éprouvé par §24c.');
 
     // L'INTITULÉ PENDANT, PUIS APRÈS L'ARRÊT.
     const pendant = await page.evaluate(() => document.querySelector('[data-chrono-intitule]').textContent);
@@ -1769,8 +1770,9 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       'et le bandeau devient NEUTRE à l\'arrêt (E8) : ' + apres.etat + ' — ' + apres.texte);
     assert.ok(/avait été à zéro/.test(apres.texte),
       'au passé, puisque c\'est un résumé : ' + apres.texte);
-    console.log('        ' + t1.secondes + ' s → ' + t2.secondes + ' s en 3 s · sticky · ' +
-      'alerte avant avis · « Enregistrement » → « ' + apres.intitule + ' » · résumé ' + apres.etat);
+    console.log('        ' + t1.secondes + ' s → ' + t2.secondes + ' s en 3 s · position ' +
+      t1.collee + ' · alerte avant avis · « Enregistrement » → « ' + apres.intitule +
+      ' » · résumé ' + apres.etat);
   });
 
   await controle('§24b aucune alerte ne survit à la prise suivante, et aucun avis ne la couvre', async () => {
@@ -1829,6 +1831,154 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       'et aucun avis non plus : ' + JSON.stringify(auDemarrage.avis));
     console.log('        avant : alertes ' + JSON.stringify(avant.alertes) + ' avis ' +
       JSON.stringify(avant.avis) + ' → au démarrage suivant : les deux zones vides');
+  });
+
+  await controle('§24c la page DÉFILE : le bandeau reste en haut de la fenêtre (E8)', async () => {
+    // E8 dit « fixée en haut de la FENÊTRE ». Première version : `position: sticky`, qui collait
+    // l'alerte en haut du PANNEAU — dès que la page défilait au-delà du panneau, l'alerte partait
+    // avec lui. Christophe l'a relevé le 11 octobre. Ce contrôle fait réellement défiler la page
+    // et mesure la position du bandeau à l'écran, en pixels.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/zeros-71s.wav');
+    // Une fenêtre basse, pour que la page ait de quoi défiler.
+    await page.setViewportSize({ width: 1000, height: 420 });
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => !!document.querySelector('[data-alerte] [data-cle="muet"]'),
+      null, { timeout: 20000 });
+
+    const mesurer = () => page.evaluate(() => {
+      const m = document.querySelector('[data-alerte] [data-cle="muet"]');
+      const r = m.getBoundingClientRect();
+      return {
+        defilement: Math.round(window.scrollY),
+        hauteurFenetre: window.innerHeight,
+        hauteurPage: Math.round(document.documentElement.scrollHeight),
+        haut: Math.round(r.top), bas: Math.round(r.bottom),
+        largeur: Math.round(r.width), visible: r.top < window.innerHeight && r.bottom > 0,
+        // Le point décisif : l'élément qui occupe le pixel du haut de la fenêtre, au milieu
+        // horizontalement. Si c'est le bandeau (ou un de ses enfants), il est bien DEVANT.
+        auSommet: (() => {
+          const e = document.elementFromPoint(Math.round(window.innerWidth / 2), 4);
+          return e ? !!e.closest('[data-alerte]') : false;
+        })(),
+      };
+    });
+
+    const avant = await mesurer();
+    // ON FAIT DÉFILER POUR DE VRAI, jusqu'en bas de la page.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(300);
+    const apres = await mesurer();
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => /terminée|muette/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    await ctx.close();
+
+    // 1. LA PAGE A VRAIMENT DÉFILÉ : sans cela le contrôle ne prouverait rien.
+    assert.ok(apres.defilement > 150,
+      'la page doit avoir défilé d\'au moins 150 px, sinon le contrôle ne contrôle rien : ' +
+      apres.defilement + ' px (page ' + apres.hauteurPage + ' px, fenêtre ' +
+      apres.hauteurFenetre + ' px)');
+    // 2. LE BANDEAU EST TOUJOURS EN HAUT DE LA FENÊTRE, aux mêmes pixels qu'avant.
+    assert.ok(apres.haut >= 0 && apres.haut <= 24,
+      'après défilement, le bandeau doit rester à quelques pixels du haut de la FENÊTRE : ' +
+      apres.haut + ' px (avant défilement : ' + avant.haut + ' px)');
+    assert.equal(apres.haut, avant.haut,
+      'et ne pas avoir bougé d\'un pixel : ' + avant.haut + ' → ' + apres.haut);
+    assert.equal(apres.visible, true, 'il doit être dans la fenêtre : ' + JSON.stringify(apres));
+    // 3. IL EST DEVANT, et non caché derrière le contenu.
+    assert.equal(apres.auSommet, true,
+      'et c\'est bien lui qui occupe le haut de la fenêtre, non le contenu passé par-dessus');
+    console.log('        page ' + apres.hauteurPage + ' px, fenêtre ' + apres.hauteurFenetre +
+      ' px · défilé de ' + apres.defilement + ' px · bandeau à ' + avant.haut + ' px avant, ' +
+      apres.haut + ' px après, largeur ' + apres.largeur + ' px, au sommet de la fenêtre');
+  });
+
+  // ── §29 — (D3) PAS DEUX FOIS LE MÊME ÉVÉNEMENT AU JOURNAL ─────────────────────────────────
+  await controle('§29 deux vidanges de suite : un seul « morceau partiel poussé », aucun doublon', async () => {
+    // DÉFAUT 3 DU RELEVÉ D'ESSAIS, son dernier volet : « le journal contient morceau partiel
+    // poussé DEUX FOIS, dont une à 0 échantillon ». La cause : `visibilitychange` et `pagehide`
+    // demandent tous deux la vidange, et la seconde n'a plus rien à pousser. Les deux demandes
+    // restent consignées — les taire masquerait l'ordre réel des événements — mais sous deux
+    // libellés, parce que ce sont deux faits : un morceau poussé, et rien à pousser.
+    //
+    // Ce contrôle manquait au compte rendu de T1 bis : la correction était faite, personne ne la
+    // gardait.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.selectOption('[data-taille-morceau]', '5');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const e = window.EnregistreurVoix._etat();
+      return e.sommesAnalyse && e.sommesAnalyse.n > 20000;
+    }, null, { timeout: 15000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(1800);
+
+    // LES DEUX DEMANDES, ENCHAÎNÉES SANS RIEN ENTRE ELLES. C'est ce que fait le navigateur quand
+    // on ferme un onglet : `visibilitychange` puis `pagehide` à quelques millisecondes. Première
+    // version de ce contrôle : j'attendais l'écriture du premier morceau avant de déclencher le
+    // second événement, soit six cents millisecondes plus tard — assez pour qu'un VRAI second
+    // morceau partiel se soit formé. Le journal en portait donc deux, à juste titre, et mon
+    // contrôle accusait le produit d'un doublon qu'il n'avait pas. Il faut enchaîner.
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().morceauxEcrits >= 1,
+      null, { timeout: 10000 });
+    await page.waitForTimeout(400);
+
+    const r = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { journal: e.journal.map((x) => ({ quoi: x.quoi, a: x.aEchantillon,
+                                                pousses: x.echantillonsPousses })),
+               morceaux: e.morceauxEcrits };
+    });
+    await ctx.close();
+
+    const libelles = r.journal.map((e) => e.quoi);
+    // 1. LES DEUX DEMANDES SONT BIEN ARRIVÉES : sans cela le contrôle ne prouve rien.
+    assert.ok(libelles.includes('page masquée'),
+      'la page doit s\'être masquée : ' + JSON.stringify(libelles));
+    assert.ok(libelles.includes('page déchargée'),
+      'puis déchargée : ' + JSON.stringify(libelles));
+    // 2. UN SEUL « morceau partiel poussé ».
+    const pousses = r.journal.filter((e) => e.quoi === 'morceau partiel poussé');
+    assert.equal(pousses.length, 1,
+      'un seul morceau partiel a été poussé, le journal ne doit pas le dire deux fois : ' +
+      JSON.stringify(libelles));
+    assert.ok(pousses[0].pousses > 0,
+      'et celui-là portait des échantillons : ' + pousses[0].pousses);
+    // 3. LA SECONDE DEMANDE A SON PROPRE LIBELLÉ, et dit zéro.
+    const rien = r.journal.filter((e) => e.quoi === 'vidange demandée, rien à pousser');
+    assert.ok(rien.length >= 1,
+      'la seconde vidange, qui n\'avait rien à pousser, doit être consignée sous son propre ' +
+      'libellé : ' + JSON.stringify(libelles));
+    rien.forEach((e) => {
+      assert.equal(e.pousses, 0,
+        'et annoncer zéro échantillon poussé : ' + e.pousses);
+    });
+    // 4. L'INVARIANT GÉNÉRAL : aucun couple (libellé, position) deux fois. C'est la signature
+    //    d'un doublon, quel que soit l'événement — y compris ceux que je n'ai pas prévus.
+    const vus = new Map();
+    r.journal.forEach((e) => {
+      const cle = e.quoi + '@' + e.a;
+      vus.set(cle, (vus.get(cle) || 0) + 1);
+    });
+    const doubles = [...vus.entries()].filter(([, n]) => n > 1);
+    assert.deepEqual(doubles, [],
+      'aucun événement ne doit figurer deux fois au même échantillon : ' + JSON.stringify(doubles) +
+      ' — journal complet : ' + JSON.stringify(r.journal));
+    console.log('        ' + JSON.stringify(libelles) + ' · 1 morceau partiel poussé (' +
+      pousses[0].pousses + ' éch), ' + rien.length + ' vidange sans rien à pousser, 0 doublon');
   });
 
   // ── §25 — (D6) LA FICHE D'UNE PRISE INACHEVÉE DIT CE QUI EST LÀ ───────────────────────────
@@ -1940,6 +2090,192 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       'et la page doit le dire : ' + JSON.stringify(r.affiche.messages.map((m) => m.texte.slice(0, 40))));
     console.log('        ' + etat + ' · prise « ' + r.stockage.prise.etat + ' » · ' +
       r.stockage.echantillons + ' échantillons écrits');
+  });
+
+  // ── §27 — LE WORKLET À 44 100 Hz, SANS OUVRIR AUCUN PÉRIPHÉRIQUE ──────────────────────────
+  //
+  // POURQUOI CE CONTRÔLE EXISTE. Sept mutations du falsifieur étaient NON DÉCIDABLES sur la
+  // machine de Christophe, dont la sortie est à 48 000 Hz : à cette fréquence, 5 secondes font
+  // 240 000 échantillons, qui sont DÉJÀ un nombre entier de blocs de 128, et 2 secondes font
+  // 96 000 — si bien que « compté en échantillons » et « compté pour 48 kHz » donnent le même
+  // nombre. Christophe a refusé (11 octobre) de remettre sa machine à 44 100 Hz pour un test, et
+  // il a raison : c'est un essai À MOI qui l'avait fait basculer, et aucun contrôle ne doit
+  // dépendre de la configuration de son Mac.
+  //
+  // LA SORTIE N'EST PAS DE FORCER UNE FRÉQUENCE À UN CONTEXTE RÉEL — c'est exactement ce qui a
+  // changé sa machine. C'est un `OfflineAudioContext`, qui rend hors du temps et **n'ouvre aucun
+  // périphérique audio** : il ne peut donc rien changer à la configuration de la machine. Le
+  // worklet qui y tourne est le VRAI, chargé depuis le même fichier que le produit, et son
+  // `sampleRate` global vaut 44 100.
+  await controle('§27 à 44 100 Hz (contexte différé, aucun périphérique) : seuil, morceau et passe-bas', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(async () => {
+      const HZ = 44100;
+
+      // UN RENDU, UN SEUL MESSAGE. Mesuré en écrivant ce contrôle : dans un
+      // `OfflineAudioContext`, un seul des messages mis en file avant `startRendering()` est
+      // traité par le processeur avant la fin du rendu ; le second ne l'est qu'après, quand il
+      // n'y a plus d'échantillons à voir. Deux ordres essayés, deux résultats symétriques :
+      // « bruit puis prise » donnait les fenêtres et aucun morceau, « prise puis bruit » les
+      // morceaux et aucune fenêtre. On fait donc DEUX rendus, un message chacun. Rien de cela ne
+      // concerne le produit, qui tourne en temps réel et attend l'accusé de réception du worklet
+      // entre les deux messages.
+      async function rendre(message, fixture, secondes) {
+        const oc = new OfflineAudioContext(1, HZ * secondes, HZ);
+        await oc.audioWorklet.addModule('enregistreur-worklet.js');
+        const noeud = new AudioWorkletNode(oc, 'enregistreur-voix', {
+          numberOfInputs: 1, numberOfOutputs: 0,
+          channelCount: 2, channelCountMode: 'max', channelInterpretation: 'discrete',
+          processorOptions: { echantillonsParMorceau: Math.round(5 * oc.sampleRate) },
+        });
+        const messages = [];
+        noeud.port.onmessage = (e) => messages.push(e.data);
+        const ab = await fetch('banc-enregistreur/fixtures/' + fixture).then((x) => x.arrayBuffer());
+        const buf = await oc.decodeAudioData(ab.slice(0));
+        const src = oc.createBufferSource(); src.buffer = buf; src.loop = true; src.start();
+        src.connect(noeud);
+        // Un chemin vers la destination : sans lui, le graphe d'un contexte différé peut être
+        // élagué, un nœud sans sortie n'y menant pas. Le gain est à zéro, et de toute façon un
+        // contexte différé ne joue rien — AUCUN périphérique audio n'est ouvert, et c'est tout
+        // l'intérêt : la configuration du Mac ne peut pas être touchée.
+        const muet = oc.createGain(); muet.gain.value = 0;
+        src.connect(muet); muet.connect(oc.destination);
+        noeud.port.postMessage(message);
+        await oc.startRendering();
+        await new Promise((res) => setTimeout(res, 300));
+        return { hz: oc.sampleRate, messages: messages };
+      }
+
+      // ── RENDU A : LA PRISE — seuil de silence et taille d'un morceau ─────────────────────
+      const a = await rendre({ type: 'demarrer-prise', canal: 'gauche' },
+                             'canal-droit-vide.wav', 9);
+      const demarree = a.messages.find((m) => m.type === 'prise-demarree');
+      const morceaux = a.messages.filter((m) => m.type === 'morceau' && !m.partiel);
+
+      // ── RENDU B : LE BRUIT — le passe-bas sur un son pur à 120 Hz ───────────────────────
+      const b = await rendre({ type: 'mesurer-bruit', canal: 'gauche',
+                               echantillons: Math.round(3 * HZ) },
+                             'bruit-120hz.wav', 6);
+      const demarre = b.messages.find((m) => m.type === 'bruit-demarre');
+      const bruit = b.messages.find((m) => m.type === 'bruit');
+      const fenetres = b.messages.filter((m) => m.type === 'fenetre-bruit' && !m.partielle);
+      // On écarte la première fenêtre : le filtre y part de zéro, et son établissement n'est pas
+      // une propriété de sa coupure.
+      const utiles = fenetres.slice(1);
+      const tot = utiles.reduce((t, f) => t + f.sommeCarre, 0);
+      const grave = utiles.reduce((t, f) => t + f.sommeCarreGrave, 0);
+
+      return {
+        hz: a.hz,
+        seuilSilence: demarree.seuilSilenceEchantillons,
+        echantillonsParMorceau: demarree.echantillonsParMorceau,
+        demandeeParLeModule: Math.round(5 * a.hz),
+        tailleDuPremierMorceau: morceaux.length ? morceaux[0].nbEchantillons : null,
+        hzDuWorklet: demarree.echantillonnage,
+        hzDeLaMesure: bruit ? bruit.echantillonnage : null,
+        echantillonsDeLaMesure: bruit ? bruit.n : null,
+        parFenetre: demarre ? demarre.parFenetre : null,
+        fenetres: utiles.length,
+        partGrave: tot > 0 ? grave / tot : null,
+      };
+    });
+    await ctx.close();
+
+    assert.equal(r.hz, 44100, 'le contexte différé doit tourner à 44 100 Hz : ' + r.hz);
+    assert.equal(r.hzDuWorklet, 44100,
+      'et le worklet doit voir cette fréquence, pas une autre : ' + r.hzDuWorklet);
+
+    // #6 — LE SEUIL DE CAPTURE MUETTE EST COMPTÉ EN ÉCHANTILLONS (E8).
+    assert.equal(r.seuilSilence, 88200,
+      '2 s à 44 100 Hz font 88 200 échantillons, et non 96 000 : ' + r.seuilSilence);
+    assert.notEqual(r.seuilSilence, 96000,
+      'un seuil écrit pour 48 kHz vaudrait 96 000, soit 2,18 s à cette fréquence');
+
+    // #12 — UN MORCEAU EST UN NOMBRE ENTIER DE BLOCS DE 128 (E11).
+    assert.equal(r.demandeeParLeModule, 220500,
+      '5 s à 44 100 Hz font 220 500 échantillons demandés : ' + r.demandeeParLeModule);
+    assert.equal(r.echantillonsParMorceau % 128, 0,
+      'et la taille appliquée doit être un nombre ENTIER de blocs de 128 : ' +
+      r.echantillonsParMorceau);
+    assert.equal(r.echantillonsParMorceau, 220544,
+      'soit 1 723 blocs = 220 544 échantillons : ' + r.echantillonsParMorceau);
+    assert.notEqual(r.echantillonsParMorceau, r.demandeeParLeModule,
+      'la valeur appliquée DIFFÈRE de la demandée à cette fréquence : c\'est tout l\'intérêt');
+    assert.equal(r.tailleDuPremierMorceau, 220544,
+      'et les morceaux réellement poussés portent cette taille : ' + r.tailleDuPremierMorceau);
+
+    // #52 — LE PASSE-BAS COUPE À 120 Hz, PAS AILLEURS.
+    assert.equal(r.hzDeLaMesure, 44100,
+      'la mesure de bruit doit porter la fréquence réelle : ' + r.hzDeLaMesure);
+    assert.equal(r.echantillonsDeLaMesure, 132300,
+      '3 s à 44 100 Hz font 132 300 échantillons : ' + r.echantillonsDeLaMesure);
+    assert.equal(r.parFenetre, 4410,
+      'une fenêtre de 100 ms à 44 100 Hz fait 4 410 échantillons : ' + r.parFenetre);
+    assert.ok(r.fenetres >= 20, 'il faut des fenêtres à sommer : ' + r.fenetres);
+    assert.ok(Math.abs(r.partGrave - 0.5) < 0.03,
+      'un passe-bas du 2e ordre laisse passer la MOITIÉ de l\'énergie à sa coupure : part ' +
+      r.partGrave.toFixed(4) + ' attendue 0,50 ± 0,03. Une valeur vers 0,42 signifierait un ' +
+      'filtre calculé pour 48 kHz appliqué à 44 100 Hz, qui couperait vers 110 Hz.');
+
+    console.log('        contexte différé 44 100 Hz, aucun périphérique · seuil ' + r.seuilSilence +
+      ' éch (un seuil « pour 48 kHz » aurait dit 96000) · morceau demandé ' +
+      r.demandeeParLeModule + ' → appliqué ' + r.echantillonsParMorceau + ' (1723 blocs) · ' +
+      'fenêtre ' + r.parFenetre + ' éch · part de grave ' + r.partGrave.toFixed(4));
+  });
+
+  // ── §28 — LA FRÉQUENCE EN PARAMÈTRE : LES RÈGLES ÉPROUVÉES AUX DEUX FRÉQUENCES ────────────
+  await controle('§28 fréquence en paramètre : le rapport et la prise disent la fréquence RÉELLE', async () => {
+    // Les quatre dernières mutations non décidables portent sur ce que le module ÉCRIT : la
+    // fréquence du rapport, l'avis de rééchantillonnage du lot 4, la fréquence de la prise et la
+    // taille d'un morceau. Les règles sont des fonctions pures qui prennent la fréquence en
+    // paramètre : elles s'éprouvent aux deux fréquences sans qu'aucun périphérique soit ouvert,
+    // et elles restent sur le vrai chemin (le rapport et `demarrer` les appellent ; §8, qui passe
+    // par le vrai `getUserMedia`, les emprunte).
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(() => {
+      const A = window.EnregistreurVoix;
+      const prise = (hz, appliquee) => A.descripteurDePrise({
+        id: 'p', nom: 'n', creeLe: 'd', echantillonnage: hz, canaux: 2,
+        canalRetenu: 'gauche', canalRaison: 'r', reglageCanal: 'auto',
+        echantillonsParMorceauAppliquee: appliquee,
+      });
+      return {
+        f44: A.blocFrequence(44100), f48: A.blocFrequence(48000),
+        p44: prise(44100, 220544), p48: prise(48000, 240000),
+      };
+    });
+    await ctx.close();
+
+    // #30 — LA FRÉQUENCE DU RAPPORT EST CELLE DU CONTEXTE.
+    assert.equal(r.f44.reelle_hz, 44100, 'à 44 100 Hz le rapport doit dire 44 100 : ' + r.f44.reelle_hz);
+    assert.equal(r.f48.reelle_hz, 48000, 'et à 48 000, 48 000 : ' + r.f48.reelle_hz);
+    // #31 — L'AVIS DE RÉÉCHANTILLONNAGE DU LOT 4 SUIT LA FRÉQUENCE.
+    assert.equal(r.f44.aReechantillonnerAuLot4, true,
+      'une prise à 44 100 Hz devra être rééchantillonnée au lot 4 : ' + r.f44.aReechantillonnerAuLot4);
+    assert.equal(r.f48.aReechantillonnerAuLot4, false,
+      'une prise à 48 000 Hz, non : ' + r.f48.aReechantillonnerAuLot4);
+    assert.ok(/48 000 Hz toute prise qui n/.test(r.f44.regle),
+      'et la règle doit être écrite à côté du chiffre : ' + r.f44.regle);
+    // #69 — LA PRISE ENREGISTRE LA FRÉQUENCE DE SON CONTEXTE, PAS UNE VALEUR DE RÉGLAGE.
+    assert.equal(r.p44.echantillonnage, 44100,
+      'la prise doit porter la fréquence de son contexte : ' + r.p44.echantillonnage);
+    assert.equal(r.p48.echantillonnage, 48000, 'aux deux fréquences : ' + r.p48.echantillonnage);
+    // #13 — LA PRISE CONSIGNE LA TAILLE APPLIQUÉE, JAMAIS LA DEMANDÉE (#11(f)).
+    assert.equal(r.p44.echantillonsParMorceau, 220544,
+      'la prise doit consigner la taille APPLIQUÉE (220 544), non la demandée (220 500) : ' +
+      r.p44.echantillonsParMorceau);
+    assert.notEqual(r.p44.echantillonsParMorceau, Math.round(5 * 44100),
+      'et surtout pas 5 × 44 100 = 220 500, qui n\'est pas un entier de blocs de 128');
+    assert.equal(r.p48.echantillonsParMorceau, 240000, 'à 48 000 Hz : ' + r.p48.echantillonsParMorceau);
+    // UNE SEULE GRANDEUR : aucune taille nominale ne doit entrer dans le descripteur.
+    const champs = Object.keys(r.p44);
+    assert.ok(!champs.some((c) => /nominal|demandee|demandée/i.test(c)),
+      'aucun champ ne doit porter la taille nominale : ' + JSON.stringify(champs));
+    assert.equal(r.p44.etat, 'en-cours',
+      'une prise naît « en-cours » : si la page meurt, elle est proposée à la reprise (E5)');
+
+    console.log('        44 100 Hz → rapport 44100, lot 4 oui, prise 220544 (demandé 220500) · ' +
+      '48 000 Hz → rapport 48000, lot 4 non, prise 240000');
   });
 
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────

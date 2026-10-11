@@ -109,8 +109,7 @@ const ESSAIS = [
     fichier: 'worklet',
     de: 'this.seuilSilence = Math.round(SECONDES_DE_SILENCE_AVANT_ALERTE * sampleRate);',
     vers: 'this.seuilSilence = Math.round(SECONDES_DE_SILENCE_AVANT_ALERTE * 48000);',
-    exigeAutreQue48k: true,
-    sections: '§5a',
+    sections: '§5a,§27',
     attendu: 'à 44 100 Hz, 2 secondes ne font pas 96 000 échantillons : le seuil suit l\'échantillonnage',
   },
   {
@@ -162,17 +161,15 @@ const ESSAIS = [
     fichier: 'worklet',
     de: '    this.echantillonsParMorceau =\n      Math.round(demandee / ECHANTILLONS_PAR_BLOC) * ECHANTILLONS_PAR_BLOC;',
     vers: '    this.echantillonsParMorceau = demandee;',
-    exigeAutreQue48k: true,
-    sections: '§6',
+    sections: '§27',
     attendu: 'un morceau qui n\'est pas un nombre entier de blocs ferait tomber un repère à cheval',
   },
   {
     nom: 'la prise consigne la taille DEMANDÉE au lieu de la taille appliquée',
     fichier: 'module',
-    de: '        echantillonsParMorceau: _etat.echantillonsParMorceauReels,\n        nbEchantillons: 0,',
-    vers: '        echantillonsParMorceau: Math.round(_etat.tailleMorceau_s * _etat.echantillonnage),\n        nbEchantillons: 0,',
-    exigeAutreQue48k: true,
-    sections: '§6,§8',
+    de: '      echantillonsParMorceau: a.echantillonsParMorceauAppliquee,',
+    vers: '      echantillonsParMorceau: Math.round(a.echantillonnage * 5),',
+    sections: '§28',
     attendu: 'deux valeurs pour une même grandeur : la régression #11(f)',
   },
   {
@@ -312,19 +309,17 @@ const ESSAIS = [
   {
     nom: "le rapport annonce 48 000 Hz quelle que soit la fréquence réelle",
     fichier: "module",
-    de: "        reelle_hz: _etat.echantillonnage,",
-    vers: "        reelle_hz: 48000,",
-    exigeAutreQue48k: true,
-    sections: "§8",
+    de: "      reelle_hz: echantillonnage,",
+    vers: "      reelle_hz: 48000,",
+    sections: "§28",
     attendu: "chaque prise doit enregistrer sa fréquence RÉELLE",
   },
   {
     nom: "le rapport ne dit plus si le lot 4 devra rééchantillonner",
     fichier: "module",
-    de: "        aReechantillonnerAuLot4: _etat.echantillonnage !== 48000,",
-    vers: "        aReechantillonnerAuLot4: false,",
-    exigeAutreQue48k: true,
-    sections: "§8",
+    de: "      aReechantillonnerAuLot4: echantillonnage !== 48000,",
+    vers: "      aReechantillonnerAuLot4: false,",
+    sections: "§28",
     attendu: "le lot 4 rééchantillonne toute prise qui n'est pas à 48 000, avec un avis visible",
   },
   // ── (b) LE CANAL : FENÊTRE ET VÉRIFICATION ─────────────────────────────────────────────
@@ -372,9 +367,9 @@ const ESSAIS = [
   {
     nom: "la taille NOMINALE revient dans la prise, à côté de l'effective",
     fichier: "module",
-    de: "        echantillonsParMorceau: _etat.echantillonsParMorceauReels,\n        nbEchantillons: 0,",
-    vers: "        echantillonsParMorceau: _etat.echantillonsParMorceauReels,\n        tailleMorceau_s: _etat.tailleMorceau_s,\n        nbEchantillons: 0,",
-    sections: "§6",
+    de: "      echantillonsParMorceau: a.echantillonsParMorceauAppliquee,\n      nbEchantillons: 0,",
+    vers: "      echantillonsParMorceau: a.echantillonsParMorceauAppliquee,\n      tailleMorceauNominale_s: 5,\n      nbEchantillons: 0,",
+    sections: "§28",
     attendu: "deux vérités pour une même grandeur : 220 500 contre 220 544 à 44 100 Hz",
   },
   {
@@ -495,8 +490,7 @@ const ESSAIS = [
     fichier: "worklet",
     de: "        this.filtreGrave = new PasseBas(BRUIT_COUPURE_HZ, sampleRate);",
     vers: "        this.filtreGrave = new PasseBas(BRUIT_COUPURE_HZ, 48000);",
-    exigeAutreQue48k: true,
-    sections: "§18d",
+    sections: "§27",
     attendu: "à 44,1 kHz, un filtre calculé pour 48 kHz ne coupe plus à 120 Hz",
   },
   {
@@ -598,12 +592,28 @@ const ESSAIS = [
     attendu: "DÉFAUT 2 : « depuis 2,0 s » figé alors que le signal manquait depuis plus de 5 s",
   },
   {
+    nom: "une vidange sans rien à pousser est consignée comme un morceau poussé",
+    fichier: "module",
+    de: "      journaliser(m.echantillonsPousses > 0 ? 'morceau partiel poussé'\n                                            : 'vidange demandée, rien à pousser',",
+    vers: "      journaliser('morceau partiel poussé',",
+    sections: "§29",
+    attendu: "DÉFAUT 3 : « morceau partiel poussé » deux fois, dont une à 0 échantillon",
+  },
+  {
     nom: "les avis de la prise précédente survivent à la suivante",
     fichier: "module",
     de: "    viderTousLesAvis();",
     vers: "    void 0;",
     sections: "§24b",
     attendu: "E8 : l'alerte ne reste pas affichée à la prise suivante",
+  },
+  {
+    nom: "le bandeau est collé au PANNEAU et non à la fenêtre",
+    fichier: "module",
+    de: "      '<div data-alerte style=\"position:fixed;top:0;left:0;right:0;z-index:60;' +",
+    vers: "      '<div data-alerte style=\"position:sticky;top:0;left:0;right:0;z-index:60;' +",
+    sections: "§24,§24c",
+    attendu: "E8 dit « fixée en haut de la FENÊTRE » : `sticky` la laisse partir avec le panneau",
   },
   {
     nom: "l'intitulé reste « Enregistrement » après l'arrêt",
@@ -644,10 +654,9 @@ const ESSAIS = [
   {
     nom: "la prise enregistre la fréquence de la CONSTANTE, non celle du contexte",
     fichier: "module",
-    de: "        echantillonnage: _etat.echantillonnage,\n        canaux: (_etat.sommesAnalyse && _etat.sommesAnalyse.canaux) || _etat.canaux || 0,",
-    vers: "        echantillonnage: FREQUENCE_DEMANDEE || 48000,\n        canaux: (_etat.sommesAnalyse && _etat.sommesAnalyse.canaux) || _etat.canaux || 0,",
-    exigeAutreQue48k: true,
-    sections: "§16b,§8",
+    de: "      echantillonnage: a.echantillonnage,",
+    vers: "      echantillonnage: FREQUENCE_DEMANDEE || 48000,",
+    sections: "§28",
     attendu: "chaque prise doit enregistrer la fréquence RÉELLE de son contexte, pas une valeur de réglage",
   },
   {
@@ -691,37 +700,6 @@ function restaurer() {
   Object.keys(FICHIERS).forEach((k) => fs.writeFileSync(FICHIERS[k], original[k]));
 }
 
-// ── LA FRÉQUENCE DU PÉRIPHÉRIQUE DÉCIDE DE CE QUI EST DÉCIDABLE ─────────────────────────────
-//
-// Sept mutations ne sont DÉTECTABLES que si le périphérique audio n'est pas à 48 000 Hz. À
-// 48 kHz elles deviennent des équivalences arithmétiques : 5 secondes font 240 000 échantillons,
-// qui SONT un nombre entier de blocs de 128, donc arrondir ou non ne change rien ; la taille
-// nominale égale l'effective ; « annoncer 48 000 » égale « annoncer la fréquence réelle » ; un
-// passe-bas calculé pour 48 kHz EST le bon.
-//
-// Les déclarer « trous » serait une fausse alerte ; « équivalentes », une fausse assurance. On
-// mesure donc la fréquence de la machine et on rend, pour ces sept, un verdict NON DÉCIDABLE —
-// hors du compte des trous, et en disant comment obtenir le verdict.
-function frequenceDeLaMachine() {
-  const script = [
-    "const http=require('node:http');",
-    "const {chromium}=require('playwright');",
-    "(async()=>{",
-    "  const srv=http.createServer((q,s)=>{s.writeHead(200,{'content-type':'text/html'});s.end('<!doctype html><title>x</title>');});",
-    "  await new Promise(r=>srv.listen(0,'127.0.0.1',r));",
-    "  const b=await chromium.launch();",
-    "  const p=await (await b.newContext()).newPage();",
-    "  await p.goto('http://127.0.0.1:'+srv.address().port+'/');",
-    "  const f=await p.evaluate(async()=>{const c=new AudioContext();const x=c.sampleRate;await c.close();return x;});",
-    "  console.log(String(f)); await b.close(); srv.close();",
-    "})();",
-  ].join('\n');
-  try {
-    const sortie = execFileSync(process.execPath, ['-e', script],
-      { encoding: 'utf8', timeout: 90000, env: process.env, cwd: RACINE });
-    return Number(String(sortie).trim()) || 0;
-  } catch (e) { return 0; }
-}
 
 function lancer(sections) {
   try {
@@ -778,15 +756,15 @@ function lancer(sections) {
   }
   console.log(ESSAIS.length + ' ancres vérifiées, chacune présente une fois et une seule.\n');
 
-  const hz = frequenceDeLaMachine();
-  console.log('Fréquence du périphérique audio de cette machine : '
-    + (hz ? hz + ' Hz' : 'non mesurable'));
-  if (hz === 48000) {
-    console.log('  → sept mutations ne sont pas décidables à 48 000 Hz (voir le commentaire de');
-    console.log('    `frequenceDeLaMachine`). Pour obtenir leur verdict : remettre la sortie à');
-    console.log('    44 100 Hz dans Configuration audio et MIDI, puis relancer.');
-  }
-  console.log('');
+  // ── AUCUNE MUTATION NE DÉPEND PLUS DE LA MACHINE (décision de Christophe, 11 octobre) ────
+  // Sept mutations n'étaient décidables qu'à une fréquence autre que 48 000 Hz, et ce script
+  // sondait donc le périphérique audio du Mac pour le dire. Christophe a refusé de changer la
+  // configuration de sa machine pour un test — c'est un essai à moi qui l'avait fait basculer de
+  // 44 100 à 48 000 Hz. Les sept sont désormais décidées autrement : §27 fait tourner le VRAI
+  // worklet dans un `OfflineAudioContext` à 44 100 Hz, qui n'ouvre AUCUN périphérique, et §28
+  // éprouve les règles du module comme fonctions pures de la fréquence. La sonde est supprimée :
+  // elle ouvrait un contexte audio réel pour une information dont plus personne n'a besoin.
+  console.log('Aucune mutation ne dépend de la configuration audio de cette machine.\n');
 
   const resultats = [];
   const indecidables = [];
@@ -795,10 +773,13 @@ function lancer(sections) {
     if (seul === null && (k + 1 < de || k + 1 > a)) return;
     const num = '#' + String(k + 1).padStart(2, ' ');
     const etiquette = e.equivalente ? ' [ÉQUIVALENTE]' : '';
-    if (e.exigeAutreQue48k && hz === 48000) {
-      console.log(num + ' [NON DÉCIDABLE à 48 000 Hz] ' + e.nom);
-      console.log('     à cette fréquence la mutation est arithmétiquement équivalente : aucun');
-      console.log('     contrôle ne peut la distinguer. Verdict reporté, pas escamoté.\n');
+    // Une mutation qui exigerait encore une fréquence particulière de la MACHINE est un défaut
+    // d'inventaire, non un verdict reporté : la règle du 11 octobre interdit qu'un contrôle
+    // dépende de la configuration du Mac de Christophe. On le dit et on compte un trou.
+    if (e.exigeAutreQue48k) {
+      console.log(num + ' [INVENTAIRE FAUTIF] ' + e.nom);
+      console.log('     cette mutation réclame une fréquence de machine particulière. Rendez-la');
+      console.log('     décidable autrement : contexte différé (§27) ou fonction pure (§28).\n');
       indecidables.push({ num: k + 1, nom: e.nom });
       return;
     }
@@ -865,12 +846,19 @@ function lancer(sections) {
   const trous = resultats.filter((r) => !r.conforme && !r.equivalente);
   const fausseEquiv = resultats.filter((r) => !r.conforme && r.equivalente);
   const equiv = resultats.filter((r) => r.conforme && r.equivalente);
-  console.log(resultats.length + ' mutations jouées · ' + (resultats.length - trous.length - fausseEquiv.length) +
-    ' conformes · ' + equiv.length + ' équivalentes consignées · ' + trous.length + ' trou(s) · ' +
-    fausseEquiv.length + ' fausse(s) équivalence(s)'
-    + (indecidables.length ? ' · ' + indecidables.length + ' NON DÉCIDABLE(S) à ' + hz + ' Hz' : ''));
+  // LE COMPTE, SANS AMBIGUÏTÉ. « Conforme » veut dire « s'est comportée comme l'inventaire le
+  // prédisait », dans un sens ou dans l'autre : une mutation ordinaire fait ÉCHOUER ses
+  // contrôles, une mutation déclarée équivalente les laisse PASSER. Les équivalentes sont donc
+  // un SOUS-ENSEMBLE des conformes, et non une catégorie à côté. Écrit ainsi parce que
+  // « 64 conformes · 2 équivalentes » se lisait aussi bien « 64 dont 2 » que « 64 plus 2 ».
+  const conformes = resultats.length - trous.length - fausseEquiv.length;
+  console.log(resultats.length + ' mutations jouées · ' + conformes + ' conformes (dont '
+    + equiv.length + ' équivalentes consignées, qui doivent laisser les contrôles PASSER, et '
+    + (conformes - equiv.length) + ' ordinaires, qui doivent les faire ÉCHOUER) · '
+    + trous.length + ' trou(s) · ' + fausseEquiv.length + ' fausse(s) équivalence(s)'
+    + (indecidables.length ? ' · ' + indecidables.length + ' INVENTAIRE(S) FAUTIF(S)' : ''));
   if (indecidables.length) {
-    console.log('Non décidables sur cette machine — verdict à rendre à une autre fréquence :');
+    console.log('Inventaire fautif — ces mutations réclament une configuration de machine :');
     indecidables.forEach((r) => console.log('  #' + r.num + ' ' + r.nom));
   }
   if (trous.length || fausseEquiv.length) {

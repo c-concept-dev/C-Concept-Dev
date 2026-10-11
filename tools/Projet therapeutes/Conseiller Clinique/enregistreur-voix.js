@@ -656,15 +656,22 @@
       '<header class="sc-bm-panel-title"><h2>Votre voix, à votre rythme</h2>' +
         '<span class="sc-bm-badge" data-mode>Prêt</span></header>' +
 
-      // ── (D2 / E8) L'ALERTE A SA PROPRE ZONE, ET ELLE EST LA PREMIÈRE ────────────────────
-      // E8 : « l'alerte reste affichée, FIXÉE EN HAUT DE LA FENÊTRE, tant que le signal
-      // manque ». Deux défauts du relevé d'essais sont ici : l'alerte n'était pas fixée, et les
-      // avis d'opérations passées (« Prise récupérée », « WAV exporté ») s'empilaient
+      // ── (D2 / E8) L'ALERTE A SA PROPRE ZONE, FIXÉE EN HAUT DE LA FENÊTRE ───────────────
+      // E8, mot pour mot : « l'alerte reste affichée, FIXÉE EN HAUT DE LA FENÊTRE, tant que le
+      // signal manque ». Deux défauts du relevé d'essais sont ici : l'alerte n'était pas fixée,
+      // et les avis d'opérations passées (« Prise récupérée », « WAV exporté ») s'empilaient
       // AU-DESSUS d'elle et la repoussaient hors de vue. Une zone séparée, placée avant les
       // avis dans le document, rend le second défaut impossible par construction plutôt que
-      // par vigilance. Le `position: sticky` est posé en ligne sur un conteneur que ce module
-      // crée : aucun composant du kit n'est modifié.
-      '<div data-alerte style="position:sticky;top:0;z-index:5"></div>' +
+      // par vigilance.
+      //
+      // `fixed` ET NON `sticky`, et c'est une correction du 11 octobre. `sticky` collait
+      // l'alerte en haut du PANNEAU : dès que la page défilait au-delà du panneau, l'alerte
+      // partait avec lui. Christophe a relevé que E8 dit « la fenêtre » et non « le panneau ».
+      // `fixed` la rattache à la fenêtre : elle reste visible où qu'on en soit dans la page.
+      // Le fond opaque vient du composant `sc-bm-message` du kit, qui en porte un ; ce
+      // conteneur n'en a pas besoin, et aucun composant du kit n'est modifié.
+      '<div data-alerte style="position:fixed;top:0;left:0;right:0;z-index:60;' +
+        'display:grid;gap:8px;padding:8px 16px"></div>' +
       '<div data-messages></div>' +
 
       // (D2) L'INTITULÉ EST UNE VARIABLE, PAS UN MOT FIGÉ : « Enregistrement 01:16,221 » restait
@@ -1435,7 +1442,7 @@
       _etat.noeud.port.postMessage({ type: 'demarrer-prise', canal: dec.canal });
       return attendre(function () { return _etat.priseDemarreeRecue; }, 5000);
     }).then(function () {
-      var creation = window.VoixStockage.creerPrise(_etat.db, {
+      var creation = window.VoixStockage.creerPrise(_etat.db, descripteurDePrise({
         id: id,
         nom: nom,
         creeLe: new Date().toISOString(),
@@ -1444,19 +1451,8 @@
         canalRetenu: dec.canal,
         canalRaison: dec.raison,
         reglageCanal: _etat.reglageCanal,
-        // (c) UNE SEULE GRANDEUR : la taille EFFECTIVE, celle que le worklet applique, un nombre
-        // entier de blocs de 128. La taille nominale de 5 s n'est écrite NI dans la prise NI
-        // dans le rapport : c'est une consigne d'interface, pas un fait de la prise, et la garder
-        // à côté de la valeur réelle faisait deux vérités pour une même grandeur — 220 500 contre
-        // 220 544 à 44 100 Hz. Un contrôle vérifie que le rapport et le journal donnent la même.
-        echantillonsParMorceau: _etat.echantillonsParMorceauReels,
-        nbEchantillons: 0,
-        nbMorceaux: 0,
-        // 'en-cours' : si la page meurt maintenant, le prochain chargement la trouvera ainsi et
-        // la PROPOSERA à la reprise (E5). Une prise 'en-cours' n'est jamais réussie.
-        etat: 'en-cours',
-        journal: [],
-      });
+        echantillonsParMorceauAppliquee: _etat.echantillonsParMorceauReels,
+      }));
       // Les morceaux attendent que la prise existe : sans cela, un premier morceau très court
       // (page masquée aussitôt) pourrait être écrit avant son parent.
       _etat.ecrituresEnVol = creation;
@@ -1652,6 +1648,65 @@
       });
   }
 
+  // ── (a / E11) LA FRÉQUENCE DE LA PRISE, FONCTION PURE DE LA FRÉQUENCE ─────────────────────
+  //
+  // POURQUOI UNE FONCTION, ET NON UN LITTÉRAL DANS LE RAPPORT. Trois mutations du falsifieur
+  // — annoncer 48 000 Hz quoi qu'il arrive, taire le rééchantillonnage du lot 4, écrire une
+  // constante dans la prise — étaient NON DÉCIDABLES sur la machine de Christophe, dont la
+  // sortie est à 48 000 Hz : à cette fréquence, la valeur fausse et la valeur juste coïncident.
+  // Christophe a refusé (11 octobre) de remettre sa machine à 44 100 Hz pour un test, et il a
+  // raison : aucun contrôle ne doit dépendre de la configuration de son Mac. La règle est donc
+  // sortie de son contexte et prend la fréquence en PARAMÈTRE : un contrôle l'éprouve à
+  // 44 100 Hz sans qu'aucun périphérique soit ouvert. Elle reste sur le vrai chemin — le
+  // rapport l'appelle, et §8 (vrai getUserMedia) l'emprunte.
+  function blocFrequence(echantillonnage) {
+    return {
+      reelle_hz: echantillonnage,
+      demandee: FREQUENCE_DEMANDEE === null ? 'aucune (fréquence native du périphérique)'
+                                            : FREQUENCE_DEMANDEE,
+      native: FREQUENCE_DEMANDEE === null,
+      aReechantillonnerAuLot4: echantillonnage !== 48000,
+      regle: 'le lot 4 rééchantillonne à 48 000 Hz toute prise qui n\'y est pas, avec un avis '
+        + 'visible. Mesuré le 10 octobre : Chromium et WebKit honorent tous deux '
+        + '`new AudioContext({ sampleRate: 48000 })`, mais la piste du micro reste à sa propre '
+        + 'fréquence et le contexte interpole en amont — d\'où le choix du natif, pour que la '
+        + 'prise porte la fréquence où la voix est née.',
+    };
+  }
+
+  // ── (c / E11) LE DESCRIPTEUR D'UNE PRISE, FONCTION PURE DE SES ARGUMENTS ──────────────────
+  //
+  // Même raison. Deux grandeurs de ce descripteur ne se distinguent de leur contrefaçon qu'à une
+  // fréquence autre que 48 000 Hz : la fréquence de la prise (qui doit être celle du CONTEXTE,
+  // non une valeur de réglage) et la taille d'un morceau (qui doit être celle que le worklet
+  // APPLIQUE — un nombre entier de blocs de 128 —, non celle que le module a demandée : à
+  // 44 100 Hz, 5 secondes font 220 500 échantillons, qui ne sont pas un entier de blocs, et la
+  // valeur appliquée est 220 544). Les deux sont ici, prises en paramètre, et un contrôle les
+  // éprouve aux deux fréquences sans ouvrir de périphérique.
+  function descripteurDePrise(a) {
+    return {
+      id: a.id,
+      nom: a.nom,
+      creeLe: a.creeLe,
+      echantillonnage: a.echantillonnage,
+      canaux: a.canaux,
+      canalRetenu: a.canalRetenu,
+      canalRaison: a.canalRaison,
+      reglageCanal: a.reglageCanal,
+      // (c) UNE SEULE GRANDEUR : la taille EFFECTIVE, celle que le worklet applique. La taille
+      // nominale n'est écrite NI dans la prise NI dans le rapport : c'est une consigne
+      // d'interface, pas un fait de la prise, et la garder à côté de la valeur réelle faisait
+      // deux vérités pour une même grandeur — 220 500 contre 220 544 à 44 100 Hz (#11(f)).
+      echantillonsParMorceau: a.echantillonsParMorceauAppliquee,
+      nbEchantillons: 0,
+      nbMorceaux: 0,
+      // 'en-cours' : si la page meurt maintenant, le prochain chargement la trouvera ainsi et
+      // la PROPOSERA à la reprise (E5). Une prise 'en-cours' n'est jamais réussie.
+      etat: 'en-cours',
+      journal: [],
+    };
+  }
+
   // ── LE RAPPORT DE MESURES ──────────────────────────────────────────────────────────────────
   // Niveau et crête PAR CANAL, corrélation vraiment calculée (jamais `null` : une raison à la
   // place), blocs perdus avec leurs deux termes, état de la piste, canal retenu. Chaque nombre
@@ -1666,18 +1721,7 @@
       nom: (q('[data-nom-prise]') && q('[data-nom-prise]').value) || null,
       horodatage: new Date().toISOString(),
       // ── (a) LA FRÉQUENCE RÉELLE, et ce que le lot 4 devra en faire ──────────────────────
-      frequence: {
-        reelle_hz: _etat.echantillonnage,
-        demandee: FREQUENCE_DEMANDEE === null ? 'aucune (fréquence native du périphérique)'
-                                              : FREQUENCE_DEMANDEE,
-        native: FREQUENCE_DEMANDEE === null,
-        aReechantillonnerAuLot4: _etat.echantillonnage !== 48000,
-        regle: 'le lot 4 rééchantillonne à 48 000 Hz toute prise qui n\'y est pas, avec un avis '
-          + 'visible. Mesuré le 10 octobre : Chromium et WebKit honorent tous deux '
-          + '`new AudioContext({ sampleRate: 48000 })`, mais la piste du micro reste à sa propre '
-          + 'fréquence et le contexte interpole en amont — d\'où le choix du natif, pour que la '
-          + 'prise porte la fréquence où la voix est née.',
-      },
+      frequence: blocFrequence(_etat.echantillonnage),
       // (e) LE PÉRIPHÉRIQUE ET LES LATENCES, mesurés et non devinés.
       microphone: _etat.microphone || 'indisponible (aucune piste réelle : source de fixture)',
       latences: _etat.latences || 'non relevées',
@@ -2062,6 +2106,10 @@
     // (D4) exposée pour que le chiffre périmé s'éprouve à sa SOURCE, sans dépendre de
     // l'ordre d'arrivée des événements — qui diffère d'un moteur à l'autre.
     _echantillonsCourants: echantillonsCourants,
+    // Éprouvables à n'importe quelle fréquence, sans ouvrir de périphérique audio : la
+    // configuration du Mac de Christophe ne doit dépendre d'aucun test (règle du 11 octobre).
+    blocFrequence: blocFrequence,
+    descripteurDePrise: descripteurDePrise,
     _centile: centile,
     _etatDeLaPisteMaintenant: etatDeLaPisteMaintenant,
     CORRELATION_MEME_SIGNAL: CORRELATION_MEME_SIGNAL,

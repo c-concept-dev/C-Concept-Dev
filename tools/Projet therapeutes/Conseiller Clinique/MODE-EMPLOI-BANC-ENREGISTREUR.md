@@ -22,7 +22,8 @@ jamais le Worker. Votre voix ne quitte pas le Mac : elle va dans le stockage loc
 > 2. **Un micro muet n'est plus « calme ».** Il affichait « CALME — −∞ dB », ce qui est une
 >    fausse assurance. Il affiche « AUCUN SIGNAL ».
 > 3. **Le bandeau rouge avance.** Il disait « depuis 2,0 s » et n'en bougeait plus ; il compte
->    maintenant la durée réelle, et il reste collé en haut du panneau.
+>    maintenant la durée réelle, et il reste **fixé en haut de la fenêtre** — où que vous en
+>    soyez dans la page, il est visible.
 > 4. **Les avis ne couvrent plus l'alerte.** « Prise récupérée » et « WAV exporté » ont leur
 >    propre zone, sous l'alerte, et ne peuvent plus la repousser hors de vue.
 > 5. **Rien ne survit à la prise suivante.** Les deux zones sont vidées au démarrage.
@@ -130,9 +131,11 @@ une fois, avec un avis visible.
 
 > **La sortie de votre Mac est aujourd'hui à 48 000 Hz, et c'est moi qui l'y ai mise** : un essai
 > que j'ai écrit le 10 octobre forçait la fréquence du contexte audio, ce qui a basculé celle du
-> périphérique, durablement. Le levier est retiré, et aucun contrôle ne touche plus à la
-> configuration audio de votre machine. Pour revenir à 44 100 Hz si vous le souhaitez :
-> **Configuration audio et MIDI → Haut-parleurs → Format**.
+> périphérique, durablement. Le levier est retiré. **Vous n'avez rien à faire** : vous avez décidé
+> le 11 octobre que la machine resterait à 48 000 Hz, et aucun contrôle ne dépend plus de sa
+> configuration — ni ne la lit. Si vous souhaitez un jour revenir à 44 100 Hz, c'est
+> **Configuration audio et MIDI → Haut-parleurs → Format**, et rien d'autre ne s'en trouvera
+> changé.
 
 ---
 
@@ -158,7 +161,7 @@ besoin pour lire les mesures. Si le nom de votre micro contient votre nom, rempl
 
 ## Mesuré, et à juger par vous
 
-**Mesuré** (automatique, Chromium, **51 contrôles · 64 mutations falsifiées sur 71, toutes
+**Mesuré** (automatique, Chromium, **55 contrôles · 73 mutations falsifiées sur 73, toutes
 conformes, 0 trou**) : seuil de
 capture muette à 2,0000 s exactement, en échantillons · mixage sur le canal actif, la moyenne sur
 un canal vide coûtant les **−6,02 dB** que E3 interdit · écrêtage exact à −32768 et +32767 ·
@@ -180,11 +183,13 @@ minute.
 Les deux premières lignes disent que le nouveau calcul **ne baisse rien** sur un bruit continu :
 votre salle à générateurs reste bruyante, et grave. La troisième est votre défaut, mesuré.
 
-Les **sept mutations restantes ne sont pas décidables** à 48 000 Hz, et c'est honnête de le dire
-plutôt que de les compter comme réussies : à cette fréquence, 5 secondes font 240 000 échantillons,
-qui sont déjà un nombre entier de blocs de 128, si bien que « taille demandée » et « taille
-appliquée » coïncident et qu'un filtre « calculé pour 48 kHz » est le bon filtre. Leur verdict a
-été obtenu à 44 100 Hz : toutes conformes. Il sera repris quand la sortie du Mac y sera revenue.
+Sept de ces mutations n'étaient, un temps, décidables qu'à une fréquence autre que 48 000 Hz — à
+48 kHz, 5 secondes font 240 000 échantillons, déjà un nombre entier de blocs de 128, si bien que
+« taille demandée » et « taille appliquée » coïncident. Elles le sont désormais **sans toucher à
+votre machine** : le vrai worklet tourne dans un contexte audio *différé*, qui calcule à
+44 100 Hz sans ouvrir aucun périphérique, et les règles du module sont éprouvées comme fonctions
+de la fréquence. **Aucun contrôle ne dépend plus de la configuration audio de votre Mac**, et la
+sonde qui la lisait a été supprimée.
 
 **À juger par vous, et par personne d'autre** : la qualité sonore réelle de vos prises · le confort
 du vu-mètre · si les trois états du bruit correspondent à ce que vos oreilles entendent dans votre
