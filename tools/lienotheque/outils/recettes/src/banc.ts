@@ -63,6 +63,13 @@ export type OptionsBanc = OptionsReperes & {
    *  cent pendant que les dernières pages passent encore à l'OCR serait un mensonge poli. Un lot
    *  servi par le cache ne passe pas par ici — il n'y a rien à suivre. */
   readonly avancement?: (faits: number, total: number) => void;
+  /** Combien de pages le document porte, dit une fois, **avant** la première lecture.
+   *
+   *  `avancement` ne parle qu'après une page lue : un document dont aucune page n'est lisible par
+   *  la chaîne n'émettait donc aucun nombre, et un résultat vide ne se distinguait pas d'un
+   *  document vide. C'est ainsi qu'un ouvrage de neuf cent quatre-vingt-onze pages a été annoncé
+   *  « terminé » avec zéro page. Ce rappel est le seul endroit qui connaisse les deux nombres. */
+  readonly surTotal?: (total: number) => void;
   /** Rang de la première page lue, à partir de zéro. Avec `pages`, cela fait une tranche : ce
    *  qu'il faut pour essayer une manière de lire là où le document a quelque chose à lire. */
   readonly depuis?: number;
@@ -139,7 +146,15 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
   // nulle part.
   let index = options.depuis ?? 0;
   let total = 0;
-  for await (const image of pagesEnGris(chemin, options.pages, (compte) => (total = compte), options.depuis ?? 0)) {
+  for await (const image of pagesEnGris(
+    chemin,
+    options.pages,
+    (compte) => {
+      total = compte;
+      options.surTotal?.(compte);
+    },
+    options.depuis ?? 0,
+  )) {
     if (reglages === undefined) yield { image, index, total };
     else
       for (const produite of redresser(image, index, reglages, {
@@ -317,7 +332,9 @@ export async function lireLot(pdf: string, recette: Recette, options: OptionsBan
     faits += 1;
     options.avancement?.(faits, page.total);
   }
-  if (fichier !== undefined) ecrireCache(fichier, lues);
+  // Une lecture vide ne se garde pas. Il n'y a rien à économiser, et la garder rendrait le
+  // défaut permanent : le document reviendrait vide à chaque reprise, sans jamais relire.
+  if (fichier !== undefined && lues.length > 0) ecrireCache(fichier, lues);
   return lues;
 }
 

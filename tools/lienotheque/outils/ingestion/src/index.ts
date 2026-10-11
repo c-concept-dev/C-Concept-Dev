@@ -203,3 +203,4 @@ export * from "./processus.js";
 export * from "./instantane.js";
 export * from "./lot.js";
 export * from "./pages-images.js";
+export * from "./texte.js";

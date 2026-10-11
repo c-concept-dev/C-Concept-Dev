@@ -8,10 +8,27 @@ import type {
   Identifiant,
   Lien,
   LigneJournalIndexation,
+  Passage,
   SchemaBibliotheque,
   Travail,
   VersionDocument,
 } from "@lienotheque/contrats";
+
+/** Un passage trouvé, et dans quelle version du document il se trouve.
+ *
+ *  La version, et non le document : une citation renvoie à l'état du document qui la contient.
+ *  Rendre le document sans sa version ferait pointer un extrait sur une page qui a pu bouger
+ *  depuis (ID-04, RCH-09). */
+export type PassageTrouve = {
+  readonly versionId: Identifiant;
+  readonly passage: Passage;
+};
+
+export type OptionsRecherche = {
+  /** Combien de passages au plus. Une requête d'un mot courant ne rapatrie pas la bibliothèque :
+   *  RCH-11 compare des latences, et une réponse non bornée ne se compare à rien. */
+  readonly plafond?: number | undefined;
+};
 
 /** Port de dépôt : tout ce que le noyau sait demander à un stockage, et rien de plus.
  *
@@ -47,6 +64,15 @@ export type Depot = {
   readonly liens: (ancreId: Identifiant) => Promise<readonly Lien[]>;
   readonly enregistrerCarte: (carte: CarteSynchro) => Promise<void>;
   readonly carte: (versionId: Identifiant) => Promise<CarteSynchro | undefined>;
+
+  /** Passages cherchables d'une version, et la recherche plein texte (RCH-07, RCH-11).
+   *
+   *  Les passages sont **produits** depuis la lecture, pas saisis : les réenregistrer remplace
+   *  ceux de la version au lieu de s'y ajouter. Une reprise de travail est la règle (JOB-03), et
+   *  s'y ajouter doublerait le texte à chaque fois. */
+  readonly enregistrerPassages: (versionId: Identifiant, passages: readonly Passage[]) => Promise<void>;
+  readonly passages: (versionId: Identifiant) => Promise<readonly Passage[]>;
+  readonly chercherPassages: (requete: string, options?: OptionsRecherche) => Promise<readonly PassageTrouve[]>;
 
   /** File de travaux (JOB-01 : persistée avant de commencer, JOB-09 : elle survit à l'arrêt). */
   readonly enregistrerTravail: (travail: Travail) => Promise<void>;

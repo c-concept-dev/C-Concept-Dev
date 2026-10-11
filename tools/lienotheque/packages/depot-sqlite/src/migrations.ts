@@ -211,6 +211,55 @@ export const MIGRATIONS: readonly Migration[] = [
       END;
     `,
   },
+  {
+    version: 5,
+    nom: "provenance-du-passage",
+    sql: `
+      -- D'où vient le texte d'un passage, et à quel point on s'y fie.
+      --
+      -- La table portait le texte sans dire comment il avait été obtenu. Or les deux chemins ne
+      -- valent pas la même chose : une couche texte est exacte — ce sont les caractères que
+      -- l'auteur a posés —, un OCR approche. Une citation tirée d'un OCR peut porter « rnartyre »
+      -- là où la page dit « martyre », et rien ne permettait de le savoir.
+      --
+      -- RCH-09 demande qu'une citation soit vérifiable contre sa source. Le Lecteur a donc
+      -- besoin de dire « lu dans le document » ou « reconnu sur l'image », et l'écran de
+      -- vérification de trier les seconds d'abord. Sans cette colonne, il ne peut ni l'un ni
+      -- l'autre, et tout se présente avec la même assurance.
+      ALTER TABLE passage ADD COLUMN source TEXT NOT NULL DEFAULT 'couche_texte';
+      ALTER TABLE passage ADD COLUMN confiance REAL;
+
+      -- Le rang de la page d'où le texte vient, et son numéro imprimé quand il est connu.
+      --
+      -- L'ancre reste ce qui fait foi pour « où exactement » (ANC-01). Ces deux colonnes sont là
+      -- pour que la façade rende un \`content\` avec sa référence **en une requête**, sans
+      -- déplier le sélecteur JSON de l'ancre en SQL. Un passage sans numéro imprimé se cite par
+      -- son rang de page, et le dit plutôt que de faire croire à un numéro.
+      ALTER TABLE passage ADD COLUMN page INTEGER;
+      ALTER TABLE passage ADD COLUMN page_imprimee INTEGER;
+    `,
+  },
+  {
+    version: 6,
+    nom: "marqueur-de-lisibilite",
+    sql: `
+      -- Ce passage se lit-il ? (FMT-04)
+      --
+      -- Certains documents portent une couche texte dont l'encodage de police est faux : elle
+      -- rend des milliers de « mots » qui n'en sont pas, et la reconnaissance d'image n'aboutit
+      -- pas davantage sur une planche ou une photographie. Mesuré sur sept documents réels :
+      -- vingt et un passages sur deux mille sept cent trente, soit huit pour mille.
+      --
+      -- Ils entrent **marqués**, jamais écartés. Les exclure serait une exclusion silencieuse
+      -- déguisée en propreté : la page existe, elle a du contenu, et un trou dans la
+      -- bibliothèque ne se voit pas — alors qu'un passage marqué se compte, se montre en
+      -- dernier, et s'envoie à Vérifier.
+      --
+      -- Ils entrent aussi dans l'index plein texte, pour la même raison : qu'on les retrouve et
+      -- qu'on voie qu'ils sont douteux vaut mieux que de ne pas les retrouver du tout.
+      ALTER TABLE passage ADD COLUMN lisible INTEGER NOT NULL DEFAULT 1;
+    `,
+  },
 ];
 
 /** Registre des bibliothèques connues de cet ordinateur.
