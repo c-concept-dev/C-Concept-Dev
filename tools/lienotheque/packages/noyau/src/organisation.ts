@@ -3,6 +3,7 @@ import {
   type CardinaliteAxe,
   type NatureAxe,
   SchemaBibliotheque,
+  type StructureAxe,
   type ValeurReferentiel,
 } from "@lienotheque/contrats";
 
@@ -221,12 +222,104 @@ export function changerCardinalite(
   return avecAxe(schema, cleAxe, (axe) => ({ ...axe, cardinalite }));
 }
 
+/** Les valeurs qui n'ont pas de parent : le premier niveau de l'arbre.
+ *
+ *  Une valeur retirée n'y figure pas — elle ne se montre plus (CLA-03) —, et sur une façon de
+ *  ranger à plat tout est racine, ce qui laisse l'écran afficher les deux pareil.
+ */
+export function racinesDe(axe: Axe): readonly ValeurReferentiel[] {
+  return axe.valeurs.filter((valeur) => !valeur.retiree && valeur.parent === undefined);
+}
+
+/** Les valeurs rangées sous celle-ci, dans l'ordre où elles sont déclarées.
+ *
+ *  Cet ordre est celui du schéma, non un ordre alphabétique : c'est celui dans lequel on les a
+ *  posées, et le réordonner ici le rendrait imprévisible d'un écran à l'autre.
+ */
+export function enfantsDe(axe: Axe, cleValeur: string): readonly ValeurReferentiel[] {
+  if (axe.structure !== "hierarchique") return [];
+  return axe.valeurs.filter((valeur) => !valeur.retiree && valeur.parent === cleValeur);
+}
+
+/** Rendre une façon de ranger hiérarchique, pour y faire des catégories (CLA-02).
+ *
+ *  Le geste ne touche pas aux valeurs : elles restent toutes au premier niveau, et c'est
+ *  `deplacerValeur` qui les range ensuite. Faire les deux d'un coup supposerait un arbre, et le
+ *  schéma d'une bibliothèque n'appartient pas au code (CLA-01).
+ */
+export function rendreHierarchique(schema: SchemaBibliotheque, cleAxe: string): SchemaBibliotheque {
+  return avecAxe(schema, cleAxe, (axe) => {
+    if (axe.structure === "hierarchique") refus("Cette façon de ranger a déjà des catégories.");
+    if (axe.nature !== "referentiel" && axe.nature !== "liste_semi_ouverte")
+      refus("Seule une liste de valeurs se range en catégories : des étiquettes libres n’en ont pas.");
+    return { ...axe, structure: "hierarchique" };
+  });
+}
+
+/** Revenir à une liste à plat — mais jamais en perdant l'arbre en silence (CLA-03).
+ *
+ *  Repasser à plat effacerait tous les parents. On refuse donc tant qu'une valeur en a un, et
+ *  l'on **nomme** celles qui retiennent : « il reste des parents » n'aiderait personne à savoir
+ *  quoi détacher.
+ */
+export function aplatir(schema: SchemaBibliotheque, cleAxe: string): SchemaBibliotheque {
+  return avecAxe(schema, cleAxe, (axe) => {
+    if (axe.structure === "plat") refus("Cette façon de ranger est déjà une liste à plat.");
+    const rangees = axe.valeurs.filter((valeur) => valeur.parent !== undefined);
+    if (rangees.length > 0)
+      refus(
+        `Sortez d’abord ces valeurs de leur catégorie : ${rangees.map((valeur) => valeur.nom).join(", ")}.`,
+      );
+    return { ...axe, structure: "plat" };
+  });
+}
+
+/** Ranger une valeur sous une autre, ou la sortir de sa catégorie (CLA-02).
+ *
+ *  Sans parent, la valeur revient au premier niveau. Le contrat refuserait une ronde à
+ *  l'écriture ; ce geste la refuse avant, avec un mot qu'on comprend — un message de contrat
+ *  parle de chemin et de clé, pas de ce qu'on vient de faire.
+ */
+export function deplacerValeur(
+  schema: SchemaBibliotheque,
+  cleAxe: string,
+  cleValeur: string,
+  versParent: string | undefined,
+): SchemaBibliotheque {
+  return avecAxe(schema, cleAxe, (axe) => {
+    if (axe.structure !== "hierarchique") refus("Donnez d’abord des catégories à cette façon de ranger.");
+    const vise = valeurDe(axe, cleValeur);
+
+    if (versParent === undefined) return avecValeur(axe, vise.cle, ({ parent: _parent, ...reste }) => reste);
+
+    const parent = valeurDe(axe, versParent);
+    if (parent.cle === vise.cle) refus("Une valeur ne se range pas sous elle-même.");
+    if (parent.retiree) refus("Cette catégorie a été retirée : choisissez-en une autre.");
+
+    // On remonte depuis le parent visé : si l'on retombe sur la valeur qu'on déplace, le
+    // rangement ferait tourner la parenté en rond.
+    const parents = new Map(axe.valeurs.map((valeur) => [valeur.cle, valeur.parent]));
+    const chemin = [parent.cle];
+    let remonte = parent.parent;
+    while (remonte !== undefined) {
+      if (remonte === vise.cle)
+        refus(`La parenté tournerait en rond : ${vise.nom} est déjà au-dessus de ${parent.nom}.`);
+      if (chemin.includes(remonte)) break;
+      chemin.push(remonte);
+      remonte = parents.get(remonte);
+    }
+
+    return avecValeur(axe, vise.cle, (valeur) => ({ ...valeur, parent: parent.cle }));
+  });
+}
+
 /** Ajouter une façon de ranger. Des étiquettes libres par défaut : on emplit en chemin faisant. */
 export function ajouterAxe(
   schema: SchemaBibliotheque,
   nom: string,
   nature: NatureAxe = "etiquettes",
   cardinalite: CardinaliteAxe = "plusieurs",
+  structure: StructureAxe = "plat",
 ): SchemaBibliotheque {
   const propre = nom.trim();
   if (propre === "") refus("Donnez un nom à cette façon de ranger.");
@@ -241,7 +334,7 @@ export function ajouterAxe(
       nom: propre,
       nature,
       cardinalite,
-      structure: "plat",
+      structure,
       obligatoire: false,
       valeurs: [],
       alias: [],
