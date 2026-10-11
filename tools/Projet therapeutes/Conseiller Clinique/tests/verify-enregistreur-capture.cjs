@@ -996,182 +996,294 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       ' · accord false · avis affiché et journalisé');
   });
 
-  // ── §18 — (d) LE BRUIT DE PIÈCE (T13) ─────────────────────────────────────────────────────
-  await controle('§18 trois états de bruit, aux seuils de la constante unique', async () => {
+  // ── §18 — (d) LE BRUIT DE PIÈCE (T13), ESTIMATEUR ROBUSTE ─────────────────────────────────
+  //
+  // LES SEUILS N'ONT PAS BOUGÉ (décision de Christophe du 11 octobre) : ce sont ceux du CDC,
+  // −65 et −58 dBFS. Ce qui a changé est la GRANDEUR à laquelle ils s'appliquent : le 20e
+  // centile des niveaux de fenêtres de 100 ms — un plancher — et non la valeur efficace de la
+  // fenêtre entière — une moyenne d'énergie.
+  await controle('§18 quatre états de bruit, aux seuils INCHANGÉS du CDC, sur le plancher', async () => {
     const { ctx, page } = await ouvrirBanc(nav, base);
     const r = await page.evaluate(() => {
       const A = window.EnregistreurVoix;
       const B = A.BRUIT;
-      // Des sommes fabriquées pour tomber de part et d'autre des deux paliers. L'amplitude
-      // efficace qui donne d dBFS est 10^(d/20).
-      const pour = (dbfs, partGrave) => {
-        const eff = Math.pow(10, dbfs / 20), n = 48000 * 3;
+      // Des fenêtres fabriquées, toutes au même niveau : le 20e centile d'une population
+      // constante EST ce niveau, donc le verdict tombe exactement sur le palier visé.
+      const pour = (dbfs, partGrave, nbFenetres) => {
+        const eff = Math.pow(10, dbfs / 20);
+        const parFenetre = 4800, n = (nbFenetres || 30) * parFenetre;
+        const fenetres = [];
+        for (let k = 0; k < (nbFenetres || 30); k++) {
+          fenetres.push({ index: k, debutEchantillon: k * parFenetre, n: parFenetre,
+                          sommeCarre: eff * eff * parFenetre,
+                          sommeCarreGrave: eff * eff * parFenetre * partGrave,
+                          zeros: 0, crete: eff * Math.SQRT2, dansLeSilenceInitial: true });
+        }
         return { n, sommeCarre: eff * eff * n, sommeCarreGrave: eff * eff * n * partGrave,
-                 crete: eff * Math.SQRT2, zeros: 0, coupureHz: 120, echantillonnage: 48000 };
+                 crete: eff * Math.SQRT2, zeros: 0, coupureHz: 120, echantillonnage: 48000,
+                 fenetres };
+      };
+      // UN MICRO MUET : toutes les fenêtres à zéro, et la somme globale à zéro.
+      const muet = () => {
+        const parFenetre = 4800, nb = 30, n = nb * parFenetre;
+        const fenetres = [];
+        for (let k = 0; k < nb; k++) {
+          fenetres.push({ index: k, debutEchantillon: k * parFenetre, n: parFenetre,
+                          sommeCarre: 0, sommeCarreGrave: 0, zeros: parFenetre, crete: 0,
+                          dansLeSilenceInitial: true });
+        }
+        return { n, sommeCarre: 0, sommeCarreGrave: 0, crete: 0, zeros: n,
+                 coupureHz: 120, echantillonnage: 48000, fenetres };
       };
       return {
-        seuils: { calme: B.calmeMax_dbfs, bruyant: B.bruyantMin_dbfs, grave: B.partGraveMin },
+        seuils: { calme: B.calmeMax_dbfs, bruyant: B.bruyantMin_dbfs, grave: B.partGraveMin,
+                  centile: B.centile },
         tresCalme: A.verdictBruit(pour(-72, 0.2)),
         aLaLimiteCalme: A.verdictBruit(pour(-65, 0.2)),
         correct: A.verdictBruit(pour(-61, 0.2)),
         aLaLimiteBruyant: A.verdictBruit(pour(-58, 0.2)),
         bruyant: A.verdictBruit(pour(-56, 0.2)),
-        // la salle de soins de Christophe : bruyante ET grave
         salleDeSoins: A.verdictBruit(pour(-56.8, 0.72)),
+        aucunSignal: A.verdictBruit(muet()),
         nonMesure: A.verdictBruit(null),
       };
     });
-    assert.deepEqual(r.seuils, { calme: -65, bruyant: -58, grave: 0.5 },
-      'les seuils doivent être ceux décidés : ' + JSON.stringify(r.seuils));
+    assert.deepEqual(r.seuils, { calme: -65, bruyant: -58, grave: 0.5, centile: 20 },
+      'les seuils du CDC ne doivent pas avoir bougé : ' + JSON.stringify(r.seuils));
     assert.equal(r.tresCalme.etat, 'calme');
     assert.equal(r.aLaLimiteCalme.etat, 'calme', '≤ −65 est calme, bornes comprises');
     assert.equal(r.correct.etat, 'correct');
     assert.equal(r.aLaLimiteBruyant.etat, 'correct', '−58 pile n\'est pas encore bruyant');
     assert.equal(r.bruyant.etat, 'bruyant');
-    // La salle de soins réelle : bruyante, et le grave est dominant.
+    // Les seuils s'appliquent bien au PLANCHER, et le plancher d'une population constante est
+    // son niveau : −72,000 et non une valeur voisine.
+    assert.ok(Math.abs(r.tresCalme.plancherDbfs - (-72)) < 0.001,
+      'le plancher doit être le 20e centile, soit ici le niveau commun : ' + r.tresCalme.plancherDbfs);
     assert.equal(r.salleDeSoins.etat, 'bruyant');
     assert.equal(r.salleDeSoins.graveDominant, true,
       'part de grave ' + r.salleDeSoins.partGrave + ' > ' + r.seuils.grave);
     assert.ok(/filtre le réduira au mixage/.test(r.salleDeSoins.mention),
       'la mention de grave doit être celle demandée : ' + r.salleDeSoins.mention);
     assert.equal(r.correct.graveDominant, false, 'un bruit à 20 % de grave n\'est pas grave');
+    // LE QUATRIÈME ÉTAT, celui que T13 a ajouté le 11 octobre.
+    assert.equal(r.aucunSignal.etat, 'aucun-signal',
+      'un micro muet n\'est jamais calme : ' + r.aucunSignal.etat);
+    assert.ok(!('plancherDbfs' in r.aucunSignal),
+      'et aucun plancher ne doit être fabriqué : ' + r.aucunSignal.plancherDbfs);
     assert.equal(r.nonMesure.mesure, false, 'non mesuré doit se dire, non s\'inventer');
     assert.ok(r.bruyant.regle.includes('PENTE') || r.bruyant.regle.includes('pente'),
       'la règle doit dire que le passe-bas est une pente, pas un mur : ' + r.bruyant.regle);
+    assert.ok(/centile/.test(r.bruyant.regle) && /NON la valeur/.test(r.bruyant.regle),
+      'et dire que ce n\'est PAS la valeur efficace de la fenêtre entière : ' + r.bruyant.regle);
     await ctx.close();
     console.log('        −72 calme · −65 calme · −61 correct · −58 correct · −56 bruyant · ' +
-      'salle de soins (−56,8 dBFS, grave 0,72) bruyant + grave');
+      'salle de soins (−56,8 ; grave 0,72) bruyant+grave · micro muet → aucun-signal');
   });
 
-  await controle('§18b le bruit est mesuré sur le VRAI chemin, pendant le silence initial', async () => {
-    // La fixture : trois secondes de bruit grave (50 et 100 Hz) puis de la voix. C'est le profil
-    // de la salle de Christophe, et la mesure doit porter sur les trois premières secondes.
+  await controle('§18b bruit CONTINU : le nouvel estimateur ne baisse RIEN (salle à générateurs)', async () => {
+    // LE CONTRÔLE QUI EMPÊCHE LA CORRECTION DE TRICHER. Un estimateur qui rendrait simplement
+    // des valeurs plus basses ferait disparaître le bruit de la salle de Christophe, et le ferait
+    // paraître « corrigé ». Sur un bruit STATIONNAIRE, le plancher et la valeur efficace de la
+    // fenêtre entière doivent s'accorder — le témoin du générateur de fixtures les donne à
+    // −56,80 et −56,82 dBFS, soit 0,02 dB d'écart.
     const { ctx, page } = await ouvrirBanc(nav, base,
-      '?source=fixture&fichier=banc-enregistreur/fixtures/bruit-grave-puis-voix.wav');
-    const r = await prendre(page, {
-      jusqua: () => !!window.EnregistreurVoix._etat().bruit,
-    });
+      '?source=fixture&fichier=banc-enregistreur/fixtures/salle-generateurs.wav&boucle=1');
+    const r = await prendre(page, { attendreMs: 4200 });
     await ctx.close();
     const b = r.module.mesures.bruitDePiece;
     assert.ok(b && b.mesure, 'le bruit doit être mesuré : ' + JSON.stringify(b));
-    assert.ok(b.secondes >= 2.8 && b.secondes <= 3.2,
-      'la mesure doit porter sur les trois secondes du silence initial : ' + b.secondes);
-    assert.equal(b.silenceInitialRespecte, true,
-      'ici le silence initial EST tenu (7 s de bruit seul) ; montée mesurée ' +
-      b.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB');
-    assert.equal(b.etat, 'bruyant', 'et le verdict est rendu : ' + b.etat);
+    assert.equal(b.etat, 'bruyant', 'un bruit continu à −56,8 dBFS reste BRUYANT : ' + b.etat
+      + ' au plancher ' + b.plancherDbfs);
+    assert.ok(b.plancherDbfs > -59 && b.plancherDbfs < -54.5,
+      'et le plancher doit valoir ce que le générateur a écrit, −56,8 dBFS : ' + b.plancherDbfs);
+    assert.ok(Math.abs(b.ecartFenetreEntiereMoinsPlancher_db) < 1.5,
+      'sur un bruit stationnaire les DEUX estimateurs doivent s\'accorder ; écart mesuré : '
+      + b.ecartFenetreEntiereMoinsPlancher_db.toFixed(2) + ' dB');
+    assert.equal(b.etatSelonLaFenetreEntiere, 'bruyant',
+      'l\'ancien calcul disait la même chose ici, et c\'est voulu : ' + b.etatSelonLaFenetreEntiere);
     assert.equal(b.graveDominant, true,
-      'un bruit à 50 et 100 Hz doit être vu comme grave ; part mesurée ' + b.partGrave);
-    assert.ok(b.partGrave > 0.5, 'part de grave : ' + b.partGrave);
-    // CE QUE LA PAGE AFFICHE, et non ce que le module déclare.
+      'raies à 50 et 100 Hz : le grave doit dominer ; part ' + b.partGrave);
+    assert.equal(b.silenceInitialRespecte, true,
+      'aucune voix dans la fenêtre : le silence est tenu. Raison : ' + b.raisonDuSilence);
+    assert.equal(b.plancherSource, 'silence initial',
+      'et l\'ambiance vient donc du silence initial : ' + b.plancherSource);
+    // CE QUE LA PAGE AFFICHE (régression #11(e)).
     const affiche = r.affiche.bruit || '';
-    assert.ok(/Bruit de pièce/.test(affiche), 'la page doit afficher le bruit : ' + affiche);
-    assert.ok(affiche.includes('part de grave'),
+    assert.ok(/BRUYANT/.test(affiche), 'la page doit l\'afficher : ' + affiche);
+    assert.ok(/plancher/.test(affiche) && /centile/.test(affiche),
       'avec la grandeur dont le verdict découle : ' + affiche);
-    assert.ok(/filtre le réduira au mixage/.test(affiche),
-      'et la mention de grave : ' + affiche);
-    // LES DEUX MOITIÉS DOIVENT ÊTRE MESURÉES SUR LE VRAI CHEMIN. Sans cette vérification, une
-    // mutation du worklet qui cesse de les compter laisse monteeDb à 0 et personne ne le voit :
-    // le contrôle exact (§18c) travaille sur des sommes fabriquées, pas sur le worklet.
-    assert.ok(typeof b.efficaceDbfsPremiereMoitie === 'number' &&
-              isFinite(b.efficaceDbfsPremiereMoitie),
-      'la première moitié doit porter un niveau fini : ' + b.efficaceDbfsPremiereMoitie);
-    assert.ok(typeof b.efficaceDbfsSecondeMoitie === 'number' &&
-              isFinite(b.efficaceDbfsSecondeMoitie),
-      'la seconde moitié aussi : ' + b.efficaceDbfsSecondeMoitie);
-    assert.ok(b.efficaceDbfsPremiereMoitie < -40 && b.efficaceDbfsSecondeMoitie < -40,
-      'et toutes deux au niveau d\'un bruit de pièce : ' +
-      b.efficaceDbfsPremiereMoitie.toFixed(1) + ' et ' + b.efficaceDbfsSecondeMoitie.toFixed(1));
-    assert.ok(Math.abs(b.monteeEntreLesDeuxMoities_db) < 3,
-      'le bruit étant régulier, les deux moitiés doivent s\'accorder : ' +
-      b.monteeEntreLesDeuxMoities_db.toFixed(2) + ' dB');
-    // T13 N'EST JAMAIS BLOQUANT : l'avis est une INFORMATION, pas une erreur.
+    assert.ok(/fenêtre entière/.test(affiche),
+      'et la valeur de l\'ancien calcul à côté, nommée : ' + affiche);
     const avis = r.affiche.messages.find((m) => /La pièce est bruyante/.test(m.texte));
-    assert.ok(avis, 'l\'avis de pièce bruyante doit être affiché : ' +
-      JSON.stringify(r.affiche.messages.map((m) => m.texte.slice(0, 40))));
-    assert.equal(avis.etat, 'info',
-      'T13 n\'est JAMAIS bloquant : l\'avis doit être une information, pas une erreur. Obtenu : '
-      + avis.etat);
-    assert.equal(avis.icone, '#icon-info', 'avec l\'icône d\'information du sprite du kit');
-    // JAMAIS BLOQUANT : la prise s'est faite.
+    assert.ok(avis, 'l\'avis de pièce bruyante doit être affiché');
+    assert.equal(avis.etat, 'info', 'T13 n\'est JAMAIS bloquant : ' + avis.etat);
     assert.ok(r.stockage.echantillons > 0, 'la prise doit avoir été enregistrée malgré le bruit');
-    assert.notEqual(r.stockage.prise.etat, 'muette', 'et ne pas être muette');
-    console.log('        ' + b.etat + ' · ' + b.efficaceDbfs.toFixed(1) + ' dBFS · part de grave ' +
-      b.partGrave.toFixed(3) + ' sur ' + b.secondes.toFixed(2) + ' s · prise enregistrée quand même');
+    console.log('        plancher ' + b.plancherDbfs.toFixed(2) + ' dBFS · fenêtre entière ' +
+      b.efficaceDbfsFenetreEntiere.toFixed(2) + ' dBFS · écart ' +
+      b.ecartFenetreEntiereMoinsPlancher_db.toFixed(2) + ' dB · grave ' + b.partGrave.toFixed(3));
   });
 
-  await controle('§18c un silence initial NON tenu rend la mesure douteuse, pas fausse', async () => {
-    // CE CONTRÔLE EST EXACT, ET NON SUR LE VRAI CHEMIN, POUR UNE RAISON QUI SE DIT.
-    // La fenêtre de mesure démarre avec la prise, et l'instant où la prise démarre ne peut pas
-    // être épinglé sur la frise d'une fixture : il dépend du temps que met la fenêtre de décision
-    // du canal à se remplir. Un essai réel plaçait donc la voix soit entièrement dans la fenêtre,
-    // soit entièrement dehors, selon la machine — un contrôle qui passe ou échoue au hasard ne
-    // contrôle rien. La RÈGLE se vérifie donc sur des sommes exactes, et le VRAI chemin est
-    // éprouvé en §18b sur le cas où le silence EST tenu.
-    const { ctx, page } = await ouvrirBanc(nav, base);
-    const r = await page.evaluate(() => {
-      const A = window.EnregistreurVoix;
-      const ECH = 48000, N = ECH * 3;
-      // Deux moitiés d'une fenêtre de 3 s. `pour` fabrique les sommes brutes que le worklet
-      // posterait, avec une amplitude efficace par moitié.
-      const pour = (db1, db2, partGrave) => {
-        const e1 = Math.pow(10, db1 / 20), e2 = Math.pow(10, db2 / 20);
-        const n1 = N / 2, n2 = N / 2;
-        const sc = e1 * e1 * n1 + e2 * e2 * n2;
-        return { n: N, sommeCarre: sc, sommeCarreGrave: sc * partGrave,
-                 crete: Math.max(e1, e2) * Math.SQRT2, zeros: 0,
-                 n1, sommeCarre1: e1 * e1 * n1, n2, sommeCarre2: e2 * e2 * n2,
-                 coupureHz: 120, echantillonnage: ECH };
-      };
-      return {
-        seuilMontee: A.BRUIT.monteeMax_db,
-        // le silence tenu : les deux moitiés au même niveau
-        tenu: A.verdictBruit(pour(-57, -57, 0.72)),
-        // juste sous le seuil : 5 dB de montée, encore crédible pour un bruit de pièce
-        sousLeSeuil: A.verdictBruit(pour(-60, -55, 0.72)),
-        // le fait du lot 0 : la voix démarre dans la seconde moitié, +27 dB
-        voixDansLaSecondeMoitie: A.verdictBruit(pour(-57, -30, 0.20)),
-        // juste au-dessus du seuil
-        justeAuDessus: A.verdictBruit(pour(-60, -53.5, 0.72)),
-      };
-    });
+  await controle('§18c LE DÉFAUT 1 : des bruits brefs ne font plus passer un plancher calme pour « correct »', async () => {
+    // LE CONTRÔLE QUI PORTE TOUT LE DÉFAUT 1. Sur la prise du 10 octobre, le Studio annonçait
+    // −63,9 dBFS « correct » alors que les passages calmes de la même prise étaient à −74 à
+    // −76 dBFS. La fixture reproduit ce profil par le calcul : plancher à −75 dBFS, bruits brefs
+    // de 80 ms à −58 dBFS toutes les 375 ms. Témoins du générateur, code indépendant du produit :
+    // valeur efficace de la fenêtre entière −64,49 dBFS (« correct »), 20e centile des fenêtres
+    // de 100 ms −75,03 dBFS (« calme »). Les deux doivent apparaître, et c'est le SECOND qui
+    // décide.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/plancher-avec-bruits-brefs.wav&boucle=1');
+    const r = await prendre(page, { attendreMs: 4200 });
     await ctx.close();
+    const b = r.module.mesures.bruitDePiece;
+    assert.ok(b && b.mesure, 'le bruit doit être mesuré : ' + JSON.stringify(b));
+    // 1. LE VERDICT A CHANGÉ DE CAMP, et c'est le but.
+    assert.equal(b.etat, 'calme',
+      'le plancher est à −75 dBFS : la pièce est CALME. Obtenu : ' + b.etat +
+      ' au plancher ' + b.plancherDbfs);
+    assert.ok(b.plancherDbfs < -70 && b.plancherDbfs > -79,
+      'le plancher doit valoir ce que le générateur a écrit, −75 dBFS : ' + b.plancherDbfs);
+    // 2. L'ANCIEN CALCUL EST GARDÉ, ET IL DIT « CORRECT » : l'écart est MESURÉ, pas raconté.
+    assert.equal(b.etatSelonLaFenetreEntiere, 'correct',
+      'la valeur efficace de la fenêtre entière, elle, annonce « correct » — c\'est le défaut : '
+      + b.etatSelonLaFenetreEntiere + ' à ' + b.efficaceDbfsFenetreEntiere);
+    assert.ok(b.ecartFenetreEntiereMoinsPlancher_db > 8,
+      'et l\'écart entre les deux estimateurs doit être celui constaté, plus de 8 dB : '
+      + b.ecartFenetreEntiereMoinsPlancher_db.toFixed(2) + ' dB');
+    // 3. LES BRUITS BREFS SONT COMPTÉS, pas effacés : T1 bis demande de les consigner.
+    assert.ok(b.transitoires >= 4,
+      'les bruits brefs doivent être COMPTÉS (8 attendus dans 3 s) : ' + b.transitoires);
+    assert.ok(Array.isArray(b.transitoiresDetail) && b.transitoiresDetail.length === b.transitoires,
+      'chacun avec son instant en échantillons : ' + JSON.stringify(b.transitoiresDetail));
+    b.transitoiresDetail.forEach((t) => {
+      assert.ok(t.secondes < 0.3,
+        'et chacun doit être plus court que la durée de voix : ' + t.secondes + ' s');
+    });
+    // 4. UN BRUIT BREF NE DISQUALIFIE PAS LE SILENCE INITIAL : il n'y a pas de voix.
+    assert.equal(b.silenceInitialRespecte, true,
+      'des bruits brefs ne sont pas de la voix : ' + b.raisonDuSilence);
+    // 5. CE QUE LA PAGE AFFICHE.
+    const affiche = r.affiche.bruit || '';
+    assert.ok(/CALME/.test(affiche), 'la page doit afficher CALME : ' + affiche);
+    assert.ok(/bruit\(s\) bref\(s\) écarté\(s\)/.test(affiche),
+      'et dire combien de bruits brefs ont été écartés : ' + affiche);
+    console.log('        plancher ' + b.plancherDbfs.toFixed(2) + ' dBFS → ' + b.etat +
+      '  ·  fenêtre entière ' + b.efficaceDbfsFenetreEntiere.toFixed(2) + ' dBFS → ' +
+      b.etatSelonLaFenetreEntiere + '  ·  écart ' +
+      b.ecartFenetreEntiereMoinsPlancher_db.toFixed(2) + ' dB · ' + b.transitoires + ' transitoires');
+  });
 
-    assert.equal(r.seuilMontee, 6, 'le seuil de montée doit être 6 dB : ' + r.seuilMontee);
+  await controle('§18e pièce CALME : les deux estimateurs s\'accordent (le calcul ne baisse pas tout)', async () => {
+    // Le symétrique de §18c. Témoins du générateur : −72,01 et −72,05 dBFS, 0,04 dB d'écart.
+    // Sans ce contrôle, un estimateur qui soustrairait 10 dB à tout passerait §18c.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/piece-calme.wav&boucle=1');
+    const r = await prendre(page, { attendreMs: 4200 });
+    await ctx.close();
+    const b = r.module.mesures.bruitDePiece;
+    assert.equal(b.etat, 'calme', 'une pièce à −72 dBFS est calme : ' + b.etat);
+    assert.ok(b.plancherDbfs > -75 && b.plancherDbfs < -69,
+      'au plancher écrit par le générateur, −72 dBFS : ' + b.plancherDbfs);
+    assert.ok(Math.abs(b.ecartFenetreEntiereMoinsPlancher_db) < 1.5,
+      'et les deux estimateurs doivent s\'accorder sur un bruit stationnaire : '
+      + b.ecartFenetreEntiereMoinsPlancher_db.toFixed(2) + ' dB');
+    assert.equal(b.transitoires, 0, 'aucun bruit bref dans un bruit stationnaire : ' + b.transitoires);
+    assert.equal(b.graveDominant, false,
+      'un bruit blanc n\'est pas dominé par le grave ; part ' + b.partGrave);
+    console.log('        plancher ' + b.plancherDbfs.toFixed(2) + ' · fenêtre entière ' +
+      b.efficaceDbfsFenetreEntiere.toFixed(2) + ' · écart ' +
+      b.ecartFenetreEntiereMoinsPlancher_db.toFixed(2) + ' dB · 0 transitoire');
+  });
 
-    assert.equal(r.tenu.silenceInitialRespecte, true, 'deux moitiés égales : silence tenu');
-    assert.equal(r.tenu.etat, 'bruyant', 'et le verdict est rendu : ' + r.tenu.etat);
-    assert.ok(Math.abs(r.tenu.monteeEntreLesDeuxMoities_db) < 0.01,
-      'montée nulle attendue : ' + r.tenu.monteeEntreLesDeuxMoities_db);
+  await controle('§18f silence initial NON tenu : l\'ambiance est prélevée dans la pause la plus calme', async () => {
+    // T13 : « Si le silence initial n'a pas été respecté, l'atelier propose de prélever quelques
+    // secondes dans une pause », et « le silence initial n'est déclaré respecté que si la fenêtre
+    // ne contient pas de voix ». Sur la prise du 10 octobre, `silenceInitialRespecte` valait
+    // `true` alors que la voix démarrait à 0,3 s. La fixture : cycle de 5 s, 0,3 s de plancher,
+    // 2,7 s de voix à −38 dBFS, 2,0 s de pause à −75. Aucune fenêtre de 3 s ne peut éviter la
+    // voix, puisque les pauses ne durent que 2 s : le contrôle est donc déterminant quel que soit
+    // l'instant où la prise démarre dans la fixture.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/voix-des-03s-avec-pauses.wav&boucle=1');
+    // 9 s : de quoi contenir au moins une pause entière de 2 s après le silence initial de 3 s.
+    const r = await prendre(page, { attendreMs: 9500 });
+    await ctx.close();
+    const b = r.module.mesures.bruitDePiece;
+    assert.ok(b && b.mesure, 'le bruit doit être mesuré : ' + JSON.stringify(b));
+    assert.equal(b.silenceInitialRespecte, false,
+      'la voix occupe la fenêtre : le silence initial N\'est PAS tenu. Raison : ' + b.raisonDuSilence);
+    assert.ok(/voix/.test(b.raisonDuSilence),
+      'et la raison doit nommer la voix, en durée : ' + b.raisonDuSilence);
+    assert.equal(b.plancherSource, 'pause la plus calme de la prise',
+      'l\'ambiance doit donc venir d\'une pause (T13) : ' + b.plancherSource);
+    assert.ok(b.pauseRetenue && typeof b.pauseRetenue.debutEchantillon === 'number',
+      'et la pause retenue doit être datée en échantillons : ' + JSON.stringify(b.pauseRetenue));
+    assert.ok(b.pauseRetenue.echantillons >= b.fenetres.secondes * r.module.echantillonnage * 10,
+      'la pause doit faire au moins une seconde : ' + b.pauseRetenue.echantillons + ' échantillons');
+    assert.equal(b.etat, 'calme',
+      'et le verdict, pris sur la pause, doit être CALME à −75 dBFS : ' + b.etat +
+      ' au plancher ' + b.plancherDbfs);
+    assert.ok(b.plancherDbfs < -70,
+      'le plancher doit être celui du silence, pas celui de la voix : ' + b.plancherDbfs);
+    // SANS LE REPLI, le 20e centile de la fenêtre initiale aurait donné un niveau de VOIX :
+    // le témoin du générateur le mesure à −38,02 dBFS. L'écart prouve que le repli a joué.
+    assert.ok(b.efficaceDbfsFenetreEntiere > -50,
+      'la fenêtre entière, elle, est au niveau de la voix : ' + b.efficaceDbfsFenetreEntiere);
+    assert.ok(b.ecartFenetreEntiereMoinsPlancher_db > 25,
+      'et l\'écart entre les deux doit être celui de la voix au silence : '
+      + b.ecartFenetreEntiereMoinsPlancher_db.toFixed(1) + ' dB');
+    const affiche = r.affiche.bruit || '';
+    assert.ok(/silence initial non tenu/.test(affiche),
+      'la page doit le dire en toutes lettres : ' + affiche);
+    console.log('        silence non tenu · ambiance prélevée à l\'échantillon ' +
+      b.pauseRetenue.debutEchantillon + ' sur ' + b.pauseRetenue.echantillons +
+      ' · plancher ' + b.plancherDbfs.toFixed(2) + ' → ' + b.etat +
+      ' · fenêtre entière ' + b.efficaceDbfsFenetreEntiere.toFixed(2));
+  });
 
-    assert.equal(r.sousLeSeuil.silenceInitialRespecte, true,
-      '5 dB de montée reste crédible pour une pièce : ' +
-      r.sousLeSeuil.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB');
-    assert.notEqual(r.sousLeSeuil.etat, 'douteux', 'donc le verdict est rendu');
-
-    const v = r.voixDansLaSecondeMoitie;
-    assert.equal(v.silenceInitialRespecte, false,
-      'une voix qui démarre dans la seconde moitié doit être vue : ' +
-      v.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB');
-    assert.equal(v.etat, 'douteux',
-      'l\'état doit être « douteux » plutôt qu\'un verdict crédible et faux : ' + v.etat);
-    assert.ok(v.monteeEntreLesDeuxMoities_db > 20,
-      'la montée doit être franche : ' + v.monteeEntreLesDeuxMoities_db);
-    assert.ok(/silence initial n’a pas été respecté|silence initial n\'a pas été respecté/.test(v.mention),
-      'la mention doit dire pourquoi : ' + v.mention);
-    // CE QU'ON AURAIT RENDU reste lisible : rien n'est perdu, c'est juste déclaré peu fiable.
-    assert.ok(v.etatSiLeSilenceEtaitRespecte,
-      'l\'état qui aurait été rendu doit rester au rapport : ' + v.etatSiLeSilenceEtaitRespecte);
-    assert.ok(typeof v.efficaceDbfsPremiereMoitie === 'number' &&
-              typeof v.efficaceDbfsSecondeMoitie === 'number',
-      'et les deux moitiés doivent porter leur décibel, pour que le lecteur refasse le calcul');
-
-    assert.equal(r.justeAuDessus.etat, 'douteux',
-      '6,5 dB dépasse le seuil : ' + r.justeAuDessus.monteeEntreLesDeuxMoities_db.toFixed(1));
-
-    console.log('        tenu 0,0 dB → verdict rendu · 5,0 dB → rendu · ' +
-      r.justeAuDessus.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB → douteux · ' +
-      v.monteeEntreLesDeuxMoities_db.toFixed(1) + ' dB (voix) → douteux');
+  await controle('§18g le 20e centile du produit est celui du générateur de fixtures, à l\'identique', async () => {
+    // LE TÉMOIN VIENT D'UN AUTRE CODE (régression #11(j)). Le générateur de fixtures calcule le
+    // 20e centile des fenêtres de 100 ms avec sa propre fonction, écrite séparément. Si les deux
+    // conventions divergent — interpolation, rang supérieur, fenêtres partielles comptées — ce
+    // contrôle le dit. On compare sur les quatre fixtures de référence, SUR LES MÊMES
+    // ÉCHANTILLONS : ceux du fichier, décodés ici, sans passer par le graphe audio (dont le
+    // rééchantillonnage déplacerait légèrement les deux valeurs de la même façon).
+    const F = require('./enregistreur-fixtures.cjs');
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const cas = ['piece-calme.wav', 'salle-generateurs.wav',
+                 'plancher-avec-bruits-brefs.wav', 'voix-des-03s-avec-pauses.wav'];
+    const lignes = [];
+    for (const nom of cas) {
+      const fixture = F.FIXTURES.find((x) => x.nom === nom);
+      const canal = fixture.faire().canaux[0];
+      const trois = Array.from(canal.subarray(0, F.ECH * 3));
+      const temoin = F.centile20DesFenetresDe100ms(canal.subarray(0, F.ECH * 3), F.ECH);
+      // Le produit, nourri des MÊMES échantillons découpés en fenêtres de 4 800.
+      const duProduit = await page.evaluate(({ ech, parFenetre }) => {
+        const A = window.EnregistreurVoix;
+        const fenetres = [];
+        for (let d = 0, k = 0; d + parFenetre <= ech.length; d += parFenetre, k++) {
+          let sc = 0, z = 0;
+          for (let i = d; i < d + parFenetre; i++) { sc += ech[i] * ech[i]; if (ech[i] === 0) z++; }
+          fenetres.push({ index: k, debutEchantillon: d, n: parFenetre, sommeCarre: sc,
+                          sommeCarreGrave: 0, zeros: z, crete: 0, dansLeSilenceInitial: true });
+        }
+        const total = fenetres.reduce((t, f) => t + f.sommeCarre, 0);
+        const n = fenetres.length * parFenetre;
+        const v = A.verdictBruit({ n, sommeCarre: total, sommeCarreGrave: 0, crete: 0, zeros: 0,
+                                   coupureHz: 120, echantillonnage: 48000, fenetres });
+        return { plancher: v.plancherDbfs, fenetres: v.fenetres.pleines };
+      }, { ech: trois, parFenetre: Math.round(F.ECH * 0.1) });
+      assert.equal(duProduit.fenetres, temoin.fenetres,
+        nom + ' : même nombre de fenêtres attendu — produit ' + duProduit.fenetres +
+        ', témoin ' + temoin.fenetres);
+      assert.ok(Math.abs(duProduit.plancher - temoin.centile20) < 0.001,
+        nom + ' : le 20e centile du produit (' + duProduit.plancher.toFixed(4) +
+        ') doit être celui du témoin (' + temoin.centile20.toFixed(4) + ')');
+      lignes.push(nom.replace('.wav', '') + ' ' + duProduit.plancher.toFixed(2));
+    }
+    await ctx.close();
+    console.log('        ' + lignes.join(' · '));
   });
 
   await controle('§18d le passe-bas coupe à 120 Hz, mesuré sur un son pur à 120 Hz', async () => {
@@ -1196,6 +1308,48 @@ async function prendre(page, { attendreMs, jusqua, pendant, reglageCanal, taille
       'appliqué à ' + r.module.echantillonnage + ' Hz.');
     console.log('        son pur à 120 Hz, contexte à ' + r.module.echantillonnage +
       ' Hz → part de grave ' + b.partGrave.toFixed(4) + ' (attendu 0,50)');
+  });
+
+  // ── §21 — (T13) UN MICRO MUET N'EST JAMAIS « CALME » ──────────────────────────────────────
+  //
+  // CE CONTRÔLE A ÉTÉ ÉCRIT AVANT TOUTE CORRECTION, ET IL A ÉCHOUÉ. C'est le défaut 1 du relevé
+  // d'essais, dans sa forme la plus grave : sur une prise d'un micro muet, le bruit de pièce
+  // était annoncé « CALME — −∞ dB ». Une fausse assurance, pas une fausse alarme : l'opérateur
+  // lit « calme » et croit sa pièce silencieuse, alors que rien n'a été capté. T13 le tranche
+  // désormais en toutes lettres : « un micro muet n'est jamais calme : l'état est aucun signal ».
+  await controle('§21 micro muet : l\'état du bruit est « aucun signal », jamais « calme »', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/zeros-71s.wav');
+    // On attend que la mesure de bruit soit RENDUE : 3 s de fenêtre, et on laisse la marge du
+    // premier morceau. Sans cette attente, le contrôle passerait sur un `bruit` absent.
+    const r = await prendre(page, { jusqua: () => !!window.EnregistreurVoix._etat().bruit });
+    await ctx.close();
+    const b = r.module.mesures.bruitDePiece;
+    assert.ok(b && b.mesure, 'le bruit doit être mesuré, non « non mesuré » : ' + JSON.stringify(b));
+    assert.equal(b.etat, 'aucun-signal',
+      'T13 : un micro muet n\'est jamais « calme ». État obtenu : ' + b.etat +
+      ' au niveau ' + b.efficaceDbfs);
+    // LE NIVEAU N'EXISTE PAS, et le dire est le seul choix honnête : 20·log10(0) n'est pas un
+    // nombre. Jamais `null` (§12), jamais −∞ affiché comme une mesure : une RAISON à la place.
+    assert.ok(!('efficaceDbfs' in b) || typeof b.efficaceDbfs !== 'number' || isFinite(b.efficaceDbfs),
+      'aucun −∞ ne doit sortir comme s\'il était une mesure : ' + b.efficaceDbfs);
+    assert.ok(typeof b.raisonDuNiveau === 'string' && /zéro/.test(b.raisonDuNiveau),
+      'et une raison en toutes lettres doit prendre sa place : ' + b.raisonDuNiveau);
+    assert.equal(b.echantillonsAZero, b.echantillons,
+      'tous les échantillons de la fenêtre sont à zéro : ' + b.echantillonsAZero + '/' + b.echantillons);
+    // CE QUE LA PAGE AFFICHE, et non ce que le module déclare (régression #11(e)).
+    const affiche = r.affiche.bruit || '';
+    assert.ok(/AUCUN SIGNAL/i.test(affiche), 'la page doit l\'afficher : ' + affiche);
+    // L'ASSERTION PORTE SUR LE VERDICT, PAS SUR LE MOT. Première version de ce contrôle :
+    // « le mot calme ne doit pas apparaître » — elle échouait sur l'explication elle-même, qui
+    // dit « ce n'est pas une pièce calme ». C'était mon assertion qui était fausse, pas le code.
+    assert.ok(!/Bruit de pièce\s*:\s*CALME/i.test(affiche),
+      'le VERDICT affiché ne doit jamais être « calme » : ' + affiche);
+    assert.ok(!/-?(∞|Infinity)/.test(affiche), 'ni un infini : ' + affiche);
+    // E8 continue de faire son travail : la prise reste MUETTE, les deux verdicts coexistent.
+    assert.equal(r.stockage.prise.etat, 'muette', 'et la prise reste muette (E8)');
+    console.log('        état « ' + b.etat + ' » · ' + b.echantillonsAZero + ' échantillons à zéro sur '
+      + b.echantillons + ' · page : ' + affiche.slice(0, 64));
   });
 
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────

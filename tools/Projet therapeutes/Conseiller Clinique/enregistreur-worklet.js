@@ -53,6 +53,34 @@ const SECONDES_DE_SILENCE_AVANT_ALERTE = 2;
 // pourcentage exact, ce qu'il n'est pas.
 const BRUIT_COUPURE_HZ = 120;
 
+// ── LA FENÊTRE DE L'ESTIMATEUR ROBUSTE (T13, corrigé après les essais du 10 octobre) ────────
+//
+// POURQUOI LA VALEUR EFFICACE DE LA FENÊTRE ENTIÈRE ÉTAIT FAUSSE. Mesuré sur les prises de
+// Christophe : le bruit annoncé était de −63,9 dBFS (« correct », « bruit grave ») alors que les
+// passages calmes de LA MÊME PRISE étaient à −74 à −76 dBFS. L'écart venait de quelques bruits
+// brefs — clics de touche, respiration — à −57,9 à −62,8 dBFS dans les trois premières secondes.
+// Une valeur efficace est une moyenne d'ÉNERGIE : trois cents millisecondes de clic à −58 dBFS
+// pèsent plus, dans cette moyenne, que deux secondes sept de silence à −75. Le chiffre était
+// juste comme moyenne et faux comme description de la pièce.
+//
+// CE QUI REMPLACE. Le signal est découpé en fenêtres de 100 ms, chacune avec sa propre somme de
+// carrés, et le bruit de pièce est le 20e CENTILE de leurs niveaux : le plancher sous lequel la
+// pièce ne descend pas, plutôt que la moyenne de ce qui s'y passe. Un bruit bref ne déplace pas
+// un centile bas ; il faudrait qu'il occupe plus d'un cinquième du temps, et alors il ne serait
+// plus bref.
+//
+// POURQUOI 100 ms. Deux bornes mesurées. Il faut une fenêtre assez COURTE pour qu'un bruit bref
+// n'en contamine qu'une ou deux : les claquements de touche du lot 0 durent 50 à 80 ms. Et assez
+// LONGUE pour que sa valeur efficace soit stable : à 100 ms une fenêtre porte 4 800 échantillons
+// à 48 kHz, et l'écart mesuré entre fenêtres d'un bruit stationnaire est de 0,24 dB sur la pièce
+// calme de référence et de 0,10 dB sur la salle à générateurs. Trente fenêtres dans trois
+// secondes, c'est aussi le minimum pour qu'un 20e centile ait un sens : il tombe sur la 6e.
+//
+// LE WORKLET NE CALCULE AUCUN CENTILE. Il livre les sommes brutes de chaque fenêtre ; le
+// décibel, le centile, le verdict et la part de grave sont calculés dans le module, une seule
+// fois, à un seul endroit (régression #11(f)).
+const BRUIT_FENETRE_S = 0.1;
+
 class PasseBas {
   constructor(fc, fs) {
     var w0 = 2 * Math.PI * fc / fs;
@@ -120,6 +148,16 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
     this.echantillonsAZeroDeSuite = 0;
     this.debutTrame = 0;
 
+    // ── LES FENÊTRES DE 100 ms DE L'ESTIMATEUR ROBUSTE ───────────────────────────────────
+    // Elles courent sur TOUTE la prise, pas seulement sur le silence initial : quand ce silence
+    // n'a pas été tenu, T13 demande de prélever l'ambiance dans une pause, et une pause ne peut
+    // être trouvée qu'en ayant mesuré la prise entière. Le filtre de grave est UNE SEULE
+    // instance, continue d'une fenêtre à l'autre : le remettre à zéro à chaque frontière
+    // fabriquerait un transitoire toutes les 100 ms et la part de grave mesurerait le filtre.
+    this.parFenetreBruit = Math.max(1, Math.round(BRUIT_FENETRE_S * sampleRate));
+    this.fenetres = null;         // accumulateur courant, ou null quand aucune mesure ne court
+    this.filtreGrave = null;      // construit avec la fréquence réelle, à l'ouverture
+
     // La mesure de bruit tourne sur demande, pendant un nombre d'échantillons fixé par le
     // module. Elle accumule l'énergie totale et l'énergie qui ressort du passe-bas, plus la
     // crête — trois grandeurs brutes, dont le module tirera les décibels et le verdict.
@@ -186,6 +224,32 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
           // temps contre lequel le compte de blocs du worklet se confronte.
           tramesEcoulees: currentFrame - (this.debutTrame || 0),
         });
+        // LA DERNIÈRE FENÊTRE EST LIVRÉE, MARQUÉE PARTIELLE. Elle porte moins de 100 ms, donc
+        // son niveau est plus bruyant statistiquement : le module la compte et DIT qu'elle est
+        // partielle plutôt que de la jeter en silence ou de la traiter comme les autres.
+        if (this.fenetres && this.fenetres.n > 0) {
+          const fp = this.fenetres;
+          this.port.postMessage({
+            type: 'fenetre-bruit', index: fp.index, debutEchantillon: fp.position,
+            n: fp.n, sommeCarre: fp.sommeCarre, sommeCarreGrave: fp.sommeCarreGrave,
+            zeros: fp.zeros, crete: fp.crete,
+            dansLeSilenceInitial: fp.position < fp.finDuSilenceInitial,
+            partielle: true,
+          });
+        }
+        this.fenetres = null;
+        this.bruit = null;
+        // ── LE COMPTEUR DE LA PRISE MEURT AVEC LA PRISE (défaut 4 du relevé d'essais) ───────
+        // Constaté par Christophe : l'événement « contexte running » était daté à l'échantillon
+        // 1 071 616, puis 2 962 176, puis 3 963 008 — à chaque fois la longueur EXACTE de la
+        // prise PRÉCÉDENTE. La cause est ici : hors prise, le worklet continuait d'envoyer ses
+        // relevés avec `echantillonsEcrits` figé à la valeur de la prise qui venait de finir, et
+        // le module datait ses événements là-dessus. Le compteur est donc remis à zéro DÈS QUE
+        // le message d'arrêt est parti, c'est-à-dire après que sa vraie valeur a été dite. Entre
+        // deux prises, la position courante est zéro, et zéro est la vérité : aucune prise ne
+        // court. Le module s'en garde une seconde fois de son côté (deux gardes indépendantes
+        // pour un chiffre qui a déjà menti).
+        this.echantillonsEcrits = 0;
       } else if (m.type === 'mesurer-bruit') {
         // Le filtre est construit ICI, avec la fréquence RÉELLE du contexte : ses coefficients
         // en dépendent, et un filtre calculé pour 48 kHz appliqué à 44,1 kHz couperait ailleurs
@@ -200,11 +264,24 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
           // parler et la mesure de bruit ne mesure plus le bruit. Le module le dira plutôt que
           // de rendre un verdict faux.
           n1: 0, sommeCarre1: 0, n2: 0, sommeCarre2: 0,
-          filtre: new PasseBas(BRUIT_COUPURE_HZ, sampleRate),
           canal: m.canal || 'gauche',
         };
+        // LE FIL DES FENÊTRES S'OUVRE ICI ET NE SE REFERME QU'À L'ARRÊT. Le silence initial
+        // n'est que la PREMIÈRE partie de ce fil ; la suite sert à trouver une pause quand ce
+        // silence n'a pas été tenu (T13).
+        this.filtreGrave = new PasseBas(BRUIT_COUPURE_HZ, sampleRate);
+        this.fenetres = {
+          canal: this.bruit.canal,
+          parFenetre: this.parFenetreBruit,
+          index: 0,
+          position: 0,          // échantillons du signal retenu depuis le début de la mesure
+          n: 0, sommeCarre: 0, sommeCarreGrave: 0, zeros: 0, crete: 0,
+          finDuSilenceInitial: this.bruit.demandes,
+        };
         this.port.postMessage({ type: 'bruit-demarre', echantillons: this.bruit.demandes,
-                                coupureHz: BRUIT_COUPURE_HZ, echantillonnage: sampleRate });
+                                coupureHz: BRUIT_COUPURE_HZ, echantillonnage: sampleRate,
+                                parFenetre: this.parFenetreBruit,
+                                fenetreSecondes: BRUIT_FENETRE_S });
       } else if (m.type === 'vider-maintenant') {
         // Appelé quand la page se masque ou se décharge : on pousse le morceau PARTIEL plutôt
         // que de le perdre. Ce qui est RÉELLEMENT garanti est écrit dans le module, pas ici :
@@ -259,33 +336,61 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
     // ── LA MESURE DU BRUIT DE PIÈCE, quand elle est en cours ────────────────────────────────
     // Elle tourne en mode analyse comme en mode prise : le silence initial de 3 s appartient à
     // la prise (T13), et c'est là qu'on veut la mesurer.
-    if (this.bruit && this.bruit.restants > 0) {
-      const b = this.bruit;
-      const prendre = Math.min(b.restants, g.length);
-      for (let i = 0; i < prendre; i++) {
-        const v = b.canal === 'droit' ? (d ? d[i] : 0)
-                : b.canal === 'moyenne' ? (d ? (g[i] + d[i]) / 2 : g[i])
+    if (this.fenetres) {
+      const f = this.fenetres;
+      const b = this.bruit;        // null dès que le silence initial est passé
+      for (let i = 0; i < g.length; i++) {
+        const v = f.canal === 'droit' ? (d ? d[i] : 0)
+                : f.canal === 'moyenne' ? (d ? (g[i] + d[i]) / 2 : g[i])
                 : g[i];
-        const grave = b.filtre.filtrer(v);
-        b.sommeCarre += v * v;
-        b.sommeCarreGrave += grave * grave;
-        if (b.n < b.demandes / 2) { b.n1++; b.sommeCarre1 += v * v; }
-        else { b.n2++; b.sommeCarre2 += v * v; }
-        const a = v < 0 ? -v : v;
-        if (a > b.crete) b.crete = a;
-        if (v === 0) b.zeros++;
-        b.n++;
-      }
-      b.restants -= prendre;
-      if (b.restants <= 0) {
-        this.port.postMessage({
-          type: 'bruit', n: b.n, demandes: b.demandes,
-          sommeCarre: b.sommeCarre, sommeCarreGrave: b.sommeCarreGrave,
-          crete: b.crete, zeros: b.zeros, canal: b.canal,
-          n1: b.n1, sommeCarre1: b.sommeCarre1, n2: b.n2, sommeCarre2: b.sommeCarre2,
-          coupureHz: BRUIT_COUPURE_HZ, echantillonnage: sampleRate,
-        });
-        this.bruit = null;
+        const grave = this.filtreGrave.filtrer(v);
+        const carre = v * v;
+        const abs = v < 0 ? -v : v;
+
+        // LA FENÊTRE DE 100 ms : des sommes, rien d'autre. Aucun décibel ici.
+        f.n++;
+        f.sommeCarre += carre;
+        f.sommeCarreGrave += grave * grave;
+        if (abs > f.crete) f.crete = abs;
+        if (v === 0) f.zeros++;
+
+        // LA FENÊTRE ENTIÈRE DU SILENCE INITIAL, gardée en parallèle et pour une seule raison :
+        // c'est le TÉMOIN de l'ancien calcul. Le rapport porte les deux, et leur écart est ce
+        // qui rend le défaut 1 visible plutôt que raconté.
+        if (b && b.restants > 0) {
+          b.sommeCarre += carre;
+          b.sommeCarreGrave += grave * grave;
+          if (b.n < b.demandes / 2) { b.n1++; b.sommeCarre1 += carre; }
+          else { b.n2++; b.sommeCarre2 += carre; }
+          if (abs > b.crete) b.crete = abs;
+          if (v === 0) b.zeros++;
+          b.n++;
+          b.restants--;
+          if (b.restants <= 0) {
+            this.port.postMessage({
+              type: 'bruit', n: b.n, demandes: b.demandes,
+              sommeCarre: b.sommeCarre, sommeCarreGrave: b.sommeCarreGrave,
+              crete: b.crete, zeros: b.zeros, canal: b.canal,
+              n1: b.n1, sommeCarre1: b.sommeCarre1, n2: b.n2, sommeCarre2: b.sommeCarre2,
+              coupureHz: BRUIT_COUPURE_HZ, echantillonnage: sampleRate,
+            });
+            this.bruit = null;
+          }
+        }
+
+        if (f.n >= f.parFenetre) {
+          this.port.postMessage({
+            type: 'fenetre-bruit',
+            index: f.index,
+            debutEchantillon: f.position,
+            n: f.n, sommeCarre: f.sommeCarre, sommeCarreGrave: f.sommeCarreGrave,
+            zeros: f.zeros, crete: f.crete,
+            dansLeSilenceInitial: f.position < f.finDuSilenceInitial,
+          });
+          f.index++;
+          f.position += f.n;
+          f.n = 0; f.sommeCarre = 0; f.sommeCarreGrave = 0; f.zeros = 0; f.crete = 0;
+        }
       }
     }
 

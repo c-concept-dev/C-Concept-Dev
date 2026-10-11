@@ -85,10 +85,11 @@
 
   // ── (d) LE BRUIT DE PIÈCE (T13) : UNE SEULE CONSTANTE ─────────────────────────────────────
   //
-  // Trois états, jamais bloquants. Les paliers viennent des faits : le lot 0 a mesuré −71 à
-  // −73 dBFS dans une pièce calme, et les prises réelles de Christophe −55,7 à −57,9 dBFS dans
-  // une salle de soins à générateurs. « Calme » couvre donc la pièce calme avec de la marge,
-  // « bruyant » attrape sa salle de soins.
+  // LES TROIS PALIERS SONT CEUX DU CDC et ne bougent pas (décision de Christophe du 11 octobre) :
+  // ils viennent de PLANCHERS DE SILENCE mesurés — −71 à −73 dBFS dans une pièce calme au lot 0,
+  // −55,7 à −57,9 dBFS dans sa salle de soins à générateurs — et non de moyennes. C'est
+  // l'ESTIMATEUR qui change, pas les seuils : ils s'appliquent désormais à un plancher, c'est-à-
+  // dire à la grandeur dont ils ont toujours été tirés.
   //
   // `partGraveMin` : au-delà de cette part d'énergie conservée par le passe-bas de 120 Hz du
   // worklet, le bruit est dit GRAVE — c'est le cas de sa salle (raies à 50 et 100 Hz). Un filtre
@@ -98,10 +99,46 @@
     bruyantMin_dbfs: -58,    // > −58 : bruyant ; entre les deux : correct
     partGraveMin: 0.5,       // plus de la moitié de l'énergie sous la coupure du passe-bas
     secondes: 3,             // la durée du silence initial de T13
-    // Montée tolérée entre la première et la seconde moitié de la fenêtre. 6 dB, c'est un
-    // doublement de l'amplitude efficace : le bruit d'une pièce ne double pas en une seconde et
-    // demie, une voix qui démarre si. Au-delà, la mesure est déclarée douteuse plutôt que fausse.
-    monteeMax_db: 6,
+
+    // ── LES RÉGLAGES DE L'ESTIMATEUR ROBUSTE, chacun avec le fait qui le fixe ──────────────
+    //
+    // `centile` : 20, demandé par Christophe. Un centile bas décrit le PLANCHER de la pièce ;
+    // pour qu'un bruit le déplace, il devrait occuper plus d'un cinquième du temps — et il ne
+    // serait alors plus bref. La valeur efficace de la fenêtre entière, elle, est une moyenne
+    // d'énergie : 640 ms de clics à −58 dBFS y pèsent plus que 2,36 s de silence à −75, ce qui
+    // donnait les −63,9 dBFS « correct » d'une pièce dont le plancher est à −75.
+    centile: 20,
+    //
+    // `margeOccupee_db` : au-delà de cette hauteur au-dessus de la fenêtre de 100 ms LA PLUS
+    // CALME, une fenêtre est dite occupée par autre chose que le bruit de la pièce. 12 dB, et la
+    // valeur est encadrée par deux mesures faites sur les fixtures de référence, pas choisie :
+    //   · un bruit STATIONNAIRE ne s'écarte presque pas de son propre plancher — 0,24 dB d'écart
+    //     entre la fenêtre la plus calme et la plus forte sur la pièce calme, 0,10 dB sur la
+    //     salle à générateurs. Toute marge au-delà de 1 dB les laisse donc intactes ;
+    //   · les bruits brefs de référence (80 ms à −58 dBFS sur un plancher à −75) culminent à
+    //     −59,0 dBFS, soit 16,0 dB au-dessus du plancher, et 13,9 dB dans le pire alignement
+    //     (un bruit à cheval sur deux fenêtres).
+    // 12 dB se place donc entre 1 et 13,9 : au-dessus du bruit de fond de la mesure, au-dessous
+    // du plus faible événement à détecter.
+    margeOccupee_db: 12,
+    //
+    // `dureeVoixMin_s` : une suite de fenêtres occupées qui dure au moins 300 ms est de la VOIX ;
+    // plus courte, c'est un bruit bref. Les claquements de touche mesurés au lot 0 durent 50 à
+    // 80 ms, une respiration guère plus ; une syllabe tenue dépasse 150 ms et une phrase occupe
+    // des secondes entières. 300 ms, soit trois fenêtres, sépare les deux populations mesurées.
+    dureeVoixMin_s: 0.3,
+    //
+    // `pauseMin_s` : quand le silence initial n'a pas été tenu, T13 demande de prélever
+    // l'ambiance dans une pause. Une pause n'est retenue qu'à partir d'une seconde, soit dix
+    // fenêtres : en dessous, un 20e centile tomberait sur la première ou la deuxième fenêtre et
+    // ne serait plus un centile mais un minimum.
+    pauseMin_s: 1,
+    //
+    // `tolerancePlancher_db` : la part de grave est calculée sur les fenêtres qui SONT le
+    // plancher, à 1 dB près — pas sur la fenêtre entière, qui contenait les bruits brefs dont
+    // T13 veut précisément se débarrasser. C'est le sens de « recalculer grave dominant sur le
+    // plancher robuste ».
+    tolerancePlancher_db: 1,
   };
 
   var _services = null;
@@ -122,6 +159,9 @@
       microphone: null,      // (e) ce que la piste dit du périphérique, relevé à l'ouverture
       bruit: null,           // (d) le verdict de bruit de pièce de la prise en cours
       bruitEnCours: false,
+      bruitSommes: null,     // (d) les sommes de la fenêtre entière, témoin de l'ancien calcul
+      fenetresBruit: [],     // (d) les sommes par fenêtre de 100 ms, d'où sort le plancher
+      bruitProvisoireRendu: false,
       sommesAnalyse: null,   // sommes cumulées depuis l'autorisation (pour le repli seulement)
       sommesTotal: null,     // sommes cumulées de la prise en cours
       dernierReleve: null,
@@ -219,55 +259,299 @@
     return a;
   }
 
-  // (d) LE VERDICT DE BRUIT, à partir des sommes brutes du worklet. Trois états, une mention de
-  // grave, et la RÈGLE écrite à côté du chiffre — un rapport de 0,62 ne se lit pas comme
-  // « 62 % de l'énergie est sous 120 Hz », puisque le passe-bas est une pente et non un mur.
+  // ── (d) LE BRUIT DE PIÈCE (T13) : L'ESTIMATEUR ROBUSTE ────────────────────────────────────
+  //
+  // Six fonctions pures, chacune pour UNE grandeur, toutes éprouvables sans navigateur. Le
+  // worklet ne livre que des sommes par fenêtre de 100 ms : tout ce qui est dérivé — décibel,
+  // centile, plancher, verdict, part de grave — se calcule ici, une seule fois (#11(f)).
+
+  // LA LONGUEUR D'UNE FENÊTRE, LUE DANS LA MESURE et jamais redéclarée ici. Le worklet la
+  // calcule à partir de la fréquence réelle du contexte (4 800 échantillons à 48 kHz, 4 410 à
+  // 44,1 kHz) ; l'écrire une seconde fois dans ce fichier ferait deux vérités pour une grandeur,
+  // et à 44,1 kHz la seconde serait fausse (régression #11(f)).
+  function fenetreSecondes(b) {
+    var f = (b.fenetres || []).filter(function (x) { return !x.partielle && x.n; })[0];
+    if (f && b.echantillonnage) return f.n / b.echantillonnage;
+    if (b.parFenetre && b.echantillonnage) return b.parFenetre / b.echantillonnage;
+    return 0;
+  }
+
+  // LE NIVEAU D'UNE FENÊTRE, en dBFS. Une fenêtre entièrement à zéro n'a PAS de niveau :
+  // 20·log10(0) n'est pas un nombre, et rendre −∞ comme s'il était une mesure est exactement ce
+  // qui a produit le « CALME — −∞ dB » d'un micro muet. On rend `null` ici, à l'intérieur du
+  // calcul, et aucun `null` ne sort jamais vers le rapport : il est traduit en raison.
+  function niveauDeFenetre(f) {
+    if (!f || !f.n) return null;
+    if (f.zeros === f.n) return null;
+    return dbfs(Math.sqrt(f.sommeCarre / f.n));
+  }
+
+  // LE CENTILE, convention écrite : les niveaux triés par ordre croissant, rang inférieur, SANS
+  // interpolation. Pour 30 fenêtres et le 20e centile, c'est la 6e plus calme. Le générateur de
+  // fixtures calcule le même centile avec un code qui n'est pas celui-ci : si les deux
+  // divergent, un contrôle le dira (#11(j)).
+  function centile(niveaux, pourCent) {
+    if (!niveaux.length) return null;
+    var tries = niveaux.slice().sort(function (a, b) { return a - b; });
+    var rang = Math.floor((pourCent / 100) * (tries.length - 1));
+    if (rang < 0) rang = 0;
+    if (rang > tries.length - 1) rang = tries.length - 1;
+    return tries[rang];
+  }
+
+  // LES SUITES DE FENÊTRES OCCUPÉES. « Occupée » veut dire : plus de `margeOccupee_db` au-dessus
+  // de la fenêtre LA PLUS CALME de l'ensemble. On compare au plus calme et non au centile, et
+  // c'est la correction d'un piège mesuré : quand la voix remplit la fenêtre, le 20e centile EST
+  // un niveau de voix, et comparer à lui ne trouve plus rien d'occupé — la voix se cache dans sa
+  // propre moyenne. Le plus calme, lui, reste le plancher tant qu'il reste 100 ms de silence.
+  function suitesOccupees(fenetres, marge) {
+    var avec = fenetres.filter(function (f) { return f.niveau !== null; });
+    if (!avec.length) return { plusCalme: null, suites: [], occupees: 0 };
+    var plusCalme = avec.reduce(function (m, f) { return f.niveau < m ? f.niveau : m; }, avec[0].niveau);
+    var seuil = plusCalme + marge;
+    var suites = [];
+    var courante = null;
+    fenetres.forEach(function (f) {
+      var occupee = f.niveau !== null && f.niveau > seuil;
+      f.occupee = occupee;
+      if (occupee) {
+        if (!courante) { courante = { debut: f.index, fenetres: 0, debutEchantillon: f.debutEchantillon }; suites.push(courante); }
+        courante.fenetres++;
+      } else { courante = null; }
+    });
+    return { plusCalme: plusCalme, seuilOccupee: seuil, suites: suites,
+             occupees: fenetres.filter(function (f) { return f.occupee; }).length };
+  }
+
+  // LES SUITES DE FENÊTRES CALMES, c'est-à-dire les PAUSES. Rendues de la plus calme à la moins
+  // calme, chacune avec son 20e centile : c'est là qu'on prélève l'ambiance quand le silence
+  // initial n'a pas été tenu (T13).
+  function pauses(fenetres, minFenetres, pourCent) {
+    var trouvees = [];
+    var courante = null;
+    fenetres.forEach(function (f) {
+      if (!f.occupee && f.niveau !== null) {
+        if (!courante) { courante = { debutEchantillon: f.debutEchantillon, membres: [] }; trouvees.push(courante); }
+        courante.membres.push(f);
+      } else { courante = null; }
+    });
+    return trouvees
+      .filter(function (p) { return p.membres.length >= minFenetres; })
+      .map(function (p) {
+        return {
+          debutEchantillon: p.debutEchantillon,
+          fenetres: p.membres.length,
+          echantillons: p.membres.reduce(function (t, f) { return t + f.n; }, 0),
+          plancher: centile(p.membres.map(function (f) { return f.niveau; }), pourCent),
+          membres: p.membres,
+        };
+      })
+      .sort(function (a, b) { return a.plancher - b.plancher; });
+  }
+
+  // LA PART DE GRAVE, CALCULÉE SUR LE PLANCHER (T13 : « recalculée sur le plancher robuste »).
+  // On ne prend que les fenêtres qui SONT le plancher, à `tolerancePlancher_db` près — pas la
+  // fenêtre entière, qui contenait les bruits brefs dont tout l'estimateur cherche à se défaire.
+  // Un clic de touche est large bande : le compter ferait paraître la pièce moins grave qu'elle
+  // n'est, et c'est l'erreur que le relevé d'essais reproche à la mention « bruit grave ».
+  function partDeGraveDuPlancher(fenetres, plancher, tolerance) {
+    var retenues = fenetres.filter(function (f) {
+      return f.niveau !== null && f.niveau <= plancher + tolerance;
+    });
+    if (!retenues.length) return { part: 0, fenetres: 0, raison: 'aucune fenêtre au plancher' };
+    var tot = 0, grave = 0;
+    retenues.forEach(function (f) { tot += f.sommeCarre; grave += f.sommeCarreGrave; });
+    return { part: tot > 0 ? grave / tot : 0, fenetres: retenues.length,
+             echantillons: retenues.reduce(function (t, f) { return t + f.n; }, 0) };
+  }
+
+  // L'ÉTAT, AUX TROIS PALIERS DU CDC, appliqués au plancher robuste.
+  function etatDuPlancher(db) {
+    return (db <= BRUIT.calmeMax_dbfs) ? 'calme'
+         : (db > BRUIT.bruyantMin_dbfs) ? 'bruyant'
+         : 'correct';
+  }
+
+  // (d) LE VERDICT DE BRUIT. Il prend les sommes de la fenêtre entière (le TÉMOIN de l'ancien
+  // calcul, gardé pour que l'écart soit visible et non raconté) et la liste des fenêtres de
+  // 100 ms. Quatre états, ceux de T13 : calme, correct, bruyant, et « aucun signal » pour un
+  // micro muet, qui n'est JAMAIS calme.
   function verdictBruit(b) {
     if (!b || !b.n) return { mesure: false, raison: 'bruit non mesuré' };
-    var efficace = Math.sqrt(b.sommeCarre / b.n);
-    var db = dbfs(efficace);
-    var etat = (db <= BRUIT.calmeMax_dbfs) ? 'calme'
-             : (db > BRUIT.bruyantMin_dbfs) ? 'bruyant'
-             : 'correct';
-    var partGrave = b.sommeCarre > 0 ? (b.sommeCarreGrave / b.sommeCarre) : 0;
-    var grave = partGrave > BRUIT.partGraveMin;
+
+    // Les fenêtres pleines seulement : la dernière d'une prise porte moins de 100 ms, donc son
+    // niveau est statistiquement plus agité, et la mêler aux autres ferait d'une fin de prise un
+    // événement. Elle est comptée et dite à part.
+    var toutes = (b.fenetres || []).map(function (f, k) {
+      return { index: (typeof f.index === 'number') ? f.index : k,
+               debutEchantillon: f.debutEchantillon || 0,
+               n: f.n, sommeCarre: f.sommeCarre, sommeCarreGrave: f.sommeCarreGrave,
+               zeros: f.zeros, crete: f.crete, partielle: !!f.partielle,
+               dansLeSilenceInitial: !!f.dansLeSilenceInitial,
+               niveau: niveauDeFenetre(f) };
+    });
+    var pleines = toutes.filter(function (f) { return !f.partielle; });
+    var initiales = pleines.filter(function (f) { return f.dansLeSilenceInitial; });
+
+    var efficaceFenetreEntiere = Math.sqrt(b.sommeCarre / b.n);
+    var dbFenetreEntiere = dbfs(efficaceFenetreEntiere);
+
+    // AUCUNE FENÊTRE LIVRÉE : on le dit. Cela arrive si la mesure a été interrompue avant la
+    // première frontière de 100 ms. Un plancher calculé sur rien serait un chiffre sans mesure.
+    if (!pleines.length) {
+      return { mesure: true, echantillons: b.n, etat: 'non concluant',
+               raison: 'la mesure s\'est arrêtée avant la première fenêtre de 100 ms : '
+                 + b.n + ' échantillons reçus, aucune fenêtre complète',
+               efficaceDbfsFenetreEntiere: dbFenetreEntiere,
+               echantillonsAZero: b.zeros, coupureHz: b.coupureHz, regle: REGLE_BRUIT(b) };
+    }
+
+    // ── AUCUN SIGNAL : UN MICRO MUET N'EST JAMAIS CALME (T13) ───────────────────────────────
+    // Le défaut 1 du relevé d'essais, dans sa forme la plus grave : « CALME — −∞ dB » sur une
+    // prise où rien n'avait été capté. Une fausse assurance, pas une fausse alarme. Le témoin
+    // est le compte d'échantillons EXACTEMENT à zéro : s'il égale le nombre d'échantillons de la
+    // fenêtre, aucun niveau n'existe, et on le dit au lieu d'en fabriquer un.
+    if (b.zeros === b.n) {
+      return {
+        mesure: true,
+        echantillons: b.n,
+        secondes: b.echantillonnage ? b.n / b.echantillonnage : 0,
+        etat: 'aucun-signal',
+        echantillonsAZero: b.zeros,
+        raisonDuNiveau: 'les ' + b.n + ' échantillons de la fenêtre sont à zéro numérique : '
+          + 'aucun niveau en dBFS n\'existe, 20·log10(0) n\'étant pas un nombre. Le micro n\'a '
+          + 'rien livré — ce n\'est pas une pièce calme, c\'est une absence de capture.',
+        silenceInitialRespecte: false,
+        raisonDuSilence: 'aucun signal n\'a été reçu : la question du silence ne se pose pas',
+        graveDominant: false,
+        partGrave: 0,
+        partGraveRaison: 'aucun signal : aucune énergie à répartir',
+        fenetres: { total: toutes.length, pleines: pleines.length,
+                    sansSignal: toutes.length, auPlancher: 0 },
+        mention: 'aucun son reçu du micro pendant la mesure : le bruit de la pièce n\'a pas pu '
+          + 'être mesuré (voir le bandeau de capture muette)',
+        coupureHz: b.coupureHz,
+        regle: REGLE_BRUIT(b),
+      };
+    }
 
     // ── LE SILENCE INITIAL EN ÉTAIT-IL UN ? ─────────────────────────────────────────────────
-    // T13 porte la trace du contraire, mesurée au lot 0 : « un silence initial de 3 s n'a jamais
-    // été silencieux ». Si la seconde moitié de la fenêtre est nettement plus forte que la
-    // première, quelqu'un a commencé à parler : la fenêtre ne mesure plus le bruit de la pièce,
-    // elle mesure une voix. Un verdict rendu là-dessus serait crédible et faux — la pire espèce.
-    var eff1 = b.n1 ? Math.sqrt(b.sommeCarre1 / b.n1) : 0;
-    var eff2 = b.n2 ? Math.sqrt(b.sommeCarre2 / b.n2) : 0;
-    var monteeDb = (eff1 > 0 && eff2 > 0) ? (20 * Math.log10(eff2 / eff1)) : 0;
-    var douteux = monteeDb > BRUIT.monteeMax_db;
+    // T13, corrigé le 11 octobre : « le silence initial n'est déclaré respecté que si la fenêtre
+    // ne contient pas de voix ». Sur la prise du 10 octobre, `silenceInitialRespecte` valait
+    // `true` alors que la voix démarrait à 0,3 s. La voix se reconnaît à sa DURÉE : une suite de
+    // fenêtres occupées d'au moins 300 ms. Plus court, c'est un bruit bref, et un bruit bref ne
+    // disqualifie pas le silence — il est seulement compté.
+    var occ = suitesOccupees(pleines, BRUIT.margeOccupee_db);
+    var minVoix = Math.max(1, Math.round(BRUIT.dureeVoixMin_s / fenetreSecondes(b)));
+    var suitesInitiales = occ.suites.filter(function (su) {
+      var f = pleines.filter(function (x) { return x.index === su.debut; })[0];
+      return f && f.dansLeSilenceInitial;
+    });
+    var voix = suitesInitiales.filter(function (su) { return su.fenetres >= minVoix; });
+    var transitoires = suitesInitiales.filter(function (su) { return su.fenetres < minVoix; });
+    var silenceRespecte = voix.length === 0;
+
+    // ── D'OÙ VIENT L'AMBIANCE ───────────────────────────────────────────────────────────────
+    // Silence tenu : les fenêtres du silence initial. Sinon, T13 demande de prélever dans une
+    // pause, et c'est la PLUS CALME de la prise qui est prise. S'il n'y a aucune pause d'une
+    // seconde, on le DIT et on se rabat sur le 20e centile de toute la prise, qui reste un
+    // plancher — mais un plancher dont on annonce la provenance.
+    var lesPauses = pauses(pleines, Math.max(1, Math.round(BRUIT.pauseMin_s / fenetreSecondes(b))), BRUIT.centile);
+    var population, source, pauseRetenue = null;
+    if (silenceRespecte && initiales.length) {
+      population = initiales.filter(function (f) { return f.niveau !== null; });
+      source = 'silence initial';
+    } else if (lesPauses.length) {
+      pauseRetenue = lesPauses[0];
+      population = pauseRetenue.membres;
+      source = 'pause la plus calme de la prise';
+    } else {
+      population = pleines.filter(function (f) { return f.niveau !== null; });
+      source = 'aucune pause d\'une seconde : toute la prise';
+    }
+
+    var plancher = centile(population.map(function (f) { return f.niveau; }), BRUIT.centile);
+    var pg = partDeGraveDuPlancher(population, plancher, BRUIT.tolerancePlancher_db);
+    var etat = etatDuPlancher(plancher);
+    var grave = pg.part > BRUIT.partGraveMin;
+    var sansSignal = toutes.filter(function (f) { return f.niveau === null; }).length;
+
     return {
       mesure: true,
       echantillons: b.n,
       secondes: b.echantillonnage ? b.n / b.echantillonnage : 0,
-      efficace: efficace, efficaceDbfs: db,
+
+      // CE QUI EST AFFICHÉ ET CE QUI DÉCIDE : le plancher robuste, et lui seul.
+      etat: etat,
+      plancherDbfs: plancher,
+      plancherSource: source,
+      pauseRetenue: pauseRetenue ? { debutEchantillon: pauseRetenue.debutEchantillon,
+                                     echantillons: pauseRetenue.echantillons,
+                                     fenetres: pauseRetenue.fenetres } : 'sans objet',
+      centile: BRUIT.centile,
+
+      // LE TÉMOIN DE L'ANCIEN CALCUL, gardé exprès : c'est lui qui rend le défaut 1 mesurable.
+      // Sur la salle de Christophe les deux valeurs s'accordent à 0,02 dB ; sur un plancher
+      // parsemé de clics elles diffèrent de plus de 10 dB, et c'est la seconde qui mentait.
+      efficaceDbfsFenetreEntiere: dbFenetreEntiere,
+      etatSelonLaFenetreEntiere: etatDuPlancher(dbFenetreEntiere),
+      ecartFenetreEntiereMoinsPlancher_db: dbFenetreEntiere - plancher,
+
       crete: b.crete, creteDbfs: dbfs(b.crete),
       echantillonsAZero: b.zeros,
-      etat: douteux ? 'douteux' : etat,
-      etatSiLeSilenceEtaitRespecte: etat,
-      silenceInitialRespecte: !douteux,
-      monteeEntreLesDeuxMoities_db: monteeDb,
-      efficaceDbfsPremiereMoitie: dbfs(eff1),
-      efficaceDbfsSecondeMoitie: dbfs(eff2),
-      partGrave: partGrave,
+
+      silenceInitialRespecte: silenceRespecte,
+      raisonDuSilence: silenceRespecte
+        ? 'aucune suite de fenêtres occupées d\'au moins ' + BRUIT.dureeVoixMin_s + ' s dans le '
+          + 'silence initial' + (transitoires.length ? ' (' + transitoires.length + ' bruit(s) bref(s) compté(s))' : '')
+        : voix.length + ' passage(s) de voix dans le silence initial, le plus long de '
+          + (Math.max.apply(null, voix.map(function (v) { return v.fenetres; })) * fenetreSecondes(b)).toFixed(1)
+          + ' s : l\'ambiance a été prélevée ailleurs',
+      transitoires: transitoires.length,
+      transitoiresDetail: transitoires.map(function (t) {
+        return { debutEchantillon: t.debutEchantillon,
+                 secondes: +(t.fenetres * fenetreSecondes(b)).toFixed(3) };
+      }),
+      fenetreLaPlusCalmeDbfs: occ.plusCalme,
+      seuilFenetreOccupeeDbfs: occ.seuilOccupee,
+
+      partGrave: pg.part,
       graveDominant: grave,
-      mention: douteux
-        ? 'le silence initial n\'a pas été respecté (' + monteeDb.toFixed(1) + ' dB de plus sur '
-          + 'la seconde moitié) : cette mesure ne décrit pas le bruit de la pièce'
-        : (grave ? 'bruit grave : un filtre le réduira au mixage' : ''),
+      partGraveCalculeeSur: { fenetres: pg.fenetres, echantillons: pg.echantillons || 0,
+                              regle: 'les fenêtres dont le niveau ne dépasse pas le plancher de '
+                                + BRUIT.tolerancePlancher_db + ' dB' },
+
+      fenetres: {
+        total: toutes.length, pleines: pleines.length, partielles: toutes.length - pleines.length,
+        dansLeSilenceInitial: initiales.length, sansSignal: sansSignal,
+        occupees: occ.occupees, pausesTrouvees: lesPauses.length,
+        secondes: fenetreSecondes(b),
+      },
+
+      mention: grave ? 'bruit grave : un filtre le réduira au mixage' : '',
       coupureHz: b.coupureHz,
-      regle: 'état : calme ≤ ' + BRUIT.calmeMax_dbfs + ' dBFS, bruyant > ' + BRUIT.bruyantMin_dbfs
-        + ' dBFS, correct entre les deux (valeur efficace). partGrave = énergie qui ressort d\'un '
-        + 'passe-bas de Butterworth du 2e ordre à ' + b.coupureHz + ' Hz divisée par l\'énergie '
-        + 'totale ; ce filtre est une PENTE et non un mur (0,5 à la coupure, 1 en dessous, 1/f⁴ '
-        + 'au-dessus), donc ce rapport n\'est pas un pourcentage d\'énergie sous ' + b.coupureHz
-        + ' Hz. Grave dominant si le rapport dépasse ' + BRUIT.partGraveMin + '.',
+      regle: REGLE_BRUIT(b),
     };
+  }
+
+  // LA RÈGLE, ÉCRITE À CÔTÉ DU CHIFFRE. Un plancher de −74 dBFS sans sa règle ne se refait pas,
+  // et un rapport de 0,62 se lirait comme « 62 % de l'énergie est sous 120 Hz », ce qu'il n'est
+  // pas : le passe-bas est une pente.
+  function REGLE_BRUIT(b) {
+    return 'le bruit de pièce est le ' + BRUIT.centile + 'e centile des niveaux de fenêtres de '
+      + (fenetreSecondes(b) * 1000).toFixed(0) + ' ms (plancher), et NON la valeur '
+      + 'efficace de la fenêtre entière (moyenne d\'énergie, que quelques bruits brefs suffisent '
+      + 'à relever de plus de 10 dB). États : calme ≤ ' + BRUIT.calmeMax_dbfs + ' dBFS, bruyant > '
+      + BRUIT.bruyantMin_dbfs + ' dBFS, correct entre les deux ; « aucun signal » si tous les '
+      + 'échantillons sont à zéro, cas où aucun niveau n\'existe. Une fenêtre est dite OCCUPÉE si '
+      + 'elle dépasse de ' + BRUIT.margeOccupee_db + ' dB la fenêtre la plus calme ; une suite '
+      + 'd\'au moins ' + BRUIT.dureeVoixMin_s + ' s de fenêtres occupées est de la voix, plus '
+      + 'courte c\'est un bruit bref. partGrave = énergie qui ressort d\'un passe-bas de '
+      + 'Butterworth du 2e ordre à ' + b.coupureHz + ' Hz divisée par l\'énergie totale, calculée '
+      + 'sur les seules fenêtres du plancher ; ce filtre est une PENTE et non un mur (0,5 à la '
+      + 'coupure, 1 en dessous, 1/f⁴ au-dessus), donc ce rapport n\'est pas un pourcentage '
+      + 'd\'énergie sous ' + b.coupureHz + ' Hz. Grave dominant si le rapport dépasse '
+      + BRUIT.partGraveMin + '.';
   }
 
   // LA RÈGLE DE CHRISTOPHE, écrite une fois, ici, et rien qu'ici (E3 ne tranchait pas le cas de
@@ -540,6 +824,55 @@
   }
 
   // ── LES MESSAGES DU WORKLET ────────────────────────────────────────────────────────────────
+  // LES SOMMES DE LA MESURE ET SES FENÊTRES, RÉUNIES EN UN SEUL OBJET. Une seule construction,
+  // utilisée par le verdict provisoire comme par le verdict final : deux assemblages distincts
+  // feraient deux vérités pour une mesure.
+  function fusionBruit() {
+    var b = _etat.bruitSommes || {};
+    var o = { fenetres: _etat.fenetresBruit.slice() };
+    Object.keys(b).forEach(function (k) { if (k !== 'fenetres') o[k] = b[k]; });
+    return o;
+  }
+
+  // L'AFFICHAGE DU BRUIT, écrit une seule fois et appelé deux fois (provisoire, puis final).
+  // Ce qui est montré est le PLANCHER, puisque c'est lui qui décide. La valeur efficace de la
+  // fenêtre entière est montrée à côté, nommée pour ce qu'elle est : sur un plancher parsemé de
+  // clics, c'est elle qui annonçait « correct » là où la pièce était calme.
+  function peindreBruit(v, quand) {
+    _etat.bruit = v;
+    var el = q('[data-bruit]');
+    if (!el) return v;
+    el.setAttribute('data-etat', v.etat);
+    if (!v.mesure) { el.textContent = 'Bruit de pièce : ' + (v.raison || 'non mesuré') + '.'; return v; }
+    if (v.etat === 'aucun-signal') {
+      el.textContent = 'Bruit de pièce : AUCUN SIGNAL — ' + v.echantillonsAZero + ' échantillons '
+        + 'sur ' + v.echantillons + ' à zéro numérique. ' + v.raisonDuNiveau;
+    } else if (v.etat === 'non concluant') {
+      el.textContent = 'Bruit de pièce : NON CONCLUANT — ' + v.raison + '.';
+    } else {
+      el.textContent = 'Bruit de pièce : ' + v.etat.toUpperCase() + ' — plancher '
+        + fmtDb(v.plancherDbfs) + ' (' + v.centile + 'e centile de '
+        + v.fenetres.pleines + ' fenêtres de ' + (v.fenetres.secondes * 1000).toFixed(0) + ' ms, '
+        + v.plancherSource + ')'
+        + ' · part de grave ' + v.partGrave.toFixed(3) + ' (passe-bas ' + v.coupureHz + ' Hz)'
+        + ' · fenêtre entière ' + fmtDb(v.efficaceDbfsFenetreEntiere) + ' efficace'
+        + (v.silenceInitialRespecte ? '' : ' · silence initial non tenu : ' + v.raisonDuSilence)
+        + (v.transitoires ? ' · ' + v.transitoires + ' bruit(s) bref(s) écarté(s)' : '')
+        + (v.mention ? ' · ' + v.mention : '')
+        + (quand === 'provisoire' ? ' · mesure provisoire, revue à l\'arrêt' : '');
+    }
+    // Jamais bloquant : une information, pas un défaut (T13).
+    if (v.etat === 'bruyant') {
+      message('bruit', 'info', 'La pièce est bruyante (plancher ' + fmtDb(v.plancherDbfs)
+        + ', seuil ' + BRUIT.bruyantMin_dbfs + ' dBFS)'
+        + (v.graveDominant ? '. ' + v.mention : '. Le bruit n\'est pas surtout grave.')
+        + ' Rien n\'est bloqué : la prise se fait quand même.');
+    } else {
+      message('bruit', '', null);
+    }
+    return v;
+  }
+
   function surMessageWorklet(m) {
     if (m.type === 'releve') { peindreReleve(m); return; }
 
@@ -572,30 +905,21 @@
     }
 
     if (m.type === 'bruit') {
+      // Les sommes de la fenêtre entière sont GARDÉES, pas encore jugées : à cet instant la
+      // dernière fenêtre de 100 ms du silence initial n'est pas arrivée (le worklet poste les
+      // deux dans la même boucle, les sommes d'abord). Le verdict provisoire se rend à la
+      // première fenêtre d'après, le verdict FINAL à l'arrêt — une pause où prélever l'ambiance
+      // ne peut être trouvée qu'une fois la prise terminée (T13).
       _etat.bruitEnCours = false;
-      _etat.bruit = verdictBruit(m);
-      var v = _etat.bruit;
-      journaliser('bruit de pièce ' + v.etat, _etat.echantillonsEcrits, {
-        efficaceDbfs: +v.efficaceDbfs.toFixed(1), partGrave: +v.partGrave.toFixed(3),
-        graveDominant: v.graveDominant, echantillons: v.echantillons });
-      var el = q('[data-bruit]');
-      if (el) {
-        el.setAttribute('data-etat', v.etat);
-        // LA GRANDEUR À CÔTÉ DU VERDICT : sans le décibel et le rapport, « bruyant » est un avis
-        // qu'on ne peut pas refaire.
-        el.textContent = 'Bruit de pièce : ' + v.etat.toUpperCase() + ' — ' + fmtDb(v.efficaceDbfs)
-          + ' efficace, crête ' + fmtDb(v.creteDbfs) + ', sur ' + v.secondes.toFixed(1) + ' s'
-          + ' · part de grave ' + v.partGrave.toFixed(3) + ' (passe-bas ' + v.coupureHz + ' Hz)'
-          + (v.mention ? ' · ' + v.mention : '');
-      }
-      // Jamais bloquant : une information, pas un défaut.
-      if (v.etat === 'bruyant') {
-        message('bruit', 'info', 'La pièce est bruyante (' + fmtDb(v.efficaceDbfs)
-          + ', seuil ' + BRUIT.bruyantMin_dbfs + ' dBFS)'
-          + (v.graveDominant ? '. ' + v.mention : '. Le bruit n\'est pas surtout grave.')
-          + ' Rien n\'est bloqué : la prise se fait quand même.');
-      } else {
-        message('bruit', '', null);
+      _etat.bruitSommes = m;
+      return;
+    }
+
+    if (m.type === 'fenetre-bruit') {
+      _etat.fenetresBruit.push(m);
+      if (_etat.bruitSommes && !m.dansLeSilenceInitial && !_etat.bruitProvisoireRendu) {
+        _etat.bruitProvisoireRendu = true;
+        peindreBruit(verdictBruit(fusionBruit()), 'provisoire');
       }
       return;
     }
@@ -908,6 +1232,13 @@
     _etat.finDuWorklet = null;
     _etat.priseDemarreeRecue = false;
     _etat.echantillonsParMorceauReels = 0;
+    // (d) LES FENÊTRES D'UNE PRISE N'APPARTIENNENT QU'À ELLE. Les garder d'une prise à l'autre
+    // aurait fait exactement ce que le défaut 4 reproche au compteur d'échantillons : décrire la
+    // prise précédente en croyant décrire celle-ci.
+    _etat.bruitSommes = null;
+    _etat.fenetresBruit = [];
+    _etat.bruitProvisoireRendu = false;
+    _etat.bruit = null;
     message('muet', '', null);
     message('prise-muette', '', null);
 
@@ -996,9 +1327,39 @@
         var retenus = f.echantillonsRetenus || 0;
         var zeros = f.zerosRetenus || 0;
         var muette = _etat.echantillonsEcrits === 0 || (retenus > 0 && zeros === retenus);
-        // Un passage muet dans une prise par ailleurs sonore n'est pas un échec, mais il ne se
-        // tait pas : il reste au journal, et il est dit.
-        var passageMuet = !muette && _etat.journal.some(function (e) { return e.quoi === 'piste muette'; });
+
+        // ── (D5) UN PASSAGE MUET N'EST PAS UN SIGNAL PERDU ────────────────────────────────
+        // Défaut 5 du relevé d'essais : une prise dont 68 % est à zéro JUSQU'À LA FIN était
+        // annoncée « sonore avec un passage muet ». Ce n'est pas un passage : c'est une perte.
+        // Les deux se distinguent par un fait, pas par une appréciation — le signal est-il
+        // revenu après la dernière chute à zéro ? Le journal porte la réponse, en échantillons.
+        var dernierMuet = -1, dernierRetour = -1;
+        _etat.journal.forEach(function (e, k) {
+          if (e.quoi === 'piste muette') dernierMuet = k;
+          if (e.quoi === 'son revenu') dernierRetour = k;
+        });
+        var signalPerdu = !muette && dernierMuet >= 0 && dernierRetour < dernierMuet;
+        var passageMuet = !muette && dernierMuet >= 0 && dernierRetour > dernierMuet;
+        var perduDepuis = signalPerdu ? _etat.journal[dernierMuet].aEchantillon : null;
+
+        // ── (d) LE VERDICT FINAL DE BRUIT, rendu ICI et nulle part ailleurs ────────────────
+        // Le verdict provisoire portait sur le silence initial seul. T13 demande, quand ce
+        // silence n'a pas été tenu, de prélever l'ambiance dans une pause — et une pause ne peut
+        // être trouvée qu'une fois la prise finie. C'est donc ce verdict-là, et lui seul, que le
+        // rapport porte et que le journal date.
+        if (_etat.bruitSommes) {
+          var vb = peindreBruit(verdictBruit(fusionBruit()), 'final');
+          journaliser('bruit de pièce ' + vb.etat, _etat.echantillonsEcrits, {
+            plancherDbfs: (typeof vb.plancherDbfs === 'number') ? +vb.plancherDbfs.toFixed(1) : vb.raisonDuNiveau || vb.raison,
+            source: vb.plancherSource || 'sans objet',
+            efficaceFenetreEntiereDbfs: (typeof vb.efficaceDbfsFenetreEntiere === 'number')
+              ? +vb.efficaceDbfsFenetreEntiere.toFixed(1) : 'sans objet',
+            silenceInitialRespecte: vb.silenceInitialRespecte,
+            transitoires: vb.transitoires || 0,
+            partGrave: (typeof vb.partGrave === 'number') ? +vb.partGrave.toFixed(3) : 'sans objet',
+            graveDominant: !!vb.graveDominant,
+            fenetres: vb.fenetres ? vb.fenetres.pleines : 0 });
+        }
 
         // ── (b) LA REVÉRIFICATION DU CANAL, SUR LA PRISE ELLE-MÊME ────────────────────────
         // La décision a été prise sur deux secondes AVANT la prise. La prise, elle, dure parfois
@@ -1054,11 +1415,11 @@
             + 'micro-haut-parleur, lui, est du lot 3B.',
         };
 
-        var mesures = rapportDUnePrise(f, perdus, muette, passageMuet);
+        var mesures = rapportDUnePrise(f, perdus, muette, passageMuet, signalPerdu, perduDepuis);
         _etat.mesures = mesures;
 
         return window.VoixStockage.majPrise(_etat.db, _etat.priseId, {
-          etat: muette ? 'muette' : 'terminee',
+          etat: muette ? 'muette' : (signalPerdu ? 'signal-perdu' : 'terminee'),
           nbEchantillons: _etat.echantillonsEcrits,
           nbMorceaux: _etat.morceauxEcrits,
           journal: _etat.journal.slice(),
@@ -1076,10 +1437,15 @@
                'le signal retenu est resté à zéro numérique sur la totalité de la prise (' +
                (f.zerosRetenus || 0) + ' échantillons sur ' + (f.echantillonsRetenus || 0) + ')') +
               '. Elle n\'est pas présentée comme réussie (E8).');
+          } else if (signalPerdu) {
+            message('prise-muette', 'error', 'SIGNAL PERDU à l\'échantillon ' + perduDepuis +
+              ' (' + fmtTemps(perduDepuis, _etat.echantillonnage) + ') et jamais revenu : tout ' +
+              'ce qui suit est à zéro numérique. Ce n\'est pas un passage muet, c\'est une perte ' +
+              'de capture — seul le début de la prise est utilisable.');
           } else if (passageMuet) {
             message('prise-muette', 'info', 'Cette prise est sonore, mais elle contient un ' +
-              'passage à zéro numérique de plus de 2 secondes. Il reste consigné au journal, en ' +
-              'échantillons.');
+              'passage à zéro numérique de plus de 2 secondes, suivi d\'un retour du son. Il ' +
+              'reste consigné au journal, en échantillons.');
           }
           return peindreListe().then(function () { return mesures; });
         });
@@ -1090,7 +1456,7 @@
   // Niveau et crête PAR CANAL, corrélation vraiment calculée (jamais `null` : une raison à la
   // place), blocs perdus avec leurs deux termes, état de la piste, canal retenu. Chaque nombre
   // porte la grandeur dont il découle.
-  function rapportDUnePrise(fin, perdus, muette, passageMuet) {
+  function rapportDUnePrise(fin, perdus, muette, passageMuet, signalPerdu, perduDepuis) {
     var s = _etat.sommesTotal || (fin && fin.total) || null;
     var g = niveauxCanal(s, 'g');
     var d = niveauxCanal(s, 'd');
@@ -1151,7 +1517,14 @@
       },
       echantillonsVusParLeWorklet: fin ? fin.echantillonsVus : null,
       ecartVuEcrit: fin ? (fin.echantillonsVus - _etat.echantillonsEcrits) : null,
-      etatDeLaPiste: muette ? 'muette' : (passageMuet ? 'sonore avec un passage muet' : 'sonore'),
+      // (D5) TROIS ÉTATS DISTINCTS, et le troisième est celui qui manquait : un signal perdu
+      // jusqu'à la fin de la prise n'est pas « un passage muet », et l'appeler ainsi laissait
+      // croire qu'il y avait quelque chose après.
+      etatDeLaPiste: muette ? 'muette'
+        : signalPerdu ? ('signal perdu à l\'échantillon ' + perduDepuis + ' et jamais revenu')
+        : passageMuet ? 'sonore avec un passage muet puis retour du son'
+        : 'sonore',
+      signalPerduAEchantillon: signalPerdu ? perduDepuis : 'sans objet',
       signalRetenu: {
         echantillons: (fin && fin.echantillonsRetenus) || 0,
         echantillonsAZero: (fin && fin.zerosRetenus) || 0,

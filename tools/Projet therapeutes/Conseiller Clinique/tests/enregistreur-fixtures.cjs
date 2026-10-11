@@ -81,6 +81,43 @@ function constante(n, v) {
   return a;
 }
 
+// ── UN BRUIT LARGE BANDE À UN NIVEAU DEMANDÉ, en dBFS efficaces ────────────────────────────
+// Un bruit uniforme sur [−a, +a] a pour valeur efficace a/√3. Pour obtenir d dBFS efficaces il
+// faut donc a = √3 × 10^(d/20). Écrit ainsi, et non « au pif », parce que tout l'intérêt des
+// fixtures de bruit est que leur niveau soit CONNU avant la mesure.
+function bruitAuNiveau(n, dbfs, graine) {
+  const r = alea(graine);
+  const a = Math.sqrt(3) * Math.pow(10, dbfs / 20);
+  const s = new Float32Array(n);
+  for (let i = 0; i < n; i++) s[i] = a * (r() * 2 - 1);
+  return s;
+}
+
+// La valeur efficace réelle d'un tableau, en dBFS : le générateur DIT ce qu'il a écrit, et le
+// contrôle compare la mesure du produit à ce témoin-là, calculé par un autre code que le sien.
+function efficaceDbfs(a) {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += a[i] * a[i];
+  return 20 * Math.log10(Math.sqrt(s / a.length));
+}
+
+// Le 20e centile des niveaux de fenêtres de 100 ms, calculé ICI, par un code indépendant de
+// celui du produit (régression #11(j)). C'est le témoin de l'estimateur robuste.
+function centile20DesFenetresDe100ms(a, echantillonnage) {
+  const parFenetre = Math.round(echantillonnage * 0.1);
+  const niveaux = [];
+  for (let d = 0; d + parFenetre <= a.length; d += parFenetre) {
+    let s = 0;
+    for (let i = d; i < d + parFenetre; i++) s += a[i] * a[i];
+    niveaux.push(20 * Math.log10(Math.sqrt(s / parFenetre)));
+  }
+  niveaux.sort((x, y) => x - y);
+  // Même convention que le produit : le plus proche rang inférieur, sans interpolation.
+  const rang = Math.max(0, Math.min(niveaux.length - 1, Math.floor(0.20 * (niveaux.length - 1))));
+  return { centile20: niveaux[rang], fenetres: niveaux.length,
+           plusBas: niveaux[0], plusHaut: niveaux[niveaux.length - 1] };
+}
+
 // ── L'INVENTAIRE : chaque fixture nomme le fait qu'elle éprouve ─────────────────────────────
 const FIXTURES = [
   {
@@ -295,6 +332,101 @@ const FIXTURES = [
     },
   },
   {
+    nom: 'piece-calme.wav',
+    pourquoi: 'T1 bis — PREMIER DES TROIS ENVIRONNEMENTS DE RÉFÉRENCE. La pièce calme mesurée ' +
+              'au lot 0 : −71 à −73 dBFS, bruit large bande, rien de bref. L\'estimateur robuste ' +
+              'et la valeur efficace de la fenêtre entière doivent y donner le MÊME résultat — ' +
+              'c\'est le cas où le changement d\'estimateur ne doit rien changer, et sans lui on ' +
+              'ne saurait pas si le nouveau calcul se contente de tout baisser.',
+    attendu: 'état calme ; plancher robuste à −72 dBFS ± 1,5 ; écart au RMS de la fenêtre < 1 dB',
+    faire: () => {
+      const n = ECH * 12;
+      return { canaux: [bruitAuNiveau(n, -72, 101), zeros(n)] };
+    },
+  },
+  {
+    nom: 'salle-generateurs.wav',
+    pourquoi: 'T1 bis — DEUXIÈME ENVIRONNEMENT DE RÉFÉRENCE : la salle de soins à générateurs de ' +
+              'Christophe, mesurée −55,7 à −57,9 dBFS, énergie surtout sous 120 Hz, raies à 50 et ' +
+              '100 Hz à +14 et +10 dB au-dessus du large bande. Le changement d\'estimateur ne ' +
+              'doit PAS faire disparaître son bruit : un bruit continu reste bruyant, et grave.',
+    attendu: 'état bruyant ; plancher robuste à −56,8 dBFS ± 1,5 ; grave dominant (part > 0,5)',
+    faire: () => {
+      const n = ECH * 12;
+      // Énergies incohérentes : total = large bande × (1 + 10^1,4 + 10^1,0) = 36,1 fois le large
+      // bande seul. On part donc du total voulu et on en déduit chaque composante.
+      const puissanceTotale = Math.pow(10, 2 * -56.8 / 20);
+      const pLarge = puissanceTotale / (1 + Math.pow(10, 1.4) + Math.pow(10, 1.0));
+      const dbLarge = 10 * Math.log10(pLarge);
+      const a = bruitAuNiveau(n, dbLarge, 102);
+      const amp50 = Math.sqrt(2 * pLarge * Math.pow(10, 1.4));
+      const amp100 = Math.sqrt(2 * pLarge * Math.pow(10, 1.0));
+      for (let i = 0; i < n; i++) {
+        a[i] += amp50 * Math.sin((2 * Math.PI * 50 * i) / ECH)
+              + amp100 * Math.sin((2 * Math.PI * 100 * i) / ECH);
+      }
+      return { canaux: [a, zeros(n)] };
+    },
+  },
+  {
+    nom: 'plancher-avec-bruits-brefs.wav',
+    pourquoi: 'T1 bis — LA FIXTURE QUI PORTE TOUT LE DÉFAUT 1, et la seule qui sépare les deux ' +
+              'estimateurs. Un plancher de silence à −75 dBFS (celui des passages calmes de la ' +
+              'prise du 10 octobre), et des bruits brefs de 80 ms à −58 dBFS toutes les 375 ms ' +
+              '(clic de touche, respiration : −57,9 à −62,8 dBFS mesurés dans ses 3 premières ' +
+              'secondes). La valeur efficace de la fenêtre entière annonce environ −64 dBFS, donc ' +
+              '« correct » ; le 20e centile des fenêtres de 100 ms rend le plancher, environ ' +
+              '−75 dBFS, donc « calme ». C\'est exactement l\'écart constaté par Christophe entre ' +
+              'un « −63,9 correct » affiché et des passages calmes à −74/−76.',
+    attendu: 'RMS de la fenêtre ≈ −64 dBFS (correct) ; 20e centile ≈ −75 dBFS (calme) ; ' +
+             'environ 8 transitoires par 3 s, aucun classé comme voix',
+    faire: () => {
+      const n = ECH * 12;
+      const a = bruitAuNiveau(n, -75, 103);
+      const rafale = bruitAuNiveau(n, -58, 104);
+      const dureeRafale = Math.round(ECH * 0.080);
+      const pas = Math.round(ECH * 0.375);
+      const fondu = Math.round(ECH * 0.002);
+      // Les bruits brefs REMPLACENT le plancher sur leur durée (un clic ne s'additionne pas au
+      // silence : il le couvre). Deux millisecondes de fondu aux bords, pour qu'un front raide
+      // n'ajoute pas une énergie haute fréquence qui ne vient pas du bruit mesuré.
+      for (let d = Math.round(ECH * 0.1); d + dureeRafale < n; d += pas) {
+        for (let i = 0; i < dureeRafale; i++) {
+          const k = i < fondu ? (0.5 - 0.5 * Math.cos((Math.PI * i) / fondu))
+                  : (i > dureeRafale - fondu
+                     ? (0.5 - 0.5 * Math.cos((Math.PI * (dureeRafale - i)) / fondu)) : 1);
+          a[d + i] = rafale[d + i] * k;
+        }
+      }
+      return { canaux: [a, zeros(n)] };
+    },
+  },
+  {
+    nom: 'voix-des-03s-avec-pauses.wav',
+    pourquoi: 'T1 bis — LE SILENCE INITIAL NON TENU, avec une pause où prélever l\'ambiance ' +
+              '(T13). Cycle de 5 s : 0,3 s de plancher à −75 dBFS, 2,7 s de voix à −38 dBFS, ' +
+              '2,0 s de pause à −75. La voix démarre donc à 0,3 s, comme dans la prise du ' +
+              '10 octobre où `silenceInitialRespecte` valait `true` à tort. Aucune fenêtre de 3 s ' +
+              'ne peut éviter la voix (les pauses ne font que 2 s) : le contrôle est donc ' +
+              'déterminant quel que soit l\'instant où la prise démarre dans la fixture.',
+    attendu: 'silenceInitialRespecte = false ; ambiance prélevée dans la pause la plus calme ; ' +
+             'état calme à environ −75 dBFS',
+    faire: () => {
+      const n = ECH * 20;
+      const a = bruitAuNiveau(n, -75, 105);
+      const ampVoix = Math.pow(10, -38 / 20) * Math.SQRT2;
+      const cycle = Math.round(ECH * 5);
+      const debutVoix = Math.round(ECH * 0.3);
+      const finVoix = Math.round(ECH * 3.0);
+      for (let c = 0; c * cycle < n; c++) {
+        for (let i = debutVoix; i < finVoix && c * cycle + i < n; i++) {
+          a[c * cycle + i] += ampVoix * Math.sin((2 * Math.PI * 196 * (c * cycle + i)) / ECH);
+        }
+      }
+      return { canaux: [a, zeros(n)] };
+    },
+  },
+  {
     nom: 'voix-5min.wav',
     longue: true,
     pourquoi: 'Critère de sortie du lot 3 : une prise de 5 minutes sans perte. Niveau choisi au ' +
@@ -356,5 +488,6 @@ function main() {
   console.log('Dossier ignoré par git : rien de tout cela n\'entre dans le dépôt.');
 }
 
-module.exports = { FIXTURES, ecrireWav, sinusPlusBruit, zeros, alea, SORTIE, ECH };
+module.exports = { FIXTURES, ecrireWav, sinusPlusBruit, zeros, alea, SORTIE, ECH,
+                   bruitAuNiveau, efficaceDbfs, centile20DesFenetresDe100ms };
 if (require.main === module) main();
