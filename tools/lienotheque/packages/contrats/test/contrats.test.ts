@@ -211,6 +211,44 @@ describe("classement universel (CLA-02, CLA-03)", () => {
     ).toBe(false);
   });
 
+  it("refuse un cycle de parenté, à deux valeurs comme à trois (CLA-02)", () => {
+    // Une valeur n'est pas son propre parent : c'était déjà refusé. Mais deux valeurs parentes
+    // l'une de l'autre passaient, et trois en ronde aussi. Un cycle rend l'arbre infini à
+    // l'affichage, et la question « sous quelle catégorie est-elle ? » sans réponse.
+    const cycle = (valeurs: unknown[]): unknown => axe({ structure: "hierarchique", valeurs });
+    expect(
+      Axe.safeParse(cycle([{ cle: "v1", nom: "V1", parent: "v2" }, { cle: "v2", nom: "V2", parent: "v1" }])).success,
+      "un cycle de deux a été accepté",
+    ).toBe(false);
+    expect(
+      Axe.safeParse(
+        cycle([
+          { cle: "v1", nom: "V1", parent: "v3" },
+          { cle: "v2", nom: "V2", parent: "v1" },
+          { cle: "v3", nom: "V3", parent: "v2" },
+        ]),
+      ).success,
+      "un cycle de trois a été accepté",
+    ).toBe(false);
+  });
+
+  it("accepte un arbre de plus de deux niveaux : une sous-sous-catégorie reste un arbre", () => {
+    // On refuse les cycles, pas la profondeur. Limiter à deux niveaux serait une contrainte
+    // inventée ici, et le schéma d'une bibliothèque n'appartient pas au code (CLA-01).
+    expect(
+      Axe.safeParse(
+        axe({
+          structure: "hierarchique",
+          valeurs: [
+            { cle: "v1", nom: "V1" },
+            { cle: "v2", nom: "V2", parent: "v1" },
+            { cle: "v3", nom: "V3", parent: "v2" },
+          ],
+        }),
+      ).success,
+    ).toBe(true);
+  });
+
   it("refuse deux fois la même clé, alias compris : une clé identifie une seule valeur", () => {
     expect(Axe.safeParse(axe({ valeurs: [{ cle: "v1", nom: "A" }, { cle: "v1", nom: "B" }] })).success).toBe(false);
     expect(Axe.safeParse(axe({ valeurs: [{ cle: "v1", nom: "A" }, { cle: "v2", nom: "B", alias: ["v1"] }] })).success).toBe(false);
