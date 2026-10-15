@@ -113,10 +113,15 @@ pub fn demander(emplacements: &Emplacements, demande: &serde_json::Value) -> Res
 ///
 /// `charge` est la charge du travail, telle que le contrat de l'outil la décrit — l'hôte ne la lit
 /// pas : il la transmet. Ce qu'il lit, ce sont les messages qui reviennent.
+///
+/// `empreinte` désigne le document dont cette version devient l'active. Une version s'active
+/// **pour un document** : « pour la bibliothèque » n'a plus de sens depuis qu'elle en porte
+/// plusieurs (JOB-06).
 pub fn traiter(
     depot: &Depot,
     emplacements: &Emplacements,
     travail_id: &str,
+    empreinte: &str,
     version: &str,
     charge: &serde_json::Value,
 ) -> io::Result<Bilan> {
@@ -184,7 +189,7 @@ pub fn traiter(
     let active = match recu {
         Some(charge) => {
             depot.ecrire_version(version, &charge)?;
-            depot.activer(version, maintenant())?;
+            depot.activer(empreinte, version, maintenant())?;
             noter("information", "Version écrite et activée");
             true
         }

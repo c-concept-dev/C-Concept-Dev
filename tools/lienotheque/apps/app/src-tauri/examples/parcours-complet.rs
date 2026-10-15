@@ -110,6 +110,21 @@ fn main() -> ExitCode {
         }
     };
 
+    // L'empreinte du document déposé : c'est par elle que le dépôt le retrouve, et par elle
+    // qu'on activera sa version.
+    let empreinte_du_document = match arrivee::empreinte_de(PathBuf::from(document).as_path()) {
+        Ok(empreinte) => empreinte,
+        Err(e) => {
+            eprintln!("Document illisible : {e}");
+            return ExitCode::from(1);
+        }
+    };
+    let extension_du_document = PathBuf::from(document)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("bin")
+        .to_lowercase();
+
     // 4. Montrer une page — ce que fait `apercu_de_pages` à l'ouverture de l'éditeur.
     let etape = Instant::now();
     let images = racine.join("derives").join("apercu");
@@ -120,7 +135,9 @@ fn main() -> ExitCode {
         "outil": { "nom": "apercu-de-pages", "version": "1.0.0" },
         "versionCible": uuid::Uuid::new_v4().to_string(),
         "charge": {
-            "document": racine.join("sources").join(PathBuf::from(document).file_name().unwrap_or_default()),
+            // Où la source **est** : le dépôt la range par empreinte, et c'est lui qui sait où.
+            // Reconstruire « sources/<nom> » marchait du temps où elles portaient leur nom.
+            "document": depot.source(&empreinte_du_document, &extension_du_document),
             "images": &images,
             "depuis": 0,
             "combien": 3,
@@ -181,11 +198,14 @@ fn main() -> ExitCode {
         return ExitCode::from(1);
     }
 
-    // 7. Ce que les écrans lisent — `vue_de_bibliotheque`, puis `image_de_page`.
+    // 7. Ce que les écrans lisent — `vue_de_document`, puis `image_de_page`.
     let etape = Instant::now();
     let depot = Depot::ouvrir(&racine).expect("dépôt");
-    let Ok(Some(charge)) = depot.charge_active() else {
-        eprintln!("Aucune version active : les écrans n'auraient rien à montrer.");
+    // Quel document lire : la table des actives le dit, une entrée par document. Le parcours
+    // n'en dépose qu'un, donc il y en a une — et la lire plutôt que de recalculer l'empreinte
+    // est exactement ce que le Catalogue fera.
+    let Ok(Some(charge)) = depot.charge_active(&empreinte_du_document) else {
+        eprintln!("Aucune version active pour ce document : les écrans n'auraient rien à montrer.");
         return ExitCode::from(1);
     };
     let lu: serde_json::Value = serde_json::from_str(&charge).unwrap_or_default();
@@ -208,7 +228,12 @@ fn main() -> ExitCode {
 
     // L'image de la première page qui en porte une : c'est ce que le Lecteur demande.
     let etape = Instant::now();
-    let version = depot.version_active().ok().flatten().map(|p| p.version).unwrap_or_default();
+    let version = depot
+        .version_active(&empreinte_du_document)
+        .ok()
+        .flatten()
+        .map(|p| p.version)
+        .unwrap_or_default();
     let fichier = pages
         .iter()
         .find_map(|p| p["image"].as_str())

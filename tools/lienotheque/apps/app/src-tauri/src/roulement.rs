@@ -237,6 +237,9 @@ impl Roulement {
         let mut courant = depart.clone();
         let mut recu: Option<String> = None;
         let mut rate: Option<(String, bool)> = None;
+        // Ce qu'on a entendu avant le silence, pour pouvoir le dire si le moteur se taît.
+        let mut vus: usize = 0;
+        let mut dernier: Option<String> = None;
 
         while let Some(message) = session.ecouter() {
             // Une pause demandée depuis l'écran, ou l'application qui ferme : on arrête le moteur
@@ -247,6 +250,19 @@ impl Roulement {
                 self.poser_point(&chemin, &courant, self.arrete());
                 return;
             }
+
+            vus += 1;
+            dernier = Some(match &message {
+                Ok(Message::Salutation { .. }) => "une salutation".to_owned(),
+                Ok(Message::Journal { texte, .. }) => format!("« {} »", &texte[..texte.len().min(60)]),
+                Ok(Message::Progression { point, .. }) => match point {
+                    Some(p) => format!("une progression à {} {}", p.valeur, p.unite),
+                    None => "une progression".to_owned(),
+                },
+                Ok(Message::Resultat { .. }) => "un résultat".to_owned(),
+                Ok(Message::Echec { .. }) => "un échec".to_owned(),
+                Err(refus) => format!("illisible ({})", refus.message()),
+            });
 
             match message {
                 Ok(Message::Salutation { moteur, version, .. }) => noter("information", &format!("Moteur {moteur} {version}")),
@@ -294,7 +310,17 @@ impl Roulement {
 
         let Some(charge) = recu else {
             let fin = session.sortie().unwrap_or_else(|| "encore en vie".to_owned());
-            let raison = format!("Aucun résultat reçu — moteur {fin}. La version précédente reste active.");
+            // Combien de messages avant le silence, et lequel était le dernier.
+            //
+            // « Aucun résultat reçu » laissait chercher dans tout le traitement : on ne savait
+            // pas si le moteur n'avait rien dit du tout, ou s'était tu après trois cents
+            // messages. Les deux mènent à des recherches opposées.
+            let raison = format!(
+                "Aucun résultat reçu — moteur {fin}, après {} message(s), le dernier étant {}. \
+                 La version précédente reste active.",
+                vus,
+                dernier.as_deref().unwrap_or("aucun"),
+            );
             noter("erreur", &raison);
             self.conclure(&chemin, &courant, "echouerRecuperable", Some(raison));
             return;
@@ -305,7 +331,17 @@ impl Roulement {
         let pose = self
             .depot
             .ecrire_version(&courant.version_cible, &charge)
-            .and_then(|_| self.depot.activer(&courant.version_cible, travail::maintenant()));
+            .and_then(|_| match courant.empreinte.as_deref() {
+                // L'empreinte désigne le document dont cette version est la nouvelle active.
+                // Un travail sans empreinte ne peut pas être activé : on ne saurait pas pour
+                // quel document, et activer « pour la bibliothèque » est ce qu'on vient de
+                // quitter (JOB-06).
+                Some(empreinte) => self.depot.activer(empreinte, &courant.version_cible, travail::maintenant()),
+                None => Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Ce travail ne porte pas l’empreinte de son fichier : impossible de dire quel document activer.",
+                )),
+            });
         match pose {
             Ok(()) => {
                 noter("information", "Version écrite et activée");

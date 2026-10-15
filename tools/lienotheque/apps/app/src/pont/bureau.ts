@@ -1,6 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { ArriveeDeFichiers, DescriptionBibliotheque, Recette, ReglagesHote, Travail, VueBibliotheque } from "@lienotheque/contrats";
+import {
+  ApercuDocument,
+  ArriveeDeFichiers,
+  DescriptionBibliotheque,
+  Recette,
+  ReglagesHote,
+  Travail,
+  VueBibliotheque,
+} from "@lienotheque/contrats";
 
 /** Le pont vers l'hôte de bureau (PLT-02).
  *
@@ -153,16 +161,26 @@ export async function lireManiere(racine: string): Promise<Recette | undefined> 
 
 /** Ce que les écrans lisent d'une bibliothèque : sa version active (B5, JOB-06).
  *
- *  Rien si aucune version n'est active — ce n'est pas une panne, c'est une bibliothèque qui n'a
- *  encore rien traité. */
-export async function vueDeBibliotheque(racine: string): Promise<VueBibliotheque | undefined> {
-  const brut = await invoke<unknown>("vue_de_bibliotheque", { racine });
+ *  Rien si ce document n'a aucune version active — ce n'est pas une panne, c'est un document
+ *  qui n'a pas encore été traité. */
+export async function vueDeDocument(racine: string, empreinte: string): Promise<VueBibliotheque | undefined> {
+  const brut = await invoke<unknown>("vue_de_document", { racine, empreinte });
   return brut === null || brut === undefined ? undefined : VueBibliotheque.parse(brut);
 }
 
-/** La version active d'une bibliothèque : c'est elle qui dit où prendre les images. */
-export async function versionActive(racine: string): Promise<string | undefined> {
-  return (await invoke<string | null>("version_active", { racine })) ?? undefined;
+/** Ce que le Catalogue lit : une **projection légère** de tous les documents.
+ *
+ *  Une projection, jamais une concaténation : 1,10 Mo par version mesuré, soit deux cent
+ *  soixante-quinze mégaoctets à lire pour afficher une liste de titres sur deux cent cinquante
+ *  documents. On ne rend que ce qu'un catalogue montre. */
+export async function apercuDeBibliotheque(racine: string): Promise<readonly ApercuDocument[]> {
+  const brut = await invoke<unknown[]>("apercu_de_bibliotheque", { racine });
+  return brut.map((un) => ApercuDocument.parse(un));
+}
+
+/** La version active d'un document : c'est elle qui dit où prendre les images. */
+export async function versionActive(racine: string, empreinte: string): Promise<string | undefined> {
+  return (await invoke<string | null>("version_active", { racine, empreinte })) ?? undefined;
 }
 
 /** L'image d'une page, à la demande. Une par une : un livre entier ne tient pas en mémoire. */

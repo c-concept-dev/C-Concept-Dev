@@ -212,3 +212,27 @@ export const nommerSuite = (mot: { un: string; plusieurs: string }, debut: numbe
   if (fin <= debut) return nommer(mot, debut);
   return `${enTete(mot.plusieurs)} ${debut} ${fin === debut + 1 ? "et" : "à"} ${fin}`;
 };
+
+/** L'aperçu d'un document dans sa bibliothèque : ce que le Catalogue lit (B5, JOB-06).
+ *
+ *  Une **projection**, jamais une concaténation des versions. Mesuré : 1,10 Mo par version — à
+ *  deux cent cinquante documents, les assembler voudrait dire lire deux cent soixante-quinze
+ *  mégaoctets pour afficher une liste de titres.
+ *
+ *  Le contrat est donc volontairement étroit, et `.strict()` le tient : c'est lui qui empêchera
+ *  qu'on y glisse un jour les passages ou les pages « pendant qu'on y est », et que l'aperçu
+ *  devienne, de commit en commit, ce qu'il a été écrit pour éviter.
+ */
+export const ApercuDocument = z
+  .object({
+    /** Le document, désigné par l'empreinte de sa source (ID-01). */
+    empreinte: Empreinte,
+    /** Sa version active : un aperçu décrit un état, pas un document en général (ID-04). */
+    version: Identifiant,
+    activeeLe: z.number().int().nonnegative(),
+    nom: z.string().min(1),
+    compteurs: z.array(z.object({ nombre: z.number().int().nonnegative(), mot: z.string().min(1) }).strict()).default([]),
+    aVerifier: z.number().int().nonnegative().default(0),
+  })
+  .strict();
+export type ApercuDocument = z.infer<typeof ApercuDocument>;
