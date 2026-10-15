@@ -49,6 +49,13 @@ export type Lot = {
   /** Combien de pages le document porte, dit une fois avant la première lecture. Sans lui, un
    *  document dont la chaîne ne lit aucune page ne se distingue pas d'un document vide. */
   readonly surTotal?: ((total: number) => void) | undefined;
+  /** Dans quelle phase la chaîne se trouve, dit au fil de l'eau (JOB-07).
+   *
+   *  Un traitement qui s'arrête sans rien dire laisse chercher partout. Une journée a été
+   *  perdue à deviner si un moteur devenu muet était mort dans la lecture des repères, dans
+   *  l'export des images ou dans la lecture du texte : le journal portait « 29 pages dans le
+   *  document » puis rien, et les trois phases suivantes étaient indistinguables. */
+  readonly surPhase?: ((phase: string) => void) | undefined;
   /** N'en lire que les premières pages. C'est ce que demande l'essai d'une manière de lire :
    *  dix pages suffisent pour voir si elle tient, et trois cents feraient attendre pour rien. */
   readonly pages?: number | undefined;
@@ -131,6 +138,8 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
   });
 
+  lot.surPhase?.(`repères lus : ${resultat.pages.length} page(s), ${resultat.lignes.length} élément(s)`);
+
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang
   // dans le document : c'est le décalage lu qui fait le lien entre les deux.
   const imprimes = numerosImprimes(resultat.pages, resultat.lignes);
@@ -147,6 +156,8 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
         ...(page.vignette === undefined ? {} : { vignette: `${adresse}/${page.vignette}` }),
       });
   }
+
+  lot.surPhase?.(`images de pages : ${parPageImprimee.size} écrite(s)`);
 
   const vue = construireVue({
     id: description.id,
@@ -171,11 +182,14 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // toujours, c'est ce qui rend une bibliothèque cherchable — mais elle dit comment la feuille
   // est faite : une feuille à deux pages se coupe avant qu'on en tire des passages, sinon les
   // deux folios se contredisent et le document perd ses numéros imprimés.
+  lot.surPhase?.("vue assemblée ; lecture du texte");
+
   const lu = await lireLeTexte(lot.pdf, {
     doublePage: recette.preparation.double_page,
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),
   });
   const passages = enPassages(lu.pages);
+  lot.surPhase?.(`texte lu : ${passages.length} passage(s)`);
 
   return {
     vue,

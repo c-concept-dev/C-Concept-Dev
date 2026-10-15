@@ -126,6 +126,9 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
         pagesDuDocument = total;
         dire(`${total} pages dans le document`);
       },
+      // Chaque phase au journal : un moteur devenu muet doit laisser derrière lui où il en
+      // était, sinon la recherche porte sur tout le traitement à la fois (JOB-07).
+      surPhase: (phase) => dire(phase),
       pdf: charge.document,
       medias: charge.medias,
       recette: charge.recette,
@@ -185,9 +188,12 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
         false,
       );
 
+    // Deux unités dans une phrase : on les nomme toutes les deux, et le total des trois
+    // nombres de pages se vérifie contre le nombre de pages du document.
+    const parPage = traite.lecture.parLaCouche + traite.lecture.parOcr + traite.lecture.sansTexte;
     dire(
-      `${passages} passage(s) : ${traite.lecture.parLaCouche} page(s) par la couche texte, ` +
-        `${traite.lecture.parOcr} par reconnaissance, ${traite.lecture.sansTexte} sans texte`,
+      `${passages} passage(s), tirés de ${parPage} page(s) : ${traite.lecture.parLaCouche} par la ` +
+        `couche texte, ${traite.lecture.parOcr} par reconnaissance, ${traite.lecture.sansTexte} sans texte`,
     );
     const illisibles = traite.passages.filter((p) => !p.lisible).length;
     if (illisibles > 0) dire(`${illisibles} passage(s) de qualité basse, indexés et marqués`, "avertissement");

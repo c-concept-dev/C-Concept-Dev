@@ -61,8 +61,7 @@ export type TexteDuDocument = {
  *  images au fil de l'eau décalerait tous les rangs dès la première page sans image, et le texte
  *  d'une page se retrouverait attribué à une autre.
  */
-function imagesParPage(donnees: Buffer): Map<number, number> {
-  const objets = objetsPdf(donnees);
+function imagesParPage(objets: ReturnType<typeof objetsPdf>): Map<number, number> {
   const parPage = new Map<number, number>();
   pagesPdf(objets).forEach((page, rang) => {
     const premiere = page.images[0];
@@ -75,12 +74,21 @@ function imagesParPage(donnees: Buffer): Map<number, number> {
 export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Promise<TexteDuDocument> {
   const donnees = Buffer.from(await readFile(pdf));
   const couche = options.forcerOcr === true ? [] : (await lireCoucheTexte(pdf)).pages;
-  const images = imagesParPage(donnees);
+
+  // Le document parsé **une fois**, et réutilisé.
+  //
+  // `objetsPdf` monte une table de tous les objets du PDF, flux d'images compris. L'appeler dans
+  // la boucle des pages reparsait le document entier à chaque page à océriser : sur un livre
+  // numérisé de vingt-neuf pages et cinq mégaoctets, vingt-neuf parses complets, chacun retenant
+  // tous les flux. Le moteur embarqué y mourait d'un signal après trois minutes et demie, et le
+  // parcours complet de l'administrateur ne passait plus.
+  const objets = objetsPdf(donnees);
+  const images = imagesParPage(objets);
 
   // Combien de pages il y a : la couche les compte toutes, même celles qu'elle ne sert pas. Sans
   // couche lue, c'est l'arbre des pages du document qui les compte.
   const total = Math.min(
-    couche.length > 0 ? couche.length : pagesPdf(objetsPdf(donnees)).length,
+    couche.length > 0 ? couche.length : pagesPdf(objets).length,
     options.pages ?? Number.POSITIVE_INFINITY,
   );
 
@@ -117,7 +125,7 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
       async function tenterOcr(): Promise<PageLue | undefined> {
         const numero = images.get(rang);
         if (numero === undefined) return undefined;
-        const octets = octetsImage(objetsPdf(donnees), numero);
+        const octets = octetsImage(objets, numero);
         if (octets === undefined || octets.extension !== "jpg") return undefined;
         dossier ??= mkdtempSync(join(tmpdir(), "lienotheque-texte-"));
         return ocrDeLaPage(octets.octets, rang, dossier, options);
@@ -126,7 +134,11 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
       // Rien de lu : ni couche exploitable, ni image à océriser, ni mot après l'OCR. On le
       // compte, et la page ne donne aucun passage — on n'en invente pas un vide.
       if (lue === undefined || lue.mots.length === 0) {
-        sansTexte += options.doublePage === true ? 2 : 1;
+        // Une page, pas un passage. `parLaCouche` et `parOcr` comptent des pages ; compter
+        // ici les deux moitiés d'une feuille double mêlait les deux unités dans la même
+        // phrase du journal, qui annonçait alors plus de pages sans texte que le document
+        // n'en porte.
+        sansTexte += 1;
         options.avancement?.(rang, total);
         continue;
       }

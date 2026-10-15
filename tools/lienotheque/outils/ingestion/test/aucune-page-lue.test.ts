@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { demandeDeTraitement, executerTravail } from "../src/index.js";
+import { demandeDeTraitement, executerTravail, lireLeTexte } from "../src/index.js";
 
 /** Un document dont rien n'a pu être lu n'est pas un document traité (JOB-05, OUT-15).
  *
@@ -58,6 +58,27 @@ function pdfSansRien(combien: number): string {
   writeFileSync(chemin, corps, "latin1");
   return chemin;
 }
+
+describe("ce qu'on compte quand une page n'a rien rendu (OUT-05, OUT-15)", () => {
+  it("compte des pages, et n'en double pas le nombre sur une feuille double", async () => {
+    const document = pdfSansRien(5);
+    const simple = await lireLeTexte(document, {});
+    const double = await lireLeTexte(document, { doublePage: true });
+
+    expect(simple.sansTexte, "cinq pages vides font cinq pages sans texte").toBe(5);
+
+    // `sansTexte` est documenté « combien de pages n'ont rien rendu ». Il s'incrémentait de deux
+    // par feuille double, là où `parLaCouche` et `parOcr` s'incrémentent d'une par page : la
+    // même phrase du journal mêlait alors deux unités. Mesuré sur un livre de quatre-vingt-seize
+    // pages, elle annonçait « 27 passage(s) : 0 par la couche texte, 14 par reconnaissance,
+    // 164 sans texte » — un total de 178 pour 96 pages. Le compte juste était 82 pages, doublé.
+    expect(double.sansTexte, "une feuille double reste une feuille : cinq, pas dix").toBe(5);
+
+    // Et rien n'est inventé pour autant : aucune page de texte ne sort d'une feuille vide.
+    expect(simple.pages).toHaveLength(0);
+    expect(double.pages).toHaveLength(0);
+  });
+});
 
 describe("un document dont rien n'a pu être lu", () => {
   it("échoue en nommant le nombre de pages, au lieu de se dire terminé (JOB-05)", async () => {
