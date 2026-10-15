@@ -100,6 +100,31 @@ def rassembler_chaine(cible: pathlib.Path) -> str:
     return f"{poids(sortie):.2f} Mo"
 
 
+
+def poser_module_de_travail(cible: pathlib.Path) -> str:
+    """Pose le module de travail de pdfjs à côté de la chaîne.
+
+    Mesuré sur un livre numérisé de vingt-neuf pages : inliné dans la chaîne, il fait passer la
+    pointe mémoire du moteur de 656 Mo à 1 661 Mo et le fait tuer par le système — pour un module
+    qui n'est pas même exécuté. esbuild l'inline dans le fichier unique, et V8 paie l'analyse de
+    trois mégaoctets et demi de code en plus.
+
+    pdfjs le cherche à l'exécution à côté de son propre module, c'est-à-dire à côté de la chaîne
+    rassemblée. On le lui pose là, pour la même raison que les WebAssembly des codecs : le paquet
+    n'a pas de `node_modules`, et ce qu'un module va chercher à l'exécution doit voyager avec lui.
+    """
+    modules = PROJET / "node_modules"
+    source = next(iter(sorted((modules / ".pnpm").glob("pdfjs-dist@*/node_modules/pdfjs-dist"))), None)
+    if source is None:
+        raise SystemExit("pdfjs-dist introuvable : lancez pnpm install avant.")
+    fichier = source / "legacy/build/pdf.worker.mjs"
+    if not fichier.exists():
+        raise SystemExit(f"module de travail introuvable : {fichier}")
+    cible.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(fichier, cible / fichier.name)
+    return f"{poids(cible / fichier.name):.2f} Mo"
+
+
 def embarquer_codecs(cible: pathlib.Path) -> str:
     """Range les WebAssembly des codecs à côté de la chaîne.
 
@@ -153,11 +178,13 @@ def main() -> int:
 
     chaine = rassembler_chaine(MOTEURS / "chaine")
     codecs = embarquer_codecs(MOTEURS / "chaine" / "codecs")
+    travail = poser_module_de_travail(MOTEURS / "chaine")
 
     print(f"moteur        : {dit}")
     print(f"binaire annexe: {sidecar.name}")
     print(f"chaîne        : {chaine}")
     print(f"codecs        : {codecs}")
+    print(f"module travail: {travail}")
     print(f"total moteurs : {poids(MOTEURS):.0f} Mo")
     return 0
 
