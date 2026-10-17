@@ -1,14 +1,22 @@
-# Passage humain II — la bande rythmo, les repères, le compte à rebours
+# Passage humain II — la bande rythmo, les repères, la reprise d'un passage
 
-Quatre épreuves, une heure environ. **Sans casque et sans micro externe.** Votre Mac reste à
+Six épreuves, une heure et demie environ. **Sans casque et sans micro externe.** Votre Mac reste à
 48 000 Hz : rien à régler.
 
-> **NE TOUCHEZ PAS AU « MODE MICRO » PENDANT UNE PRISE.** Vos essais du 17 octobre l'ont établi :
-> y toucher provoque une **perte momentanée du micro** — le journal porte « piste muette » puis
-> « piste non muette ». La pause automatique et la reprise ont bien fonctionné, et c'est tant
-> mieux, mais ce n'est pas ce qu'on cherche à éprouver ici. Si vous voulez couper l'entrée, c'est
-> **Réglages Système → Son → Entrée → volume d'entrée à zéro**, et le « Mode micro » ne la coupe
-> pas de toute façon.
+> **UNE CORRECTION, ET UNE DEMANDE.** Je vous avais écrit ici de ne pas toucher au « Mode micro »
+> pendant une prise, en vous attribuant ce geste. **C'était faux et je le retire** : vous ne l'avez
+> pas touché. La perte momentanée du micro de la prise du 17 octobre à 14:01 (« piste muette » à
+> l'échantillon 1 022 208, puis « piste non muette ») est survenue **sans cause connue**, une fois
+> sur un vrai Safari ; la pause automatique et la reprise ont fonctionné, et c'est la seule chose
+> que cet essai a établie.
+>
+> Comme je ne sais pas d'où elle vient, le journal consigne maintenant **le contexte de l'instant**
+> à chaque événement de piste : onglet visible ou caché, fenêtre au premier plan ou non, secondes
+> écoulées depuis votre dernier geste, changements de périphérique des cinq dernières secondes,
+> état du contexte audio et de la piste. **Si cela se reproduit, ne faites rien de particulier** :
+> envoyez-moi le rapport, et dites-moi seulement ce que vous faisiez à cette seconde-là (une autre
+> application, un casque branché, l'écran qui s'éteint, rien du tout). C'est ce rapprochement-là
+> qui trouvera la cause.
 
 ```bash
 cd ~/Documents/GitHub/C-Concept-Dev-lot3-wt/"tools/Projet therapeutes/Conseiller Clinique" && python3 -m http.server 8765 --bind 127.0.0.1
@@ -90,6 +98,107 @@ Lisez quinze minutes d'un seul tenant, en posant vos repères normalement.
 
 ---
 
+## Épreuve 5 · Refaire un passage, en doublage, sur les haut-parleurs du Mac
+
+C'est le point 4 du jalon II, et c'est la partie que je n'avais pas livrée la dernière fois. Elle
+est là maintenant. **Faites d'abord l'épreuve 2**, pour avoir une prise avec des repères : c'est
+elle qui servira de source.
+
+Le panneau **« Refaire un passage »** est sous les réglages de repère. Il porte cinq choses : la
+**prise source**, le **passage à refaire**, le **mode**, la durée de l'**amorce** (5 s par défaut)
+et le **silence de garde** (1 s, utile dans le second mode seulement).
+
+### 5a · Mode « doublage » — le mode par défaut, et celui qui compte
+
+| Geste | Ce qui doit se passer |
+|---|---|
+| Choisissez votre prise de l'épreuve 2 comme **prise source**, le **passage 3** (par exemple), mode **« Doublage »**, amorce **5 s** | Rien encore : le réglage n'enregistre pas. |
+| « Refaire ce passage » | Un **compte à rebours de 3 secondes** (E2 : « y compris les reprises »), puis **en même temps** : les **5 dernières secondes de votre voix avant ce passage** sortent des **haut-parleurs du Mac**, et la prise neuve commence à enregistrer. L'encadré **« Amorce (doublage) »** affiche la durée jouée. |
+| Pendant que l'amorce joue | **La bande est déjà calée sur le passage choisi**, et elle arrive au premier mot du passage **exactement quand l'amorce se termine**. C'est tout l'intérêt du mode : vous enchaînez dans le rythme, sans compter dans votre tête. |
+| Enchaînez à la fin de l'amorce, lisez le passage, « Arrêter » | **Deux prises** dans la liste : l'ancienne est **intacte** (R7, T10 : rien n'est écrasé), la neuve porte « reprise du passage 3 ». |
+
+**Ce que vous devez entendre, et c'est le point à vérifier** : l'amorce s'arrête **net** à la fin
+des 5 secondes. Elle ne doit **pas** continuer sur la suite de l'ancienne prise par-dessus votre
+voix. Si vous entendez l'ancienne prise continuer, dites-le-moi immédiatement : c'est le défaut
+que ce mode ne doit pas avoir.
+
+**Ce que vous devez voir dans le rapport** (`zoneDAmorce`) :
+
+| Champ | Ce qu'il dit |
+|---|---|
+| `priseSource`, `positionDuPassageDansLaSource` | de quelle prise, et à quel échantillon le passage commence |
+| `debutDansLaSource` → `finDansLaSource` | la plage relue dans l'ancienne prise, en échantillons |
+| `debutDansLaPriseNeuve` → `finDansLaPriseNeuve` | **où la fuite des haut-parleurs se trouve dans la nouvelle prise** : c'est cette zone que le montage coupera (E10). Le début est **mesuré** sur l'horloge audio, non annoncé. |
+| `lecture.latenceDeSortie_s` | la latence de sortie **lue par l'API** quand le moteur la déclare (Safari ne la déclare pas : le champ dit alors qu'elle est inconnue, au lieu d'écrire un zéro) |
+| `tronquee`, `raisonDeLaTroncature` | si votre passage commence moins de 5 s après le début de la prise source, l'amorce est **raccourcie** et le dit |
+
+**La fuite des haut-parleurs EST dans la prise, et c'est voulu.** E10 l'assume : c'est le prix de
+l'enchaînement. La zone est marquée pour qu'elle se coupe au montage. Dites-moi si elle vous gêne
+à l'écoute : si oui, c'est le second mode qu'il faudra préférer.
+
+### 5b · Mode « amorce puis silence »
+
+| Geste | Ce qui doit se passer |
+|---|---|
+| Même passage, mode **« Amorce, puis silence, puis enregistrement »**, garde **1 s** | Le rebours, puis l'amorce **seule** aux haut-parleurs, puis **une seconde de silence**, et **alors seulement** l'enregistrement commence. |
+| Regardez le rapport | La zone d'amorce de la prise neuve est **vide** (`0 → 0`) : rien de l'ancienne prise n'est dans la nouvelle. En échange, vous avez perdu l'enchaînement. |
+
+**Ce que je vous demande** : lequel des deux modes vous convient pour de vrai, et si une seconde
+de garde est la bonne durée.
+
+### 5c · Les trois cas tordus
+
+| Geste | Ce qui doit se passer |
+|---|---|
+| Refaire le **premier** passage (rien ne le précède) | Un avis dans l'encadré : **reprise SANS amorce**, avec sa raison. La prise est enregistrée quand même. |
+| Prise source **« — aucune — »** | Même chose : sans amorce, et le rapport le dit. |
+| Refaire **deux fois** le même passage | **Trois prises** au total, les deux reprises liées au **même** passage, chacune avec sa zone. Aucune n'écrase l'autre : c'est au lot 4 de choisir laquelle il monte. |
+
+---
+
+## Épreuve 6 · La vitesse de chaque passage, et les marqueurs théoriques
+
+### 6a · La vitesse par passage (R5)
+
+Après une prise avec des repères, sous la rangée des repères, chaque passage affiche sa **vitesse
+en mots par seconde**, sa durée, son écart à la vitesse choisie, et son état.
+
+| Ce que vous verrez | Pourquoi |
+|---|---|
+| « Passage 2 · 3,10 mots/s · 6,45 s · +24,0 % · trop rapide » **en rouge** | l'écart dépasse le seuil |
+| Un avis orange qui récapitule les passages en alerte | pour ne pas avoir à les chercher |
+| « durée trop courte pour juger » sur un passage très bref | en dessous de **2,5 secondes**, l'incertitude de vos deux repères (un quart de seconde chacun, le délai de l'antirebond) atteint à elle seule le seuil de 20 % : la vitesse s'affiche, l'alerte non |
+
+**Le seuil par défaut est 20 %, et il est réglable** (« Alerte de vitesse au-delà de »). Voici
+d'où il vient, parce que ce n'est pas un chiffre de goût. En bas, il est borné par la **mesure** :
+vos deux repères sont posés à la main, chacun incertain d'environ 250 ms, soit 500 ms sur la durée
+d'un passage — déjà 5 % sur un passage de 10 secondes. Un seuil à 5 % alerterait donc sur votre
+doigt, pas sur votre lecture. En haut, il est borné par l'**oreille** : à 2,5 mots par seconde,
+20 % font un demi-mot par seconde, et un passage lu à 3 mots/s au lieu de 2,5 s'entend comme
+pressé. Si vous changez le seuil, la durée minimale suit automatiquement — c'est la même
+grandeur, pas un second réglage à tenir.
+
+**Un passage qui porte `[pause 2 s]` n'est pas compté comme lent** : la pause écrite est retirée
+avant de diviser. Sans cela, un silence voulu déclencherait une alerte.
+
+**Ce que je vous demande** : si les alertes tombent sur les passages que **vous** trouvez trop
+rapides. Si elles sont trop bavardes, montez le seuil et dites-moi la valeur qui vous va ; si
+elles manquent des passages que vous sentez pressés, baissez-le.
+
+### 6b · Les marqueurs théoriques (R6)
+
+| Geste | Ce qui doit se passer |
+|---|---|
+| Au chargement, regardez la case **« Poser des marqueurs théoriques »** | Elle est **décochée**. C'est ce que R6 demande : l'option est désactivée par défaut. |
+| Cochez-la, puis commencez une prise | Les repères sont **déjà là**, aux durées que la bande prévoit pour chaque passage. |
+| Ajustez-les | Chaque repère porte **−**, **+** et **×** : reculer de 100 ms, avancer de 100 ms, retirer. Ce sont des repères **comme les autres** — ils comptent dans les contrôles de T6, dans les vitesses, et dans le rapport. |
+| Posez un repère à la main par-dessus | Il **n'est pas** marqué douteux. L'antirebond garde votre geste, pas la bande. |
+
+**Ce que je vous demande** : si poser les marqueurs d'avance et les ajuster vous fait gagner du
+temps par rapport à les poser en lisant, ou si cela vous encombre.
+
+---
+
 ## Ce que je vous demande de me renvoyer
 
 1. **Le rapport JSON** de chaque épreuve. Il porte maintenant : les **empreintes des quatre
@@ -98,6 +207,13 @@ Lisez quinze minutes d'un seul tenant, en posant vos repères normalement.
    T6**, et le **graphe de capture** avec ce que votre piste déclare réellement.
 2. **La taille de texte** et la **vitesse** que vous retenez.
 3. Pour l'épreuve 3 : **le mot sous le curseur avant et après la pause**.
+3 bis. Pour l'épreuve 5 : **est-ce que l'amorce s'arrête net**, et est-ce que la bande arrive au
+   premier mot du passage **au moment où elle se tait** ? Ces deux choses sont à votre oreille :
+   les contrôles prouvent que la lecture s'arrête au bon échantillon, ils ne peuvent pas prouver
+   qu'on enchaîne confortablement. Dites-moi aussi lequel des deux modes vous garderiez, et si la
+   fuite des haut-parleurs vous gêne à l'écoute.
+3 ter. Pour l'épreuve 6 : le **seuil d'alerte** que vous retenez, et si les marqueurs théoriques
+   vous font gagner du temps.
 4. Le **texte exact** de tout avis que je n'ai pas annoncé.
 5. Si le compte à rebours s'entend bien dans les haut-parleurs, et si la garde de 0,5 s suffit
    pour que son dernier bip ne soit pas dans la voix. **C'est à votre oreille de le dire** :
@@ -108,26 +224,27 @@ Lisez quinze minutes d'un seul tenant, en posant vos repères normalement.
 
 ## Ce qui n'est PAS fait, et que vous ne trouverez pas
 
-**La reprise d'un passage en mode doublage, et la zone d'amorce, ne sont pas livrées.** C'est le
-point 4 du jalon II, et c'est la seule partie que je n'ai pas atteinte. Ne la cherchez pas dans
-l'écran : il n'y a ni bouton « refaire ce passage », ni amorce jouée aux haut-parleurs, ni zone
-marquée dans la prise.
+Le **point 4 est livré** : la reprise d'un passage avec amorce réelle, dans les deux modes, est
+l'épreuve 5. Ce qui reste absent, et attendu ailleurs :
 
-Ce qui existe déjà et qui la prépare : la logique de la zone d'amorce est écrite et éprouvable
-(début et fin en échantillons, prise source, position dans la source, troncature si la source est
-plus courte que l'amorce demandée, et le cas « amorce puis silence » avec sa garde), mais rien ne
-la relie encore à une lecture réelle de l'ancienne prise. Ce qui manque est précisément ce qui
-doit être mesuré avant d'être montré : que **la lecture s'arrête exactement à la fin de l'amorce**,
-et que la prise neuve soit **liée au bon passage**. Je ne vous le donne pas à essayer avant de
-l'avoir mesuré.
+- le tracé des repères sur une **forme d'onde** — il n'y en a pas encore ;
+- le **déplacement d'un repère à la souris** (T4) : vous les ajustez au bouton, par pas de 100 ms,
+  et c'est tout ce que ce jalon donne. T4 reste en mémoire, comme convenu ;
+- le **blocage de l'export** par les trois contrôles de T6 : ils informent ici, le lot 4 bloque ;
+- le **calibrage micro / haut-parleur** (lot 3B) : la latence de sortie est lue et écrite dans le
+  rapport, mais elle n'est **pas** compensée. Si vous trouvez que la zone d'amorce est décalée à
+  l'oreille de quelques dizaines de millisecondes par rapport à ce que le rapport annonce, c'est
+  là que cela se réglera, et votre mesure est exactement ce qu'il me faudra.
 
-Également absent, et attendu ailleurs : le tracé des repères sur une **forme d'onde** (il n'y en a
-pas encore), le déplacement d'un repère à la souris (T4, en mémoire), et le blocage de l'export
-par les trois contrôles de T6 (lot 4 — ici ils informent).
-
-**Mesuré automatiquement avant de vous le donner** : 73 contrôles, 111 mutations falsifiées sur
-111, 0 trou. La bande se fige en pause (3 s d'horloge du mur, 0 mot) · dérive nulle sur 15 minutes
+**Mesuré automatiquement avant de vous le donner** : 81 contrôles, 135 mutations falsifiées sur
+135, 0 trou. La bande se fige en pause (3 s d'horloge du mur, 0 mot) · dérive nulle sur 15 minutes
 à 48 et 44,1 kHz · un repère daté à l'échantillon, encadré par deux relevés · 8 répétitions de
 touche ignorées et 0 repère posé · deux repères à 55 ms signalés · rebours de 2 s + garde de 0,5 s,
 2 bips, 0 échantillon écrit avant · les quatre empreintes de modules conformes aux fichiers du
-dépôt.
+dépôt. **Nouveau** : l'amorce s'arrête au dernier échantillon de sa zone (88 199 sur 88 200 à
+44,1 kHz), 0 échantillon joué au-delà, 0 venu d'ailleurs que de la zone, aux deux fréquences ·
+une reprise crée une prise de plus et jamais une continuation · une amorce coupée par l'arrêt se
+tait, mesuré sur l'horloge audio par l'événement du nœud · les vitesses de cinq passages de
+vitesses connues, pause écrite retirée · l'option des marqueurs théoriques décochée au chargement
+· le contexte de l'instant présent et cohérent sur les quatre événements de piste (onglet forcé
+caché, geste daté à 0,7 s, un changement de périphérique dans les cinq secondes).

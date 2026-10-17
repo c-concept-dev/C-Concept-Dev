@@ -805,8 +805,15 @@
       '<div class="sc-bm-amorce-clock" data-rebours hidden>' +
         '<span data-rebours-libelle>Compte à rebours</span><strong data-rebours-valeur>3</strong>' +
       '</div>' +
+      // (E10) L'HORLOGE DE L'AMORCE : `sc-bm-amorce-clock`, le composant que le kit nomme
+      // précisément pour cela. Distinct de celui du rebours : les deux peuvent se suivre.
+      '<div class="sc-bm-amorce-clock" data-amorce-horloge hidden>' +
+        '<span data-amorce-libelle>Amorce</span><strong data-amorce-valeur>—</strong>' +
+      '</div>' +
       // (E4, T14) LES REPÈRES POSÉS, chacun un `sc-bm-marker` du kit.
       '<div class="sc-bm-record-markers" data-reperes></div>' +
+      // (R5) LA VITESSE DE CHAQUE PASSAGE, chacune un `sc-bm-retake-status` du kit.
+      '<div class="sc-bm-record-markers" data-vitesses hidden></div>' +
 
       '<div class="sc-bm-meter" data-lot="3">' +
         '<div class="sc-bm-row">' +
@@ -886,6 +893,53 @@
         '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="passage-precedent" data-lot="3">Passage précédent</button>' +
       '</div>' +
       // (E12, point 5) L'IMPORT D'UNE VOIX, pour la continuer ensuite.
+      // (R5) LE SEUIL D'ALERTE, RÉGLABLE : 20 % par défaut, justifié dans `bande-rythmo.js`.
+      '<label class="sc-bm-field" data-lot="3">Alerte de vitesse au-delà de (%)' +
+        '<input class="sc-bm-input" type="number" step="1" min="1" max="100" value="20" ' +
+          'data-seuil-vitesse aria-label="Seuil d\'alerte de vitesse"/></label>' +
+      // (R6) L'OPTION DES MARQUEURS THÉORIQUES, SANS `checked` : désactivée par défaut.
+      '<label class="sc-bm-field sc-bm-check" data-lot="3">' +
+        '<input type="checkbox" data-marqueurs-theoriques ' +
+          'aria-label="Poser des marqueurs théoriques"/>' +
+        '<span>Poser des marqueurs théoriques d\'après la bande (à ajuster ensuite)</span></label>' +
+      // ── (E10, R7, point 4) REFAIRE UN PASSAGE ─────────────────────────────────────────
+      // Les quatre composants que le prompt nomme, et rien d'autre : `sc-bm-retake-inspector`
+      // pour le cadre, `sc-bm-reprise-settings` pour les réglages, `sc-bm-reprise-notice` pour
+      // la troncature et le passage sans source, `sc-bm-retake-status` pour l'état.
+      // NOM DISTINCT DE `data-reprise`, qui appartient à l'encadré « Reprendre la prise
+      // interrompue » (E5) : celui-ci VIDE son hôte quand aucune prise n'est inachevée, et il
+      // effaçait donc ce panneau à chaque chargement. Trouvé par §48, pas par relecture.
+      '<section class="sc-bm-retake-inspector" data-lot="3" data-refaire-passage>' +
+        '<h2>Refaire un passage</h2>' +
+        '<div class="sc-bm-reprise-settings">' +
+          '<label class="sc-bm-field">Prise source' +
+            '<select class="sc-bm-input sc-bm-select" data-reprise-source ' +
+              'aria-label="Prise source"></select></label>' +
+          '<label class="sc-bm-field">Passage à refaire' +
+            '<select class="sc-bm-input sc-bm-select" data-reprise-passage ' +
+              'aria-label="Passage à refaire"></select></label>' +
+          '<label class="sc-bm-field">Mode' +
+            '<select class="sc-bm-input sc-bm-select" data-reprise-mode aria-label="Mode">' +
+              '<option value="doublage">Doublage — amorce et enregistrement ensemble</option>' +
+              '<option value="amorce-puis-silence">Amorce, puis silence, puis enregistrement</option>' +
+            '</select></label>' +
+          '<div class="sc-bm-retake-field-grid">' +
+            '<label class="sc-bm-field">Amorce (s)' +
+              '<input class="sc-bm-input" type="number" step="0.5" min="0.5" max="120" ' +
+                'value="5" data-reprise-amorce aria-label="Durée de l\'amorce"/></label>' +
+            '<label class="sc-bm-field">Garde (s)' +
+              '<input class="sc-bm-input" type="number" step="0.5" min="0" max="10" value="1" ' +
+                'data-reprise-garde aria-label="Silence de garde"/></label>' +
+          '</div>' +
+          '<label class="sc-bm-field sc-bm-check">' +
+            '<input type="checkbox" data-reprise-tout aria-label="Tout le bout"/>' +
+            '<span>Tout le bout qui précède, au lieu des secondes ci-dessus</span></label>' +
+          '<button type="button" class="sc-bm-button sc-bm-button--primary" ' +
+            'data-action="refaire-passage" data-lot="3">Refaire ce passage</button>' +
+        '</div>' +
+        '<p class="sc-bm-reprise-notice" data-reprise-notice hidden></p>' +
+        '<span class="sc-bm-retake-status" data-reprise-etat>Aucune reprise en cours.</span>' +
+      '</section>' +
       '<label class="sc-bm-field" data-lot="3">Importer une voix (WAV PCM 16 ou 24 bits)' +
         '<input class="sc-bm-input" type="file" accept=".wav,audio/wav,audio/x-wav" data-import aria-label="Importer un fichier WAV"/></label>' +
       '<p class="sc-bm-help">Le jalon I ne pose aucun repère et n\'affiche aucune bande rythmo : ' +
@@ -982,6 +1036,106 @@
     });
   }
 
+  // ── (T3 bis) LE CONTEXTE DE L'INSTANT, À CHAQUE ÉVÉNEMENT DE PISTE ────────────────────────
+  //
+  // POURQUOI CE DIAGNOSTIC EXISTE. La prise du 17 octobre à 14:01 a perdu le micro à
+  // l'échantillon 1 022 208 : le journal porte « piste muette » puis « piste non muette », la
+  // pause automatique et la reprise ont fonctionné — et la CAUSE est inconnue. Je l'avais
+  // attribuée au « Mode micro » du Centre de contrôle ; Christophe a corrigé le 17 octobre : il
+  // n'y avait pas touché. L'événement est spontané, observé une fois sur un vrai Safari.
+  //
+  // CE QUE LE JOURNAL NE SAVAIT PAS DIRE, et qui aurait permis de trancher : la page était-elle
+  // au premier plan, l'onglet visible, un périphérique venait-il de changer, Christophe
+  // venait-il de faire un geste ? Chacune de ces questions départage une hypothèse (mise en
+  // veille de l'onglet, bascule de périphérique, économie d'énergie, action de l'utilisateur).
+  // Aucune n'est reconstituable après coup : elles doivent être LUES à l'instant de
+  // l'événement. C'est tout ce que ce code fait — il ne diagnostique rien, il consigne de quoi
+  // diagnostiquer.
+  var FENETRE_DIAGNOSTIC_S = 5;
+  var _dernierGeste_ms = null;
+  var _changementsDePeripherique = [];
+  var _diagnosticBranche = false;
+
+  function maintenant_ms() {
+    return (self.performance && performance.now()) || Date.now();
+  }
+
+  // LES GESTES SONT ÉCOUTÉS EN CAPTURE ET EN PASSIF : un écouteur de diagnostic ne doit ni
+  // retarder une frappe, ni être empêché par un `stopPropagation` du reste de la page.
+  function brancherLeDiagnostic() {
+    if (_diagnosticBranche || typeof document === 'undefined') return;
+    _diagnosticBranche = true;
+    ['keydown', 'mousedown', 'mousemove', 'wheel', 'pointerdown', 'touchstart'].forEach(
+      function (nom) {
+        document.addEventListener(nom, function () { _dernierGeste_ms = maintenant_ms(); },
+          { capture: true, passive: true });
+      });
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener('devicechange', function () {
+        _changementsDePeripherique.push({ quand_ms: maintenant_ms() });
+        // On ne garde pas l'historique de la session : la fenêtre de diagnostic fait cinq
+        // secondes, et une liste qui grandit sans fin est une fuite.
+        if (_changementsDePeripherique.length > 50) _changementsDePeripherique.shift();
+      });
+    }
+  }
+
+  // FONCTION PURE, pour que « les cinq secondes précédentes » s'éprouve par le calcul : un
+  // contrôle lui donne un changement vieux de six secondes et un vieux d'une seconde, et lit
+  // lequel sort. Une mutation qui rend toute la liste se fait prendre là, sans attendre.
+  function changementsRecents(liste, maintenant, fenetre_s) {
+    var f = (typeof fenetre_s === 'number' && fenetre_s >= 0) ? fenetre_s : FENETRE_DIAGNOSTIC_S;
+    return (liste || []).filter(function (c) {
+      return (maintenant - c.quand_ms) <= f * 1000 && (maintenant - c.quand_ms) >= 0;
+    }).map(function (c) {
+      return { ageEnSecondes: +((maintenant - c.quand_ms) / 1000).toFixed(3) };
+    });
+  }
+
+  // LES QUATRE ÉVÉNEMENTS QUE LE COMPLÉMENT NOMME. Le libellé réel porte parfois une précision
+  // (« piste muette (événement) » vient de la piste, « piste muette » du worklet qui voit le
+  // signal tomber à zéro ; « contexte suspended », « contexte interrupted »). On reconnaît donc
+  // par le début du libellé, et un contexte redevenu `running` n'est pas un incident.
+  function evenementADiagnostiquer(quoi) {
+    var q0 = String(quoi || '');
+    if (q0.indexOf('piste muette') === 0) return true;
+    if (q0.indexOf('piste non muette') === 0) return true;
+    if (q0.indexOf('piste terminée') === 0) return true;
+    if (q0.indexOf('contexte ') === 0 && q0 !== 'contexte running') return true;
+    return false;
+  }
+
+  function contexteDeLInstant() {
+    var m = maintenant_ms();
+    var piste = _etat.piste;
+    var recents = changementsRecents(_changementsDePeripherique, m, FENETRE_DIAGNOSTIC_S);
+    var doc = (typeof document !== 'undefined') ? document : null;
+    return {
+      visibilite: doc ? doc.visibilityState : 'document indisponible',
+      fenetreAuPremierPlan: (doc && typeof doc.hasFocus === 'function')
+        ? doc.hasFocus() : 'hasFocus indisponible',
+      depuisDernierGeste_s: _dernierGeste_ms === null
+        ? null : +((m - _dernierGeste_ms) / 1000).toFixed(3),
+      raisonSansGeste: _dernierGeste_ms === null
+        ? 'aucune interaction clavier ou souris depuis le chargement de la page'
+        : 'sans objet',
+      changementsDePeripherique: {
+        fenetre_s: FENETRE_DIAGNOSTIC_S,
+        nombre: recents.length,
+        lesquels: recents,
+      },
+      etatDuContexteAudio: _etat.ctx ? _etat.ctx.state : 'aucun contexte audio',
+      etatDeLaPiste: etatDeLaPisteMaintenant(piste),
+      pisteDeclaree: piste
+        ? { readyState: piste.readyState, muted: piste.muted, enabled: piste.enabled }
+        : 'aucune piste',
+      regle: 'relevé À L\'INSTANT de l\'événement, jamais reconstitué : la visibilité, le focus '
+        + 'et l\'état de la piste d\'il y a une seconde ne sont plus lisibles une seconde plus '
+        + 'tard. La cause de la perte du 17 octobre est inconnue ; ces champs servent à la '
+        + 'trouver si elle revient.',
+    };
+  }
+
   function journaliser(quoi, aEchantillon, extra) {
     var e = { quoi: quoi, aEchantillon: aEchantillon };
     // UN ÉVÉNEMENT DE CLÔTURE APPARTIENT ENCORE À SA PRISE. `enPrise` tombe à faux dès la
@@ -993,6 +1147,12 @@
     if (_etat.enPrise || _etat.priseEnCloture) e.priseId = _etat.priseId;
     else e.horsPrise = true;
     if (extra) Object.keys(extra).forEach(function (k) { e[k] = extra[k]; });
+    // (T3 bis) LE DIAGNOSTIC EST POSÉ ICI, dans le seul endroit par lequel tout événement
+    // passe. Le poser aux quatre sites d'émission aurait fait quatre occasions d'en oublier un
+    // — et c'est exactement ce qui s'est passé pour la perte du 17 octobre, qu'aucun champ ne
+    // permet d'expliquer. Après la fusion de `extra`, pour qu'un appelant ne puisse pas
+    // l'écraser par mégarde.
+    if (evenementADiagnostiquer(quoi)) e.contexteDeLInstant = contexteDeLInstant();
     _etat.journal.push(e);
     return e;
   }
@@ -2236,6 +2396,129 @@
     return new Promise(function (r) { setTimeout(r, ms); });
   }
 
+  // ── (E10, R7) JOUER L'AMORCE, ET S'ARRÊTER EXACTEMENT À LA FIN DE LA ZONE ────────────────
+  //
+  // E10 : « la piste armée enregistre pendant que la voix qui précède joue aux haut-parleurs et
+  // où Christophe enchaîne à la fin de l'amorce ». Tout tient dans « à la fin » : si la lecture
+  // continue au-delà de la zone, Christophe entend la suite de l'ANCIENNE prise par-dessus sa
+  // propre voix, et les haut-parleurs la mettent dans la nouvelle. Une demi-seconde de trop
+  // suffit à rendre la reprise inutilisable.
+  //
+  // UNE SEULE BORNE, ET C'EST LA DURÉE PASSÉE À `start`. J'avais d'abord programmé en plus un
+  // `stop` à la même date d'horloge audio, en me disant « ceinture et bretelles ». Le falsifieur
+  // a montré que c'était faux dans les deux sens : avec les deux mécanismes, retirer l'un
+  // laissait §44 passer, et retirer l'autre aussi. Deux garanties pour une seule grandeur, c'est
+  // #11(f) — et la conséquence n'est pas théorique : aucune des deux n'était éprouvée, et le
+  // jour où l'une se serait cassée, rien ne l'aurait dit. Il n'en reste donc qu'une, et §44 la
+  // falsifie, sur une source volontairement plus longue que la zone et dont la suite porte une
+  // autre amplitude.
+  //
+  // ARRÊTER AVANT LA FIN est un AUTRE besoin, pas une seconde borne : si Christophe arrête la
+  // prise pendant l'amorce, la lecture doit se taire. C'est `arreter` qui le demande, sur le
+  // nœud que cette fonction rend, et le journal le consigne.
+  //
+  // LES DEUX DATES SONT SUR L'HORLOGE AUDIO (`ctx.currentTime`), jamais sur celle de
+  // l'interface : c'est la même raison qu'en R6, et la seule façon que le début de
+  // l'enregistrement et le début de la lecture tombent ensemble en mode doublage.
+  function _lireLAmorce(ctx, pcm, hz, options) {
+    var o = options || {};
+    var echantillons = new Int16Array(pcm);
+    var hzSource = (typeof hz === 'number' && hz > 0) ? hz : (ctx.sampleRate || 48000);
+    var debut = Math.max(0, Math.round(o.debutEchantillon || 0));
+    var finDemandee = (typeof o.finEchantillon === 'number')
+      ? Math.round(o.finEchantillon) : echantillons.length;
+    var fin = Math.max(debut, Math.min(echantillons.length, finDemandee));
+    var n = fin - debut;
+
+    // Le tampon porte la prise source TELLE QUELLE, à sa propre fréquence : si le périphérique
+    // est à une autre, c'est le navigateur qui rééchantillonne à la lecture, et la durée en
+    // secondes reste celle de la zone. Recopier seulement la zone aurait marché aussi, mais
+    // aurait caché ce que §44 doit pouvoir éprouver : qu'on ne joue PAS ce qui suit.
+    var tampon = ctx.createBuffer(1, Math.max(1, echantillons.length), hzSource);
+    var canal = tampon.getChannelData(0);
+    for (var i = 0; i < echantillons.length; i++) canal[i] = echantillons[i] / 32768;
+
+    var noeud = ctx.createBufferSource();
+    noeud.buffer = tampon;
+    noeud.connect(ctx.destination);
+    var duree_s = n / hzSource;
+    var t0 = (typeof o.debut_s === 'number') ? o.debut_s : ctx.currentTime;
+    noeud.start(t0, debut / hzSource, duree_s);
+
+    return {
+      debutEchantillon: debut,
+      finEchantillon: fin,
+      echantillons: n,
+      duree_s: +duree_s.toFixed(6),
+      commenceA_horlogeAudio_s: +t0.toFixed(6),
+      finitA_horlogeAudio_s: +(t0 + duree_s).toFixed(6),
+      echantillonnageDeLaSource: hzSource,
+      echantillonnageDuContexte: ctx.sampleRate,
+      // (point 4) LA LATENCE DE SORTIE, LUE PAR L'API QUAND ELLE EXISTE. Safari ne déclare ni
+      // `outputLatency` ni `baseLatency` : on dit alors qu'on ne la connaît pas, plutôt que
+      // d'écrire un zéro qui passerait pour une mesure.
+      latenceDeSortie_s: (typeof ctx.outputLatency === 'number') ? ctx.outputLatency
+        : ((typeof ctx.baseLatency === 'number') ? ctx.baseLatency : null),
+      sourceDeLaLatence: (typeof ctx.outputLatency === 'number') ? 'AudioContext.outputLatency'
+        : ((typeof ctx.baseLatency === 'number') ? 'AudioContext.baseLatency'
+          : 'aucune : ce moteur ne déclare ni outputLatency ni baseLatency'),
+      noeud: noeud,
+      regle: 'une seule borne : la DURÉE passée à start, qui borne ce qui est lu dans le '
+        + 'tampon. La lecture ne dépasse donc pas la zone, et ce qui suit l\'amorce dans la '
+        + 'prise source n\'est jamais entendu (E10). Un arrêt de la prise pendant l\'amorce '
+        + 'coupe la lecture par le nœud, et le journal le dit.',
+    };
+  }
+
+  // CE QU'ON GARDE DE LA LECTURE, ET CE QU'ON NE GARDE PAS. Le descripteur de l'amorce est
+  // écrit DANS la prise (IndexedDB) et dans le rapport : il doit donc être fait de nombres et de
+  // phrases, rien d'autre. Le nœud audio, lui, n'est utile qu'au moment de la lecture et ne se
+  // sérialise pas — « AudioBufferSourceNode object could not be cloned », trouvé par §48b, qui a
+  // fait échouer l'écriture de la prise sans que §48 s'en aperçoive : ses assertions lisaient
+  // l'état en mémoire, pas le stockage. §48 relit maintenant la prise écrite.
+  function sansLeNoeud(lue) {
+    if (!lue) return lue;
+    var copie = {};
+    Object.keys(lue).forEach(function (k) { if (k !== 'noeud') copie[k] = lue[k]; });
+    return copie;
+  }
+
+  // ── LIRE UNE PLAGE D'ÉCHANTILLONS DANS UNE PRISE DÉJÀ ÉCRITE ──────────────────────────────
+  //
+  // LES POSITIONS VIENNENT DES MORCEAUX EUX-MÊMES (`debutEchantillon`), jamais d'un cumul : une
+  // prise continuée a des morceaux dont les positions se suivent sans que l'ordre de lecture du
+  // curseur ait à le garantir, et un cumul se décalerait d'un morceau partiel.
+  function lirePcmDUnePlage(priseId, debut, fin) {
+    var d = Math.max(0, Math.round(debut));
+    var f = Math.max(d, Math.round(fin));
+    var sortie = new Int16Array(f - d);
+    var lus = 0, totalVu = 0, trous = 0;
+    var couvert = new Uint8Array(f - d);
+    return window.VoixStockage.parcourirMorceaux(_etat.db, priseId, function (m) {
+      var n = m.pcm.byteLength / 2;
+      var d0 = m.debutEchantillon, f0 = d0 + n;
+      if (f0 > totalVu) totalVu = f0;
+      var a = Math.max(d, d0), b = Math.min(f, f0);
+      if (b > a) {
+        var vue = new Int16Array(m.pcm, (a - d0) * 2, b - a);
+        sortie.set(vue, a - d);
+        for (var i = a - d; i < b - d; i++) couvert[i] = 1;
+        lus += (b - a);
+      }
+    }).then(function () {
+      for (var i = 0; i < couvert.length; i++) if (!couvert[i]) trous++;
+      return {
+        pcm: sortie,
+        echantillonsLus: lus,
+        echantillonsNonCouverts: trous,
+        echantillonsDeLaPrise: totalVu,
+        regle: trous === 0 ? 'plage entièrement couverte par des morceaux écrits'
+          : trous + ' échantillons de la plage ne sont couverts par aucun morceau : ils restent '
+            + 'à zéro et le nombre est dit, plutôt que de faire passer un trou pour du silence.',
+      };
+    });
+  }
+
   // ── (E13) L'EMPREINTE DE CHAQUE MODULE SERVI ──────────────────────────────────────────────
   //
   // E13 : « la page du banc et le rapport de mesures portent l'empreinte courte (8 hexadécimaux)
@@ -2332,6 +2615,8 @@
       message('marques', '', null);
     }
     peindreBande();
+    peindreChoixDeReprise(null);
+    peindreVitesses();
   }
 
   // ── (E4, E9, T14) POSER UN REPÈRE ─────────────────────────────────────────────────────────
@@ -2342,13 +2627,38 @@
   //
   // E9 demande deux gardes, et il faut les deux : `event.repeat` pour la touche MAINTENUE, et un
   // délai pour le rebond. Le lot 0 a vu quatre repères en 0,3 s.
-  function poserUnRepere(source) {
+  //
+  // (R6) UNE POSITION PEUT ÊTRE IMPOSÉE, et c'est par là que passent les marqueurs théoriques.
+  // Ils empruntent CE chemin — antirebond compris, journal compris, peinture comprise — pour
+  // qu'un marqueur théorique soit « un repère comme les autres », comme R6 le demande. Une
+  // seconde fonction qui les aurait poussés dans la liste les aurait rendus différents par
+  // construction : non soumis à l'antirebond, absents du journal, et invisibles aux contrôles
+  // de T6.
+  function poserUnRepere(source, positionImposee, propres) {
     if (!_etat.enPrise) {
       message('repere', 'warning', 'Aucune prise en cours : un repère est une frontière DANS la '
         + 'voix, il n\'a pas de sens hors d\'une prise.');
       return null;
     }
-    var ech = echantillonsCourants();
+    var impose = (typeof positionImposee === 'number');
+    var ech = impose ? Math.max(0, Math.round(positionImposee)) : echantillonsCourants();
+    // ── L'ANTIREBOND GARDE LE GESTE, ET UN SEUL GARDE SUFFIT ────────────────────────────
+    // E9 existe contre une TOUCHE qui rebondit — « quatre repères en 0,3 s » au lot 0. Une
+    // position imposée ne vient pas d'une touche : elle vient de la bande (R6). Le garde est
+    // donc UNIQUE et il est plus bas : `dernierRepere` ne suit que les GESTES. L'antirebond
+    // tourne pour tout le monde, mais une position imposée se compare à la dernière position
+    // de GESTE, et il n'y en a aucune quand les marqueurs théoriques sont posés (le démarrage
+    // vient de les remettre à zéro).
+    //
+    // J'avais d'abord écrit DEUX gardes — celui-ci et une exception qui sautait l'antirebond
+    // pour une position imposée. Le falsifieur a montré que la seconde ne servait à rien : la
+    // retirer ne faisait échouer aucun contrôle, parce que le premier garde suffit. Deux gardes
+    // dont un inerte, c'est #11(f), et c'est surtout un garde dont personne ne verrait la
+    // disparition.
+    //
+    // CE QUE LE GARDE ÉVITE, concrètement : les marqueurs théoriques étant posés d'un coup,
+    // `dernierRepere` sauterait à la fin du texte, et le premier repère posé À LA MAIN pendant
+    // la prise serait déclaré DOUTEUX pour un écart négatif.
     var verdict = window.BandeRythmo.antirebond(_etat.dernierRepere, ech,
       _etat.echantillonnage, window.BandeRythmo.ANTIREBOND_MS_DEFAUT);
     if (!verdict.accepte) {
@@ -2363,15 +2673,118 @@
       peindreReperes();
       return _etat.reperes[_etat.reperes.length - 1];
     }
-    _etat.dernierRepere = ech;
+    if (!impose) _etat.dernierRepere = ech;
     var r = { aEchantillon: ech, passage: _etat.bande ? _etat.bande.passageCourant : 0,
               source: source, douteux: false };
+    if (propres) Object.keys(propres).forEach(function (k) { r[k] = propres[k]; });
     _etat.reperes.push(r);
     journaliser('repère posé', ech, { passage: r.passage, source: source,
       regle: 'daté dans le fil audio, en échantillons ; jamais avec l\'horloge de l\'interface' });
     message('repere', '', null);
     peindreReperes();
     return r;
+  }
+
+  // ── (R6) AJUSTER UN REPÈRE APRÈS COUP ────────────────────────────────────────────────────
+  //
+  // R6 : les marqueurs théoriques sont « à ajuster ensuite ». Ajuster veut dire deux gestes, et
+  // ils valent pour TOUS les repères, théoriques ou posés à la main : déplacer de cent
+  // millisecondes, et retirer. Un marqueur qu'on ne peut pas bouger n'est pas « à ajuster », et
+  // deux jeux de gestes selon l'origine du repère feraient deux espèces de repères.
+  var PAS_DE_RECALAGE_MS = 100;
+
+  function recalerUnRepere(k, pas_ms) {
+    var r = _etat.reperes[k];
+    if (!r) return null;
+    var hz = _etat.echantillonnage || 48000;
+    var avant = r.aEchantillon;
+    r.aEchantillon = Math.max(0, Math.round(avant + (pas_ms / 1000) * hz));
+    r.ajuste = true;
+    journaliser('repère recalé', r.aEchantillon, { rang: k, de_echantillons: avant,
+      pas_ms: pas_ms, origine: r.source,
+      regle: 'un repère se déplace en échantillons : le pas en millisecondes est converti à la '
+        + 'fréquence de la prise, jamais appliqué à une position de l\'horloge de l\'interface.' });
+    peindreReperes();
+    peindreVitesses();
+    return r;
+  }
+
+  function retirerUnRepere(k) {
+    var r = _etat.reperes[k];
+    if (!r) return null;
+    _etat.reperes.splice(k, 1);
+    // L'antirebond compare au DERNIER repère posé : si c'était celui-là, il faut le reprendre
+    // sur le plus tardif de ceux qui restent, sinon le prochain serait comparé à un fantôme.
+    // Recalculé sur les repères de GESTE seulement, pour la raison dite dans `poserUnRepere`.
+    var gestes = _etat.reperes.filter(function (x) { return !x.theorique; });
+    _etat.dernierRepere = gestes.length
+      ? gestes.reduce(function (m, x) { return Math.max(m, x.aEchantillon); }, 0) : null;
+    journaliser('repère retiré', r.aEchantillon, { rang: k, origine: r.source,
+      restants: _etat.reperes.length });
+    peindreReperes();
+    peindreVitesses();
+    return r;
+  }
+
+  // ── (R5) LA VITESSE DE CHAQUE PASSAGE, AFFICHÉE APRÈS LA PRISE ────────────────────────────
+  function vitessesMaintenant() {
+    if (!window.BandeRythmo) return null;
+    var seuil = parseFloat((q('[data-seuil-vitesse]') || {}).value);
+    return window.BandeRythmo.vitessesParPassage({
+      passages: _etat.passages,
+      reperes: _etat.reperes,
+      dureeVoix_echantillons: _etat.echantillonsEcrits,
+      echantillonnage: _etat.echantillonnage || _etat.frequenceDeLaPrise || 48000,
+      vitesseChoisie: _etat.vitesseBande,
+      seuil_pourCent: isFinite(seuil) && seuil > 0 ? seuil : undefined,
+    });
+  }
+
+  function peindreVitesses() {
+    var hote = q('[data-vitesses]');
+    if (!hote) return null;
+    var v = vitessesMaintenant();
+    if (!v || !_etat.passages.length) { hote.innerHTML = ''; hote.hidden = true; return v; }
+    hote.hidden = false;
+    hote.innerHTML = '';
+    if (!v.mesurable) {
+      var seul = document.createElement('span');
+      seul.className = 'sc-bm-retake-status';
+      seul.setAttribute('data-state', 'warning');
+      seul.textContent = v.raison;
+      hote.appendChild(seul);
+      message('vitesses', '', null);
+      return v;
+    }
+    v.passages.forEach(function (x) {
+      var el = document.createElement('span');
+      el.className = 'sc-bm-retake-status';
+      el.setAttribute('data-vitesse-passage', String(x.passage));
+      if (x.alerte) el.setAttribute('data-state', 'error');
+      el.textContent = 'Passage ' + (x.passage + 1) + ' · '
+        + (x.motsParSeconde === null ? '—'
+           : x.motsParSeconde.toFixed(2).replace('.', ',') + ' mots/s')
+        + ' · ' + x.duree_s.toFixed(2).replace('.', ',') + ' s'
+        + (x.ecart_pourCent === null ? ''
+           : ' · ' + (x.ecart_pourCent > 0 ? '+' : '')
+             + x.ecart_pourCent.toFixed(1).replace('.', ',') + ' %')
+        + ' · ' + x.etat;
+      el.title = x.raison;
+      hote.appendChild(el);
+    });
+    if (v.nbAlertes) {
+      message('vitesses', 'warning', v.nbAlertes + ' passage(s) s\'écartent de plus de '
+        + v.seuil_pourCent + ' % de la vitesse choisie (' + v.vitesseChoisie + ' mots/s) : '
+        + v.passages.filter(function (x) { return x.alerte; }).map(function (x) {
+            return 'passage ' + (x.passage + 1) + ' ' + x.etat + ' ('
+              + x.motsParSeconde.toFixed(2).replace('.', ',') + ' mots/s)';
+          }).join(', ') + '. Le seuil est réglable ; en dessous de '
+        + v.dureeMinSignificative_s.toFixed(2).replace('.', ',') + ' s un passage est affiché '
+        + 'sans alerte, parce que l\'incertitude des deux repères y atteint le seuil.');
+    } else {
+      message('vitesses', '', null);
+    }
+    return v;
   }
 
   // (R6) « retour d'un passage » : la bande recule, l'horloge audio NON — on ne peut pas défaire
@@ -2413,9 +2826,361 @@
       el.setAttribute('data-repere', String(k));
       if (r.douteux) el.setAttribute('data-state', 'error');
       el.textContent = (k + 1) + ' · ' + fmtTemps(r.aEchantillon, _etat.echantillonnage)
-        + ' · passage ' + (r.passage + 1) + (r.douteux ? ' · DOUTEUX' : '');
+        + ' · passage ' + (r.passage + 1) + (r.theorique ? ' · théorique' : '')
+        + (r.ajuste ? ' · ajusté' : '') + (r.douteux ? ' · DOUTEUX' : '');
+      // (R6) « À AJUSTER ENSUITE » : reculer, avancer, retirer. Les mêmes trois gestes pour
+      // tous les repères, qu'ils viennent de la bande ou de la main.
+      ['-', '+', '\u00d7'].forEach(function (signe, rang) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'sc-bm-button sc-bm-button--secondary';
+        b.textContent = signe;
+        if (rang === 2) {
+          b.setAttribute('data-repere-retirer', String(k));
+          b.setAttribute('aria-label', 'Retirer le repère ' + (k + 1));
+        } else {
+          b.setAttribute('data-repere-recaler', String(k));
+          b.setAttribute('data-pas-ms', String(rang === 0 ? -PAS_DE_RECALAGE_MS : PAS_DE_RECALAGE_MS));
+          b.setAttribute('aria-label', (rang === 0 ? 'Reculer' : 'Avancer') + ' le repère '
+            + (k + 1) + ' de ' + PAS_DE_RECALAGE_MS + ' millisecondes');
+        }
+        el.appendChild(b);
+      });
       hote.appendChild(el);
     });
+  }
+
+  // ── (E10, R7, point 4) REFAIRE UN PASSAGE ────────────────────────────────────────────────
+  //
+  // R7 : « Refaire un passage relit les dernières secondes de la voix qui précède (cinq par
+  // défaut, réglable, ou tout le bout), puis enregistre la nouvelle prise du passage : c'est une
+  // prise SÉPARÉE, liée au passage, et l'ancienne reste. » T10 : « rien n'est écrasé : une
+  // reprise crée une prise de plus. »
+  //
+  // DEUX MODES, ET LA DIFFÉRENCE EST PHYSIQUE, PAS COSMÉTIQUE (E10) :
+  //   — DOUBLAGE (par défaut) : la lecture et l'enregistrement démarrent ENSEMBLE. La fuite des
+  //     haut-parleurs est donc DANS la prise, sur les premiers échantillons ; la zone est
+  //     marquée pour que le montage la coupe. C'est le mode qui permet d'enchaîner dans le
+  //     rythme, et c'est pour cela qu'il est le défaut.
+  //   — AMORCE PUIS SILENCE : la lecture se termine, un silence de garde passe (une seconde par
+  //     défaut, réglable), PUIS l'enregistrement commence. Rien de l'amorce n'est écrit, et la
+  //     zone est vide — mais on a perdu l'enchaînement.
+  //
+  // L'ORDRE EST CHOISI, ET MESURÉ. En doublage, on démarre la prise D'ABORD et on programme la
+  // lecture à l'instant où la prise a commencé : `demarrer` attend l'accusé de réception du
+  // worklet, donc à son retour les échantillons tombent déjà. L'écart entre l'instant de la
+  // lecture et celui du premier échantillon est alors MESURÉ sur l'horloge audio et écrit dans
+  // la zone — plutôt qu'annoncé à zéro, ce qu'aucune des deux horloges ne garantirait.
+  var MARGE_DOUBLAGE_S = 0;
+
+  function debutDuPassageSurLaBande_s(index) {
+    var t = 0;
+    for (var i = 0; i < index && i < _etat.passages.length; i++) {
+      t += window.BandeRythmo.dureeDUnPassage(_etat.passages[i], _etat.vitesseBande);
+    }
+    return t;
+  }
+
+  // LA POSITION DU PASSAGE DANS LA PRISE SOURCE VIENT DES MÊMES BORNES QUE LES VITESSES (R5) :
+  // une seconde façon de découper la prise en passages aurait pu donner deux positions
+  // différentes pour la même frontière (#11(f)).
+  function positionDuPassageDansLaSource(prise, index) {
+    var v = window.BandeRythmo.vitessesParPassage({
+      passages: _etat.passages,
+      reperes: (prise.mesures && prise.mesures.reperes) || [],
+      dureeVoix_echantillons: prise.nbEchantillons || 0,
+      echantillonnage: prise.echantillonnage || 48000,
+      vitesseChoisie: _etat.vitesseBande,
+    });
+    if (!v.mesurable) return { position: null, raison: v.raison };
+    return { position: v.bornesEnEchantillons[index],
+             bornes: v.bornesEnEchantillons, raison: v.raisonDesBornes };
+  }
+
+  function refaireLePassage() {
+    if (_etat.enPrise) {
+      message('reprise', 'warning', 'Une prise est en cours : arrêtez-la avant de refaire un '
+        + 'passage. Une reprise est une prise SÉPARÉE (R7, T10), pas une continuation.');
+      return Promise.resolve(null);
+    }
+    if (!_etat.noeud) {
+      message('reprise', 'warning', 'Micro non autorisé : il n\'y a rien à enregistrer.');
+      return Promise.resolve(null);
+    }
+    if (!window.BandeRythmo || !_etat.passages.length) {
+      message('reprise', 'warning', 'Aucun texte de bande : sans passages, « refaire ce '
+        + 'passage » ne désigne rien.');
+      return Promise.resolve(null);
+    }
+    var index = parseInt((q('[data-reprise-passage]') || {}).value, 10);
+    if (!isFinite(index) || index < 0 || index >= _etat.passages.length) index = 0;
+    var sourceId = ((q('[data-reprise-source]') || {}).value) || '';
+    var mode = ((q('[data-reprise-mode]') || {}).value) === 'amorce-puis-silence'
+      ? 'amorce-puis-silence' : 'doublage';
+    var secondes = parseFloat((q('[data-reprise-amorce]') || {}).value);
+    if (!isFinite(secondes) || secondes <= 0) secondes = 5;
+    var garde_s = parseFloat((q('[data-reprise-garde]') || {}).value);
+    if (!isFinite(garde_s) || garde_s < 0) garde_s = 1;
+    var tout = !!((q('[data-reprise-tout]') || {}).checked);
+    var notice = q('[data-reprise-notice]');
+    var etatBoite = q('[data-reprise-etat]');
+    function dire(texte) { if (etatBoite) etatBoite.textContent = texte; }
+    function avertir(texte) {
+      if (!notice) return;
+      notice.hidden = !texte;
+      notice.textContent = texte || '';
+    }
+    avertir('');
+    dire('Préparation de la reprise du passage ' + (index + 1) + '…');
+
+    var lire = sourceId
+      ? window.VoixStockage.lirePrise(_etat.db, sourceId)
+      : Promise.resolve(null);
+
+    return lire.then(function (prise) {
+      var hzSource = (prise && prise.echantillonnage) || _etat.echantillonnage || 48000;
+      var dispo = (prise && prise.nbEchantillons) || 0;
+      var pos = prise ? positionDuPassageDansLaSource(prise, index) : { position: null,
+        raison: 'aucune prise source choisie : il n\'y a pas de voix qui précède à relire.' };
+      // ── UN PASSAGE SANS PRISE SOURCE (complément du prompt) ─────────────────────────────
+      // Trois cas tombent ici : aucune prise choisie, une prise dont les repères ne permettent
+      // pas de situer le passage, et un passage qui commence à l'échantillon zéro (rien ne le
+      // précède). Dans les trois, on refait quand même le passage — c'est ce que Christophe
+      // demande — mais SANS amorce, et la raison est écrite à l'écran et dans la prise. Jouer
+      // une amorce prise ailleurs serait pire que pas d'amorce.
+      var sansAmorce = (pos.position === null) || (pos.position === 0) || !prise;
+      var zone = window.BandeRythmo.zoneDAmorce({
+        echantillonnage: hzSource,
+        secondes: secondes,
+        tout: tout,
+        mode: mode,
+        garde_s: garde_s,
+        echantillonsDeLaSource: dispo,
+        positionDansLaSource: sansAmorce ? 0 : pos.position,
+        priseSource: sourceId || null,
+      });
+      zone.passage = index;
+      zone.raisonDesBornes = pos.raison;
+      if (sansAmorce) {
+        zone.sansAmorce = true;
+        zone.raisonSansAmorce = !prise
+          ? 'aucune prise source choisie : rien à relire avant le passage.'
+          : (pos.position === 0
+            ? 'ce passage commence au premier échantillon de la prise source : aucune voix ne le '
+              + 'précède, donc aucune amorce n\'est possible.'
+            : 'le passage n\'a pas pu être situé dans la prise source — ' + pos.raison);
+        avertir('Reprise SANS amorce : ' + zone.raisonSansAmorce + ' La prise est enregistrée '
+          + 'quand même, et le rapport le dit.');
+      } else if (zone.tronquee) {
+        avertir('Amorce raccourcie : ' + zone.raisonDeLaTroncature + '.');
+      }
+
+      var plage = (zone.echantillonsJoues > 0 && sourceId)
+        ? lirePcmDUnePlage(sourceId, zone.debutDansLaSource, zone.finDansLaSource)
+        : Promise.resolve({ pcm: new Int16Array(0), echantillonsLus: 0,
+            echantillonsNonCouverts: 0, echantillonsDeLaPrise: dispo,
+            regle: 'aucune amorce à lire' });
+
+      return plage.then(function (p) {
+        if (p.echantillonsNonCouverts > 0) {
+          avertir('Amorce incomplète : ' + p.echantillonsNonCouverts + ' échantillons de la '
+            + 'plage ne sont couverts par aucun morceau écrit et restent à zéro.');
+        }
+        // (E2) LE COMPTE À REBOURS AVANT LA REPRISE, comme avant toute prise.
+        dire('Compte à rebours…');
+        return compteARebours().then(function (r) {
+          _etat.rebours = r;
+          return { zone: zone, pcm: p, hzSource: hzSource, sansAmorce: sansAmorce,
+                   lecture: p.echantillonsLus > 0 };
+        });
+      });
+    }).then(function (prep) {
+      var zone = prep.zone;
+      var hz = _etat.echantillonnage || 48000;
+      // LA BANDE DÉMARRE AU PASSAGE CHOISI, CALÉE SUR LA FIN DE L'AMORCE. En doublage, la fin
+      // de l'amorce tombe à l'échantillon `echantillonsJoues` de la prise neuve ; en « amorce
+      // puis silence », rien de l'amorce n'est écrit, donc à l'échantillon zéro.
+      var alignement = (zone.mode === 'doublage') ? zone.echantillonsJoues : 0;
+      var surLaBande_s = debutDuPassageSurLaBande_s(zone.passage);
+      var decalage = alignement / hz - surLaBande_s;
+      var reprise = {
+        passage: zone.passage,
+        texteDuPassage: _etat.passages[zone.passage].texteLu,
+        priseSource: zone.priseSource,
+        positionDansLaSource: zone.positionDuPassageDansLaSource,
+        modeDeReprise: zone.mode,
+        decalageBande_s: decalage,
+        alignementDeLaBande_echantillon: alignement,
+        debutDuPassageSurLaBande_s: +surLaBande_s.toFixed(3),
+        regle: 'prise SÉPARÉE liée au passage (R7, T10) : l\'ancienne prise reste, et une '
+          + 'seconde reprise du même passage crée une troisième prise. La bande démarre au '
+          + 'passage choisi, calée sur la fin de l\'amorce.',
+      };
+
+      if (zone.mode === 'amorce-puis-silence') {
+        // ── AMORCE PUIS SILENCE : on joue, on laisse passer la garde, PUIS on enregistre ───
+        dire('Amorce (' + (zone.echantillonsJoues / prep.hzSource).toFixed(1) + ' s) puis '
+          + garde_s + ' s de silence…');
+        var lue = null;
+        if (prep.lecture) {
+          lue = _lireLAmorce(_etat.ctx, prep.pcm.pcm.buffer, prep.hzSource,
+            { debutEchantillon: 0, finEchantillon: prep.pcm.pcm.length });
+          peindreHorlogeDeLAmorce(lue, 'Amorce');
+        }
+        var attente = (prep.lecture ? lue.duree_s : 0) + garde_s;
+        return attendreMs(attente * 1000).then(function () {
+          peindreHorlogeDeLAmorce(null);
+          _etat.amorce = Object.assign({}, zone, {
+            lecture: sansLeNoeud(lue) || 'aucune amorce jouée',
+            amorceDansLaPcmDeLaPrise: 'aucune : l\'enregistrement n\'a commencé qu\'après la '
+              + 'fin de l\'amorce et la garde de ' + garde_s + ' s',
+            gardeAppliquee_s: garde_s,
+            echantillonsLusDeLaSource: prep.pcm.echantillonsLus,
+            couvertureDeLaPlage: prep.pcm.regle,
+          });
+          return demarrer({ reprise: reprise });
+        });
+      }
+
+      // ── DOUBLAGE : la prise démarre, et la lecture est programmée à l'instant du premier
+      // échantillon. La fuite des haut-parleurs est dans la prise, et la zone la borne.
+      dire('Doublage : amorce aux haut-parleurs et enregistrement ensemble…');
+      return demarrer({ reprise: reprise }).then(function (id) {
+        var lue2 = null;
+        var debutDansLaPriseNeuve = 0;
+        if (prep.lecture) {
+          var t0 = Math.max(_etat.ctx.currentTime + MARGE_DOUBLAGE_S, _etat.debutPrise_ctxTemps);
+          lue2 = _lireLAmorce(_etat.ctx, prep.pcm.pcm.buffer, prep.hzSource,
+            { debutEchantillon: 0, finEchantillon: prep.pcm.pcm.length, debut_s: t0 });
+          // MESURÉ, pas annoncé : l'écart entre le premier échantillon de la prise et le début
+          // de la lecture, sur l'horloge audio, converti en échantillons de la prise.
+          debutDansLaPriseNeuve = Math.max(0,
+            Math.round((t0 - _etat.debutPrise_ctxTemps) * hz));
+          peindreHorlogeDeLAmorce(lue2, 'Amorce (doublage)');
+          // LE NŒUD EST GARDÉ POUR POUVOIR LE TAIRE : il n'est pas une seconde borne, c'est le
+          // moyen d'arrêter la lecture si la prise s'arrête avant la fin de l'amorce.
+          _etat.lectureDeLAmorce = lue2.noeud;
+          // ── LA FIN DE LA LECTURE EST MESURÉE PAR LE NŒUD, PAS DÉCLARÉE PAR MOI ──────────
+          // `onended` est le navigateur qui dit « j'ai fini », et `currentTime` est l'horloge
+          // audio à cet instant. En comparant à la fin PRÉVUE, on sait si la lecture s'est
+          // arrêtée en avance — c'est-à-dire si l'arrêt de la prise l'a réellement coupée, au
+          // lieu de se contenter d'écrire au journal qu'on l'a coupée (#11(e)).
+          _etat.amorceFinie = null;
+          lue2.noeud.onended = function () {
+            var h = _etat.ctx ? _etat.ctx.currentTime : null;
+            var mesure = {
+              aHorlogeAudio_s: (h === null) ? null : +h.toFixed(6),
+              finPrevue_s: lue2.finitA_horlogeAudio_s,
+              enAvance_s: (h === null) ? null : +(lue2.finitA_horlogeAudio_s - h).toFixed(6),
+              regle: 'relevé par l\'événement `ended` du nœud et l\'horloge audio : une avance '
+                + 'positive signifie que la lecture a été coupée avant la fin de la zone, une '
+                + 'avance nulle qu\'elle est allée jusqu\'au bout.',
+            };
+            _etat.amorceFinie = mesure;
+            if (_etat.amorce) _etat.amorce.finDeLaLecture = mesure;
+          };
+          attendreMs(lue2.duree_s * 1000).then(function () {
+            peindreHorlogeDeLAmorce(null);
+            _etat.lectureDeLAmorce = null;
+          });
+        }
+        _etat.amorce = Object.assign({}, zone, {
+          lecture: sansLeNoeud(lue2) || 'aucune amorce jouée',
+          prevuDansLaPriseNeuve: { debut: zone.debutDansLaPriseNeuve,
+                                   fin: zone.finDansLaPriseNeuve },
+          debutDansLaPriseNeuve: debutDansLaPriseNeuve,
+          finDansLaPriseNeuve: debutDansLaPriseNeuve + (prep.lecture ? lue2.echantillons : 0),
+          ecartEntreLaLectureEtLePremierEchantillon_echantillons: debutDansLaPriseNeuve,
+          gardeAppliquee_s: 0,
+          echantillonsLusDeLaSource: prep.pcm.echantillonsLus,
+          couvertureDeLaPlage: prep.pcm.regle,
+          regleDuDoublage: 'la fuite des haut-parleurs occupe la zone ci-dessus dans la prise '
+            + 'neuve : le montage la coupe (E10). L\'écart est MESURÉ sur l\'horloge audio, '
+            + 'entre l\'instant programmé de la lecture et celui du premier échantillon écrit.',
+        });
+        journaliser('amorce jouée', debutDansLaPriseNeuve, {
+          mode: zone.mode, passage: zone.passage, priseSource: zone.priseSource,
+          echantillonsJoues: zone.echantillonsJoues,
+          debutDansLaSource: zone.debutDansLaSource, finDansLaSource: zone.finDansLaSource,
+          latenceDeSortie_s: lue2 ? lue2.latenceDeSortie_s : 'sans objet' });
+        dire('Reprise du passage ' + (zone.passage + 1) + ' en cours (prise ' + id + ').');
+        return id;
+      });
+    }).then(function (id) {
+      if (id && _etat.amorce && _etat.amorce.mode === 'amorce-puis-silence') {
+        journaliser('amorce jouée', 0, {
+          mode: 'amorce-puis-silence', passage: _etat.amorce.passage,
+          priseSource: _etat.amorce.priseSource,
+          echantillonsJoues: _etat.amorce.echantillonsJoues,
+          gardeAppliquee_s: _etat.amorce.gardeAppliquee_s,
+          regle: 'jouée AVANT le démarrage : aucun échantillon de l\'amorce n\'est dans la '
+            + 'prise, la zone est vide.' });
+        dire('Reprise du passage ' + (_etat.amorce.passage + 1) + ' en cours (prise ' + id + ').');
+      }
+      return id;
+    }, function (err) {
+      peindreHorlogeDeLAmorce(null);
+      dire('La reprise a échoué : ' + (err && err.message ? err.message : err));
+      throw err;
+    });
+  }
+
+  // (E10) L'HORLOGE DE L'AMORCE : le composant `sc-bm-amorce-clock` du kit, le même que celui du
+  // compte à rebours, parce que c'est la même information — le temps qui reste avant d'enchaîner.
+  function peindreHorlogeDeLAmorce(lue, libelle) {
+    var boite = q('[data-amorce-horloge]');
+    if (!boite) return;
+    if (!lue) { boite.hidden = true; return; }
+    boite.hidden = false;
+    var lib = q('[data-amorce-libelle]');
+    var val = q('[data-amorce-valeur]');
+    if (lib) lib.textContent = libelle || 'Amorce';
+    if (val) val.textContent = lue.duree_s.toFixed(1).replace('.', ',') + ' s';
+  }
+
+  // ── (R7) LES DEUX CHOIX D'UNE REPRISE : LA PRISE SOURCE ET LE PASSAGE ────────────────────
+  //
+  // LA LISTE DES PRISES SOURCES COMPREND LES REPRISES. Refaire une reprise est un cas ordinaire
+  // — on s'y reprend à deux fois —, et l'amorce doit alors venir de la dernière version, pas de
+  // l'originale. Rien ne distingue donc une reprise d'une prise pour ce choix-là.
+  function peindreChoixDeReprise(prises) {
+    var selPrise = q('[data-reprise-source]');
+    if (selPrise) {
+      var garde = selPrise.value;
+      var utilisables = (prises || []).filter(function (p) {
+        // Une prise 'en-cours' n'est pas relisable de bout en bout : ses morceaux sont encore
+        // en train d'arriver. Une prise muette n'a rien à faire entendre.
+        return p.etat === 'terminee' || p.etat === 'importee' || p.etat === 'recuperee';
+      });
+      selPrise.innerHTML = '<option value="">— aucune (reprise sans amorce) —</option>';
+      utilisables.forEach(function (p) {
+        var o = document.createElement('option');
+        o.value = p.id;
+        o.textContent = (p.nom || 'Prise') + ' · '
+          + fmtTemps(p.nbEchantillons || 0, p.echantillonnage || 48000)
+          + (p.repriseDuPassage ? ' · reprise du passage '
+             + ((p.repriseDuPassage.passage || 0) + 1) : '');
+        selPrise.appendChild(o);
+      });
+      // Par défaut, la plus récente : `listerPrises` les rend du plus récent au plus ancien.
+      if (garde && selPrise.querySelector('option[value="' + garde + '"]')) selPrise.value = garde;
+      else if (utilisables.length) selPrise.value = utilisables[0].id;
+    }
+    var selPassage = q('[data-reprise-passage]');
+    if (selPassage) {
+      var gardeP = selPassage.value;
+      selPassage.innerHTML = '';
+      _etat.passages.forEach(function (x, k) {
+        var o = document.createElement('option');
+        o.value = String(k);
+        var t = x.texteLu || '';
+        o.textContent = (k + 1) + ' · ' + (t.length > 48 ? t.slice(0, 47) + '…' : t);
+        selPassage.appendChild(o);
+      });
+      if (gardeP && selPassage.querySelector('option[value="' + gardeP + '"]')) {
+        selPassage.value = gardeP;
+      }
+    }
   }
 
   // ── DÉMARRER, ARRÊTER ──────────────────────────────────────────────────────────────────────
@@ -2432,6 +3197,11 @@
     if (_etat.enPrise) return Promise.resolve(null);
     if (!_etat.noeud) return Promise.reject(new Error('micro non autorisé : rien à enregistrer'));
     var prolonge = options && options.continuer ? String(options.continuer) : null;
+    // (R7) UNE REPRISE DE PASSAGE EST UNE PRISE NEUVE, pas une continuation : elle passe par le
+    // même chemin que n'importe quelle prise — même choix de canal, même accusé de réception,
+    // même ordre d'écriture — et n'en diffère que par ce qu'elle PORTE : le passage qu'elle
+    // reprend, sa zone d'amorce et le décalage de la bande.
+    var reprise = (options && options.reprise) ? options.reprise : null;
 
     // (b) LE CANAL EST DÉCIDÉ SUR LA FENÊTRE DES DEUX DERNIÈRES SECONDES, et gelé : on ne peut
     // pas remixer après coup des échantillons déjà écrits. Si la fenêtre est trop courte — moins
@@ -2477,6 +3247,15 @@
     _etat.finDuWorklet = null;
     _etat.priseDemarreeRecue = false;
     _etat.echantillonsParMorceauReels = 0;
+    // ── LE RELEVÉ APPARTIENT À SA PRISE (défaut 4, trouvé par §22 en sursaut) ─────────────
+    // `echantillonsCourants` prend le plus avancé du dernier relevé et du compte de morceaux.
+    // Sans cette remise à zéro, le relevé de la prise PRÉCÉDENTE survivait jusqu'au premier
+    // relevé de la nouvelle — une cinquantaine de millisecondes — et tout événement journalisé
+    // dans cet intervalle était daté à la position de la prise d'avant : §22 a vu « contexte
+    // running » daté 265 728 dans une prise de 111 104 échantillons. Le défaut était là depuis
+    // le lot 1 et ne se montrait que par intermittence, selon l'ordre d'arrivée du changement
+    // d'état du contexte et du premier relevé. §22c l'éprouve maintenant sans course.
+    _etat.dernierReleve = null;
     // (d) LES FENÊTRES D'UNE PRISE N'APPARTIENNENT QU'À ELLE. Les garder d'une prise à l'autre
     // aurait fait exactement ce que le défaut 4 reproche au compteur d'échantillons : décrire la
     // prise précédente en croyant décrire celle-ci.
@@ -2488,6 +3267,12 @@
       _etat.decalageBande_s = 0;
       _etat.repetitionsIgnorees = 0;
       peindreReperes();
+      // (R7) Ce que la prise neuve porte, et qu'une prise ordinaire ne porte pas.
+      _etat.repriseDuPassage = reprise || null;
+      if (!reprise) _etat.amorce = null;
+      // La bande démarre au passage choisi, calée sur la fin de l'amorce : le décalage est
+      // calculé par `refaireLePassage` et adopté ici, après la remise à zéro ci-dessus.
+      if (reprise) _etat.decalageBande_s = reprise.decalageBande_s;
     }
     _etat.bruitSommes = null;
     _etat.fenetresBruit = [];
@@ -2568,6 +3353,8 @@
         canalRaison: dec.raison,
         reglageCanal: _etat.reglageCanal,
         echantillonsParMorceauAppliquee: _etat.echantillonsParMorceauReels,
+        repriseDuPassage: reprise,
+        zoneDAmorce: _etat.amorce,
       }));
       // Les morceaux attendent que la prise existe : sans cela, un premier morceau très court
       // (page masquée aussitôt) pourrait être écrit avant son parent.
@@ -2593,6 +3380,37 @@
       } else {
         journaliser('prise démarrée', 0, { canal: dec.canal, raison: dec.raison,
           echantillonsParMorceau: _etat.echantillonsParMorceauReels });
+        // ── (R6) L'OPTION DES MARQUEURS THÉORIQUES, DÉSACTIVÉE PAR DÉFAUT ───────────────
+        // R6 : « une option, désactivée par défaut, pose des marqueurs théoriques d'après la
+        // bande, à ajuster ensuite. » Elle est posée AU DÉMARRAGE, pour que les marqueurs
+        // soient là pendant la prise et qu'on les ajuste ensuite ; les poser à l'arrêt les
+        // aurait mis après coup sur une voix déjà écrite, c'est-à-dire sans rien à ajuster.
+        var optionTheorique = q('[data-marqueurs-theoriques]');
+        var activeTheorique = !!(optionTheorique && optionTheorique.checked);
+        _etat.marqueursTheoriques = {
+          active: activeTheorique,
+          parDefaut: false,
+          poses: 0,
+          regle: 'désactivée par défaut (R6). Activée, elle pose les frontières intérieures que '
+            + 'la bande PRÉVOIT, par le même chemin qu\'un repère de la main : ils sont dans la '
+            + 'même liste, datés en échantillons, comptés par les contrôles de T6, et '
+            + 'ajustables ou effaçables comme les autres.',
+        };
+        if (activeTheorique && window.BandeRythmo && _etat.passages.length > 1) {
+          var theoriques = window.BandeRythmo.marqueursTheoriques(
+            _etat.passages, _etat.vitesseBande, _etat.echantillonnage);
+          theoriques.forEach(function (t) {
+            poserUnRepere('théorique', t.aEchantillon,
+              { theorique: true, passage: t.passage, secondesTheoriques: t.secondes });
+          });
+          _etat.marqueursTheoriques.poses = theoriques.length;
+          journaliser('marqueurs théoriques posés', 0, {
+            nombre: theoriques.length, vitesse: _etat.vitesseBande,
+            positions: theoriques.map(function (t) { return t.aEchantillon; }),
+            regle: 'd\'après la bande, à ajuster ensuite (R6). Ce sont des repères comme les '
+              + 'autres : l\'antirebond ne s\'applique pas à une position imposée, qui ne vient '
+              + 'd\'aucune touche.' });
+        }
         // (E2, E10) LE REBOURS APPARTIENT À CETTE PRISE, daté à zéro puisqu'il la précède.
         if (_etat.rebours && _etat.rebours.joue) {
           journaliser('compte à rebours joué', 0, {
@@ -2647,6 +3465,16 @@
 
   function arreter() {
     if (!_etat.enPrise) return Promise.resolve(null);
+    // (E10) SI LA PRISE S'ARRÊTE PENDANT L'AMORCE, LA LECTURE SE TAIT. Laisser jouer l'ancienne
+    // prise après l'arrêt n'écrirait rien de faux, mais ferait entendre une voix dont plus rien
+    // à l'écran ne rend compte — et sur une reprise ratée qu'on relance aussitôt, deux amorces
+    // se superposeraient.
+    if (_etat.lectureDeLAmorce) {
+      try { _etat.lectureDeLAmorce.stop(); } catch (e) { /* déjà terminée */ }
+      _etat.lectureDeLAmorce = null;
+      journaliser('amorce interrompue', echantillonsCourants(),
+        { raison: 'la prise a été arrêtée avant la fin de l\'amorce : la lecture est coupée' });
+    }
     _etat.enPrise = false;
     _etat.priseEnCloture = true;
     _etat.noeud.port.postMessage({ type: 'arreter-prise' });
@@ -2825,6 +3653,9 @@
               'reste consigné au journal, en échantillons.');
           }
           _etat.priseEnCloture = false;
+          // (R5) « après la prise, chaque passage affiche sa vitesse » : c'est ici, quand la
+          // durée de la voix est connue et que les repères ne bougent plus d'eux-mêmes.
+          peindreVitesses();
           return peindreListe().then(function () { return mesures; });
         });
       });
@@ -2880,6 +3711,12 @@
       // d'interface, pas un fait de la prise, et la garder à côté de la valeur réelle faisait
       // deux vérités pour une même grandeur — 220 500 contre 220 544 à 44 100 Hz (#11(f)).
       echantillonsParMorceau: a.echantillonsParMorceauAppliquee,
+      // (R7, T10) LE LIEN AU PASSAGE, PORTÉ PAR LA PRISE ELLE-MÊME. Sans lui, une reprise
+      // serait une prise de plus sans qu'on sache de quoi : c'est ce lien qui permet au lot 4
+      // de choisir laquelle des deux versions d'un passage il monte, et à la liste de dire
+      // « reprise du passage 3 » au lieu de « Prise d'essai » pour la troisième fois.
+      repriseDuPassage: a.repriseDuPassage || null,
+      zoneDAmorce: a.zoneDAmorce || null,
       nbEchantillons: 0,
       nbMorceaux: 0,
       // 'en-cours' : si la page meurt maintenant, le prochain chargement la trouvera ainsi et
@@ -2971,6 +3808,13 @@
         : 'aucun texte de bande',
       reperes: _etat.reperes.slice(),
       repetitionsDeToucheIgnorees: _etat.repetitionsIgnorees || 0,
+      // ── (R5) LA VITESSE DE CHAQUE PASSAGE, AVEC SON SEUIL ───────────────────────────────
+      vitessesParPassage: vitessesMaintenant()
+        || 'sans objet : module de bande absent',
+      // ── (R6) L'OPTION DES MARQUEURS THÉORIQUES, ET CE QU'ELLE A FAIT ────────────────────
+      marqueursTheoriques: _etat.marqueursTheoriques
+        || { active: false, poses: 0, regle: 'option non consultée : prise ouverte autrement '
+             + 'que par le bouton (reprise de session, import)' },
       // ── (T6) LES TROIS CONTRÔLES, calculés à la fin de la prise, JAMAIS bloquants ici ────
       controlesDeT6: (window.BandeRythmo && _etat.passages.length)
         ? window.BandeRythmo.controlesDeT6(_etat.reperes, _etat.passages.length,
@@ -3087,6 +3931,9 @@
 
   function peindreListe() {
     return window.VoixStockage.listerPrises(_etat.db).then(function (liste) {
+      // (R7) La liste des prises sources suit la liste des prises : une prise qui vient d'être
+      // terminée doit pouvoir servir d'amorce tout de suite.
+      peindreChoixDeReprise(liste);
       var hote = q('[data-prises]');
       if (!hote) return liste;
       if (!liste.length) {
@@ -3238,6 +4085,10 @@
 
   // ── BRANCHEMENT ────────────────────────────────────────────────────────────────────────────
   function brancher(boite, servicesDuCoeur) {
+    // (T3 bis) LES ÉCOUTEURS DU DIAGNOSTIC D'ABORD : le dernier geste et les changements de
+    // périphérique doivent être connus AVANT le premier événement de piste, sinon le premier
+    // incident serait justement celui qu'on ne pourrait pas expliquer.
+    brancherLeDiagnostic();
     _services = servicesDuCoeur || {};
     _boite = boite;
     boite.innerHTML = gabarit();
@@ -3394,6 +4245,36 @@
     });
     q('[data-action="repere"]').addEventListener('click', function () { poserUnRepere('bouton'); });
     q('[data-action="passage-precedent"]').addEventListener('click', passagePrecedent);
+    // (R6) AJUSTER UN REPÈRE : délégation sur l'hôte, parce que les boutons sont repeints à
+    // chaque changement de la liste et qu'un écouteur par bouton fuirait à chaque peinture.
+    q('[data-reperes]').addEventListener('click', function (ev) {
+      var cible = ev.target;
+      if (!cible || !cible.getAttribute) return;
+      var retirer = cible.getAttribute('data-repere-retirer');
+      if (retirer !== null) { retirerUnRepere(parseInt(retirer, 10)); return; }
+      var recaler = cible.getAttribute('data-repere-recaler');
+      if (recaler !== null) {
+        recalerUnRepere(parseInt(recaler, 10),
+          parseFloat(cible.getAttribute('data-pas-ms')) || 0);
+      }
+    });
+    // (R5) LE SEUIL D'ALERTE : le changer repeint les vitesses, sans refaire la prise.
+    q('[data-seuil-vitesse]').addEventListener('change', function () {
+      var v = peindreVitesses();
+      if (v) {
+        journaliser('seuil de vitesse ' + v.seuil_pourCent + ' %', echantillonsCourants(),
+          { dureeMinSignificative_s: v.dureeMinSignificative_s,
+            regle: 'la durée en dessous de laquelle la vitesse n\'est pas significative découle '
+              + 'du seuil : deux repères incertains de l\'antirebond chacun.' });
+      }
+    });
+    // (E10, R7, point 4) REFAIRE UN PASSAGE.
+    q('[data-action="refaire-passage"]').addEventListener('click', function () {
+      refaireLePassage().catch(function (e) {
+        message('reprise', 'error', 'La reprise du passage a échoué : '
+          + (e && e.message ? e.message : e));
+      });
+    });
 
     q('[data-action="apprendre-touche"]').addEventListener('click', function () {
       _etat.apprendLaTouche = true;
@@ -3552,6 +4433,21 @@
     reechantillonnerPcm: reechantillonnerPcm,
     _relireLesCompteurs: function (id) { return relireLesCompteurs(id); },
     _arreter: arreter,
+    // (E10, R7, T3 bis) La lecture de l'amorce est éprouvée dans un contexte DIFFÉRÉ : §44
+    // lui passe un OfflineAudioContext, qui n'ouvre aucun périphérique et rend hors du temps.
+    _lireLAmorce: _lireLAmorce,
+    _refaireLePassage: refaireLePassage,
+    _vitessesMaintenant: vitessesMaintenant,
+    _recalerUnRepere: recalerUnRepere,
+    _retirerUnRepere: retirerUnRepere,
+    _poserUnRepere: poserUnRepere,
+    _lirePcmDUnePlage: lirePcmDUnePlage,
+    // (T3 bis) Le filtre des cinq secondes, pur, et le contexte de l'instant tel qu'il est
+    // écrit au journal : un contrôle l'éprouve sans provoquer de vraie perte de micro.
+    _changementsRecents: changementsRecents,
+    _contexteDeLInstant: contexteDeLInstant,
+    _evenementADiagnostiquer: evenementADiagnostiquer,
+    FENETRE_DIAGNOSTIC_S: FENETRE_DIAGNOSTIC_S,
     _autoriser: autoriser,
   };
 })();

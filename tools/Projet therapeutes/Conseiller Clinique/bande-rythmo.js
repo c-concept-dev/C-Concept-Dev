@@ -289,25 +289,36 @@
     var a = args || {};
     var hz = a.echantillonnage || 48000;
     var secondes = (typeof a.secondes === 'number' && a.secondes > 0) ? a.secondes : 5;
-    var demandes = Math.round(secondes * hz);
-    // On ne joue jamais plus que ce que la prise source contient : si elle est plus courte que
-    // l'amorce demandée, on joue tout, et on le DIT.
     var disponibles = Math.max(0, Math.round(a.echantillonsDeLaSource || 0));
-    var joues = Math.min(demandes, disponibles);
-    var debutSource = Math.max(0, disponibles - joues);
+    // ── L'AMORCE PRÉCÈDE LE PASSAGE, PAS LA FIN DE LA PRISE ──────────────────────────────
+    // R7 : « les dernières secondes de la voix qui précède » le passage qu'on refait. Le
+    // passage est à SA position dans la prise source — un repère —, et c'est de là qu'on
+    // remonte. Prendre la fin de la prise source donnerait l'amorce du DERNIER passage quel
+    // que soit celui qu'on refait : juste pour un seul cas, faux pour tous les autres.
+    var position = (typeof a.positionDansLaSource === 'number')
+      ? Math.max(0, Math.min(disponibles, Math.round(a.positionDansLaSource)))
+      : disponibles;
+    // L'option « tout le bout » : toute la voix qui précède le passage, et non cinq secondes.
+    var tout = !!a.tout;
+    var demandes = tout ? position : Math.round(secondes * hz);
+    var joues = Math.min(demandes, position);
+    var debutSource = position - joues;
     return {
       mode: a.mode === 'amorce-puis-silence' ? 'amorce-puis-silence' : 'doublage',
-      secondesDemandees: secondes,
+      toutLeBout: tout,
+      secondesDemandees: tout ? +(demandes / hz).toFixed(3) : secondes,
       echantillonsDemandes: demandes,
       echantillonsJoues: joues,
       tronquee: joues < demandes,
       raisonDeLaTroncature: joues < demandes
-        ? 'la prise source ne porte que ' + disponibles + ' échantillons : l\'amorce a été '
-          + 'raccourcie à ' + joues + ' au lieu de ' + demandes
+        ? 'la voix qui précède le passage ne fait que ' + position + ' échantillons ('
+          + (position / hz).toFixed(3) + ' s) dans la prise source : l\'amorce a été raccourcie '
+          + 'à ' + joues + ' échantillons au lieu de ' + demandes
         : 'sans objet',
       priseSource: a.priseSource || null,
+      positionDuPassageDansLaSource: position,
       debutDansLaSource: debutSource,
-      finDansLaSource: disponibles,
+      finDansLaSource: position,
       // DANS LA PRISE NEUVE : en doublage, la fuite occupe les premiers échantillons écrits ;
       // en « amorce puis silence », rien n'est écrit avant la fin du son et la garde, donc la
       // zone est vide et la prise commence propre.
@@ -324,6 +335,211 @@
     };
   }
 
+  // ── (R5) LE SEUIL D'ALERTE SUR LA VITESSE, ET D'OÙ IL VIENT ───────────────────────────────
+  //
+  // R5 : « chaque passage affiche sa vitesse en mots par seconde, calculée d'après sa durée ;
+  // une alerte réglable signale un écart avec la vitesse choisie ». Le CDC laisse le seuil
+  // ouvert. Je propose VINGT POUR CENT, et voici le raisonnement, qui ne tient pas à mon goût.
+  //
+  // LA BORNE BASSE EST IMPOSÉE PAR LA MESURE ELLE-MÊME. La durée d'un passage est bornée par
+  // deux repères posés À LA MAIN. Un repère posé à la main est incertain : E9 fixe l'antirebond
+  // à 250 ms parce que c'est l'ordre de grandeur du geste, et deux frontières incertaines de
+  // 250 ms font une durée incertaine de 500 ms. Sur un passage de 10 s, c'est déjà 5 % d'écart
+  // qui ne viennent pas de la lecture mais du doigt. Un seuil à 5 % alerterait donc sur le
+  // geste ; un seuil à 10 % alerterait sur tout passage de moins de 5 secondes.
+  //
+  // LA BORNE HAUTE EST IMPOSÉE PAR L'OREILLE. À 2,5 mots par seconde, 20 % font un demi-mot par
+  // seconde : un passage lu à 3 mots/s au lieu de 2,5 s'entend comme pressé, et c'est exactement
+  // ce que l'alerte doit attraper. Au-delà de 30 % on n'attraperait plus que les accidents.
+  //
+  // ET LA CONSÉQUENCE EST CALCULÉE, NON POSÉE. Du seuil découle la durée en dessous de laquelle
+  // la vitesse n'est pas significative : 500 ms d'incertitude pour 20 % d'écart toléré, cela
+  // fait 2,5 secondes. En dessous, le passage est affiché SANS alerte et avec sa raison — une
+  // alerte sur du bruit de mesure est une alerte qu'on apprend à ignorer. Si Christophe change
+  // le seuil, cette durée suit : c'est une fonction du seuil, pas un second réglage à tenir.
+  var SEUIL_VITESSE_POURCENT_DEFAUT = 20;
+
+  function dureeMinSignificative_s(seuil_pourCent, antirebond_ms) {
+    var seuil = (typeof seuil_pourCent === 'number' && seuil_pourCent > 0)
+      ? seuil_pourCent : SEUIL_VITESSE_POURCENT_DEFAUT;
+    var ms = (typeof antirebond_ms === 'number' && antirebond_ms >= 0)
+      ? antirebond_ms : ANTIREBOND_MS_DEFAUT;
+    // Deux frontières, chacune incertaine de l'antirebond.
+    return (2 * ms / 1000) / (seuil / 100);
+  }
+
+  // ── (R5) LA VITESSE DE CHAQUE PASSAGE, MESURÉE SUR SA DURÉE ───────────────────────────────
+  //
+  // LES BORNES D'UN PASSAGE SONT SES REPÈRES. T14 fait d'un repère la frontière entre deux
+  // commentaires, et T6 accepte n − 1 repères (le dernier passage finit avec la voix) ou n (un
+  // repère de fin). Les deux cas sont traités, et tout autre nombre rend « non mesurable » avec
+  // sa raison : inventer des bornes produirait des vitesses qui ne mesurent rien.
+  //
+  // LE TEMPS DE PAUSE EST RETIRÉ AVANT DE DIVISER. Un passage qui porte « [pause 2 s] » dure
+  // deux secondes de plus sans qu'un mot de plus y soit dit. Diviser ses mots par sa durée
+  // brute le ferait paraître lent de 2 s, c'est-à-dire déclencherait une alerte sur un silence
+  // VOULU. La bande modélise déjà la durée d'un passage par `nbMots / v + secondesDePause`
+  // (`dureeDUnPassage`) : la vitesse se mesure donc sur le même temps de parole, sinon la
+  // grandeur affichée et la grandeur attendue ne seraient pas la même grandeur (#11(f)).
+  function vitessesParPassage(args) {
+    var a = args || {};
+    var passages = a.passages || [];
+    var hz = (typeof a.echantillonnage === 'number' && a.echantillonnage > 0)
+      ? a.echantillonnage : 48000;
+    var choisie = (typeof a.vitesseChoisie === 'number' && a.vitesseChoisie > 0)
+      ? a.vitesseChoisie : VITESSE_DEFAUT;
+    var seuil = (typeof a.seuil_pourCent === 'number' && a.seuil_pourCent > 0)
+      ? a.seuil_pourCent : SEUIL_VITESSE_POURCENT_DEFAUT;
+    var antirebond_ms = (typeof a.antirebond_ms === 'number' && a.antirebond_ms >= 0)
+      ? a.antirebond_ms : ANTIREBOND_MS_DEFAUT;
+    var duree = Math.max(0, Math.round(a.dureeVoix_echantillons || 0));
+    var minimum_s = dureeMinSignificative_s(seuil, antirebond_ms);
+    var commun = {
+      vitesseChoisie: choisie,
+      seuil_pourCent: seuil,
+      antirebond_ms: antirebond_ms,
+      dureeMinSignificative_s: +minimum_s.toFixed(3),
+      nbPassages: passages.length,
+    };
+
+    // UN REPÈRE DOUTEUX N'EST PAS UNE BORNE. E9 le pose et le signale au lieu de le jeter ; il
+    // reste dans la liste, mais s'en servir comme frontière découperait un passage en deux sur
+    // un rebond de touche. Il est donc compté et écarté, et le dit.
+    var tous = (a.reperes || []).map(function (r) {
+      return (typeof r === 'number') ? { aEchantillon: r, douteux: false } : r;
+    });
+    var ecartes = tous.filter(function (r) { return r && r.douteux; }).length;
+    var positions = tous.filter(function (r) { return r && !r.douteux; })
+      .map(function (r) { return Math.max(0, Math.round(r.aEchantillon)); })
+      .sort(function (x, y) { return x - y; });
+
+    if (!passages.length) {
+      return Object.assign({ mesurable: false, reperesEcartes: ecartes,
+        raison: 'aucun passage : sans texte de bande, un repère ne délimite rien de mesurable.',
+        passages: [] }, commun);
+    }
+    var bornes = [0].concat(positions);
+    var raisonDesBornes;
+    if (bornes.length === passages.length) {
+      bornes.push(duree);
+      raisonDesBornes = positions.length + ' repères pour ' + passages.length + ' passages : le '
+        + 'dernier passage se termine avec la voix écrite (' + duree + ' échantillons), comme '
+        + 'T14 l\'autorise.';
+    } else if (bornes.length === passages.length + 1) {
+      raisonDesBornes = positions.length + ' repères pour ' + passages.length + ' passages : le '
+        + 'dernier ferme le dernier passage (repère de fin).';
+    } else {
+      return Object.assign({ mesurable: false, reperesEcartes: ecartes,
+        raison: 'vitesses non mesurables : ' + positions.length + ' repères retenus pour '
+          + passages.length + ' passages, alors qu\'il en faut ' + (passages.length - 1)
+          + ' ou ' + passages.length + ' (T6). Des bornes inventées donneraient des vitesses '
+          + 'qui ne mesurent rien.',
+        passages: [] }, commun);
+    }
+
+    var alertes = 0;
+    var lignes = passages.map(function (p, k) {
+      var debut = bornes[k], fin = bornes[k + 1];
+      var duree_s = Math.max(0, (fin - debut) / hz);
+      var pause_s = p.secondesDePause || 0;
+      var parole_s = Math.max(0, duree_s - pause_s);
+      var mots = p.nbMots || 0;
+      var ligne = {
+        passage: k,
+        texteLu: p.texteLu,
+        nbMots: mots,
+        debutEchantillon: debut,
+        finEchantillon: fin,
+        duree_s: +duree_s.toFixed(3),
+        secondesDePauseEcrites: pause_s,
+        tempsDeParole_s: +parole_s.toFixed(3),
+      };
+      if (mots === 0 || parole_s <= 0) {
+        ligne.motsParSeconde = null;
+        ligne.ecart_pourCent = null;
+        ligne.alerte = false;
+        ligne.etat = 'non mesurable';
+        ligne.raison = mots === 0
+          ? 'aucun mot dans ce passage : une vitesse en mots par seconde n\'y a pas de sens.'
+          : 'temps de parole nul ou négatif (durée ' + duree_s.toFixed(3) + ' s, dont '
+            + pause_s + ' s de pause écrite) : rien à diviser.';
+        return ligne;
+      }
+      var v = mots / parole_s;
+      var ecart = (v - choisie) / choisie * 100;
+      ligne.motsParSeconde = +v.toFixed(3);
+      ligne.ecart_pourCent = +ecart.toFixed(1);
+      if (duree_s < minimum_s) {
+        // SANS ALERTE, ET AVEC LA RAISON : sur un passage plus court que cela, l'incertitude des
+        // deux repères dépasse à elle seule le seuil.
+        ligne.alerte = false;
+        ligne.etat = 'durée trop courte pour juger';
+        ligne.raison = 'ce passage dure ' + duree_s.toFixed(2) + ' s, moins que les '
+          + minimum_s.toFixed(2) + ' s en dessous desquelles l\'incertitude des deux repères ('
+          + (2 * antirebond_ms) + ' ms en tout) atteint à elle seule le seuil de ' + seuil
+          + ' %. La vitesse est affichée, l\'alerte non.';
+        return ligne;
+      }
+      ligne.alerte = Math.abs(ecart) > seuil;
+      if (ligne.alerte) alertes++;
+      ligne.etat = !ligne.alerte ? 'conforme' : (ecart > 0 ? 'trop rapide' : 'trop lent');
+      ligne.raison = ligne.alerte
+        ? mots + ' mots en ' + parole_s.toFixed(2) + ' s de parole font '
+          + v.toFixed(2) + ' mots/s, soit ' + (ecart > 0 ? '+' : '') + ecart.toFixed(1)
+          + ' % de la vitesse choisie (' + choisie + ') : au-delà du seuil de ' + seuil + ' %.'
+        : 'écart de ' + (ecart > 0 ? '+' : '') + ecart.toFixed(1) + ' %, dans le seuil de '
+          + seuil + ' %.';
+      return ligne;
+    });
+
+    return Object.assign({
+      mesurable: true,
+      reperesEcartes: ecartes,
+      bornesEnEchantillons: bornes,
+      raisonDesBornes: raisonDesBornes,
+      nbAlertes: alertes,
+      passages: lignes,
+      regle: 'la vitesse d\'un passage est son nombre de mots divisé par son TEMPS DE PAROLE, '
+        + 'c\'est-à-dire sa durée entre repères moins les pauses écrites dans son texte — la '
+        + 'même décomposition que `dureeDUnPassage`, pour que la grandeur mesurée et la grandeur '
+        + 'attendue soient la même. En dessous de ' + minimum_s.toFixed(2) + ' s, l\'incertitude '
+        + 'des repères posés à la main dépasse le seuil : la vitesse s\'affiche sans alerte.',
+    }, commun);
+  }
+
+  // ── (R6) LES MARQUEURS THÉORIQUES, POSÉS D'APRÈS LA BANDE ─────────────────────────────────
+  //
+  // R6 : « une option, désactivée par défaut, pose des marqueurs théoriques d'après la bande, à
+  // ajuster ensuite. » Théorique veut dire : à la durée que la bande PRÉVOIT pour chaque
+  // passage, et non à celle qu'une voix a mise. Ce sont donc les frontières intérieures du
+  // texte, cumulées, converties en échantillons.
+  //
+  // CE QUE CETTE FONCTION NE FAIT PAS : décider. Elle rend des positions ; c'est l'appelant qui
+  // les pose, par le MÊME chemin qu'un repère de la main (antirebond compris), pour qu'un
+  // marqueur théorique soit « un repère comme les autres » — y compris modifiable et effaçable.
+  function marqueursTheoriques(passages, vitesse, echantillonnage) {
+    var liste = passages || [];
+    var v = (typeof vitesse === 'number' && vitesse > 0) ? vitesse : VITESSE_DEFAUT;
+    var hz = (typeof echantillonnage === 'number' && echantillonnage > 0) ? echantillonnage : 48000;
+    var out = [];
+    var cumul = 0;
+    // n passages → n − 1 frontières intérieures. Pas de repère de fin : la voix n'est pas encore
+    // enregistrée, donc sa fin n'est pas connue, et un repère posé au-delà serait « hors voix »
+    // au sens de T6.
+    for (var i = 0; i < liste.length - 1; i++) {
+      cumul += dureeDUnPassage(liste[i], v);
+      out.push({
+        aEchantillon: Math.round(cumul * hz),
+        // Le passage qu'un repère de la main aurait enregistré à cet instant : la frontière
+        // tombe au premier échantillon du passage suivant.
+        passage: i + 1,
+        secondes: +cumul.toFixed(3),
+        theorique: true,
+      });
+    }
+    return out;
+  }
+
   window.BandeRythmo = {
     VITESSE_DEFAUT: VITESSE_DEFAUT,
     PAUSE_DEFAUT_S: PAUSE_DEFAUT_S,
@@ -337,5 +553,9 @@
     antirebond: antirebond,
     controlesDeT6: controlesDeT6,
     zoneDAmorce: zoneDAmorce,
+    SEUIL_VITESSE_POURCENT_DEFAUT: SEUIL_VITESSE_POURCENT_DEFAUT,
+    dureeMinSignificative_s: dureeMinSignificative_s,
+    vitessesParPassage: vitessesParPassage,
+    marqueursTheoriques: marqueursTheoriques,
   };
 })();

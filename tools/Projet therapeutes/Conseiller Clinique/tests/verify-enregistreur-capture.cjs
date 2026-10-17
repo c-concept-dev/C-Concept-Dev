@@ -4153,6 +4153,815 @@ async function prendreLaFin(page) {
       r['44100/900'].ecartAnalytiqueMax.toFixed(9) + ' mot');
   });
 
+  // ── §44 — (E10, R7) LA LECTURE DE L'AMORCE S'ARRÊTE EXACTEMENT À LA FIN DE LA ZONE ───────
+  //
+  // CE CONTRÔLE EST ÉCRIT AVANT TOUT CODE DE T3 BIS, à la demande de Christophe, et il doit
+  // donc échouer à sa première exécution.
+  //
+  // POURQUOI C'EST LA GARANTIE QUI COMPTE. E10, mode doublage : « la piste armée enregistre
+  // pendant que la voix qui précède joue aux haut-parleurs et où Christophe enchaîne à la fin de
+  // l'amorce ». S'il enchaîne à la fin de l'amorce et que l'amorce continue de jouer, il entend
+  // l'ancienne prise par-dessus sa propre voix, et les haut-parleurs la mettent dans la nouvelle.
+  // Une lecture qui dépasse d'une demi-seconde suffit à rendre la reprise inutilisable.
+  //
+  // LA MESURE EST SUR L'HORLOGE AUDIO, dans un contexte DIFFÉRÉ : on rend quatre secondes alors
+  // que l'amorce en dure deux, puis on relit les échantillons rendus. Aucun périphérique n'est
+  // ouvert, donc rien ne dépend de la configuration de la machine de Christophe. Le témoin est
+  // l'échantillon lui-même, pas une déclaration du code.
+  await controle('§44 l\'amorce s\'arrête à la fin de sa zone, à un bloc près, et rien après (E10)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(async () => {
+      const resultats = {};
+      for (const hz of [48000, 44100]) {
+        const OAC = self.OfflineAudioContext || self.webkitOfflineAudioContext;
+        const SECONDES_SOURCE = 4, SECONDES_RENDU = 4;
+        const oc = new OAC(1, Math.round(SECONDES_RENDU * hz), hz);
+        // ── LA SOURCE EST PLUS LONGUE QUE LA ZONE, ET CE QUI SUIT LA ZONE EST AUTRE ──────
+        // La prise source est une prise entière ; le passage qu'on refait est au MILIEU. Ce
+        // qui suit l'amorce dans la source, c'est la suite de l'ancienne prise : c'est
+        // précisément ce qu'il ne faut pas entendre par-dessus la nouvelle. On le marque donc
+        // d'une autre amplitude, pour qu'un échantillon venu de là soit reconnaissable.
+        const AVANT = 3000, DEDANS = 8000, APRES = 20000;
+        const n = Math.round(SECONDES_SOURCE * hz);
+        const debut = Math.round(1 * hz), fin = Math.round(3 * hz);
+        const pcm = new Int16Array(n);
+        for (let i = 0; i < n; i++) pcm[i] = i < debut ? AVANT : (i < fin ? DEDANS : APRES);
+        const zone = window.EnregistreurVoix._lireLAmorce(oc, pcm.buffer, hz,
+          { debutEchantillon: debut, finEchantillon: fin, debut_s: 0 });
+        const rendu = await oc.startRendering();
+        const sortie = rendu.getChannelData(0);
+        const attendu = DEDANS / 32768;
+        let premierNonZero = -1, dernierNonZero = -1, nonZerosApres = 0, horsZone = 0;
+        for (let i = 0; i < sortie.length; i++) {
+          if (sortie[i] !== 0) {
+            if (premierNonZero < 0) premierNonZero = i;
+            dernierNonZero = i;
+            if (i >= fin - debut) nonZerosApres++;
+            // Un échantillon qui ne vient pas de la zone : d'avant, ou d'après.
+            if (Math.abs(sortie[i] - attendu) > 0.01) horsZone++;
+          }
+        }
+        resultats[hz] = { echantillonsDeLAmorce: fin - debut, zone: zone,
+          premierNonZero: premierNonZero, dernierNonZero: dernierNonZero,
+          nonZerosApres: nonZerosApres, horsZone: horsZone, rendu: sortie.length };
+      }
+      return resultats;
+    });
+    await ctx.close();
+
+    [48000, 44100].forEach((hz) => {
+      const x = r[hz];
+      // 1. L'AMORCE A BIEN JOUÉ : sans cela « rien après » serait vrai pour rien.
+      assert.ok(x.premierNonZero >= 0 && x.premierNonZero <= 128,
+        hz + ' Hz : l\'amorce doit commencer au premier bloc rendu : ' + x.premierNonZero);
+      // 2. ELLE S'ARRÊTE À LA FIN DE SA ZONE, à un bloc de 128 échantillons près.
+      assert.ok(x.dernierNonZero >= x.echantillonsDeLAmorce - 1 - 128
+                && x.dernierNonZero <= x.echantillonsDeLAmorce - 1 + 128,
+        hz + ' Hz : le dernier échantillon non nul doit tomber à un bloc près de la fin de la '
+        + 'zone (' + (x.echantillonsDeLAmorce - 1) + ') : ' + x.dernierNonZero +
+        ', écart ' + (x.dernierNonZero - (x.echantillonsDeLAmorce - 1)) + ' échantillons');
+      // 3. RIEN NE JOUE AU-DELÀ — c'est la garantie de E10.
+      assert.ok(x.nonZerosApres <= 128,
+        hz + ' Hz : aucune lecture au-delà de la zone, à un bloc près : ' + x.nonZerosApres +
+        ' échantillons non nuls après l\'échantillon ' + x.echantillonsDeLAmorce +
+        ' (soit ' + (x.nonZerosApres / hz * 1000).toFixed(1) + ' ms de trop)');
+      // 4. ET AUCUN ÉCHANTILLON NE VIENT D'AILLEURS QUE DE LA ZONE : ni d'avant, ni de la
+      // suite de l'ancienne prise. Un `start` sans durée joue jusqu'au bout du tampon et se
+      // ferait prendre ici, même si le `stop` existe encore.
+      assert.ok(x.horsZone <= 128,
+        hz + ' Hz : ' + x.horsZone + ' échantillon(s) rendus ne portent pas l\'amplitude de la '
+        + 'zone : ils viennent d\'avant l\'amorce ou de la suite de la prise source');
+      // 5. LA ZONE RENDUE PAR LE PRODUIT DIT LES MÊMES BORNES que ce qu'on a entendu.
+      assert.equal(x.zone.echantillons, x.echantillonsDeLAmorce,
+        hz + ' Hz : la zone doit annoncer sa longueur réelle : ' + x.zone.echantillons);
+      assert.equal(x.zone.finEchantillon - x.zone.debutEchantillon, x.echantillonsDeLAmorce,
+        hz + ' Hz : et ses bornes doivent l\'encadrer : ' + JSON.stringify(x.zone));
+    });
+    console.log('        48 kHz : zone de ' + r[48000].echantillonsDeLAmorce + ' éch · dernier ' +
+      'non nul à ' + r[48000].dernierNonZero + ' · ' + r[48000].nonZerosApres + ' après · ' +
+      r[48000].horsZone + ' hors zone\n        44,1 kHz : zone de ' +
+      r[44100].echantillonsDeLAmorce + ' éch · dernier non nul à ' + r[44100].dernierNonZero +
+      ' · ' + r[44100].nonZerosApres + ' après · ' + r[44100].horsZone + ' hors zone');
+  });
+
+  // Attend que la reprise ait réellement armé la piste, et si elle n'y arrive pas, DIT ce que la
+  // page montrait : un délai dépassé sans message est un contrôle qui n'apprend rien.
+  async function attendreLaReprise(page) {
+    const vu = await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /en cours/i.test(t.textContent);
+    }, null, { timeout: 20000 }).then(() => true, () => false);
+    if (vu) return;
+    const diag = await page.evaluate(() => ({
+      mode: (document.querySelector('[data-mode]') || {}).textContent,
+      etatReprise: (document.querySelector('[data-reprise-etat]') || {}).textContent,
+      notice: (document.querySelector('[data-reprise-notice]') || {}).textContent,
+      messages: [...document.querySelectorAll('.sc-bm-message')].map((m) =>
+        m.getAttribute('data-cle') + ': ' + m.querySelector('span').textContent),
+    }));
+    assert.fail('la reprise de passage n\'a pas démarré : ' + JSON.stringify(diag));
+  }
+
+  // ── §45 — (R5) LA VITESSE DE CHAQUE PASSAGE, SUR UNE PRISE DE VITESSES CONNUES ───────────
+  //
+  // FONCTION PURE, DEUX FRÉQUENCES. Les vitesses se calculent sur des positions d'échantillons :
+  // aucun périphérique n'est ouvert, et le contrôle tourne à 48 000 comme à 44 100 Hz sans que
+  // la configuration du Mac de Christophe entre en jeu.
+  //
+  // LE TÉMOIN LE PLUS UTILE EST LE QUATRIÈME PASSAGE : dix mots et une pause écrite de deux
+  // secondes, lus en six secondes. Son temps de PAROLE est de quatre secondes, donc 2,5 mots/s,
+  // donc conforme. Si la pause n'était pas retirée avant de diviser, il sortirait à 1,67 mots/s,
+  // soit −33 %, et déclencherait une alerte sur un silence VOULU.
+  await controle('§45 chaque passage affiche sa vitesse, et la pause écrite ne la fausse pas (R5)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(() => {
+      const B = window.BandeRythmo;
+      const dix = 'un deux trois quatre cinq six sept huit neuf dix';
+      // Le cinquième passage a un écart PETIT MAIS NON NUL : il ne doit pas alerter. Sans lui,
+      // une alerte qui ignore son seuil passerait inaperçue — les quatre autres ont un écart de
+      // 0 ou bien franchement au-delà du seuil.
+      const texte = dix + '\n' + dix + '\n' + dix + '\n' + dix + ' [pause 2 s]\n' + dix;
+      const passages = B.decouperEnPassages(texte);
+      const sortie = {};
+      for (const hz of [48000, 44100]) {
+        // Durées voulues : 4 s (2,5 mots/s), 2,5 s (4 mots/s), 8 s (1,25 mots/s),
+        // 6 s dont 2 s de pause écrite (2,5 mots/s de parole).
+        // … et 3,8 s pour dix mots font 2,63 mots/s, soit +5,3 % : dans le seuil de 20 %.
+        const bornes = [0, 4, 6.5, 14.5, 20.5, 24.3].map((t) => Math.round(t * hz));
+        const reperes = bornes.slice(1, 5).map((e) => ({ aEchantillon: e, douteux: false }));
+        sortie[hz] = B.vitessesParPassage({
+          passages: passages, reperes: reperes, dureeVoix_echantillons: bornes[5],
+          echantillonnage: hz, vitesseChoisie: 2.5,
+        });
+      }
+      // Les cas de bord, au même seuil : un passage trop court pour juger, et un nombre de
+      // repères incompatible.
+      const court = B.vitessesParPassage({
+        passages: B.decouperEnPassages('un deux trois quatre cinq'),
+        reperes: [], dureeVoix_echantillons: Math.round(1.2 * 48000),
+        echantillonnage: 48000, vitesseChoisie: 2.5,
+      });
+      const incompatible = B.vitessesParPassage({
+        passages: passages,
+        reperes: [{ aEchantillon: 1000, douteux: false }, { aEchantillon: 2000, douteux: false }],
+        dureeVoix_echantillons: 480000, echantillonnage: 48000, vitesseChoisie: 2.5,
+      });
+      return { sortie, court, incompatible, minimum: B.dureeMinSignificative_s(20, 250),
+               seuilDefaut: B.SEUIL_VITESSE_POURCENT_DEFAUT };
+    });
+    await ctx.close();
+
+    // LE SEUIL PROPOSÉ, ET LA DURÉE QUI EN DÉCOULE : 500 ms d'incertitude pour 20 % tolérés.
+    assert.equal(r.seuilDefaut, 20, 'le seuil par défaut doit être 20 % : ' + r.seuilDefaut);
+    assert.ok(Math.abs(r.minimum - 2.5) < 1e-9,
+      'la durée minimale significative doit découler du seuil (2 × 250 ms / 20 %) = 2,5 s : '
+      + r.minimum);
+
+    [48000, 44100].forEach((hz) => {
+      const v = r.sortie[hz];
+      assert.ok(v.mesurable, hz + ' Hz : les vitesses doivent être mesurables : ' + v.raison);
+      const attendus = [
+        { v: 2.5, ecart: 0, alerte: false, etat: 'conforme' },
+        { v: 4, ecart: 60, alerte: true, etat: 'trop rapide' },
+        { v: 1.25, ecart: -50, alerte: true, etat: 'trop lent' },
+        { v: 2.5, ecart: 0, alerte: false, etat: 'conforme' },
+        { v: 2.632, ecart: 5.3, alerte: false, etat: 'conforme' },
+      ];
+      attendus.forEach((a, k) => {
+        const x = v.passages[k];
+        assert.ok(Math.abs(x.motsParSeconde - a.v) < 0.02,
+          hz + ' Hz, passage ' + (k + 1) + ' : ' + a.v + ' mots/s attendus, mesuré '
+          + x.motsParSeconde + ' (durée ' + x.duree_s + ' s, parole ' + x.tempsDeParole_s + ' s)');
+        assert.ok(Math.abs(x.ecart_pourCent - a.ecart) < 0.6,
+          hz + ' Hz, passage ' + (k + 1) + ' : écart ' + a.ecart + ' % attendu, mesuré '
+          + x.ecart_pourCent + ' %');
+        assert.equal(x.alerte, a.alerte,
+          hz + ' Hz, passage ' + (k + 1) + ' : alerte ' + a.alerte + ' attendue → ' + x.raison);
+        assert.equal(x.etat, a.etat, hz + ' Hz, passage ' + (k + 1) + ' : état ' + x.etat);
+      });
+      // LE QUATRIÈME PASSAGE EST LE TÉMOIN DE LA PAUSE : sa durée et son temps de parole
+      // DIFFÈRENT de deux secondes, et c'est le second qui divise.
+      const p4 = v.passages[3];
+      assert.ok(Math.abs(p4.duree_s - 6) < 0.02 && Math.abs(p4.tempsDeParole_s - 4) < 0.02,
+        hz + ' Hz : le passage à pause doit durer 6 s dont 4 s de parole : '
+        + p4.duree_s + ' / ' + p4.tempsDeParole_s);
+      assert.equal(p4.secondesDePauseEcrites, 2,
+        hz + ' Hz : la pause écrite doit valoir 2 s : ' + p4.secondesDePauseEcrites);
+      assert.equal(v.nbAlertes, 2, hz + ' Hz : deux alertes attendues : ' + v.nbAlertes);
+      // LE TÉMOIN DU SEUIL : un écart de +5,3 % existe, il est affiché, et il n'alerte pas.
+      const p5 = v.passages[4];
+      assert.ok(p5.ecart_pourCent > 1 && p5.ecart_pourCent < 20 && p5.alerte === false,
+        hz + ' Hz : un écart non nul mais sous le seuil ne doit pas alerter : '
+        + p5.ecart_pourCent + ' % → ' + p5.raison);
+    });
+
+    // UN PASSAGE TROP COURT EST AFFICHÉ SANS ALERTE, avec sa raison : l'incertitude des deux
+    // repères y atteint le seuil à elle seule.
+    const c = r.court.passages[0];
+    assert.equal(c.alerte, false, 'un passage de 1,2 s ne doit pas alerter : ' + c.raison);
+    assert.equal(c.etat, 'durée trop courte pour juger', 'état : ' + c.etat);
+    assert.ok(c.motsParSeconde > 0, 'sa vitesse est tout de même affichée : ' + c.motsParSeconde);
+    // UN NOMBRE DE REPÈRES INCOMPATIBLE NE PRODUIT PAS DE VITESSES INVENTÉES.
+    assert.equal(r.incompatible.mesurable, false,
+      'un repère pour quatre passages ne permet pas de borner : ' + JSON.stringify(r.incompatible));
+    assert.ok(/non mesurables/.test(r.incompatible.raison), r.incompatible.raison);
+    console.log('        48 kHz : ' + r.sortie[48000].passages.map((x) =>
+      x.motsParSeconde.toFixed(2) + ' mots/s (' + x.etat + ')').join(' · '));
+  });
+
+  // ── §46 — (R6) L'OPTION DES MARQUEURS THÉORIQUES : ÉTEINTE, PUIS DES REPÈRES ORDINAIRES ──
+  await controle('§46 l\'option des marqueurs théoriques est éteinte par défaut, et ses marqueurs sont des repères comme les autres (R6)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const texte = 'un deux trois quatre cinq\nsix sept huit neuf dix\nonze douze treize quatorze quinze';
+    await page.fill('[data-texte-bande]', texte);
+
+    // 1. ÉTEINTE PAR DÉFAUT, et une prise ordinaire ne pose aucun marqueur.
+    const parDefaut = await page.evaluate(() =>
+      document.querySelector('[data-marqueurs-theoriques]').checked);
+    await prendre(page, { attendreMs: 1200 });
+    const sansReperes = await page.evaluate(() =>
+      window.EnregistreurVoix._etat().reperes.map((r) => ({ ...r })));
+    assert.equal(parDefaut, false, 'la case doit être décochée au chargement : ' + parDefaut);
+    assert.equal(sansReperes.length, 0,
+      'sans l\'option, aucun repère ne doit être posé : ' + JSON.stringify(sansReperes));
+
+    // 2. COCHÉE : les frontières intérieures de la bande, et rien de plus.
+    await page.check('[data-marqueurs-theoriques]');
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().reperes.length > 0,
+      null, { timeout: 10000 });
+    const pose = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      const B = window.BandeRythmo;
+      return { reperes: e.reperes.map((r) => ({ ...r })), hz: e.echantillonnage,
+               vitesse: e.vitesseBande, nbPassages: e.passages.length,
+               attendus: B.marqueursTheoriques(e.passages, e.vitesseBande, e.echantillonnage),
+               option: e.marqueursTheoriques };
+    });
+    assert.equal(pose.reperes.length, pose.nbPassages - 1,
+      'trois passages → deux frontières intérieures : ' + pose.reperes.length);
+    assert.deepEqual(pose.reperes.map((r) => r.aEchantillon), pose.attendus.map((r) => r.aEchantillon),
+      'les positions doivent être celles que la bande prévoit : '
+      + JSON.stringify(pose.reperes.map((r) => r.aEchantillon)) + ' contre '
+      + JSON.stringify(pose.attendus.map((r) => r.aEchantillon)));
+    assert.ok(pose.reperes.every((r) => r.theorique === true && r.douteux === false),
+      'ils sont marqués théoriques et non douteux : ' + JSON.stringify(pose.reperes));
+    assert.equal(pose.option.active, true, 'l\'option doit être consignée active');
+
+    // 3. CE SONT DES REPÈRES COMME LES AUTRES : ajustables, effaçables, et un repère posé À LA
+    // MAIN après eux n'est PAS déclaré douteux — c'est la conséquence de l'antirebond qui ne
+    // garde que le geste.
+    await page.click('[data-action="repere"]');
+    const apres = await page.evaluate(() => {
+      const E = window.EnregistreurVoix;
+      const avant = E._etat().reperes[0].aEchantillon;
+      E._recalerUnRepere(0, 100);
+      const recale = E._etat().reperes[0].aEchantillon;
+      const n0 = E._etat().reperes.length;
+      E._retirerUnRepere(1);
+      const e = E._etat();
+      return { avant, recale, hz: e.echantillonnage, n0, n1: e.reperes.length,
+               mainDouteux: (e.reperes.find((r) => r.source === 'bouton') || {}).douteux,
+               reperes: e.reperes.map((r) => ({ ...r })) };
+    });
+    assert.equal(apres.recale - apres.avant, Math.round(0.1 * apres.hz),
+      'un recalage de 100 ms doit déplacer de ' + Math.round(0.1 * apres.hz)
+      + ' échantillons : ' + (apres.recale - apres.avant));
+    assert.equal(apres.n1, apres.n0 - 1, 'un repère retiré doit disparaître de la liste');
+    assert.equal(apres.mainDouteux, false,
+      'un repère posé à la main après des marqueurs théoriques ne doit pas être DOUTEUX : '
+      + JSON.stringify(apres.reperes));
+
+    const fin = await prendreLaFin(page);
+    await ctx.close();
+    const rapport = fin.module.mesures;
+    assert.ok(Array.isArray(rapport.reperes) && rapport.reperes.length === apres.n1,
+      'le rapport porte les mêmes repères que l\'état : ' + JSON.stringify(rapport.reperes));
+    assert.equal(rapport.controlesDeT6.nombre.poses, apres.n1,
+      'les contrôles de T6 comptent les marqueurs théoriques comme les autres : '
+      + JSON.stringify(rapport.controlesDeT6.nombre));
+    assert.equal(rapport.marqueursTheoriques.poses, pose.nbPassages - 1,
+      'le rapport dit combien l\'option a posé : '
+      + JSON.stringify(rapport.marqueursTheoriques));
+    console.log('        posés ' + (pose.nbPassages - 1) + ' théoriques à '
+      + pose.reperes.map((r) => r.aEchantillon).join(' et ') + ' · recalage '
+      + (apres.recale - apres.avant) + ' éch · repère de la main non douteux');
+  });
+
+  // ── §47 — (T3 bis) LE CONTEXTE DE L'INSTANT, À CHAQUE ÉVÉNEMENT DE PISTE ─────────────────
+  //
+  // POURQUOI CE CONTRÔLE. La perte de micro du 17 octobre à 14:01 est sans cause connue, et le
+  // journal ne portait rien qui permette de la chercher. Ce contrôle vérifie que les champs sont
+  // là ET qu'ils disent la vérité de l'instant : une visibilité forcée à « hidden » doit
+  // apparaître comme telle, un geste vieux de six cents millisecondes doit être daté, et un
+  // changement de périphérique vieux de six secondes doit être HORS de la fenêtre de cinq.
+  await controle('§47 chaque événement de piste consigne le contexte de l\'instant, et il est cohérent (T3 bis)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+
+    // 1. LE FILTRE DES CINQ SECONDES, PAR LE CALCUL : décidable sans provoquer de panne.
+    const filtre = await page.evaluate(() => {
+      const E = window.EnregistreurVoix;
+      const maintenant = 100000;
+      return { fenetre: E.FENETRE_DIAGNOSTIC_S,
+        sortie: E._changementsRecents([
+          { quand_ms: maintenant - 6000 },   // hors fenêtre
+          { quand_ms: maintenant - 4999 },   // dedans, de justesse
+          { quand_ms: maintenant - 1000 },   // dedans
+        ], maintenant, E.FENETRE_DIAGNOSTIC_S) };
+    });
+    assert.equal(filtre.fenetre, 5, 'la fenêtre de diagnostic doit faire 5 s : ' + filtre.fenetre);
+    assert.equal(filtre.sortie.length, 2,
+      'deux changements sur trois sont dans les cinq secondes : ' + JSON.stringify(filtre.sortie));
+    assert.ok(filtre.sortie.every((c) => c.ageEnSecondes <= 5),
+      'et aucun ne dépasse cinq secondes : ' + JSON.stringify(filtre.sortie));
+
+    // 2. LE VRAI CHEMIN : une prise en cours, un geste daté, un périphérique qui change, la
+    // page déclarée cachée, puis les quatre événements que le complément nomme.
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('KeyZ');            // LE DERNIER GESTE, daté par le produit
+    await page.waitForTimeout(700);               // … et qu'on laisse vieillir
+    const vu = await page.evaluate(async () => {
+      // La page se déclare cachée : si le code lisait une constante au lieu de
+      // `document.visibilityState`, il annoncerait encore « visible ».
+      Object.defineProperty(document, 'visibilityState',
+        { get: () => 'hidden', configurable: true });
+      if (navigator.mediaDevices && navigator.mediaDevices.dispatchEvent) {
+        navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
+      }
+      const e = window.EnregistreurVoix._etat();
+      await e.ctx.suspend();                       // « contexte suspended »
+      if (e.piste) {
+        e.piste.dispatchEvent(new Event('mute'));   // « piste muette (événement) »
+        e.piste.dispatchEvent(new Event('unmute')); // « piste non muette »
+        e.piste.dispatchEvent(new Event('ended'));  // « piste terminée »
+      }
+      await new Promise((r) => setTimeout(r, 120));
+      const etat = window.EnregistreurVoix._etat();
+      return { journal: etat.journal.map((x) => ({ ...x })),
+               etatContexte: etat.ctx.state,
+               pisteVivante: etat.piste ? etat.piste.readyState : 'aucune' };
+    });
+    await ctx.close();
+
+    const nommes = ['piste muette', 'piste non muette', 'piste terminée', 'contexte suspended'];
+    nommes.forEach((nom) => {
+      const e = vu.journal.filter((x) => String(x.quoi).indexOf(nom) === 0);
+      assert.ok(e.length >= 1, 'le journal doit porter « ' + nom + ' » : '
+        + JSON.stringify(vu.journal.map((x) => x.quoi)));
+      e.forEach((x) => {
+        const c = x.contexteDeLInstant;
+        assert.ok(c, '« ' + x.quoi + ' » doit porter le contexte de l\'instant : '
+          + JSON.stringify(x));
+        // PRÉSENTS…
+        ['visibilite', 'fenetreAuPremierPlan', 'depuisDernierGeste_s',
+         'changementsDePeripherique', 'etatDuContexteAudio', 'etatDeLaPiste',
+         'pisteDeclaree'].forEach((champ) => {
+          assert.ok(Object.prototype.hasOwnProperty.call(c, champ),
+            '« ' + x.quoi + ' » : le champ ' + champ + ' manque : ' + JSON.stringify(c));
+        });
+        // … ET COHÉRENTS.
+        assert.equal(c.visibilite, 'hidden',
+          '« ' + x.quoi + ' » : la visibilité doit être LUE (hidden forcé) : ' + c.visibilite);
+        assert.ok(typeof c.depuisDernierGeste_s === 'number' && c.depuisDernierGeste_s >= 0.5,
+          '« ' + x.quoi + ' » : le dernier geste a plus de 0,5 s : ' + c.depuisDernierGeste_s);
+        assert.ok(c.depuisDernierGeste_s < 60,
+          '« ' + x.quoi + ' » : et moins d\'une minute : ' + c.depuisDernierGeste_s);
+        assert.equal(c.etatDuContexteAudio, 'suspended',
+          '« ' + x.quoi + ' » : l\'état du contexte doit être celui de l\'instant : '
+          + c.etatDuContexteAudio);
+        assert.equal(c.changementsDePeripherique.fenetre_s, 5,
+          '« ' + x.quoi + ' » : la fenêtre doit être dite : '
+          + JSON.stringify(c.changementsDePeripherique));
+        assert.ok(c.changementsDePeripherique.nombre >= 1,
+          '« ' + x.quoi + ' » : le devicechange des 5 dernières secondes doit être compté : '
+          + JSON.stringify(c.changementsDePeripherique));
+        assert.ok(typeof c.pisteDeclaree === 'object'
+          && typeof c.pisteDeclaree.muted === 'boolean',
+          '« ' + x.quoi + ' » : la piste doit être déclarée telle qu\'elle est : '
+          + JSON.stringify(c.pisteDeclaree));
+      });
+    });
+    // UN CONTEXTE REDEVENU `running` N'EST PAS UN INCIDENT : il ne porte pas le diagnostic.
+    const ordinaires = vu.journal.filter((x) => x.quoi === 'prise démarrée');
+    assert.ok(ordinaires.length >= 1 && !ordinaires[0].contexteDeLInstant,
+      'un événement ordinaire ne porte pas le diagnostic : ' + JSON.stringify(ordinaires[0]));
+    const unMuet = vu.journal.find((x) => String(x.quoi).indexOf('piste muette') === 0);
+    console.log('        ' + nommes.length + ' événements diagnostiqués · visibilité '
+      + unMuet.contexteDeLInstant.visibilite + ' · dernier geste il y a '
+      + unMuet.contexteDeLInstant.depuisDernierGeste_s + ' s · '
+      + unMuet.contexteDeLInstant.changementsDePeripherique.nombre + ' devicechange dans les 5 s');
+  });
+
+  // ── §48 — (E10, R7, T10, point 4) LA REPRISE EST UNE PRISE SÉPARÉE, LIÉE AU PASSAGE ─────
+  await controle('§48 « Refaire ce passage » crée une prise SÉPARÉE liée au passage, qui porte sa zone d\'amorce (E10, R7, T10)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const texte = 'un deux trois quatre cinq\nsix sept huit neuf dix\nonze douze treize quatorze quinze';
+    await page.fill('[data-texte-bande]', texte);
+
+    // 1. LA PRISE SOURCE : trois passages, deux repères posés à la main.
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(3000);
+    await page.click('[data-action="repere"]');     // frontière 1 → 2, vers 3 s
+    await page.waitForTimeout(3000);
+    await page.click('[data-action="repere"]');     // frontière 2 → 3, vers 6 s
+    await page.waitForTimeout(1200);
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /terminée|muette/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    const source = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { id: e.priseId, hz: e.echantillonnage, echantillons: e.echantillonsEcrits,
+               reperes: e.reperes.map((r) => r.aEchantillon) };
+    });
+
+    // 2. LA REPRISE DU DEUXIÈME PASSAGE, EN DOUBLAGE, AMORCE DE DEUX SECONDES.
+    await page.selectOption('[data-reprise-source]', source.id);
+    await page.selectOption('[data-reprise-passage]', '1');
+    await page.selectOption('[data-reprise-mode]', 'doublage');
+    await page.fill('[data-reprise-amorce]', '2');
+    await page.click('[data-action="refaire-passage"]');
+    await attendreLaReprise(page);
+    const pendant = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      const B = window.BandeRythmo;
+      const a = e.amorce;
+      const alignement = a.mode === 'doublage' ? a.echantillonsJoues : 0;
+      // LA BANDE DÉMARRE AU PASSAGE CHOISI, CALÉE SUR LA FIN DE L'AMORCE : on le vérifie en
+      // demandant à la bande où elle est À CET ÉCHANTILLON-LÀ.
+      const pos = B.positionDeLaBande(alignement, e.echantillonnage, e.passages,
+        e.vitesseBande, { decalage_s: e.decalageBande_s });
+      return { priseId: e.priseId, amorce: a, reprise: e.repriseDuPassage,
+               decalage: e.decalageBande_s, alignement,
+               debutPrise_ctxTemps: e.debutPrise_ctxTemps, hz: e.echantillonnage,
+               bandeALaFinDeLAmorce: { passageCourant: pos.passageCourant,
+                 partDuPassage: pos.partDuPassage, offset: pos.offsetDansLePassage_s } };
+    });
+    // ON ARRÊTE PENDANT L'AMORCE (2 s demandées) : la lecture doit se taire.
+    await page.waitForTimeout(600);
+    const fin = await prendreLaFin(page);
+
+    // (E10) L'AMORCE EST COUPÉE PAR L'ARRÊT, et le journal le dit : sans cela, l'ancienne
+    // prise continuerait de jouer aux haut-parleurs après l'arrêt, et deux amorces se
+    // superposeraient si Christophe relançait la reprise aussitôt.
+    const coupee = fin.module.journal.filter((e) => e.quoi === 'amorce interrompue');
+    assert.equal(coupee.length, 1,
+      'la prise arrêtée pendant l\'amorce doit couper la lecture et le consigner : '
+      + JSON.stringify(fin.module.journal.map((e) => e.quoi)));
+    assert.ok(/la lecture est coupée/.test(coupee[0].raison), coupee[0].raison);
+    // ET L'EFFET EST MESURÉ, non déclaré : c'est le nœud qui dit avoir fini, et l'horloge audio
+    // qui dit quand. Sans cette assertion, retirer le `stop` laissait le contrôle passer : le
+    // journal écrivait « coupée » pendant que la lecture continuait (trou #134).
+    const mesure = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return e.amorceFinie;
+    }).catch(() => null);
+    assert.ok(mesure && typeof mesure.enAvance_s === 'number',
+      'la fin de la lecture doit être relevée par l\'événement du nœud : '
+      + JSON.stringify(mesure) + ' — une lecture qui n\'a pas fini n\'a pas été coupée');
+    assert.ok(mesure.enAvance_s > 0.3,
+      'la lecture doit s\'être arrêtée nettement avant la fin prévue de la zone : '
+      + mesure.enAvance_s + ' s d\'avance sur ' + mesure.finPrevue_s + ' s');
+
+    // LA PRISE EST NEUVE ET SÉPARÉE, ET L'ANCIENNE RESTE (T10 : « rien n'est écrasé »).
+    assert.notEqual(pendant.priseId, source.id,
+      'la reprise doit être une prise SÉPARÉE, pas la source : ' + pendant.priseId);
+    assert.equal(fin.nbPrises, 2, 'deux prises doivent coexister : ' + fin.nbPrises);
+    // ELLE EST LIÉE AU PASSAGE (R7).
+    assert.equal(pendant.reprise.passage, 1,
+      'la prise doit porter le passage qu\'elle reprend : ' + JSON.stringify(pendant.reprise));
+    assert.equal(fin.module.mesures.repriseDuPassage.passage, 1,
+      'et le rapport aussi : ' + JSON.stringify(fin.module.mesures.repriseDuPassage));
+    // ── LE TÉMOIN VIENT DU STOCKAGE, PAS DE L'ÉTAT EN MÉMOIRE (#11(j)) ────────────────────
+    // Sans cette relecture, une écriture qui échoue passe inaperçue : c'est exactement ce qui
+    // s'est produit la première fois que ce contrôle est passé, alors que la prise ne
+    // s'écrivait pas (un nœud audio ne se sérialise pas).
+    assert.ok(fin.stockage.prise && fin.stockage.prise.repriseDuPassage
+      && fin.stockage.prise.repriseDuPassage.passage === 1,
+      'la prise ÉCRITE doit porter le lien au passage : '
+      + JSON.stringify(fin.stockage.prise && fin.stockage.prise.repriseDuPassage));
+    assert.ok(fin.stockage.prise.mesures && fin.stockage.prise.mesures.zoneDAmorce
+      && fin.stockage.prise.mesures.zoneDAmorce.echantillonsJoues
+         === pendant.amorce.echantillonsJoues,
+      'et la zone d\'amorce doit être relisible dans le stockage : '
+      + JSON.stringify(fin.stockage.prise.mesures && fin.stockage.prise.mesures.zoneDAmorce));
+    // LA ZONE D'AMORCE : début, fin, prise source, position source — en échantillons.
+    const a = pendant.amorce;
+    assert.equal(a.priseSource, source.id, 'la zone pointe la prise source : ' + a.priseSource);
+    assert.equal(a.positionDuPassageDansLaSource, source.reperes[0],
+      'la position du passage 2 dans la source est son premier repère ('
+      + source.reperes[0] + ') : ' + a.positionDuPassageDansLaSource);
+    assert.equal(a.echantillonsJoues, Math.round(2 * source.hz),
+      'deux secondes d\'amorce à ' + source.hz + ' Hz : ' + a.echantillonsJoues);
+    assert.equal(a.finDansLaSource - a.debutDansLaSource, a.echantillonsJoues,
+      'les bornes dans la source encadrent l\'amorce : ' + JSON.stringify(a));
+    assert.equal(a.finDansLaSource, source.reperes[0],
+      'l\'amorce finit où le passage commence : ' + a.finDansLaSource);
+    assert.equal(a.tronquee, false,
+      'avec 3 s de voix avant le passage, 2 s d\'amorce ne sont pas tronquées : '
+      + a.raisonDeLaTroncature);
+    assert.equal(a.echantillonsLusDeLaSource, a.echantillonsJoues,
+      'tous les échantillons de la plage ont été relus dans le stockage : '
+      + a.echantillonsLusDeLaSource + ' sur ' + a.echantillonsJoues);
+    // EN DOUBLAGE, LA ZONE EST DANS LA PRISE NEUVE, et la latence de sortie est lue par l'API.
+    assert.equal(a.mode, 'doublage', 'le mode par défaut est le doublage : ' + a.mode);
+    assert.equal(a.finDansLaPriseNeuve - a.debutDansLaPriseNeuve, a.echantillonsJoues,
+      'la zone occupe la prise neuve sur toute sa longueur : ' + JSON.stringify(a));
+    assert.ok(a.lecture && (typeof a.lecture.latenceDeSortie_s === 'number'
+      || a.lecture.latenceDeSortie_s === null),
+      'la latence de sortie est lue par l\'API ou dite inconnue : ' + JSON.stringify(a.lecture));
+    // ── LE DÉBUT DE LA ZONE EST MESURÉ, NON ANNONCÉ (#11(e), #11(j)) ──────────────────────
+    // Le témoin vient d'un AUTRE chemin que le champ lui-même : les deux dates d'horloge audio
+    // publiées (celle de la lecture et celle du premier échantillon de la prise), converties
+    // ici. Un champ posé à zéro par commodité ne vaudrait plus la différence des deux dates.
+    const attenduDebut = Math.round(
+      (a.lecture.commenceA_horlogeAudio_s - pendant.debutPrise_ctxTemps) * pendant.hz);
+    assert.ok(Math.abs(a.debutDansLaPriseNeuve - attenduDebut) <= 1,
+      'le début de la zone doit être la différence des deux dates d\'horloge audio ('
+      + attenduDebut + ' échantillons) : ' + a.debutDansLaPriseNeuve);
+    assert.ok(attenduDebut > 0,
+      'la lecture est programmée APRÈS le premier échantillon (le temps de l\'accusé de '
+      + 'réception du worklet) : l\'écart mesuré doit être positif, ' + attenduDebut
+      + ' — c\'est un fait de chronologie, non une propriété de la machine');
+    // LA BANDE DÉMARRE AU PASSAGE CHOISI, à la fin de l'amorce.
+    assert.equal(pendant.bandeALaFinDeLAmorce.passageCourant, 1,
+      'à la fin de l\'amorce, la bande doit être au passage 2 : '
+      + JSON.stringify(pendant.bandeALaFinDeLAmorce));
+    assert.ok(pendant.bandeALaFinDeLAmorce.offset < 0.05,
+      'et à son tout début : offset ' + pendant.bandeALaFinDeLAmorce.offset + ' s');
+    await ctx.close();
+    console.log('        source ' + source.echantillons + ' éch, repères '
+      + source.reperes.join('/') + ' · amorce ' + a.debutDansLaSource + '→'
+      + a.finDansLaSource + ' (' + a.echantillonsJoues + ' éch) · zone neuve '
+      + a.debutDansLaPriseNeuve + '→' + a.finDansLaPriseNeuve + ' · latence '
+      + a.lecture.latenceDeSortie_s + ' s (' + a.lecture.sourceDeLaLatence + ')');
+  });
+
+  // ── §48b — (compléments) TRONCATURE DITE, PASSAGE SANS PRISE SOURCE, DEUX REPRISES ───────
+  await controle('§48b amorce tronquée, passage sans prise source, et deux reprises du même passage (compléments)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const texte = 'un deux trois quatre cinq\nsix sept huit neuf dix';
+    await page.fill('[data-texte-bande]', texte);
+
+    // UNE SOURCE COURTE : un seul repère, posé tôt, pour qu'une amorce de 5 s ne tienne pas.
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(1200);
+    await page.click('[data-action="repere"]');      // vers 1,2 s
+    await page.waitForTimeout(1200);
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /terminée|muette/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    const source = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { id: e.priseId, hz: e.echantillonnage, repere: e.reperes[0].aEchantillon };
+    });
+
+    // 1. TRONCATURE : 5 s demandées, environ 1,2 s disponibles.
+    await page.selectOption('[data-reprise-source]', source.id);
+    await page.selectOption('[data-reprise-passage]', '1');
+    await page.fill('[data-reprise-amorce]', '5');
+    await page.click('[data-action="refaire-passage"]');
+    await attendreLaReprise(page);
+    const tronq = await page.evaluate(() => ({
+      amorce: window.EnregistreurVoix._etat().amorce,
+      notice: (document.querySelector('[data-reprise-notice]') || {}).textContent || '',
+      noticeVisible: !(document.querySelector('[data-reprise-notice]') || {}).hidden,
+    }));
+    await page.waitForTimeout(800);
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /terminée|muette/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    const reprise1 = await page.evaluate(() => window.EnregistreurVoix._etat().priseId);
+
+    assert.equal(tronq.amorce.tronquee, true,
+      '5 s demandées pour ' + source.repere + ' échantillons disponibles : la troncature doit '
+      + 'être dite : ' + JSON.stringify(tronq.amorce));
+    assert.equal(tronq.amorce.echantillonsJoues, source.repere,
+      'on joue tout ce qui précède, et rien de plus : ' + tronq.amorce.echantillonsJoues
+      + ' pour ' + source.repere);
+    assert.ok(/raccourcie/.test(tronq.amorce.raisonDeLaTroncature),
+      'avec sa raison : ' + tronq.amorce.raisonDeLaTroncature);
+    assert.ok(tronq.noticeVisible && /Amorce raccourcie/.test(tronq.notice),
+      'et à l\'écran, dans `sc-bm-reprise-notice` : ' + JSON.stringify(tronq));
+
+    // 2. DEUXIÈME REPRISE DU MÊME PASSAGE : une troisième prise, liée au même passage.
+    await page.click('[data-action="refaire-passage"]');
+    await attendreLaReprise(page);
+    await page.waitForTimeout(700);
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /terminée|muette/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    const reprise2 = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { id: e.priseId, passage: e.repriseDuPassage.passage };
+    });
+
+    // 3. PASSAGE SANS PRISE SOURCE : on refait quand même, SANS amorce, et on le dit.
+    await page.selectOption('[data-reprise-source]', '');
+    await page.click('[data-action="refaire-passage"]');
+    await attendreLaReprise(page);
+    const sans = await page.evaluate(() => ({
+      amorce: window.EnregistreurVoix._etat().amorce,
+      reprise: window.EnregistreurVoix._etat().repriseDuPassage,
+      notice: (document.querySelector('[data-reprise-notice]') || {}).textContent || '',
+    }));
+    await page.waitForTimeout(600);
+    const fin = await prendreLaFin(page);
+    await ctx.close();
+
+    assert.notEqual(reprise2.id, reprise1,
+      'la seconde reprise du même passage est une prise de plus : ' + reprise2.id);
+    assert.equal(reprise2.passage, 1,
+      'liée au même passage que la première : ' + reprise2.passage);
+    assert.equal(fin.nbPrises, 4,
+      'source + deux reprises + la reprise sans amorce = quatre prises : ' + fin.nbPrises);
+    assert.equal(sans.amorce.sansAmorce, true,
+      'sans prise source, la reprise est SANS amorce : ' + JSON.stringify(sans.amorce));
+    assert.equal(sans.amorce.echantillonsJoues, 0,
+      'et rien n\'est joué : ' + sans.amorce.echantillonsJoues);
+    assert.ok(/aucune prise source/.test(sans.amorce.raisonSansAmorce),
+      'avec sa raison : ' + sans.amorce.raisonSansAmorce);
+    assert.ok(/SANS amorce/.test(sans.notice), 'dite à l\'écran : ' + sans.notice);
+    assert.equal(sans.reprise.passage, 1,
+      'et la prise reste liée au passage : ' + JSON.stringify(sans.reprise));
+    console.log('        tronquée à ' + tronq.amorce.echantillonsJoues + ' éch sur '
+      + tronq.amorce.echantillonsDemandes + ' · ' + fin.nbPrises + ' prises · '
+      + 'deux reprises du passage 2 · une reprise sans amorce');
+  });
+
+  // ── §48c — (E10, E2) « AMORCE PUIS SILENCE » : LA ZONE EST VIDE, ET LE REBOURS A JOUÉ ────
+  //
+  // LA DIFFÉRENCE AVEC LE DOUBLAGE EST PHYSIQUE : ici l'enregistrement ne commence qu'APRÈS la
+  // fin de l'amorce et la garde, donc aucun échantillon de l'ancienne prise ne peut se trouver
+  // dans la nouvelle. Le contrôle le vérifie sur la zone, et vérifie aussi que le compte à
+  // rebours de E2 a bien eu lieu avant la reprise — « y compris les reprises ».
+  await controle('§48c « amorce puis silence » n\'écrit rien de l\'amorce, et le rebours joue avant la reprise (E10, E2)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base, null, { rebours: 1 });
+    await page.fill('[data-texte-bande]',
+      'un deux trois quatre cinq\nsix sept huit neuf dix');
+
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /en cours/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    await page.waitForTimeout(3000);
+    await page.click('[data-action="repere"]');
+    await page.waitForTimeout(1000);
+    await page.click('[data-action="arreter"]');
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /terminée|muette/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    const source = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { id: e.priseId, hz: e.echantillonnage, repere: e.reperes[0].aEchantillon };
+    });
+
+    await page.selectOption('[data-reprise-source]', source.id);
+    await page.selectOption('[data-reprise-passage]', '1');
+    await page.selectOption('[data-reprise-mode]', 'amorce-puis-silence');
+    await page.fill('[data-reprise-amorce]', '1');
+    await page.fill('[data-reprise-garde]', '0.5');
+    const horloge = Date.now();
+    await page.click('[data-action="refaire-passage"]');
+    await attendreLaReprise(page);
+    const ecoule_ms = Date.now() - horloge;
+    const pendant = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      const B = window.BandeRythmo;
+      const pos = B.positionDeLaBande(0, e.echantillonnage, e.passages, e.vitesseBande,
+        { decalage_s: e.decalageBande_s });
+      return { amorce: e.amorce, rebours: e.rebours, journal: e.journal.map((x) => ({ ...x })),
+               bandeAuPremierEchantillon: { passageCourant: pos.passageCourant,
+                 offset: pos.offsetDansLePassage_s } };
+    });
+    await page.waitForTimeout(700);
+    const fin = await prendreLaFin(page);
+    await ctx.close();
+
+    const a = pendant.amorce;
+    assert.equal(a.mode, 'amorce-puis-silence', 'le mode doit être celui choisi : ' + a.mode);
+    // LA ZONE EST VIDE DANS LA PRISE NEUVE : rien de l'ancienne prise n'y est.
+    assert.equal(a.debutDansLaPriseNeuve, 0, 'zone : ' + JSON.stringify(a));
+    assert.equal(a.finDansLaPriseNeuve, 0,
+      'en « amorce puis silence », la zone d\'amorce de la prise neuve est VIDE : '
+      + a.debutDansLaPriseNeuve + '→' + a.finDansLaPriseNeuve);
+    assert.equal(a.gardeAppliquee_s, 0.5, 'la garde réglée doit être celle appliquée : '
+      + a.gardeAppliquee_s);
+    assert.equal(a.gardeApresLAmorce_echantillons, Math.round(0.5 * source.hz),
+      'et dite en échantillons : ' + a.gardeApresLAmorce_echantillons);
+    assert.equal(a.echantillonsJoues, Math.round(1 * source.hz),
+      'une seconde d\'amorce jouée : ' + a.echantillonsJoues);
+    // LE TEMPS ÉCOULÉ LE CONFIRME : 1 s de rebours + 0,5 s de garde du rebours + 1 s d'amorce
+    // + 0,5 s de garde avant l'enregistrement = 3 s au moins.
+    assert.ok(ecoule_ms >= 2800,
+      'rebours, amorce et garde doivent avoir réellement duré (≥ 2,8 s) : ' + ecoule_ms + ' ms');
+    // (E2) LE REBOURS A JOUÉ AVANT LA REPRISE, et le journal de la prise neuve le porte.
+    assert.equal(pendant.rebours.joue, true, 'le rebours doit avoir joué : '
+      + JSON.stringify(pendant.rebours));
+    const rb = pendant.journal.filter((x) => x.quoi === 'compte à rebours joué');
+    assert.equal(rb.length, 1, 'le journal de la reprise porte le rebours une fois : '
+      + JSON.stringify(pendant.journal.map((x) => x.quoi)));
+    assert.equal(rb[0].aEchantillon, 0, 'daté à zéro, puisqu\'il précède la prise : '
+      + rb[0].aEchantillon);
+    // LA BANDE DÉMARRE AU PASSAGE CHOISI dès le premier échantillon, puisque rien ne le précède.
+    assert.equal(pendant.bandeAuPremierEchantillon.passageCourant, 1,
+      'la bande doit être au passage 2 dès l\'échantillon 0 : '
+      + JSON.stringify(pendant.bandeAuPremierEchantillon));
+    // ET LE JOURNAL DE L'AMORCE EST ÉCRIT, avec sa règle.
+    const am = pendant.journal.filter((x) => x.quoi === 'amorce jouée');
+    assert.equal(am.length, 1, 'une entrée « amorce jouée » : '
+      + JSON.stringify(pendant.journal.map((x) => x.quoi)));
+    assert.ok(/aucun échantillon de l'amorce n'est dans la prise/.test(am[0].regle),
+      'qui dit pourquoi la zone est vide : ' + am[0].regle);
+    assert.equal(fin.stockage.prise.mesures.zoneDAmorce.finDansLaPriseNeuve, 0,
+      'et le stockage le porte : '
+      + JSON.stringify(fin.stockage.prise.mesures.zoneDAmorce));
+    console.log('        rebours 1 s + garde · amorce ' + a.echantillonsJoues + ' éch jouée hors '
+      + 'prise · garde ' + a.gardeAppliquee_s + ' s · zone neuve vide · ' + ecoule_ms + ' ms '
+      + 'entre le clic et le premier échantillon');
+  });
+
+  // ── §22c — LE RELEVÉ DE LA PRISE PRÉCÉDENTE NE DATE JAMAIS LA SUIVANTE ───────────────────
+  //
+  // §22 a trouvé ce défaut, mais par intermittence : il ne se montre que si un événement est
+  // journalisé entre le démarrage de la prise et son premier relevé, soit une cinquantaine de
+  // millisecondes. Ce contrôle-ci le rend décidable SANS COURSE : il démarre la seconde prise
+  // par `_demarrer()`, qui rend la main dès l'accusé de réception du worklet — c'est-à-dire
+  // avant tout relevé de la nouvelle prise —, et lit la position courante à cet instant.
+  await controle('§22c au démarrage, la position courante n\'est jamais celle de la prise précédente', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    // UNE PREMIÈRE PRISE ASSEZ LONGUE pour que son relevé soit très au-delà d'un relevé.
+    await prendre(page, { attendreMs: 3000 });
+    const r = await page.evaluate(async () => {
+      const E = window.EnregistreurVoix;
+      const avant = E._etat();
+      const prise1 = avant.echantillonsEcrits;
+      // ── LA PRÉCONDITION EST CONSTRUITE, ET C'EST VOULU ─────────────────────────────────
+      // Après l'arrêt, le worklet remet SON compteur à zéro et continue d'envoyer des relevés :
+      // le dernier relevé retombe donc à 0 en quelques dizaines de millisecondes, et un
+      // contrôle qui attendrait de le trouver périmé n'éprouverait rien la plupart du temps —
+      // c'est précisément pourquoi §22 ne tombait qu'une fois sur plusieurs. On pose donc
+      // explicitement l'état que la prise précédente laisse dans cet intervalle, et ce qu'on
+      // ÉPROUVE est le produit : est-ce que `demarrer` l'efface, et est-ce que la position
+      // courante refuse de s'en servir ?
+      const ancien = prise1;
+      avant.dernierReleve = { echantillonsEcrits: prise1, horodatage: 'relevé de la prise 1' };
+      await E._demarrer();
+      const e = E._etat();
+      return { ancien, prise1, position: E._echantillonsCourants(),
+               releve: e.dernierReleve ? e.dernierReleve.echantillonsEcrits : null,
+               ecrits: e.echantillonsEcrits, hz: e.echantillonnage };
+    });
+    const fin = await prendreLaFin(page);
+    await ctx.close();
+
+    const unReleve = 19 * 128;
+    assert.ok(r.prise1 > 100000,
+      'la première prise doit avoir laissé une position très avancée : ' + r.prise1);
+    assert.ok(r.position <= unReleve,
+      'au démarrage de la seconde prise, la position courante doit être nulle ou d\'un relevé '
+      + 'au plus (' + unReleve + ') : ' + r.position + ' — le relevé de la prise précédente '
+      + '(' + r.ancien + ') ne doit pas la dater');
+    assert.equal(r.ecrits, 0, 'et le compte de morceaux repart de zéro : ' + r.ecrits);
+    assert.ok(fin.module.journal.every((e) => e.horsPrise
+      || e.aEchantillon <= fin.module.echantillonsEcrits),
+      'aucun événement de la seconde prise n\'est daté au-delà d\'elle : '
+      + JSON.stringify(fin.module.journal.filter((e) => !e.horsPrise
+          && e.aEchantillon > fin.module.echantillonsEcrits)));
+    console.log('        prise 1 : ' + r.prise1 + ' éch (relevé ' + r.ancien + ') · au '
+      + 'démarrage de la prise 2 la position est ' + r.position + ' (≤ ' + unReleve + ')');
+  });
+
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────
   await controle('§19 deux constructions concurrentes : le nœud appartient au contexte vivant', async () => {
     // LA COURSE QUI A FAIT UNE « PRISE MUETTE ». Changer la taille de morceau lance une
