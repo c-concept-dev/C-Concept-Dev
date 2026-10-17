@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { SchemaBibliotheque } from "@lienotheque/contrats";
-import { importerLesClassements } from "../src/index.js";
+import { approchesDeLExport, importerLesClassements } from "../src/index.js";
 
 /** Reprendre le classement d'une base existante, sans rien inventer (CLA-01, CLA-03).
  *
@@ -127,5 +127,42 @@ describe("l'import reprend le classement d'une base existante", () => {
     expect(fait.ecartes).toHaveLength(1);
     expect(fait.ecartes[0]?.nom).toBe("mauvais.pdf");
     expect(fait.ecartes[0]?.raison).toContain("valeur-inventee");
+  });
+});
+
+describe("lire l'export des approches, d'où qu'il vienne", () => {
+  /** L'export arrive tel que la base le rend, et sa forme n'est pas garantie : une requête D1
+   *  l'enveloppe dans `[{ success, meta, results }]`, un export à la main rend le tableau nu.
+   *
+   *  Ce qui compte n'est pas d'accepter les deux — c'est de **refuser bruyamment** ce qu'on ne
+   *  reconnaît pas. Un export mal lu qui rendrait une liste vide classerait zéro document et le
+   *  dirait « terminé » : la faute de ce lot, dans une variante de plus. */
+  const une = { book_id: "ouvrage-1", approach: "v1", language: "fr" };
+
+  it("lit un tableau nu", () => {
+    expect(approchesDeLExport([une])).toEqual([une]);
+  });
+
+  it("lit l'enveloppe d'une requête D1", () => {
+    expect(approchesDeLExport([{ success: true, meta: { rows_read: 22022 }, results: [une] }])).toEqual([une]);
+  });
+
+  it("lit un objet qui porte ses résultats", () => {
+    expect(approchesDeLExport({ results: [une] })).toEqual([une]);
+  });
+
+  it("refuse un export vide plutôt que de classer zéro document en silence", () => {
+    expect(() => approchesDeLExport([])).toThrow(/vide/i);
+    expect(() => approchesDeLExport({ results: [] })).toThrow(/vide/i);
+  });
+
+  it("refuse une forme qu'il ne reconnaît pas, en disant ce qu'il attendait", () => {
+    expect(() => approchesDeLExport({ lignes: [une] })).toThrow(/book_id/);
+    expect(() => approchesDeLExport("ceci n'est pas un export")).toThrow(/book_id/);
+  });
+
+  it("refuse une entrée à qui il manque l'approche ou la langue", () => {
+    expect(() => approchesDeLExport([{ book_id: "x", approach: "v1" }])).toThrow(/« x »/);
+    expect(() => approchesDeLExport([{ book_id: "y", language: "fr" }])).toThrow(/« y »/);
   });
 });

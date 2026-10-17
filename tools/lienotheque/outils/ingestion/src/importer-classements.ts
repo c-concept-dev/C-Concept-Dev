@@ -87,3 +87,34 @@ export function importerLesClassements(entree: {
 
   return { table, sansAppariement, ecartes };
 }
+
+/** Les approches, lues depuis un export dont la forme n'est pas garantie.
+ *
+ *  Une requête D1 rend `[{ success, meta, results }]` ; un export fait à la main rend le tableau
+ *  nu. On accepte les deux — mais surtout, **on refuse bruyamment** ce qu'on ne reconnaît pas.
+ *
+ *  Un export mal lu qui rendrait une liste vide ne classerait aucun document et s'annoncerait
+ *  terminé : c'est la faute que ce lot poursuit depuis son premier jour, et elle se glisserait
+ *  ici par la porte d'un `?? []`. */
+export function approchesDeLExport(brut: unknown): readonly ApprocheOuvrage[] {
+  const attendu = "Export d'approches illisible : on attend des entrées « book_id », « approach » et « language ».";
+
+  const lignes = Array.isArray(brut)
+    ? brut.length > 0 && typeof brut[0] === "object" && brut[0] !== null && "results" in (brut[0] as object)
+      ? (brut[0] as { results: unknown }).results
+      : brut
+    : typeof brut === "object" && brut !== null && "results" in brut
+      ? (brut as { results: unknown }).results
+      : undefined;
+
+  if (!Array.isArray(lignes)) throw new Error(attendu);
+  if (lignes.length === 0) throw new Error("Export d'approches vide : aucun ouvrage à reprendre.");
+
+  return lignes.map((une) => {
+    const ligne = une as Partial<ApprocheOuvrage>;
+    if (typeof ligne.book_id !== "string") throw new Error(attendu);
+    if (typeof ligne.approach !== "string" || typeof ligne.language !== "string")
+      throw new Error(`L'ouvrage « ${ligne.book_id} » n'a pas d'approche ou pas de langue dans l'export.`);
+    return { book_id: ligne.book_id, approach: ligne.approach, language: ligne.language };
+  });
+}
