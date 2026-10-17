@@ -243,6 +243,70 @@ images de pages — et non pendant la lecture du texte.
 décider si un document de cette taille se traite autrement (flux, découpe, ou refus motivé).
 Tant que ce n'est pas tranché, aucune estimation de durée sur le corpus entier n'est fiable.
 
+### 9.1 bis Ce que la mesure a établi, le 17 octobre 2026
+
+Deux instruments ont été écrits pour cela, et ils restent : `mesures/f4-cadence.ts` relève le
+temps et la mémoire page par page, `mesures/f4-poids-des-pages.ts` le poids de chaque image.
+
+**Le document entier, lu à froid : 57 minutes pour 286 pages.** La recette le coupe en double
+page, donc 143 feuilles font 286 pages — c'est l'origine du « 205 sur 286 » relevé plus haut.
+
+| | |
+|---|---|
+| médiane | 4,99 s / page |
+| moyenne | 11,83 s / page |
+| extrêmes | 0,93 s à 114,10 s |
+
+La moyenne vaut quatre fois la médiane : une minorité de pages emporte l'essentiel du temps.
+
+**Ce n'est pas le poids des images.** Elles sont d'une régularité de scanner : 143 feuilles sur
+143 portent une image JPEG, médiane 1 120 Ko, la plus lourde 1 510 Ko — un rapport de 1,35 là où
+les temps varient d'un facteur 122. Corrélation mesurée entre temps et poids : **r = +0,197**,
+soit quatre pour cent de la variance. Hypothèse écartée.
+
+**Ce n'est pas une pression mémoire.** Relevée à chaque page, elle **baisse** quand le traitement
+ralentit : 999 Mo de pointe dans la zone rapide, 260 Mo dans la zone lente. Hypothèse écartée.
+
+**C'est le contexte de lecture, et c'est reproductible.** Les feuilles 70 à 77 lues seules :
+**2,08 s de médiane**, mémoire stable à 710 Mo. Les mêmes, à l'intérieur de la lecture complète :
+**10,44 s de médiane**, pointe à 43,75 s. Mêmes pages, mêmes images, cinq fois plus lent.
+
+Le décrochage est **brutal**, entre les pages 60 et 61, et non progressif :
+
+| tranche | médiane | moyenne | maximum |
+|---|---|---|---|
+| 1 – 20 | 2,72 s | 2,89 s | 5,24 s |
+| 41 – 60 | 1,59 s | 2,07 s | 7,32 s |
+| 61 – 80 | 7,90 s | 13,72 s | 59,10 s |
+| 81 – 100 | 12,91 s | 15,83 s | 51,98 s |
+
+Au-delà, médiane et moyenne divergent : des pages rapides entrecoupées de longues pauses.
+
+**La cause n'est pas trouvée.** Trois hypothèses ont été éliminées par la mesure — le poids, la
+mémoire, le contenu — et je n'en propose pas une quatrième sans l'avoir éprouvée. Ce qui est
+établi : la lenteur appartient à la lecture longue, pas au document.
+
+### 9.1 ter La décision : la découpe
+
+Des trois options envisagées — flux, découpe, refus motivé — **la découpe est la seule que la
+mesure soutienne.**
+
+**Le refus motivé n'a plus de fondement** : le document est lisible, ses images sont régulières,
+et ses pages se lisent en deux secondes dès qu'on les lit par tranches.
+
+**Le flux répondrait à une cause qu'on n'a pas identifiée.** Le bâtir maintenant reviendrait à
+traiter une hypothèse.
+
+**La découpe est mesurée et déjà outillée** : `depuis` et `pages` existent dans le banc, et une
+tranche rend 2,08 s par page. À ce rythme, 286 pages demandent une dizaine de minutes, plus le
+coût d'ouverture — 16,8 s pour cinquante feuilles, 31,9 s pour cent quarante-trois, donc
+proportionnel au nombre de pages et non refacturé à chaque tranche.
+
+**Ce qu'elle ne fait pas** : expliquer. La dégradation reste là, et reviendra sur tout document
+assez long. La découpe la contourne ; elle ne la corrige pas. C'est un contournement assumé,
+écrit comme tel, et la cause reste à chercher avant qu'un document ne dépasse ce qu'une tranche
+peut absorber.
+
 ### 9.2 Le moteur embarqué n'a ni canevas ni polices de référence
 
 L'épreuve du paquet le dit à chaque exécution, et le traitement de F5 le répétait :
