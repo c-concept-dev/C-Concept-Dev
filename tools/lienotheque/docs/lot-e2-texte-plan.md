@@ -261,8 +261,16 @@ La moyenne vaut quatre fois la médiane : une minorité de pages emporte l'essen
 
 **Ce n'est pas le poids des images.** Elles sont d'une régularité de scanner : 143 feuilles sur
 143 portent une image JPEG, médiane 1 120 Ko, la plus lourde 1 510 Ko — un rapport de 1,35 là où
-les temps varient d'un facteur 122. Corrélation mesurée entre temps et poids : **r = +0,197**,
-soit quatre pour cent de la variance. Hypothèse écartée.
+les temps varient d'un facteur 122.
+
+Corrélation mesurée sur les **286 pages** : **r = +0,104** — un pour cent de la variance. Et le
+détail qui achève l'hypothèse : la page la plus lente du document, 110,68 s, porte une image de
+1 003 Ko, **en dessous de la médiane** ; la feuille la plus lourde, 1 510 Ko, ne figure pas parmi
+les douze plus lentes. Hypothèse écartée.
+
+Les 63 pages lentes — au moins quatre fois la médiane — mettent 30,47 s et pèsent 1 131 Ko ; les
+143 rapides mettent 1,83 s et pèsent 1 086 Ko. Dix-sept fois l'écart en temps, quatre pour cent
+en poids.
 
 **Ce n'est pas une pression mémoire.** Relevée à chaque page, elle **baisse** quand le traitement
 ralentit : 999 Mo de pointe dans la zone rapide, 260 Mo dans la zone lente. Hypothèse écartée.
