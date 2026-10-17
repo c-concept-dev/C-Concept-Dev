@@ -151,6 +151,9 @@
       piste: null,           // (D3) la MediaStreamTrack : seule autorité sur l'état de la piste
       // ── (E12) LA PAUSE, LA REPRISE, LA CONTINUATION ────────────────────────────────────
       enPause: false,
+      canauxVivants: null,   // (E3) nombre de canaux entrant réellement dans le mixage
+      bruitNonMesure: null,  // (T13) renseigné sur une continuation : l'ambiance n'est pas mesurée
+      bruitDeLaPremierePartie: null,
       entreeDePause: null,   // l'entrée de journal à compléter quand le worklet répondra
       pauseCommenceeA_ms: 0,  // horloge du fil principal : sert à NOTER la durée, jamais à dater
       indexDepart: 0,         // index du prochain morceau quand on PROLONGE une prise
@@ -255,12 +258,17 @@
   // ce qui permet de reconstituer une fenêtre de deux secondes à partir des relevés sans
   // redemander au worklet de la tenir lui-même.
   function fusionnerSommes(liste) {
-    var a = { n: 0, canaux: 0, sommeG: 0, sommeD: 0, sommeCarreG: 0, sommeCarreD: 0,
+    var a = { n: 0, canaux: 0, canauxMin: 0, canauxMax: 0,
+              sommeG: 0, sommeD: 0, sommeCarreG: 0, sommeCarreD: 0,
               sommeProduit: 0, creteG: 0, creteD: 0, zerosG: 0, zerosD: 0 };
     (liste || []).forEach(function (x) {
       if (!x || !x.n) return;
       a.n += x.n;
       a.canaux = Math.max(a.canaux, x.canaux || 0);
+      // Les bornes se fusionnent en bornes, pas en maximum : c'est leur variation qui dit si le
+      // périphérique a changé de layout en cours de route.
+      if (a.canauxMax === 0 || (x.canauxMax || 0) > a.canauxMax) a.canauxMax = x.canauxMax || 0;
+      if (a.canauxMin === 0 || ((x.canauxMin || 0) && x.canauxMin < a.canauxMin)) a.canauxMin = x.canauxMin;
       a.sommeG += x.sommeG; a.sommeD += x.sommeD;
       a.sommeCarreG += x.sommeCarreG; a.sommeCarreD += x.sommeCarreD;
       a.sommeProduit += x.sommeProduit;
@@ -393,14 +401,31 @@
     // Les fenêtres pleines seulement : la dernière d'une prise porte moins de 100 ms, donc son
     // niveau est statistiquement plus agité, et la mêler aux autres ferait d'une fin de prise un
     // événement. Elle est comptée et dite à part.
-    var toutes = (b.fenetres || []).map(function (f, k) {
+    // ── (T13, avenant 5) SEULES LES FENÊTRES DONT LES ÉCHANTILLONS SONT ÉCRITS ──────────
+    //
+    // DÉFAUT CORRIGÉ, mesuré sur la prise du 11 octobre 19:12 : le plancher annoncé
+    // (−91,6 dBFS, « pause la plus calme de la prise », fenêtres 528 000 à 1 209 600) tombait
+    // ENTIÈREMENT dans le temps de pause — intervalle vu 520 448 à 1 627 264 —, c'est-à-dire
+    // dans un audio qui n'est pas dans le fichier. Le 5e centile des fenêtres du fichier
+    // lui-même valait −81,7 dBFS, dix décibels au-dessus. T13 (avenant 5) : « l'ambiance n'est
+    // prélevée que dans un passage ÉCRIT de la prise : le temps de pause (E12) n'est jamais une
+    // source d'ambiance ».
+    //
+    // Les positions sont celles DE LA PRISE, et non du flux reçu : c'est dans le temps de la
+    // prise que l'atelier ira chercher ces secondes d'ambiance.
+    var brutes = (b.fenetres || []).map(function (f, k) {
       return { index: (typeof f.index === 'number') ? f.index : k,
-               debutEchantillon: f.debutEchantillon || 0,
+               debutEchantillon: (typeof f.debutDansLaPrise === 'number')
+                 ? f.debutDansLaPrise : (f.debutEchantillon || 0),
+               debutDansLeFluxRecu: f.debutEchantillon || 0,
+               ecrit: f.ecrit !== false,
                n: f.n, sommeCarre: f.sommeCarre, sommeCarreGrave: f.sommeCarreGrave,
                zeros: f.zeros, crete: f.crete, partielle: !!f.partielle,
                dansLeSilenceInitial: !!f.dansLeSilenceInitial,
                niveau: niveauDeFenetre(f) };
     });
+    var ecartees = brutes.filter(function (f) { return !f.ecrit; }).length;
+    var toutes = brutes.filter(function (f) { return f.ecrit; });
     var pleines = toutes.filter(function (f) { return !f.partielle; });
     var initiales = pleines.filter(function (f) { return f.dansLeSilenceInitial; });
 
@@ -411,8 +436,12 @@
     // première frontière de 100 ms. Un plancher calculé sur rien serait un chiffre sans mesure.
     if (!pleines.length) {
       return { mesure: true, echantillons: b.n, etat: 'non concluant',
-               raison: 'la mesure s\'est arrêtée avant la première fenêtre de 100 ms : '
-                 + b.n + ' échantillons reçus, aucune fenêtre complète',
+               raison: ecartees
+                 ? 'aucune fenêtre ÉCRITE : les ' + ecartees + ' fenêtres mesurées tombent dans '
+                   + 'du temps non enregistré (pause), qui n\'est jamais une source d\'ambiance (T13)'
+                 : 'la mesure s\'est arrêtée avant la première fenêtre de 100 ms : '
+                   + b.n + ' échantillons reçus, aucune fenêtre complète',
+               fenetresEcartees: ecartees,
                efficaceDbfsFenetreEntiere: dbFenetreEntiere,
                echantillonsAZero: b.zeros, coupureHz: b.coupureHz, regle: REGLE_BRUIT(b) };
     }
@@ -502,7 +531,16 @@
       // fenêtres du silence initial passait quand même. Le bon témoin est la population d'où
       // sort le plancher.
       plancherCalculeSur: { fenetres: population.length,
-                            echantillons: population.reduce(function (t, f) { return t + f.n; }, 0) },
+                            echantillons: population.reduce(function (t, f) { return t + f.n; }, 0),
+                            // (T13, avenant 5) LES BORNES, DANS LE TEMPS DE LA PRISE. Sans
+                            // elles, rien ne permet de vérifier après coup que l'ambiance a été
+                            // prélevée dans de l'audio qui est bien dans le fichier — ce qui est
+                            // exactement ce que Christophe a dû vérifier à la main.
+                            premierEchantillon: population.length
+                              ? Math.min.apply(null, population.map(function (f) { return f.debutEchantillon; })) : 0,
+                            dernierEchantillon: population.length
+                              ? Math.max.apply(null, population.map(function (f) { return f.debutEchantillon + f.n; })) : 0,
+                            toutesEcrites: population.every(function (f) { return f.ecrit; }) },
       pauseRetenue: pauseRetenue ? { debutEchantillon: pauseRetenue.debutEchantillon,
                                      echantillons: pauseRetenue.echantillons,
                                      fenetres: pauseRetenue.fenetres } : 'sans objet',
@@ -544,6 +582,12 @@
         dansLeSilenceInitial: initiales.length, sansSignal: sansSignal,
         occupees: occ.occupees, pausesTrouvees: lesPauses.length,
         secondes: fenetreSecondes(b),
+        // (T13) CE QUI A ÉTÉ ÉCARTÉ parce que ses échantillons ne sont pas dans le fichier :
+        // le temps de pause. Le dire, plutôt que de laisser croire que tout a été considéré.
+        ecarteesCarNonEcrites: ecartees,
+        regleDesFenetres: 'seules les fenêtres dont les échantillons sont ÉCRITS dans la prise '
+          + 'entrent dans le verdict ; les positions sont celles de la prise. Le temps de pause '
+          + 'n\'est jamais une source d\'ambiance (T13).',
       },
 
       mention: grave ? 'bruit grave : un filtre le réduira au mixage' : '',
@@ -1188,6 +1232,21 @@
       return;
     }
 
+    if (m.type === 'canaux-vivants') {
+      // (E3) LE JEU DE CANAUX VIVANTS A CHANGÉ, et c'est un fait de la prise. On le date en
+      // échantillons. Le premier message arrive au tout début et dit l'état de départ ; les
+      // suivants disent les bascules — chez Christophe, le moment où le canal droit est mort.
+      _etat.canauxVivants = m.vivants;
+      journaliser('mixage sur ' + m.vivants + ' canal' + (m.vivants > 1 ? 'aux' : '') + ' vivant'
+        + (m.vivants > 1 ? 's' : ''), m.aEchantillon,
+        { gaucheVivant: m.gauche, droitVivant: m.droit,
+          regle: 'en mode moyenne, le diviseur est le nombre de canaux VIVANTS : un canal mort '
+            + 'n\'entre pas dans la moyenne, qui retirerait 6 dB (E3). La moyenne n\'étant '
+            + 'choisie que pour deux canaux corrélés à plus de 0,8, retirer le mort ne change '
+            + 'pas le niveau.' });
+      return;
+    }
+
     if (m.type === 'en-pause') {
       _etat.enPause = true;
       if (m.raison === 'micro perdu' && _etat.entreeDePause) {
@@ -1374,6 +1433,42 @@
       _etat.source = source;
       source.connect(noeud);
 
+      // ── (A / E3) CE QUE LE GRAPHE DÉCLARE, RELEVÉ ET NON SUPPOSÉ ────────────────────────
+      //
+      // Christophe a relevé trois prises où la fenêtre d'avant voyait deux canaux actifs et la
+      // prise un canal droit à zéro. La première question était : le graphe est-il le MÊME avant
+      // et pendant ? Il l'est — c'est un seul nœud, construit une fois, et ni le mode ni
+      // l'interprétation ne changent au démarrage d'une prise. Mais cela ne se DÉMONTRE que si
+      // les paramètres sont écrits dans le rapport. Les voici, relevés sur les objets eux-mêmes.
+      //
+      // Ce qui compte dans ces trois lignes : `channelCountMode` à « max » signifie que
+      // `channelCount` est IGNORÉ et que le nœud prend le nombre de canaux de sa source ; et
+      // `channelInterpretation` à « discrete » signifie qu'un mono n'est PAS dupliqué sur deux
+      // canaux — il reste un canal. Un up-mix par duplication aurait expliqué une corrélation
+      // de 1,000 suivie d'un canal vide ; « discrete » l'exclut.
+      _etat.grapheDeCapture = {
+        source: {
+          type: (_services && _services.creerSource) ? 'source d\'essai (fixture)' : 'MediaStreamSource',
+          canauxEnSortie: (typeof source.channelCount === 'number') ? source.channelCount : 'indisponible',
+          modeDeComptage: source.channelCountMode || 'indisponible',
+          interpretation: source.channelInterpretation || 'indisponible',
+          sorties: (typeof source.numberOfOutputs === 'number') ? source.numberOfOutputs : 'indisponible',
+        },
+        worklet: {
+          canauxDemandes: noeud.channelCount,
+          modeDeComptage: noeud.channelCountMode,
+          interpretation: noeud.channelInterpretation,
+          entrees: noeud.numberOfInputs,
+          sorties: noeud.numberOfOutputs,
+        },
+        regle: 'le graphe est construit UNE fois et ne change pas au démarrage d\'une prise : '
+          + 'ni le mode de comptage ni l\'interprétation ne sont touchés. `channelCountMode` à '
+          + '« max » fait que le nœud prend le nombre de canaux de sa source et IGNORE '
+          + '`channelCount` ; `channelInterpretation` à « discrete » fait qu\'un mono n\'est pas '
+          + 'dupliqué sur deux canaux. Un canal qui porte un signal avant la prise et le zéro '
+          + 'numérique pendant ne peut donc pas venir du graphe : il vient du périphérique.',
+      };
+
       // (a) LA FRÉQUENCE RÉELLE, affichée dès que le graphe existe : c'est elle que la prise
       // enregistrera, et c'est elle que Christophe doit pouvoir lire dans le rapport.
       var sbf = q('[data-sb-frequence]');
@@ -1400,6 +1495,24 @@
           annulationEcho: reglages.echoCancellation,
           suppressionBruit: reglages.noiseSuppression,
           gainAutomatique: reglages.autoGainControl,
+          // ── (A) CE QUE LA PISTE DÉCLARE, SANS TRI NI INTERPRÉTATION ─────────────────────
+          // Les champs ci-dessus sont ceux que j'ai choisi de nommer, et trois d'entre eux
+          // revenaient « indisponible » dans les rapports de Christophe sans qu'on sache si la
+          // piste ne les déclarait pas ou si je les lisais mal. On joint donc `getSettings()`
+          // TEL QUEL, plus la liste de ce qui manque : mesuré sur son Safari du 17 octobre,
+          // `channelCount` et `latency` sont absents, et `noiseSuppression` comme
+          // `autoGainControl` ne sont pas déclarés non plus — seul `echoCancellation` l'est.
+          reglagesDeLaPiste: reglages,
+          champsDeclares: Object.keys(reglages).sort(),
+          champsAbsents: ['channelCount', 'sampleRate', 'latency', 'echoCancellation',
+                          'noiseSuppression', 'autoGainControl', 'deviceId', 'groupId']
+            .filter(function (k) { return !(k in reglages); }),
+          regle: 'ce que le navigateur ne déclare pas ne peut pas être vérifié : les champs '
+            + 'absents sont nommés plutôt que remplacés par une valeur plausible. E3 exige que '
+            + 'l\'écho, le bruit et le gain automatiques soient désactivés ; ils sont DEMANDÉS '
+            + 'dans les contraintes, et ce rapport dit lesquels la piste confirme.',
+          etatDeLaPisteALOuverture: piste.readyState,
+          muetteALOuverture: piste.muted,
         };
         // L'AFFICHAGE VIENT ICI, et pas plus haut : plus haut, `_etat.microphone` n'est pas
         // encore renseigné et la barre d'état montrait « Micro : — » alors que le rapport portait
@@ -2005,6 +2118,15 @@
         // prise dont aucune durée n'est juste.
         _etat.frequenceDeLaPrise = d.prise.echantillonnage;
         _etat.journal = (d.prise.journal || []).slice();
+        // (C) LE VERDICT D'AMBIANCE DE LA PREMIÈRE PARTIE, cité et non recalculé, avec la
+        // position jusqu'où il valait : c'est tout ce qu'on sait honnêtement de l'ambiance de
+        // cette prise, et le rapport le dira sous ce nom.
+        _etat.bruitDeLaPremierePartie = (d.prise.mesures && d.prise.mesures.bruitDePiece)
+          ? { verdict: d.prise.mesures.bruitDePiece,
+              valaitJusquA_echantillon: d.vrai.nbEchantillons,
+              regle: 'mesuré à l\'arrêt de la première partie, sur ses propres fenêtres écrites ; '
+                + 'cité tel quel, jamais recalculé sur la nouvelle partie.' }
+          : 'la première partie n\'avait pas de verdict d\'ambiance';
         if (d.prise.echantillonnage !== _etat.echantillonnage) {
           _etat.reechantillonnerVers = d.prise.echantillonnage;
           message('frequence', 'warning', 'Cette prise est à ' + d.prise.echantillonnage
@@ -2074,8 +2196,40 @@
       // (d) T13 : LE BRUIT SE MESURE PENDANT LE SILENCE INITIAL, donc sur les premières
       // secondes de la prise — pas sur une fenêtre d'avant, qui ne serait pas dans le fichier.
       _etat.bruit = null;
-      _etat.noeud.port.postMessage({ type: 'mesurer-bruit', canal: dec.canal,
-        echantillons: Math.round(BRUIT.secondes * _etat.echantillonnage) });
+      if (prolonge) {
+        // ── (T13, avenant 5 / C) SUR UNE CONTINUATION, L'AMBIANCE N'EST PAS MESURÉE ───────
+        //
+        // T13 laisse deux routes : « pour une prise continuée, l'estimation couvre la prise
+        // entière, OU le rapport dit « ambiance non mesurée » ». Je prends la seconde, et voici
+        // pourquoi. Couvrir la prise entière demanderait de garder les niveaux par fenêtre à
+        // côté des morceaux. Ces niveaux pourraient alors diverger de l'audio de TROIS façons :
+        // un WAV importé n'en a aucun, un rééchantillonnage les périme, et un crash peut écrire
+        // un morceau sans eux. Or l'avenant 5 vient précisément d'écrire que « l'ambiance n'est
+        // prélevée que dans un passage ÉCRIT de la prise » : fabriquer une seconde source de
+        // vérité à côté de l'audio serait reproduire, sous une autre forme, le défaut qu'on
+        // corrige. Le rapport dit donc ce qu'il sait, et porte le verdict de la première partie
+        // avec la position jusqu'où il valait.
+        //
+        // DÉFAUT CORRIGÉ EN MÊME TEMPS : le rapport de la prise continuée du 11 octobre 19:36
+        // calculait le bruit sur la seule nouvelle partie (205 fenêtres) et annonçait « 2
+        // passages de voix dans le silence initial » — alors qu'une continuation n'a PAS de
+        // silence initial. Elle commence au milieu d'une voix.
+        _etat.bruitNonMesure = {
+          mesure: false,
+          raison: 'ambiance non mesurée : cette prise est une continuation, et une continuation '
+            + 'n\'a pas de silence initial. T13 n\'autorise à prélever l\'ambiance que dans un '
+            + 'passage écrit de la prise ; pour la couvrir entière il faudrait garder les niveaux '
+            + 'par fenêtre à côté des morceaux, ce qui créerait une seconde source de vérité que '
+            + 'l\'import, le rééchantillonnage et un crash pourraient désaccorder de l\'audio.',
+          premierePartie: 'voir `bruitDePieceDeLaPremierePartie`',
+          aRefaire: 'prélever l\'ambiance dans une pause de la prise entière, au jalon où la '
+            + 'forme d\'onde existe et où la prise est relue de bout en bout.',
+        };
+      } else {
+        _etat.bruitNonMesure = null;
+        _etat.noeud.port.postMessage({ type: 'mesurer-bruit', canal: dec.canal,
+          echantillons: Math.round(BRUIT.secondes * _etat.echantillonnage) });
+      }
       return id;
     }, function (err) {
       _etat.enPrise = false;
@@ -2338,14 +2492,54 @@
       },
       echantillonnage: _etat.echantillonnage,
       canauxALEntree: s ? s.canaux : 0,
-      canalRetenu: _etat.canalRetenu,
-      raisonDuCanal: (_etat.verificationCanal && _etat.verificationCanal.raisonSurLaPrise)
-        || _etat.canalRaison,
-      // (b) LA VÉRIFICATION, et la fenêtre sur laquelle la décision a été prise.
+      canauxVusALEntree: s ? { minimum: s.canauxMin || 0, maximum: s.canauxMax || 0,
+                               aVarie: (s.canauxMin || 0) !== (s.canauxMax || 0) } : 'non mesuré',
+      // ── (D / E3) UN SEUL CHAMP POUR LE CANAL UTILISÉ, AVEC LA RAISON DE CE CANAL-LÀ ─────
+      //
+      // DÉFAUT CORRIGÉ : le rapport portait « canalRetenu: moyenne » et « raisonDuCanal: droit
+      // vide… sans moyenne » dans le même document. Deux champs, deux grandeurs différentes —
+      // le mode gelé et le verdict de la prise — sous des noms qui laissaient croire qu'ils se
+      // répondaient. E3 (avenant 5) l'exige en toutes lettres : « le rapport dit toujours le
+      // canal réellement utilisé, avec la raison de ce canal-là ».
+      canalUtilise: {
+        canal: _etat.canalRetenu,
+        raison: _etat.canalRaison,
+        quand: 'décidé avant la prise, sur la fenêtre ci-dessous, et appliqué à tous les '
+          + 'échantillons écrits',
+        // (E3) CE QUE LA MOYENNE A RÉELLEMENT MOYENNÉ. Le mode ne suffit pas : « moyenne » sur
+        // un canal mort n'est pas une moyenne, c'est le canal vivant — et c'est ce qui empêche
+        // la perte de 6 dB.
+        mixageEffectif: (_etat.canalRetenu !== 'moyenne') ? 'sans objet (un seul canal)'
+          : {
+              echantillonsMixesSurUnCanal: fin ? (fin.mixeSurUnCanal || 0) : 0,
+              echantillonsMixesSurDeuxCanaux: fin ? (fin.mixeSurDeuxCanaux || 0) : 0,
+              partSurUnCanal: (fin && (fin.mixeSurUnCanal + fin.mixeSurDeuxCanaux))
+                ? fin.mixeSurUnCanal / (fin.mixeSurUnCanal + fin.mixeSurDeuxCanaux) : 0,
+              maintienDUnCanal_echantillons: fin ? (fin.maintienCanal || 0) : 0,
+              regle: 'en mode moyenne, le diviseur est le nombre de canaux VIVANTS — ceux qui '
+                + 'ont livré un échantillon non nul depuis moins de '
+                + (fin && fin.maintienCanal ? fin.maintienCanal : 0) + ' échantillons. Un canal '
+                + 'mort n\'entre pas dans la moyenne : E3 interdit la perte de 6 dB qu\'elle '
+                + 'coûterait. La moyenne n\'étant choisie que pour deux canaux corrélés à plus '
+                + 'de ' + CORRELATION_MEME_SIGNAL + ', retirer le mort ne change pas le niveau.',
+            },
+      },
+      // (b) LE VERDICT DE LA PRISE, à côté et sous son propre nom : ce que la prise elle-même
+      // dit du canal, qui peut contredire la décision d'avant — et qui le dit alors.
+      verdictSurLaPrise: _etat.verificationCanal
+        ? { canal: _etat.verificationCanal.recalculeSurLaPrise,
+            raison: _etat.verificationCanal.raisonSurLaPrise,
+            accordAvecLeCanalUtilise: _etat.verificationCanal.accord }
+        : 'non vérifié',
+      // ── (A) CE QUE LE GRAPHE DE CAPTURE DÉCLARE ─────────────────────────────────────────
+      grapheDeCapture: _etat.grapheDeCapture || 'graphe non construit',
       verificationDuCanal: _etat.verificationCanal || 'non vérifié',
       reglageCanal: _etat.reglageCanal,
       // (d) LE BRUIT DE PIÈCE (T13), jamais bloquant.
-      bruitDePiece: _etat.bruit || 'non mesuré',
+      bruitDePiece: _etat.bruitNonMesure || _etat.bruit || 'non mesuré',
+      // (C) Sur une continuation, le verdict de la PREMIÈRE partie, tel qu'il a été rendu à son
+      // arrêt, avec la position jusqu'où il valait. On ne le recalcule pas : on le cite.
+      bruitDePieceDeLaPremierePartie: _etat.bruitDeLaPremierePartie || 'sans objet',
       regleDuCanal: 'un seul actif → ce canal ; deux actifs et corrélation > ' +
         CORRELATION_MEME_SIGNAL + ' → moyenne ; deux actifs différents → le plus fort',
       niveaux: {
@@ -2367,7 +2561,20 @@
         duree_s: _etat.echantillonnage ? _etat.echantillonsEcrits / _etat.echantillonnage : 0,
       },
       echantillonsVusParLeWorklet: fin ? fin.echantillonsVus : null,
-      ecartVuEcrit: fin ? (fin.echantillonsVus - _etat.echantillonsEcrits) : null,
+      // ── (C) L'ÉCART VU / ÉCRIT SE COMPARE PAR SESSION ─────────────────────────────────
+      // DÉFAUT CORRIGÉ : la prise continuée du 11 octobre 19:36 annonçait « ecartVuEcrit
+      // −1 440 000 ». Le premier terme comptait les échantillons VUS depuis le démarrage de
+      // CETTE session, le second le total CUMULÉ de la prise — qui portait déjà la première
+      // partie. La soustraction mêlait deux domaines et rendait un nombre qui ne décrivait rien.
+      ecartVuEcritDeLaSession: fin
+        ? { vus: fin.echantillonsVus,
+            ecrits: fin.echantillonsEcritsCetteSession,
+            ecart: fin.echantillonsVus - (fin.echantillonsEcritsCetteSession || 0),
+            departDeLaSession: fin.departEcrits || 0,
+            regle: 'les deux termes appartiennent à la MÊME session d\'enregistrement. Sur une '
+              + 'prise continuée, le total de la prise porte aussi la première partie : le '
+              + 'comparer aux échantillons vus par cette session n\'aurait aucun sens.' }
+        : 'non mesuré',
       // (D5) TROIS ÉTATS DISTINCTS, et le troisième est celui qui manquait : un signal perdu
       // jusqu'à la fin de la prise n'est pas « un passage muet », et l'appeler ainsi laissait
       // croire qu'il y avait quelque chose après.

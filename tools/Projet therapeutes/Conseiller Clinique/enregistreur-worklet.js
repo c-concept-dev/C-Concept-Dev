@@ -81,6 +81,11 @@ const BRUIT_COUPURE_HZ = 120;
 // fois, à un seul endroit (régression #11(f)).
 const BRUIT_FENETRE_S = 0.1;
 
+// Durée pendant laquelle un canal reste réputé VIVANT après son dernier échantillon non nul
+// (E3). Voir le commentaire du constructeur : 0,25 s, soit bien plus qu'une période de la plus
+// basse fréquence utile, pour qu'un passage par zéro ne fasse pas clignoter le diviseur.
+const MAINTIEN_CANAL_S = 0.25;
+
 class PasseBas {
   constructor(fc, fs) {
     var w0 = 2 * Math.PI * fc / fs;
@@ -154,6 +159,39 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
     // être trouvée qu'en ayant mesuré la prise entière. Le filtre de grave est UNE SEULE
     // instance, continue d'une fenêtre à l'autre : le remettre à zéro à chaque frontière
     // fabriquerait un transitoire toutes les 100 ms et la part de grave mesurerait le filtre.
+    // ── (E3) LE MIXAGE NE MOYENNE JAMAIS UN CANAL MORT ───────────────────────────────────
+    //
+    // LE DÉFAUT QUE CECI CORRIGE, mesuré par Christophe sur 3 prises sur 12 : la fenêtre
+    // d'avant la prise voyait deux canaux actifs très corrélés (0,983 ; 0,986), le module
+    // gelait « moyenne », et la prise avait le canal droit à zéro numérique du début à la fin.
+    // La moyenne d'un canal actif et d'un canal vide retire exactement 6,02 dB, et E3 l'écrit
+    // noir sur blanc : « le mixage prend le canal actif et ne fait pas de moyenne, QUI
+    // RETIRERAIT 6 dB ». La décision d'avant la prise n'est qu'une PRÉDICTION ; l'invariant est
+    // de ne pas perdre 6 dB. On ne corrige donc pas la prédiction — on rend la perte impossible.
+    //
+    // COMMENT : en mode « moyenne », le diviseur n'est pas le nombre de canaux mais le nombre de
+    // canaux VIVANTS — ceux qui ont livré un échantillon non nul depuis moins de
+    // `MAINTIEN_CANAL_S`. Et c'est sans danger de marche : la moyenne n'est choisie que pour
+    // deux canaux dont la corrélation dépasse 0,8, c'est-à-dire qui portent la même chose, et la
+    // moyenne de deux signaux identiques vaut chacun d'eux. Retirer un canal mort du diviseur ne
+    // produit donc AUCUN saut de niveau — ce qu'un contrôle vérifie sur deux canaux identiques.
+    //
+    // Le maintien de 0,25 s évite qu'un passage par zéro du signal — il y en a deux par période —
+    // fasse clignoter le diviseur. À 48 kHz, 12 000 échantillons.
+    this.maintienCanal = Math.max(1, Math.round(MAINTIEN_CANAL_S * sampleRate));
+    // ── UN CANAL DOIT PROUVER QU'IL VIT, IL N'EST PAS PRÉSUMÉ VIVANT ──────────────────────
+    // Défaut trouvé par le contrôle §3a en l'écrivant : ces deux compteurs partaient de zéro,
+    // c'est-à-dire « non nul à l'instant même », si bien qu'un canal vide était compté comme
+    // vivant pendant les 0,25 s du maintien — 11 999 échantillons mixés à deux canaux au DÉBUT
+    // de chaque prise, soit un quart de seconde à −6 dB. Ils partent donc du maintien : un canal
+    // n'entre dans le diviseur qu'après avoir livré un échantillon non nul. Pour un canal
+    // réellement actif, cela arrive au premier échantillon.
+    this.depuisNonZeroG = this.maintienCanal;
+    this.depuisNonZeroD = this.maintienCanal;
+    this.mixeSurUnCanal = 0;
+    this.mixeSurDeuxCanaux = 0;
+    this.dernierNbVivants = -1;
+
     this.parFenetreBruit = Math.max(1, Math.round(BRUIT_FENETRE_S * sampleRate));
     this.fenetres = null;         // accumulateur courant, ou null quand aucune mesure ne court
     this.filtreGrave = null;      // construit avec la fréquence réelle, à l'ouverture
@@ -183,12 +221,23 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
         // E12 l'exige pour les repères.
         this.indexMorceau = Math.max(0, Math.round(m.indexDepart || 0));
         this.echantillonsEcrits = Math.max(0, Math.round(m.echantillonsDepart || 0));
+        // (C) LE POINT DE DÉPART DE CETTE SESSION, gardé pour que l'écart « vu / écrit » compare
+        // deux grandeurs de la MÊME session. Défaut corrigé : le rapport de la prise continuée du
+        // 11 octobre 19:36 annonçait « ecartVuEcrit −1 440 000 » — le compteur d'échantillons VUS
+        // depuis le début de cette session comparé au total CUMULÉ de la prise. Deux domaines,
+        // une soustraction, un nombre qui ne veut rien dire.
+        this.departEcrits = this.echantillonsEcrits;
         this.echantillonsVus = 0;
         this.blocsVus = 0;
         this.blocsSansEntree = 0;
         this.echantillonsAZeroDeSuite = 0;
         this.echantillonsRetenus = 0;
         this.zerosRetenus = 0;
+        this.mixeSurUnCanal = 0;
+        this.mixeSurDeuxCanaux = 0;
+        this.dernierNbVivants = -1;
+        this.depuisNonZeroG = this.maintienCanal;
+        this.depuisNonZeroD = this.maintienCanal;
         this.muetAnnonce = false;
         this.mode = 'prise';
         // L'INSTANT DU DÉMARRAGE, PRIS SUR LE FIL AUDIO. `currentFrame` est le compteur de
@@ -216,6 +265,9 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
           type: 'prise-terminee',
           echantillonsVus: this.echantillonsVus,
           echantillonsEcrits: this.echantillonsEcrits,
+          // (C) CE QUE CETTE SESSION A ÉCRIT, à comparer à ce qu'elle a VU.
+          echantillonsEcritsCetteSession: this.echantillonsEcrits - (this.departEcrits || 0),
+          departEcrits: this.departEcrits || 0,
           blocsVus: this.blocsVus,
           blocsSansEntree: this.blocsSansEntree,
           morceaux: this.indexMorceau,
@@ -223,6 +275,11 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
           canal: this.canal,
           echantillonsRetenus: this.echantillonsRetenus,
           zerosRetenus: this.zerosRetenus,
+          // (E3) CE QUE LE MIXAGE A RÉELLEMENT FAIT, en échantillons. Sans ces deux nombres, le
+          // rapport dirait « moyenne » sans qu'on sache sur combien de canaux elle a porté.
+          mixeSurUnCanal: this.mixeSurUnCanal,
+          mixeSurDeuxCanaux: this.mixeSurDeuxCanaux,
+          maintienCanal: this.maintienCanal,
           debutTrame: this.debutTrame,
           finTrame: currentFrame,
           finTemps: currentTime,
@@ -280,6 +337,15 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
         }
         this._viderLeMorceau(true);
         this.mode = 'analyse';
+        // (T13, avenant 5) LA FENÊTRE EN COURS EST JETÉE : elle enjamberait la frontière de la
+        // pause, et une fenêtre moitié écrite moitié non écrite n'est ni l'un ni l'autre. On
+        // repart proprement de la frontière.
+        if (this.fenetres) {
+          const fp = this.fenetres;
+          fp.n = 0; fp.sommeCarre = 0; fp.sommeCarreGrave = 0; fp.zeros = 0; fp.crete = 0;
+          fp.debutEcrits = fp.positionEcrite;
+          fp.ecrit = false;
+        }
         this.port.postMessage({
           type: 'en-pause',
           aEchantillon: this.echantillonsEcrits,
@@ -301,6 +367,14 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
         this.mode = 'prise';
         this.echantillonsAZeroDeSuite = 0;
         this.muetAnnonce = false;
+        // (T13) Même raison qu'à la pause, dans l'autre sens : la fenêtre en cours a commencé
+        // pendant la pause. On la jette et on repart de la reprise.
+        if (this.fenetres) {
+          const fr = this.fenetres;
+          fr.n = 0; fr.sommeCarre = 0; fr.sommeCarreGrave = 0; fr.zeros = 0; fr.crete = 0;
+          fr.debutEcrits = fr.positionEcrite;
+          fr.ecrit = true;
+        }
         this.port.postMessage({
           type: 'reprise-faite',
           aEchantillon: this.echantillonsEcrits,
@@ -332,6 +406,27 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
           parFenetre: this.parFenetreBruit,
           index: 0,
           position: 0,          // échantillons du signal retenu depuis le début de la mesure
+          // ── (T13, avenant 5) LA POSITION DANS LA PRISE, ET RIEN D'AUTRE ───────────────
+          // DÉFAUT CORRIGÉ : sur la prise du 11 octobre 19:12, le plancher annoncé
+          // (−91,6 dBFS, « pause la plus calme de la prise », fenêtres 528 000 à 1 209 600)
+          // tombait ENTIÈREMENT dans le temps de pause — un audio qui n'est pas dans le
+          // fichier. Le 5e centile des fenêtres du fichier lui-même était à −81,7. T13
+          // (avenant 5) le tranche : « l'ambiance n'est prélevée que dans un passage ÉCRIT de
+          // la prise : le temps de pause (E12) n'est jamais une source d'ambiance ».
+          // Chaque fenêtre porte donc sa position DANS LA PRISE et dit si ses échantillons
+          // ont été écrits.
+          // ── LA POSITION EXACTE, AU SEIN DU BLOC ─────────────────────────────────────
+          // `echantillonsEcrits` n'est pas assez fin ici : la boucle des fenêtres tourne AVANT
+          // la boucle d'écriture du même bloc, si bien qu'au milieu d'un bloc elle lirait un
+          // compteur qui retarde de l'offset dans le bloc — jusqu'à 127 échantillons. Un
+          // contrôle de pavage l'a trouvé : les fenêtres ne s'enchaînaient pas exactement.
+          // On tient donc un compteur PROPRE, incrémenté dans la boucle des fenêtres elle-même,
+          // et qui ne compte que les échantillons retenus en mode prise — c'est-à-dire ceux qui
+          // sont écrits. Il part de la position de la prise, pour qu'une continuation reste dans
+          // le temps de SA prise.
+          positionEcrite: this.echantillonsEcrits,
+          debutEcrits: this.echantillonsEcrits,
+          ecrit: this.mode === 'prise',
           n: 0, sommeCarre: 0, sommeCarreGrave: 0, zeros: 0, crete: 0,
           finDuSilenceInitial: this.bruit.demandes,
         };
@@ -397,6 +492,7 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
       const f = this.fenetres;
       const b = this.bruit;        // null dès que le silence initial est passé
       for (let i = 0; i < g.length; i++) {
+        if (this.mode === 'prise') f.positionEcrite++;
         const v = f.canal === 'droit' ? (d ? d[i] : 0)
                 : f.canal === 'moyenne' ? (d ? (g[i] + d[i]) / 2 : g[i])
                 : g[i];
@@ -440,12 +536,18 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
             type: 'fenetre-bruit',
             index: f.index,
             debutEchantillon: f.position,
+            // (T13) LA POSITION DANS LA PRISE et le fait que les échantillons soient écrits :
+            // c'est sur ces deux-là que le module filtre.
+            debutDansLaPrise: f.debutEcrits,
+            ecrit: f.ecrit,
             n: f.n, sommeCarre: f.sommeCarre, sommeCarreGrave: f.sommeCarreGrave,
             zeros: f.zeros, crete: f.crete,
             dansLeSilenceInitial: f.position < f.finDuSilenceInitial,
           });
           f.index++;
           f.position += f.n;
+          f.debutEcrits = f.positionEcrite;
+          f.ecrit = this.mode === 'prise';
           f.n = 0; f.sommeCarre = 0; f.sommeCarreGrave = 0; f.zeros = 0; f.crete = 0;
         }
       }
@@ -454,11 +556,40 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
     if (this.mode === 'prise') {
       const canal = this.canal;
       for (let i = 0; i < g.length; i++) {
-        // LE MIXAGE MONO (E3). `moyenne` n'est choisie par le module que lorsque les DEUX canaux
-        // portent le même signal ; sur un canal vide elle coûterait 6 dB, ce que E3 interdit.
-        const v = canal === 'droit' ? (d ? d[i] : 0)
-                : canal === 'moyenne' ? (d ? (g[i] + d[i]) / 2 : g[i])
-                : g[i];
+        // ── (E3) LA VIVACITÉ DE CHAQUE CANAL, suivie échantillon par échantillon ───────────
+        if (g[i] !== 0) this.depuisNonZeroG = 0; else this.depuisNonZeroG++;
+        if (d) { if (d[i] !== 0) this.depuisNonZeroD = 0; else this.depuisNonZeroD++; }
+        else this.depuisNonZeroD = this.maintienCanal;
+        const gVivant = this.depuisNonZeroG < this.maintienCanal;
+        const dVivant = !!d && this.depuisNonZeroD < this.maintienCanal;
+
+        // LE MIXAGE MONO (E3). En « moyenne », le diviseur est le nombre de canaux VIVANTS :
+        // c'est ce qui rend la perte de 6 dB impossible quand un canal meurt pendant la prise.
+        let v;
+        if (canal === 'droit') {
+          v = d ? d[i] : 0;
+        } else if (canal === 'moyenne') {
+          const k = (gVivant ? 1 : 0) + (dVivant ? 1 : 0);
+          if (k === 0) {
+            // Les deux canaux sont morts : le silence est le silence, on n'invente rien.
+            v = 0;
+          } else {
+            v = ((gVivant ? g[i] : 0) + (dVivant ? d[i] : 0)) / k;
+          }
+          if (k === 1) this.mixeSurUnCanal++; else if (k === 2) this.mixeSurDeuxCanaux++;
+          // TOUT CHANGEMENT DU JEU DE CANAUX VIVANTS EST DIT, à l'échantillon près : c'est un
+          // fait de la prise, et le taire laisserait croire que le mixage n'a pas bougé.
+          if (k !== this.dernierNbVivants) {
+            this.dernierNbVivants = k;
+            this.port.postMessage({
+              type: 'canaux-vivants',
+              aEchantillon: this.echantillonsEcrits,
+              vivants: k, gauche: gVivant, droit: dVivant,
+            });
+          }
+        } else {
+          v = g[i];
+        }
 
         // Suivi du zéro numérique sur le signal RETENU : c'est celui-là qui sera la voix.
         this.echantillonsRetenus++;
@@ -523,7 +654,12 @@ class EnregistreurProcesseur extends AudioWorkletProcessor {
 // faible mais non nulle.
 function sommesNeuves() {
   return {
-    n: 0, canaux: 0,
+    // `canaux` est le DERNIER nombre de canaux vu ; `canauxMin` et `canauxMax` disent s'il a
+    // VARIÉ. Christophe a relevé trois prises où la fenêtre d'avant voyait deux canaux actifs et
+    // la prise un canal droit à zéro : sans ces deux bornes, on ne peut pas distinguer « le
+    // périphérique a cessé de livrer deux canaux » de « le second canal est devenu muet ». Ce
+    // sont deux causes différentes et deux corrections différentes.
+    n: 0, canaux: 0, canauxMin: 0, canauxMax: 0,
     sommeG: 0, sommeD: 0,
     sommeCarreG: 0, sommeCarreD: 0,
     sommeProduit: 0,
@@ -534,6 +670,8 @@ function sommesNeuves() {
 
 function accumuler(acc, g, d, nbCanaux) {
   acc.canaux = nbCanaux;
+  if (acc.canauxMax === 0 || nbCanaux > acc.canauxMax) acc.canauxMax = nbCanaux;
+  if (acc.canauxMin === 0 || nbCanaux < acc.canauxMin) acc.canauxMin = nbCanaux;
   for (let i = 0; i < g.length; i++) {
     const vg = g[i];
     acc.sommeG += vg;

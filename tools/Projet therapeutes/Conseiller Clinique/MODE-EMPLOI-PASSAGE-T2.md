@@ -24,7 +24,7 @@ http://127.0.0.1:8765/banc-enregistreur.html
 | Geste | Ce qui doit se passer |
 |---|---|
 | « Autoriser le micro », laissez tourner deux secondes, « Commencer la prise » | Badge **« Prise en cours »**, intitulé **« Enregistrement »**. |
-| Parlez 10 s, puis **pressez Espace** (ou cliquez « Pause ») | Badge **« Prise en pause »**, intitulé **« Prise en pause »**, et le bouton devient **« Reprendre »**. Le vu-mètre **continue de bouger** si vous parlez : le micro reste ouvert, mais rien n'est enregistré. |
+| Parlez 10 s, puis **pressez Espace** (ou cliquez « Pause ») | Badge **« Prise en pause »**, intitulé **« Prise en pause »**, et le bouton devient **« Reprendre »**. Le vu-mètre **continue de bouger** si vous parlez : le micro reste ouvert, mais rien n'est enregistré. La ligne du bruit de pièce, elle, **ignore ce temps-là** : l'ambiance ne se prélève que dans l'audio écrit. |
 | **Attendez 20 secondes sans rien faire**, puis pressez Espace de nouveau | Le badge revient à « Prise en cours ». |
 | Parlez encore 10 s, « Arrêter la prise » | Une **seule** prise à droite, d'environ **20 secondes** — pas 40. C'est le point à vérifier : les 20 s de pause ne sont pas dans la voix. |
 | « Exporter en WAV », ouvrez-le dans QuickTime | La voix doit s'enchaîner **sans trou de 20 secondes** au milieu. |
@@ -74,20 +74,31 @@ chose qu'aucun test automatique ne peut juger pour vous.
 | Geste | Ce qui doit se passer |
 |---|---|
 | Commencez une prise, parlez 10 s | — |
-| Passez à une autre application **70 secondes**, puis revenez | Deux issues possibles, et **les deux sont des informations** : soit la barre du bas affiche « Contexte : running » et le chronomètre a avancé de 70 s ; soit Safari a interrompu le contexte, et vous trouvez un **bandeau rouge en haut de la fenêtre** : « Le micro a été perdu à l'échantillon N… La prise est EN PAUSE », avec un bouton **« Reprendre »**. |
-| Si le bandeau est là, cliquez « Reprendre » | Le micro se rouvre, la prise **continue** là où elle s'était arrêtée, et un avis dit à quel échantillon. |
-| Parlez 10 s, « Arrêter », exportez | La prise doit faire **environ 20 secondes** — pas 80. Les 70 secondes d'arrière-plan ne doivent pas être dans le fichier, **ni sous forme de silence**. |
+| Passez à une autre application **70 secondes**, puis revenez | Deux issues, et **les deux sont des informations** — c'est Safari qui décide, pas le Studio. |
+| **Issue A — le micro n'est PAS perdu** : la barre du bas affiche « Contexte : running » | Le Studio a enregistré **pendant tout l'arrière-plan**. La durée finale est donc celle de l'horloge : **environ 90 secondes** (10 + 70 + 10), et le WAV contient 70 secondes de votre pièce vide. C'est correct : rien n'a été perdu. |
+| **Issue B — le micro EST perdu** : un **bandeau rouge en haut de la fenêtre**, « Le micro a été perdu à l'échantillon N… La prise est EN PAUSE », avec **« Reprendre »** | Cliquez « Reprendre » : le micro se rouvre, la prise **continue** là où elle s'était arrêtée, et un avis dit à quel échantillon. La durée finale est alors **d'environ 20 secondes** : les 70 secondes d'arrière-plan ne sont pas dans le fichier, **ni sous forme de silence**. |
+| Parlez 10 s, « Arrêter », exportez | Comparez la durée à celle de l'issue que vous avez eue — 90 s pour A, 20 s pour B. Une durée de 20 s avec « Contexte : running » tout du long, ou de 90 s après un bandeau de perte, serait un défaut : dites-le-moi. |
 
-**Ce que je vous demande** : laquelle des deux issues s'est produite, le texte exact du bandeau,
-la durée finale, et s'il y a du silence au milieu du WAV.
+**Ce que je vous demande** : **laquelle des deux issues** s'est produite (la case « Contexte » de
+la barre du bas le dit), le texte exact du bandeau s'il y en a eu un, la durée finale, et s'il y a
+du silence au milieu du WAV.
 
 ---
 
 ## Comment couper le micro à la main (utile aux épreuves 1 et 4)
 
-**Mode micro** du Centre de contrôle (icône en haut à droite de la barre de menus) → choisir un
-mode qui coupe l'entrée. Ou Réglages → Son → Entrée → volume à zéro. Le bandeau doit tomber en
-moins de deux secondes, et la prise se mettre en pause.
+**Réglages Système → Son → Entrée → curseur « Volume d'entrée » à fond à gauche.** C'est le seul
+geste qui coupe réellement l'entrée, et vos essais du 17 octobre l'ont établi : le **« Mode
+micro » du Centre de contrôle ne coupe pas l'entrée** — il change le traitement du son, pas le
+signal, et la prise continue d'enregistrer normalement. La consigne que je vous avais donnée était
+fausse.
+
+Avec le volume d'entrée à zéro, le signal devient un zéro numérique : le bandeau rouge doit tomber
+en moins de deux secondes. Attention : **ce n'est pas la même chose qu'une perte de micro.** La
+piste reste vivante et le contexte tourne ; le Studio dit donc « Aucun son reçu du micro » et
+continue d'enregistrer du silence, ce qui est correct — un silence volontaire doit être
+enregistré. La prise ne se met en pause d'elle-même que si la **piste** se termine (une autre
+application prend le micro) ou si le **contexte** est interrompu.
 
 ---
 
@@ -120,9 +131,15 @@ Ne m'envoyez **aucun fichier WAV** : votre voix n'a rien à faire dans le dépô
   zéros ont été retirés, aucun n'est resté**.
 - Seuls les WAV **PCM 16 et 24 bits**, mono ou stéréo, sont importables. Les autres formats
   arrivent au jalon III réduit.
+- **Le mixage ne perd plus 6 dB** (corrigé le 17 octobre, sur vos trois prises sur douze) :
+  quand la fenêtre d'avant la prise voit deux canaux et que l'un meurt pendant, le canal mort
+  n'entre plus dans la moyenne. Le rapport dit le canal **réellement utilisé** avec sa raison, et
+  sur combien de canaux la moyenne a porté, échantillon par échantillon.
+- **Sur une prise continuée, l'ambiance n'est pas mesurée** et le rapport le dit : une
+  continuation n'a pas de silence initial. Le verdict de la première partie est cité tel quel.
 
-**Mesuré automatiquement avant de vous le donner** : 62 contrôles, 92 mutations falsifiées sur 92,
-0 trou. La pause ne touche pas un échantillon (compteur immobile, pause et reprise au même
+**Mesuré automatiquement avant de vous le donner** : 67 contrôles, 101 mutations falsifiées sur
+101, 0 trou. La pause ne touche pas un échantillon (compteur immobile, pause et reprise au même
 échantillon) · le micro perdu met la prise en pause en moins d'une demi-seconde et **tous** les
 zéros de la fin sont retirés · une continuation garde la même prise, le même identifiant, des
 positions de morceaux qui se suivent sans trou · un import à 44 100 Hz continué sur un

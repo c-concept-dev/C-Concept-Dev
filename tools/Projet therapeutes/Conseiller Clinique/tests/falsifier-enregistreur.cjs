@@ -348,12 +348,12 @@ const ESSAIS = [
     attendu: "la prise dure parfois cinq minutes : son canal se revérifie sur elle",
   },
   {
-    nom: "le rapport porte la raison de la FENÊTRE au lieu de celle de la prise",
+    nom: "le verdict de la prise porte la raison de la FENÊTRE au lieu de celle de la prise",
     fichier: "module",
-    de: "      raisonDuCanal: (_etat.verificationCanal && _etat.verificationCanal.raisonSurLaPrise)\n        || _etat.canalRaison,",
-    vers: "      raisonDuCanal: _etat.canalRaison,",
-    sections: "§17c",
-    attendu: "la raison écrite doit être calculée SUR LA PRISE, jamais sur la fenêtre d'avant",
+    de: "            raison: _etat.verificationCanal.raisonSurLaPrise,",
+    vers: "            raison: _etat.verificationCanal.raisonAvantLaPrise,",
+    sections: "§17c,§35",
+    attendu: "E3 : le verdict de la prise est calculé SUR LA PRISE ; la raison de la fenêtre est celle du canal utilisé, et elle a son propre champ (D)",
   },
   {
     nom: "un désaccord entre le canal gelé et la prise est tu",
@@ -640,12 +640,90 @@ const ESSAIS = [
     attendu: "DÉFAUT 2 : « Enregistrement 01:16,221 » restait affiché après l'arrêt",
   },
 
-  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────  // ── (E12) LA PAUSE, LA REPRISE, LA CONTINUATION ────────────────────────────────────────
+  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────  // ── (E3, avenant 5) LE MIXAGE NE MOYENNE JAMAIS UN CANAL VIDE ──────────────────────────
+  {
+    nom: "le diviseur de la moyenne redevient le nombre de canaux, mort ou vif",
+    fichier: "worklet",
+    de: "          const k = (gVivant ? 1 : 0) + (dVivant ? 1 : 0);",
+    vers: "          const k = d ? 2 : 1;",
+    sections: "§35,§3a",
+    attendu: "E3 : la moyenne sur un canal vide retire 6,02 dB — mesuré sur 3 prises de Christophe sur 12",
+  },
+  {
+    nom: "un canal est présumé vivant au début de la prise au lieu de le prouver",
+    fichier: "worklet",
+    de: "        this.depuisNonZeroG = this.maintienCanal;\n        this.depuisNonZeroD = this.maintienCanal;",
+    vers: "        this.depuisNonZeroG = 0;\n        this.depuisNonZeroD = 0;",
+    sections: "§3a",
+    attendu: "un canal vide compté vivant pendant le maintien fait un quart de seconde à −6 dB au début de chaque prise",
+  },
+  {
+    nom: "le mixage effectif n'est plus dit : « moyenne » sans savoir sur combien de canaux",
+    fichier: "module",
+    de: "        raison: _etat.canalRaison,",
+    vers: "        raison: (_etat.verificationCanal && _etat.verificationCanal.raisonSurLaPrise) || _etat.canalRaison,",
+    sections: "§35",
+    attendu: "D : le canal utilisé porte la raison de CE canal-là, non le verdict de la prise (E3, avenant 5)",
+  },
+  {
+    nom: "le graphe de capture n'est plus relevé",
+    fichier: "module",
+    de: "      grapheDeCapture: _etat.grapheDeCapture || 'graphe non construit',",
+    vers: "      grapheDeCapture: 'non relevé',",
+    sections: "§12",
+    attendu: "A : ce que le graphe déclare doit être écrit, pas supposé — c'était la première question à poser",
+  },
+
+  // ── (T13, avenant 5) L'AMBIANCE NE VIENT QUE DE L'AUDIO ÉCRIT ──────────────────────────
+  {
+    nom: "les fenêtres ne disent plus si leurs échantillons sont écrits",
+    fichier: "worklet",
+    de: "            ecrit: f.ecrit,",
+    vers: "            ecrit: true,",
+    sections: "§36",
+    attendu: "T13 : le temps de pause n'est jamais une source d'ambiance — plancher annoncé −91,6 au lieu de −81,7",
+  },
+  {
+    nom: "le verdict ne filtre plus sur les fenêtres écrites",
+    fichier: "module",
+    de: "    var toutes = brutes.filter(function (f) { return f.ecrit; });",
+    vers: "    var toutes = brutes;",
+    sections: "§36",
+    attendu: "T13 (avenant 5) : « l'ambiance n'est prélevée que dans un passage ÉCRIT de la prise »",
+  },
+  {
+    nom: "la fenêtre en cours n'est plus jetée à la frontière de la pause",
+    fichier: "worklet",
+    de: "          fp.ecrit = false;",
+    vers: "          fp.ecrit = true;",
+    sections: "§36",
+    attendu: "une fenêtre moitié écrite moitié non écrite n'est ni l'un ni l'autre",
+  },
+
+  // ── (C) LA CONTINUATION ────────────────────────────────────────────────────────────────
+  {
+    nom: "une continuation mesure l'ambiance sur sa seule nouvelle partie",
+    fichier: "module",
+    de: "      if (prolonge) {\n        // ── (T13, avenant 5 / C) SUR UNE CONTINUATION",
+    vers: "      if (false) {\n        // ── (T13, avenant 5 / C) SUR UNE CONTINUATION",
+    sections: "§37",
+    attendu: "le rapport du 11 octobre 19:36 annonçait « 2 passages de voix dans le silence initial » — une continuation n'en a pas",
+  },
+  {
+    nom: "l'écart vu / écrit compare la session au total cumulé de la prise",
+    fichier: "module",
+    de: "            ecart: fin.echantillonsVus - (fin.echantillonsEcritsCetteSession || 0),",
+    vers: "            ecart: fin.echantillonsVus - _etat.echantillonsEcrits,",
+    sections: "§37",
+    attendu: "C : « ecartVuEcrit −1 440 000 » mêlait deux domaines et ne décrivait rien",
+  },
+
+  // ── (E12) LA PAUSE, LA REPRISE, LA CONTINUATION ────────────────────────────────────────
   {
     nom: "la pause continue d'écrire : elle ne change pas de mode",
     fichier: "worklet",
-    de: "        this.mode = 'analyse';\n        this.port.postMessage({\n          type: 'en-pause',",
-    vers: "        this.port.postMessage({\n          type: 'en-pause',",
+    de: "        this.mode = 'analyse';\n        // (T13, avenant 5) LA FENÊTRE EN COURS EST JETÉE",
+    vers: "        // (T13, avenant 5) LA FENÊTRE EN COURS EST JETÉE",
     sections: "§30",
     attendu: "E12 : en pause, AUCUN échantillon n'est écrit et la pause n'occupe aucun temps dans la voix",
   },

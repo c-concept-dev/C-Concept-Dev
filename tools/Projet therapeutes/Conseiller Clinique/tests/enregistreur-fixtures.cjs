@@ -492,6 +492,79 @@ const FIXTURES = [
     },
   },
   {
+    nom: 'double-puis-droit-vide.wav',
+    pourquoi: 'T1 quater — LE DÉFAUT DE CHRISTOPHE, 3 fois sur 12 prises. Les quatre premières ' +
+              'secondes et demie portent le MÊME signal sur les deux canaux (corrélation ≈ 1), ' +
+              'si bien que la fenêtre de décision d\'avant la prise voit « deux canaux actifs ' +
+              'très corrélés » et choisit la MOYENNE. Puis le canal droit tombe au zéro ' +
+              'numérique pour le reste. La moyenne d\'un canal actif et d\'un canal vide retire ' +
+              'exactement 6,02 dB : c\'est ce que son WAV du 17 octobre portait (crête ' +
+              '−29,26 dBFS pour une entrée gauche à −23,24).',
+    attendu: 'décision d\'avant = moyenne ; le WAV ne doit PAS perdre 6 dB : sa valeur efficace ' +
+             'doit égaler celle du canal retenu',
+    faire: () => {
+      const n = ECH * 16;
+      const bascule = Math.round(ECH * 4.5);
+      const g = sinusPlusBruit(n, 196, 0.22, 0.0006, 201);
+      const d = new Float32Array(n);
+      // Le MÊME signal, à l'identique : c'est ce que la fenêtre voit, et c'est le seul cas où
+      // la moyenne est choisie (corrélation > 0,8).
+      for (let i = 0; i < bascule; i++) d[i] = g[i];
+      return { canaux: [g, d] };
+    },
+  },
+  {
+    nom: 'deux-canaux-identiques.wav',
+    pourquoi: 'T1 quater — LE CAS SYMÉTRIQUE, qui empêche la correction de tricher. Deux canaux ' +
+              'RIGOUREUSEMENT identiques du début à la fin : la moyenne est le bon choix, et ' +
+              'elle ne doit introduire NI perte NI gain. Un mixage qui additionnerait au lieu ' +
+              'de moyenner passerait la fixture précédente et ajouterait ici 6 dB.',
+    attendu: 'canal retenu = moyenne ; valeur efficace du WAV égale à celle d\'un canal, à 0,3 dB',
+    faire: () => {
+      const n = ECH * 16;
+      const g = sinusPlusBruit(n, 180, 0.2, 0.0006, 202);
+      const d = new Float32Array(n);
+      for (let i = 0; i < n; i++) d[i] = g[i];
+      return { canaux: [g, d] };
+    },
+  },
+  {
+    nom: 'prise-avec-longue-pause.wav',
+    pourquoi: 'T1 quater (T13, avenant 5) — L\'AMBIANCE NE DOIT VENIR QUE DE L\'AUDIO ÉCRIT. ' +
+              'Sur la prise du 11 octobre 19:12, le plancher annoncé (−91,6 dBFS, « pause la ' +
+              'plus calme de la prise », fenêtres 528 000 à 1 209 600) tombait ENTIÈREMENT dans ' +
+              'le temps de pause — intervalle vu 520 448 à 1 627 264 —, c\'est-à-dire dans un ' +
+              'audio absent du fichier ; le 5e centile des fenêtres du fichier lui-même valait ' +
+              '−81,7 dBFS, dix décibels au-dessus.\n' +
+              '    CHRONOLOGIE, faite pour séparer les deux cas avec de la MARGE — la première ' +
+              'version était trop serrée et une seconde de la tranche très basse se retrouvait ' +
+              'réellement enregistrée, ce qui abaissait le plus-calme et faisait du plancher à ' +
+              '−70 une fenêtre « occupée » : 0 à 1 s plancher −70 ; 1 à 7 s voix (donc le ' +
+              'silence initial de la prise N\'est pas tenu, et le verdict doit se rabattre sur ' +
+              'une pause) ; 7 à 16 s plancher −70 — neuf secondes, où la pause E12 peut tomber ' +
+              'n\'importe où, et c\'est la pause ÉCRITE que le verdict doit employer ; 16 à 22 s ' +
+              'plancher −92 — entièrement couvert par la pause E12, ces fenêtres doivent être ' +
+              'ÉCARTÉES ; 22 à 36 s voix, où la reprise tombe.',
+    attendu: 'silence initial non tenu ; plancher pris dans la pause ÉCRITE, vers −70 dBFS, et ' +
+             'jamais vers −92 ; fenêtres du temps de pause comptées comme écartées. Prise : ' +
+             '9 s, pause de 12 s, puis 4 s.',
+    faire: () => {
+      const n = ECH * 36;
+      const a = bruitAuNiveau(n, -70, 203);
+      const tresBas = bruitAuNiveau(ECH * 6, -92, 204);
+      for (let i = 0; i < ECH * 6; i++) a[ECH * 16 + i] = tresBas[i];
+      const ampVoix = Math.pow(10, -32 / 20) * Math.SQRT2;
+      const voix = (de, a2) => {
+        for (let i = Math.round(ECH * de); i < Math.round(ECH * a2) && i < n; i++) {
+          a[i] += ampVoix * Math.sin((2 * Math.PI * 196 * i) / ECH);
+        }
+      };
+      voix(1, 7);
+      voix(22, 36);
+      return { canaux: [a, zeros(n)] };
+    },
+  },
+  {
     nom: 'import-mono-16-44100.wav',
     bits: 16, hz: 44100,
     pourquoi: 'T1 ter (E12, point 5) — IMPORT 16 BITS MONO À 44 100 Hz. Deux faits à la fois : ' +

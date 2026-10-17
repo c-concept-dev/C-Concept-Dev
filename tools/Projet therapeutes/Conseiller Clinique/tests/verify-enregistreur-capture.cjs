@@ -388,7 +388,7 @@ async function prendreLaFin(page) {
   // ── §3 — LE MIXAGE MONO SUR LE VRAI CHEMIN (E3) ────────────────────────────────────────────
   // Le piège mesuré au lot 0 : avec le canal droit vide, la MOYENNE coûte 6 dB. Ce contrôle le
   // prouve par les octets stockés, pas par la formule.
-  await controle('§3a canal droit vide → canal actif pris, et PAS de perte de 6 dB', async () => {
+  await controle('§3a canal droit vide : canal actif pris, et la moyenne forcée ne coûte RIEN', async () => {
     const { ctx, page } = await ouvrirBanc(nav, base,
       '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
     const auto = await prendre(page, { attendreMs: 2600 });
@@ -400,7 +400,18 @@ async function prendreLaFin(page) {
     const r = auto.module.mesures.correlationEntreCanaux;
     assert.equal(r, 'canal vide : droit', 'corrélation : ' + JSON.stringify(r));
 
-    // La preuve en décibels : le même passage, forcé en moyenne, doit tomber d'environ 6 dB.
+    // ── CE CONTRÔLE A CHANGÉ DE SENS À T1 QUATER, ET IL FAUT LE DIRE ──────────────────────
+    //
+    // Sa version d'origine forçait le réglage sur « Moyenne » et EXIGEAIT une chute d'environ
+    // 6 dB : c'était le témoin de ce que E3 interdit, et la démonstration que la moyenne sur un
+    // canal vide coûte cher. Depuis T1 quater, cette chute est IMPOSSIBLE — le diviseur est le
+    // nombre de canaux vivants —, et le contrôle exigerait donc du produit le défaut qu'on vient
+    // de supprimer. Il assure désormais l'inverse : même forcée à la main sur un canal vide, la
+    // moyenne ne coûte rien.
+    //
+    // LE TÉMOIN DES 6,02 dB RESTE, mais il est arithmétique et non expérimental : la moyenne de
+    // (x, 0) vaut x/2, soit 20·log10(0,5) = −6,0206 dB. C'est ce chiffre que E3 nomme, et il n'a
+    // pas besoin d'être produit par le produit pour être vrai.
     const { ctx: c2, page: p2 } = await ouvrirBanc(nav, base,
       '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
     const moy = await prendre(p2, { attendreMs: 2600, reglageCanal: 'moyenne' });
@@ -408,18 +419,29 @@ async function prendreLaFin(page) {
 
     const dbAuto = auto.module.mesures.niveaux.gauche.efficaceDbfs;
     const dbMoy = moy.module.mesures.niveaux.gauche.efficaceDbfs;
-    // Les niveaux PAR CANAL sont mesurés à l'entrée : identiques dans les deux cas. Ce qui
-    // change est ce qui a été ÉCRIT. On le mesure donc sur les octets stockés.
     assert.ok(Math.abs(dbAuto - dbMoy) < 1.5,
       'le niveau d\'entrée du canal gauche doit être le même : ' + dbAuto + ' vs ' + dbMoy);
     const effAuto = Math.max(Math.abs(auto.stockage.min), auto.stockage.max);
     const effMoy = Math.max(Math.abs(moy.stockage.min), moy.stockage.max);
     const chute = 20 * Math.log10(effMoy / effAuto);
-    assert.ok(chute < -4.5 && chute > -7.5,
-      'la moyenne sur un canal vide doit coûter environ 6 dB ; mesuré ' + chute.toFixed(2) +
-      ' dB (crêtes stockées ' + effAuto + ' puis ' + effMoy + ')');
-    console.log('        crête stockée : canal actif ' + effAuto + ' · moyenne ' + effMoy +
-                ' → ' + chute.toFixed(2) + ' dB, l\'erreur que E3 interdit');
+    assert.ok(Math.abs(chute) < 1,
+      'E3 (avenant 5) : « le mixage ne moyenne JAMAIS un canal vide ». Même forcée à la main, ' +
+      'la moyenne ne doit rien coûter : chute mesurée ' + chute.toFixed(2) +
+      ' dB (crêtes stockées ' + effAuto + ' puis ' + effMoy + '). Une chute de −6,02 dB serait ' +
+      'la moyenne arithmétique de (x, 0), que ce produit ne fait plus.');
+    // ET LE MIXAGE DIT SUR COMBIEN DE CANAUX IL A PORTÉ.
+    const mix = moy.module.mesures.canalUtilise.mixageEffectif;
+    assert.ok(mix && mix.echantillonsMixesSurUnCanal > 0,
+      'le rapport doit dire que la moyenne a porté sur UN seul canal vivant : ' +
+      JSON.stringify(mix));
+    assert.equal(mix.echantillonsMixesSurDeuxCanaux, 0,
+      'et sur aucun échantillon à deux canaux, le droit étant vide : ' +
+      mix.echantillonsMixesSurDeuxCanaux);
+    const temoin6dB = 20 * Math.log10(0.5);
+    console.log('        crête stockée : auto ' + effAuto + ' · forcé en moyenne ' + effMoy +
+                ' → ' + chute.toFixed(2) + ' dB (le témoin arithmétique de la moyenne de (x,0) ' +
+                'est ' + temoin6dB.toFixed(4) + ' dB, et ce produit ne le produit plus) · ' +
+                mix.echantillonsMixesSurUnCanal + ' échantillons mixés sur un canal vivant');
   });
 
   await controle('§3b canal gauche vide → le droit est pris (la règle n\'est pas écrite d\'un seul côté)', async () => {
@@ -1033,7 +1055,7 @@ async function prendreLaFin(page) {
     assert.ok(v.recalculeSurLaPrise, 'le recalcul sur la prise doit être consigné');
     assert.equal(v.accord, true, 'sur cette fixture, les deux doivent s\'accorder');
     // LA RAISON DU RAPPORT EST CELLE DE LA PRISE, jamais celle de la fenêtre d'avant.
-    assert.equal(r.module.mesures.raisonDuCanal, v.raisonSurLaPrise,
+    assert.equal(r.module.mesures.verdictSurLaPrise.raison, v.raisonSurLaPrise,
       'le rapport doit porter la raison calculée sur la prise, pas sur la fenêtre d\'avant');
     assert.ok(v.fenetreDeDecision && typeof v.fenetreDeDecision.secondes === 'number',
       'et dire sur quelle fenêtre la décision avait été gelée : ' + JSON.stringify(v.fenetreDeDecision));
@@ -1060,9 +1082,9 @@ async function prendreLaFin(page) {
       'la prise elle-même porte un droit actif et plus fort : ' + v.raisonSurLaPrise);
     assert.equal(v.accord, false, 'les deux verdicts diffèrent, et cela doit être dit');
     // LA RAISON DU RAPPORT EST CELLE DE LA PRISE, et elle diffère ici de celle de la fenêtre.
-    assert.equal(r.module.mesures.raisonDuCanal, v.raisonSurLaPrise,
+    assert.equal(r.module.mesures.verdictSurLaPrise.raison, v.raisonSurLaPrise,
       'le rapport doit porter la raison calculée sur la prise');
-    assert.notEqual(r.module.mesures.raisonDuCanal, v.raisonAvantLaPrise,
+    assert.notEqual(r.module.mesures.verdictSurLaPrise.raison, v.raisonAvantLaPrise,
       'et non celle de la fenêtre d\'avant : les deux sont différentes dans ce cas');
     // LE DÉSACCORD EST AFFICHÉ, et journalisé.
     const bandeau = r.affiche.messages.find((m) => /ne correspond pas à ce que la prise/.test(m.texte));
@@ -3121,6 +3143,399 @@ async function prendreLaFin(page) {
       vu.relus.nbEchantillons + ' · annoncé : ' + vu.boite.slice(0, 80));
   });
 
+  // ── §35 — (E3) LA MOYENNE NE DOIT JAMAIS COÛTER 6 dB, MÊME SI LA FENÊTRE S'EST TROMPÉE ───
+  //
+  // CE CONTRÔLE EST ÉCRIT AVANT TOUT CODE DE T1 QUATER, à la demande de Christophe, et il doit
+  // donc échouer à sa première exécution.
+  //
+  // LE DÉFAUT, MESURÉ SUR SES PRISES : 3 fois sur 12, la fenêtre d'avant la prise voit deux
+  // canaux actifs très corrélés (0,983 ; 0,986), choisit la MOYENNE, et la prise a le canal
+  // droit à zéro numérique du début à la fin — 5 179 264 échantillons sur 5 179 264 le
+  // 17 octobre. Le WAV sort alors à −6,02 dB exactement (crête −29,26 dBFS pour une entrée
+  // gauche à −23,24). Le Studio détecte le démenti et l'affiche, mais il ne peut plus le
+  // réparer : les échantillons sont écrits.
+  //
+  // E3 est sans ambiguïté sur ce qui prime : « le mixage prend le canal actif et ne fait pas de
+  // moyenne, QUI RETIRERAIT 6 dB ». La fenêtre de décision n'est qu'un moyen ; l'invariant est
+  // qu'on ne perde pas 6 dB. Le contrôle porte donc sur l'invariant, et non sur la décision.
+  //
+  // LA MESURE EST UN RAPPORT, et c'est ce qui la rend sûre : la valeur efficace de l'audio ÉCRIT
+  // doit égaler celle du canal retenu, mesurée par le worklet sur la même prise. Comparer à une
+  // constante dépendrait de l'instant où la prise commence dans la fixture ; comparer deux
+  // mesures de la même prise n'en dépend pas.
+  await controle('§35 fenêtre trompée, canal droit vide : le WAV ne perd PAS 6 dB (E3)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/double-puis-droit-vide.wav');
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    // On attend une fenêtre PLEINE, prise dans les 4,5 s où les deux canaux sont identiques :
+    // c'est ainsi que la décision « moyenne » se produit, comme chez Christophe.
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(9000);
+    const r = await prendreLaFin(page);
+    const audio = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      let n = 0, sommeCarre = 0, crete = 0;
+      await window.VoixStockage.parcourirMorceaux(e.db, e.priseId, (m) => {
+        const a = new Int16Array(m.pcm);
+        for (let i = 0; i < a.length; i++) {
+          const v = a[i] < 0 ? a[i] / 32768 : a[i] / 32767;
+          sommeCarre += v * v; n++;
+          const abs = v < 0 ? -v : v;
+          if (abs > crete) crete = abs;
+        }
+      });
+      const eff = Math.sqrt(sommeCarre / n);
+      return { n, efficace: eff, efficaceDbfs: 20 * Math.log10(eff),
+               crete, creteDbfs: 20 * Math.log10(crete) };
+    });
+    await ctx.close();
+
+    const v = r.module.mesures.verificationDuCanal;
+    const niv = r.module.mesures.niveaux;
+    // 1. LA SITUATION EST BIEN CELLE DE CHRISTOPHE : la fenêtre a dit « moyenne ».
+    assert.equal(v.geleAvantLaPrise, 'moyenne',
+      'la fenêtre d\'avant doit avoir choisi la moyenne, sinon le contrôle n\'éprouve rien : ' +
+      v.geleAvantLaPrise + ' — ' + v.raisonAvantLaPrise);
+    // L'ASSERTION PORTE SUR LE SEUIL DE LA RÈGLE, PAS SUR UNE FORME DE CHIFFRE. Première
+    // version : `/corrélation 0\.9/` — elle échouait parce que deux canaux rigoureusement
+    // identiques donnent 1.000, et non 0,9xx. C'était mon assertion qui était trop étroite.
+    const corr = parseFloat((v.raisonAvantLaPrise.match(/corrélation ([\d.]+)/) || [])[1]);
+    assert.ok(corr > 0.8,
+      'sur deux canaux dont la corrélation dépasse le seuil de 0,8 : ' + v.raisonAvantLaPrise);
+    // 2. ET LE CANAL DROIT EST MAJORITAIREMENT VIDE SUR LA PRISE.
+    assert.ok(niv.droit.partAZero > 0.5,
+      'le canal droit doit être vide sur la plus grande part de la prise : ' +
+      (niv.droit.partAZero * 100).toFixed(1) + ' % de zéros');
+    // 3. L'INVARIANT : L'AUDIO ÉCRIT NE PERD PAS 6 dB.
+    const ecart = audio.efficaceDbfs - niv.gauche.efficaceDbfs;
+    assert.ok(Math.abs(ecart) < 0.5,
+      'E3 : la valeur efficace de l\'audio ÉCRIT doit égaler celle du canal actif. Écrit ' +
+      audio.efficaceDbfs.toFixed(2) + ' dBFS, canal gauche ' +
+      niv.gauche.efficaceDbfs.toFixed(2) + ' dBFS, écart ' + ecart.toFixed(2) +
+      ' dB. Un écart de −6,02 dB est la moyenne avec un canal vide, que E3 interdit.');
+    assert.ok(ecart > -3,
+      'et surtout pas −6,02 dB : écart mesuré ' + ecart.toFixed(2) + ' dB');
+    // 4. CE QUE LE RAPPORT DIT DU MIXAGE RÉELLEMENT APPLIQUÉ.
+    // ── (D) LE CANAL UTILISÉ PORTE SA PROPRE RAISON ─────────────────────────────────────
+    // C'est ici, et nulle part ailleurs, que les deux raisons DIFFÈRENT : la fenêtre a dit
+    // « moyenne » et la prise dit « droit vide ». Le rapport de Christophe mettait ces deux
+    // phrases côte à côte sous « canalRetenu: moyenne » et « raisonDuCanal: droit vide… sans
+    // moyenne », ce qui laissait croire qu'elles se répondaient.
+    const u = r.module.mesures.canalUtilise;
+    const verdict = r.module.mesures.verdictSurLaPrise;
+    assert.ok(u, 'le rapport doit porter le canal RÉELLEMENT utilisé : ' +
+      JSON.stringify(Object.keys(r.module.mesures)));
+    assert.equal(u.canal, 'moyenne',
+      'le canal utilisé est celui qui a servi au mixage : ' + u.canal);
+    assert.ok(/moyenne/.test(u.raison) && /corrélation/.test(u.raison),
+      'et sa raison doit décrire CE choix-là, non le verdict de la prise : ' + u.raison);
+    assert.notEqual(u.raison, verdict.raison,
+      'les deux raisons sont distinctes et portent des noms distincts : « ' + u.raison +
+      ' » contre « ' + verdict.raison + ' »');
+    // LE VERDICT DE LA PRISE NE DIT PAS « MOYENNE », et c'est tout ce qui compte ici : il
+    // décrit la prise, le canal utilisé décrit le mixage. Première version de cette assertion :
+    // « le verdict dit droit vide » — elle était fausse, parce que cette prise contient les DEUX
+    // régimes (le droit actif pendant les deux premières secondes, mort ensuite), si bien que la
+    // prise entière voit « deux canaux actifs, corrélation 0,570 : le plus fort ». Le verdict a
+    // raison ; c'était mon assertion qui lui prêtait des mots.
+    assert.notEqual(verdict.canal, 'moyenne',
+      'le verdict de la prise ne retient pas la moyenne : ' + verdict.canal + ' — ' +
+      verdict.raison);
+    assert.equal(verdict.accordAvecLeCanalUtilise, false,
+      'et il est en désaccord avec le canal utilisé, ce qui est dit : ' +
+      verdict.accordAvecLeCanalUtilise);
+    // LE MIXAGE A PORTÉ SUR UN SEUL CANAL VIVANT sur la part où le droit est mort.
+    assert.ok(u.mixageEffectif.echantillonsMixesSurUnCanal > 0,
+      'et le mixage doit dire sur combien de canaux il a porté : ' +
+      JSON.stringify(u.mixageEffectif));
+    console.log('        fenêtre : ' + v.raisonAvantLaPrise + '\n        écrit ' +
+      audio.efficaceDbfs.toFixed(2) + ' dBFS · gauche ' + niv.gauche.efficaceDbfs.toFixed(2) +
+      ' dBFS · écart ' + ecart.toFixed(2) + ' dB · droit à zéro sur ' +
+      (niv.droit.partAZero * 100).toFixed(1) + ' % de la prise');
+  });
+
+  await controle('§35b deux canaux RIGOUREUSEMENT identiques : ni perte ni gain', async () => {
+    // LE SYMÉTRIQUE DE §35, et il empêche la correction de tricher : un mixage qui
+    // ADDITIONNERAIT au lieu de moyenner passerait §35 et ajouterait ici 6 dB. La moyenne de
+    // deux canaux identiques vaut chacun d'eux : l'audio écrit doit donc égaler un canal.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/deux-canaux-identiques.wav&boucle=1');
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(5000);
+    const r = await prendreLaFin(page);
+    const audio = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      let n = 0, sc = 0;
+      await window.VoixStockage.parcourirMorceaux(e.db, e.priseId, (m) => {
+        const a = new Int16Array(m.pcm);
+        for (let i = 0; i < a.length; i++) { const v = a[i] < 0 ? a[i] / 32768 : a[i] / 32767; sc += v * v; n++; }
+      });
+      return { efficaceDbfs: 20 * Math.log10(Math.sqrt(sc / n)) };
+    });
+    await ctx.close();
+    const niv = r.module.mesures.niveaux;
+    assert.equal(r.module.mesures.verificationDuCanal.geleAvantLaPrise, 'moyenne',
+      'deux canaux identiques : la moyenne est le bon choix');
+    assert.ok(niv.droit.etat === 'actif',
+      'et le droit doit être actif sur toute la prise : ' + niv.droit.etat);
+    const ecart = audio.efficaceDbfs - niv.gauche.efficaceDbfs;
+    assert.ok(Math.abs(ecart) < 0.3,
+      'la moyenne de deux canaux identiques vaut chacun d\'eux : écrit ' +
+      audio.efficaceDbfs.toFixed(2) + ' dBFS, canal ' + niv.gauche.efficaceDbfs.toFixed(2) +
+      ' dBFS, écart ' + ecart.toFixed(2) + ' dB (ni −6,02 ni +6,02)');
+    console.log('        écrit ' + audio.efficaceDbfs.toFixed(2) + ' dBFS · canal ' +
+      niv.gauche.efficaceDbfs.toFixed(2) + ' dBFS · écart ' + ecart.toFixed(2) + ' dB');
+  });
+
+  await controle('§35c deux canaux DIFFÉRENTS : le plus fort, et à son niveau', async () => {
+    // Le troisième cas de la règle E3. La fixture porte un gauche à 0,08 et un droit à 0,30 :
+    // deux fréquences sans rapport, corrélation proche de zéro, donc « le plus fort ».
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/deux-canaux-differents.wav&boucle=1');
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(5000);
+    const r = await prendreLaFin(page);
+    const audio = await page.evaluate(async () => {
+      const e = window.EnregistreurVoix._etat();
+      let n = 0, sc = 0;
+      await window.VoixStockage.parcourirMorceaux(e.db, e.priseId, (m) => {
+        const a = new Int16Array(m.pcm);
+        for (let i = 0; i < a.length; i++) { const v = a[i] < 0 ? a[i] / 32768 : a[i] / 32767; sc += v * v; n++; }
+      });
+      return { efficaceDbfs: 20 * Math.log10(Math.sqrt(sc / n)) };
+    });
+    await ctx.close();
+    const niv = r.module.mesures.niveaux;
+    const utilise = r.module.mesures.canalUtilise;
+    assert.ok(utilise && (utilise.canal === 'droit' || utilise.canal === 'gauche'),
+      'un canal unique doit avoir été utilisé, pas la moyenne : ' + JSON.stringify(utilise));
+    assert.equal(utilise.canal, 'droit',
+      'et c\'est le plus fort (droit, 0,30 contre 0,08) : ' + utilise.canal);
+    const ecart = audio.efficaceDbfs - niv.droit.efficaceDbfs;
+    assert.ok(Math.abs(ecart) < 0.3,
+      'l\'audio écrit doit être au niveau du canal retenu : écrit ' +
+      audio.efficaceDbfs.toFixed(2) + ', droit ' + niv.droit.efficaceDbfs.toFixed(2) +
+      ', écart ' + ecart.toFixed(2) + ' dB');
+    console.log('        utilisé ' + utilise.canal + ' · écrit ' + audio.efficaceDbfs.toFixed(2) +
+      ' dBFS · droit ' + niv.droit.efficaceDbfs.toFixed(2) + ' · gauche ' +
+      niv.gauche.efficaceDbfs.toFixed(2) + ' · écart ' + ecart.toFixed(2) + ' dB');
+  });
+
+  // ── §36 — (T13, avenant 5) L'AMBIANCE NE VIENT QUE DE L'AUDIO ÉCRIT ──────────────────────
+  await controle('§36 longue pause : aucune fenêtre du temps NON ENREGISTRÉ dans le verdict (T13)', async () => {
+    // LE DÉFAUT, MESURÉ SUR LA PRISE DU 11 OCTOBRE 19:12 : le plancher annoncé (−91,6 dBFS,
+    // « pause la plus calme de la prise », fenêtres 528 000 à 1 209 600) tombait ENTIÈREMENT
+    // dans le temps de pause — intervalle écrit 520 448 à 1 627 264 —, c'est-à-dire dans un
+    // audio qui n'est pas dans le fichier. Le 5e centile des fenêtres du fichier lui-même
+    // valait −81,7 dBFS, dix décibels au-dessus. T13 (avenant 5) : « l'ambiance n'est prélevée
+    // que dans un passage ÉCRIT de la prise : le temps de pause (E12) n'est jamais une source
+    // d'ambiance ».
+    //
+    // LA FIXTURE SÉPARE LES DEUX CAS : son plancher écrit est à −70 dBFS et le plancher qui
+    // tombe sous la pause est à −92. Le verdict doit dire −70. S'il dit −92, il a mesuré un
+    // audio absent du fichier.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/prise-avec-longue-pause.wav');
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    // Jusqu'à la large tranche de plancher ÉCRIT (7 à 16 s de la fixture).
+    await page.waitForTimeout(9000);
+    await page.click('[data-action="pause"]');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().enPause === true,
+      null, { timeout: 10000 });
+    // La pause couvre ENTIÈREMENT la tranche à −92 dBFS (16 à 22 s de la fixture) et se termine
+    // dans la voix qui suit : douze secondes, pour que l'instant exact du clic n'ait pas
+    // d'importance. Première version : neuf secondes, et la reprise retombait dans le −92.
+    await page.waitForTimeout(12000);
+    await page.click('[data-action="pause"]');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().enPause === false,
+      null, { timeout: 10000 });
+    await page.waitForTimeout(4000);
+    const r = await prendreLaFin(page);
+    const pavageBrut = await page.evaluate(() => window.EnregistreurVoix._etat().fenetresBruit
+      .filter((f) => f.ecrit !== false && !f.partielle)
+      .map((f) => ({ debut: f.debutDansLaPrise, n: f.n })));
+    await ctx.close();
+    const pageFenetres = async () => pavageBrut;
+
+    const b = r.module.mesures.bruitDePiece;
+    assert.ok(b && b.mesure, 'le bruit doit être mesuré : ' + JSON.stringify(b).slice(0, 200));
+    // 1. DES FENÊTRES ONT BIEN ÉTÉ ÉCARTÉES : sans cela le contrôle ne prouverait rien.
+    assert.ok(b.fenetres.ecarteesCarNonEcrites > 50,
+      'les fenêtres du temps de pause doivent être ÉCARTÉES et comptées (environ 120 pour 12 s) : ' +
+      b.fenetres.ecarteesCarNonEcrites);
+    // 2. LE SILENCE INITIAL N'EST PAS TENU : la fixture met de la voix dès 1 s.
+    assert.equal(b.silenceInitialRespecte, false,
+      'la voix occupe le silence initial : ' + b.raisonDuSilence);
+    assert.equal(b.plancherSource, 'pause la plus calme de la prise',
+      'l\'ambiance doit donc venir d\'une pause (T13) : ' + b.plancherSource);
+    // 3. ET C'EST LE PLANCHER DU FICHIER, PAS CELUI DU TEMPS DE PAUSE.
+    assert.ok(b.plancherDbfs > -80,
+      'le plancher doit être celui de l\'audio ÉCRIT (environ −70 dBFS), et non celui du temps ' +
+      'de pause (−92 dBFS, absent du fichier) : ' + b.plancherDbfs.toFixed(2) + ' dBFS');
+    assert.ok(b.plancherDbfs < -62,
+      'et rester un plancher, non un niveau de voix : ' + b.plancherDbfs.toFixed(2) + ' dBFS');
+    // 4. TOUTES LES FENÊTRES DU PLANCHER SONT ÉCRITES, et leurs positions tiennent dans la
+    //    prise. C'est l'invariant que Christophe a dû vérifier à la main.
+    assert.equal(b.plancherCalculeSur.toutesEcrites, true,
+      'toutes les fenêtres du plancher doivent être écrites : ' +
+      JSON.stringify(b.plancherCalculeSur));
+    assert.ok(b.plancherCalculeSur.dernierEchantillon <= r.stockage.echantillons,
+      'et leurs positions tenir dans la prise : dernière fenêtre à ' +
+      b.plancherCalculeSur.dernierEchantillon + ', prise de ' + r.stockage.echantillons +
+      ' échantillons');
+    assert.ok(b.pauseRetenue.debutEchantillon + b.pauseRetenue.echantillons <= r.stockage.echantillons,
+      'la pause retenue doit être entièrement dans la prise : ' +
+      JSON.stringify(b.pauseRetenue) + ' contre ' + r.stockage.echantillons + ' écrits');
+    // 5. LES FENÊTRES ÉCRITES PAVENT L'AUDIO ÉCRIT : positions strictement croissantes, et
+    //    chacune enchaînant la précédente. Un trou du falsifieur a exigé cet invariant : marquer
+    //    « écrite » la fenêtre qui enjambe la frontière de la pause laissait DEUX fenêtres à la
+    //    MÊME position (la position ne bouge pas pendant la pause), et aucune autre assertion ne
+    //    le voyait. C'est le témoin le plus simple qu'aucune fenêtre ne décrit du temps absent.
+    const pavage = await pageFenetres(page);
+    assert.ok(pavage.length > 20, 'il faut des fenêtres à vérifier : ' + pavage.length);
+    let trous = 0;
+    for (let k = 1; k < pavage.length; k++) {
+      // LES POSITIONS SONT STRICTEMENT CROISSANTES. C'est ce que la mutation casse : marquer
+      // « écrite » la fenêtre qui enjambe la pause laisse DEUX fenêtres à la MÊME position,
+      // la position ne bougeant pas pendant une pause.
+      assert.ok(pavage[k].debut > pavage[k - 1].debut,
+        'deux fenêtres écrites ne peuvent pas partager une position : ' +
+        JSON.stringify(pavage.slice(Math.max(0, k - 2), k + 2)));
+      const attendue = pavage[k - 1].debut + pavage[k - 1].n;
+      if (pavage[k].debut !== attendue) {
+        // UN TROU EST LÉGITIME À UNE FRONTIÈRE DE PAUSE, et à une seule condition : la fenêtre
+        // en cours au moment de la pause portait de l'audio écrit mais enjambait la frontière,
+        // donc elle est jetée. Ce qu'elle laisse découvert est plus court qu'une fenêtre. Mon
+        // assertion d'origine exigeait un pavage sans trou : elle réclamait du produit une
+        // exactitude que jeter cette fenêtre rend impossible.
+        trous++;
+        const manque = pavage[k].debut - attendue;
+        assert.ok(manque > 0 && manque < pavage[k - 1].n,
+          'un trou doit être plus court qu\'une fenêtre : ' + manque + ' échantillons entre ' +
+          attendue + ' et ' + pavage[k].debut);
+      }
+    }
+    assert.equal(trous, 1,
+      'un seul trou, à la seule frontière de pause de cette prise : ' + trous);
+    console.log('        ' + b.fenetres.ecarteesCarNonEcrites + ' fenêtres écartées (temps de ' +
+      'pause) · plancher ' + b.plancherDbfs.toFixed(2) + ' dBFS → ' + b.etat +
+      ' (le temps de pause était à −92) · fenêtres du plancher ' +
+      b.plancherCalculeSur.premierEchantillon + ' à ' + b.plancherCalculeSur.dernierEchantillon +
+      ' dans une prise de ' + r.stockage.echantillons);
+  });
+
+  // ── §37 — (C / T13) UNE CONTINUATION NE MESURE PAS L'AMBIANCE, ET LE DIT ─────────────────
+  await controle('§37 continuation : « ambiance non mesurée », aucun silence initial inventé, écart par session', async () => {
+    // TROIS DÉFAUTS DU RAPPORT DE LA PRISE CONTINUÉE DU 11 OCTOBRE 19:36, en un seul contrôle :
+    //   · le bruit de pièce était calculé sur la SEULE nouvelle partie (205 fenêtres) et présenté
+    //     comme l'ambiance de la prise ;
+    //   · il annonçait « 2 passages de voix dans le silence initial » — alors qu'une
+    //     continuation n'a PAS de silence initial : elle commence au milieu d'une voix ;
+    //   · « ecartVuEcrit −1 440 000 » comparait les échantillons vus par CETTE session au total
+    //     CUMULÉ de la prise, deux domaines différents.
+    // T13 (avenant 5) laisse le choix : couvrir la prise entière, ou dire « ambiance non
+    // mesurée ». Le second est implémenté, et sa justification est au code.
+    const ctx = await nav.newContext({ permissions: ['microphone'] });
+    const page = await ctx.newPage();
+    await page.goto(base + '/banc-enregistreur.html' +
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    // PREMIÈRE PARTIE : assez longue pour que l'ambiance soit mesurée et rangée avec la prise.
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(5000);
+    const premiere = await prendreLaFin(page);
+    const priseId = premiere.module.priseId;
+    assert.ok(premiere.module.mesures.bruitDePiece.mesure,
+      'la première partie doit avoir une ambiance mesurée : ' +
+      JSON.stringify(premiere.module.mesures.bruitDePiece).slice(0, 160));
+    const plancherDeLaPremiere = premiere.module.mesures.bruitDePiece.plancherDbfs;
+    const ecritDeLaPremiere = premiere.stockage.echantillons;
+
+    // ── ON CONTINUE ────────────────────────────────────────────────────────────────────────
+    await page.click('[data-prise="' + priseId + '"] [data-action="continuer"]');
+    await page.waitForFunction(() => /en cours/i.test(
+      document.querySelector('[data-mode]').textContent), null, { timeout: 20000 });
+    await page.waitForTimeout(4000);
+    const r = await prendreLaFin(page);
+    await ctx.close();
+
+    const b = r.module.mesures.bruitDePiece;
+    // 1. L'AMBIANCE N'EST PAS MESURÉE, ET C'EST DIT.
+    assert.equal(b.mesure, false,
+      'sur une continuation, l\'ambiance ne doit pas être présentée comme mesurée : ' +
+      JSON.stringify(b).slice(0, 200));
+    assert.ok(/ambiance non mesurée/.test(b.raison),
+      'le rapport doit le dire dans ces termes (T13) : ' + b.raison);
+    assert.ok(/continuation/.test(b.raison) && /silence initial/.test(b.raison),
+      'et dire pourquoi : une continuation n\'a pas de silence initial : ' + b.raison);
+    // 2. AUCUN SILENCE INITIAL INVENTÉ : le verdict ne porte plus ces champs du tout.
+    assert.equal(b.silenceInitialRespecte, undefined,
+      'aucun jugement sur un silence initial qui n\'existe pas : ' + b.silenceInitialRespecte);
+    assert.equal(b.plancherDbfs, undefined,
+      'et aucun plancher fabriqué sur la seule nouvelle partie : ' + b.plancherDbfs);
+    // 3. LE VERDICT DE LA PREMIÈRE PARTIE EST CITÉ, avec la position jusqu'où il valait.
+    const premier = r.module.mesures.bruitDePieceDeLaPremierePartie;
+    assert.ok(premier && premier.verdict,
+      'le verdict de la première partie doit être cité : ' + JSON.stringify(premier).slice(0, 160));
+    assert.equal(premier.verdict.plancherDbfs, plancherDeLaPremiere,
+      'tel quel, sans recalcul : ' + premier.verdict.plancherDbfs + ' contre ' +
+      plancherDeLaPremiere);
+    assert.equal(premier.valaitJusquA_echantillon, ecritDeLaPremiere,
+      'avec la position jusqu\'où il valait : ' + premier.valaitJusquA_echantillon + ' contre ' +
+      ecritDeLaPremiere);
+    // 4. L'ÉCART VU / ÉCRIT SE COMPARE PAR SESSION, et il est petit.
+    const e = r.module.mesures.ecartVuEcritDeLaSession;
+    assert.ok(e && typeof e.ecart === 'number',
+      'l\'écart doit être une mesure de session : ' + JSON.stringify(e));
+    assert.equal(e.departDeLaSession, ecritDeLaPremiere,
+      'la session a commencé là où la première partie s\'était arrêtée : ' +
+      e.departDeLaSession + ' contre ' + ecritDeLaPremiere);
+    assert.ok(Math.abs(e.ecart) < 5000,
+      'et l\'écart de la session doit être petit, non la longueur de la première partie : ' +
+      e.ecart + ' (vus ' + e.vus + ', écrits ' + e.ecrits + ')');
+    assert.ok(e.ecrits < r.stockage.echantillons,
+      'les écrits de la session sont une PART du total de la prise : ' + e.ecrits + ' sur ' +
+      r.stockage.echantillons);
+    console.log('        première partie : plancher ' + plancherDeLaPremiere.toFixed(2) +
+      ' dBFS sur ' + ecritDeLaPremiere + ' éch · continuation : « ' + b.raison.slice(0, 48) +
+      '… » · écart de session ' + e.ecart + ' (vus ' + e.vus + ', écrits ' + e.ecrits +
+      ', départ ' + e.departDeLaSession + ')');
+  });
+
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────
   await controle('§19 deux constructions concurrentes : le nœud appartient au contexte vivant', async () => {
     // LA COURSE QUI A FAIT UNE « PRISE MUETTE ». Changer la taille de morceau lance une
@@ -3701,11 +4116,36 @@ async function prendreLaFin(page) {
     await ctx.close();
 
     const r = JSON.parse(texte);
-    for (const cle of ['canalRetenu', 'raisonDuCanal', 'regleDuCanal', 'niveaux',
-                       'correlationEntreCanaux', 'regleCorrelation', 'blocs', 'morceaux',
-                       'etatDeLaPiste', 'journal', 'persistance', 'echantillonnage']) {
+    // (D, T1 quater) LES DEUX CHAMPS DU CANAL ONT CHANGÉ DE NOM, et c'est la correction du
+    // défaut 4 des essais : le rapport portait « canalRetenu: moyenne » et « raisonDuCanal:
+    // droit vide… sans moyenne » dans le même document — deux grandeurs différentes sous des
+    // noms qui laissaient croire qu'elles se répondaient. Il y a désormais `canalUtilise`, avec
+    // la raison de CE canal-là, et `verdictSurLaPrise` à côté, sous son propre nom.
+    for (const cle of ['canalUtilise', 'verdictSurLaPrise', 'grapheDeCapture', 'regleDuCanal',
+                       'niveaux', 'correlationEntreCanaux', 'regleCorrelation', 'blocs',
+                       'morceaux', 'etatDeLaPiste', 'journal', 'persistance', 'echantillonnage',
+                       'ecartVuEcritDeLaSession', 'canauxVusALEntree']) {
       assert.ok(r[cle] !== undefined && r[cle] !== null, 'champ manquant ou null : ' + cle);
     }
+    // LE CANAL UTILISÉ PORTE SA PROPRE RAISON, et cette raison parle du canal utilisé.
+    assert.ok(r.canalUtilise.canal && r.canalUtilise.raison,
+      'le canal utilisé doit porter sa raison : ' + JSON.stringify(r.canalUtilise));
+    assert.ok(r.verdictSurLaPrise.canal && r.verdictSurLaPrise.raison,
+      'et le verdict de la prise la sienne : ' + JSON.stringify(r.verdictSurLaPrise));
+    // SUR CETTE FIXTURE le droit est vide dès l'avant-prise : le canal utilisé est le gauche, et
+    // sa raison doit parler du canal gauche — pas d'une moyenne.
+    assert.equal(r.canalUtilise.canal, 'gauche',
+      'canal utilisé : ' + r.canalUtilise.canal);
+    assert.ok(/droit vide/.test(r.canalUtilise.raison),
+      'et sa raison doit décrire CE choix : ' + r.canalUtilise.raison);
+    // LE GRAPHE EST RELEVÉ, pas supposé (A).
+    for (const k of ['source', 'worklet', 'regle']) {
+      assert.ok(r.grapheDeCapture[k], 'grapheDeCapture.' + k + ' absent');
+    }
+    assert.equal(r.grapheDeCapture.worklet.modeDeComptage, 'max',
+      'le mode de comptage du worklet doit être relevé : ' + r.grapheDeCapture.worklet.modeDeComptage);
+    assert.equal(r.grapheDeCapture.worklet.interpretation, 'discrete',
+      'et son interprétation : ' + r.grapheDeCapture.worklet.interpretation);
     // Niveau ET crête, par canal, chacun avec son amplitude à côté de son décibel.
     for (const c of ['gauche', 'droit']) {
       const n = r.niveaux[c];

@@ -80,7 +80,7 @@ Pour arrêter le serveur : `Ctrl+C` dans le Terminal.
 | **1 · 10 s sans parler** | « Commencer », **ne dites rien** pendant 10 s, « Arrêter » | La ligne « Bruit de pièce » doit donner un état — **calme**, **correct** ou **bruyant** — avec son **plancher** en dBFS, le nombre de fenêtres, et la valeur de la fenêtre entière à côté. Si elle dit « bruit grave : un filtre le réduira au mixage », c'est le profil de votre salle à générateurs. **Rien n'est bloqué.** |
 | **2 · 40 s en lisant** | Lisez un texte quelconque pendant 40 secondes | 8 morceaux, environ 3,8 Mo à 44 100 Hz. Aucun écrêtage. La ligne du bruit doit dire **« silence initial non tenu »** et avoir prélevé l'ambiance **dans une pause** : c'est voulu, et c'est ce que je veux voir. Le canal retenu doit rester le même du début à la fin : si un avis rouge dit que la prise contredit le canal retenu, **envoyez-le-moi**. |
 | **3 · Fermeture en pleine prise** | Lancez une prise, parlez 30 s, **fermez l'onglet** sans arrêter. Rouvrez l'adresse | Un encadré « Reprendre la prise interrompue » indique combien de morceaux ont survécu, « relu dans IndexedDB, pas déduit » — et **la fiche de la prise, à droite, doit annoncer le même nombre**, jamais 0. |
-| **4 · Micro coupé** | Pendant une prise, coupez l'entrée. **Sur ce Mac, le geste qui fonctionne est « Mode micro » du Centre de contrôle** (icône en haut à droite de la barre de menus) → choisir un mode qui coupe l'entrée, ou couper le volume d'entrée dans Réglages → Son → Entrée | Un bandeau rouge **« Aucun son reçu du micro »** en moins de 2 secondes, avec le numéro d'échantillon **et une durée qui AVANCE** — c'est le point à vérifier. À l'arrêt, le bandeau devient **gris** et raconte au passé ; la prise est marquée **MUETTE** si tout était à zéro, ou **SIGNAL PERDU** si elle avait commencé normalement. |
+| **4 · Micro coupé** | Pendant une prise, coupez l'entrée. **Le geste fiable est le volume d'entrée à zéro : Réglages Système → Son → Entrée → curseur « Volume d'entrée » à fond à gauche.** Vos essais du 17 octobre l'ont établi : le « Mode micro » du Centre de contrôle **ne coupe pas l'entrée** — il change le traitement, pas le signal, et la prise continue d'enregistrer. La consigne précédente était fausse ; celle-ci a été vérifiée. | Un bandeau rouge **« Aucun son reçu du micro »** en moins de 2 secondes, avec le numéro d'échantillon **et une durée qui AVANCE** — c'est le point à vérifier. À l'arrêt, le bandeau devient **gris** et raconte au passé ; la prise est marquée **MUETTE** si tout était à zéro, ou **SIGNAL PERDU** si elle avait commencé normalement. |
 | **5 · Onglet au fond 60 s** | Pendant une prise, passez à une autre application **60 secondes**, revenez | Le chronomètre doit avoir avancé d'environ 60 s, sans morceau manquant. Si Safari a suspendu l'audio, la barre du bas affiche **« Contexte : suspended »** — dans sa propre case, et « Piste » garde la sienne. C'est l'information que j'attends. |
 
 **Et une prise longue**, quand vous aurez le temps : **15 minutes d'un seul tenant** → 180 morceaux,
@@ -107,6 +107,14 @@ efficace · 8 bruit(s) bref(s) écarté(s)
 - **Les bruits brefs écartés** sont comptés et datés dans le rapport, en échantillons. Un bruit
   bref est une montée de plus de 12 dB au-dessus de la fenêtre la plus calme, qui dure moins de
   300 ms. Au-delà de 300 ms, c'est de la voix, et le silence initial est déclaré non tenu.
+- **L'ambiance ne vient QUE de l'audio écrit** (T13, avenant 5). Si vous mettez la prise en
+  pause, les fenêtres mesurées pendant la pause sont **écartées** et le rapport dit combien :
+  l'ambiance qu'on ira placer sous une coupe doit exister dans le fichier. Vos essais du
+  11 octobre avaient montré un plancher de −91,6 dBFS prélevé entièrement dans le temps de
+  pause, alors que le fichier lui-même était à −81,7.
+- **Sur une prise continuée**, le rapport dit « ambiance non mesurée » et cite le verdict de la
+  première partie : une continuation n'a pas de silence initial, et inventer un plancher sur sa
+  seule nouvelle partie serait décrire autre chose que la prise.
 - **« silence initial non tenu »** n'est pas un reproche : cela veut dire que vous avez parlé dans
   les trois premières secondes, et que l'ambiance a donc été prélevée **dans la pause la plus
   calme de la prise**. Le rapport dit à quel échantillon.
@@ -161,8 +169,8 @@ besoin pour lire les mesures. Si le nom de votre micro contient votre nom, rempl
 
 ## Mesuré, et à juger par vous
 
-**Mesuré** (automatique, Chromium, **55 contrôles · 73 mutations falsifiées sur 73, toutes
-conformes, 0 trou**) : seuil de
+**Mesuré** (automatique, Chromium, **67 contrôles · 101 mutations falsifiées sur 101,
+toutes conformes, 0 trou**) : seuil de
 capture muette à 2,0000 s exactement, en échantillons · mixage sur le canal actif, la moyenne sur
 un canal vide coûtant les **−6,02 dB** que E3 interdit · écrêtage exact à −32768 et +32767 ·
 morceaux à index continus et nombre entier de blocs de 128 · **écart de blocs nul** contre le
@@ -230,7 +238,7 @@ lue à la création du contexte, elle vaut 0, ce qui ressemble à une mesure et 
 | « Le banc n'a pas pu démarrer » | La page a été ouverte en `file://`. Il faut `http://127.0.0.1:8765`. |
 | Le vu-mètre reste à « — » | Le micro n'a pas été autorisé, ou une autre application le tient. |
 | « Micro : — » dans la barre du bas | L'autorisation n'a pas été accordée : sans elle, Safari ne donne aucun nom de périphérique. |
-| « Bruit de pièce : AUCUN SIGNAL » | Le micro n'a rien livré pendant la mesure. Ce n'est pas une pièce calme : vérifiez le Mode micro et le volume d'entrée. |
+| « Bruit de pièce : AUCUN SIGNAL » | Le micro n'a rien livré pendant la mesure. Ce n'est pas une pièce calme : vérifiez le **volume d'entrée** dans Réglages Système → Son → Entrée. |
 | « Bruit de pièce : NON CONCLUANT » | La prise a été arrêtée avant la première fenêtre de 100 ms. Laissez-la courir au moins trois secondes. |
 | « Persistance du stockage : demandée → false » | Normal et attendu : Safari refuse souvent. Il **peut** donc vider le stockage après sept jours sans visite — exportez vos WAV. |
 | Un avis sur la fenêtre de décision du canal | Vous avez cliqué « Commencer » moins d'une seconde après l'autorisation. Laissez le vu-mètre tourner deux secondes. |
