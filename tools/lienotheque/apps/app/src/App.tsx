@@ -42,7 +42,8 @@ import {
   lireManiere,
   imageDePage,
   versionActive,
-  vueDeBibliotheque,
+  apercuDeBibliotheque,
+  vueDeDocument,
   choisirFichiers,
   deposer as deposerChezLHote,
   faireTourner,
@@ -62,6 +63,8 @@ const PLEINE_HAUTEUR: ReadonlySet<Route["ecran"]> = new Set(["lecteur"]);
 export function App(): JSX.Element {
   const [theme, changerTheme] = useTheme();
   const [donnees, setDonnees] = useState<DonneesAccueil>(ACCUEIL_VIDE);
+  /** Le document dont les écrans montrent la version active. Un seul à la fois aujourd'hui. */
+  const [regarde, setRegarde] = useState<string | undefined>(undefined);
   const [vue, setVue] = useState<VueBibliotheque | undefined>(undefined);
   const [, setDepots] = useState<readonly string[]>([]);
   const [route, setRoute] = useState<Route>(() => lireRoute(globalThis.location?.hash ?? ""));
@@ -183,7 +186,8 @@ export function App(): JSX.Element {
     if (fichier === undefined) return undefined;
 
     let vivant = true;
-    void versionActive(courante.racine)
+    if (regarde === undefined) return undefined;
+    void versionActive(courante.racine, regarde)
       .then(async (version) => (version === undefined ? undefined : imageDePage(courante.racine, version, fichier)))
       .then((image) => {
         if (!vivant || image === undefined) return;
@@ -207,9 +211,22 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (courante === undefined || !estBureau()) return undefined;
     let vivant = true;
-    void vueDeBibliotheque(courante.racine).then((lue) => {
-      if (vivant && lue !== undefined) setVue(lue);
-    });
+    // Quel document : le plus récemment activé, lu dans l'aperçu. Explicite, là où c'était
+    // implicite — « celui du pointeur » n'avait de sens que tant qu'il n'y en avait qu'un.
+    // Choisir dans le Catalogue est l'étape suivante ; l'application n'en montre encore qu'un.
+    void apercuDeBibliotheque(courante.racine)
+      .then(async (apercus) => {
+        const dernier = [...apercus].sort((a, b) => b.activeeLe - a.activeeLe)[0];
+        if (dernier === undefined) return undefined;
+        setRegarde(dernier.empreinte);
+        return vueDeDocument(courante.racine, dernier.empreinte);
+      })
+      .then((lue) => {
+        if (vivant && lue !== undefined) setVue(lue);
+      })
+      .catch(() => {
+        // Une bibliothèque qui n'a rien traité n'a rien à montrer : les écrans le disent déjà.
+      });
     return () => {
       vivant = false;
     };

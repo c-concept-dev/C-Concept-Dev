@@ -1,0 +1,15 @@
+  ok   serveur v1.0.6 : /api/config version = config + chunking expose
+  ok   long document : « 8 segments générés automatiquement » affiche
+  ok   long document : nombre de caracteres affiche (33448) et « document complet »
+  ok   long document : compteur DOM = 1 document source (N = 8 segments != 1), jamais « 8 documents », segments lus integralement
+  ok   long document : exactement 1 ligne .docrow (pas de liste de sous-fichiers)
+  ok   document synthetique a 4 segments : compteur DOM = 1 document, 1 .docrow, « 4 segments » affiche, jamais « 4 documents »
+  ok   court + long : compteur DOM = 2 documents sources (total segments = 9 jamais utilise comme compte), « 1 segment » pour le court, « 9 segments au total »
+  ok   court + long : exactement 2 .docrow, statuts COMPLETE
+  ok   fichier vide : « document vide — non exploitable », compteur DOM = 1 document (le vide n'est pas compte), 2 lignes (vide liste, non exploitable)
+  ok   fichier vide : ligne marquee DOCUMENT_EMPTY
+  ok   apercu : aucun run cree, aucun dossier _preflight
+  ok   aucune exception console
+
+12/12 tests navigateur v1.0.6 OK
+NETWORK_GUARD {"externalAttempts":0}

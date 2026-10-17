@@ -7,6 +7,8 @@ import {
   Document,
   Fichier,
   LigneJournalIndexation,
+  Passage,
+  PassagesDuDocument,
   SchemaBibliotheque,
   Travail,
   VersionDocument,
@@ -19,6 +21,26 @@ import { DatabaseSync } from "node:sqlite";
 import { MIGRATIONS, MIGRATIONS_REGISTRE, type Migration } from "./migrations.js";
 
 type Lignes = Record<string, unknown>;
+
+/** Combien de passages une recherche rend au plus.
+ *
+ *  RCH-11 demande de comparer des latences à l'ancienne bibliothèque : une réponse non bornée ne
+ *  se compare à rien, et une requête sur un mot courant rapatrierait des milliers d'extraits
+ *  pour en montrer dix. */
+const PLAFOND_RECHERCHE = 50;
+
+/** Une ligne de `passage` relue comme un passage, validée par son contrat. */
+const enPassage = (l: Lignes): Passage =>
+  Passage.parse({
+    rang: l["rang"],
+    page: l["page"],
+    texte: l["texte"],
+    source: l["source"],
+    // SQLite ne connaît pas le booléen : la colonne vaut 0 ou 1.
+    lisible: l["lisible"] !== 0,
+    ...(l["page_imprimee"] === null ? {} : { pageImprimee: l["page_imprimee"] }),
+    ...(l["confiance"] === null ? {} : { confiance: l["confiance"] }),
+  });
 
 /** `node:sqlite` est livré avec Node : aucune compilation native, donc rien à installer sur
  *  macOS, Windows ni Linux. Il n'offre pas d'aide aux transactions : la voici. */
@@ -330,6 +352,53 @@ export function ouvrirDepot(dossier: string): Depot {
     async travaux() {
       const lignes = base.prepare("SELECT * FROM travail ORDER BY cree_le").all() as Lignes[];
       return lignes.map(lireTravail).filter((t): t is Travail => t !== undefined);
+    },
+
+    async enregistrerPassages(versionId, passages) {
+      // Le contrat d'abord, la base ensuite. Un trou dans les rangs échouerait de toute façon
+      // sur `UNIQUE (version_id, rang)` — mais une transaction plus loin, et sur un message qui
+      // parle de contrainte plutôt que de passage perdu.
+      PassagesDuDocument.parse(passages);
+      transaction(base, () => {
+        // Remplacer, et non ajouter. Les déclencheurs de `passage_texte` suivent la table : le
+        // DELETE retire les lignes de l'index plein texte en même temps, et rien ne reste
+        // trouvable après avoir disparu.
+        base.prepare("DELETE FROM passage WHERE version_id = ?").run(versionId);
+        const poser = base.prepare(
+          `INSERT INTO passage (id, version_id, ancre_id, rang, texte, source, confiance, page, page_imprimee, lisible)
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
+        );
+        for (const p of passages)
+          poser.run(
+            `${versionId}/passage-${p.rang}`,
+            versionId,
+            p.rang,
+            p.texte,
+            p.source,
+            p.confiance ?? null,
+            p.page,
+            p.pageImprimee ?? null,
+            p.lisible ? 1 : 0,
+          );
+      });
+    },
+    async passages(versionId: Identifiant) {
+      const lignes = base.prepare("SELECT * FROM passage WHERE version_id = ? ORDER BY rang").all(versionId) as Lignes[];
+      return lignes.map(enPassage);
+    },
+    async chercherPassages(requete: string, options = {}) {
+      const plafond = Math.min(Math.max(options.plafond ?? PLAFOND_RECHERCHE, 1), PLAFOND_RECHERCHE);
+      // `bm25` classe par pertinence, et le signe est celui de SQLite : plus bas vaut mieux.
+      const lignes = base
+        .prepare(
+          `SELECT p.* FROM passage_texte t
+             JOIN passage p ON p.rowid = t.rowid
+            WHERE passage_texte MATCH ?
+            ORDER BY bm25(passage_texte), p.version_id, p.rang
+            LIMIT ?`,
+        )
+        .all(requete, plafond) as Lignes[];
+      return lignes.map((l) => ({ versionId: l["version_id"] as Identifiant, passage: enPassage(l) }));
     },
 
     async journaliserIndexation(ligne) {

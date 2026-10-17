@@ -1,0 +1,93 @@
+{
+  "candidate": "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.19",
+  "sealedFiles": 218,
+  "physicalSourceFiles": 221,
+  "excludedUnsealedFiles": [
+    ".DS_Store"
+  ],
+  "activeVersion": "MONOLITH-v1.0.16",
+  "activeVersionSha256": "84ff38fb7915706869f7630a2f3e602eb590b840a38c5e10276713179a04348b",
+  "protectedFilesFromCandidateEvidence": 2430,
+  "protectedFilesCheckedThisFreeze": 2820,
+  "protectedDivergences": [],
+  "protectedBeforeAfter": {
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.18": {
+      "files": 212,
+      "inventorySha256": "1f988c051d2c87d1bcb8bee9112001cf42eff11c2fad4d4902d7a5ee8dc9ea14",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONO-01": {
+      "files": 107,
+      "inventorySha256": "e0c4c2298f6520b5550ac29a3538133b80e6cc89478cab4a9f8c13a038e13f2f",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONO-04": {
+      "files": 226,
+      "inventorySha256": "f7999bab9feaa86a3b29ac520cc420a86c70ad74b4f79be9357cd823abc484ff",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONO-05": {
+      "files": 264,
+      "inventorySha256": "cc8081ed50ee5fbd5f89e0bad178683ed175a403649fc7a80226c2f7b0d26b0d",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONO-07": {
+      "files": 31,
+      "inventorySha256": "2356c1c13b506121a4e4730ad7a2a3d92b6dd606ad057abe3b47d77924c61162",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONO-08": {
+      "files": 113,
+      "inventorySha256": "df8d0fa5770600c8f7c21dcb3822fdd4cce079c6cad93eb52276ad4f90263568",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONO-09": {
+      "files": 21,
+      "inventorySha256": "c2bc56ce151f2a31d490f20eb8fe268257dfeb2141d0253bab8fbeaae7037e4f",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONO-10": {
+      "files": 1194,
+      "inventorySha256": "57887c76a217c114fb9923c7d475945cc3336f180af175916ecc7efcd7a624b7",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONO-11": {
+      "files": 230,
+      "inventorySha256": "69df66a62e7a55eae7fd1f3c00a55e03e5165f02f1eae7b1733f776ed3031ea0",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/EF-01B-v0.2-r2": {
+      "files": 13,
+      "inventorySha256": "012e37bb7dd6b20633bcfa0fda1b09fbfef97367b675bc04331496cb882b1ccb",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/EF-01C1-v0.2-r2": {
+      "files": 19,
+      "inventorySha256": "7f7348d6fa600766ead8486ddacf73dc94540b2befc9d210e8047f26c2d20b07",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.16": {
+      "files": 191,
+      "inventorySha256": "94b7afc5a5b1ed29577a6a97735c5b7987925f626ffb1166d961b04ee97cbdb3",
+      "unchanged": true
+    },
+    "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.17": {
+      "files": 199,
+      "inventorySha256": "75417dd45cfcace024c4406e5def5c192823028c3bb0c6e1141064162c119741",
+      "unchanged": true
+    }
+  },
+  "desktopRuntimeEntries": 1118,
+  "desktopRuntimeDivergences": [],
+  "archiveExtraction": {
+    "freshTemporaryDirectory": "/var/folders/b7/cxjmmkvn62b3lv04rkqp98r00000gn/T/ef-v1019-freeze-extract-fbovc86e",
+    "files": 220,
+    "sealedFiles": 218,
+    "manifestValid": true,
+    "sha256sumsValid": true,
+    "contentHashValid": true,
+    "extraFiles": [],
+    "divergences": [],
+    "temporaryDirectoryRemovedAfterVerification": true
+  }
+}

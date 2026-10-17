@@ -1,7 +1,7 @@
 // Pas de console sur Windows en version publiée.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use lienotheque_bureau::{depot::Depot, traitement};
+use lienotheque_bureau::{arrivee, depot::Depot, traitement};
 use std::{path::PathBuf, process::ExitCode};
 
 /// L'application, et une voie sans fenêtre pour la mesurer.
@@ -75,7 +75,22 @@ fn traiter_sans_fenetre(bibliotheque: &str, chemin_charge: &str) -> ExitCode {
     let travail = uuid::Uuid::new_v4().to_string();
     let version = uuid::Uuid::new_v4().to_string();
 
-    match traitement::traiter(&depot, &emplacements, &travail, &version, &charge) {
+    // L'empreinte du document traité, calculée comme partout ailleurs : c'est elle qui dit
+    // pour quel document la version s'active. Un banc de mesure n'y échappe pas — s'en passer
+    // ici voudrait dire que `traiter` accepte parfois de ne pas savoir.
+    let Some(document) = charge["document"].as_str() else {
+        eprintln!("La charge ne désigne aucun document.");
+        return ExitCode::from(2);
+    };
+    let empreinte = match arrivee::empreinte_de(std::path::Path::new(document)) {
+        Ok(empreinte) => empreinte,
+        Err(e) => {
+            eprintln!("Document illisible : {e}");
+            return ExitCode::from(2);
+        }
+    };
+
+    match traitement::traiter(&depot, &emplacements, &travail, &empreinte, &version, &charge) {
         Ok(bilan) => {
             println!("résultat    : {} octets", bilan.octets);
             println!("journal     : {} lignes, {} erreur(s)", bilan.lignes_de_journal, bilan.erreurs);

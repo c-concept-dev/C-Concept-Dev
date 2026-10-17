@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { PageLue, TexteLu, type MotLu } from "@lienotheque/contrats";
 import { empreinteDe } from "@lienotheque/formats";
+import { poserDOMMatrixSiAbsent } from "./dommatrix.js";
 
 /** Couche texte d'un PDF natif, avec la position de chaque mot (OUT-05).
  *
@@ -11,7 +12,25 @@ import { empreinteDe } from "@lienotheque/formats";
 type Element = { str: string; transform: number[]; width: number; height: number };
 
 export async function lireCoucheTexte(chemin: string): Promise<TexteLu> {
+  // Avant le premier import, jamais après : un module ESM dont l'évaluation échoue garde son
+  // erreur en cache, et pdfjs construit un DOMMatrix au chargement de son module de rendu.
+  poserDOMMatrixSiAbsent();
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // Le module de travail de pdfjs, importé explicitement.
+  //
+  // Sans cela, pdfjs le cherche par un chemin **calculé à l'exécution** — ce qu'un empaqueteur
+  // ne peut pas suivre, et ce qu'un paquet d'un seul fichier n'a pas sur son disque. Le moteur
+  // embarqué échouait dessus : « Setting up fake worker failed ». L'import le pose dans
+  // `globalThis.pdfjsWorker`, où pdfjs le trouve sans chercher aucun fichier.
+  // Le module de travail de pdfjs n'est **pas** inliné dans la chaîne.
+  //
+  // Mesuré sur un livre numérisé de vingt-neuf pages : inliné, il fait passer la pointe mémoire
+  // du moteur de 656 Mo à 1 661 Mo et le fait tuer par le système — pour un module qui n'est pas
+  // même exécuté. esbuild l'inline dans le fichier unique, et V8 paie l'analyse de trois
+  // mégaoctets et demi de code en plus.
+  //
+  // pdfjs le cherche de lui-même à côté de son propre module, et `preparer-moteur-node.py` le
+  // pose là. Rien à faire ici : c'est l'absence de code qui est la correction.
   const donnees = new Uint8Array(await readFile(chemin));
   const document = await pdfjs.getDocument({ data: donnees, useSystemFonts: false }).promise;
 

@@ -1,0 +1,314 @@
+{
+  "schema": "EvidenceForge.MonolithFreezeRecord",
+  "version": "MONOLITH-v1.0.15",
+  "name": "AUTHORITY IDENTITY HARDENING",
+  "frozenAt": "2026-09-22T22:42:47+02:00",
+  "frozenBy": "OWNER",
+  "frozenByDecision": "D1 = FREEZE_WITH_RESERVATIONS (Christophe, 2026-09-22), apres audit independant V1_0_15_FREEZE_AUDIT_PASS_WITH_RESERVATIONS (0 blocker)",
+  "status": "FROZEN_WITH_RESERVATIONS",
+  "READY_FOR_ACTIVATION": false,
+  "SMOKE_AUTHORIZED": true,
+  "SMOKE_AUTHORIZED_CONDITIONS": "SMOKE_AUTHORIZED_WITH_CONDITIONS (D7) : plan borne obligatoire AVANT toute depense ; run NEUF uniquement (jamais une reprise d'un run <= v1.0.14, cf. A4) ; budget plafonne ; conditions d'arret armees ; validation proprietaire du plan avant execution",
+  "smokeExecuted": false,
+  "activeVersionChanged": false,
+  "activationBlocked": "L'activation n'est PAS autorisee par ce gel : ACTIVE_VERSION reste MONOLITH-v1.0.10 jusqu'au smoke reel et a une decision proprietaire explicite (D5 = KEEP_CURRENT)",
+  "scope": {
+    "means": "TARGET_DOCUMENT_AUTHORITY_IDENTITY = AUDITED_AND_ACCEPTED (R1, R2, R4 fermes ; mutants M1..M8 du proprietaire tous tues ; multi-cible reellement exercee ; fallback DOSSIER_TOO_LARGE reellement exerce hors ligne)",
+    "doesNotMean": "PROVEN_IN_PRODUCTION — aucun run reel, aucun smoke, aucun zip canonique ; les garanties sont de CODE et de TEST",
+    "alsoDoesNotMean": [
+      "PIPELINE_WIRING_BEHAVIOURALLY_COVERED (reserve A1)",
+      "IDENTITY_GUARD_ACTIVE_FOR_NON_RUNTIME_CALLERS (reserve A2)",
+      "REGISTRY_BACKWARD_COMPATIBLE_WITH_RUNS_<=_v1.0.14 (reserve A4)"
+    ]
+  },
+  "parent": {
+    "version": "MONOLITH-v1.0.14",
+    "status": "GELE FROZEN_WITH_RESERVATIONS",
+    "commit": "c12da200"
+  },
+  "rejectedSibling": {
+    "version": "MONOLITH-v1.0.13",
+    "status": "REJECTED_CANDIDATE_AFTER_INDEPENDENT_AUDIT",
+    "kept": "artefact historique"
+  },
+  "frozenLot": {
+    "lot": "MONO-11",
+    "version": "v0.4",
+    "contractVersion": "MONO-11-v3",
+    "sealSha256Prefix": "110db4de24709926",
+    "sealUnchanged": true,
+    "sha256sums": "55/55 OK",
+    "ownSuite": "83/83",
+    "reopened": false
+  },
+  "runtimeManifest": {
+    "fileCount": 169,
+    "contentHash": "1e2196504aa217fbb5bb654e4e8529bee6f732a74a7b15daec732d509f356ea4",
+    "manifestFileSha256": "6e0a009a9d8effe6a2acb575f1114789b31497e117e7ce6d781847a9413ca2a1",
+    "sha256sumsFileSha256": "48c8b1210fe2de1e98af8cf6ec6e986890f9a8725c8e89588caa0bbcf8cf6f1e",
+    "verify": "{\"ok\":true,\"files\":169,\"bad\":[]}",
+    "auditReportsExcluded": "D3 : les rapports d'audit (auteur et independant) et le present FREEZE RECORD ne sont PAS dans le manifeste runtime ; ils sont sceles par EVIDENCEFORGE-v1.0.15-GOVERNANCE.SHA256SUMS.txt"
+  },
+  "implementationAudit": {
+    "file": "EVIDENCEFORGE-v1.0.15-AUTHORITY-IDENTITY-HARDENING-AUDIT.md",
+    "sha256": "cfb815408fde36a2c3dc2452ff008e054ef561103a65df403a1095b5d8d27954",
+    "json": "EVIDENCEFORGE-v1.0.15-AUTHORITY-IDENTITY-HARDENING-AUDIT.json",
+    "jsonSha256": "6e5097d94cc845ffa4fc1f69d6edb741faa8b390d31e1dabd5d947802e3e88da",
+    "author": "agent d'implementation",
+    "proposedVerdict": "GELABLE"
+  },
+  "independentAudit": {
+    "file": "EVIDENCEFORGE-v1.0.15-INDEPENDENT-FREEZE-AUDIT.md",
+    "sha256": "f533f42fba37e0517f1d5efae3f7d8040168662e3c383d88b49c87a88a0f08ba",
+    "json": "EVIDENCEFORGE-v1.0.15-INDEPENDENT-FREEZE-AUDIT.json",
+    "jsonSha256": "38c8a4025b9305e9a973fd4fb64123c907b07a06ed13fd5b588d2d616ff90b05",
+    "auditor": "agent independant (n'a pas participe au developpement)",
+    "verdict": "V1_0_15_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+    "blockers": [],
+    "recommendationFreeze": "GELER",
+    "recommendationSmoke": "SMOKE_AUTHORIZED_WITH_CONDITIONS",
+    "mode": "READ_ONLY sur le depot ; mutations appliquees a une COPIE hors depot de l'arbre complet ; 0 appel fournisseur"
+  },
+  "statuses": {
+    "R1": "TARGET_DOCUMENT_IDENTITY_PASS",
+    "R1_closed": true,
+    "R2": "DOCUMENT_AUTHORITY_IDENTITY_GUARDS_PASS",
+    "R2_closed": true,
+    "R4": "REGISTRY_IMPORT_BEHAVIOURAL_COVERAGE_PASS",
+    "R4_closed": true,
+    "R-A1": "TRACE_PARITY_PASS",
+    "R5": "STILL_CLOSED",
+    "R6": "STILL_CLOSED",
+    "fallbackR1_06": "FALLBACK_AUTHORITY_IDENTITY_PASS",
+    "globalLineage": "GLOBAL_LINEAGE_PRESERVATION_GUARANTEED_FOR_KNOWN_REPAIR_REUSE_AUTHORITY_AND_TARGET_IDENTITY_PATHS",
+    "mono11v04": "NOT_REOPENED",
+    "semanticDrift": false,
+    "scientificLogicChanged": false,
+    "aggregationChanged": false,
+    "frozenLotsChanged": false
+  },
+  "globalLineage": {
+    "status": "GLOBAL_LINEAGE_PRESERVATION_GUARANTEED_FOR_KNOWN_REPAIR_REUSE_AUTHORITY_AND_TARGET_IDENTITY_PATHS",
+    "caveat": "garanties de CODE et de TEST uniquement : aucun run reel, aucun smoke",
+    "scope": "limite aux chemins CONNUS et AUDITES (A litteralisation, B reparation ciblee, C import de registre, D reuse de registre, E replay/reuse, F normalisation d'autorite documentaire, G identite cible/document, H mapping multi-cible)",
+    "R11_informedRegeneration": "HORS GARANTIE MONOTONE (inchange)"
+  },
+  "measurements": {
+    "monolithSuite": "332/332",
+    "chunking": "21/21",
+    "secretScan": {
+      "ok": true,
+      "filesScanned": 173,
+      "hits": 0
+    },
+    "antiHardcoding": {
+      "ok": true,
+      "filesScanned": 79,
+      "caseTokens": 0,
+      "hits": 0
+    },
+    "manifestVerify": {
+      "ok": true,
+      "files": 169,
+      "bad": []
+    },
+    "frozenLots": "MONO-10=0 MONO-11=0 MONO-09=0 MONO-01=0, total 0",
+    "idsBefore": 313,
+    "idsAfter": 332,
+    "idsAdded": 19,
+    "idsRemoved": 0,
+    "mutationMatrix": {
+      "numbering": "proprietaire M1..M8",
+      "allKilled": false,
+      "mutants": [
+        {
+          "id": "M1",
+          "score": "329/332",
+          "killed": true
+        },
+        {
+          "id": "M2",
+          "score": "317/332",
+          "killed": true
+        },
+        {
+          "id": "M3",
+          "score": "283/332",
+          "killed": true
+        },
+        {
+          "id": "M4",
+          "score": "324/332",
+          "killed": true
+        },
+        {
+          "id": "M5",
+          "score": "326/332",
+          "killed": true
+        },
+        {
+          "id": "M6",
+          "score": "330/332",
+          "killed": true
+        },
+        {
+          "id": "M7",
+          "score": "331/332",
+          "killed": true
+        },
+        {
+          "id": "M8",
+          "score": "324/332",
+          "killed": true
+        },
+        {
+          "id": "XPIPE",
+          "score": "332/332",
+          "killed": false
+        }
+      ],
+      "survivingOutsideMatrix": "XPIPE (reserve A1) : 332/332, arrete FAIL CLOSED au runtime"
+    },
+    "shadowA10": {
+      "reviews": 18,
+      "concerned": 7,
+      "findings": 180,
+      "verifiedInTargetedSubset": 70,
+      "citationsRestored": "12/12",
+      "emptiedFindingsRestored": "3/3",
+      "substantiveDrift": false
+    },
+    "aggregation": {
+      "counts": "13/9/7/0/67/10",
+      "PROCESS_QUALIFICATION": "QUALIFIED_WITH_RESERVATIONS",
+      "SCIENTIFICALLY_USABLE": "NO",
+      "scientificDrift": false
+    }
+  },
+  "reservationsTransported": [
+    {
+      "id": "A1",
+      "severity": "MEDIUM",
+      "title": "Le cablage de production de lib/pipeline.js n'a aucune couverture comportementale",
+      "detail": "Mutant XPIPE (ordre de cibles divergent entre l'adaptateur et le lot gele, texte des deux lignes de cablage inchange) : 332/332, SURVIVANT. R1-06 est une assertion de texte source et ne peut rien prouver (lecon de M4c). Mitigation MESUREE : au runtime le defaut est arrete fail closed par DOCUMENT_AUTHORITY_CONTEXT_DIVERGENCE (fatal) — aucune permutation silencieuse. Correctif possible, non fait ici : un test qui execute reellement le chemin aval de lib/pipeline.js avec au moins 2 cibles.",
+      "ownerDisposition": "ACCEPTED_FOR_FREEZE_AND_SMOKE",
+      "ownerMotive": "Le defaut simule (XPIPE) est arrete FAIL CLOSED au runtime par DOCUMENT_AUTHORITY_CONTEXT_DIVERGENCE ; aucune permutation silencieuse n'est demontree. A observer operationnellement pendant le smoke (inspection MANUELLE des couples targetId / documentAuthoritySha256, cf. plan de smoke)."
+    },
+    {
+      "id": "A2",
+      "severity": "MEDIUM",
+      "title": "Mode « autorite fournie sans carte canonique » : garde d'identite inactive",
+      "detail": "Si createReviewAdapter recoit documentAuthority SANS targetDocuments, seules subsistent la garde de point fixe et la garde de prefixe. Mesure : une autorite SURLONGUE (document canonique + suffixe) est alors ACCEPTEE, sans aucune garde. Non atteignable depuis lib/pipeline.js (unique site d'appel runtime, qui ne passe jamais documentAuthority) ; atteignable par tout appelant tiers, outil, ou test/test-v1014-normalized-authority.js.",
+      "ownerDisposition": "ACCEPTED_NON_RUNTIME_PATH",
+      "ownerMotive": "Non atteignable depuis lib/pipeline.js, SEUL site d'appel runtime actuel. Cette conclusion n'est PAS elargie a d'eventuels futurs appelants : tout nouvel appelant de createReviewAdapter doit passer targetDocuments, sans quoi la garde d'identite est inactive."
+    },
+    {
+      "id": "A3",
+      "severity": "LOW",
+      "title": "Couverture mince du mutant M7",
+      "detail": "documentAuthoritySha256 calcule sur la mauvaise cible : 331/332, tue par UN SEUL test (R1-01). L'invariant « empreinte de registre == autorite reellement utilisee » ne tient qu'a une assertion.",
+      "ownerDisposition": "TEST_COVERAGE_RESERVATION",
+      "ownerMotive": "Le mutant « documentAuthoritySha256 calcule sur la mauvaise cible » n'est tue que par R1-01 : l'invariant « empreinte de registre == autorite reellement utilisee » ne tient qu'a une seule assertion."
+    },
+    {
+      "id": "A4",
+      "severity": "LOW",
+      "title": "Rupture de compatibilite du registre avec les runs <= v1.0.14 (consequence economique reelle)",
+      "detail": "Toute entree sans targetId est refusee quand la cible est exigee (mesure). Une reprise ou un replay d'un run existant sous v1.0.15 regenererait TOUTES les revues, avec appels fournisseur factures. Comportement fail closed correct, mais non annonce par l'auteur.",
+      "ownerDisposition": "EXPECTED_FAIL_CLOSED_BREAKING_COMPATIBILITY",
+      "ownerMotive": "Consequence explicitement assumee : une reprise ou un replay d'un run cree sous <= v1.0.14 sous v1.0.15 peut necessiter de NOUVEAUX appels fournisseur, factures. Ce n'est PAS une migration transparente et ne doit jamais etre presentee comme telle."
+    },
+    {
+      "id": "A5",
+      "severity": "LOW",
+      "title": "lib/stage-report.js est un 4e fichier runtime modifie, hors de la liste du mandat",
+      "detail": "Declare par l'auteur, absent de la liste attendue par le proprietaire. Mesure : semantiquement inerte — rapport utilisateur byte-identique v1.0.14 / v1.0.15 sur les intrants reels du run A10 (memes counts 13/9/7/0/67/10, meme headline, meme reportHash recalcule).",
+      "ownerDisposition": "AUDITED_SEMANTICALLY_INERT",
+      "ownerMotive": "Correction factuelle conservee au dossier : lib/stage-report.js est bien un 4e fichier runtime modifie, absent de la liste du mandat. Mesure de l'auditeur : rapport utilisateur byte-identique v1.0.14 / v1.0.15 sur les intrants reels du run A10 (counts 13/9/7/0/67/10, headline et reportHash recalcule identiques)."
+    },
+    {
+      "id": "A6",
+      "severity": "LOW",
+      "title": "Divergence latente d'attribution d'identifiant de cible",
+      "detail": "TI.targetIdOf honore un targetId porte par le document ; lib/stage-professionals.js (gele par contrat) ne l'honore pas. Mesure : target-05 contre target-01. Non atteignable aujourd'hui (aucun document cible ne porte de targetId en production, verifie sur le run reel efm-20260918-a64167c0). A rouvrir si un jour un document cible en portait un.",
+      "ownerDisposition": "TRANSPORTED_AS_IS",
+      "ownerMotive": "A rouvrir si un document cible venait un jour a porter un targetId."
+    },
+    {
+      "id": "A7",
+      "severity": "LOW",
+      "title": "Etiquetage des cibles dans le rapport — defaut PREEXISTANT, non introduit par v1.0.15",
+      "detail": "stage-report indexe targetLabels sur executionMission.targetDocuments (9 documents bruts au run A10), alors que les cibles de revue viennent de buildReviewTargets (1 cible dossier). En mode MISSION_DOSSIER, target-01 porte le titre du premier document brut au lieu de « Dossier de mission (N documents) ». Cosmetique, identique en v1.0.14.",
+      "ownerDisposition": "TRANSPORTED_AS_IS",
+      "ownerMotive": "Defaut PREEXISTANT, identique en v1.0.14 ; non introduit par v1.0.15."
+    },
+    {
+      "id": "A8",
+      "severity": "LOW",
+      "title": "Reserves heritees, transportees et non traitees",
+      "detail": "R5 v1.0.14 (REGISTRY_IMPORT_AUTHORITY_MISSING pratiquement inatteignable) ; R6 v1.0.14 — VERIFIE TOUJOURS OUVERT : dans reviewCall, la branche if (isTargeted || !st.ctx) n'appelle requireAuthority que si isTargeted && st.ctx, donc une passe ni base ni ciblee avec contexte illisible ne verifie pas l'autorite (inatteignable depuis le pipeline de production) ; R7 (comptage d'identifiants : RI-01..RI-03 et RI-04..RI-07 sont 2 lignes pour 7 identifiants annonces — le total 332 reste honnete) ; R-A3, R-A5, R-A6.",
+      "ownerDisposition": "TRANSPORTED_AS_IS",
+      "ownerMotive": "Reserves heritees v1.0.14 (R5, R6 verifie TOUJOURS OUVERT, R7) et R-A3 / R-A5 / R-A6 : non traitees, hors portee exclusive R1/R2/R4."
+    },
+    {
+      "id": "A9",
+      "severity": "EXPECTED",
+      "title": "Limites reconnues",
+      "detail": "Aucun run reel, aucun smoke, aucun zip canonique produit pour v1.0.15. Les garanties sont de code et de test.",
+      "ownerDisposition": "TRANSPORTED_AS_IS",
+      "ownerMotive": "Limites reconnues : aucun run reel, aucun smoke, aucun zip canonique ; garanties de CODE et de TEST uniquement."
+    },
+    {
+      "id": "A10",
+      "severity": "GOVERNANCE",
+      "title": "La candidate a ete commitee et poussee PENDANT l'audit",
+      "detail": "Commit 6bccae02e905b81d17e762ce10f78f0483a4437c « audit », auteur 11drumboy11 <11drumboy11@gmail.com>, Tue Sep 22 22:10:40 2026 +0200, 173 fichiers, uniquement le dossier MONOLITH-v1.0.15/ ; origin/main pointe dessus. La premisse « non commitee » du mandat n'est plus vraie. Ce commit n'est PAS le fait de l'auditeur ; le contenu commite est byte-identique a ce qui a ete audite (arbre de travail propre sur tools/EvidenceForge). Par ailleurs une modification non commitee et sans rapport avec EvidenceForge preexiste dans le depot : ' M Worker/index.js' (code Cloudflare Worker / RAG), non touchee par l'audit.",
+      "ownerDisposition": "ACKNOWLEDGED_IN_D4",
+      "ownerMotive": "Gouvernance : v1.0.15 a ete commitee et poussee PENDANT l'audit (commit 6bccae02, 173 fichiers, uniquement MONOLITH-v1.0.15/), fait du proprietaire et non de l'auditeur ; le contenu commite est byte-identique au contenu audite. D4 : ne pas reecrire l'historique, ne pas amend, ne pas reset, ne pas recommitter les fichiers deja suivis."
+    },
+    {
+      "id": "A11",
+      "severity": "COSMETIC",
+      "title": "Ecarts factuels mineurs",
+      "detail": "(a) MONO-11/v0.4 ne contient PAS de MONO-11-v0.4-FREEZE-RECORD.json (seulement MONO-11-v0.4-INDEPENDENT-FREEZE-AUDIT.json/.md) ; MANIFEST.json, SHA256SUMS.txt et core/run-seal-guard.js (assertSealedRuntime) sont bien presents. (b) Ecart 171 / 173 fichiers du secret scan, explique par les deux fichiers de rapport de l'auteur ecrits apres son scan.",
+      "ownerDisposition": "TRANSPORTED_AS_IS",
+      "ownerMotive": "Ecarts factuels mineurs releves par l'auditeur (absence de MONO-11-v0.4-FREEZE-RECORD.json ; ecart 171/173 fichiers du secret scan explique par les deux rapports ecrits apres le scan de l'auteur)."
+    }
+  ],
+  "reservationsCount": 11,
+  "ownerDecisions": {
+    "D1": "FREEZE_WITH_RESERVATIONS",
+    "D2": "transport integral des 11 reserves avec dispositions",
+    "D3": "manifeste runtime audite conserve (169) ; audits hors manifeste ; FREEZE RECORD + GOVERNANCE.SHA256SUMS",
+    "D4": "commit borne des artefacts d'audit et de gel, strictement sous MONOLITH-v1.0.15/ ; ne pas reecrire l'historique du commit 6bccae02 ; ne jamais stager Worker/index.js",
+    "D5": "KEEP_CURRENT — ACTIVE_VERSION reste MONOLITH-v1.0.10",
+    "D6": "DO_NOT_OPEN_NEW_PREEMPTIVE_FIX — pas de v1.0.16 avant le smoke, sauf blocker factuel",
+    "D7": "SMOKE_AUTHORIZED_WITH_CONDITIONS — plan borne d'abord, aucune depense avant validation proprietaire"
+  },
+  "activeVersion": {
+    "value": "MONOLITH-v1.0.10",
+    "changed": false,
+    "decision": "D5 = KEEP_CURRENT"
+  },
+  "historicalRun": {
+    "runId": "efm-20260918-a64167c0",
+    "modified": false,
+    "evidence": "auditeur : 0 ecriture (assertion de mtimes dans T-EF03B-35 et git status propre)"
+  },
+  "governanceSums": "EVIDENCEFORGE-v1.0.15-GOVERNANCE.SHA256SUMS.txt",
+  "prohibitions": {
+    "doNotActivate": true,
+    "doNotSmokeWithoutApprovedPlan": true,
+    "doNotRewriteHistory": true,
+    "doNotTouchWorkerIndexJs": true,
+    "doNotModifyFrozenLots": true,
+    "doNotModifyD103": true,
+    "doNotModifyHistoricalRun": true,
+    "doNotOpenV1016BeforeSmoke": true
+  },
+  "commit": {
+    "contentCommit": "6bccae02",
+    "note": "173 fichiers, uniquement MONOLITH-v1.0.15/, pousse pendant l'audit par le proprietaire ; contenu byte-identique au contenu audite",
+    "governanceCommitMessage": "freeze(evidenceforge): v1.0.15 target authority identity baseline"
+  }
+}

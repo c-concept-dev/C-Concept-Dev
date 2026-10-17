@@ -1,0 +1,42 @@
+[
+  {
+    "mutant": "M19-01",
+    "killed": true,
+    "error": "ifError got unwanted exception: [LLM_PROVIDER_UNAVAILABLE] appel LLM echoue : EXTERNAL_OUTCOME_UNKNOWN: aucune nouvelle tentative automatique autorisée."
+  },
+  {
+    "mutant": "M19-02",
+    "killed": true,
+    "error": "ifError got unwanted exception: [LLM_PROVIDER_UNAVAILABLE] appel LLM echoue : Toutes les tentatives (2) ont échoué pour le provider \"llm-worker\" — dernière erreur : EXTERNAL_TIMEOUT."
+  },
+  {
+    "mutant": "M19-03",
+    "killed": true,
+    "error": "Expected values to be strictly equal:\n\n2 !== 1\n"
+  },
+  {
+    "mutant": "M19-04",
+    "killed": true,
+    "error": "VIRTUAL_CLOCK_UNSETTLED"
+  },
+  {
+    "mutant": "M19-05",
+    "killed": true,
+    "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ {\n+   cacheReadUsd: 0,\n+   cacheWriteUsd: 0,\n+   inputUsd: 0,\n+   outputUsd: 0,\n+   totalUsd: 0\n+ }\n- null\n"
+  },
+  {
+    "mutant": "M19-06",
+    "killed": true,
+    "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'SUCCESS'\n- 'FAILED'\n"
+  },
+  {
+    "mutant": "M19-07",
+    "killed": true,
+    "error": "Expected values to be strictly deep-equal:\n+ actual - expected\n\n  {\n+   max_tokens: 1,\n-   max_tokens: 4096,\n    messages: [\n      {\n        content: 'untouched prompt',\n        role: 'user'\n      }\n"
+  },
+  {
+    "mutant": "M19-08",
+    "killed": true,
+    "error": "Expected values to be strictly equal:\n\n2 !== 1\n"
+  }
+]

@@ -117,7 +117,18 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
 
     dire("Lecture du document");
 
+    // Combien de pages le document porte, su avant d'en lire une. On le garde pour pouvoir dire
+    // à la fin si ce qui est revenu correspond à ce qu'il y avait à lire.
+    let pagesDuDocument: number | undefined;
+
     const traite = await instantaneDeLot({
+      surTotal: (total) => {
+        pagesDuDocument = total;
+        dire(`${total} pages dans le document`);
+      },
+      // Chaque phase au journal : un moteur devenu muet doit laisser derrière lui où il en
+      // était, sinon la recherche porte sur tout le traitement à la fois (JOB-07).
+      surPhase: (phase) => dire(phase),
       pdf: charge.document,
       medias: charge.medias,
       recette: charge.recette,
@@ -155,6 +166,44 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
         }),
     });
 
+    // Un document qui porte des pages et dont la chaîne n'en a lu **aucune** n'est pas traité :
+    // il est illisible par ce chemin. Le dire franchement, et laisser le document à vérifier,
+    // vaut mieux qu'un « terminé » sur un résultat vide — un succès qui ne produit rien passe
+    // les contrôles, part dans la bibliothèque, et ne se découvre qu'à la recherche.
+    //
+    // La question ne se pose que si l'on sait combien de pages il y avait : un format sans
+    // pages fixes n'émet aucun total, et zéro page y est la vérité, non une panne.
+    // Deux chemins mènent à un document lu, et il suffit qu'un seul aboutisse.
+    //
+    // Les **pages** viennent de la chaîne d'images : elle ne voit que les pages portant une
+    // image, donc aucune sur un document natif. Les **passages** viennent de la lecture du
+    // texte, qui sert un natif entièrement. Exiger les premières condamnerait tout document
+    // natif ; n'exiger ni l'une ni l'autre laisserait passer le résultat vide.
+    const lues = traite.resultat.pages.length;
+    const passages = traite.passages.length;
+    if (pagesDuDocument !== undefined && pagesDuDocument > 0 && lues === 0 && passages === 0)
+      return echec(
+        demande.travailId,
+        `Aucune des ${pagesDuDocument} pages de ce document n’a pu être lue, ni par sa couche texte ni par reconnaissance : cette manière de lire ne lui convient pas.`,
+        false,
+      );
+
+    // Deux unités dans une phrase : on les nomme toutes les deux, et le total des trois
+    // nombres de pages se vérifie contre le nombre de pages du document.
+    const parPage = traite.lecture.parLaCouche + traite.lecture.parOcr + traite.lecture.sansTexte;
+    dire(
+      `${passages} passage(s), tirés de ${parPage} page(s) : ${traite.lecture.parLaCouche} par la ` +
+        `couche texte, ${traite.lecture.parOcr} par reconnaissance, ${traite.lecture.sansTexte} sans texte`,
+    );
+    const illisibles = traite.passages.filter((p) => !p.lisible).length;
+    if (illisibles > 0) dire(`${illisibles} passage(s) de qualité basse, indexés et marqués`, "avertissement");
+    // Avant l'indexation, et en avertissement : c'est une décision à prendre, pas une panne.
+    for (const filigrane of traite.filigranes)
+      dire(
+        `« ${filigrane.adresse} » revient sur ${filigrane.pages} page(s) sur ${traite.passages.length} ` +
+          `(${(filigrane.part * 100).toFixed(0)} %) : vraisemblablement un tampon de numérisation.`,
+        "avertissement",
+      );
     dire(`${traite.vue.pages.length} pages, ${traite.vue.aVerifier} cas à vérifier`);
     emettre?.({ type: "progression", protocole: VERSION_PROTOCOLE, travailId: demande.travailId, progression: 1 });
 

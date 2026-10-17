@@ -138,7 +138,10 @@ fn main() -> ExitCode {
 
     // Ce que la version active contient. C'est elle que les écrans liront.
     let depot = Depot::ouvrir(&bibliotheque).expect("dépôt");
-    match depot.charge_active() {
+    // Une entrée par document : ce banc n'en traite qu'un à la fois, donc la première est la
+    // sienne.
+    let empreinte = depot.actives().unwrap_or_default().keys().next().cloned().unwrap_or_default();
+    match depot.charge_active(&empreinte) {
         Ok(Some(charge)) => {
             let lu: serde_json::Value = serde_json::from_str(&charge).unwrap_or_default();
             let vue = &lu["vue"];

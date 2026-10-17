@@ -21,6 +21,7 @@ pub mod reglages;
 pub mod roulement;
 pub mod traitement;
 pub mod travail;
+pub mod volume;
 
 use std::{
     path::{Path, PathBuf},
@@ -299,16 +300,57 @@ fn lire_maniere(racine: String) -> Result<Option<String>, String> {
 /// de Vite. Sur le bureau il n'y en a pas : après un traitement, Vérifier et le Lecteur
 /// n'avaient donc rien à montrer — alors que le dépôt, lui, avait tout.
 ///
-/// Rien si aucune version n'est active : ce n'est pas une panne, c'est une bibliothèque qui n'a
-/// encore rien traité.
+/// Rien si ce document n'a aucune version active : ce n'est pas une panne, c'est un document
+/// qui n'a pas encore été traité.
+///
+/// Le document est désigné par l'empreinte de sa source. Sans elle, on rendait « la » version
+/// active de la bibliothèque — ce qui n'avait de sens que tant qu'elle n'en portait qu'une.
 #[tauri::command]
-fn vue_de_bibliotheque(racine: String) -> Result<Option<serde_json::Value>, String> {
+fn vue_de_document(racine: String, empreinte: String) -> Result<Option<serde_json::Value>, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
-    let Some(charge) = depot.charge_active().map_err(|e| format!("Version active illisible : {e}"))? else {
+    let Some(charge) = depot
+        .charge_active(&empreinte)
+        .map_err(|e| format!("Version active illisible : {e}"))?
+    else {
         return Ok(None);
     };
     let lu: serde_json::Value = serde_json::from_str(&charge).map_err(|e| format!("Version active illisible : {e}"))?;
     Ok(Some(lu["vue"].clone()))
+}
+
+/// Ce que le Catalogue lit : **une projection légère** de tous les documents (B5).
+///
+/// Une projection, jamais une concaténation. Mesuré : 1,10 Mo par version — à deux cent
+/// cinquante documents, les assembler voudrait dire lire deux cent soixante-quinze mégaoctets
+/// pour afficher une liste de titres. On ne rend donc que ce qu'un catalogue montre : le
+/// document, sa version active, ses compteurs, et ce qui reste à vérifier.
+///
+/// Aucune logique d'activation n'est reprise ici : cette commande **consulte** ce que
+/// l'activation a écrit. C'est la différence entre lire un index et le tenir.
+#[tauri::command]
+fn apercu_de_bibliotheque(racine: String) -> Result<Vec<serde_json::Value>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let actives = depot.actives().map_err(|e| format!("Versions actives illisibles : {e}"))?;
+
+    let mut apercus = Vec::with_capacity(actives.len());
+    for (empreinte, pointeur) in actives {
+        // Une version absente ne fait pas échouer l'aperçu des autres : on la saute, et le
+        // document paraîtra simplement sans compteurs. Refuser tout le catalogue parce qu'un
+        // fichier manque serait perdre deux cent quarante-neuf documents pour un.
+        let Some(charge) = depot.lire_version(&pointeur.version).map_err(|e| format!("Version illisible : {e}"))? else {
+            continue;
+        };
+        let Ok(lu) = serde_json::from_str::<serde_json::Value>(&charge) else { continue };
+        apercus.push(serde_json::json!({
+            "empreinte": empreinte,
+            "version": pointeur.version,
+            "activeeLe": pointeur.activee_le,
+            "nom": lu["vue"]["nom"].clone(),
+            "compteurs": lu["vue"]["compteurs"].clone(),
+            "aVerifier": lu["vue"]["aVerifier"].clone(),
+        }));
+    }
+    Ok(apercus)
 }
 
 /// L'image d'une page, à la demande.
@@ -335,12 +377,12 @@ fn image_de_page(racine: String, version: String, fichier: String) -> Result<Opt
     }
 }
 
-/// La version active d'une bibliothèque, pour savoir où prendre ses images.
+/// La version active d'un document, pour savoir où prendre ses images.
 #[tauri::command]
-fn version_active(racine: String) -> Result<Option<String>, String> {
+fn version_active(racine: String, empreinte: String) -> Result<Option<String>, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     depot
-        .version_active()
+        .version_active(&empreinte)
         .map(|pointeur| pointeur.map(|p| p.version))
         .map_err(|e| format!("Version active illisible : {e}"))
 }
@@ -494,7 +536,8 @@ fn lancer(captures: bool) {
             essayer_maniere,
             enregistrer_maniere,
             lire_maniere,
-            vue_de_bibliotheque,
+            vue_de_document,
+            apercu_de_bibliotheque,
             image_de_page,
             version_active,
             faire_tourner,

@@ -1,0 +1,50 @@
+{
+  "schema": "EvidenceForge.MonolithBrowserTestResults",
+  "version": "MONOLITH-v1.0.17",
+  "ranAt": "2026-10-09T14:21:02.437Z",
+  "total": 10,
+  "passed": 10,
+  "failed": 0,
+  "results": [
+    {
+      "name": "serveur v1.0.17 : /api/config version",
+      "ok": true
+    },
+    {
+      "name": "API gate : evaluation des livrables (4 non produits, reconnaissance requise)",
+      "ok": true
+    },
+    {
+      "name": "UI Porte 1 : « Livrables demandés » liste 4 « NON PRODUIT » (avec raison) et des livrables « produit » ; case de reconnaissance visible et decochee",
+      "ok": true
+    },
+    {
+      "name": "UI Porte 1 : confirmer SANS cocher => refus affiche (reconnaissance exigee), aucun plan confirme",
+      "ok": true
+    },
+    {
+      "name": "UI Porte 1 : apres reconnaissance, la requete porte l'empreinte affichee (le refus de reconnaissance disparait ; la suite releve de la porte historique)",
+      "ok": true
+    },
+    {
+      "name": "aucune exception console (porte 1)",
+      "ok": true
+    },
+    {
+      "name": "UI run INCOMPLETE_DELIVERABLES : statut « livrable(s) accepté(s) manquant(s) », rapport charge, section « Livrables demandés » (MISSION_DELIVERABLES = INCOMPLETE, 4 non produits par conception), reprise masquee",
+      "ok": true
+    },
+    {
+      "name": "aucune exception console (run incomplet)",
+      "ok": true
+    },
+    {
+      "name": "UI rapport ANTERIEUR (sans missionDeliverables) : rendu inchange, aucune section « Livrables demandés »",
+      "ok": true
+    },
+    {
+      "name": "aucune exception console (rapport anterieur)",
+      "ok": true
+    }
+  ]
+}

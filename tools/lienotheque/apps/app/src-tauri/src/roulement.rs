@@ -13,6 +13,13 @@
 //! **La pause est une décision, pas une panne.** Elle s'écrit dans le fichier du travail ; le fil
 //! qui le mène la voit au message suivant, arrête le moteur proprement et rend la place. Aucun
 //! délai ne lève une pause : elle attend une reprise explicite (JOB-08).
+//!
+//! **Le volume absent n'est l'échec de personne.** Une bibliothèque peut vivre sur un disque
+//! externe, et un disque s'absente. Avant chaque tour, le roulement demande au volume s'il est
+//! là ; s'il ne l'est pas, il **suspend** : il ne prend aucun travail, n'en fait échouer aucun,
+//! ne consomme aucune tentative, et retente au tour suivant. Dès que le volume répond, il repart
+//! sans qu'on ait rien à relancer. Et un travail interrompu par cette absence revient
+//! « en file », pas « en échec » — il n'a pas échoué, il n'a pas pu travailler.
 
 use crate::{
     depot::Depot,
@@ -22,9 +29,11 @@ use crate::{
     moteur::{Lancement, Message, Session},
     traitement::Emplacements,
     travail::{self, Travail},
+    volume::{self, Presence},
 };
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
+    fs,
     path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -40,6 +49,22 @@ const PAS: Duration = Duration::from_millis(1000);
 /// Le nom du fichier qui porte la manière de lire d'une bibliothèque.
 pub const RECETTE: &str = "recette.json";
 
+/// Qui se lit comment, quand une bibliothèque a plusieurs manières de lire.
+///
+/// Une bibliothèque d'un seul tenant n'en a qu'une, et `recette.json` suffit. Un corpus
+/// rassemblé au fil des ans n'a pas cette chance : des pages natives, des livres photographiés
+/// une page ou deux par feuille, des feuillets sans pagination suivie. Leur appliquer une seule
+/// manière de lire reviendrait à chercher un numéro là où il n'y en a pas, et à n'en lire qu'un
+/// là où la feuille en porte deux.
+///
+/// L'affectation est une **donnée** — un objet qui associe le nom d'un document à l'identifiant
+/// de sa manière de lire — et non une branche de code. Absente, rien ne change : `recette.json`
+/// reprend son rôle, et une bibliothèque d'un seul tenant ignore que ceci existe.
+pub const MANIERES: &str = "manieres.json";
+
+/// Où vivent les manières de lire nommées.
+pub const RECETTES: &str = "recettes";
+
 pub struct Roulement {
     depot: Depot,
     emplacements: Emplacements,
@@ -49,6 +74,9 @@ pub struct Roulement {
     /// monde ; cet ensemble protège du cas où un bail n'a pas encore été relu.
     menes: Mutex<HashSet<String>>,
     arret: AtomicBool,
+    /// Vrai tant que le volume de la bibliothèque ne répond pas. Ce n'est pas une panne et ce
+    /// n'est pas une pause décidée : c'est une attente, et elle se lève d'elle-même.
+    suspendu: AtomicBool,
 }
 
 impl Roulement {
@@ -61,6 +89,7 @@ impl Roulement {
             cache,
             menes: Mutex::new(HashSet::new()),
             arret: AtomicBool::new(false),
+            suspendu: AtomicBool::new(false),
         });
         let fil = Arc::clone(&roulement);
         std::thread::spawn(move || fil.boucler());
@@ -77,10 +106,41 @@ impl Roulement {
         self.arret.load(Ordering::Relaxed)
     }
 
+    /// Le dossier de la bibliothèque répond-il ?
+    ///
+    /// Posée à chaque tour, et pas une fois au démarrage : un disque s'absente en cours de route,
+    /// c'est tout l'objet. La réponse est gardée pour que l'écran puisse la montrer en mots.
+    ///
+    /// Depuis le lot E2 ce dossier porte la base et la file, et il vit sur le disque interne : son
+    /// absence relève donc de `Role::Base`, qui ne se suspend pas. Les dérivés, eux, peuvent vivre
+    /// ailleurs, et c'est `presence_des_derives` qui les regarde.
+    pub fn presence(&self) -> Presence {
+        volume::demander(self.depot.racine(), &volume::marque(&self.appareil, travail::maintenant()))
+    }
+
+    /// Vrai tant que le volume manque. L'écran s'en sert pour dire « le traitement reprendra ».
+    pub fn suspendu(&self) -> bool {
+        self.suspendu.load(Ordering::Relaxed)
+    }
+
     fn boucler(self: Arc<Self>) {
         while !self.arrete() {
-            if let Err(e) = self.un_tour() {
-                eprintln!("roulement : {e}");
+            match self.presence() {
+                Presence::La => {
+                    // Le volume était-il parti ? On le dit, parce qu'une reprise silencieuse
+                    // laisse croire qu'il ne s'est rien passé.
+                    if self.suspendu.swap(false, Ordering::Relaxed) {
+                        eprintln!("roulement : le volume est revenu, le traitement reprend");
+                    }
+                    if let Err(e) = self.un_tour() {
+                        eprintln!("roulement : {e}");
+                    }
+                }
+                Presence::Absent(pourquoi) => {
+                    if !self.suspendu.swap(true, Ordering::Relaxed) {
+                        eprintln!("roulement : volume absent ({pourquoi}) — suspension, aucun travail n'échoue");
+                    }
+                }
             }
             std::thread::sleep(PAS);
         }
@@ -102,10 +162,9 @@ impl Roulement {
                 return Ok(());
             }
 
-            let mut parti = prochain.clone();
-            parti.battre(&self.appareil, maintenant, travail::expiration_secondes());
-            parti.etat = "en_cours".to_owned();
-            parti.maj_le = maintenant;
+            // Prendre en charge passe par la porte commune : une reprise d'échec récupérable
+            // consomme une tentative, qu'elle vienne de l'écran ou de la file.
+            let parti = file::prendre(prochain, &self.appareil, maintenant);
             travail::enregistrer(&dossier.join(format!("{}.json", parti.id)), &parti)?;
             self.menes.lock().expect("ensemble des travaux menés").insert(parti.id.clone());
 
@@ -178,6 +237,9 @@ impl Roulement {
         let mut courant = depart.clone();
         let mut recu: Option<String> = None;
         let mut rate: Option<(String, bool)> = None;
+        // Ce qu'on a entendu avant le silence, pour pouvoir le dire si le moteur se taît.
+        let mut vus: usize = 0;
+        let mut dernier: Option<String> = None;
 
         while let Some(message) = session.ecouter() {
             // Une pause demandée depuis l'écran, ou l'application qui ferme : on arrête le moteur
@@ -188,6 +250,19 @@ impl Roulement {
                 self.poser_point(&chemin, &courant, self.arrete());
                 return;
             }
+
+            vus += 1;
+            dernier = Some(match &message {
+                Ok(Message::Salutation { .. }) => "une salutation".to_owned(),
+                Ok(Message::Journal { texte, .. }) => format!("« {} »", &texte[..texte.len().min(60)]),
+                Ok(Message::Progression { point, .. }) => match point {
+                    Some(p) => format!("une progression à {} {}", p.valeur, p.unite),
+                    None => "une progression".to_owned(),
+                },
+                Ok(Message::Resultat { .. }) => "un résultat".to_owned(),
+                Ok(Message::Echec { .. }) => "un échec".to_owned(),
+                Err(refus) => format!("illisible ({})", refus.message()),
+            });
 
             match message {
                 Ok(Message::Salutation { moteur, version, .. }) => noter("information", &format!("Moteur {moteur} {version}")),
@@ -235,7 +310,17 @@ impl Roulement {
 
         let Some(charge) = recu else {
             let fin = session.sortie().unwrap_or_else(|| "encore en vie".to_owned());
-            let raison = format!("Aucun résultat reçu — moteur {fin}. La version précédente reste active.");
+            // Combien de messages avant le silence, et lequel était le dernier.
+            //
+            // « Aucun résultat reçu » laissait chercher dans tout le traitement : on ne savait
+            // pas si le moteur n'avait rien dit du tout, ou s'était tu après trois cents
+            // messages. Les deux mènent à des recherches opposées.
+            let raison = format!(
+                "Aucun résultat reçu — moteur {fin}, après {} message(s), le dernier étant {}. \
+                 La version précédente reste active.",
+                vus,
+                dernier.as_deref().unwrap_or("aucun"),
+            );
             noter("erreur", &raison);
             self.conclure(&chemin, &courant, "echouerRecuperable", Some(raison));
             return;
@@ -246,7 +331,17 @@ impl Roulement {
         let pose = self
             .depot
             .ecrire_version(&courant.version_cible, &charge)
-            .and_then(|_| self.depot.activer(&courant.version_cible, travail::maintenant()));
+            .and_then(|_| match courant.empreinte.as_deref() {
+                // L'empreinte désigne le document dont cette version est la nouvelle active.
+                // Un travail sans empreinte ne peut pas être activé : on ne saurait pas pour
+                // quel document, et activer « pour la bibliothèque » est ce qu'on vient de
+                // quitter (JOB-06).
+                Some(empreinte) => self.depot.activer(empreinte, &courant.version_cible, travail::maintenant()),
+                None => Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Ce travail ne porte pas l’empreinte de son fichier : impossible de dire quel document activer.",
+                )),
+            });
         match pose {
             Ok(()) => {
                 noter("information", "Version écrite et activée");
@@ -280,7 +375,31 @@ impl Roulement {
     }
 
     /// Applique une transition d'échec et enregistre, en passant par la seule porte qui les tient.
+    /// Conclut un travail — sauf si ce qui l'a arrêté est l'absence du volume.
+    ///
+    /// Dans ce cas, le travail n'a pas échoué : **nous n'avons pas pu travailler**. Il revient
+    /// « en file », sans consommer de tentative, et repartira dès que le disque répondra. Sans
+    /// cette distinction, trois tentatives à trente secondes suffisaient à déclarer un document
+    /// définitivement perdu parce qu'un disque s'était absenté une minute et demie.
+    ///
+    /// La question n'est posée que sur le chemin de l'échec : un travail qui s'est terminé l'a
+    /// fait pour de bon, et l'on n'a pas à interroger le disque pour l'écrire.
     fn conclure(&self, chemin: &std::path::Path, courant: &Travail, action: &str, cause: Option<String>) {
+        let echoue = action == "echouerRecuperable" || action == "echouerDefinitif";
+        if echoue {
+            if let Presence::Absent(pourquoi) = self.presence() {
+                self.suspendu.store(true, Ordering::Relaxed);
+                eprintln!("roulement : volume absent ({pourquoi}) — « {} » revient en file, aucune tentative consommée", courant.id);
+                // « reprendre » depuis « en_cours » rend le travail à la file sans toucher au
+                // compteur de tentatives : c'est exactement ce qu'on veut dire.
+                if let Some(mut rendu) = file::appliquer(courant, "reprendre", travail::maintenant()) {
+                    rendu.reprise_possible = true;
+                    rendu.cause = Some(format!("volume absent : {pourquoi}"));
+                    let _ = travail::enregistrer(chemin, &rendu);
+                }
+                return;
+            }
+        }
         let Some(mut apres) = file::appliquer(courant, action, travail::maintenant()) else { return };
         apres.reprise_possible = apres.etat == "en_echec_recuperable";
         apres.cause = cause;
@@ -292,14 +411,48 @@ impl Roulement {
     /// L'hôte la monte mais ne la lit pas : ce qu'elle décrit appartient à l'outil. Il vérifie
     /// seulement que ce qu'elle désigne existe — une demande qui pointe un fichier absent échoue
     /// trois minutes plus tard, et pour une raison qu'on ne comprend plus.
+    /// La manière de lire qui revient à ce document.
+    ///
+    /// Celle que l'affectation lui donne, quand elle en donne une **et** que le fichier existe ;
+    /// sinon celle de la bibliothèque. On ne se rabat jamais en silence sur une manière nommée
+    /// mais absente : ce serait en appliquer une autre, et le résultat aurait l'air juste. On se
+    /// rabat sur celle de la bibliothèque, qui est un défaut assumé, et on le dit.
+    fn maniere_de(&self, empreinte: &str) -> PathBuf {
+        let base = self.depot.racine().join("base");
+        let defaut = base.join(RECETTE);
+        let Ok(texte) = fs::read_to_string(base.join(MANIERES)) else { return defaut };
+        let Ok(affectation) = serde_json::from_str::<HashMap<String, String>>(&texte) else {
+            eprintln!("roulement : {MANIERES} est illisible — on s'en tient à la manière de la bibliothèque");
+            return defaut;
+        };
+        let Some(identifiant) = affectation.get(empreinte) else { return defaut };
+        let nommee = base.join(RECETTES).join(format!("{identifiant}.json"));
+        if nommee.exists() {
+            return nommee;
+        }
+        eprintln!("roulement : « {identifiant} » est affectée à l'empreinte {empreinte} mais introuvable");
+        defaut
+    }
+
     fn charge_de(&self, travail: &Travail) -> Result<serde_json::Value, String> {
         let sujet = travail.sujet.as_ref().ok_or("Ce travail ne désigne aucun fichier.")?;
         let racine = self.depot.racine();
-        let document = racine.join(crate::depot::SOURCES).join(&sujet.nom);
+        // La source se retrouve par son **empreinte**, jamais par son nom.
+        //
+        // Deux documents peuvent porter le même nom dans deux dossiers et n'avoir rien à voir :
+        // ce corpus en contient. Nommés par leur nom, le second écrasait le premier au dépôt, et
+        // l'on traitait deux fois le même fichier en croyant en traiter deux.
+        let empreinte = travail.empreinte.as_deref().ok_or("Ce travail ne porte pas l’empreinte de son fichier.")?;
+        let extension = std::path::Path::new(&sujet.nom)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("bin")
+            .to_lowercase();
+        let document = self.depot.source(empreinte, &extension);
         if !document.exists() {
             return Err(format!("Le fichier « {} » n’est plus dans la bibliothèque.", sujet.nom));
         }
-        let recette = racine.join("base").join(RECETTE);
+        let recette = self.maniere_de(empreinte);
         if !recette.exists() {
             return Err(
                 "Cette bibliothèque n’a pas encore de manière de lire. Apprenez-en une, puis reprenez ce travail."
@@ -327,11 +480,83 @@ mod tests {
     use super::*;
     use std::fs;
 
+    /// Chaque document reçoit **sa** manière de lire, et jamais celle du voisin.
+    ///
+    /// Les quatre cas tiennent ensemble, parce que c'est leur combinaison qui est dangereuse :
+    /// se rabattre en silence sur une autre manière de lire donnerait un résultat d'apparence
+    /// juste — des pages lues, des ancres posées — et faux. Mieux vaut le défaut assumé de la
+    /// bibliothèque, qui se voit, qu'une manière voisine, qui ne se voit pas.
+    #[test]
+    fn chaque_document_recoit_sa_maniere_de_lire() {
+        let bac = bac("manieres");
+        let roul = roulement(bac.clone());
+        let base = bac.join("bibliotheque").join("base");
+        fs::create_dir_all(base.join(RECETTES)).expect("dossiers");
+        fs::write(base.join(RECETTE), b"{}").expect("manière par défaut");
+        fs::write(base.join(RECETTES).join("couchee.json"), b"{}").expect("manière nommée");
+        fs::write(
+            base.join(MANIERES),
+            br#"{"couche.pdf": "couchee", "orpheline.pdf": "jamais-ecrite"}"#,
+        )
+        .expect("affectation");
+
+        // Affectée et présente : c'est elle qu'on prend.
+        assert!(roul.maniere_de("couche.pdf").ends_with("recettes/couchee.json"));
+        // Pas affectée : la manière de la bibliothèque, qui est le défaut assumé.
+        assert!(roul.maniere_de("inconnue.pdf").ends_with(RECETTE));
+        // Affectée mais introuvable : surtout pas une autre. Le défaut, et un mot sur la sortie.
+        assert!(roul.maniere_de("orpheline.pdf").ends_with(RECETTE));
+
+        // Sans affectation du tout, une bibliothèque d'un seul tenant ne change pas de
+        // comportement — c'est la condition pour que ceci n'abîme rien de ce qui marchait.
+        fs::remove_file(base.join(MANIERES)).expect("retrait");
+        assert!(roul.maniere_de("couche.pdf").ends_with(RECETTE));
+        fs::remove_dir_all(&bac).ok();
+    }
+
     fn bac(nom: &str) -> PathBuf {
         let chemin = std::env::temp_dir().join(format!("lienotheque-roulement-{nom}-{}", std::process::id()));
         fs::remove_dir_all(&chemin).ok();
         fs::create_dir_all(&chemin).expect("bac");
         chemin
+    }
+
+    /// Un travail **en vol** quand le volume disparaît revient en file, sans perdre de tentative.
+    ///
+    /// L'épreuve réelle ne montre que l'autre moitié : un travail qui *attendait* n'échoue pas.
+    /// Celui-ci éprouve le chemin de l'échec, qui est le seul endroit où la confusion coûtait
+    /// cher — c'est lui qui transformait une absence d'une minute et demie en document perdu.
+    ///
+    /// Le dépôt pointe un dossier absent ; le fichier du travail, lui, est bien là. C'est
+    /// exactement la situation : la question posée au volume est celle du dépôt, pas celle du
+    /// fichier qu'on est en train d'écrire.
+    #[test]
+    fn un_travail_en_vol_revient_en_file_quand_le_volume_s_absente() {
+        let bac = bac("en-vol");
+        let roul = roulement(bac.clone());
+
+        // On fait disparaître le dossier du dépôt, et on met un fichier à sa place : c'est ce
+        // qu'un point de montage laisse derrière lui quand le volume s'en va, et c'est ce qui
+        // fait échouer la création comme l'écriture.
+        let racine = bac.join("bibliotheque");
+        std::fs::remove_dir_all(&racine).expect("dossier retiré");
+        std::fs::write(&racine, b"un volume qui n'est plus la").expect("obstacle");
+        assert!(!roul.presence().est_la(), "le dépôt devrait être injoignable : {}", racine.display());
+
+        let mut en_cours = Travail::neuf("t-en-vol", "lecture-de-pages", 1);
+        en_cours.etat = "en_cours".to_owned();
+        en_cours.tentative = 2;
+        let chemin = bac.join("t-en-vol.json");
+        travail::enregistrer(&chemin, &en_cours).expect("travail posé");
+
+        roul.conclure(&chemin, &en_cours, "echouerRecuperable", Some("le moteur s'est arrêté".to_owned()));
+
+        let relu = travail::charger(&chemin).expect("lecture").expect("travail relu");
+        assert_eq!(relu.etat, "en_file", "un volume absent a fait échouer un travail en vol");
+        assert_eq!(relu.tentative, 2, "une absence de volume a consommé une tentative");
+        assert!(relu.cause.unwrap_or_default().contains("volume absent"), "la cause ne dit pas pourquoi");
+        assert!(roul.suspendu(), "le roulement devrait s'être suspendu");
+        std::fs::remove_dir_all(&bac).ok();
     }
 
     fn roulement(racine: PathBuf) -> Roulement {
@@ -342,14 +567,27 @@ mod tests {
             cache: racine.join("cache"),
             menes: Mutex::new(HashSet::new()),
             arret: AtomicBool::new(false),
+            suspendu: AtomicBool::new(false),
         }
     }
+
+    /// L'empreinte d'essai : c'est elle qui nomme la source depuis que deux documents peuvent
+    /// porter le même nom sans être le même document.
+    const EMPREINTE: &str = "1111111111111111111111111111111111111111111111111111111111111111";
 
     fn travail_de(nom: &str) -> Travail {
         let mut t = Travail::neuf("0190f0a0-0000-7000-8000-000000000001", "traitement-de-lot", 0);
         t.version_cible = "0190f0a0-0000-7000-8000-0000000000a1".to_owned();
         t.sujet = Some(crate::travail::Sujet { nom: nom.to_owned(), contenu: "documents".to_owned() });
+        t.empreinte = Some(EMPREINTE.to_owned());
         t
+    }
+
+    /// Pose une source là où le dépôt la rangera : sous son empreinte, pas sous son nom.
+    fn poser_source(r: &Roulement, extension: &str) {
+        let chemin = r.depot.source(EMPREINTE, extension);
+        fs::create_dir_all(chemin.parent().expect("palier")).expect("palier");
+        fs::write(chemin, b"x").expect("document");
     }
 
     #[test]
@@ -366,7 +604,7 @@ mod tests {
         let racine = bac("sans-recette");
         let r = roulement(racine.clone());
         fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
-        fs::write(r.depot.racine().join(crate::depot::SOURCES).join("un.pdf"), b"x").expect("document");
+        poser_source(&r, "pdf");
 
         let erreur = r.charge_de(&travail_de("un.pdf")).expect_err("doit refuser");
         assert!(erreur.contains("manière de lire"), "{erreur}");
@@ -380,7 +618,7 @@ mod tests {
         let base = r.depot.racine().join("base");
         fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
         fs::create_dir_all(&base).expect("base");
-        fs::write(r.depot.racine().join(crate::depot::SOURCES).join("un.pdf"), b"x").expect("document");
+        poser_source(&r, "pdf");
         fs::write(base.join(RECETTE), b"{}").expect("recette");
         fs::write(base.join("bibliotheque.json"), b"{}").expect("description");
 

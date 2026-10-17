@@ -1,0 +1,555 @@
+{
+ "schema": "EvidenceForge.ImpactInvariantTestMatrix",
+ "version": "MONOLITH-v1.0.17",
+ "date": "2026-10-02",
+ "impacts": [
+  {
+   "file": "lib/mission-deliverables.js",
+   "change": "NOUVEAU (229 l.) ; correctif B1 : `accepted` invariant, état PARTIAL_BY_DESIGN_ACKNOWLEDGED supprimé",
+   "scope": "registre, évaluation, rapport",
+   "risk": "faux PRODUCED si lexique trop large (R-1)",
+   "coveredBy": "MD-01…10, B1-01…B1-10, M01–M04, M10, M11, M13, M15, M16, M17"
+  },
+  {
+   "file": "lib/pipeline.js",
+   "change": "+54/−7 ; correctif B1 : note de l’acte humain (information, pas renonciation)",
+   "scope": "porte 1 (composition), REPORT, statut terminal, gateView, replay",
+   "risk": "régression de reprise / porte",
+   "coveredBy": "MD-11…17, MD-20, NONREG-04, X0, RUN-SAFETY-*, T-EF03B-26, M05–M09, M12"
+  },
+  {
+   "file": "server.js",
+   "change": "+1/−1",
+   "scope": "2 codes HTTP 400",
+   "risk": "code non mappé ⇒ 500",
+   "coveredBy": "MD-18, V1"
+  },
+  {
+   "file": "index.html",
+   "change": "+24/−8 ; correctif B1 : libellé de la case de reconnaissance (informe, ne retire rien)",
+   "scope": "porte (livrables, case), rapport (section), statut",
+   "risk": "exception UI",
+   "coveredBy": "MD-19, navigateur v1.0.17 10/10, v1.0.5–v1.0.8, M14"
+  },
+  {
+   "file": "lib/cost-view.js",
+   "change": "+2/−2",
+   "scope": "coût définitif et historique pour INCOMPLETE_DELIVERABLES",
+   "risk": "prévision erronée",
+   "coveredBy": "MD-21, COST-*"
+  },
+  {
+   "file": "config/monolith.config.json",
+   "change": "+2/−2",
+   "scope": "version MONOLITH-v1.0.17",
+   "risk": "—",
+   "coveredBy": "V12-18, T-STREAM-20 (adaptés : version seule)"
+  },
+  {
+   "file": "tools/build-manifest.js, tools/package.sh",
+   "change": "+7/−2, nom du zip",
+   "scope": "provenance mesurée (prédécesseur v1.0.16, registre)",
+   "risk": "—",
+   "coveredBy": "build-manifest --verify"
+  },
+  {
+   "file": "test/test-v1017-mission-deliverables.js, tools/browser-tests-v1017.js",
+   "change": "NOUVEAUX",
+   "scope": "MD-01…22, navigateur 10",
+   "risk": "—",
+   "coveredBy": "—"
+  },
+  {
+   "file": "test/test-monolith.js, test-stream.js, test-v1012-lineage-parity.js",
+   "change": "+3/0, +1/−1, +2/−2",
+   "scope": "câblage ; version",
+   "risk": "test affaibli ?",
+   "coveredBy": "V12-18 et T-STREAM-20 : seule la constante de version change"
+  },
+  {
+   "file": "lib/stage-report.js, stage-mission.js, stage-ef01.js, stage-professionals.js, ef03b-resilience.js, llm.js",
+   "change": "INCHANGÉS (byte-identiques v1.0.16)",
+   "scope": "—",
+   "risk": "—",
+   "coveredBy": "MD-20"
+  },
+  {
+   "file": "MONO-01, MONO-09, MONO-10, MONO-11",
+   "change": "INCHANGÉS (gelés)",
+   "scope": "—",
+   "risk": "—",
+   "coveredBy": "I1–I5, MD-20, RUN-SAFETY-19"
+  }
+ ],
+ "invariants": [
+  {
+   "id": "INV-01",
+   "invariant": "Aucun lot gelé modifié",
+   "mechanism": "verifyFrozenLots (sceaux + zips)",
+   "tests": "I1, MD-20, RUN-SAFETY-19",
+   "mutants": "—"
+  },
+  {
+   "id": "INV-02",
+   "invariant": "Porte historique confirmPlan byte-identique (composition)",
+   "mechanism": "extraction de fonction comparée à v1.0.16 et v1.0.4",
+   "tests": "MD-20, NONREG-04",
+   "mutants": "—"
+  },
+  {
+   "id": "INV-03",
+   "invariant": "stage-report.js byte-identique ; hash canonique par sa fonction",
+   "mechanism": "comparaison d’octets ; verifyReportHash",
+   "tests": "MD-10, MD-13, MD-20",
+   "mutants": "M13"
+  },
+  {
+   "id": "INV-04",
+   "invariant": "Aucun livrable non déclaré n’est supposé produit",
+   "mechanism": "fail-closed UNRECOGNIZED / CONDITION / FORM",
+   "tests": "MD-05, MD-06",
+   "mutants": "M03, M11, M15, M16"
+  },
+  {
+   "id": "INV-05",
+   "invariant": "Aucun mapping PROCESS_QUALIFICATION / SCIENTIFICALLY_USABLE → livrable",
+   "mechanism": "invariance métamorphique + lecture statique",
+   "tests": "MD-09",
+   "mutants": "M10"
+  },
+  {
+   "id": "INV-06",
+   "invariant": "Verdict métier jamais produit en v1.0.17",
+   "mechanism": "BUSINESS_VERDICT supported:false",
+   "tests": "MD-02, MD-07, MD-09, MD-22",
+   "mutants": "M01"
+  },
+  {
+   "id": "INV-07",
+   "invariant": "Livrable non garanti ⇒ reconnaissance explicite liée à l’empreinte affichée",
+   "mechanism": "DELIVERABLES_ACK_REQUIRED / _MISMATCH",
+   "tests": "MD-11, MD-18, navigateur",
+   "mutants": "M05, M06, M14"
+  },
+  {
+   "id": "INV-08",
+   "invariant": "Acceptation seulement si liée (empreinte + identité de la confirmation réelle) ; retirée si la porte refuse",
+   "mechanism": "missionDeliverablesForReport ; try/catch",
+   "tests": "MD-11, MD-16",
+   "mutants": "M07, M09"
+  },
+  {
+   "id": "INV-09",
+   "invariant": "Livrable accepté absent ⇒ jamais COMPLETED (INCOMPLETE_DELIVERABLES, terminal)",
+   "mechanism": "statut terminal",
+   "tests": "MD-15, MD-16",
+   "mutants": "M08, M12"
+  },
+  {
+   "id": "INV-10",
+   "invariant": "Livrables non produits toujours visibles (jamais masqués)",
+   "mechanism": "items conservés, statut NOT_PRODUCED_BY_DESIGN",
+   "tests": "MD-14, navigateur",
+   "mutants": "—"
+  },
+  {
+   "id": "INV-11",
+   "invariant": "Preuve de production lue dans le rapport, jamais dans headline",
+   "mechanism": "P_ (preuves)",
+   "tests": "MD-07, MD-09",
+   "mutants": "M04, M10"
+  },
+  {
+   "id": "INV-12",
+   "invariant": "0 appel fournisseur ; run réel non modifié",
+   "mechanism": "fakes ; empreintes avant/après",
+   "tests": "MD-22",
+   "mutants": "—"
+  },
+  {
+   "id": "INV-13",
+   "invariant": "Aucun jeton de cas dans lib/tools/test/config/index/server",
+   "mechanism": "anti-hardcoding-scan",
+   "tests": "T-EF03B-24, SCREEN-COST-16",
+   "mutants": "—"
+  },
+  {
+   "id": "INV-14",
+   "invariant": "ACKNOWLEDGE_UNSUPPORTED_DELIVERABLE n’est pas WAIVE_DELIVERABLE : une reconnaissance n’enlève ni le caractère REQUESTED, ni l’acceptation, et n’autorise jamais COMPLETED",
+   "mechanism": "`accepted` est un invariant (true) de evaluate() ; aucun état « partiel reconnu » ; aucun mécanisme de renonciation",
+   "tests": "MD-08, MD-14, B1-01…B1-10",
+   "mutants": "M17"
+  }
+ ],
+ "tests": {
+  "monolith": {
+   "total": 377,
+   "passed": 377,
+   "failed": 0,
+   "ranAt": "2026-10-02T17:18:25.452Z"
+  },
+  "md": [
+   {
+    "id": "MD-01",
+    "ok": true,
+    "name": "module pur et deterministe : seul `crypto` est requis (ni fs, ni reseau, ni LLM) ; deux evaluations du meme texte sont identiques ; empreintes registre / evaluation stables ; une evaluation alteree est detectee"
+   },
+   {
+    "id": "MD-02",
+    "ok": true,
+    "name": "livrable riche generique : 4 livrables NON garantis (reponse item par item, matrice de decision, verdict, contrat conditionnel au verdict, formes TABLE+JSON) et 6 garantis ; reconnaissance requise"
+   },
+   {
+    "id": "MD-03",
+    "ok": true,
+    "name": "livrable usuel (gabarit du cadrage) : « Analyse documentaire. » / « analyse documentaire par des professionnels reels » => 1 livrable garanti, aucune reconnaissance requise ; livrable vide => 0 livrable"
+   },
+   {
+    "id": "MD-04",
+    "ok": true,
+    "name": "negation : « sans verdict ni score » => exclus (jamais des livrables), traces dans `excluded` ; la mention « n'ont pas participe » reste un livrable (exempte de negation)"
+   },
+   {
+    "id": "MD-05",
+    "ok": true,
+    "name": "fail-closed : un texte non reconnu (« l », « un poeme ») est UNRECOGNIZED_DELIVERABLE, NOT_SUPPORTED, jamais suppose produit"
+   },
+   {
+    "id": "MD-06",
+    "ok": true,
+    "name": "segmentation : « v0.2 » n'est jamais coupe ; condition en tete de clause, en ligne, ou en derniere clause ; un livrable garanti mais conditionnel n'est PAS garanti (CONDITION_NOT_EVALUABLE) ; forme TABLE non produite (FORM_NOT_SUPPORTED), forme JSON produite"
+   },
+   {
+    "id": "MD-07",
+    "ok": true,
+    "name": "evaluate : garanti + preuve => PRODUCED (preuve citee) ; garanti sans preuve (0 revue complete) => NOT_PRODUCED_ERROR ; non garanti => NOT_PRODUCED_BY_DESIGN ; synthese REQUESTED/PRODUCED/NOT_PRODUCED_BY_DESIGN/NOT_PRODUCED_ERROR"
+   },
+   {
+    "id": "MD-08",
+    "ok": true,
+    "name": "acceptation : une reconnaissance (ACK) n'est PAS une renonciation (B1) => un livrable non garanti RECONNU reste accepte et manquant => INCOMPLETE ; sans acceptation (run anterieur) => INCOMPLETE ; reconnaissance partielle => INCOMPLETE (memes identifiants manquants)"
+   },
+   {
+    "id": "MD-09",
+    "ok": true,
+    "name": "AUCUN mapping depuis PROCESS_QUALIFICATION / SCIENTIFICALLY_USABLE : pour toutes les combinaisons (4 statuts x YES/NO, en-tete et qualification), et sans en-tete, les statuts des livrables sont identiques ; le verdict reste NOT_PRODUCED_BY_DESIGN ; le module ne lit jamais `headline`"
+   },
+   {
+    "id": "MD-10",
+    "ok": true,
+    "name": "attachToReport : nouveau rapport verifie (verifyReportHash), champs existants intacts, rapport d'origine non mute ; un rapport sans missionDeliverables (v1.0.16) se verifie toujours"
+   },
+   {
+    "id": "MD-11",
+    "ok": true,
+    "name": "Porte 1 : livrable non garanti sans reconnaissance => DELIVERABLES_ACK_REQUIRED (details listes), ni plan-confirmation ni acceptation ecrite ; empreinte differente => DELIVERABLES_ASSESSMENT_MISMATCH ; identite absente => HUMAN_IDENTITY_REQUIRED et acceptation RETIREE ; gateView expose l'evaluation persistee"
+   },
+   {
+    "id": "MD-12",
+    "ok": true,
+    "name": "Porte 1 (succes, porte historique appelee par composition) : reconnaissance + empreinte => acceptation liee (identite, empreinte, ids reconnus) ; livrable entierement garanti => aucune reconnaissance requise"
+   },
+   {
+    "id": "MD-13",
+    "ok": true,
+    "name": "bout en bout, livrable garanti : COMPLETED ; report.missionDeliverables (origine GATE) tous PRODUCED ; en-tete MISSION_DELIVERABLES = COMPLETE ; reportHash valide ; mission-deliverables.json persiste ; state.summary porte l'etat"
+   },
+   {
+    "id": "MD-14",
+    "ok": true,
+    "name": "bout en bout, livrables non garantis RECONNUS a la porte : INCOMPLETE_DELIVERABLES (B1 : ACK n'est pas une renonciation), MISSION_DELIVERABLES = INCOMPLETE, les 4 restent REQUESTED, acceptes, reconnus et visibles NOT_PRODUCED_BY_DESIGN (jamais masques)"
+   },
+   {
+    "id": "MD-15",
+    "ok": true,
+    "name": "bout en bout, run SANS evaluation de porte (anterieur a v1.0.17) et livrable non garanti : JAMAIS COMPLETED => INCOMPLETE_DELIVERABLES (terminal, rapport conserve et verifie, reserve DELIVERABLES_ASSESSED_AFTER_GATE) ; une nouvelle reprise ne rejoue rien ; replay des revues autorise et archive mission-deliverables.json"
+   },
+   {
+    "id": "MD-16",
+    "ok": true,
+    "name": "acceptation NON liee (identite differente de la confirmation reelle, ou empreinte d'une autre evaluation) : ignoree => tout est accepte => INCOMPLETE_DELIVERABLES + reserve DELIVERABLES_ACCEPTANCE_NOT_BOUND ; evaluation alteree => DELIVERABLES_ASSESSMENT_DRIFT"
+   },
+   {
+    "id": "MD-17",
+    "ok": true,
+    "name": "runs seedes sans reformulation (tests historiques) : 0 livrable declare => COMPLETED inchange, MISSION_DELIVERABLES = NO_DELIVERABLE_DECLARED"
+   },
+   {
+    "id": "MD-18",
+    "ok": true,
+    "name": "serveur : POST /api/runs/:id/confirm-plan sans reconnaissance => 400 DELIVERABLES_ACK_REQUIRED (details) ; GET gate => evaluation des livrables"
+   },
+   {
+    "id": "MD-19",
+    "ok": true,
+    "name": "interface : porte 1 affiche les livrables (produit / NON PRODUIT + raison), case de reconnaissance envoyee avec l'empreinte ; rapport : section « Livrables demandes » ; statut INCOMPLETE_DELIVERABLES libelle, rapport charge, reprise masquee ; script syntaxiquement valide"
+   },
+   {
+    "id": "MD-20",
+    "ok": true,
+    "name": "non-regression par composition : stage-report.js, stage-mission.js, stage-ef01.js et la porte historique `confirmPlan` byte-identiques a v1.0.16 ; lots geles verifies (MONO-01/09/10/11, 0 divergence)"
+   },
+   {
+    "id": "MD-21",
+    "ok": true,
+    "name": "vue de cout : un run INCOMPLETE_DELIVERABLES a un cout definitif (prevision COMPLETE) et compte dans l'historique de reference"
+   },
+   {
+    "id": "MD-22",
+    "ok": true,
+    "name": "rejeu LECTURE SEULE d'un run reel anterieur (EVIDENCEFORGE_MD_REPLAY_RUN ; SKIP sinon) : evaluation retrospective depuis mission.json + report.json, aucun octet du run modifie"
+   },
+   {
+    "id": "B1-01",
+    "ok": true,
+    "name": "livrable REQUESTED + non garanti + RECONNU + non produit => statut final INCOMPLETE_DELIVERABLES (bout en bout, moteur reel, aval factice)"
+   },
+   {
+    "id": "B1-02",
+    "ok": true,
+    "name": "un ACK ne modifie pas le caractere REQUESTED du livrable : requested / requestedStatus identiques avec et sans reconnaissance, et l'evaluation de la porte reste REQUESTED"
+   },
+   {
+    "id": "B1-03",
+    "ok": true,
+    "name": "un ACK ne supprime aucun livrable de acceptedMissing : la liste est identique avec et sans reconnaissance (totale ou partielle)"
+   },
+   {
+    "id": "B1-04",
+    "ok": true,
+    "name": "un ACK seul ne permet JAMAIS COMPLETED si un livrable manque : runMayComplete reste false pour toutes les formes de reconnaissance ; `accepted` est invariant dans le code ; aucun mecanisme de renonciation n'existe"
+   },
+   {
+    "id": "B1-05",
+    "ok": true,
+    "name": "plusieurs livrables, certains produits et un non garanti RECONNU : la partie produite reste PRODUCED, l'ensemble est INCOMPLETE (jamais masque par la reconnaissance)"
+   },
+   {
+    "id": "B1-06",
+    "ok": true,
+    "name": "tous les livrables reellement produits : COMPLETED reste possible (bout en bout) et overall = COMPLETE"
+   },
+   {
+    "id": "B1-07",
+    "ok": true,
+    "name": "l'empreinte de la liste affichee a la porte de plan reste verifiee : gateView expose une evaluation verifiable et persistee, une empreinte etrangere est refusee (DELIVERABLES_ASSESSMENT_MISMATCH), une reconnaissance sans empreinte est refusee"
+   },
+   {
+    "id": "B1-08",
+    "ok": true,
+    "name": "PROCESS_QUALIFICATION ne modifie pas le resultat d'un livrable reconnu : pour les 4 statuts, memes statuts d'items, meme acceptedMissing, meme INCOMPLETE"
+   },
+   {
+    "id": "B1-09",
+    "ok": true,
+    "name": "SCIENTIFICALLY_USABLE ne modifie pas le resultat d'un livrable reconnu : YES / NO / absent => memes statuts, meme acceptedMissing, meme INCOMPLETE"
+   },
+   {
+    "id": "B1-10",
+    "ok": true,
+    "name": "garde de non-retour : l'etat « partiel reconnu » qui autorisait COMPLETED n'existe plus (ni dans le calcul, ni dans les libelles) ; le mutant qui remet ACK => accepted=false est tue par MD-08 / MD-14 / B1-01..B1-05 (preuve de mutation hors suite)"
+   }
+  ]
+ },
+ "mutation": {
+  "method": "copie sœur ZZ-MUT-* dans le bundle, un défaut, suite complète, dossier supprimé",
+  "killed": 17,
+  "total": 17,
+  "results": {
+   "M01-verdict-supported": {
+    "description": "BUSINESS_VERDICT déclaré supported",
+    "killed": true,
+    "failingTests": [
+     "MD-02",
+     "MD-07",
+     "MD-08",
+     "MD-09",
+     "MD-11",
+     "MD-14",
+     "MD-15",
+     "MD-16",
+     "MD-18",
+     "MD-22",
+     "B1-01",
+     "B1-04",
+     "B1-05"
+    ],
+    "total": 377
+   },
+   "M02-no-negation": {
+    "description": "négation ignorée",
+    "killed": true,
+    "failingTests": [
+     "MD-04"
+    ],
+    "total": 377
+   },
+   "M03-unrecognized-supported": {
+    "description": "texte non reconnu classé SUPPORTED",
+    "killed": true,
+    "failingTests": [
+     "MD-05"
+    ],
+    "total": 377
+   },
+   "M04-produced-always": {
+    "description": "preuve de production toujours vraie",
+    "killed": true,
+    "failingTests": [
+     "MD-07"
+    ],
+    "total": 377
+   },
+   "M05-no-ack-check": {
+    "description": "reconnaissance non exigée à la porte",
+    "killed": true,
+    "failingTests": [
+     "MD-11",
+     "MD-18",
+     "B1-07"
+    ],
+    "total": 377
+   },
+   "M06-no-hash-check": {
+    "description": "empreinte de reconnaissance non vérifiée",
+    "killed": true,
+    "failingTests": [
+     "MD-11",
+     "B1-07"
+    ],
+    "total": 377
+   },
+   "M07-acceptance-kept-on-failure": {
+    "description": "acceptation conservée si la porte historique refuse",
+    "killed": true,
+    "failingTests": [
+     "MD-11"
+    ],
+    "total": 377
+   },
+   "M08-always-completed": {
+    "description": "run toujours COMPLETED",
+    "killed": true,
+    "failingTests": [
+     "MD-14",
+     "MD-15",
+     "MD-16",
+     "B1-01"
+    ],
+    "total": 377
+   },
+   "M09-acceptance-unbound": {
+    "description": "acceptation non liée à l’identité de confirmation",
+    "killed": true,
+    "failingTests": [
+     "MD-16"
+    ],
+    "total": 377
+   },
+   "M10-headline-mapping": {
+    "description": "QUALIFIED ⇒ verdict PRODUCED (mapping interdit)",
+    "killed": true,
+    "failingTests": [
+     "MD-09",
+     "B1-08",
+     "B1-09"
+    ],
+    "total": 377
+   },
+   "M11-condition-ignored": {
+    "description": "livrable conditionnel garanti",
+    "killed": true,
+    "failingTests": [
+     "MD-06"
+    ],
+    "total": 377
+   },
+   "M12-incomplete-not-terminal": {
+    "description": "INCOMPLETE_DELIVERABLES non terminal",
+    "killed": true,
+    "failingTests": [
+     "MD-15"
+    ],
+    "total": 377
+   },
+   "M13-hash-not-recomputed": {
+    "description": "reportHash non recalculé",
+    "killed": true,
+    "failingTests": [
+     "MD-10",
+     "MD-13",
+     "MD-14",
+     "MD-15"
+    ],
+    "total": 377
+   },
+   "M14-ui-no-hash": {
+    "description": "interface sans empreinte",
+    "killed": true,
+    "failingTests": [
+     "MD-19"
+    ],
+    "total": 377
+   },
+   "M15-condition-clause-not-merged": {
+    "description": "clause « si … » traitée comme livrable",
+    "killed": true,
+    "failingTests": [
+     "MD-02",
+     "MD-06",
+     "MD-07",
+     "MD-08",
+     "MD-11",
+     "MD-14",
+     "MD-15",
+     "MD-16",
+     "MD-18",
+     "B1-01",
+     "B1-04"
+    ],
+    "total": 377
+   },
+   "M16-form-ignored": {
+    "description": "forme TABLE ignorée",
+    "killed": true,
+    "failingTests": [
+     "MD-06"
+    ],
+    "total": 377
+   },
+   "M17-ack-waives-deliverable": {
+    "description": "**défaut B1 réinjecté** : un ACK redevient une renonciation (accepted=false)",
+    "killed": true,
+    "failingTests": [
+     "MD-08",
+     "MD-14",
+     "B1-01",
+     "B1-02",
+     "B1-03",
+     "B1-04",
+     "B1-05",
+     "B1-08",
+     "B1-10"
+    ],
+    "total": 377
+   }
+  }
+ },
+ "technicalVerdict": "GELABLE (avec réserves R-1…R-10, aucune bloquante) — audit indépendant requis",
+ "subLot": {
+  "id": "B1-FIX",
+  "source": "EVIDENCEFORGE-v1.0.17-INDEPENDENT-AUDIT (blocker B1)",
+  "invariant": "ACKNOWLEDGE_UNSUPPORTED_DELIVERABLE != WAIVE_DELIVERABLE",
+  "filesChanged": [
+   "lib/mission-deliverables.js",
+   "lib/pipeline.js",
+   "index.html",
+   "test/test-v1017-mission-deliverables.js",
+   "CDC-MISSION-CONTRACT-ENFORCEMENT-v1.0.17.md",
+   "MATRICE-IMPACTS-INVARIANTS-TESTS-v1.0.17.md",
+   "MATRICE-IMPACTS-INVARIANTS-TESTS-v1.0.17.json"
+  ],
+  "filesAdded": [],
+  "filesDeleted": []
+ }
+}

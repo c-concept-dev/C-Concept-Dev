@@ -2,7 +2,15 @@ node_modules/
 dist/
 *.log
 .DS_Store
-fixtures/fichiers
+# Les œuvres : jamais dans le dépôt, qui est public (CLAUDE.md, règle 5).
+#
+# Et à **n'importe quelle profondeur**, non pas seulement à l'endroit prévu. Un motif contenant
+# une barre oblique est ancré au dossier de ce fichier : « fixtures/fichiers » ne couvrait donc
+# pas une copie égarée ailleurs. Il en est apparu une de 582 Mo sous « apps/fixtures/ », œuvres
+# sous droits comprises, née d'une copie au mauvais chemin relatif — non ignorée, et à un
+# « git add -A » près d'un dépôt public.
+**/fixtures/fichiers/
+**/fixtures/fichiers
 *.zip
 target/
 **/src-tauri/moteurs/

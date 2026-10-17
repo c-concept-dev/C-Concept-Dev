@@ -1,0 +1,94 @@
+{
+ "schema": "EvidenceForge.FreezeRecord",
+ "version": "v1.0.11",
+ "product": "EvidenceForge MONOLITH",
+ "frozenAt": "2026-09-22T09:37:11+00:00",
+ "frozenBy": "OWNER",
+ "frozenByDecision": "D1 = FREEZE_WITH_RESERVATIONS (Christophe, 2026-09-22)",
+ "status": "FROZEN_WITH_RESERVATIONS",
+ "meaning": {
+  "is": "LITERALIZATION_PATH_FIX = FROZEN (checkpoint technique)",
+  "isNot": "GLOBAL_LINEAGE_PRESERVATION = SOLVED"
+ },
+ "parentVersion": "MONOLITH-v1.0.10",
+ "parentZipSha256": "9f19e639dacdfa9ad113e6b1b2e73da6f5072edb3e11e314925179ffb53774b0",
+ "runtimeManifestHash": "331e2d4ca67503a4953118c0ebf9de8ddbdbb12c49266a9111f76f46435b6a8b",
+ "runtimeContentHash": "04afaac9a3ae88442fc93d1a633ac5a00bc51197d0d00dd17cc5a9db11603fab",
+ "runtimeFileCount": 152,
+ "runtimeSha256SumsHash": "e1708a3cef298984f4880667aa4e77b07ffc6c982a42d2a50e2a2960c8d9f9a1",
+ "adapterSha256": "18739b7aac108f915edef04d53001d33e072c48b8a0f74497e4fca6bc4b76487",
+ "auditReportHash": "2c57ee5f74c114db47e5a88ad881c68ce5f2f772a804b3c5da26503750330e74",
+ "auditReportInRuntimeManifest": true,
+ "independentAuditHash": "afd89eebfe8ad2ebefc2599c6df3bea2e9b44fd22905328222c8d4c1884fadaf",
+ "independentAuditJsonHash": "72ac1a0a2da6bd2feee130d0259fa376b555c3e16b04e44b7d5e52a7772bfaba",
+ "independentAuditInRuntimeManifest": false,
+ "independentAuditVerdict": "V1_0_11_FREEZE_AUDIT_PASS_WITH_RESERVATIONS",
+ "independentAuditRecommendation": "GELER",
+ "independentAuditBlockers": 0,
+ "frozenLots": {
+  "MONO-11": {
+   "version": "v0.3-r1",
+   "canonicalZipSha256": "3c44b397dda0997d0fff6ab4c8e8a8b311430e6a5ac7aeee38149f8349296b0b",
+   "reviewEnforcerSha256Prefix": "42de4c51daa1e33d",
+   "unchanged": true
+  },
+  "MONO-01/09/10": "inchanges (verifyFrozenLots 0 divergence)"
+ },
+ "tests": {
+  "monolith": "274/274",
+  "chunking": "21/21",
+  "secretScan": 0,
+  "antiHardcoding": 0,
+  "manifestVerify": "ok 152",
+  "shadowA10": "70 constats byte-identiques a reviews-restored.json"
+ },
+ "reservations": [
+  {
+   "id": "R1",
+   "label": "TARGETED_REPAIR lineage preservation gap",
+   "detail": "MONO-11 v0.3-r1 review-enforcer : rejectedRefsOf (l.151-156) presente toutes les refs de la dimension fautive comme rejetees ; passe 3 les interdit (l.194) ; recompose (l.234-237) remplace le tableau ; aucun validateur ne detecte une perte ; A10 A5081732198 preserve par le modele seul",
+   "disposition": "consignee ; lot separe MONO-11 v0.3-r2 (HUMAN GATE) — LITERALIZATION_PATH_FIX = FROZEN, GLOBAL_LINEAGE_PRESERVATION != SOLVED"
+  },
+  {
+   "id": "R2",
+   "label": "comportement [] contractuel mais different",
+   "detail": "reparation non litterale ecartee => dimension possiblement [] (valide par contrat : validateur = presente => litterale, jamais >= 1) ; retire localement une passe 2 gelee ; ecart non compte dans la trace",
+   "disposition": "consignee ; a observer au premier run reel"
+  },
+  {
+   "id": "R3",
+   "label": "reutilisation d anciens registres a lignee appauvrie",
+   "detail": "registry.find() ignore schemaVersion : une revue VALID de l ere v1.0.10 (citations perdues) peut etre reutilisee telle quelle (validateur gele OK)",
+   "disposition": "note d exploitation ; aucun run reel avec v1.0.11"
+  },
+  {
+   "id": "R4",
+   "label": "particularite du shadow historique",
+   "detail": "T-EF03B-35 chaine toutes les reparations tracees, y compris une passe 2 que v1.0.11 n aurait pas declenchee ; simulation runtime-fidele byte-identique",
+   "disposition": "consignee"
+  },
+  {
+   "id": "R5",
+   "label": "gestion manifeste / audits",
+   "detail": "le rapport de lot est dans le manifeste runtime (152 fichiers, comme les lots precedents) ; l audit independant et ce FREEZE RECORD sont HORS manifeste runtime (decision D3) ; SHA256SUMS de gouvernance dedie",
+   "disposition": "appliquee : manifeste runtime inchange (contentHash 04afaac9…)"
+  },
+  {
+   "id": "R6",
+   "label": "absence de run fournisseur reel + metrique doublons",
+   "detail": "aucun run reel de validation ; lineagePreservedRefs compte les doublons du brut (informatif)",
+   "disposition": "consignee ; interdiction de run reel avec v1.0.11 (D2)"
+  }
+ ],
+ "activeVersionChanged": false,
+ "activeVersion": "MONOLITH-v1.0.10",
+ "activeVersionDecision": "D2 = DO_NOT_ACTIVATE_V1_0_11 (YES_TARGETED_REPAIR_PATH) ; aucun run reel avec v1.0.11",
+ "nextLot": "MONO-11 v0.3-r2 — TARGETED REPAIR LINEAGE PRESERVATION (D5 = AUTHORIZE_ARCHITECTURE_GATE ; HUMAN GATE avant tout code)",
+ "governanceSums": "EVIDENCEFORGE-v1.0.11-GOVERNANCE.SHA256SUMS.txt",
+ "prohibitions": [
+  "0 appel fournisseur",
+  "0 tentative 11",
+  "0 modification run historique / D103 / v1.0.10 / ACTIVE_VERSION",
+  "0 zip canonique produit (package.sh reconstruirait le manifeste : hors D3)"
+ ]
+}

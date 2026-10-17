@@ -1,0 +1,99 @@
+{
+  "schema": "EvidenceForge.MonolithCandidateRecord",
+  "version": "MONOLITH-v1.0.19",
+  "date": "2026-10-09T14:28:54.001955+00:00",
+  "status": "CANDIDATE",
+  "verdict": "V1.0.19_EF01_TRANSPORT_GELABLE",
+  "frozen": false,
+  "activated": false,
+  "activeVersion": "MONOLITH-v1.0.16",
+  "candidate": "/Users/christophebonnet/Documents/GitHub/C-Concept-Dev/tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.19",
+  "base": {
+    "version": "MONOLITH-v1.0.18",
+    "status": "FROZEN_WITH_RESERVATIONS",
+    "contentHash": "720bb6820422becbfc9b3de093684c2f321ad4f10963da2393702e608737c913",
+    "intact": true
+  },
+  "contentHash": "48af5e2629d93cdd4005bb7920a13dad3b8272789df5f27153727269785774ed",
+  "fileCount": 218,
+  "manifestSha256": "f93bfab2934892fbb1ecd1ccd54a3be06ad4e7850698c26bfe706e3c6845e0d6",
+  "sha256sumsSha256": "4d1ec94b8ccae7dc06dcd8d8fe905c1554650902f784bdcc316e0cd7451dddf4",
+  "policy": {
+    "id": "EF01_TRANSPORT_POLICY_V1",
+    "responseStartTimeoutMs": 180000,
+    "bodyReadTimeoutMs": 90000,
+    "maxAttempts": 2,
+    "backoffMs": 2000,
+    "issueUnknown": "STOP_NO_RETRY"
+  },
+  "tests": {
+    "historical": {
+      "passed": 377,
+      "total": 377
+    },
+    "transport": {
+      "passed": 31,
+      "total": 31
+    },
+    "chunking": {
+      "passed": 21,
+      "total": 21
+    },
+    "browser": {
+      "passed": 75,
+      "total": 75
+    },
+    "createOnly": "PASS",
+    "processRestart": "PASS"
+  },
+  "mutations": {
+    "transportKilled": 8,
+    "transportTotal": 8,
+    "createOnlyKilled": 6,
+    "createOnlyTotal": 6
+  },
+  "protectedFiles": 2430,
+  "protectedDivergences": 0,
+  "providerCallsReal": 0,
+  "providerCostUsdReal": 0,
+  "newRealRun": false,
+  "credentialsRead": false,
+  "appModified": false,
+  "smokeExecuted": false,
+  "commit": null,
+  "push": false,
+  "reservations": [
+    "Offline proof only; independent audit and separate freeze required.",
+    "No deployed Worker latency/configuration attestation; no remote cancellation or billing guarantee.",
+    "Circuit breaker counts logical EF-01 calls; physical departures traced separately.",
+    "No distributed idempotency or atomic trace/ledger transaction across process crash.",
+    "Ledger totals are known-cost sums; null/priced=false/unpriced preserve missing usage.",
+    "Scientific-output retries and explicit resume remain historical; no automatic retry on UNKNOWN."
+  ],
+  "evidence": {
+    "anti-hardcoding-scan.json": "e5d6d0ba705d63987c17ea446b8c340df900e38488606c350d369d7058f5ea7e",
+    "browser-baseline.json": "7220a60cfc1e843fe6fe363b3c8285a9a18f0f32638e1e2949ca2c893b7ec0c4",
+    "browser-baseline.log": "640321e0b032c484b033a4a4721989f563bab1a5d523b13d5f7e334765288e3a",
+    "browser-diagnostic.log": "fb684eab4078d7a803d37fe311b07ca0add4c8ea77f329ea98086e785fa58c24",
+    "browser-v1017.log": "66a95a14691be85e103a48a9ae1102f299c6118006b85053e2da6f299958d86c",
+    "browser-v105.log": "a9271526cf3104e900344e183d6bf4d9f1b83e14c9127b46f6b923cb687c6584",
+    "browser-v106.log": "fc1a7841baba34dfea462ad12489a6903d44db460ddd98922be2d403ca9da2e0",
+    "browser-v107.log": "33da60f61326040171d0597a3636523b4b58dc9515894967c471fbb2285c55e7",
+    "browser-v108.log": "0b6727f48f92d7b784eb54812cdc41c19cc31e6a017b03dfd871614a5d5c20b6",
+    "changes.json": "95af075f9ecd036bfc487452581104277856e49bb48417a574d2186ca39177d0",
+    "chunking.log": "e9bb9a3c3dfb66078f9ff6382b0599d5cc9e756a342c3c41b8582b561c561019",
+    "create-only.log": "07685040f5bb7beaf424cef7fd3450a921a24a040839031aa921f7d573baaf64",
+    "desktop-runtime-verification.json": "d651e5a3a0fab67acf08dd43fc122b07a1d33b4de5a32f558dbde3f777b852f5",
+    "diff-v1018-v1019.patch": "39c9f450c78f3d35efdbded6ac14e3278130596067253a14d9db20752ae87134",
+    "historical.log": "691869403a4e0d8c51cccc598b3efabc2fa1da5ae31e27b5ee590a257324e6d4",
+    "manifest-verification.json": "fd613fb381dd2477d5a38966e01cc0e7e2c1096ac5d4f286dde232f889e992ee",
+    "mutations.json": "c6f2009e1ed4c189687d595f96aaa052d316b53c596b3e88a0bdad7c702c03be",
+    "network-guard-evidence.json": "12de304b4072559e5ac295395679240d4f2b6f6d0759ad59f219c6fda51f3347",
+    "process.log": "8630e1b6b67a62bba2673c84abab72ed8c84a445ee5fe1286cdd60f5ac4eecde",
+    "protected-after.json": "7a426f4fb0c0b82d43e77921c3a8761664b220d32d83693baaecfd513d741b93",
+    "protected-before.json": "7a426f4fb0c0b82d43e77921c3a8761664b220d32d83693baaecfd513d741b93",
+    "protected-verification.json": "ae7d1804fefe26b754ae1b85f81a56b2b7f93e713ad545028806e628ba309839",
+    "secret-scan.json": "a4880972b7ea7ff9cf15071f417d9db7699a8fd041ca47f7ba647a7a89d9bbbe",
+    "transport.log": "260fd1a7e31014733189e3c50e2c6c82c543f826fd573c860d31bc1c3db07dd9"
+  }
+}

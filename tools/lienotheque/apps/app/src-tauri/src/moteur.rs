@@ -236,10 +236,17 @@ impl Session {
 
     /// Comment le moteur s'est terminé, s'il l'est. Dit à l'hôte pourquoi un dialogue s'est
     /// arrêté sans résultat — « il s'est tu » n'explique rien, « il est mort avec le code 1 » si.
+    /// Et **quel** signal : « arrêté par un signal » n'aide personne à savoir quoi regarder.
+    /// Neuf est un arrêt brutal de l'extérieur — mémoire du système, ou quelqu'un qui tue ;
+    /// onze est une faute du moteur lui-même. Les deux mènent à des recherches opposées, et
+    /// cette journée en a perdu une heure.
     pub fn sortie(&mut self) -> Option<String> {
         self.enfant.try_wait().ok().flatten().map(|etat| match etat.code() {
             Some(code) => format!("terminé avec le code {code}"),
-            None => "arrêté par un signal".to_owned(),
+            None => match signal_de(&etat) {
+                Some(signal) => format!("arrêté par le signal {signal} ({})", nom_du_signal(signal)),
+                None => "arrêté par un signal".to_owned(),
+            },
         })
     }
 
@@ -321,5 +328,34 @@ mod tests {
         let lancement = Lancement::embarque(PathBuf::from("/usr/bin/node"), PathBuf::from("/moteur.js"));
         assert_eq!(lancement.arguments[0], format!("--max-old-space-size={}", LIMITES.memoire_max_mo));
         assert!(lancement.arguments[1].ends_with("moteur.js"));
+    }
+}
+
+/// Le signal qui a arrêté un processus, là où le système le dit.
+///
+/// Unix le range dans l'état de sortie ; Windows n'a pas de signaux, et rend donc `None` — ce
+/// n'est pas une panne, c'est une notion qui n'existe pas là-bas.
+#[cfg(unix)]
+fn signal_de(etat: &std::process::ExitStatus) -> Option<i32> {
+    use std::os::unix::process::ExitStatusExt;
+    etat.signal()
+}
+
+#[cfg(not(unix))]
+fn signal_de(_etat: &std::process::ExitStatus) -> Option<i32> {
+    None
+}
+
+/// Les signaux qu'un moteur de traitement rencontre vraiment, nommés.
+///
+/// Pas la table entière : un nom qu'on ne verra jamais n'apprend rien, et « signal 31 » reste
+/// plus honnête qu'un nom deviné.
+fn nom_du_signal(signal: i32) -> &'static str {
+    match signal {
+        9 => "tué de l’extérieur — mémoire du système, ou arrêt forcé",
+        11 => "faute de segmentation dans le moteur",
+        6 => "le moteur s’est interrompu lui-même",
+        15 => "arrêt demandé",
+        _ => "signal inattendu",
     }
 }

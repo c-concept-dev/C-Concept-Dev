@@ -100,6 +100,30 @@ export const Axe = z
       if (valeur.redirigeVers !== undefined && !cles.has(valeur.redirigeVers))
         ctx.addIssue({ code: "custom", path: ["valeurs", rang, "redirigeVers"], message: `Cible inconnue : ${valeur.redirigeVers}` });
     }
+
+    // Pas de ronde dans la parenté.
+    //
+    // Qu'une valeur ne soit pas son propre parent était déjà refusé ; deux valeurs parentes
+    // l'une de l'autre passaient, et trois en ronde aussi. Un cycle rend l'arbre infini à
+    // l'affichage, et laisse « sous quelle catégorie est-elle ? » sans réponse. On remonte donc
+    // la chaîne de chacune : si l'on repasse où l'on est déjà passé, c'est une ronde.
+    const parents = new Map(a.valeurs.map((valeur) => [valeur.cle, valeur.parent]));
+    for (const [rang, valeur] of a.valeurs.entries()) {
+      const vus = new Set<string>([valeur.cle]);
+      let remonte = valeur.parent;
+      while (remonte !== undefined) {
+        if (vus.has(remonte)) {
+          ctx.addIssue({
+            code: "custom",
+            path: ["valeurs", rang, "parent"],
+            message: `La parenté tourne en rond : ${[...vus, remonte].join(" → ")}`,
+          });
+          break;
+        }
+        vus.add(remonte);
+        remonte = parents.get(remonte);
+      }
+    }
   });
 export type Axe = z.infer<typeof Axe>;
 

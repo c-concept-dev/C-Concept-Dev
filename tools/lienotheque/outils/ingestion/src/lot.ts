@@ -1,8 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { exporterPages } from "./pages-images.js";
-import { DescriptionBibliotheque, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
+import { DescriptionBibliotheque, type Passage, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
 import { chargerRecette, rejouer, type Association, type Media, type Relecture } from "@lienotheque/recettes";
+import { type AdresseRecurrente, adressesRecurrentes, enPassages } from "@lienotheque/lecteur-texte";
 import { construireVue } from "./instantane.js";
+import { lireLeTexte } from "./texte.js";
 
 /** D'un lot réel à l'instantané que lisent les écrans (correction 8).
  *
@@ -44,6 +46,16 @@ export type Lot = {
   readonly relecture?: Relecture | undefined;
   /** Appelé après chaque cliché lu, pour dire où en est le traitement (JOB-03). */
   readonly avancement?: ((faits: number, total: number) => void) | undefined;
+  /** Combien de pages le document porte, dit une fois avant la première lecture. Sans lui, un
+   *  document dont la chaîne ne lit aucune page ne se distingue pas d'un document vide. */
+  readonly surTotal?: ((total: number) => void) | undefined;
+  /** Dans quelle phase la chaîne se trouve, dit au fil de l'eau (JOB-07).
+   *
+   *  Un traitement qui s'arrête sans rien dire laisse chercher partout. Une journée a été
+   *  perdue à deviner si un moteur devenu muet était mort dans la lecture des repères, dans
+   *  l'export des images ou dans la lecture du texte : le journal portait « 29 pages dans le
+   *  document » puis rien, et les trois phases suivantes étaient indistinguables. */
+  readonly surPhase?: ((phase: string) => void) | undefined;
   /** N'en lire que les premières pages. C'est ce que demande l'essai d'une manière de lire :
    *  dix pages suffisent pour voir si elle tient, et trois cents feraient attendre pour rien. */
   readonly pages?: number | undefined;
@@ -92,6 +104,20 @@ export type LotTraite = {
   readonly resultat: ResultatRecette;
   readonly association: Association;
   readonly medias: readonly Media[];
+  /** Le texte cherchable du document, un passage par page (RCH-07).
+   *
+   *  Produit par la même passe que le reste : un instantané doit venir du même traitement que la
+   *  mesure, sans quoi ce qu'on mesure n'est pas ce qu'on montre. */
+  readonly passages: readonly Passage[];
+  /** D'où le texte est venu, page par page. Dit, et non tu : c'est ce qui permet d'annoncer
+   *  « aucune des 991 pages n'a pu être lue » plutôt qu'un succès sur un résultat vide. */
+  readonly lecture: { readonly parLaCouche: number; readonly parOcr: number; readonly sansTexte: number };
+  /** Les adresses qui reviennent sur assez de pages pour être des tampons de numérisation.
+   *
+   *  Signalées, jamais retirées : retirer du texte changerait l'extrait exact que RCH-07 promet,
+   *  et un pied de page portant l'adresse de l'auteur est un tampon qu'on veut peut-être garder
+   *  (FMT-04). */
+  readonly filigranes: readonly AdresseRecurrente[];
 };
 
 /** Traite un lot et rend l'instantané que les écrans liront. */
@@ -107,9 +133,12 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     ...(lot.cache === undefined ? {} : { cache: lot.cache }),
     ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
     ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
+    ...(lot.surTotal === undefined ? {} : { surTotal: lot.surTotal }),
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),
     ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
   });
+
+  lot.surPhase?.(`repères lus : ${resultat.pages.length} page(s), ${resultat.lignes.length} élément(s)`);
 
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang
   // dans le document : c'est le décalage lu qui fait le lien entre les deux.
@@ -127,6 +156,8 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
         ...(page.vignette === undefined ? {} : { vignette: `${adresse}/${page.vignette}` }),
       });
   }
+
+  lot.surPhase?.(`images de pages : ${parPageImprimee.size} écrite(s)`);
 
   const vue = construireVue({
     id: description.id,
@@ -147,5 +178,26 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
       lot.adresseMedias === undefined || media.nom === undefined ? undefined : `${lot.adresseMedias}/${encodeURIComponent(media.nom)}`,
   });
 
-  return { vue, resultat, association, medias };
+  // Le texte, par la même passe. La recette ne dit pas **si** l'on lit le texte — on le lit
+  // toujours, c'est ce qui rend une bibliothèque cherchable — mais elle dit comment la feuille
+  // est faite : une feuille à deux pages se coupe avant qu'on en tire des passages, sinon les
+  // deux folios se contredisent et le document perd ses numéros imprimés.
+  lot.surPhase?.("vue assemblée ; lecture du texte");
+
+  const lu = await lireLeTexte(lot.pdf, {
+    doublePage: recette.preparation.double_page,
+    ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+  });
+  const passages = enPassages(lu.pages);
+  lot.surPhase?.(`texte lu : ${passages.length} passage(s)`);
+
+  return {
+    vue,
+    resultat,
+    association,
+    medias,
+    passages,
+    lecture: { parLaCouche: lu.parLaCouche, parOcr: lu.parOcr, sansTexte: lu.sansTexte },
+    filigranes: adressesRecurrentes(passages),
+  };
 }

@@ -4,10 +4,14 @@ import {
   GesteRefuse,
   ajouterAxe,
   ajouterValeur,
+  aplatir,
   changerCardinalite,
+  deplacerValeur,
+  enfantsDe,
   fusionnerValeurs,
   renommerAxe,
   renommerValeur,
+  rendreHierarchique,
   retirerAxe,
   retirerValeur,
 } from "@lienotheque/noyau";
@@ -180,8 +184,43 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
                     ? "Étiquettes libres"
                     : `Valeurs · ${vivantes(axe).length}${axe.valeurs.length > vivantes(axe).length ? ` et ${axe.valeurs.length - vivantes(axe).length} retirée${axe.valeurs.length - vivantes(axe).length > 1 ? "s" : ""}` : ""}`}
                 </p>
+                {/* Donner des catégories, ou revenir à plat. Proposé seulement là où le geste a
+                    un sens : des étiquettes libres n'ont pas de liste à ranger en arbre, et le
+                    noyau le refuserait — ne pas proposer un geste qui sera refusé vaut mieux que
+                    le refuser. */}
+                {axe.nature === "referentiel" || axe.nature === "liste_semi_ouverte" ? (
+                  <p className="ln-axe__structure">
+                    {axe.structure === "hierarchique" ? (
+                      <button
+                        type="button"
+                        className="ln-lien-action"
+                        aria-label={`Revenir à une liste à plat sur ${axe.nom}`}
+                        onClick={() => appliquer(() => aplatir(schema, axe.cle))}
+                      >
+                        <Icone nom="etiquette" />
+                        Revenir à une liste à plat
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="ln-lien-action"
+                        aria-label={`Donner des catégories à ${axe.nom}`}
+                        onClick={() => appliquer(() => rendreHierarchique(schema, axe.cle))}
+                      >
+                        <Icone nom="plus" />
+                        Donner des catégories
+                      </button>
+                    )}
+                  </p>
+                ) : null}
+
                 <div className="ln-axe__valeurs">
-                  {axe.valeurs.map((valeur) => (
+                  {/* Les valeurs du premier niveau — et sur un axe à plat, elles le sont toutes.
+                      On garde ici les valeurs retirées, que la liste à plat montre aussi : cet
+                      écran est celui où on les administre, et c'est le seul endroit où elles
+                      doivent rester visibles. `racinesDe` les écarte, pour les écrans de lecture
+                      où une valeur retirée ne se montre plus (CLA-03). */}
+                  {axe.valeurs.filter((valeur) => valeur.parent === undefined).map((valeur) => (
                     <button
                       key={valeur.cle}
                       type="button"
@@ -235,10 +274,43 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
                   )}
                 </div>
 
+                {/* Ce qui est rangé sous une catégorie, un groupe par catégorie qui en a.
+                    Le groupe porte le nom de sa catégorie : c'est ce qui permet de savoir sous
+                    quoi l'on se trouve, à l'œil comme au clavier. Aucun groupe tant que rien
+                    n'est rangé — un arbre vide n'a pas de branches à montrer. */}
+                {axe.structure === "hierarchique"
+                  ? axe.valeurs
+                      .filter((valeur) => valeur.parent === undefined && enfantsDe(axe, valeur.cle).length > 0)
+                      .map((racine) => (
+                        <div key={`sous-${racine.cle}`} className="ln-axe__sous" role="group" aria-label={`Sous ${racine.nom}`}>
+                          <p className="ln-axe__sous-titre">Sous {racine.nom}</p>
+                          <div className="ln-axe__valeurs">
+                            {enfantsDe(axe, racine.cle).map((valeur) => (
+                              <button
+                                key={valeur.cle}
+                                type="button"
+                                className="ln-etiquette"
+                                aria-label={valeur.nom}
+                                aria-pressed={edition?.quoi === "valeur" && edition.axe === axe.cle && edition.cle === valeur.cle}
+                                onClick={() =>
+                                  edition?.quoi === "valeur" && edition.axe === axe.cle && edition.cle === valeur.cle
+                                    ? setEdition(undefined)
+                                    : ouvrir({ quoi: "valeur", axe: axe.cle, cle: valeur.cle }, valeur.nom)
+                                }
+                              >
+                                {valeur.nom}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                  : null}
+
                 {edition?.quoi === "valeur" && edition.axe === axe.cle ? (
                   <ValeurOuverte
                     axe={axe}
                     cle={edition.cle}
+                    onDeplacer={(vers) => appliquer(() => deplacerValeur(schema, axe.cle, edition.cle, vers))}
                     base={base}
                     saisie={saisie}
                     onSaisie={setSaisie}
@@ -377,6 +449,7 @@ function ValeurOuverte({
   onRenommer,
   onFusionner,
   onRetirer,
+  onDeplacer,
   onFermer,
 }: {
   readonly axe: Axe;
@@ -387,6 +460,8 @@ function ValeurOuverte({
   readonly onRenommer: () => void;
   readonly onFusionner: (vers: string) => void;
   readonly onRetirer: (vers: string) => void;
+  /** Ranger cette valeur sous une autre, ou la ressortir — `undefined` la détache (CLA-02). */
+  readonly onDeplacer: (vers: string | undefined) => void;
   readonly onFermer: () => void;
 }): JSX.Element {
   const valeur = axe.valeurs.find((candidate) => candidate.cle === cle);
@@ -453,6 +528,31 @@ function ValeurOuverte({
           </Bouton>
         </div>
       )}
+
+      {/* Sous quelle catégorie ranger cette valeur. Proposé seulement sur un axe hiérarchique :
+          ailleurs il n'y a pas de catégories, et le noyau refuserait le geste. Elle ne se
+          propose pas elle-même, et une catégorie retirée non plus — on ne range pas sous ce qui
+          n'est plus (CLA-02, CLA-03). */}
+      {axe.structure === "hierarchique" ? (
+        <div className="ln-valeur-ouverte__ligne">
+          <label className="ln-champ ln-champ--serre" htmlFor={`${base}-${cle}-parent`}>
+            Ranger {valeur?.nom ?? ""} sous
+            <select
+              id={`${base}-${cle}-parent`}
+              className="ln-saisie"
+              value={valeur?.parent ?? ""}
+              onChange={(evenement) => onDeplacer(evenement.target.value === "" ? undefined : evenement.target.value)}
+            >
+              <option value="">Aucune catégorie</option>
+              {autres.map((autre) => (
+                <option key={autre.cle} value={autre.cle}>
+                  {autre.nom}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : null}
 
       <p className="ln-muted">
         Fusionner joint deux noms qui désignaient la même chose. Retirer garde celui-ci, barré, et

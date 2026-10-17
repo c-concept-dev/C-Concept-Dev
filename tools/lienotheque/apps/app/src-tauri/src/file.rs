@@ -125,6 +125,24 @@ pub fn appliquer(travail: &Travail, action: &str, maintenant: u64) -> Option<Tra
     Some(t)
 }
 
+/// Ce que la file écrit quand elle prend un travail en charge : la reprise, puis le bail.
+///
+/// Elle passe par `appliquer` comme le fait l'écran, parce qu'un échec récupérable repris
+/// consomme une tentative des deux côtés. Tant que la file prenait le bail directement, le
+/// compteur ne bougeait que sur le chemin manuel : `tentatives_max` existait, était éprouvé, et
+/// ne se déclenchait sur aucun des chemins réellement pris (JOB-02, JOB-05).
+pub fn prendre(travail: &Travail, appareil: &str, maintenant: u64) -> Travail {
+    let mut pris = travail.clone();
+    if pris.etat == "en_echec_recuperable" {
+        if let Some(reprise) = appliquer(&pris, "reprendre", maintenant) {
+            pris = reprise;
+        }
+    }
+    pris.battre(appareil, maintenant, travail::expiration_secondes());
+    pris.maj_le = maintenant;
+    pris
+}
+
 fn chemin_du(dossier: &Path, id: &str) -> PathBuf {
     dossier.join(format!("{id}.json"))
 }
@@ -159,6 +177,73 @@ pub fn charger_tout(dossier: &Path, avertir: &mut dyn FnMut(String)) -> io::Resu
 /// Écrit un travail dans la file. Avant qu'il ne commence, jamais après (JOB-01).
 pub fn enregistrer(dossier: &Path, travail: &Travail) -> io::Result<()> {
     travail::enregistrer(&chemin_du(dossier, &travail.id), travail)
+}
+
+#[cfg(test)]
+mod cycle {
+    use super::*;
+
+    /// Un travail qui échoue à chaque fois finit par échouer **pour de bon** (JOB-05).
+    ///
+    /// Les cas de `travaux-cas.json` éprouvent chaque transition séparément, et toutes étaient
+    /// justes ; aucun n'éprouvait le **cycle** que la file parcourt réellement. La file prenait
+    /// le bail sans passer par `appliquer`, donc sans consommer de tentative, et un échec
+    /// permanent repartait sans fin. Mesuré : sept documents relancés près de mille fois chacun
+    /// en une heure et quart, pour une cause qui n'allait jamais disparaître.
+    ///
+    /// L'épreuve est celle d'un arrêt, pas d'un compteur : on tourne la boucle bien plus que
+    /// `tentatives_max` fois, et on exige qu'elle soit retombée dans un état terminal.
+    #[test]
+    fn un_echec_qui_se_repete_s_arrete_de_lui_meme_job_05() {
+        let mut travail = Travail::neuf("t-cycle", "lecture-de-pages", 1);
+        let mut horloge = travail.maj_le;
+        let mut tours = 0usize;
+
+        for _ in 0..LIMITES.tentatives_max * 4 {
+            if ETATS_TERMINAUX.contains(&travail.etat.as_str()) {
+                break;
+            }
+            // Le délai entre deux tentatives est écoulé : sinon rien n'est reprenable, et la
+            // boucle s'arrêterait pour une raison qui n'est pas celle qu'on éprouve.
+            horloge += LIMITES.delai_entre_tentatives_s;
+            assert!(reprenable(&travail, horloge), "au tour {tours}, plus rien n'est reprenable");
+            travail = prendre(&travail, "appareil-d-epreuve", horloge);
+            assert_eq!(travail.etat, "en_cours", "la prise en charge n'a pas lancé le travail");
+            travail = appliquer(&travail, "echouerRecuperable", horloge).expect("transition connue");
+            tours += 1;
+        }
+
+        assert_eq!(travail.etat, "en_echec_definitif", "la file a tourné {tours} fois sans jamais conclure");
+        assert_eq!(
+            tours,
+            LIMITES.tentatives_max as usize,
+            "le travail devrait partir exactement {} fois",
+            LIMITES.tentatives_max
+        );
+        assert!(travail.verrou.is_none(), "un échec définitif garde un bail que personne ne lèvera");
+    }
+
+    /// La reprise demandée depuis l'écran et celle de la file comptent pareil (JOB-05).
+    #[test]
+    fn les_deux_reprises_consomment_autant_job_05() {
+        let mut echoue = Travail::neuf("t-deux-portes", "lecture-de-pages", 1);
+        echoue.etat = "en_echec_recuperable".to_owned();
+
+        let par_ecran = appliquer(&echoue, "reprendre", echoue.maj_le + 1).expect("transition connue");
+        let par_la_file = prendre(&echoue, "appareil-d-epreuve", echoue.maj_le + 1);
+
+        assert_eq!(par_la_file.tentative, par_ecran.tentative, "la file reprend sans payer ce que l'écran paye");
+        assert_eq!(par_ecran.tentative, echoue.tentative + 1);
+    }
+
+    /// Prendre en charge un travail qui n'a pas échoué ne consomme rien (JOB-02).
+    #[test]
+    fn une_premiere_prise_en_charge_ne_consomme_aucune_tentative_job_02() {
+        let neuf = Travail::neuf("t-neuf", "lecture-de-pages", 1);
+        let pris = prendre(&neuf, "appareil-d-epreuve", neuf.maj_le);
+        assert_eq!(pris.tentative, neuf.tentative, "un travail neuf a payé une tentative qu'il n'a pas ratée");
+        assert_eq!(pris.etat, "en_cours");
+    }
 }
 
 #[cfg(test)]

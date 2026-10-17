@@ -160,6 +160,30 @@ jobs:
         # Pas d'installateur : on mesure l'exécutable et ses moteurs, sans dépendre de NSIS.
         run: pnpm --filter @lienotheque/app run tauri build --no-bundle
 
+      # Construire le paquet ne prouve pas qu'il lit.
+      #
+      # Mille sept cents tests passaient, cette intégration construisait le paquet, et le moteur
+      # embarqué ne savait lire aucun document : pdfjs construit une matrice au chargement de son
+      # module de rendu — prise de `@napi-rs/canvas` dans le dépôt, absente d'un paquet — et il
+      # cherche son module de travail par un chemin calculé à l'exécution, qu'un fichier unique
+      # n'a pas sur son disque. Aucun des deux ne se voit en développement, où la chaîne tourne
+      # depuis `node_modules`.
+      #
+      # Cette épreuve fait donc ce que fait l'interface : elle dépose un document, laisse la file
+      # mener le travail par le moteur embarqué, et vérifie que la version porte des passages non
+      # vides. Sur la fixture native fabriquée plus haut — synthétique, régénérable, aucune œuvre
+      # sous droits — cinq cents pages en cinq secondes. Éprouvée dans les deux sens : sans l'une
+      # ou l'autre correction, elle sort en erreur.
+      - name: Éprouver que le moteur embarqué lit vraiment un document
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          cargo run --release --manifest-path apps/app/src-tauri/Cargo.toml \
+            --example epreuve-du-paquet -- \
+            fixtures/fichiers/500-pages.pdf \
+            fixtures/recettes/methode-pastille-piste.v2.json \
+            fixtures/bibliotheques/F3.json
+
       - name: Publier les mesures
         if: ${{ !cancelled() }}
         shell: bash

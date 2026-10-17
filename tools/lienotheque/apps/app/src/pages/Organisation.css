@@ -189,6 +189,29 @@ form.ln-axe--ajout {
   margin-block-start: calc(var(--ln-grid));
 }
 
+/* Donner des catégories, ou revenir à plat. */
+.ln-axe__structure {
+  margin: 0;
+  padding-block-start: calc(var(--ln-grid) * 0.5);
+}
+
+/* Ce qui est rangé sous une catégorie.
+ *
+ * Le décalage se marque **deux fois** : par la marge et par un trait. Le trait seul serait perdu
+ * pour qui ne distingue pas les couleurs, la marge seule pour qui lit au lecteur d'écran — et
+ * c'est le rôle `group` avec son nom « Sous … » qui le dit à ce dernier. */
+.ln-axe__sous {
+  margin-block-start: calc(var(--ln-grid));
+  padding-inline-start: calc(var(--ln-grid) * 1.5);
+  border-inline-start: 2px solid var(--ln-border-decorative);
+}
+
+.ln-axe__sous-titre {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ln-text-secondary);
+}
+
 /* Une valeur ouverte : renommer, fusionner, retirer. Les deux derniers demandent vers quoi. */
 .ln-valeur-ouverte {
   display: grid;

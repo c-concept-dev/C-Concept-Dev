@@ -7,7 +7,7 @@ import { Horodatage } from "./commun.js";
  *  `vision` est la relecture ciblée d'une zone difficile (OUT-08). Le mot est celui qu'emploient
  *  déjà la route et la preuve d'un lien ; l'écran qui l'affichera lui donnera son libellé
  *  français, comme pour les autres — ce sont des identifiants, pas du texte à montrer. */
-export const Capacite = z.enum(["sante", "recherche", "synchronisation", "traduction", "vision"]);
+export const Capacite = z.enum(["sante", "recherche", "synchronisation", "traduction", "vision", "fichiers"]);
 export type Capacite = z.infer<typeof Capacite>;
 
 /** Réponse de la route de santé. Elle traverse le réseau : elle a donc un contrat (règle 2).

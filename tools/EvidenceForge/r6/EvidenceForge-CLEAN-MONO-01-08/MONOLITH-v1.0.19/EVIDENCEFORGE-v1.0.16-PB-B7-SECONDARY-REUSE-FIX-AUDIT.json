@@ -1,0 +1,175 @@
+{
+  "schema": "EvidenceForge.FixAudit",
+  "schemaVersion": "MONOLITH-v1.0.16",
+  "mandate": "CHANTIER CIBLÉ — MONOLITH v1.0.16 — PB-B7 SECONDARY REUSE GAP",
+  "producedAt": "2026-09-23",
+  "providerCalls": 0,
+  "costUsd": 0,
+  "proposedVerdict": "GELABLE",
+  "proposedPbB7Status": "PB_B7_CLOSED_CANDIDATE",
+  "frozen": false,
+  "activated": false,
+  "ACTIVE_VERSION": "MONOLITH-v1.0.10",
+  "nextStep": "audit indépendant de v1.0.16, puis décision propriétaire (gel) ; aucune activation sans smoke réel",
+
+  "base": {
+    "from": "MONOLITH-v1.0.15 (GELÉ FROZEN_WITH_RESERVATIONS, ACTIVATION_BLOCKED_BY_PB_B7)",
+    "sourceIdentity": "bundle v1.0.15 : manifest --verify 169/169, contentHash 1e2196504aa217fbb5bb654e4e8529bee6f732a74a7b15daec732d509f356ea4 ; diff -rq avec la copie d'audit PB-B7 : aucune différence",
+    "v1015Unchanged": "git status : aucun fichier suivi modifié ; seul MONOLITH-v1.0.16/ est nouveau (non suivi)",
+    "location": "tools/EvidenceForge/r6/EvidenceForge-CLEAN-MONO-01-08/MONOLITH-v1.0.16/"
+  },
+
+  "rootCause": "EF-03B → gardes d'autorité → registre lié à targetId + documentAuthoritySha256 → refus → repli sur llm-reuse-store.jsonl indexé sur promptSha256 + contexte générique (fournisseur, modèle, contrat, sceau conditionnel, hash du corps) → ancienne réponse servie → validation MONO-11 acceptée → onValidation l'inscrit au registre sous la nouvelle autorité (audit PB-B7, cas T3b).",
+
+  "strategy": {
+    "chosen": "A — le magasin secondaire applique exactement les mêmes contraintes d'identité que le registre",
+    "why": [
+      "cohérent avec l'architecture : le registre est déjà un filtre d'identité (targetId + documentAuthoritySha256 + contrat + sceau) ; le magasin reçoit le même filtre, au même endroit que son filtre de contexte existant (lib/llm.js, au-dessus de la politique gelée MONO-11)",
+      "B (tout refus du registre interdit le magasin) refuserait aussi une entrée de magasin d'identité PROUVÉE identique ; il n'apporte aucune garantie de plus que A et couple deux modules sans nécessité",
+      "sous A, un refus d'identité du registre ne peut pas être neutralisé : l'entrée refusée par le registre porte la même identité étrangère dans le magasin, et le magasin la refuse pour la même raison (PB7-04, PB7-09, PB7-10)"
+    ],
+    "consequenceDocumented": "une entrée de registre legacy refusée, suivie d'une entrée de magasin v1.0.16 d'identité identique, est servie par le magasin : c'est voulu (identité prouvée), pas un contournement"
+  },
+
+  "codePath": {
+    "lib/llm.js": {
+      "checkEf03bReuseIdentity": "fonction pure exportée ; ordre : entrée présente → finalité EF-03B → identité courante présente (targetId + sha256 d'autorité) → entrée legacy (sans targetId / sans documentAuthoritySha256 : NON_REUSABLE_FOR_EF03B_V3) → cible → autorité → contrat → sceau requis → sceau égal",
+      "reuseDecision": "si l'appel OU l'entrée est EF-03B : checkEf03bReuseIdentity AVANT reuseContextCheck (fournisseur, modèle, contrat, sceau, hash du corps) ; hors EF-03B : reuseContextCheck seul, inchangé",
+      "refusalLog": "LLM_REUSE_REFUSED porte en plus, pour EF-03B : code, purpose, targetId, documentAuthoritySha256, entryTargetId, entryAuthoritySha256",
+      "recordReal": "une entrée EF-03B écrite porte targetId, documentAuthoritySha256 (seulement si sha256 valide), twinId, reuseIdentity = EF03B-v1.0.16 ; entrées non EF-03B : forme historique",
+      "reuseRecord": "une réutilisation EF-03B servie journalise targetId + documentAuthoritySha256"
+    },
+    "lib/ef03b-resilience.js": {
+      "call": "call(st, prompt, meta, extraMeta) : chaque appel de transport EF-03B (base, ciblé, complétion, littéralisation — 4 sites) porte { targetId: st.targetId, documentAuthoritySha256: st.authoritySha256 } — l'autorité CANONIQUE établie par requireAuthority, jamais l'empreinte du contenu relu dans le prompt ; ces champs écrasent toute valeur fournie par l'appelant ; revue sans autorité établie → null → aucune réutilisation",
+      "registry": "inchangé (schemaVersion MONOLITH-v1.0.16)"
+    },
+    "orderAfterFix": [
+      "1. gardes d'autorité (inchangées)",
+      "2. registre (inchangé) : hit lié → servi",
+      "3. refus du registre → transport → magasin : MÊMES contraintes d'identité ; divergence → LLM_REUSE_REFUSED (code) → appel réel",
+      "4. validation MONO-11 (inchangée) → onValidation → registre sous l'identité courante, avec une réponse produite pour cette identité"
+    ],
+    "unchanged": ["MONO-11 v0.4 (sceau 110db4de…, runCodeHash 27610c84…, 55/55)", "contrat MONO-11-v3", "prompts, validateurs, recomposition, lignée, agrégation", "politique de réutilisation gelée llm-response-reuse.js", "stage-professionals.js", "tools/ef03b-registry-import.js", "D103", "runs historiques et résultats des smokes"]
+  },
+
+  "reuseSchema": {
+    "before": {
+      "entryFields": ["promptSha256", "responseSha256", "sourceRunId", "sourceCallId", "providerRequestId", "providerId", "modelId", "completedAt", "httpStatus", "purpose", "sourceSealHash", "validationContract", "cachePath", "kind", "validationStatus", "validationErrors", "validatedBy", "validatedAt"],
+      "ef03bReuseKey": "promptSha256 + VALID + fournisseur + modèle + contrat + sceau (conditionnel) + hash du corps"
+    },
+    "after": {
+      "ef03bEntryAddedFields": ["targetId", "documentAuthoritySha256", "twinId", "reuseIdentity"],
+      "ef03bReuseKey": "promptSha256 + VALID + fournisseur + modèle + hash du corps + targetId + documentAuthoritySha256 + contrat + sceau (OBLIGATOIRE)",
+      "nonEf03b": "inchangé"
+    }
+  },
+
+  "legacy": {
+    "rule": "entrée EF-03B sans targetId OU sans documentAuthoritySha256 → NON_REUSABLE_FOR_EF03B_V3",
+    "noMigration": true,
+    "noInferenceFromPrompt": true,
+    "noRetroactiveEnrichment": true,
+    "effect": "toutes les entrées EF-03B antérieures à v1.0.16 (dont les 20 du smoke phase B) ne sont plus réutilisables : une reprise d'un ancien run recalculerait ses revues (coût ponctuel, aucune perte de preuve)"
+  },
+
+  "tests": {
+    "command": "node test/test-monolith.js",
+    "result": "345/345",
+    "chunking": "21/21",
+    "secretScan": "0 hit",
+    "antiHardcoding": "0 hit",
+    "frozenLots": "MONO-01, MONO-09, MONO-10 (zip OK), MONO-11 (zip OK) : intacts",
+    "newSuite": "test/test-v1016-pb7-secondary-reuse.js — chaîne de production réelle : transport lib/llm.js + magasin fichier + adaptateur + lot gelé MONO-11 exécuté ; fournisseur factice LOCAL (fetch remplacé, compteur d'appels)",
+    "pb7": [
+      { "id": "PB7-01", "expected": "reuse autorisé", "result": "PASS — entrée écrite avec identité ; nouveau run servi à 0 appel, revue identique" },
+      { "id": "PB7-02", "expected": "cible différente → refus", "result": "PASS — EF03B_REUSE_TARGET_MISMATCH, 1 appel réel" },
+      { "id": "PB7-03", "expected": "autorité différente → refus", "result": "PASS — EF03B_REUSE_AUTHORITY_MISMATCH" },
+      { "id": "PB7-04", "blocking": true, "expected": "B prolonge A → aucune réutilisation A→B", "result": "PASS — chaîne de production : registre refuse A, magasin refuse (AUTHORITY_MISMATCH, A→B journalisé), revue recalculée (1 appel), aucune réponse A inscrite sous B" },
+      { "id": "PB7-05", "expected": "contrat différent → refus", "result": "PASS — EF03B_REUSE_CONTRACT_MISMATCH" },
+      { "id": "PB7-06", "expected": "sceau différent → refus", "result": "PASS — EF03B_REUSE_SEAL_MISMATCH ; appel sans sceau → EF03B_REUSE_SEAL_REQUIRED" },
+      { "id": "PB7-07", "expected": "legacy sans targetId → refus", "result": "PASS — NON_REUSABLE_FOR_EF03B_V3" },
+      { "id": "PB7-08", "expected": "legacy sans autorité → refus", "result": "PASS — NON_REUSABLE_FOR_EF03B_V3 (et entrée v1.0.15 complète)" },
+      { "id": "PB7-09", "expected": "registre refuse l'autorité → magasin ne contourne pas", "result": "PASS — réplique exacte du T3b de l'audit (adaptateur piloté avec le prompt de A, carte = B) ; onValidation n'inscrit pas A sous B" },
+      { "id": "PB7-10", "expected": "registre refuse la cible → magasin ne contourne pas", "result": "PASS — double refus, 1 appel réel" },
+      { "id": "PB7-11", "expected": "reuse EF-03B valide fonctionnel", "result": "PASS — 2 cibles, reprise : 0 appel, chaque revue sous sa cible et son autorité" },
+      { "id": "PB7-12", "expected": "non EF-03B inchangé", "result": "PASS — REUSE historique ; entrée sans champ EF-03B ; aucun croisement de finalités" },
+      { "id": "PB7-13", "expected": "fixture réelle phase B", "result": "PASS — 20/20 legacy NON_REUSABLE ; variante contextualisée : 20 acceptées, 40 refus de cible, 20 refus d'autorité ; 0 fournisseur" }
+    ],
+    "inheritedTestsAdapted": [
+      { "id": "T-STREAM-05", "change": "META porte documentAuthoritySha256 ; entrée vérifiée avec targetId + autorité ; AJOUT : même prompt sans autorité → refus EF03B_REUSE_IDENTITY_MISSING", "intentPreserved": true },
+      { "id": "T-STREAM-22", "change": "sceau fourni aux deux instances (obligatoire pour EF-03B)", "intentPreserved": true },
+      { "id": "RUN-SAFETY-12", "change": "appels portant l'identité et pass:1 (l'adaptateur de production établit alors l'autorité canonique)", "intentPreserved": true },
+      { "id": "RUN-SAFETY-13", "change": "appels portant l'identité ; client avec sceau", "intentPreserved": true },
+      { "id": "V3", "change": "lot piloté sans adaptateur : l'identité (empreinte du document examiné) est ajoutée comme le ferait l'adaptateur", "intentPreserved": true },
+      { "id": "RUN-SAFETY-21", "change": "INVERSION DÉLIBÉRÉE : les 4 entrées historiques f78528fe (sans identité) ne sont plus réutilisées → NON_REUSABLE_FOR_EF03B_V3, 4 appels réels ; exigé par §4 du mandat", "intentPreserved": false }
+    ]
+  },
+
+  "mutationMatrix": {
+    "method": "copie sœur temporaire MONOLITH-v1.0.16-PBB7-MUT dans le bundle (les tests comparent aux versions sœurs), mutation textuelle exacte, suite complète, suppression ; contrôle M0 = 345/345",
+    "results": [
+      { "id": "M1", "mutant": "contrôle targetId supprimé", "killedBy": ["PB7-02", "PB7-10", "PB7-13"], "killed": true },
+      { "id": "M2", "mutant": "contrôle d'autorité supprimé", "killedBy": ["PB7-03", "PB7-04", "PB7-09", "PB7-13"], "killed": true },
+      { "id": "M3", "mutant": "contrôle de contrat EF-03B supprimé", "killedBy": ["PB7-05"], "killed": true, "note": "tué par l'assertion du code de refus ; le contrôle générique refuse encore → comportement sûr (défense en profondeur)" },
+      { "id": "M3b", "mutant": "contrôle de contrat supprimé partout", "killedBy": ["V12-12", "PB7-05"], "killed": true },
+      { "id": "M4", "mutant": "contrôle d'égalité de sceau EF-03B supprimé", "killedBy": ["PB7-06"], "killed": true, "note": "idem M3 : le contrôle générique refuse encore quand un sceau est fourni" },
+      { "id": "M4b", "mutant": "sceau redevenu conditionnel", "killedBy": ["PB7-06"], "killed": true, "note": "tué sur le comportement (réponse servie sans sceau)" },
+      { "id": "M5", "mutant": "garde EF-03B contournée (registre refuse, magasin sert)", "killedBy": ["RUN-SAFETY-21", "T-STREAM-05", "PB7-02..10", "PB7-12"], "killed": true },
+      { "id": "M6", "mutant": "entrée legacy acceptée", "killedBy": ["RUN-SAFETY-21", "PB7-07", "PB7-08", "PB7-13"], "killed": true },
+      { "id": "M7", "mutant": "l'adaptateur ne transmet plus l'identité", "killedBy": ["PB7-01..06", "PB7-09", "PB7-10", "PB7-11"], "killed": true },
+      { "id": "M8", "mutant": "l'adaptateur transmet l'empreinte relue dans le prompt au lieu de l'autorité canonique", "killedBy": ["PB7-04", "PB7-09"], "killed": true },
+      { "id": "M9", "mutant": "entrée EF-03B écrite sans identité", "killedBy": ["V3", "RUN-SAFETY-13", "T-STREAM-05", "T-STREAM-22", "PB7-01..06", "PB7-09..11"], "killed": true },
+      { "id": "R0", "mutant": "retour aux fichiers v1.0.15 (llm.js + ef03b-resilience.js)", "killedBy": ["PB7-01..13", "RUN-SAFETY-21", "T-STREAM-05"], "killed": true, "note": "PB7-04 rouge sur v1.0.15 : le test bloquant reproduit bien le défaut" }
+    ],
+    "survivors": 0
+  },
+
+  "nonRegression": {
+    "inheritedTests": "332/332 conservés (6 adaptés, listés ; aucune suppression)",
+    "R1_R2_R4": "R1-01..06, R2-01..08, R4-01..05 : PASS",
+    "RA1": "PASS",
+    "R5_R6": "V12-01..18 : PASS",
+    "mono11": "v0.4 intact (sceau + zip)",
+    "targetDocumentIdentity": "PASS",
+    "authorityGuards": "inchangées ; PASS",
+    "registryImport": "RI / R4 : PASS ; tools/ef03b-registry-import.js inchangé",
+    "lineageMonotonicity_CAS_A_B": "PASS",
+    "shadowA10": "PASS",
+    "historicalAggregation": "PASS",
+    "reviewSemantics": "aucune modification : prompts, validateurs et recomposition inchangés"
+  },
+
+  "residualReservations": [
+    { "id": "V16-R1", "severity": "LOW", "statement": "Le transport fait confiance à l'identité déclarée par l'appelant. En production, le seul appelant EF-03B est l'adaptateur (lib/pipeline.js:274), qui impose l'identité canonique (M8 tué). Un appel EF-03B direct au transport avec une identité fausse passerait : aucun chemin de production ne le fait." },
+    { "id": "V16-R2", "severity": "LOW", "statement": "La politique gelée ne propose que l'entrée VALID la plus récente pour un prompt ; si son identité diverge, la réutilisation est refusée même si une entrée plus ancienne concorde. Fail-closed : surcoût possible, aucun risque." },
+    { "id": "V16-R3", "severity": "LOW", "statement": "contextContentMismatch (prompt ≠ autorité, préfixe) reste non fatal dans l'adaptateur (hors périmètre). Sa conséquence via le magasin est fermée ; la revue est recalculée et validée sur l'autorité courante." },
+    { "id": "V16-R4", "severity": "INFO", "statement": "RUN-SAFETY-21 inversé par exigence du mandat ; M3 et M4 tués par code de refus (redondance avec le contrôle générique)." },
+    { "id": "V16-R5", "severity": "INFO", "statement": "Toutes les entrées EF-03B antérieures deviennent non réutilisables (magasin partagé) : coût ponctuel de recalcul à la reprise d'un ancien run." },
+    { "id": "V16-R6", "severity": "INFO", "statement": "Manifeste v1.0.16 : 180 fichiers. Il inclut les fichiers de gel / audit / plan de smoke de v1.0.15, hérités par la copie (ils étaient hors manifeste v1.0.15), comme v1.0.15 avait hérité ceux de v1.0.14." },
+    { "id": "V16-R7", "severity": "MEDIUM", "statement": "Non fumé : le correctif n'a jamais été exercé en réel. Un smoke réel reste requis avant toute activation." }
+  ],
+
+  "hashes": {
+    "manifest": { "files": 180, "contentHash": "54266d0db6a0ce73bb88309a3bb8d53fcaa378c2af3b3e34dadf479f12ada490", "verify": "180/180 OK", "MANIFEST.json": "babd86b6afe0fb86f11d3e152466f1db91c9b3e18aa859f729001d2b47f3e89a", "SHA256SUMS.txt": "b619e1fb2fc50855d9d2370f1f108e212586d34bcfc7e03a92e6d6408abf36da" },
+    "lib/llm.js": "9012d8884db08cf523e62bfe355bc1171b5b339b2e6dc620591189ccee2fecb5",
+    "lib/ef03b-resilience.js": "0ec0a08a836b9f0e24a787e3aa1900476d055138a0d937d17b16a294f1f5a0ae",
+    "lib/pipeline.js": "2cc40b6a168b398e47805da52ca954526bbe1aadd91c471c5a90e322de9d8f60",
+    "test/test-v1016-pb7-secondary-reuse.js": "82c9e9e733a86d01c6f91b191468162a9fd7252bc263c5644b589314fc2fb85b",
+    "test/fixtures/pb7-phaseB-ef03b-store-entries.json": "37841668f1a19bb2f6327cf0592a6a49a327971c9b2261ff43aa57fd0ae0bd46",
+    "config/monolith.config.json": "f6525c7a6588abeb4a21cbc1e3e33015c0ea335bd34e40fa8bef1c5e79fe6655",
+    "test/results.json": "8780bcdb72ff7bb2b48a0751b38b90939e3636417cecf9f67cb66a84afa2d0d7",
+    "mono11": { "runtimeSealSha256": "110db4de24709926d4a5fb6d0e951530f0afc2c1c807a09127852a92aa182c3d", "runCodeHash": "27610c84502104b3dc9643a9cc0289aef4ae40ae65ee34e4fe82f31a73e381ad" },
+    "evidence": {
+      "DIFF-lib-v1015-v1016.patch": "7a7f6394c329163c25c0989077147592470b8947f01df705f06208e4da95d8cb",
+      "DIFF-test-v1015-v1016.patch": "e4877a5bbe0e540cf51c079d4e6e81be0470a7ca2fd15af4122330733f7fecdf",
+      "DIFF-config-v1015-v1016.patch": "d84915064fdd5aa5b10c051c515c4a237c7f279692f545752781e77a25592b51",
+      "DIFF-tools-v1015-v1016.patch": "c46008cf30ebe56930852da96687329bb178cd56bb585b4d15d15c46ebfa3821",
+      "DIFF-README-v1015-v1016.patch": "357068b67cd5b839a2d7290d9ecf099a8f8c043872a01aff52cef20a3f81214a",
+      "mutate.py": "07ec07ed9517d4ae301f20db2ab3006f2fafe0b1cb02433b666ecbf0440e2767",
+      "mutation-results.json": "f4c573e9245b755838df4124a28049798581b63242ce01eb19112a25e301b3e5",
+      "TESTS-FINAL-345.log": "cf9c5b4aaaca9dd2ce278d2eda59f91952b3dea6b8ddb1eb44a6f9e275e5c560"
+    }
+  },
+
+  "notDone": ["v1.0.15 non modifiée", "v1.0.16 non gelée, non activée, non commitée", "aucun fournisseur", "Phase B non relancée", "MONO-11 non modifié", "D103 non touché", "runs historiques non touchés", "ACTIVE_VERSION inchangée"]
+}

@@ -1,0 +1,9 @@
+# Ces fichiers sont engendrés par « pnpm build » depuis
+# packages/depot-sqlite/src/migrations.ts, et un test compare le disque à ce que
+# le générateur rendrait.
+#
+# Le dépôt normalise tout en « text=auto », ce qui rend des fins de ligne
+# Windows à la sortie sur Windows : le fichier cesse alors d'être identique à ce
+# que le générateur a écrit, et le test échoue pour une raison invisible à la
+# lecture — les deux textes s'affichent pareil. On fige donc les fins de ligne.
+*.sql text eol=lf

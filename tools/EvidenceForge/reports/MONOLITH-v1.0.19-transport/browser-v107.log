@@ -1,0 +1,14 @@
+  ok   serveur v1.0.7 : /api/config version + plafond garde (professionals.maxCandidatesToEvaluate) expose
+  ok   API : vue de porte ECONOMIC_REVIEW avec projection (> 40), cibles (dossier) et panel par lots
+  ok   API : vue de cout avec bloc economics (politique, lots, dernier lot, prochain lot, projection, ECONOMIC_OUTLIER_WARNING)
+  ok   porte economique visible : carte #gateEconomics affichee, alerte « inhabituellement coûteuse », projection centrale et seuil
+  ok   porte economique : cellules Professionnels retenus (panel initial) / approuves / jumeaux potentiels / revues attendues (dossier) / cause principale
+  ok   bandeau d'action : « coût projeté … confirmation » + bouton « Voir la projection »
+  ok   cellules de cout : « évalué(s) / retenu(s) (plafond 150 = garde, pas cible) », lot, contribution du dernier lot, prochain lot, projection, ECONOMIC_OUTLIER_WARNING
+  ok   confirmation sans nom refusee (HUMAN_IDENTITY_REQUIRED), porte toujours ouverte
+  ok   confirmation nominative => POST /confirm-economics, decision persistee, porte fermee
+  ok   decision persistee : confirmed, nom, projection jointe (CENTRAL > 40) ; l'etat scientifique du panel n'est pas touche
+  ok   aucune exception console
+
+11/11 tests navigateur v1.0.7 OK
+NETWORK_GUARD {"externalAttempts":0}

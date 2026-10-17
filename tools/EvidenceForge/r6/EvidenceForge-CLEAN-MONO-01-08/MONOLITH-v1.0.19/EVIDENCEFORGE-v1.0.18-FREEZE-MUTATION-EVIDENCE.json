@@ -1,0 +1,37 @@
+{
+  "total": 6,
+  "killed": 6,
+  "mutants": [
+    {
+      "id": "M-CO-01",
+      "killed": true,
+      "error": "CO-01\n\n500 !== 201\n"
+    },
+    {
+      "id": "M-CO-02",
+      "killed": true,
+      "error": "CO-01\n\n500 !== 201\n"
+    },
+    {
+      "id": "M-CO-03",
+      "killed": true,
+      "error": "CO-01\n\n500 !== 201\n"
+    },
+    {
+      "id": "M-CO-04",
+      "killed": true,
+      "error": "CO-03"
+    },
+    {
+      "id": "M-CO-05",
+      "killed": true,
+      "error": "CO-16\n\n500 !== 409\n"
+    },
+    {
+      "id": "M-CO-06",
+      "killed": true,
+      "error": "CO-05/06\n+ actual - expected\n... Skipped lines\n\n  {\n    attempts: 0,\n    checkpoints: null,\n    cost: {\n      budget: {\n...\n    },\n+   status: 'READY',\n-   status: 'CREATED',\n    stop: null,\n    summary: null,\n    updatedAt: '2026-10-09T12:45:40.938Z',\n    userMessage: null\n  }\n"
+    }
+  ],
+  "method": "Compile targeted source changes in memory, execute same baseline assertions; no on-disk mutations."
+}

@@ -121,7 +121,7 @@ pub fn deposer(
 
         // La copie d'abord : un travail qui désignerait un fichier absent ne se reprendrait pas.
         // L'original n'est jamais déplacé ni modifié.
-        if let Err(e) = depot.deposer_source(origine) {
+        if let Err(e) = depot.deposer_source(origine, &empreinte) {
             arrivee.refuses.push((nom, format!("Copie impossible : {e}")));
             continue;
         }
@@ -190,7 +190,10 @@ mod tests {
         assert_eq!(arrivee.refuses.len(), 0);
         assert!(origine.exists(), "l'original n'est jamais déplacé");
         assert_eq!(fs::read(&origine).expect("original"), b"des octets", "ni modifié");
-        assert!(depot.racine().join(crate::depot::SOURCES).join("un-document.pdf").exists());
+        // Rangée sous son empreinte : c'est ce qui empêche deux documents de même nom de
+        // s'écraser l'un l'autre.
+        let posee = arrivee.travaux[0].empreinte.as_deref().expect("empreinte");
+        assert!(depot.source(posee, "pdf").exists());
 
         // Écrit avant que rien ne commence (JOB-01) : il se relit au redémarrage.
         let relus = file::charger_tout(&dossier_file, &mut |_| {}).expect("file");
@@ -262,7 +265,8 @@ mod tests {
         assert_eq!(arrivee.accompagnements, vec![("une-piste.mp3".to_owned(), "audio".to_owned())]);
 
         // Copiée tout de même : elle attend le document qui la nommera.
-        assert!(depot.racine().join(crate::depot::SOURCES).join("une-piste.mp3").exists());
+        let empreinte_piste = crate::arrivee::empreinte_de(&source.join("une-piste.mp3")).expect("empreinte");
+        assert!(depot.source(&empreinte_piste, "mp3").exists());
 
         fs::remove_dir_all(&racine).ok();
         fs::remove_dir_all(&source).ok();

@@ -1,0 +1,13 @@
+  ok   serveur v1.0.17 : /api/config version
+  ok   API gate : evaluation des livrables (4 non produits, reconnaissance requise)
+  ok   UI Porte 1 : « Livrables demandés » liste 4 « NON PRODUIT » (avec raison) et des livrables « produit » ; case de reconnaissance visible et decochee
+  ok   UI Porte 1 : confirmer SANS cocher => refus affiche (reconnaissance exigee), aucun plan confirme
+  ok   UI Porte 1 : apres reconnaissance, la requete porte l'empreinte affichee (le refus de reconnaissance disparait ; la suite releve de la porte historique)
+  ok   aucune exception console (porte 1)
+  ok   UI run INCOMPLETE_DELIVERABLES : statut « livrable(s) accepté(s) manquant(s) », rapport charge, section « Livrables demandés » (MISSION_DELIVERABLES = INCOMPLETE, 4 non produits par conception), reprise masquee
+  ok   aucune exception console (run incomplet)
+  ok   UI rapport ANTERIEUR (sans missionDeliverables) : rendu inchange, aucune section « Livrables demandés »
+  ok   aucune exception console (rapport anterieur)
+
+10/10 tests navigateur v1.0.17 OK
+NETWORK_GUARD {"externalAttempts":0}
