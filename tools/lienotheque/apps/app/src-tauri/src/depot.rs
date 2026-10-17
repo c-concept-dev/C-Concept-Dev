@@ -40,6 +40,9 @@ const VERSIONS: &str = "versions";
 const ACTIVE: &str = "active.json";
 /// La table des versions actives, une entrée par document.
 const ACTIVES: &str = "actives.json";
+/// Le classement des documents, par empreinte. Même forme et mêmes raisons que la table
+/// des actives : une table plutôt qu'un fichier par document, et une écriture indivisible.
+const CLASSEMENTS: &str = "classements.json";
 
 /// Le nom du fichier de description, le même que celui du contrat.
 ///
@@ -215,6 +218,42 @@ impl Depot {
 
     fn ecrire_actives(&self, table: &BTreeMap<String, Pointeur>) -> io::Result<()> {
         ecrire_atomique(&self.racine.join(BASE).join(ACTIVES), serde_json::to_string_pretty(table)?.as_bytes())
+    }
+
+    /// Range un document sur les axes de sa bibliothèque (CLA-01).
+    ///
+    /// Le classement arrive déjà vérifié contre le schéma : c'est le noyau qui sait lire un
+    /// schéma, et le dépôt n'a pas à le réapprendre. Ici on écrit, et c'est tout — le contenu
+    /// reste opaque, comme la vue et les passages le sont déjà.
+    ///
+    /// Reclasser **remplace** : un document a un classement, pas une pile de classements
+    /// successifs. L'historique d'un changement de rangement, s'il en faut un, est une autre
+    /// question que celle-ci.
+    pub fn classer(&self, empreinte: &str, classement: &serde_json::Value) -> io::Result<()> {
+        let mut table = self.classements()?;
+        table.insert(empreinte.to_owned(), classement.clone());
+        ecrire_atomique(
+            &self.racine.join(BASE).join(CLASSEMENTS),
+            serde_json::to_string_pretty(&table)?.as_bytes(),
+        )
+    }
+
+    /// Tous les classements, en une lecture — ce que le Catalogue et les filtres consultent.
+    ///
+    /// Une table abîmée rend une table vide, pour la même raison que les actives : on n'empêche
+    /// pas d'ouvrir une bibliothèque parce qu'un fichier d'index est illisible.
+    pub fn classements(&self) -> io::Result<BTreeMap<String, serde_json::Value>> {
+        match fs::read_to_string(self.racine.join(BASE).join(CLASSEMENTS)) {
+            Ok(texte) => Ok(serde_json::from_str(&texte).unwrap_or_default()),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(BTreeMap::new()),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Le classement d'un document, ou rien. **Rien est une réponse** : un document non rangé
+    /// n'est pas une panne, et c'est même ce qu'il faut pouvoir dire.
+    pub fn classement(&self, empreinte: &str) -> io::Result<Option<serde_json::Value>> {
+        Ok(self.classements()?.remove(empreinte))
     }
 
     /// Inscrit dans la table ce qu'une bibliothèque déjà traitée porte dans ses travaux.
@@ -562,6 +601,67 @@ mod actives {
         assert!(depot.actives().expect("lecture").is_empty());
         assert!(depot.version_active(A).expect("lecture").is_none());
         fs::remove_dir_all(&racine).ok();
+    }
+}
+
+#[cfg(test)]
+mod classement {
+    use super::*;
+    use std::fs;
+
+    fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
+        let racine = std::env::temp_dir().join(format!("lienotheque-classement-{nom}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&racine);
+        (Depot::ouvrir(&racine).expect("dépôt ouvert"), racine)
+    }
+
+    const A: &str = "aaaa000000000000000000000000000000000000000000000000000000000000";
+    const B: &str = "bbbb000000000000000000000000000000000000000000000000000000000000";
+
+    fn range(valeur: &str) -> serde_json::Value {
+        serde_json::json!({ "axes": { "a": { "type": "reference", "valeurs": [valeur] } }, "origine": "import" })
+    }
+
+    /// Ce qu'on range se relit, et chaque document garde le sien (CLA-01).
+    #[test]
+    fn un_classement_ecrit_se_relit_document_par_document() {
+        let (depot, _) = depot_neuf("relit");
+        depot.classer(A, &range("v1")).expect("A rangé");
+        depot.classer(B, &range("v2")).expect("B rangé");
+
+        assert_eq!(depot.classement(A).expect("lu"), Some(range("v1")));
+        assert_eq!(depot.classement(B).expect("lu"), Some(range("v2")));
+        assert_eq!(depot.classements().expect("table").len(), 2);
+    }
+
+    /// Un document a **un** classement, et non une pile.
+    #[test]
+    fn reclasser_remplace_au_lieu_de_s_ajouter() {
+        let (depot, _) = depot_neuf("remplace");
+        depot.classer(A, &range("v1")).expect("rangé");
+        depot.classer(A, &range("v2")).expect("rangé de nouveau");
+
+        assert_eq!(depot.classement(A).expect("lu"), Some(range("v2")));
+        assert_eq!(depot.classements().expect("table").len(), 1, "un document, un classement");
+    }
+
+    /// Un document jamais rangé ne rend rien — et rien est une réponse, pas une panne.
+    #[test]
+    fn un_document_non_range_ne_rend_rien_et_ne_se_plaint_pas() {
+        let (depot, _) = depot_neuf("absent");
+        assert_eq!(depot.classement(A).expect("lu"), None);
+        assert!(depot.classements().expect("table").is_empty());
+    }
+
+    /// Une table abîmée n'empêche pas d'ouvrir la bibliothèque.
+    #[test]
+    fn une_table_abimee_rend_une_table_vide_plutot_qu_une_erreur() {
+        let (depot, racine) = depot_neuf("abimee");
+        depot.classer(A, &range("v1")).expect("rangé");
+        fs::write(racine.join(BASE).join(CLASSEMENTS), b"{ ceci n'est pas du JSON").expect("abîmé");
+
+        assert!(depot.classements().expect("table lue malgré tout").is_empty());
+        assert_eq!(depot.classement(A).expect("lu"), None);
     }
 }
 

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Identifiant, NumeroVersion } from "./commun.js";
+import { Empreinte, Identifiant, NumeroVersion } from "./commun.js";
 
 /** Classement universel (CLA-01 à CLA-12).
  *
@@ -175,6 +175,32 @@ export const ClassementDocument = z
   })
   .strict();
 export type ClassementDocument = z.infer<typeof ClassementDocument>;
+
+/** D'où vient un classement. Jamais déduit du contenu (CLA-03).
+ *
+ *  Deux déclencheurs, et deux seulement : la reprise d'une base existante, et un geste de la
+ *  personne. Le jour où une relecture proposerait un classement d'après le texte, ce serait une
+ *  **proposition** portant sa preuve et sa confiance, comme un lien (ANC-02) — une troisième
+ *  valeur ici, et non un import déguisé. */
+export const OrigineClassement = z.enum(["import", "manuel"]);
+export type OrigineClassement = z.infer<typeof OrigineClassement>;
+
+/** Le classement d'un document tel que le bureau le range, par empreinte.
+ *
+ *  Par **empreinte** et non par identifiant : sur le bureau un document se désigne par
+ *  l'empreinte de sa source, comme `base/actives.json` le fait pour sa version active.
+ *  `ClassementDocument` garde son `documentId` pour le dépôt qui tient des documents identifiés.
+ *  Les deux disent la même chose, chacun avec la clé de son monde. */
+export const ClassementLocal = z
+  .object({
+    empreinte: Empreinte,
+    schema: Cle,
+    schemaVersion: NumeroVersion,
+    axes: z.record(Cle, ValeursAxe),
+    origine: OrigineClassement,
+  })
+  .strict();
+export type ClassementLocal = z.infer<typeof ClassementLocal>;
 
 /** Un modèle est une donnée versionnée, exportable et importable : jamais du code (CLA-09). */
 export const ModeleBibliotheque = z

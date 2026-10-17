@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VueBibliotheque } from "@lienotheque/contrats";
+import { Passage, VueBibliotheque } from "@lienotheque/contrats";
 import { PAR_GROUPE, aLaFile, chercher, morceler } from "../src/index.js";
 
 /** Chercher dans une bibliothèque, sur la machine et nulle part ailleurs (RCH, UX-02, CLA-01).
@@ -193,5 +193,127 @@ describe("une liste qu'on ne parcourt plus d'un coup d'œil n'est plus une aide"
       })),
     });
     expect(genre(chercher(beaucoup, "articulation"), "page")!.resultats).toHaveLength(PAR_GROUPE);
+  });
+});
+
+describe("la recherche lit les passages du document, non une copie dans la vue (RCH-07, RCH-09)", () => {
+  /** Une vue sans une ligne de texte : c'est l'état réel après un traitement.
+   *
+   *  `PageAffichee.texte` existe au contrat, et rien ne le remplit — la chaîne range son texte
+   *  dans les passages de la version. Tant que la recherche ne lisait que ce champ, elle ne
+   *  trouvait rien dans l'application, alors que la ligne de commande trouvait tout. */
+  const SANS_TEXTE = VueBibliotheque.parse({
+    id: ID(2),
+    nom: "La mini-bibliothèque",
+    mots: {
+      element: { un: "repère", plusieurs: "repères" },
+      piste: { un: "plage", plusieurs: "plages" },
+      page: { un: "feuillet", plusieurs: "feuillets" },
+    },
+    compteurs: [],
+    pages: [{ numero: 42, elements: [] }],
+  });
+
+  const passage = (rang: number, page: number, texte: string, imprimee?: number): unknown => ({
+    rang,
+    page,
+    texte,
+    source: "couche_texte",
+    lisible: true,
+    ...(imprimee === undefined ? {} : { pageImprimee: imprimee }),
+  });
+
+  const PASSAGES = [
+    passage(0, 1, "Avant-propos de l’ouvrage.", 1),
+    passage(1, 57, "La mémoire traumatique ne se raconte pas comme un souvenir ordinaire.", 42),
+    passage(2, 58, "Elle revient par fragments, sans date ni ordre."),
+  ].map((brut) => Passage.parse(brut));
+
+  it("trouve une suite de mots qui n’existe que dans les passages", () => {
+    expect(chercher(SANS_TEXTE, "mémoire traumatique")).toEqual([]);
+
+    const groupes = chercher(SANS_TEXTE, "mémoire traumatique", { passages: PASSAGES });
+    const pages = groupes.find((groupe) => groupe.genre === "page");
+    expect(pages, "la recherche ne rend rien alors que le passage porte les deux mots").toBeDefined();
+    expect(pages?.resultats).toHaveLength(1);
+    expect(pages?.resultats[0]?.extrait).toContain("mémoire traumatique");
+    expect(pages?.resultats[0]?.surlignesExtrait?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it("cite le feuillet imprimé quand il est connu, et le rang du document sinon", () => {
+    // La jointure qui semblait évidente est fausse : `PageAffichee.numero` est le numéro
+    // **imprimé** (instantane.ts le range par `ligne.pageImprimee`), tandis que `Passage.page`
+    // est le rang dans le document. Les confondre citerait le feuillet 57 pour un texte
+    // imprimé 42. Et le numéro imprimé n'est pas toujours connu : mesuré sur un livre de
+    // quatre-vingt-seize pages, sept numéros pour vingt-sept passages.
+    const imprime = chercher(SANS_TEXTE, "traumatique", { passages: PASSAGES });
+    expect(imprime.find((g) => g.genre === "page")?.resultats[0]?.cote).toBe("feuillet 42");
+
+    const sansNumero = chercher(SANS_TEXTE, "fragments", { passages: PASSAGES });
+    expect(sansNumero.find((g) => g.genre === "page")?.resultats[0]?.cote).toBe("feuillet 58 du document");
+  });
+
+  it("ne rend jamais deux fois la même page, quel que soit le nombre de passages qui répondent", () => {
+    const serres = [
+      passage(0, 7, "La honte revient par vagues.", 12),
+      passage(1, 7, "La honte, encore, au détour d’une phrase.", 12),
+    ].map((brut) => Passage.parse(brut));
+    const groupes = chercher(SANS_TEXTE, "honte", { passages: serres });
+    expect(groupes.find((g) => g.genre === "page")?.resultats).toHaveLength(1);
+  });
+});
+
+describe("la suite entière avant le mot isolé, et rien d'exclu (RCH-07, FMT-04)", () => {
+  /** Mesuré sur la mini-bibliothèque, sept vrais documents : « mémoire traumatique » rendait
+   *  462 résultats, dont **cinq** portaient la suite entière. Les 457 autres ne portaient que
+   *  « mémoire » ou que « traumatique ». La recherche composait déjà ses morceaux comme
+   *  `[phrase, ...mots]` pour surligner la suite d'un seul tenant, mais ne s'en servait pas
+   *  pour ordonner : la personne devait parcourir des centaines de lignes avant la bonne.
+   *
+   *  On n'exclut rien pour autant : un mot isolé reste une réponse, simplement moins sûre. */
+  const VIDE = VueBibliotheque.parse({
+    id: ID(3),
+    nom: "Corpus",
+    mots: {
+      element: { un: "repère", plusieurs: "repères" },
+      piste: { un: "plage", plusieurs: "plages" },
+      page: { un: "feuillet", plusieurs: "feuillets" },
+    },
+    compteurs: [],
+    pages: [],
+  });
+
+  const passage = (rang: number, page: number, texte: string): Passage =>
+    Passage.parse({ rang, page, texte, source: "couche_texte", lisible: true });
+
+  const CORPUS = [
+    passage(0, 1, "Un mot isolé : la mémoire des lieux, et rien de plus."),
+    passage(1, 2, "La mémoire traumatique ne se raconte pas comme un souvenir ordinaire."),
+    passage(2, 3, "Un autre mot isolé : un événement traumatique parmi d’autres."),
+  ];
+
+  it("met en tête les passages qui portent la suite entière", () => {
+    const groupes = chercher(VIDE, "mémoire traumatique", { passages: CORPUS });
+    const pages = groupes.find((groupe) => groupe.genre === "page");
+    expect(pages?.resultats[0]?.extrait, "la suite entière doit venir en premier").toContain(
+      "mémoire traumatique",
+    );
+  });
+
+  it("n’exclut aucun des mots isolés : ils suivent, ils ne disparaissent pas", () => {
+    const groupes = chercher(VIDE, "mémoire traumatique", { passages: CORPUS });
+    const pages = groupes.find((groupe) => groupe.genre === "page");
+    expect(pages?.resultats, "les trois passages répondent, un seul porte la suite").toHaveLength(3);
+    const extraits = (pages?.resultats ?? []).map((resultat) => resultat.extrait ?? "").join(" | ");
+    expect(extraits).toContain("mémoire des lieux");
+    expect(extraits).toContain("événement traumatique");
+  });
+
+  it("ne change rien à l’ordre quand la requête n’a qu’un mot", () => {
+    const groupes = chercher(VIDE, "traumatique", { passages: CORPUS });
+    const pages = groupes.find((groupe) => groupe.genre === "page");
+    expect(pages?.resultats).toHaveLength(2);
+    // L'ordre reste celui des passages : sans suite à privilégier, il n'y a rien à remonter.
+    expect(pages?.resultats[0]?.cote).toBe("feuillet 2 du document");
   });
 });

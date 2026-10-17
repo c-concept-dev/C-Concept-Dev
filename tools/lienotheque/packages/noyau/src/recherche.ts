@@ -1,10 +1,11 @@
-import type { VueBibliotheque } from "@lienotheque/contrats";
+import type { Passage, VueBibliotheque } from "@lienotheque/contrats";
 
 /** Chercher dans une bibliothèque, sans rien envoyer nulle part (RCH, UX-02).
  *
  *  Tout se passe sur la machine : ce qu'on cherche dans sa propre bibliothèque ne regarde
- *  personne d'autre. L'index, c'est la vue elle-même — il n'y a pas de second magasin à tenir à
- *  jour, donc pas de second magasin à voir diverger.
+ *  personne d'autre. Il n'y a pas de second magasin à tenir à jour, donc pas de second magasin à
+ *  voir diverger : les repères viennent de la vue, le texte vient des passages de la version —
+ *  chacun lu là où il est écrit, et nulle part recopié.
  *
  *  Deux choses font la qualité d'une recherche, et aucune n'est l'algorithme :
  *
@@ -153,7 +154,16 @@ function capitaliser(mot: string): string {
 export function chercher(
   vue: VueBibliotheque,
   requete: string,
-  options: { readonly actions?: readonly Action[]; readonly parGroupe?: number } = {},
+  options: {
+    readonly actions?: readonly Action[];
+    readonly parGroupe?: number;
+    /** Le texte du document, tel que la chaîne l'a rangé dans sa version.
+     *
+     *  En entrée à part, et non dans la vue : `PageAffichee.texte` existe au contrat et rien
+     *  ne le remplit. Recopier les passages dedans donnerait deux endroits pour un même
+     *  fait, et l'un des deux finirait par mentir. */
+    readonly passages?: readonly Passage[];
+  } = {},
 ): readonly Groupe[] {
   const { phrase, mots } = morceauxDe(requete);
   if (phrase === "") return [];
@@ -218,6 +228,50 @@ export function chercher(
       });
   }
 
+  // Le texte du document, lu là où il est écrit.
+  //
+  // La page se cite par son numéro **imprimé** quand il est connu : c'est celui que le lecteur a
+  // sous les yeux (RCH-09). Et c'est bien `pageImprimee` qu'il faut lire, non `page` : la vue
+  // range ses pages par numéro imprimé (`instantane.ts`), tandis que `Passage.page` est le rang
+  // dans le document. Les confondre citerait le feuillet 57 pour un texte imprimé 42.
+  //
+  // Le numéro imprimé n'est pas toujours connu — mesuré sur un livre de quatre-vingt-seize
+  // pages, sept numéros pour vingt-sept passages. À défaut on cite le rang, et on le dit.
+  const parCitation = new Map<string, { imprimee?: number; rang: number; lignes: string[] }>();
+  for (const passage of options.passages ?? []) {
+    const cle = passage.pageImprimee === undefined ? `rang:${passage.page}` : `imprime:${passage.pageImprimee}`;
+    const deja = parCitation.get(cle);
+    if (deja === undefined)
+      parCitation.set(cle, {
+        ...(passage.pageImprimee === undefined ? {} : { imprimee: passage.pageImprimee }),
+        rang: passage.page,
+        lignes: [passage.texte],
+      });
+    // Une page qui répond deux fois reste une page : on rassemble ses lignes au lieu de la
+    // rendre deux fois dans la liste.
+    else deja.lignes.push(passage.texte);
+  }
+  for (const [cle, citation] of parCitation) {
+    const autour = extraireAutour(citation.lignes, morceaux);
+    if (autour === undefined) continue;
+    const cote =
+      citation.imprimee === undefined
+        ? `${vue.mots.page.un} ${citation.rang} du document`
+        : `${vue.mots.page.un} ${citation.imprimee}`;
+    const titre = capitaliser(cote);
+    pages.push({
+      genre: "page",
+      cle: `passage:${cle}`,
+      titre,
+      surlignesTitre: trouver(titre, morceaux),
+      source: vue.nom,
+      extrait: autour.extrait,
+      surlignesExtrait: autour.surlignes,
+      cote,
+      ...(citation.imprimee === undefined ? {} : { page: citation.imprimee }),
+    });
+  }
+
   const actions: Resultat[] = (options.actions ?? [])
     .filter((action) => {
       const ou = [action.titre, ...(action.aussi ?? [])].join(" ");
@@ -231,10 +285,27 @@ export function chercher(
       source: action.source ?? "",
     }));
 
+  // La suite entière d'abord, le mot isolé ensuite — et rien d'exclu.
+  //
+  // Mesuré sur sept vrais documents : « mémoire traumatique » rendait 462 résultats, dont
+  // **cinq** portaient la suite. Les 457 autres ne portaient que « mémoire » ou que
+  // « traumatique ». Les morceaux étaient déjà composés `[phrase, ...mots]` pour surligner la
+  // suite d'un seul tenant, mais l'ordre n'en tenait pas compte.
+  //
+  // Un mot isolé reste une réponse, simplement moins sûre : on le descend, on ne le retire pas
+  // (FMT-04). Et le tri vient **avant** le plafond — sinon les six lignes montrées resteraient
+  // celles du bruit, et la correction ne changerait rien à ce qu'on voit.
+  const porteLaSuite = (resultat: Resultat): boolean =>
+    mots.length > 1 &&
+    (trouver(resultat.titre, [phrase]).length > 0 || trouver(resultat.extrait ?? "", [phrase]).length > 0);
+  // Le tri de JavaScript est stable : à sûreté égale, l'ordre de lecture est conservé.
+  const parSurete = (liste: readonly Resultat[]): readonly Resultat[] =>
+    [...liste].sort((un, autre) => Number(porteLaSuite(autre)) - Number(porteLaSuite(un)));
+
   const groupes: Groupe[] = [
-    { genre: "element", libelle: capitaliser(vue.mots.element.plusieurs), resultats: elements.slice(0, parGroupe) },
-    { genre: "page", libelle: capitaliser(vue.mots.page.plusieurs), resultats: pages.slice(0, parGroupe) },
-    { genre: "piste", libelle: capitaliser(vue.mots.piste.plusieurs), resultats: pistes.slice(0, parGroupe) },
+    { genre: "element", libelle: capitaliser(vue.mots.element.plusieurs), resultats: parSurete(elements).slice(0, parGroupe) },
+    { genre: "page", libelle: capitaliser(vue.mots.page.plusieurs), resultats: parSurete(pages).slice(0, parGroupe) },
+    { genre: "piste", libelle: capitaliser(vue.mots.piste.plusieurs), resultats: parSurete(pistes).slice(0, parGroupe) },
     { genre: "action", libelle: "Actions", resultats: actions.slice(0, parGroupe) },
   ];
   return groupes.filter((groupe) => groupe.resultats.length > 0);

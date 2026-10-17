@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import type {
   CasDouteux,
+  ApercuDocument,
+  ClassementLocal,
   DescriptionBibliotheque,
+  Passage,
   SchemaBibliotheque,
   Travail,
   TypeDeContenu,
@@ -43,6 +46,9 @@ import {
   imageDePage,
   versionActive,
   apercuDeBibliotheque,
+  classementsDeBibliotheque,
+  classerDocument,
+  passagesDeDocument,
   vueDeDocument,
   choisirFichiers,
   deposer as deposerChezLHote,
@@ -66,6 +72,12 @@ export function App(): JSX.Element {
   /** Le document dont les écrans montrent la version active. Un seul à la fois aujourd'hui. */
   const [regarde, setRegarde] = useState<string | undefined>(undefined);
   const [vue, setVue] = useState<VueBibliotheque | undefined>(undefined);
+  // Le texte du document regardé, lu à part de sa vue et jamais recopié dedans.
+  const [passages, setPassages] = useState<readonly Passage[]>([]);
+  // Le classement de chaque document de la bibliothèque, lu d'un coup : les filtres
+  // comptent dessus, et les demander un par un vaudrait autant d'allers-retours.
+  const [classements, setClassements] = useState<ReadonlyMap<string, ClassementLocal>>(new Map());
+  const [documents, setDocuments] = useState<readonly ApercuDocument[]>([]);
   const [, setDepots] = useState<readonly string[]>([]);
   const [route, setRoute] = useState<Route>(() => lireRoute(globalThis.location?.hash ?? ""));
   const [decisions, setDecisions] = useState<readonly { cas: CasDouteux; decision: Decision }[]>([]);
@@ -211,18 +223,15 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (courante === undefined || !estBureau()) return undefined;
     let vivant = true;
-    // Quel document : le plus récemment activé, lu dans l'aperçu. Explicite, là où c'était
-    // implicite — « celui du pointeur » n'avait de sens que tant qu'il n'y en avait qu'un.
-    // Choisir dans le Catalogue est l'étape suivante ; l'application n'en montre encore qu'un.
-    void apercuDeBibliotheque(courante.racine)
-      .then(async (apercus) => {
-        const dernier = [...apercus].sort((a, b) => b.activeeLe - a.activeeLe)[0];
-        if (dernier === undefined) return undefined;
-        setRegarde(dernier.empreinte);
-        return vueDeDocument(courante.racine, dernier.empreinte);
-      })
-      .then((lue) => {
-        if (vivant && lue !== undefined) setVue(lue);
+    void Promise.all([apercuDeBibliotheque(courante.racine), classementsDeBibliotheque(courante.racine)])
+      .then(([apercus, ranges]) => {
+        if (!vivant) return;
+        setDocuments(apercus);
+        setClassements(ranges);
+        // Au premier chargement on ouvre le plus récemment activé. Ensuite c'est la personne
+        // qui choisit, et l'on ne lui reprend pas son choix : cet effet se rejoue à chaque
+        // relecture de la file, toutes les deux secondes.
+        setRegarde((avant) => avant ?? [...apercus].sort((a, b) => b.activeeLe - a.activeeLe)[0]?.empreinte);
       })
       .catch(() => {
         // Une bibliothèque qui n'a rien traité n'a rien à montrer : les écrans le disent déjà.
@@ -231,6 +240,37 @@ export function App(): JSX.Element {
       vivant = false;
     };
   }, [courante, file]);
+
+  // Changer de bibliothèque repart de zéro : garder le document d'une autre ferait lire une vue
+  // qui n'appartient pas à celle qu'on vient d'ouvrir.
+  useEffect(() => {
+    setRegarde(undefined);
+    setVue(undefined);
+    setPassages([]);
+    setDocuments([]);
+    setClassements(new Map());
+  }, [courante?.racine]);
+
+  // Le document regardé : sa vue et son texte. À part de la bibliothèque, parce qu'ils changent
+  // pour une autre raison — on change de document sans que la bibliothèque bouge.
+  useEffect(() => {
+    if (courante === undefined || regarde === undefined || !estBureau()) return undefined;
+    let vivant = true;
+    // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent le
+    // texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
+    void Promise.all([vueDeDocument(courante.racine, regarde), passagesDeDocument(courante.racine, regarde)])
+      .then(([lue, lus]) => {
+        if (!vivant) return;
+        setPassages(lus);
+        if (lue !== undefined) setVue(lue);
+      })
+      .catch(() => {
+        // Un document sans version active n'a rien à montrer, et ce n'est pas une panne.
+      });
+    return () => {
+      vivant = false;
+    };
+  }, [courante, regarde]);
 
   // La file est à l'hôte : on la relit, on ne la devine pas. Toutes les deux secondes suffisent —
   // un traitement se compte en minutes, et un écran qui se redessine sans cesse fatigue.
@@ -348,6 +388,22 @@ export function App(): JSX.Element {
     } catch (erreur) {
       setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
     }
+  };
+
+  /** Ranger un document à la main, depuis le Catalogue.
+   *
+   *  La table de la bibliothèque fait foi ; celle que l'écran tient n'est que ce qu'on vient
+   *  d'en lire. On l'avance tout de suite pour que le geste se voie, et si l'hôte refuse on
+   *  relit plutôt que de garder à l'écran un classement qui n'existe pas sur le disque. */
+  const classer = (classement: ClassementLocal): void => {
+    if (courante === undefined) return;
+    setClassements((avant) => new Map(avant).set(classement.empreinte, classement));
+    if (!estBureau()) return;
+    void classerDocument(courante.racine, classement).catch(() => {
+      void classementsDeBibliotheque(courante.racine)
+        .then(setClassements)
+        .catch(() => undefined);
+    });
   };
 
   /** Une version de plus du schéma. L'hôte réécrit la description : la page n'écrit jamais. */
@@ -488,6 +544,15 @@ export function App(): JSX.Element {
       return (
         <Catalogue
           vue={vue}
+          {...(derniere?.description.schema === undefined ? {} : { schema: derniere.description.schema })}
+          {...(regarde === undefined ? {} : { empreinte: regarde })}
+          {...(regarde === undefined || classements.get(regarde) === undefined
+            ? {}
+            : { classement: classements.get(regarde) })}
+          onClasser={classer}
+          documents={documents}
+          classements={classements}
+          onDocument={setRegarde}
           {...(route.page === undefined ? {} : { page: route.page })}
           onPage={(page) => aller({ ecran: "catalogue", page })}
           onLecteur={(page, element) => aller({ ecran: "lecteur", page, element })}
@@ -523,6 +588,7 @@ export function App(): JSX.Element {
       {cherche && vue !== undefined ? (
         <Recherche
           vue={vue}
+          passages={passages}
           actions={
             derniere === undefined
               ? undefined
