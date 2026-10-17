@@ -214,3 +214,56 @@ vérifiés **rouges sans la correction** :
    pages est dit avant la première lecture, et un document qui en porte sans qu'aucune ne soit
    lue échoue en le nommant, sans reprise possible. Une lecture vide n'est plus mise en cache
    non plus : la garder rendait le défaut permanent.
+
+## 9. Ce qui reste à régler avant le traitement complet des 250 documents
+
+Deux réserves ouvertes, mesurées et non corrigées. Aucune ne bloque ce lot ; toutes deux
+bloquent le passage à l'échelle. Elles sont consignées ici pour qu'on ne les redécouvre pas
+au milieu de 250 documents.
+
+### 9.1 F4 : un gros document numérisé n'aboutit pas en quarante minutes
+
+`Paul westwood.pdf`, 143 pages, 165 Mo. Le traitement est arrêté par le garde-fou de l'essai
+sans avoir conclu, et il l'était déjà **avant** le chemin du texte — éprouvé dans les deux
+sens sur le commit `7e24ebfd` :
+
+| | avant le chemin du texte | après |
+|---|---|---|
+| issue | arrêté à 40 min | arrêté à 40 min |
+| pointe mémoire | 1 041 Mo | 985 Mo |
+| moyenne | 280 Mo | 257 Mo |
+| sortie produite | 236 Mo | 236 Mo |
+
+Le chemin du texte consomme donc **moins**, pas plus : la lenteur lui est antérieure et ne
+lui est pas imputable. Ce qu'on ne sait pas encore : où elle se loge. Le journal s'arrête
+après « 143 pages dans le document », c'est-à-dire pendant la première phase — repères et
+images de pages — et non pendant la lecture du texte.
+
+À faire avant le traitement complet : instrumenter cette première phase page par page, et
+décider si un document de cette taille se traite autrement (flux, découpe, ou refus motivé).
+Tant que ce n'est pas tranché, aucune estimation de durée sur le corpus entier n'est fiable.
+
+### 9.2 Le moteur embarqué n'a ni canevas ni polices de référence
+
+L'épreuve du paquet le dit à chaque exécution, et le traitement de F5 le répétait :
+
+```
+Warning: Cannot load "@napi-rs/canvas" package
+Warning: Cannot polyfill `ImageData`, rendering may be broken.
+Warning: Cannot polyfill `Path2D`, rendering may be broken.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+```
+
+C'est **exactement la famille du défaut corrigé** par la sortie du module de travail hors du
+paquet : un module que la chaîne cherche à l'exécution et que le paquet ne porte pas, parce
+qu'il n'a pas de `node_modules`. Trois manquants restent, là où un seul a été traité.
+
+Conséquence mesurable : pdfjs ne peut pas rasteriser. Sur F5, une seule image de page écrite
+sur quatre-vingt-seize. Les documents servis par leur couche texte n'en souffrent pas —
+l'épreuve du paquet lit 500 pages sur 500 par la couche — mais les **104 documents
+« page-native » à texte vectoriel** du corpus en dépendent : c'est par le rendu qu'on les
+atteint.
+
+À faire avant de traiter ces 104 documents : embarquer le canevas et les polices de référence
+à côté de la chaîne, comme on l'a fait pour les WebAssembly des codecs et pour le module de
+travail. Et refaire l'épreuve du paquet dans les deux sens, pour qu'elle échoue sans eux.
