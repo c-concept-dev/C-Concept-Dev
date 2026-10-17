@@ -29,6 +29,9 @@ const path = require('node:path');
 const RACINE = path.join(__dirname, '..');
 const FICHIERS = {
   module: path.join(RACINE, 'enregistreur-voix.js'),
+  // (jalon II) La bande rythmo est un module à part, sans DOM ni audio : ses mutations
+  // visent la logique de défilement, qui est là et nulle part ailleurs.
+  bande: path.join(RACINE, 'bande-rythmo.js'),
   worklet: path.join(RACINE, 'enregistreur-worklet.js'),
   stockage: path.join(RACINE, 'voix-stockage.js'),
 };
@@ -640,7 +643,99 @@ const ESSAIS = [
     attendu: "DÉFAUT 2 : « Enregistrement 01:16,221 » restait affiché après l'arrêt",
   },
 
-  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────  // ── (E3, avenant 5) LE MIXAGE NE MOYENNE JAMAIS UN CANAL VIDE ──────────────────────────
+  // ── LA COURSE DE CONSTRUCTION DU GRAPHE ────────────────────────────────────────────────  // ── (R6) LA BANDE SUIT L'HORLOGE AUDIO ─────────────────────────────────────────────────
+  {
+    nom: "la bande suit l'horloge de l'interface au lieu de l'horloge audio",
+    fichier: "bande",
+    de: "    var secondes = ech / hz;",
+    vers: "    var secondes = (Date.now() % 1000000) / 1000;",
+    sections: "§38,§43",
+    attendu: "R6 : « Le défilement suit l'horloge audio, jamais celle de l'interface » — en pause la bande doit se figer",
+  },
+
+  // ── (E13) L'EMPREINTE DES MODULES ──────────────────────────────────────────────────────
+  {
+    nom: "l'empreinte devient une constante écrite à la main",
+    fichier: "module",
+    de: "        return crypto.subtle.digest('SHA-256', octets).then(function (h) {",
+    vers: "        return Promise.resolve(new ArrayBuffer(32)).then(function (h) {",
+    sections: "§39",
+    attendu: "E13 : l'empreinte est le condensat du CONTENU servi ; une constante se périme en silence",
+  },
+
+  // ── (T13, avenant 6) L'AMBIANCE NON MESURABLE ──────────────────────────────────────────
+  {
+    nom: "sans pause, l'ambiance est estimée dans la voix au lieu d'être dite non mesurable",
+    fichier: "module",
+    de: "      return {\n        mesure: true,\n        echantillons: b.n,\n        secondes: b.echantillonnage ? b.n / b.echantillonnage : 0,\n        etat: 'non mesurable',",
+    vers: "      population = pleines.filter(function (f) { return f.niveau !== null; });\n      source = 'toute la prise';\n    }\n    if (false) {\n      return {\n        mesure: true,\n        echantillons: b.n,\n        secondes: 0,\n        etat: 'non mesurable',",
+    sections: "§40",
+    attendu: "T13 : « une estimation prise dans la voix serait une fausse alerte » — « bruyant » à tort sur de la parole continue",
+  },
+
+  // ── (E4, E9, T14) LES REPÈRES ──────────────────────────────────────────────────────────
+  {
+    nom: "la répétition automatique d'une touche maintenue pose des repères",
+    fichier: "module",
+    de: "      if (ev.repeat) {",
+    vers: "      if (false) {",
+    sections: "§41",
+    attendu: "E9 : « les répétitions automatiques d'une touche maintenue sont ignorées » — quatre repères en 0,3 s au lot 0",
+  },
+  {
+    nom: "l'antirebond des repères est retiré",
+    fichier: "module",
+    de: "    var verdict = window.BandeRythmo.antirebond(_etat.dernierRepere, ech,",
+    vers: "    var verdict = { accepte: true, raison: 'sans antirebond' } || window.BandeRythmo.antirebond(_etat.dernierRepere, ech,",
+    sections: "§41",
+    attendu: "E9 : « deux repères à moins de 250 ms sont signalés avant validation »",
+  },
+  {
+    nom: "un repère est daté sur l'horloge de l'interface",
+    fichier: "module",
+    de: "    var ech = echantillonsCourants();\n    var verdict",
+    vers: "    var ech = Math.round(performance.now() * 48);\n    var verdict",
+    sections: "§41",
+    attendu: "le repère est horodaté dans le fil audio (indice d'échantillon), jamais avec l'horloge de l'interface",
+  },
+
+  // ── (E2, E10) LE COMPTE À REBOURS ──────────────────────────────────────────────────────
+  {
+    nom: "la dernière seconde du rebours ne dure pas une seconde",
+    fichier: "module",
+    de: "        return attendreMs(1000).then(function () { return finirLeRebours(); });",
+    vers: "        return finirLeRebours();",
+    sections: "§42",
+    attendu: "E2 : un compte à rebours de 3 secondes doit prendre trois secondes, la dernière comprise",
+  },
+  {
+    nom: "la garde après le dernier bip est retirée",
+    fichier: "module",
+    de: "        return attendreMs(GARDE_APRES_REBOURS_S * 1000).then(function () {",
+    vers: "        return attendreMs(0).then(function () {",
+    sections: "§42",
+    attendu: "E10 : la traîne du dernier bip entrerait dans les premiers échantillons de la voix",
+  },
+
+  // ── (3) LA LATENCE ET LA DATATION D'UNE SESSION REPRISE ────────────────────────────────
+  {
+    nom: "la latence du démarrage redevient négative sur une session reprise",
+    fichier: "module",
+    de: "          : (_etat.generationDuDebut !== _generation)",
+    vers: "          : (false)",
+    sections: "§31",
+    attendu: "une latence ne peut pas être négative : −1 504 ms relevés le 17 octobre, deux horloges soustraites",
+  },
+  {
+    nom: "« piste ouverte » d'une session reprise est datée à zéro",
+    fichier: "module",
+    de: "        _etat.ouverturePiste = journaliser('piste ouverte', echantillonsCourants(), {",
+    vers: "        _etat.ouverturePiste = journaliser('piste ouverte', 0, {",
+    sections: "§31",
+    attendu: "la piste rouverte s'ouvre au MILIEU de la prise : la dater à zéro la place avant son début",
+  },
+
+  // ── (E3, avenant 5) LE MIXAGE NE MOYENNE JAMAIS UN CANAL VIDE ──────────────────────────
   {
     nom: "le diviseur de la moyenne redevient le nombre de canaux, mort ou vif",
     fichier: "worklet",

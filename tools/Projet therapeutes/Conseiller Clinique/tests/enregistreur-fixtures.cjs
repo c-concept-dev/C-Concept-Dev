@@ -432,7 +432,15 @@ const FIXTURES = [
     faire: () => {
       const n = ECH * 12;
       const a = bruitAuNiveau(n, -75, 103);
-      const rafale = bruitAuNiveau(n, -58, 104);
+      // LE NIVEAU DES BRUITS BREFS EST À −55 dBFS ET NON −58, et il faut dire pourquoi. À
+      // −58, la valeur efficace de la fenêtre entière tombait à −64,5 dBFS, c'est-à-dire à un
+      // demi-décibel du seuil « calme » de −65 : selon l'instant où la prise commence dans la
+      // fixture, sept ou huit bruits brefs entrent dans la fenêtre, ce qui déplace sa valeur de
+      // 0,58 dB et la faisait basculer d'un côté ou de l'autre du seuil. Le contrôle §18c
+      // réussissait ou échouait au hasard de ce décalage. À −55, la fenêtre entière vaut −61,6
+      // dBFS, soit 3,4 dB au-dessus du seuil : elle reste franchement « correcte », et le
+      // plancher reste franchement « calme » à −75.
+      const rafale = bruitAuNiveau(n, -55, 104);
       const dureeRafale = Math.round(ECH * 0.080);
       const pas = Math.round(ECH * 0.375);
       const fondu = Math.round(ECH * 0.002);
@@ -561,6 +569,40 @@ const FIXTURES = [
       };
       voix(1, 7);
       voix(22, 36);
+      return { canaux: [a, zeros(n)] };
+    },
+  },
+  {
+    nom: 'parole-continue.wav',
+    pourquoi: 'T3 (T13, avenant 6) — DE LA PAROLE CONTINUE, SANS AUCUNE PAUSE D\'UNE SECONDE. ' +
+              'Des phrases de 2,2 s à −30 dBFS, modulées syllabiquement, séparées par 0,4 s de ' +
+              'respiration à −60 dBFS. Les phrases font des suites de fenêtres occupées de plus ' +
+              'de 300 ms, donc la voix est reconnue et le silence initial déclaré non tenu ; ' +
+              'mais aucun passage calme n\'atteint une seconde, donc il n\'y a nulle part où ' +
+              'prélever une ambiance. Aujourd\'hui le repli prend le 20e centile de toute la ' +
+              'prise, tombe au niveau de la voix et annonce « bruyant » — une fausse alerte sur ' +
+              'une pièce dont on ne sait rien. T13 veut « non mesurable », sans aucun état.',
+    attendu: 'état « non mesurable » ; aucun état calme, correct ou bruyant ; la valeur efficace ' +
+             'de la fenêtre entière, elle, serait au-dessus de −58 dBFS (donc « bruyant »)',
+    faire: () => {
+      const n = ECH * 20;
+      const a = bruitAuNiveau(n, -72, 301);
+      const ampPhrase = Math.pow(10, -30 / 20) * Math.SQRT2;
+      const ampSouffle = Math.pow(10, -60 / 20) * Math.SQRT2;
+      const cycle = Math.round(ECH * 2.6);        // 2,2 s de phrase + 0,4 s de respiration
+      const phrase = Math.round(ECH * 2.2);
+      for (let i = 0; i < n; i++) {
+        const dansLeCycle = i % cycle;
+        const porteuse = Math.sin((2 * Math.PI * 196 * i) / ECH);
+        if (dansLeCycle < phrase) {
+          // La modulation syllabique : quatre syllabes par seconde, jamais jusqu'au silence —
+          // une voix ne s'interrompt pas entre deux syllabes, elle baisse.
+          const syll = 0.55 + 0.45 * Math.abs(Math.sin((Math.PI * 4 * i) / ECH));
+          a[i] += ampPhrase * syll * porteuse;
+        } else {
+          a[i] += ampSouffle * porteuse;
+        }
+      }
       return { canaux: [a, zeros(n)] };
     },
   },

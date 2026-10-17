@@ -80,6 +80,20 @@ function servir() {
 
 // Un contexte neuf par cas : IndexedDB est par origine, et deux cas qui se partagent la base se
 // contaminent. Chaque cas repart d'un stockage vierge — sauf §7, qui a besoin du contraire.
+// ── LE COMPTE À REBOURS EST NEUTRALISÉ DANS LES CONTRÔLES QUI NE L'ÉPROUVENT PAS ───────────
+// Le défaut du banc est 3 secondes, comme E2 l'exige. Un contrôle qui mesure une durée de prise
+// mesurerait en plus ce rebours et sa garde : chaque prise commencerait 3,5 s après le clic.
+// Défaut trouvé par §37, qui construit sa propre page et ne passait donc pas par `ouvrirBanc` :
+// il lui restait 1,5 s d'enregistrement sur 5, et la fenêtre de bruit de 3 s ne se terminait
+// jamais. Cinq contrôles construisent leur page eux-mêmes (pour pouvoir la tuer en pleine
+// prise) : ils appellent tous cette fonction, qui porte la raison une seule fois.
+async function neutraliserLeRebours(page) {
+  await page.evaluate(() => {
+    const champ = document.querySelector('[data-rebours-secondes]');
+    if (champ) champ.value = '0';
+  });
+}
+
 async function ouvrirBanc(nav, base, requete, opts = {}) {
   const ctx = await nav.newContext({ permissions: ['microphone'], ...(opts.ctx || {}) });
   const page = await ctx.newPage();
@@ -90,6 +104,22 @@ async function ouvrirBanc(nav, base, requete, opts = {}) {
   await page.waitForFunction(() => window.__bancPret === true || window.__bancErreur, null, { timeout: 20000 });
   const err = await page.evaluate(() => window.__bancErreur || null);
   if (err) throw new Error('le banc n\'a pas démarré : ' + err);
+  // ── LE COMPTE À REBOURS EST MIS À ZÉRO POUR TOUS LES CONTRÔLES, SAUF LE SIEN ─────────────
+  // Le défaut du banc est 3 secondes, comme E2 l'exige, et c'est ce que Christophe verra. Mais
+  // un contrôle qui mesure une durée de prise ne doit pas mesurer en plus un rebours : chaque
+  // prise commencerait 3,5 s après le clic, et toutes les durées attendues seraient fausses de
+  // ce décalage. On le neutralise donc ici, à un seul endroit, et §42 le remet pour l'éprouver.
+  // `opts.rebours` permet à un contrôle de choisir sa valeur.
+  if (!opts.gardeLeRebours) {
+    if (typeof opts.rebours === 'number') {
+      await page.evaluate((v) => {
+        const champ = document.querySelector('[data-rebours-secondes]');
+        if (champ) champ.value = String(v);
+      }, opts.rebours);
+    } else {
+      await neutraliserLeRebours(page);
+    }
+  }
   return { ctx, page, erreurs };
 }
 
@@ -1382,20 +1412,21 @@ async function prendreLaFin(page) {
       const trois = Array.from(canal.subarray(0, F.ECH * 3));
       const temoin = F.centile20DesFenetresDe100ms(canal.subarray(0, F.ECH * 3), F.ECH);
       // Le produit, nourri des MÊMES échantillons découpés en fenêtres de 4 800.
+      // LA CONVENTION S'ÉPROUVE SUR LA FONCTION QUI LA PORTE, et non à travers le verdict.
+      // Première version : elle passait par `verdictBruit` et lisait son `plancherDbfs` — ce qui
+      // marchait jusqu'à ce que T13 (avenant 6) ajoute l'état « non mesurable », pour lequel
+      // aucun plancher n'est rendu. Le contrôle tombait alors sur une fixture de voix, en
+      // réclamant un chiffre que le produit a désormais raison de ne plus fabriquer. Ce qui est
+      // sous contrôle ici, c'est la convention du centile : rang inférieur, sans interpolation.
       const duProduit = await page.evaluate(({ ech, parFenetre }) => {
         const A = window.EnregistreurVoix;
-        const fenetres = [];
-        for (let d = 0, k = 0; d + parFenetre <= ech.length; d += parFenetre, k++) {
-          let sc = 0, z = 0;
-          for (let i = d; i < d + parFenetre; i++) { sc += ech[i] * ech[i]; if (ech[i] === 0) z++; }
-          fenetres.push({ index: k, debutEchantillon: d, n: parFenetre, sommeCarre: sc,
-                          sommeCarreGrave: 0, zeros: z, crete: 0, dansLeSilenceInitial: true });
+        const niveaux = [];
+        for (let d = 0; d + parFenetre <= ech.length; d += parFenetre) {
+          let sc = 0;
+          for (let i = d; i < d + parFenetre; i++) sc += ech[i] * ech[i];
+          niveaux.push(20 * Math.log10(Math.sqrt(sc / parFenetre)));
         }
-        const total = fenetres.reduce((t, f) => t + f.sommeCarre, 0);
-        const n = fenetres.length * parFenetre;
-        const v = A.verdictBruit({ n, sommeCarre: total, sommeCarreGrave: 0, crete: 0, zeros: 0,
-                                   coupureHz: 120, echantillonnage: 48000, fenetres });
-        return { plancher: v.plancherDbfs, fenetres: v.fenetres.pleines };
+        return { plancher: A._centile(niveaux, A.BRUIT.centile), fenetres: niveaux.length };
       }, { ech: trois, parFenetre: Math.round(F.ECH * 0.1) });
       assert.equal(duProduit.fenetres, temoin.fenetres,
         nom + ' : même nombre de fenêtres attendu — produit ' + duProduit.fenetres +
@@ -1861,8 +1892,12 @@ async function prendreLaFin(page) {
       const el = [...document.querySelectorAll('[data-prise] [data-action="wav"]')][0];
       if (el) el.click();
     });
+    // L'ATTENTE EST OBLIGATOIRE, non optionnelle. Première version : un `.catch(() => {})`
+    // avalait l'expiration, si bien que le contrôle passait à l'assertion sans que l'avis soit
+    // arrivé — il réussissait seul et échouait dans la suite entière, où la machine est plus
+    // chargée. Une attente qu'on avale est une course déguisée.
     await page.waitForFunction(() => !!document.querySelector('[data-cle="wav"]'),
-      null, { timeout: 20000 }).catch(() => {});
+      null, { timeout: 30000 });
     const avant = await page.evaluate(() => ({
       alertes: [...document.querySelectorAll('[data-alerte] .sc-bm-message')].map((m) => m.getAttribute('data-cle')),
       avis: [...document.querySelectorAll('[data-messages] .sc-bm-message')].map((m) => m.getAttribute('data-cle')),
@@ -2055,6 +2090,7 @@ async function prendreLaFin(page) {
     await page.goto(base + '/banc-enregistreur.html' +
       '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
     await page.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await neutraliserLeRebours(page);
     await page.selectOption('[data-taille-morceau]', '2');
     await page.waitForTimeout(400);
     await page.click('[data-action="autoriser"]');
@@ -2601,6 +2637,36 @@ async function prendreLaFin(page) {
     assert.ok(r.module.journal.some((e) => e.quoi === 'reprise après perte du micro'),
       'la reprise doit être journalisée : ' +
       JSON.stringify(r.module.journal.map((e) => e.quoi)));
+
+    // ── (3) UNE LATENCE NE PEUT PAS ÊTRE NÉGATIVE ───────────────────────────────────────────
+    // Christophe a relevé « latenceDuDemarrage_ms: −1504 » sur une session reprise après une
+    // perte de micro : les deux instants venaient de deux contextes différents, et le
+    // `currentTime` d'un contexte neuf repart de zéro. Cette prise est exactement ce cas-là.
+    const lat = r.module.mesures.blocs.latenceDuDemarrage_ms;
+    if (typeof lat === 'number') {
+      assert.ok(lat >= 0,
+        'une latence ne peut pas être négative : ' + lat + ' ms');
+    } else {
+      assert.ok(/non mesurable|non mesurée/.test(String(lat)),
+        'et si elle n\'est pas mesurable, le rapport doit le DIRE au lieu de rendre un ' +
+        'chiffre impossible : ' + lat);
+      assert.ok(/graphe a été reconstruit/.test(String(lat)),
+        'avec sa raison : ' + lat);
+    }
+    // ── (3) « PISTE OUVERTE » D'UNE SESSION REPRISE EST DATÉE À SON ÉCHANTILLON RÉEL ────────
+    // La piste rouverte s'ouvre au MILIEU de la prise : la dater à zéro la placerait avant son
+    // début. Il y a deux entrées « piste ouverte » ici — celle du départ, à zéro, et celle de la
+    // reprise, qui doit être à la position de la perte.
+    const ouvertures = r.module.journal.filter((e) => e.quoi === 'piste ouverte');
+    assert.ok(ouvertures.length >= 2,
+      'la piste a été ouverte deux fois : au départ et à la reprise : ' +
+      JSON.stringify(r.module.journal.map((e) => e.quoi)));
+    assert.ok(ouvertures[ouvertures.length - 1].aEchantillon > 0,
+      'la seconde ouverture doit être datée à son échantillon réel, non à zéro : ' +
+      ouvertures[ouvertures.length - 1].aEchantillon);
+    assert.equal(ouvertures[ouvertures.length - 1].aEchantillon, suivi[0],
+      'c\'est-à-dire à la position où le micro avait été perdu : ' +
+      ouvertures[ouvertures.length - 1].aEchantillon + ' contre ' + suivi[0]);
     console.log('        perte à ' + suivi[0] + ' éch (' + (suivi[0] / hz).toFixed(2) + ' s) · ' +
       'compteur immobile pendant ' + (4 * 0.7) + ' s : ' + JSON.stringify(suivi) + ' · ' +
       pause.zerosRetiresDeLaFin + ' zéros retirés, ' + pause.zerosDejaEcrits + ' non retirés · ' +
@@ -2706,6 +2772,7 @@ async function prendreLaFin(page) {
     await page.goto(base + '/banc-enregistreur.html' +
       '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
     await page.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await neutraliserLeRebours(page);
     await page.selectOption('[data-taille-morceau]', '2');
     await page.waitForTimeout(400);
     await page.click('[data-action="autoriser"]');
@@ -2941,7 +3008,22 @@ async function prendreLaFin(page) {
     // 44 100 Hz, le périphérique de ce navigateur est à 48 000 Hz. Le changement de fréquence est
     // donc réel et ne demande aucune configuration.
     const { ctx, page } = await ouvrirBanc(nav, base);
-    await page.setInputFiles('[data-import]', path.join(FIXTURES, 'import-mono-16-44100.wav'));
+    // ── L'IMPORT EST CHOISI D'APRÈS LA FRÉQUENCE DU PÉRIPHÉRIQUE, MESURÉE ICI ────────────
+    // Première version : elle importait toujours le fichier à 44 100 Hz en supposant le
+    // périphérique à 48 000. Mesuré depuis : le contexte de ce navigateur n'a pas toujours la
+    // même fréquence d'une exécution à l'autre, et le contrôle tombait sur sa propre garde quand
+    // les deux coïncidaient. On relève donc la fréquence du contexte et on prend le fichier qui
+    // en diffère — ce qui rend le contrôle indépendant de la machine, comme la règle l'exige.
+    const hzDuContexte = await page.evaluate(() => {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      const c = new AC();
+      const hz = c.sampleRate;
+      c.close();
+      return hz;
+    });
+    const fichierImporte = (hzDuContexte === 44100)
+      ? 'import-stereo-24-48000.wav' : 'import-mono-16-44100.wav';
+    await page.setInputFiles('[data-import]', path.join(FIXTURES, fichierImporte));
     await page.waitForFunction(() => !!document.querySelector('[data-cle="import"]'),
       null, { timeout: 20000 });
     const avant = await page.evaluate(async () => {
@@ -3067,6 +3149,7 @@ async function prendreLaFin(page) {
     await page.goto(base + '/banc-enregistreur.html' +
       '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
     await page.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await neutraliserLeRebours(page);
     await page.selectOption('[data-taille-morceau]', '2');
     await page.waitForTimeout(400);
     await page.click('[data-action="autoriser"]');
@@ -3467,6 +3550,7 @@ async function prendreLaFin(page) {
     await page.goto(base + '/banc-enregistreur.html' +
       '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
     await page.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await neutraliserLeRebours(page);
     await page.selectOption('[data-taille-morceau]', '2');
     await page.waitForTimeout(400);
     await page.click('[data-action="autoriser"]');
@@ -3534,6 +3618,539 @@ async function prendreLaFin(page) {
       ' dBFS sur ' + ecritDeLaPremiere + ' éch · continuation : « ' + b.raison.slice(0, 48) +
       '… » · écart de session ' + e.ecart + ' (vus ' + e.vus + ', écrits ' + e.ecrits +
       ', départ ' + e.departDeLaSession + ')');
+  });
+
+  // ── §38 — (R6) LA BANDE SUIT L'HORLOGE AUDIO, JAMAIS CELLE DE L'INTERFACE ────────────────
+  //
+  // CE CONTRÔLE EST ÉCRIT AVANT TOUT CODE DU JALON II, à la demande de Christophe, et il doit
+  // donc échouer à sa première exécution : la bande n'existe pas encore.
+  //
+  // R6 l'écrit en six mots : « Le défilement suit l'horloge audio, jamais celle de l'interface. »
+  // La raison est mesurable : l'horloge de l'interface avance avec le temps du mur, l'horloge
+  // audio avec les échantillons REÇUS. Les deux se séparent dès que le son s'arrête sans que le
+  // temps s'arrête — une pause (E12), un contexte suspendu, un onglet au fond. Une bande calée
+  // sur l'interface continuerait alors de défiler devant un micro qui n'enregistre rien, et
+  // Christophe lirait un texte qui n'est pas dans sa voix.
+  //
+  // LA PAUSE EST LE LEVIER EXACT, et il ne coûte rien puisqu'il existe déjà : pendant une pause,
+  // aucun échantillon n'est écrit (§30 le prouve) alors que le temps du mur continue. Si la
+  // bande bouge d'un seul mot pendant trois secondes de pause, elle suit l'interface.
+  await controle('§38 la bande est calée sur l\'horloge AUDIO : elle se fige en pause (R6)', async () => {
+    const TEXTE = [
+      'Le souffle se pose sans effort sur le bord des lèvres.',
+      'On laisse descendre les épaules, puis la cage thoracique.',
+      'Rien ne presse, rien ne retient, le temps devient large.',
+      'Le ventre se soulève à son rythme, sans que la volonté intervienne.',
+      'À mesure que l\'air sort, le corps consent à peser davantage.',
+    ].join('\n');
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.fill('[data-texte-bande]', TEXTE);
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+
+    // On lit la bande ET l'horloge audio au même instant, pour pouvoir confronter les deux.
+    const lire = () => page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      const b = e.bande;
+      return {
+        echantillon: b.positionEchantillon,
+        mots: b.motsEcoules,
+        passage: b.passageCourant,
+        calageSur: b.calageSur,
+        vitesse: b.vitesseMotsParSeconde,
+        horlogeDuMur_ms: Math.round(performance.now()),
+        afficheCourant: (document.querySelector('.sc-bm-band-current') || {}).textContent,
+      };
+    });
+
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(3000);
+    const t1 = await lire();
+
+    // ── LA PAUSE : l'horloge du mur avance, l'horloge audio s'arrête ────────────────────────
+    await page.click('[data-action="pause"]');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().enPause === true,
+      null, { timeout: 10000 });
+    // LE RELEVÉ DE RÉFÉRENCE EST PRIS APRÈS QUE LA PAUSE S'EST POSÉE, et il faut attendre
+    // qu'elle se pose VRAIMENT. Deux corrections successives de ce contrôle :
+    //   · d'abord je comparais aux valeurs d'AVANT le clic — entre les deux, la prise tournait
+    //     encore et le compteur avait légitimement avancé de 3 712 échantillons ;
+    //   · ensuite, même après `enPause`, le compteur bougeait encore de 1 664 échantillons : la
+    //     pause vide le morceau PARTIEL, et son écriture dans IndexedDB est asynchrone, si bien
+    //     que le total écrit finit de se mettre à jour un instant plus tard. Ce mouvement est
+    //     JUSTE — c'est le compteur qui rattrape ce qui a été écrit, pas la bande qui suit
+    //     l'horloge du mur. On attend donc qu'il se stabilise avant de prendre la référence.
+    // L'ATTENTE EXACTE EXISTE, et c'est elle qu'il faut : la promesse des écritures en vol. Un
+    // sondage « la valeur n'a pas bougé entre deux lectures » reste une heuristique, et elle
+    // revenait trop tôt — l'écriture du morceau partiel landait après. On attend la promesse.
+    await page.evaluate(async () => {
+      await window.EnregistreurVoix._etat().ecrituresEnVol;
+    });
+    await page.waitForTimeout(150);
+    const t0Pause = await lire();
+    const pendant = [];
+    for (let k = 0; k < 3; k++) {
+      await page.waitForTimeout(1000);
+      pendant.push(await lire());
+    }
+    await page.click('[data-action="pause"]');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().enPause === false,
+      null, { timeout: 10000 });
+    await page.waitForTimeout(3000);
+    const t2 = await lire();
+    const r = await prendreLaFin(page);
+    await ctx.close();
+
+    const hz = r.module.echantillonnage;
+    // 1. LA BANDE DIT SUR QUOI ELLE EST CALÉE, et ce n'est pas une déclaration en l'air : les
+    //    points suivants la vérifient.
+    assert.ok(/horloge audio/.test(t1.calageSur) && /échantillon/.test(t1.calageSur),
+      'la bande doit dire qu\'elle est calée sur l\'horloge audio, en échantillons : ' +
+      t1.calageSur);
+    assert.ok(!/interface|performance|requestAnimationFrame/i.test(t1.calageSur),
+      'et jamais sur celle de l\'interface : ' + t1.calageSur);
+
+    // 2. PENDANT LA PAUSE, LA BANDE NE BOUGE PAS D'UN MOT — alors que le mur avance de 3 s.
+    const murAvance = pendant[2].horlogeDuMur_ms - t0Pause.horlogeDuMur_ms;
+    assert.ok(murAvance > 2500,
+      'l\'horloge du mur doit avoir avancé pendant la pause, sinon le contrôle ne prouve rien : ' +
+      murAvance + ' ms');
+    pendant.forEach((x, k) => {
+      assert.equal(x.echantillon, t0Pause.echantillon,
+        'relevé ' + k + ' : l\'horloge audio ne doit pas avancer en pause : ' + x.echantillon +
+        ' contre ' + t0Pause.echantillon);
+      assert.equal(x.mots, t0Pause.mots,
+        'relevé ' + k + ' : la bande ne doit pas avancer d\'un mot en pause (R6) : ' + x.mots +
+        ' contre ' + t0Pause.mots + ' — le mur a avancé de ' +
+        (x.horlogeDuMur_ms - t0Pause.horlogeDuMur_ms) + ' ms, soit ' +
+        ((x.horlogeDuMur_ms - t0Pause.horlogeDuMur_ms) / 1000 * t0Pause.vitesse).toFixed(1) +
+        ' mots si la bande suivait l\'interface');
+      assert.equal(x.passage, t0Pause.passage, 'ni de passage : ' + x.passage);
+    });
+
+    // 3. LA POSITION DE LA BANDE EST UNE FONCTION DE L'ÉCHANTILLON, aux deux instants.
+    [t1, t2].forEach((x, k) => {
+      const attendu = (x.echantillon / hz) * x.vitesse;
+      assert.ok(Math.abs(x.mots - attendu) < 0.5,
+        'instant ' + k + ' : la bande doit être à (échantillon / fréquence) × vitesse = ' +
+        attendu.toFixed(2) + ' mots, et elle est à ' + x.mots.toFixed(2));
+    });
+
+    // 4. ET ELLE A BIEN AVANCÉ APRÈS LA REPRISE : une bande gelée pour toujours passerait les
+    //    points précédents.
+    assert.ok(t2.echantillon > t1.echantillon,
+      'l\'horloge audio doit repartir après la reprise : ' + t2.echantillon + ' contre ' +
+      t1.echantillon);
+    assert.ok(t2.mots > t1.mots + 2,
+      'et la bande avec elle : ' + t2.mots.toFixed(2) + ' contre ' + t1.mots.toFixed(2));
+
+    console.log('        pause de ' + murAvance + ' ms d\'horloge du mur · échantillon figé à ' +
+      t0Pause.echantillon + ' · bande figée à ' + t0Pause.mots.toFixed(2) +
+      ' mots (elle aurait avancé de ' +
+      (murAvance / 1000 * t0Pause.vitesse).toFixed(1) + ' mots sur l\'horloge de l\'interface) · ' +
+      'après reprise ' + t2.mots.toFixed(2) + ' mots à l\'échantillon ' + t2.echantillon);
+  });
+
+  // ── §39 — (E13) L'EMPREINTE DES MODULES SERVIS EST CELLE DES FICHIERS DU DÉPÔT ───────────
+  await controle('§39 la page affiche l\'empreinte de CHAQUE module, et c\'est celle du dépôt (E13)', async () => {
+    // E13 : « la page du banc et le rapport de mesures portent l'empreinte courte (8
+    // hexadécimaux) du contenu de chaque module servi, pour savoir quelle version a produit une
+    // prise ; un rapport sans empreinte n'est pas une preuve. »
+    //
+    // LE TÉMOIN VIENT D'UN AUTRE CHEMIN (régression #11(j)) : les empreintes attendues sont
+    // calculées ICI, en Node, sur les fichiers du DÉPÔT, et comparées à celles que la page a
+    // calculées sur le contenu qu'elle a REÇU par le réseau. Si les deux s'accordent, la page a
+    // exécuté le code du dépôt — et c'est tout l'objet de E13.
+    const MODULES = ['bande-rythmo.js', 'voix-stockage.js', 'enregistreur-voix.js',
+                     'enregistreur-worklet.js'];
+    const attendues = {};
+    MODULES.forEach((m) => {
+      attendues[m] = crypto.createHash('sha256')
+        .update(fs.readFileSync(path.join(RACINE, m))).digest('hex').slice(0, 8);
+    });
+
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    await page.waitForFunction(() => !!window.EnregistreurVoix._etat().empreintes,
+      null, { timeout: 20000 });
+    const vu = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat().empreintes;
+      return { empreintes: e,
+               barre: (document.querySelector('[data-sb-empreintes]') || {}).textContent };
+    });
+    // ET DANS LE RAPPORT, pas seulement à l'écran.
+    const r = await prendre(page, { attendreMs: 2600 });
+    await ctx.close();
+
+    assert.equal(vu.empreintes.disponible, true,
+      'les empreintes doivent être calculables : ' + JSON.stringify(vu.empreintes).slice(0, 200));
+    MODULES.forEach((m) => {
+      assert.equal(vu.empreintes.parModule[m], attendues[m],
+        'l\'empreinte servie de ' + m + ' doit être celle du dépôt : servie ' +
+        vu.empreintes.parModule[m] + ', dépôt ' + attendues[m]);
+      assert.equal(vu.empreintes.parModule[m].length, 8,
+        'huit hexadécimaux, comme E13 le dit : ' + vu.empreintes.parModule[m]);
+      // À L'ÉCRAN, et non seulement dans l'état du module (régression #11(e)).
+      assert.ok(vu.barre.includes(attendues[m]),
+        'la barre d\'état doit porter l\'empreinte de ' + m + ' (' + attendues[m] + ') : ' +
+        vu.barre);
+    });
+    // ET DANS LE RAPPORT : « un rapport sans empreinte n'est pas une preuve ».
+    const v = r.module.mesures.versionTestee;
+    assert.ok(v && v.parModule, 'le rapport doit porter les empreintes : ' +
+      JSON.stringify(v).slice(0, 160));
+    MODULES.forEach((m) => {
+      assert.equal(v.parModule[m], attendues[m],
+        'le rapport doit porter la même empreinte pour ' + m + ' : ' + v.parModule[m]);
+    });
+    assert.ok(/SHA-256 du CONTENU SERVI/.test(v.regle),
+      'et dire comment elle est calculée : ' + v.regle);
+    console.log('        ' + MODULES.map((m) => m.replace(/\.js$/, '') + ' ' + attendues[m]).join(' · '));
+  });
+
+  // ── §40 — (T13, avenant 6) SANS PAUSE D'UNE SECONDE, L'AMBIANCE EST NON MESURABLE ────────
+  await controle('§40 parole continue : ambiance « non mesurable », aucun état affiché (T13)', async () => {
+    // T13 : « Faute de pause d'une seconde dans les passages écrits, l'ambiance est "non
+    // mesurable" : aucun état calme, correct ou bruyant n'est affiché, parce qu'une estimation
+    // prise dans la voix serait une fausse alerte. »
+    //
+    // Le défaut qu'on corrige : sur de la parole continue, l'ancien repli prenait le 20e centile
+    // de TOUTE la prise, tombait au niveau de la voix et annonçait « bruyant ». La fixture a des
+    // phrases de 2,2 s séparées de 0,4 s de respiration : la voix est reconnue, donc le silence
+    // initial n'est pas tenu, mais aucun passage calme n'atteint une seconde.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/parole-continue.wav&boucle=1');
+    const r = await prendre(page, { attendreMs: 6000 });
+    await ctx.close();
+
+    const b = r.module.mesures.bruitDePiece;
+    assert.equal(b.etat, 'non mesurable',
+      'sans pause d\'une seconde, l\'ambiance n\'est pas mesurable : ' + b.etat +
+      ' (plancher annoncé ' + b.plancherDbfs + ')');
+    assert.ok(/pause d'une seconde/.test(b.raison),
+      'et la raison doit nommer la pause qui manque : ' + b.raison);
+    assert.ok(/fausse alerte/.test(b.raison),
+      'et pourquoi on se taît plutôt que de deviner : ' + b.raison);
+    // AUCUN ÉTAT N'EST AFFICHÉ, ni dans l'objet ni à l'écran.
+    assert.equal(b.plancherDbfs, undefined,
+      'aucun plancher ne doit être fabriqué : ' + b.plancherDbfs);
+    const affiche = r.affiche.bruit || '';
+    assert.ok(/NON MESURABLE/.test(affiche), 'la page doit le dire : ' + affiche);
+    ['CALME', 'CORRECT', 'BRUYANT'].forEach((e) => {
+      assert.ok(!new RegExp('Bruit de pièce\\\\s*:\\\\s*' + e).test(affiche),
+        'et n\'afficher AUCUN des trois états : « ' + e + '  » trouvé dans ' + affiche);
+    });
+    // LE TÉMOIN DU DÉFAUT : la valeur efficace de la fenêtre entière, elle, est au niveau de la
+    // voix — c'est elle qui faisait annoncer « bruyant ».
+    assert.ok(b.efficaceDbfsFenetreEntiere > -58,
+      'la fenêtre entière est au niveau de la voix (> −58 dBFS, donc « bruyant » si on la ' +
+      'croyait) : ' + b.efficaceDbfsFenetreEntiere.toFixed(2));
+    assert.equal(b.pausesTrouvees, 0, 'et aucune pause trouvée : ' + b.pausesTrouvees);
+    assert.equal(b.silenceInitialRespecte, false,
+      'la voix occupe le silence initial : ' + b.raisonDuSilence);
+    console.log('        état « ' + b.etat + ' » · fenêtre entière ' +
+      b.efficaceDbfsFenetreEntiere.toFixed(2) + ' dBFS (aurait dit « bruyant ») · ' +
+      b.pausesTrouvees + ' pause d\'une seconde · page : ' + affiche.slice(0, 60));
+  });
+
+  // ── §41 — (E4, E9, T14) LES REPÈRES : DATÉS EN ÉCHANTILLONS, ANTIREBOND, TOUCHE MAINTENUE ─
+  await controle('§41 repères : datés à ±128 échantillons, antirebond 250 ms, touche maintenue ignorée', async () => {
+    // E4 : la flèche droite pose le marqueur ; Page suivante vaut flèche droite, « pour une
+    // télécommande de présentation qui évite le claquement du clavier près du micro ».
+    // E9 : « les répétitions automatiques d'une touche maintenue sont ignorées, et deux repères à
+    // moins d'un délai court (à régler, 250 ms au départ) sont signalés avant validation ».
+    // Constaté au lot 0 : quatre repères en 0,3 s.
+    // T14 : un repère est la frontière entre deux commentaires, comptée en échantillons.
+    const TEXTE = ['Premier passage, celui qui ouvre.',
+                   'Deuxième passage, au milieu.',
+                   'Troisième passage, pour finir.'].join('\n');
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
+    await page.fill('[data-texte-bande]', TEXTE);
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForTimeout(1200);
+
+    // ── (1) UN REPÈRE À LA FLÈCHE DROITE, et l'échantillon relevé au même instant ──────────
+    const avant = await page.evaluate(() => window.EnregistreurVoix._echantillonsCourants());
+    await page.keyboard.press('ArrowRight');
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().reperes.length >= 1,
+      null, { timeout: 10000 });
+    const apres = await page.evaluate(() => window.EnregistreurVoix._echantillonsCourants());
+
+    // ── (2) LA TOUCHE MAINTENUE : les répétitions automatiques sont ignorées ──────────────
+    await page.waitForTimeout(800);
+    await page.evaluate(() => {
+      // On simule la répétition automatique telle que le navigateur l'envoie : le même `key`,
+      // avec `repeat: true`. C'est le seul témoin fiable — un délai ne distinguerait pas une
+      // répétition d'un doigt rapide.
+      for (let k = 0; k < 8; k++) {
+        document.dispatchEvent(new KeyboardEvent('keydown',
+          { key: 'ArrowRight', repeat: true, bubbles: true, cancelable: true }));
+      }
+    });
+    await page.waitForTimeout(300);
+
+    // ── (3) DEUX REPÈRES TRÈS RAPPROCHÉS : signalés, pas jetés (E9) ──────────────────────
+    await page.keyboard.press('PageDown');
+    await page.waitForTimeout(40);
+    await page.keyboard.press('PageDown');
+    await page.waitForTimeout(400);
+
+    const etat = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { reperes: e.reperes, ignorees: e.repetitionsIgnorees || 0,
+                affiches: [...document.querySelectorAll('[data-reperes] .sc-bm-marker')]
+                  .map((m) => ({ texte: m.textContent, etat: m.getAttribute('data-state') })) };
+    });
+    const r = await prendreLaFin(page);
+    await ctx.close();
+    const hz = r.module.echantillonnage;
+
+    // 1. LE PREMIER REPÈRE EST DATÉ DANS LE FIL AUDIO, à un bloc près.
+    const r0 = etat.reperes[0];
+    assert.ok(r0, 'un repère doit avoir été posé à la flèche droite (E4)');
+    assert.ok(r0.aEchantillon >= avant && r0.aEchantillon <= apres + 128,
+      'le repère doit être daté entre les deux relevés d\'échantillon encadrants, à un bloc ' +
+      'près : ' + r0.aEchantillon + ' hors de [' + avant + ', ' + (apres + 128) + ']');
+    assert.ok(apres - avant < 4 * 2432 + 128,
+      'et l\'encadrement doit être serré pour que la mesure vaille : ' + (apres - avant) +
+      ' échantillons entre les deux relevés');
+    assert.equal(r0.douteux, false, 'le premier repère n\'est pas douteux : ' + r0.raison);
+
+    // 2. LA TOUCHE MAINTENUE N'A POSÉ AUCUN REPÈRE (E9).
+    assert.equal(etat.ignorees, 8,
+      'les huit répétitions automatiques doivent être comptées et ignorées : ' + etat.ignorees);
+    const posesParRepetition = etat.reperes.filter((x) => /répétition/.test(x.source || ''));
+    assert.equal(posesParRepetition.length, 0,
+      'et n\'avoir posé aucun repère : ' + JSON.stringify(posesParRepetition));
+
+    // 3. LES DEUX REPÈRES RAPPROCHÉS : le second est SIGNALÉ, et il est là (E9 : « signalés
+    //    AVANT validation », donc posé et marqué, non jeté en silence).
+    const douteux = etat.reperes.filter((x) => x.douteux);
+    assert.equal(douteux.length, 1,
+      'un seul repère doit être signalé douteux : ' +
+      JSON.stringify(etat.reperes.map((x) => ({ e: x.aEchantillon, d: x.douteux }))));
+    assert.ok(douteux[0].ecart < Math.round(0.25 * hz),
+      'son écart doit être sous le seuil de 250 ms (' + Math.round(0.25 * hz) +
+      ' échantillons) : ' + douteux[0].ecart);
+    assert.ok(/sous le seuil de 250 ms/.test(douteux[0].raison),
+      'et sa raison le dire : ' + douteux[0].raison);
+    // À L'ÉCRAN : le repère douteux porte l'état d'erreur du kit.
+    const marqueursDouteux = etat.affiches.filter((m) => m.etat === 'error');
+    assert.equal(marqueursDouteux.length, 1,
+      'et il doit être visible comme tel : ' + JSON.stringify(etat.affiches));
+    assert.ok(/DOUTEUX/.test(marqueursDouteux[0].texte),
+      'avec le mot : ' + marqueursDouteux[0].texte);
+
+    // 4. LA TÉLÉCOMMANDE : Page suivante vaut flèche droite (E4).
+    assert.ok(etat.reperes.some((x) => /télécommande/.test(x.source || '')),
+      'Page suivante doit poser un repère, comme la flèche droite (E4) : ' +
+      JSON.stringify(etat.reperes.map((x) => x.source)));
+
+    // 5. LES TROIS CONTRÔLES DE T6 sont calculés et ne bloquent rien.
+    const t6 = r.module.mesures.controlesDeT6;
+    assert.ok(t6 && t6.nombre && t6.ordre && t6.dansLaVoix,
+      'les trois contrôles de T6 doivent être au rapport : ' + JSON.stringify(t6).slice(0, 160));
+    assert.equal(t6.bloquantIci, false,
+      'et ne rien bloquer au lot 3 : le blocage de l\'export est du lot 4 (T6)');
+    assert.equal(t6.dansLaVoix.conforme, true,
+      'aucun repère hors de la durée de la voix : ' + JSON.stringify(t6.dansLaVoix));
+
+    console.log('        repère 1 à ' + r0.aEchantillon + ' éch, encadré par [' + avant + ', ' +
+      apres + '] · ' + etat.ignorees + ' répétitions ignorées, 0 repère posé · ' +
+      douteux.length + ' repère signalé à ' + douteux[0].ecart + ' échantillons (' +
+      (douteux[0].ecart / hz * 1000).toFixed(0) + ' ms) · T6 : ' + t6.nombre.poses +
+      ' repères pour ' + t6.nombre.attendusMin + ' à ' + t6.nombre.attendusMax + ' attendus');
+  });
+
+  // ── §42 — (E2, E10) LE COMPTE À REBOURS PRÉCÈDE LA PRISE, ET N'Y ENTRE PAS ───────────────
+  await controle('§42 compte à rebours : joué avant, garde de 0,5 s, aucun échantillon écrit', async () => {
+    // E2 : « compte à rebours de 3 secondes (réglable) avant chaque prise ». E10 : « se joue aux
+    // haut-parleurs avant le début de la prise, comme le pré-compte de Logic Pro, et ne
+    // s'enregistre JAMAIS dans la voix ».
+    //
+    // CE QUE CE CONTRÔLE PEUT MESURER, ET CE QU'IL NE PEUT PAS. Il mesure que la prise ne
+    // commence qu'après le rebours ET la garde, et qu'aucun échantillon n'est écrit avant. Il ne
+    // peut PAS mesurer la fuite acoustique des haut-parleurs vers le micro : au banc, la source
+    // est une fixture qui remplace le micro, donc rien de ce que jouent les haut-parleurs ne peut
+    // entrer dans l'entrée. Cette fuite est précisément ce que E10 assume et que la garde limite ;
+    // elle est à juger par Christophe, et le mode d'emploi du passage II le lui demande.
+    const { ctx, page } = await ouvrirBanc(nav, base,
+      '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1',
+      { rebours: 2 });
+    await page.selectOption('[data-taille-morceau]', '2');
+    await page.waitForTimeout(400);
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+
+    const avant = await page.evaluate(() => ({
+      t: Math.round(performance.now()),
+      ecrits: window.EnregistreurVoix._etat().echantillonsEcrits,
+      reboursVisible: !document.querySelector('[data-rebours]').hidden,
+    }));
+    await page.click('[data-action="demarrer"]');
+    // ── PENDANT LE REBOURS : la boîte est visible, et rien n'est écrit ────────────────────
+    await page.waitForFunction(() => !document.querySelector('[data-rebours]').hidden,
+      null, { timeout: 5000 });
+    const pendant = await page.evaluate(() => ({
+      valeur: document.querySelector('[data-rebours-valeur]').textContent,
+      libelle: document.querySelector('[data-rebours-libelle]').textContent,
+      enPrise: window.EnregistreurVoix._etat().enPrise,
+      ecrits: window.EnregistreurVoix._etat().echantillonsEcrits,
+    }));
+    // ── LA PRISE NE COMMENCE QU'APRÈS ─────────────────────────────────────────────────────
+    await page.waitForFunction(() => window.EnregistreurVoix._etat().enPrise === true,
+      null, { timeout: 20000 });
+    const auDemarrage = await page.evaluate(() => ({
+      t: Math.round(performance.now()),
+      ecrits: window.EnregistreurVoix._etat().echantillonsEcrits,
+      reboursVisible: !document.querySelector('[data-rebours]').hidden,
+    }));
+    await page.waitForTimeout(2500);
+    const r = await prendreLaFin(page);
+    await ctx.close();
+
+    assert.equal(avant.reboursVisible, false, 'la boîte du rebours est cachée au repos');
+    // 1. LE REBOURS EST VISIBLE ET COMPTE, et la prise n'a pas commencé.
+    assert.equal(pendant.enPrise, false,
+      'pendant le rebours, la prise ne doit PAS avoir commencé : ' + pendant.enPrise);
+    assert.equal(pendant.ecrits, 0,
+      'et aucun échantillon ne doit être écrit : ' + pendant.ecrits);
+    assert.ok(/rebours|garde/i.test(pendant.libelle),
+      'la boîte doit dire ce qu\'elle compte : ' + pendant.libelle);
+    // 2. LE DÉLAI MESURÉ COUVRE LE REBOURS ET LA GARDE.
+    const ecoule = auDemarrage.t - avant.t;
+    assert.ok(ecoule >= 2400,
+      'la prise doit commencer après 2 s de rebours et 0,5 s de garde, soit au moins 2 400 ms : ' +
+      ecoule + ' ms');
+    assert.ok(ecoule < 6000,
+      'et pas beaucoup plus, sinon c\'est autre chose qui attend : ' + ecoule + ' ms');
+    assert.equal(auDemarrage.ecrits, 0,
+      'au démarrage de la prise, rien n\'a encore été écrit : ' + auDemarrage.ecrits);
+    assert.equal(auDemarrage.reboursVisible, false,
+      'et la boîte du rebours est refermée : ' + auDemarrage.reboursVisible);
+    // 3. LE RAPPORT PORTE LE REBOURS, avec ses bips et sa garde.
+    const reb = r.module.mesures.compteARebours;
+    assert.ok(reb && reb.joue === true, 'le rapport doit porter le rebours : ' + JSON.stringify(reb));
+    assert.equal(reb.secondes, 2, 'ses secondes : ' + reb.secondes);
+    assert.equal(reb.garde_s, 0.5, 'sa garde : ' + reb.garde_s);
+    assert.equal(reb.bips, 2, 'et le nombre de bips RÉELLEMENT joués : ' + reb.bips);
+    assert.ok(reb.ecoule_s >= 2.4,
+      'et le temps qu\'il a pris, mesuré : ' + reb.ecoule_s + ' s');
+    // 4. LE JOURNAL LE DATE À ZÉRO : il précède la prise, donc il n'a pas de position dedans.
+    const entree = r.module.journal.filter((e) => e.quoi === 'compte à rebours joué')[0];
+    assert.ok(entree, 'le rebours doit être journalisé : ' +
+      JSON.stringify(r.module.journal.map((e) => e.quoi)));
+    assert.equal(entree.aEchantillon, 0,
+      'daté à zéro, puisqu\'il précède la prise : ' + entree.aEchantillon);
+    console.log('        rebours de ' + reb.secondes + ' s + garde ' + reb.garde_s + ' s · ' +
+      reb.bips + ' bips joués · ' + ecoule + ' ms entre le clic et le début de la prise · ' +
+      '0 échantillon écrit avant');
+  });
+
+  // ── §43 — (R6, point 6) LA DÉRIVE ENTRE L'HORLOGE AUDIO ET LA BANDE, SUR 15 MINUTES ──────
+  await controle('§43 dérive de la bande sur 5 et 15 minutes : exactement nulle, et pourquoi', async () => {
+    // Le prompt demande : « Mesure la dérive entre l'horloge audio et la bande sur 15 minutes. »
+    //
+    // LA RÉPONSE EST STRUCTURELLE, et ce contrôle la vérifie plutôt que de la supposer : la
+    // position de la bande est CALCULÉE à chaque relevé à partir de l'indice d'échantillon, et
+    // jamais ACCUMULÉE. Rien ne s'additionne, donc rien ne dérive. Une bande qui avancerait d'un
+    // delta à chaque image accumulerait l'erreur d'arrondi de chaque delta ; celle-ci repart de
+    // l'indice d'échantillon à chaque fois.
+    //
+    // On l'éprouve en parcourant quinze minutes par pas de relevé (2 432 échantillons, le pas
+    // réel du worklet) et en comparant, à chaque pas, la position calculée à la position que
+    // donne UN SEUL appel direct. Aucun son n'est joué : c'est du calcul, et quinze minutes de
+    // calcul prennent quelques millisecondes.
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const r = await page.evaluate(() => {
+      const B = window.BandeRythmo;
+      const texte = [];
+      // Un texte assez long pour couvrir quinze minutes à 2,5 mots/s : 2 250 mots.
+      for (let i = 0; i < 90; i++) {
+        texte.push('Le souffle se pose sans effort sur le bord des lèvres et le corps consent '
+          + 'à peser un peu plus que la seconde précédente, sans que rien ne presse ni retienne '
+          + 'la descente des épaules vers le sol.');
+      }
+      const passages = B.decouperEnPassages(texte.join('\n'));
+      const resultats = {};
+      [48000, 44100].forEach((hz) => {
+        [300, 900].forEach((secondes) => {
+          const total = secondes * hz;
+          const pas = 2432;          // le pas réel d'un relevé du worklet
+          let ecartMax = 0, ecartMaxA = 0, nbPas = 0;
+          for (let e = 0; e <= total; e += pas) {
+            const parPas = B.positionDeLaBande(e, hz, passages, 2.5);
+            const direct = B.positionDeLaBande(e, hz, passages, 2.5);
+            const d = Math.abs(parPas.motsEcoules - direct.motsEcoules);
+            if (d > ecartMax) { ecartMax = d; ecartMaxA = e; }
+            nbPas++;
+            // ET LA VALEUR ELLE-MÊME doit suivre l'analytique tant que le texte dure.
+            const analytique = (e / hz) * 2.5;
+            const dureeTexte = B.dureeTotale(passages, 2.5);
+            if (e / hz < dureeTexte) {
+              const dAnalytique = Math.abs(parPas.motsEcoules - analytique);
+              if (dAnalytique > (resultats[hz + '/' + secondes] || { ecartAnalytique: 0 }).ecartAnalytique) {
+                // on garde le pire
+              }
+            }
+          }
+          // Le pire écart à l'analytique, calculé en une seconde passe pour rester lisible.
+          let pireAnalytique = 0, pireA = 0;
+          const dureeTexte = B.dureeTotale(passages, 2.5);
+          for (let e = 0; e <= total; e += pas) {
+            if (e / hz >= dureeTexte) break;
+            const p = B.positionDeLaBande(e, hz, passages, 2.5);
+            const d = Math.abs(p.motsEcoules - (e / hz) * 2.5);
+            if (d > pireAnalytique) { pireAnalytique = d; pireA = e; }
+          }
+          resultats[hz + '/' + secondes] = {
+            pas: nbPas, ecartMax: ecartMax, ecartMaxA: ecartMaxA,
+            ecartAnalytiqueMax: pireAnalytique, ecartAnalytiqueA: pireA,
+            dureeTexte_s: dureeTexte,
+            motsTotal: passages.reduce((t, p) => t + p.nbMots, 0),
+          };
+        });
+      });
+      return resultats;
+    });
+    await ctx.close();
+
+    Object.keys(r).forEach((cle) => {
+      const x = r[cle];
+      assert.ok(x.pas > 5000, cle + ' : il faut des pas à vérifier : ' + x.pas);
+      // 1. AUCUNE DÉRIVE : la position ne dépend que de l'échantillon, donc deux calculs du même
+      //    échantillon donnent exactement le même nombre, à tous les pas.
+      assert.equal(x.ecartMax, 0,
+        cle + ' : la position doit être une FONCTION de l\'échantillon, donc identique à chaque ' +
+        'calcul : écart maximal ' + x.ecartMax + ' mots à l\'échantillon ' + x.ecartMaxA);
+      // 2. ET ELLE SUIT L'ANALYTIQUE tant que le texte dure, à moins d'un centième de mot.
+      assert.ok(x.ecartAnalytiqueMax < 0.01,
+        cle + ' : la position doit valoir (échantillon / fréquence) × vitesse à moins d\'un ' +
+        'centième de mot : pire écart ' + x.ecartAnalytiqueMax.toFixed(6) + ' mots à ' +
+        'l\'échantillon ' + x.ecartAnalytiqueA);
+    });
+    const q = r['48000/900'];
+    console.log('        15 min à 48 kHz : ' + q.pas + ' pas de relevé · dérive ' + q.ecartMax +
+      ' mot · écart à l\'analytique ' + q.ecartAnalytiqueMax.toFixed(9) + ' mot · texte de ' +
+      q.motsTotal + ' mots = ' + (q.dureeTexte_s / 60).toFixed(1) + ' min à 2,5 mots/s' +
+      '\n        15 min à 44,1 kHz : dérive ' + r['44100/900'].ecartMax + ' mot · écart ' +
+      r['44100/900'].ecartAnalytiqueMax.toFixed(9) + ' mot');
   });
 
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────
@@ -3702,6 +4319,7 @@ async function prendreLaFin(page) {
     await page.goto(base + '/banc-enregistreur.html' +
       '?source=fixture&fichier=banc-enregistreur/fixtures/canal-droit-vide.wav&boucle=1');
     await page.waitForFunction(() => window.__bancPret === true, null, { timeout: 20000 });
+    await neutraliserLeRebours(page);
     await page.selectOption('[data-taille-morceau]', '2');
     await page.waitForTimeout(400);
     await page.click('[data-action="autoriser"]');
@@ -4245,7 +4863,13 @@ async function prendreLaFin(page) {
     await ctx.close();
     assert.equal(r.steps, 0, 'les étapes sont du lot 4 : absentes');
     assert.equal(r.preview, 0, 'l\'aperçu de présentation est du lot 4 : absent');
-    assert.equal(r.band, 0, 'la bande rythmo est du jalon II : absente');
+    // ── CE CONTRÔLE A CHANGÉ DE SENS AU JALON II, ET IL LE DIT ──────────────────────────
+    // Au jalon I, la bande rythmo était du jalon SUIVANT : ce contrôle exigeait son absence.
+    // Elle est maintenant dans le périmètre (R6, R8), et exiger son absence reviendrait à
+    // interdire ce que T3 demande de livrer. Ce qui doit rester absent est le lot 4 : les étapes
+    // et l'aperçu de présentation, vérifiés deux lignes plus haut.
+    assert.equal(r.band, 1,
+      'la bande rythmo est du jalon II : elle doit être PRÉSENTE, et une seule fois : ' + r.band);
     assert.equal(r.blocking, 0, 'les avis bloquants sont du jalon III : absents');
     assert.equal(r.timeline, 0, 'la timeline est du lot 5 : absente');
     assert.deepEqual(r.desactives, [], 'rien ne doit être grisé : ' + JSON.stringify(r.desactives));

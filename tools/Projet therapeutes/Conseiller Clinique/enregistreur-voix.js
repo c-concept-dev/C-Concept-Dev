@@ -160,6 +160,18 @@
       continuationDe: null,   // l'identifiant de la prise qu'on prolonge, ou null
       microPerdu: false,      // (E8) la piste s'est terminée ou le contexte a été interrompu
       toucheBascule: ' ',     // (E4) Espace par défaut, réglable et apprenable
+      // ── JALON II : LA BANDE, LES REPÈRES, LE COMPTE À REBOURS ──────────────────────────
+      passages: [],           // (R6) le texte découpé, une ligne un passage
+      bande: null,            // (R6) la position courante, FONCTION de l'indice d'échantillon
+      vitesseBande: 2.5,      // (R6) mots par seconde, réglable
+      decalageBande_s: 0,     // (R6) retour d'un passage : la bande recule, l'audio non
+      reperes: [],            // (E4, T14) frontières entre commentaires, datées en échantillons
+      dernierRepere: null,    // (E9) pour l'antirebond, en échantillons
+      toucheRepere: 'ArrowRight',
+      apprendLaToucheRepere: false,
+      empreintes: null,       // (E13) l'empreinte courte de chaque module servi
+      amorce: null,           // (E10, R7) la zone d'amorce d'une reprise de passage
+      repriseDuPassage: null, // (T10) le passage que cette prise reprend
       priseEnCloture: false, // (D4) la prise est finie mais ses mesures de fin s'écrivent encore
       muetDepuis: 0,         // (D3) l'échantillon où le signal est tombé à zéro
       db: null,
@@ -506,8 +518,53 @@
       population = pauseRetenue.membres;
       source = 'pause la plus calme de la prise';
     } else {
-      population = pleines.filter(function (f) { return f.niveau !== null; });
-      source = 'aucune pause d\'une seconde : toute la prise';
+      // ── (T13, avenant 6) NON MESURABLE, ET AUCUN ÉTAT AFFICHÉ ───────────────────────────
+      // T13 : « Faute de pause d'une seconde dans les passages écrits, l'ambiance est "non
+      // mesurable" : aucun état calme, correct ou bruyant n'est affiché, parce qu'une estimation
+      // prise dans la voix serait une fausse alerte. »
+      //
+      // C'est exactement ce que faisait l'ancien repli : le 20e centile de TOUTE la prise. Sur
+      // de la parole continue il tombe au niveau de la voix — mesuré −33,2 dBFS sur la fixture
+      // de parole — et annonce « bruyant » sur une pièce dont on ne sait rien. Mieux vaut ne
+      // rien dire que dire faux.
+      return {
+        mesure: true,
+        echantillons: b.n,
+        secondes: b.echantillonnage ? b.n / b.echantillonnage : 0,
+        etat: 'non mesurable',
+        raison: 'aucune pause d\'une seconde dans les passages écrits de la prise : il n\'y a '
+          + 'nulle part où prélever une ambiance. Une estimation prise dans la voix serait une '
+          + 'fausse alerte (T13).',
+        silenceInitialRespecte: silenceRespecte,
+        raisonDuSilence: silenceRespecte
+          ? 'aucune voix dans le silence initial'
+          : voix.length + ' passage(s) de voix dans le silence initial',
+        transitoires: transitoires.length,
+        fenetreLaPlusCalmeDbfs: occ.plusCalme,
+        seuilFenetreOccupeeDbfs: occ.seuilOccupee,
+        // LE TÉMOIN DE CE QU'ON AURAIT DIT À TORT : la valeur efficace de la fenêtre entière.
+        efficaceDbfsFenetreEntiere: dbFenetreEntiere,
+        pausesTrouvees: 0,
+        pauseMinimale_s: BRUIT.pauseMin_s,
+        echantillonsAZero: b.zeros,
+        crete: b.crete, creteDbfs: dbfs(b.crete),
+        fenetres: {
+          total: toutes.length, pleines: pleines.length,
+          partielles: toutes.length - pleines.length,
+          dansLeSilenceInitial: initiales.length, sansSignal: 0,
+          occupees: occ.occupees, pausesTrouvees: 0,
+          secondes: fenetreSecondes(b),
+          ecarteesCarNonEcrites: ecartees,
+          regleDesFenetres: 'seules les fenêtres ÉCRITES entrent au verdict ; ici aucune suite '
+            + 'calme n\'atteint ' + BRUIT.pauseMin_s + ' s.',
+        },
+        graveDominant: false,
+        partGrave: 0,
+        partGraveRaison: 'ambiance non mesurable : aucun plancher d\'où tirer une part de grave',
+        mention: '',
+        coupureHz: b.coupureHz,
+        regle: REGLE_BRUIT(b),
+      };
     }
 
     var plancher = centile(population.map(function (f) { return f.niveau; }), BRUIT.centile);
@@ -732,6 +789,25 @@
         '<span data-chrono-intitule>Enregistrement</span> ' +
         '<span class="sc-bm-time" data-chrono>00:00,000</span></div>' +
 
+      // ── (R6, R8) LA BANDE RYTHMO — composants du kit du jalon II, sans exception ───────
+      // `sc-bm-band` porte le CURSEUR FIXE que R8 demande : son `::before` dessine une barre
+      // verticale à 24 px du bord gauche, et c'est le texte qui défile sous elle. `-current` est
+      // en 24 px et `-next` en 18 px atténué : la grande police et le fort contraste de R8
+      // viennent du kit, pas d'ici.
+      '<div class="sc-bm-band" data-bande hidden>' +
+        '<div class="sc-bm-band-meta"><span data-bande-passage>Passage —</span>' +
+          '<span class="sc-bm-band-speed" data-bande-vitesse>2,5 mots/s</span></div>' +
+        '<p class="sc-bm-band-current" data-bande-courant></p>' +
+        '<p class="sc-bm-band-next" data-bande-suivant></p>' +
+      '</div>' +
+      // (E2, E10) LE COMPTE À REBOURS : `sc-bm-amorce-clock` du kit, dont le `strong` est en
+      // 32 px à chiffres tabulaires. Le même composant sert à l'horloge d'amorce d'une reprise.
+      '<div class="sc-bm-amorce-clock" data-rebours hidden>' +
+        '<span data-rebours-libelle>Compte à rebours</span><strong data-rebours-valeur>3</strong>' +
+      '</div>' +
+      // (E4, T14) LES REPÈRES POSÉS, chacun un `sc-bm-marker` du kit.
+      '<div class="sc-bm-record-markers" data-reperes></div>' +
+
       '<div class="sc-bm-meter" data-lot="3">' +
         '<div class="sc-bm-row">' +
           '<svg class="sc-bm-icon" aria-hidden="true"><use href="#sc-bm-icon-mic"></use></svg>' +
@@ -784,6 +860,31 @@
       '<div class="sc-bm-row">' +
         '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="apprendre-touche" data-lot="3">Apprendre une touche</button>' +
       '</div>' +
+      // ── (R6) LE TEXTE DE LA BANDE, SA VITESSE ET SA TAILLE ────────────────────────────
+      '<label class="sc-bm-field" data-lot="3">Texte de la narration (une ligne par passage, ' +
+        '« [pause] » ou « [pause 2 s] » pour un silence non lu)' +
+        '<textarea class="sc-bm-textarea" data-texte-bande rows="4" ' +
+          'aria-label="Texte de la narration"></textarea></label>' +
+      '<label class="sc-bm-field" data-lot="3">Vitesse de défilement (mots par seconde)' +
+        '<input class="sc-bm-input" type="number" step="0.1" min="0.5" max="6" value="2.5" ' +
+          'data-vitesse-bande aria-label="Vitesse de défilement"/></label>' +
+      '<label class="sc-bm-field" data-lot="3">Taille du texte de la bande (pixels)' +
+        '<input class="sc-bm-input" type="number" step="2" min="16" max="72" value="24" ' +
+          'data-taille-bande aria-label="Taille du texte de la bande"/></label>' +
+      '<label class="sc-bm-field" data-lot="3">Compte à rebours avant la prise (secondes)' +
+        '<input class="sc-bm-input" type="number" step="1" min="0" max="10" value="3" ' +
+          'data-rebours-secondes aria-label="Compte à rebours"/></label>' +
+      '<label class="sc-bm-field sc-bm-check" data-lot="3">' +
+        '<input type="checkbox" data-rebours-bips checked aria-label="Bips du compte à rebours"/>' +
+        ' Bips du compte à rebours (aux haut-parleurs, jamais enregistrés)</label>' +
+      '<label class="sc-bm-field" data-lot="3">Touche de repère' +
+        '<input class="sc-bm-input" data-touche-repere readonly value="Flèche droite" ' +
+          'aria-label="Touche de repère"/></label>' +
+      '<div class="sc-bm-row">' +
+        '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="apprendre-repere" data-lot="3">Choisir la touche de repère</button>' +
+        '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="repere" data-lot="3">Poser un repère</button>' +
+        '<button type="button" class="sc-bm-button sc-bm-button--secondary" data-action="passage-precedent" data-lot="3">Passage précédent</button>' +
+      '</div>' +
       // (E12, point 5) L'IMPORT D'UNE VOIX, pour la continuer ensuite.
       '<label class="sc-bm-field" data-lot="3">Importer une voix (WAV PCM 16 ou 24 bits)' +
         '<input class="sc-bm-input" type="file" accept=".wav,audio/wav,audio/x-wav" data-import aria-label="Importer un fichier WAV"/></label>' +
@@ -818,6 +919,9 @@
     '<span data-sb-canal>Canal : —</span>' +
     '<span data-sb-frequence>Fréquence : —</span>' +
     '<span data-sb-micro>Micro : —</span>' +
+    // (E13) « un rapport sans empreinte n'est pas une preuve » : elle est donc à l'écran, pas
+    // seulement dans le fichier.
+    '<span data-sb-empreintes>Version : —</span>' +
   '</footer>' +
 '</div>';
   }
@@ -970,6 +1074,9 @@
   // sommes du worklet, et la barre vient du même chiffre — pas d'un second calcul.
   function peindreReleve(m) {
     peindreEtats();
+    // (R6) LA BANDE SUIT L'HORLOGE AUDIO : elle est peinte ici, au rythme des relevés du
+    // worklet, à partir de l'indice d'échantillon. Aucune horloge d'interface n'intervient.
+    peindreBande();
     // (E8) LA PERTE DU MICRO SE CONSTATE ICI, vingt fois par seconde : `track.stop()` ne
     // déclenche aucun événement, et une piste morte continue de livrer des zéros.
     surveillerLeMicro();
@@ -1070,6 +1177,10 @@
         + 'sur ' + v.echantillons + ' à zéro numérique. ' + v.raisonDuNiveau;
     } else if (v.etat === 'non concluant') {
       el.textContent = 'Bruit de pièce : NON CONCLUANT — ' + v.raison + '.';
+    } else if (v.etat === 'non mesurable') {
+      // (T13, avenant 6) AUCUN ÉTAT N'EST AFFICHÉ : ni calme, ni correct, ni bruyant. On dit
+      // seulement pourquoi. « une estimation prise dans la voix serait une fausse alerte ».
+      el.textContent = 'Bruit de pièce : NON MESURABLE — ' + v.raison;
     } else {
       el.textContent = 'Bruit de pièce : ' + v.etat.toUpperCase() + ' — plancher '
         + fmtDb(v.plancherDbfs) + ' (' + v.centile + 'e centile de '
@@ -1519,7 +1630,12 @@
         // le bon nom. Un contrôle qui compare la page au rapport l'a dit.
         var sbm = q('[data-sb-micro]');
         if (sbm) sbm.textContent = 'Micro : ' + _etat.microphone.nom;
-        _etat.ouverturePiste = journaliser('piste ouverte', 0, {
+        // ── (3) « PISTE OUVERTE » EST DATÉE À SON ÉCHANTILLON RÉEL ────────────────────
+        // Elle était datée à 0 en toutes circonstances. Sur une session REPRISE — après une
+        // perte de micro, ou une continuation — la piste s'ouvre au MILIEU de la prise, et la
+        // dater à zéro la place avant son début. Hors prise, zéro est la vérité (il n'y a pas
+        // de position) ; en prise, c'est la position courante.
+        _etat.ouverturePiste = journaliser('piste ouverte', echantillonsCourants(), {
           canaux: reglages.channelCount, echantillonnage: reglages.sampleRate,
           annulationEcho: reglages.echoCancellation,
           suppressionBruit: reglages.noiseSuppression,
@@ -2029,6 +2145,279 @@
     });
   }
 
+  // ── (E2, E10) LE COMPTE À REBOURS, JOUÉ AUX HAUT-PARLEURS ET JAMAIS ENREGISTRÉ ────────────
+  //
+  // E2 : « compte à rebours de 3 secondes (réglable) avant chaque prise, y compris les reprises ».
+  // E10 : « Le compte à rebours (avec ses bips facultatifs) se joue aux haut-parleurs avant le
+  // début de la prise, comme le pré-compte de Logic Pro, et ne s'enregistre JAMAIS dans la voix. »
+  //
+  // COMMENT « JAMAIS » EST GARANTI, et ce n'est pas une promesse : la prise ne DÉMARRE qu'après.
+  // Pendant le rebours le worklet est en mode analyse — il mesure, il n'écrit pas —, donc aucun
+  // échantillon du rebours ne peut entrer dans la voix. La GARDE de 0,5 s qui suit le dernier bip
+  // existe pour la traîne : un bip a une décroissance, et les haut-parleurs du Mac la rendent
+  // encore quelques dizaines de millisecondes après la fin de l'enveloppe. Démarrer sur le
+  // dernier bip mettrait cette traîne dans les premiers échantillons.
+  var GARDE_APRES_REBOURS_S = 0.5;
+
+  function compteARebours() {
+    var champ = q('[data-rebours-secondes]');
+    var secondes = champ ? parseInt(champ.value, 10) : 3;
+    if (!isFinite(secondes) || secondes < 0) secondes = 3;
+    var avecBips = !!(q('[data-rebours-bips]') && q('[data-rebours-bips]').checked);
+    var boite = q('[data-rebours]');
+    var valeur = q('[data-rebours-valeur]');
+    var libelle = q('[data-rebours-libelle]');
+    if (secondes === 0) {
+      journaliser('compte à rebours ignoré (0 s)', 0, null);
+      return Promise.resolve({ secondes: 0, bips: 0, garde_s: 0, joue: false });
+    }
+    if (boite) boite.hidden = false;
+    if (libelle) libelle.textContent = 'Compte à rebours';
+    var joues = 0;
+    var debut = (self.performance && performance.now()) || Date.now();
+
+    function unePulsation(reste) {
+      if (valeur) valeur.textContent = String(reste);
+      if (avecBips && _etat.ctx && _etat.ctx.state === 'running') {
+        // LE BIP VIENT DU CONTEXTE LUI-MÊME, vers sa destination — c'est-à-dire les
+        // haut-parleurs. Il ne passe PAS par le worklet, qui n'a pas d'entrée depuis la
+        // destination : il ne peut donc pas être capté autrement que par le micro, ce que E10
+        // assume et que la garde limite.
+        try {
+          var o = _etat.ctx.createOscillator();
+          var g = _etat.ctx.createGain();
+          // Le dernier bip est plus haut : c'est le signal que ça commence, comme en studio.
+          o.frequency.value = (reste === 1) ? 1320 : 880;
+          o.type = 'sine';
+          var t = _etat.ctx.currentTime;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(0.18, t + 0.01);
+          g.gain.linearRampToValueAtTime(0, t + 0.12);
+          o.connect(g); g.connect(_etat.ctx.destination);
+          o.start(t); o.stop(t + 0.14);
+          joues++;
+        } catch (e) { /* un bip qui ne sort pas ne doit pas empêcher la prise */ }
+      }
+      // ── CHAQUE SECONDE DURE UNE SECONDE, Y COMPRIS LA DERNIÈRE ────────────────────────
+      // Défaut trouvé par §42 : la dernière pulsation passait directement à la garde, si bien
+      // qu'un rebours de deux secondes ne durait qu'une seconde et demie — mesuré 1 565 ms. Un
+      // « compte à rebours de 3 secondes » (E2) doit prendre trois secondes : on attend donc
+      // après CHAQUE pulsation, la dernière comprise, et la garde vient après.
+      if (reste <= 1) {
+        return attendreMs(1000).then(function () { return finirLeRebours(); });
+      }
+      return attendreMs(1000).then(function () { return unePulsation(reste - 1); });
+    }
+
+    function finirLeRebours() {
+        // LA GARDE : on attend la traîne du dernier bip avant de rendre la main.
+        if (libelle) libelle.textContent = 'Garde avant la prise';
+        if (valeur) valeur.textContent = GARDE_APRES_REBOURS_S.toFixed(1).replace('.', ',');
+        return attendreMs(GARDE_APRES_REBOURS_S * 1000).then(function () {
+          if (boite) boite.hidden = true;
+          var ecoule = (((self.performance && performance.now()) || Date.now()) - debut) / 1000;
+          // LE REBOURS N'ÉCRIT PAS LUI-MÊME AU JOURNAL. Il PRÉCÈDE la prise, dont le journal est
+          // remis à neuf au démarrage : une entrée écrite ici serait effacée une seconde plus
+          // tard. C'est `demarrer` qui la consigne, dans le journal de la prise qu'elle ouvre, à
+          // l'échantillon zéro — trouvé par le contrôle §42, qui ne la retrouvait pas.
+          return { secondes: secondes, bips: joues, garde_s: GARDE_APRES_REBOURS_S, joue: true,
+                   ecoule_s: +ecoule.toFixed(3),
+                   regle: 'joué AVANT le démarrage de la prise : le worklet est en mode analyse, '
+                     + 'il mesure et n\'écrit pas, donc aucun échantillon du rebours ne peut '
+                     + 'entrer dans la voix (E10). La garde laisse passer la traîne du dernier '
+                     + 'bip.' };
+        });
+    }
+    return unePulsation(secondes);
+  }
+
+  // Une attente simple, nommée : `setTimeout` enveloppé une fois plutôt que dix.
+  function attendreMs(ms) {
+    return new Promise(function (r) { setTimeout(r, ms); });
+  }
+
+  // ── (E13) L'EMPREINTE DE CHAQUE MODULE SERVI ──────────────────────────────────────────────
+  //
+  // E13 : « la page du banc et le rapport de mesures portent l'empreinte courte (8 hexadécimaux)
+  // du contenu de chaque module servi, pour savoir quelle version a produit une prise ; un
+  // rapport sans empreinte n'est pas une preuve. »
+  //
+  // L'empreinte est calculée sur le CONTENU SERVI, relu par le réseau, et non sur une version
+  // écrite à la main dans le code : une constante de version se périme en silence, un condensat
+  // du contenu ne peut pas. Un contrôle compare ces empreintes à celles des fichiers du dépôt,
+  // ce qui prouve que la page a exécuté le code qu'on croit.
+  function empreintesDesModules(noms) {
+    var liste = noms || [];
+    if (!self.crypto || !self.crypto.subtle) {
+      return Promise.resolve({ disponible: false,
+        raison: 'crypto.subtle absent : hors contexte sécurisé, aucune empreinte calculable' });
+    }
+    return Promise.all(liste.map(function (nom) {
+      return fetch(nom, { cache: 'no-store' }).then(function (r) {
+        if (!r.ok) throw new Error(nom + ' : ' + r.status);
+        return r.arrayBuffer();
+      }).then(function (octets) {
+        return crypto.subtle.digest('SHA-256', octets).then(function (h) {
+          var hex = Array.prototype.map.call(new Uint8Array(h), function (b) {
+            return ('0' + b.toString(16)).slice(-2);
+          }).join('');
+          return { module: nom, octets: octets.byteLength, courte: hex.slice(0, 8), entiere: hex };
+        });
+      }, function (e) {
+        return { module: nom, erreur: String(e && e.message) };
+      });
+    })).then(function (lues) {
+      var par = {};
+      lues.forEach(function (x) { par[x.module] = x.courte || ('erreur : ' + x.erreur); });
+      return {
+        disponible: true,
+        modules: lues,
+        parModule: par,
+        regle: 'SHA-256 du CONTENU SERVI, relu par le réseau sans cache, tronqué à 8 '
+          + 'hexadécimaux (E13). Une constante de version écrite à la main se périme en '
+          + 'silence ; un condensat du contenu ne peut pas.',
+      };
+    });
+  }
+
+  // ── (R6) LA BANDE : SA POSITION VIENT DE L'HORLOGE AUDIO, ET DE RIEN D'AUTRE ───────────────
+  //
+  // Cette fonction est appelée depuis `peindreReleve`, c'est-à-dire à chaque relevé du worklet —
+  // une vingtaine de fois par seconde. Elle ne lit AUCUNE horloge d'interface : elle passe à
+  // `BandeRythmo.positionDeLaBande` l'indice d'échantillon et la fréquence, et peint ce qui en
+  // sort. En pause, l'indice ne bouge pas, donc la bande ne bouge pas (R6, E12).
+  function peindreBande() {
+    if (!window.BandeRythmo) return;
+    var pos = window.BandeRythmo.positionDeLaBande(
+      echantillonsCourants(), _etat.echantillonnage, _etat.passages, _etat.vitesseBande,
+      { decalage_s: _etat.decalageBande_s });
+    _etat.bande = pos;
+    var hote = q('[data-bande]');
+    if (hote) hote.hidden = _etat.passages.length === 0;
+    var courant = q('[data-bande-courant]');
+    if (courant) courant.textContent = pos.passageAffiche || '';
+    var suivant = q('[data-bande-suivant]');
+    if (suivant) suivant.textContent = pos.passageSuivant || '';
+    var meta = q('[data-bande-passage]');
+    if (meta) {
+      meta.textContent = _etat.passages.length
+        ? 'Passage ' + (pos.passageCourant + 1) + ' sur ' + _etat.passages.length
+          + ' · ' + (pos.partDuPassage * 100).toFixed(0) + ' %'
+        : 'Passage —';
+    }
+    var vit = q('[data-bande-vitesse]');
+    if (vit) {
+      // (R5) LA VITESSE EN MOTS PAR SECONDE, à côté du texte : c'est la grandeur que R5 demande
+      // d'afficher par passage, et celle dont R6 fixe le défaut à 2,5.
+      vit.textContent = pos.vitesseMotsParSeconde.toFixed(1).replace('.', ',') + ' mots/s';
+    }
+    return pos;
+  }
+
+  // Le texte collé devient des passages. Appelé à chaque frappe : le découpage est pur et ne
+  // coûte rien, et Christophe voit son texte se découper en direct.
+  function relireLeTexte() {
+    if (!window.BandeRythmo) return;
+    var champ = q('[data-texte-bande]');
+    var texte = champ ? champ.value : '';
+    _etat.passages = window.BandeRythmo.decouperEnPassages(texte);
+    var douteuses = window.BandeRythmo.marquesDouteuses(texte);
+    if (douteuses.length) {
+      // (R8) UNE MARQUE QU'ON CROIT COMPRISE ET QU'ON IGNORE est un silence qui manquera dans la
+      // voix sans que personne l'ait voulu. On la DIT au lieu de la deviner.
+      message('marques', 'warning', 'Ces marques ressemblent à une pause sans en être une et '
+        + 'seront LUES à voix haute : ' + douteuses.join(' ') + '. Les formes reconnues sont '
+        + '« [pause] » et « [pause 2 s] ».');
+    } else {
+      message('marques', '', null);
+    }
+    peindreBande();
+  }
+
+  // ── (E4, E9, T14) POSER UN REPÈRE ─────────────────────────────────────────────────────────
+  //
+  // Un repère est la FRONTIÈRE entre deux commentaires (T14), daté dans le fil audio et jamais
+  // avec l'horloge de l'interface — même raison qu'en R6, et même conséquence : un repère daté
+  // sur l'horloge du mur tomberait à côté dès que l'audio et l'écran se séparent.
+  //
+  // E9 demande deux gardes, et il faut les deux : `event.repeat` pour la touche MAINTENUE, et un
+  // délai pour le rebond. Le lot 0 a vu quatre repères en 0,3 s.
+  function poserUnRepere(source) {
+    if (!_etat.enPrise) {
+      message('repere', 'warning', 'Aucune prise en cours : un repère est une frontière DANS la '
+        + 'voix, il n\'a pas de sens hors d\'une prise.');
+      return null;
+    }
+    var ech = echantillonsCourants();
+    var verdict = window.BandeRythmo.antirebond(_etat.dernierRepere, ech,
+      _etat.echantillonnage, window.BandeRythmo.ANTIREBOND_MS_DEFAUT);
+    if (!verdict.accepte) {
+      // E9 : « signalés AVANT validation ». On ne jette donc pas : on le pose en le marquant
+      // douteux, et l'opérateur voit lequel. Le jeter en silence perdrait une frontière voulue.
+      _etat.reperes.push({ aEchantillon: ech, passage: _etat.bande ? _etat.bande.passageCourant : 0,
+        source: source, douteux: true, raison: verdict.raison, ecart: verdict.ecart });
+      journaliser('repère douteux', ech, { raison: verdict.raison, ecart: verdict.ecart,
+        source: source });
+      message('repere', 'warning', 'Deux repères très rapprochés : ' + verdict.raison
+        + '. Il est posé et SIGNALÉ, pas jeté — à vous de le garder ou de le retirer.');
+      peindreReperes();
+      return _etat.reperes[_etat.reperes.length - 1];
+    }
+    _etat.dernierRepere = ech;
+    var r = { aEchantillon: ech, passage: _etat.bande ? _etat.bande.passageCourant : 0,
+              source: source, douteux: false };
+    _etat.reperes.push(r);
+    journaliser('repère posé', ech, { passage: r.passage, source: source,
+      regle: 'daté dans le fil audio, en échantillons ; jamais avec l\'horloge de l\'interface' });
+    message('repere', '', null);
+    peindreReperes();
+    return r;
+  }
+
+  // (R6) « retour d'un passage » : la bande recule, l'horloge audio NON — on ne peut pas défaire
+  // des échantillons écrits. Le décalage est une grandeur de la bande, et le rapport le dit.
+  function passagePrecedent() {
+    if (!window.BandeRythmo || !_etat.passages.length) return;
+    var pos = _etat.bande || peindreBande();
+    var cible = Math.max(0, pos.passageCourant - 1);
+    var jusqua = 0;
+    for (var i = 0; i < cible; i++) {
+      jusqua += window.BandeRythmo.dureeDUnPassage(_etat.passages[i], _etat.vitesseBande);
+    }
+    _etat.decalageBande_s = pos.secondes - jusqua;
+    journaliser('retour au passage ' + (cible + 1), echantillonsCourants(),
+      { decalageBande_s: +_etat.decalageBande_s.toFixed(3),
+        regle: 'la bande recule, l\'horloge audio non : on ne défait pas des échantillons écrits. '
+          + 'Le décalage est une grandeur de la BANDE (R6).' });
+    peindreBande();
+  }
+
+  // Le nom d'une touche tel qu'un humain le lit. Écrit une fois : il sert au champ, au journal
+  // et aux avis, et trois traductions différentes du même `event.key` seraient trois vérités.
+  function nomDeTouche(k) {
+    if (k === ' ') return 'Espace';
+    if (k === 'ArrowRight') return 'Flèche droite';
+    if (k === 'ArrowLeft') return 'Flèche gauche';
+    if (k === 'PageDown') return 'Page suivante';
+    if (k === 'PageUp') return 'Page précédente';
+    return k;
+  }
+
+  function peindreReperes() {
+    var hote = q('[data-reperes]');
+    if (!hote) return;
+    hote.innerHTML = '';
+    _etat.reperes.forEach(function (r, k) {
+      var el = document.createElement('span');
+      el.className = 'sc-bm-marker';
+      el.setAttribute('data-repere', String(k));
+      if (r.douteux) el.setAttribute('data-state', 'error');
+      el.textContent = (k + 1) + ' · ' + fmtTemps(r.aEchantillon, _etat.echantillonnage)
+        + ' · passage ' + (r.passage + 1) + (r.douteux ? ' · DOUTEUX' : '');
+      hote.appendChild(el);
+    });
+  }
+
   // ── DÉMARRER, ARRÊTER ──────────────────────────────────────────────────────────────────────
 
   // ── (E12) DÉMARRER UNE PRISE, OU PROLONGER CELLE QU'ON LUI DÉSIGNE ───────────────────────
@@ -2091,6 +2480,15 @@
     // (d) LES FENÊTRES D'UNE PRISE N'APPARTIENNENT QU'À ELLE. Les garder d'une prise à l'autre
     // aurait fait exactement ce que le défaut 4 reproche au compteur d'échantillons : décrire la
     // prise précédente en croyant décrire celle-ci.
+    // (E4, T14) LES REPÈRES APPARTIENNENT À LEUR PRISE : ce sont des frontières DANS une voix.
+    // Les garder d'une prise à l'autre les daterait dans la mauvaise.
+    if (!prolonge) {
+      _etat.reperes = [];
+      _etat.dernierRepere = null;
+      _etat.decalageBande_s = 0;
+      _etat.repetitionsIgnorees = 0;
+      peindreReperes();
+    }
     _etat.bruitSommes = null;
     _etat.fenetresBruit = [];
     _etat.bruitProvisoireRendu = false;
@@ -2140,6 +2538,9 @@
       return (_etat.ctx.state === 'suspended' ? _etat.ctx.resume() : Promise.resolve());
     }).then(function () {
       _etat.debutPrise_ctxTemps = _etat.ctx.currentTime;
+      // (3) LA GÉNÉRATION DU GRAPHE AU DÉMARRAGE : c'est elle qui dit si l'instant d'arrêt est
+      // comparable à celui du démarrage.
+      _etat.generationDuDebut = _generation;
       // ORDRE VOULU : on démarre le worklet D'ABORD, et on n'écrit la prise qu'une fois qu'il a
       // accusé réception. C'est lui qui connaît la taille de morceau réellement appliquée (un
       // multiple entier de 128), et la prise doit porter CETTE valeur, pas celle qu'on a
@@ -2192,6 +2593,13 @@
       } else {
         journaliser('prise démarrée', 0, { canal: dec.canal, raison: dec.raison,
           echantillonsParMorceau: _etat.echantillonsParMorceauReels });
+        // (E2, E10) LE REBOURS APPARTIENT À CETTE PRISE, daté à zéro puisqu'il la précède.
+        if (_etat.rebours && _etat.rebours.joue) {
+          journaliser('compte à rebours joué', 0, {
+            secondes: _etat.rebours.secondes, bipsJoues: _etat.rebours.bips,
+            garde_s: _etat.rebours.garde_s, ecoule_s: _etat.rebours.ecoule_s,
+            regle: _etat.rebours.regle });
+        }
       }
       // (d) T13 : LE BRUIT SE MESURE PENDANT LE SILENCE INITIAL, donc sur les premières
       // secondes de la prise — pas sur une fenêtre d'avant, qui ne serait pas dans le fichier.
@@ -2254,9 +2662,22 @@
           f.tramesEcoulees || 0, _etat.echantillonnage);
         // La latence du message de démarrage, mesurée pour ELLE-MÊME plutôt que confondue avec
         // une perte : écart entre l'instant du fil principal et celui du fil audio.
-        perdus.latenceDuDemarrage_ms = (typeof _etat.debutTempsWorklet === 'number')
-          ? Math.round((_etat.debutTempsWorklet - _etat.debutPrise_ctxTemps) * 1000)
-          : 'non mesurée';
+        // ── (3) UNE LATENCE NE PEUT PAS ÊTRE NÉGATIVE ──────────────────────────────────
+        // Christophe a relevé « latenceDuDemarrage_ms: −1504 » sur une session REPRISE après une
+        // perte de micro. La cause : les deux instants ne venaient pas du même contexte.
+        // `debutPrise_ctxTemps` était lu sur le contexte d'origine, `debutTempsWorklet` sur le
+        // NOUVEAU contexte, reconstruit par `autoriser` — et le `currentTime` d'un contexte
+        // repart de zéro. Soustraire deux horloges différentes ne donne pas une latence, mais
+        // un nombre. On compare donc les GÉNÉRATIONS de graphe, et quand elles diffèrent on le
+        // DIT au lieu de rendre un chiffre impossible.
+        perdus.latenceDuDemarrage_ms = (typeof _etat.debutTempsWorklet !== 'number')
+          ? 'non mesurée'
+          : (_etat.generationDuDebut !== _generation)
+            ? 'non mesurable : le graphe a été reconstruit pendant la prise (génération '
+              + _etat.generationDuDebut + ' au démarrage, ' + _generation + ' à l\'arrêt), et le '
+              + '`currentTime` d\'un contexte neuf repart de zéro — les deux instants '
+              + 'n\'appartiennent pas à la même horloge'
+            : Math.round((_etat.debutTempsWorklet - _etat.debutPrise_ctxTemps) * 1000);
 
         // UNE PRISE EST MUETTE QUAND ELLE EST VIDE, pas quand elle CONTIENT un passage muet.
         // E8 dit « refuse de présenter une prise VIDE comme réussie ». La première règle que
@@ -2531,6 +2952,34 @@
             raison: _etat.verificationCanal.raisonSurLaPrise,
             accordAvecLeCanalUtilise: _etat.verificationCanal.accord }
         : 'non vérifié',
+      // ── (E2, E10) LE COMPTE À REBOURS DE CETTE PRISE ────────────────────────────────────
+      compteARebours: _etat.rebours || 'aucun',
+      // ── (E13) QUELLE VERSION A PRODUIT CETTE PRISE ──────────────────────────────────────
+      // « un rapport sans empreinte n'est pas une preuve » (E13).
+      versionTestee: _etat.empreintes || 'empreintes non calculées',
+      // ── (R6, E4, T14) LA BANDE ET LES REPÈRES ───────────────────────────────────────────
+      bande: _etat.bande
+        ? { calageSur: _etat.bande.calageSur,
+            vitesseMotsParSeconde: _etat.bande.vitesseMotsParSeconde,
+            nbPassages: _etat.bande.nbPassages,
+            passageAtteint: _etat.bande.passageCourant,
+            motsEcoules: _etat.bande.motsEcoules,
+            decalage_s: _etat.bande.decalage_s,
+            dureeTheoriqueDuTexte_s: window.BandeRythmo
+              ? window.BandeRythmo.dureeTotale(_etat.passages, _etat.vitesseBande) : 0,
+            regle: _etat.bande.regle }
+        : 'aucun texte de bande',
+      reperes: _etat.reperes.slice(),
+      repetitionsDeToucheIgnorees: _etat.repetitionsIgnorees || 0,
+      // ── (T6) LES TROIS CONTRÔLES, calculés à la fin de la prise, JAMAIS bloquants ici ────
+      controlesDeT6: (window.BandeRythmo && _etat.passages.length)
+        ? window.BandeRythmo.controlesDeT6(_etat.reperes, _etat.passages.length,
+            _etat.echantillonsEcrits)
+        : 'sans objet : aucun texte de bande, donc aucun nombre de commentaires attendu',
+      // ── (E10, R7) LA ZONE D'AMORCE d'une reprise de passage ─────────────────────────────
+      zoneDAmorce: _etat.amorce || 'sans objet : cette prise n\'est pas une reprise de passage',
+      repriseDuPassage: (_etat.repriseDuPassage === null || _etat.repriseDuPassage === undefined)
+        ? 'sans objet' : _etat.repriseDuPassage,
       // ── (A) CE QUE LE GRAPHE DE CAPTURE DÉCLARE ─────────────────────────────────────────
       grapheDeCapture: _etat.grapheDeCapture || 'graphe non construit',
       verificationDuCanal: _etat.verificationCanal || 'non vérifié',
@@ -2827,7 +3276,16 @@
       if (_etat.flux) autoriser(q('[data-micro]').value || null).catch(function () {});
     });
     q('[data-action="demarrer"]').addEventListener('click', function () {
-      demarrer().catch(function (e) {
+      // (E2, E10) LE REBOURS D'ABORD, LA PRISE ENSUITE — « avant chaque prise, y compris les
+      // reprises ». Le bouton est caché pendant le rebours : cliquer deux fois lancerait deux
+      // rebours et deux prises.
+      var b = q('[data-action="demarrer"]');
+      b.hidden = true;
+      compteARebours().then(function (reb) {
+        _etat.rebours = reb;
+        return demarrer();
+      }).catch(function (e) {
+        b.hidden = false;
         message('demarrage', 'error', 'La prise n\'a pas démarré : ' + (e && e.message));
       });
     });
@@ -2865,6 +3323,78 @@
       ev.preventDefault();
       basculerPause('touche').catch(function () {});
     });
+    // ── (R6) LE TEXTE, LA VITESSE, LA TAILLE ───────────────────────────────────────────────
+    q('[data-texte-bande]').addEventListener('input', relireLeTexte);
+    q('[data-vitesse-bande]').addEventListener('change', function () {
+      var v = parseFloat(q('[data-vitesse-bande]').value);
+      if (isFinite(v) && v > 0) {
+        _etat.vitesseBande = v;
+        journaliser('vitesse de bande ' + v + ' mots/s', echantillonsCourants(), null);
+        peindreBande();
+      }
+    });
+    q('[data-taille-bande]').addEventListener('change', function () {
+      // (R8) « grande police » : la taille est RÉGLABLE, et elle s'applique au composant du kit
+      // sans le modifier — une propriété en ligne sur l'élément, pas une règle CSS réécrite.
+      var t = parseInt(q('[data-taille-bande]').value, 10);
+      if (isFinite(t) && t >= 16 && t <= 72) {
+        var c = q('[data-bande-courant]');
+        if (c) c.style.fontSize = t + 'px';
+        var su = q('[data-bande-suivant]');
+        if (su) su.style.fontSize = Math.round(t * 0.75) + 'px';
+      }
+    });
+
+    // ── (E4, E9) LES REPÈRES À LA TOUCHE ───────────────────────────────────────────────────
+    // E4 : « La flèche droite passe à l'étape suivante et pose le marqueur ; la flèche gauche
+    // revient sans effacer. Page suivante et Page précédente valent flèche droite et flèche
+    // gauche, pour une télécommande de présentation qui évite le claquement du clavier près du
+    // micro. » E9 : les répétitions d'une touche maintenue sont IGNORÉES.
+    document.addEventListener('keydown', function (ev) {
+      var cible = ev.target;
+      if (cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA'
+                    || cible.tagName === 'SELECT' || cible.isContentEditable)) return;
+      if (_etat.apprendLaToucheRepere) {
+        ev.preventDefault();
+        _etat.toucheRepere = ev.key;
+        _etat.apprendLaToucheRepere = false;
+        var champR = q('[data-touche-repere]');
+        if (champR) champR.value = nomDeTouche(ev.key);
+        message('touche-repere', 'info', 'La touche de repère est maintenant « '
+          + nomDeTouche(ev.key) + ' ».');
+        return;
+      }
+      // (E9) LA TOUCHE MAINTENUE NE POSE QU'UN SEUL REPÈRE. `event.repeat` est le seul témoin
+      // fiable d'une répétition automatique : un délai ne la distinguerait pas d'un doigt rapide.
+      if (ev.repeat) {
+        if (ev.key === _etat.toucheRepere || ev.key === 'PageDown'
+            || ev.key === 'ArrowLeft' || ev.key === 'PageUp') {
+          ev.preventDefault();
+          _etat.repetitionsIgnorees = (_etat.repetitionsIgnorees || 0) + 1;
+        }
+        return;
+      }
+      if (ev.key === _etat.toucheRepere || ev.key === 'PageDown') {
+        ev.preventDefault();
+        poserUnRepere(ev.key === 'PageDown' ? 'télécommande (Page suivante)' : 'touche '
+          + nomDeTouche(ev.key));
+        return;
+      }
+      if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') {
+        // E4 : « la flèche gauche revient SANS EFFACER ». Aucun repère n'est retiré.
+        ev.preventDefault();
+        passagePrecedent();
+        return;
+      }
+    });
+    q('[data-action="apprendre-repere"]').addEventListener('click', function () {
+      _etat.apprendLaToucheRepere = true;
+      message('touche-repere', 'info', 'Pressez la touche de votre télécommande qui doit poser '
+        + 'un repère.');
+    });
+    q('[data-action="repere"]').addEventListener('click', function () { poserUnRepere('bouton'); });
+    q('[data-action="passage-precedent"]').addEventListener('click', passagePrecedent);
+
     q('[data-action="apprendre-touche"]').addEventListener('click', function () {
       _etat.apprendLaTouche = true;
       message('touche', 'info', 'Pressez la touche que vous voulez employer pour la pause.');
@@ -2939,6 +3469,20 @@
     });
 
     brancherSorties();
+
+    // ── (E13) LES EMPREINTES, CALCULÉES AU CHARGEMENT ──────────────────────────────────────
+    // Elles ne dépendent de rien d'autre : ni du micro, ni du stockage. On les lance tout de
+    // suite, et la barre d'état les porte dès qu'elles sont là.
+    empreintesDesModules((_services && _services.modulesServis) || []).then(function (e) {
+      _etat.empreintes = e;
+      var el = q('[data-sb-empreintes]');
+      if (!el) return;
+      el.textContent = e.disponible
+        ? 'Version : ' + (e.modules || []).map(function (m) {
+            return m.module.replace(/\.js$/, '') + ' ' + (m.courte || '?');
+          }).join(' · ')
+        : 'Version : ' + e.raison;
+    }, function () {});
 
     return window.VoixStockage.ouvrir().then(function (db) {
       _etat.db = db;

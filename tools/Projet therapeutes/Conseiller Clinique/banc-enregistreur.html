@@ -59,6 +59,10 @@ body { margin: 0; padding: 24px 16px; }
 
 <div data-enregistreur></div>
 
+<!-- (E13) L'ORDRE COMPTE : la bande rythmo est une logique PURE, sans DOM ni audio, et le
+     module d'enregistrement s'en sert. Les quatre fichiers servis sont ceux dont la page affiche
+     l'empreinte courte, pour qu'un rapport dise quelle version l'a produit. -->
+<script src="bande-rythmo.js"></script>
 <script src="voix-stockage.js"></script>
 <script src="enregistreur-voix.js"></script>
 <script>
@@ -69,7 +73,15 @@ body { margin: 0; padding: 24px 16px; }
 (function () {
   'use strict';
   var p = new URLSearchParams(location.search);
-  var services = { urlWorklet: 'enregistreur-worklet.js' };
+  var services = {
+    urlWorklet: 'enregistreur-worklet.js',
+    // (E13) LES MODULES DONT LA PAGE DOIT DIRE L'EMPREINTE. La liste est ici, dans la page qui
+    // les sert, et non dans le module : c'est la page qui sait ce qu'elle a chargé. Un module
+    // ajouté demain et oublié ici serait sans empreinte, et un contrôle le dirait — il compare
+    // la liste servie aux fichiers du dépôt.
+    modulesServis: ['bande-rythmo.js', 'voix-stockage.js', 'enregistreur-voix.js',
+                    'enregistreur-worklet.js'],
+  };
 
 
   // ── LA SOURCE D'ESSAI, réservée au banc ────────────────────────────────────────────────────
