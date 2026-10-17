@@ -267,3 +267,25 @@ atteint.
 À faire avant de traiter ces 104 documents : embarquer le canevas et les polices de référence
 à côté de la chaîne, comme on l'a fait pour les WebAssembly des codecs et pour le module de
 travail. Et refaire l'épreuve du paquet dans les deux sens, pour qu'elle échoue sans eux.
+
+### 9.3 La recherche parcourt les versions, là où il faudrait un index
+
+La recherche de l'écran lit les passages de la version active de chaque document (étape 4 du
+plan de classement). Sur la mini-bibliothèque c'est tenable ; à l'échelle du corpus, non.
+
+| Mesure | Valeur |
+|---|---|
+| Part des passages dans un fichier de version | **93 %** |
+| Poids moyen d'un passage | ~1,5 Ko |
+| Huit documents parcourus par requête | quelques mégaoctets |
+| Deux cent cinquante documents | des dizaines de mégaoctets **à chaque frappe** |
+
+L'index plein texte existe déjà dans le projet et n'attend que d'être branché :
+`packages/depot-sqlite` porte le schéma des passages, son index FTS5, son classement bm25 et
+ses migrations 5 et 6. Il sert aujourd'hui le chemin D1 du worker, et `enregistrerPassages`
+n'est appelé par aucun code de production — seulement par ses propres tests.
+
+À faire avant le traitement complet : écrire les passages dans cet index au moment du
+traitement, et faire lire la recherche depuis lui plutôt que depuis les fichiers de version.
+La forme de `chercher` ne change pas — elle reçoit déjà les passages en entrée séparée, d'où
+qu'ils viennent.
