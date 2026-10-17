@@ -46,6 +46,9 @@ yarn-error.log*
 package-lock.json
 yarn.lock
 .pnpm-debug.log*
+# Le magasin de paquets de pnpm : 393 Mo de dépendances mises en cache, à la racine du dépôt
+# et non sous le projet qui les demande. Rien d'autre que du contenu téléchargeable.
+.pnpm-store/
 
 # ═══ PLAYWRIGHT ═══
 test-results/
