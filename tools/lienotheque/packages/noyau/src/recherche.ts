@@ -285,10 +285,27 @@ export function chercher(
       source: action.source ?? "",
     }));
 
+  // La suite entière d'abord, le mot isolé ensuite — et rien d'exclu.
+  //
+  // Mesuré sur sept vrais documents : « mémoire traumatique » rendait 462 résultats, dont
+  // **cinq** portaient la suite. Les 457 autres ne portaient que « mémoire » ou que
+  // « traumatique ». Les morceaux étaient déjà composés `[phrase, ...mots]` pour surligner la
+  // suite d'un seul tenant, mais l'ordre n'en tenait pas compte.
+  //
+  // Un mot isolé reste une réponse, simplement moins sûre : on le descend, on ne le retire pas
+  // (FMT-04). Et le tri vient **avant** le plafond — sinon les six lignes montrées resteraient
+  // celles du bruit, et la correction ne changerait rien à ce qu'on voit.
+  const porteLaSuite = (resultat: Resultat): boolean =>
+    mots.length > 1 &&
+    (trouver(resultat.titre, [phrase]).length > 0 || trouver(resultat.extrait ?? "", [phrase]).length > 0);
+  // Le tri de JavaScript est stable : à sûreté égale, l'ordre de lecture est conservé.
+  const parSurete = (liste: readonly Resultat[]): readonly Resultat[] =>
+    [...liste].sort((un, autre) => Number(porteLaSuite(autre)) - Number(porteLaSuite(un)));
+
   const groupes: Groupe[] = [
-    { genre: "element", libelle: capitaliser(vue.mots.element.plusieurs), resultats: elements.slice(0, parGroupe) },
-    { genre: "page", libelle: capitaliser(vue.mots.page.plusieurs), resultats: pages.slice(0, parGroupe) },
-    { genre: "piste", libelle: capitaliser(vue.mots.piste.plusieurs), resultats: pistes.slice(0, parGroupe) },
+    { genre: "element", libelle: capitaliser(vue.mots.element.plusieurs), resultats: parSurete(elements).slice(0, parGroupe) },
+    { genre: "page", libelle: capitaliser(vue.mots.page.plusieurs), resultats: parSurete(pages).slice(0, parGroupe) },
+    { genre: "piste", libelle: capitaliser(vue.mots.piste.plusieurs), resultats: parSurete(pistes).slice(0, parGroupe) },
     { genre: "action", libelle: "Actions", resultats: actions.slice(0, parGroupe) },
   ];
   return groupes.filter((groupe) => groupe.resultats.length > 0);
