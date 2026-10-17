@@ -2594,3 +2594,59 @@ fonctionnement** ; si la clé s'absente, la sauvegarde attend et n'arrête rien.
 **Deux absences, deux réponses**, et les confondre serait refaire la faute corrigée ici : les
 dérivés injoignables suspendent, la base injoignable ne se suspend pas — la file vit dessus, on
 ne peut ni lire ce qui restait à faire ni écrire qu'on attend.
+
+## Architecture — Windows cesse d'être un contrôle bloquant
+
+**Décidé le 17 octobre 2026.** Windows n'est pas, et ne sera pas, un système que nous utilisons.
+L'architecture multiplateforme reste en place : elle est gratuite avec Tauri, et rien de propre à
+un seul système n'entre dans le code sans son équivalent prévu. Mais Windows **n'est plus une
+priorité, ni un contrôle qui empêche une fusion**.
+
+Si la complexité des tests ou du paquet Windows s'alourdit un jour, la question de transposer la
+base Mac vers Windows sera reprise **à ce moment-là**, pas maintenant.
+
+### Ce que cela change concrètement
+
+| Contrôle | Avant | Maintenant |
+|---|---|---|
+| `Vérification` (ubuntu, macOS, Windows) | bloquant | bloquant, inchangé |
+| `Rendu` (Chromium, Firefox, WebKit) | bloquant | bloquant, inchangé |
+| `Mesures (macos-latest)` | bloquant | bloquant, inchangé |
+| `Mesures (windows-latest)` | bloquant | **informatif** |
+
+`Mesures (windows-latest)` reste exécuté et reste lu : il est informatif, non supprimé. On veut
+continuer à voir ce qu'il dit, sans qu'il arrête le travail.
+
+### L'échec en cours, et ce qu'on en sait
+
+À la fusion de la PR #41, `Mesures (windows-latest)` échoue à son étape 18, « Éprouver les quatre
+critères » : **89 tests passent, 2 échouent**, et il en va ainsi depuis au moins le 10 octobre —
+vérifié identique aux commits `7e24ebfd` et `03cd98fd`, la même étape, les mêmes deux tests.
+
+```
+volume::tests::un_dossier_en_lecture_seule_repond_absent
+volume::tests::un_volume_demonte_est_annonce_comme_tel_et_non_comme_un_refus_de_droits
+```
+
+**La cause est connue, et ce n'est pas le produit.** `pourquoi_on_ne_peut_pas` ne code aucun
+système en dur : elle regarde ce qui existe réellement avant de nommer la cause. Sur Windows,
+elle a raison dans les deux cas. Ce sont les deux **tests** qui posent des hypothèses POSIX :
+
+1. Le premier pose l'attribut « lecture seule » sur un dossier. Sous Windows, cet attribut est
+   hérité de MS-DOS, où il ne marquait que les dossiers personnalisés : le système l'accepte sans
+   interdire d'y créer un fichier. La sonde écrit donc son témoin, le relit, et répond « présent »
+   — à juste titre. Le garde-fou du test ne regardait que l'erreur de `set_permissions`, qui ne
+   vient jamais : il laissait passer un cas qu'il croyait écarter.
+
+2. Le second code en dur `/Volumes/un-volume-qui-n-existe-pas-ici/…`, qui n'a de sens que sous
+   macOS. Sous Windows, ce chemin est simplement créé sur le disque courant, et la sonde répond
+   « présent » — à juste titre encore. L'équivalent Windows serait une lettre de lecteur libre.
+
+**Non corrigé, et volontairement.** Les deux corrections sont écrites et tiennent en quelques
+lignes, mais les appliquer aujourd'hui relancerait les sept contrôles pour rétablir une couverture
+dont nous venons de décider qu'elle n'est pas prioritaire. Elles attendent le jour où la question
+Windows sera reprise.
+
+**Ce qu'il faut en retenir pour ne pas se tromper** : ce rouge ne dit rien du produit sous
+Windows. Il dit que deux de nos tests ne savent pas y poser le cas qu'ils veulent éprouver. La
+couverture Windows des critères est donc, à ce jour, de 89 tests sur 91 — et non nulle.

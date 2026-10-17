@@ -72,7 +72,7 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 | Workflow | Déclenchement | Ce qu'il vérifie |
 |---|---|---|
 | `.github/workflows/lienotheque-ci.yml` | push sur `main` et pull request touchant `tools/lienotheque/**` | `pnpm check` sur Linux, macOS et Windows : typage strict et tests JavaScript et TypeScript (contrats, jetons, application, worker). Il **n'a ni Rust ni Tesseract** |
-| `.github/workflows/lienotheque-tauri.yml` | à la main (`workflow_dispatch`), plus push et pull request touchant `apps/app/src-tauri/**` ou `fixtures/generer-locales.py` | macOS et Windows : fabrique les fixtures, embarque les moteurs, lance les **tests Rust du prototype** (les quatre critères du CDC), construit le paquet et publie sa taille et celle des moteurs dans le résumé d'exécution |
+| `.github/workflows/lienotheque-tauri.yml` | à la main (`workflow_dispatch`), plus push et pull request touchant `apps/app/src-tauri/**` ou `fixtures/generer-locales.py` | macOS et Windows : fabrique les fixtures, embarque les moteurs, lance les **tests Rust du prototype** (les quatre critères du CDC), construit le paquet et publie sa taille et celle des moteurs dans le résumé d'exécution. **Le travail Windows est informatif, non bloquant** |
 
   Aucun des deux ne déploie quoi que ce soit. Les tests Rust ne sont donc **pas** dans `pnpm check` :
   les installer sur les trois systèmes de `lienotheque-ci.yml` l'alourdirait pour rien, puisque
@@ -80,9 +80,12 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 
 ## Plateformes
 Multiplateforme par conception : rien de propre à un seul système sans son équivalent prévu.
-**Phase 1** (tests et bêta) : macOS seul, référence macOS Tahoe 26.3 (25D125) Apple Silicon ;
-Windows reste vérifié par l'intégration continue. **Phase 2**, après la bêta : transposition
-Windows. Linux hors périmètre. Détail et réserves : `docs/decisions.md`.
+**Phase 1** (tests et bêta) : macOS seul, référence macOS Tahoe 26.3 (25D125) Apple Silicon.
+**Windows n'est pas un contrôle bloquant** (décision du 17 octobre 2026) : `Mesures
+(windows-latest)` reste exécuté et lu, mais il est **informatif** et n'empêche aucune fusion.
+Il échoue aujourd'hui sur deux tests de `volume` qui posent des hypothèses POSIX — le produit,
+lui, y est correct. La transposition Windows sera reprise si la complexité s'alourdit, pas
+avant. Linux hors périmètre. Détail et réserves : `docs/decisions.md`.
 
 ## Organisation
 ```
