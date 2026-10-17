@@ -2642,10 +2642,12 @@ elle a raison dans les deux cas. Ce sont les deux **tests** qui posent des hypot
    macOS. Sous Windows, ce chemin est simplement créé sur le disque courant, et la sonde répond
    « présent » — à juste titre encore. L'équivalent Windows serait une lettre de lecteur libre.
 
-**Non corrigé, et volontairement.** Les deux corrections sont écrites et tiennent en quelques
-lignes, mais les appliquer aujourd'hui relancerait les sept contrôles pour rétablir une couverture
-dont nous venons de décider qu'elle n'est pas prioritaire. Elles attendent le jour où la question
-Windows sera reprise.
+**Non corrigé, et volontairement.** Les deux corrections sont conçues — le garde-fou doit
+vérifier que l'attribut mord au lieu de regarder si le poser échoue, et le chemin du volume
+absent doit se choisir selon le système — mais **aucune ligne n'en est écrite**. Les poser
+aujourd'hui relancerait les sept contrôles pour rétablir une couverture dont nous venons de
+décider qu'elle n'est pas prioritaire. Elles attendent le jour où la question Windows sera
+reprise.
 
 **Ce qu'il faut en retenir pour ne pas se tromper** : ce rouge ne dit rien du produit sous
 Windows. Il dit que deux de nos tests ne savent pas y poser le cas qu'ils veulent éprouver. La
