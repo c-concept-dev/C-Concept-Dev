@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import {
   ApercuDocument,
   ArriveeDeFichiers,
+  ClassementLocal,
   DescriptionBibliotheque,
   Passage,
   Recette,
@@ -185,6 +186,24 @@ export async function passagesDeDocument(racine: string, empreinte: string): Pro
   // tranche et lève — un passage abîmé se voit, il ne se perd pas en silence (FMT-04).
   if (!Array.isArray(brut)) return [];
   return brut.map((un) => Passage.parse(un));
+}
+
+/** Range un document sur les axes de sa bibliothèque (CLA-01).
+ *
+ *  Le classement est vérifié par le noyau avant d'arriver ici : `classerUnDocument` sait lire un
+ *  schéma, l'hôte non. */
+export async function classerDocument(racine: string, classement: ClassementLocal): Promise<void> {
+  await invoke("classer_document", { racine, empreinte: classement.empreinte, classement });
+}
+
+/** Les classements de toute la bibliothèque, par empreinte.
+ *
+ *  Un document absent de la table n'est pas rangé — et c'est une réponse, pas un manque à
+ *  combler par une valeur par défaut. */
+export async function classementsDeBibliotheque(racine: string): Promise<ReadonlyMap<string, ClassementLocal>> {
+  const brut = await invoke<unknown>("classements_de_bibliotheque", { racine });
+  if (brut === null || typeof brut !== "object") return new Map();
+  return new Map(Object.entries(brut).map(([empreinte, un]) => [empreinte, ClassementLocal.parse(un)]));
 }
 
 export async function apercuDeBibliotheque(racine: string): Promise<readonly ApercuDocument[]> {

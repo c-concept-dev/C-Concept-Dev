@@ -340,6 +340,30 @@ fn passages_de_document(racine: String, empreinte: String) -> Result<Option<serd
     Ok(Some(lu["passages"].clone()))
 }
 
+/// Range un document sur les axes de sa bibliothèque (CLA-01, CLA-03).
+///
+/// Le classement arrive **déjà vérifié** contre le schéma : c'est le noyau qui sait lire un
+/// schéma, et l'hôte n'a pas à le réapprendre dans un second langage. Il porte son origine —
+/// import ou geste de la personne — et jamais une déduction depuis le texte.
+#[tauri::command]
+fn classer_document(racine: String, empreinte: String, classement: serde_json::Value) -> Result<(), String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    depot
+        .classer(&empreinte, &classement)
+        .map_err(|e| format!("Classement non enregistré : {e}"))
+}
+
+/// Les classements de toute la bibliothèque, en une lecture.
+///
+/// En une lecture parce que les filtres comptent dessus : demander document par document
+/// vaudrait deux cent cinquante allers-retours pour afficher une liste.
+#[tauri::command]
+fn classements_de_bibliotheque(racine: String) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let table = depot.classements().map_err(|e| format!("Classements illisibles : {e}"))?;
+    serde_json::to_value(table).map_err(|e| format!("Classements illisibles : {e}"))
+}
+
 /// Ce que le Catalogue lit : **une projection légère** de tous les documents (B5).
 ///
 /// Une projection, jamais une concaténation. Mesuré : 1,10 Mo par version — à deux cent
@@ -560,6 +584,8 @@ fn lancer(captures: bool) {
             lire_maniere,
             vue_de_document,
             passages_de_document,
+            classer_document,
+            classements_de_bibliotheque,
             apercu_de_bibliotheque,
             image_de_page,
             version_active,
