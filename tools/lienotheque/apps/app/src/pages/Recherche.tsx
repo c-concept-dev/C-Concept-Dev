@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
-import type { VueBibliotheque } from "@lienotheque/contrats";
+import type { Passage, VueBibliotheque } from "@lienotheque/contrats";
 import { aLaFile, chercher, morceler, type Action, type GenreResultat, type Resultat } from "@lienotheque/noyau";
 import { Bouton, Icone, type NomIcone } from "../composants/index.js";
 import "./Recherche.css";
@@ -21,6 +21,9 @@ const ICONES: Readonly<Record<GenreResultat, NomIcone>> = {
 
 type Props = {
   readonly vue: VueBibliotheque;
+  /** Le texte du document, à part de la vue : la vue porte les repères, les passages portent le
+   *  texte. Un fait, un seul endroit — `PageAffichee.texte` n'est jamais rempli par la chaîne. */
+  readonly passages?: readonly Passage[] | undefined;
   readonly actions?: readonly Action[] | undefined;
   readonly onFermer: () => void;
   /** Ouvrir ce qui est choisi : une page, un élément, une piste. */
@@ -43,15 +46,28 @@ function Marque({ texte, surlignes }: { readonly texte: string; readonly surlign
   );
 }
 
-export function Recherche({ vue, actions, onFermer, onOuvrir, onEcouter, onAction, requeteInitiale }: Props): JSX.Element {
+export function Recherche({
+  vue,
+  passages,
+  actions,
+  onFermer,
+  onOuvrir,
+  onEcouter,
+  onAction,
+  requeteInitiale,
+}: Props): JSX.Element {
   const [requete, setRequete] = useState(requeteInitiale ?? "");
   const [choisi, setChoisi] = useState(0);
   const base = useId();
   const liste = useRef<HTMLDivElement>(null);
 
   const groupes = useMemo(
-    () => chercher(vue, requete, { ...(actions === undefined ? {} : { actions }) }),
-    [vue, requete, actions],
+    () =>
+      chercher(vue, requete, {
+        ...(actions === undefined ? {} : { actions }),
+        ...(passages === undefined ? {} : { passages }),
+      }),
+    [vue, requete, actions, passages],
   );
   const file = useMemo(() => aLaFile(groupes), [groupes]);
   const actif = file[Math.min(choisi, Math.max(0, file.length - 1))];

@@ -318,6 +318,28 @@ fn vue_de_document(racine: String, empreinte: String) -> Result<Option<serde_jso
     Ok(Some(lu["vue"].clone()))
 }
 
+/// Le texte d'un document, tel que la chaîne l'a rangé dans sa version active (RCH-07).
+///
+/// Servi à part de la vue, et non dedans. `PageAffichee.texte` existe au contrat et rien ne le
+/// remplit : la recherche de l'écran ne trouvait donc rien, alors que la même requête aboutissait
+/// en ligne de commande. Recopier les passages dans la vue aurait donné deux endroits pour un
+/// même fait — on les sert d'où ils sont.
+///
+/// Rien si ce document n'a aucune version active, pour la même raison que la vue : ce n'est pas
+/// une panne, c'est un document qui n'a pas encore été traité.
+#[tauri::command]
+fn passages_de_document(racine: String, empreinte: String) -> Result<Option<serde_json::Value>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let Some(charge) = depot
+        .charge_active(&empreinte)
+        .map_err(|e| format!("Version active illisible : {e}"))?
+    else {
+        return Ok(None);
+    };
+    let lu: serde_json::Value = serde_json::from_str(&charge).map_err(|e| format!("Version active illisible : {e}"))?;
+    Ok(Some(lu["passages"].clone()))
+}
+
 /// Ce que le Catalogue lit : **une projection légère** de tous les documents (B5).
 ///
 /// Une projection, jamais une concaténation. Mesuré : 1,10 Mo par version — à deux cent
@@ -537,6 +559,7 @@ fn lancer(captures: bool) {
             enregistrer_maniere,
             lire_maniere,
             vue_de_document,
+            passages_de_document,
             apercu_de_bibliotheque,
             image_de_page,
             version_active,

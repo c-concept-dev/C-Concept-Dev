@@ -4,6 +4,7 @@ import {
   ApercuDocument,
   ArriveeDeFichiers,
   DescriptionBibliotheque,
+  Passage,
   Recette,
   ReglagesHote,
   Travail,
@@ -173,6 +174,19 @@ export async function vueDeDocument(racine: string, empreinte: string): Promise<
  *  Une projection, jamais une concaténation : 1,10 Mo par version mesuré, soit deux cent
  *  soixante-quinze mégaoctets à lire pour afficher une liste de titres sur deux cent cinquante
  *  documents. On ne rend que ce qu'un catalogue montre. */
+/** Le texte d'un document : les passages de sa version active (RCH-07).
+ *
+ *  À part de la vue, parce que le texte n'est pas dans la vue : la chaîne le range dans les
+ *  passages de la version. Un document non traité n'en a aucun, et ce n'est pas une panne. */
+export async function passagesDeDocument(racine: string, empreinte: string): Promise<readonly Passage[]> {
+  const brut = await invoke<unknown>("passages_de_document", { racine, empreinte });
+  // Un document non traité n'a pas de version active, et une version d'avant le chemin du texte
+  // n'a pas de passages : une liste vide dans les deux cas, pas une panne. Au-delà, le contrat
+  // tranche et lève — un passage abîmé se voit, il ne se perd pas en silence (FMT-04).
+  if (!Array.isArray(brut)) return [];
+  return brut.map((un) => Passage.parse(un));
+}
+
 export async function apercuDeBibliotheque(racine: string): Promise<readonly ApercuDocument[]> {
   const brut = await invoke<unknown[]>("apercu_de_bibliotheque", { racine });
   return brut.map((un) => ApercuDocument.parse(un));

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import type {
   CasDouteux,
   DescriptionBibliotheque,
+  Passage,
   SchemaBibliotheque,
   Travail,
   TypeDeContenu,
@@ -43,6 +44,7 @@ import {
   imageDePage,
   versionActive,
   apercuDeBibliotheque,
+  passagesDeDocument,
   vueDeDocument,
   choisirFichiers,
   deposer as deposerChezLHote,
@@ -66,6 +68,8 @@ export function App(): JSX.Element {
   /** Le document dont les écrans montrent la version active. Un seul à la fois aujourd'hui. */
   const [regarde, setRegarde] = useState<string | undefined>(undefined);
   const [vue, setVue] = useState<VueBibliotheque | undefined>(undefined);
+  // Le texte du document regardé, lu à part de sa vue et jamais recopié dedans.
+  const [passages, setPassages] = useState<readonly Passage[]>([]);
   const [, setDepots] = useState<readonly string[]>([]);
   const [route, setRoute] = useState<Route>(() => lireRoute(globalThis.location?.hash ?? ""));
   const [decisions, setDecisions] = useState<readonly { cas: CasDouteux; decision: Decision }[]>([]);
@@ -219,7 +223,14 @@ export function App(): JSX.Element {
         const dernier = [...apercus].sort((a, b) => b.activeeLe - a.activeeLe)[0];
         if (dernier === undefined) return undefined;
         setRegarde(dernier.empreinte);
-        return vueDeDocument(courante.racine, dernier.empreinte);
+        // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent
+        // le texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
+        const [lue, lus] = await Promise.all([
+          vueDeDocument(courante.racine, dernier.empreinte),
+          passagesDeDocument(courante.racine, dernier.empreinte),
+        ]);
+        if (vivant) setPassages(lus);
+        return lue;
       })
       .then((lue) => {
         if (vivant && lue !== undefined) setVue(lue);
@@ -523,6 +534,7 @@ export function App(): JSX.Element {
       {cherche && vue !== undefined ? (
         <Recherche
           vue={vue}
+          passages={passages}
           actions={
             derniere === undefined
               ? undefined
