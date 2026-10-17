@@ -3,6 +3,7 @@ import {
   accorder,
   enTete,
   nommer,
+  type ApercuDocument,
   type ClassementLocal,
   type ElementAffiche,
   type PageAffichee,
@@ -33,6 +34,11 @@ type Props = {
    *  dans la table de la bibliothèque, et un fait n'a qu'un seul endroit. */
   readonly classement?: ClassementLocal | undefined;
   readonly onClasser?: ((classement: ClassementLocal) => void) | undefined;
+  /** Les documents de la bibliothèque, en projection légère (B5). */
+  readonly documents?: readonly ApercuDocument[] | undefined;
+  /** Ce que chacun porte. Reçue à part, jamais recopiée dans la vue. */
+  readonly classements?: ReadonlyMap<string, ClassementLocal> | undefined;
+  readonly onDocument?: ((empreinte: string) => void) | undefined;
 };
 
 type Vue = "grille" | "liste";
@@ -67,6 +73,9 @@ export function Catalogue({
   empreinte,
   classement,
   onClasser,
+  documents,
+  classements,
+  onDocument,
 }: Props): JSX.Element {
   const [mode, setMode] = useState<Vue>("grille");
   const [choisis, setChoisis] = useState<ReadonlySet<string>>(new Set());
@@ -77,6 +86,34 @@ export function Catalogue({
     else suivant.add(clef);
     setChoisis(suivant);
   };
+
+  // Les axes sur lesquels un document se range : ceux qui portent un référentiel. Ce sont les
+  // mêmes qui servent à ranger et à filtrer — un axe qu'on ne peut pas choisir ne filtre rien.
+  const axesClassants = useMemo(
+    () => (schema?.axes ?? []).filter((axe) => axe.nature === "referentiel" || axe.nature === "liste_semi_ouverte"),
+    [schema],
+  );
+
+  // Les documents retenus par les filtres de classement.
+  //
+  // Le Catalogue filtrait jusqu'ici les **pages** d'un document, sur des valeurs portées page par
+  // page. Le classement, lui, est par document : il faut donc compter sur la table des
+  // classements, et non sur la vue. Un document rangé nulle part ne passe pas « partout » — il
+  // sort dès qu'un filtre est posé, parce que « non rangé » n'est pas « rangé sous tout ».
+  const documentsRetenus = useMemo(() => {
+    if (documents === undefined) return [];
+    return documents.filter((document) => {
+      const range = classements?.get(document.empreinte);
+      for (const axe of axesClassants) {
+        const voulues = axe.valeurs.map((valeur) => valeur.cle).filter((cle) => choisis.has(`doc:${axe.cle}/${cle}`));
+        if (voulues.length === 0) continue;
+        const portees = range?.axes[axe.cle];
+        const cles = portees?.type === "reference" ? portees.valeurs : [];
+        if (!voulues.some((cle) => cles.includes(cle))) return false;
+      }
+      return true;
+    });
+  }, [documents, classements, choisis, axesClassants]);
 
   // Ranger ce document sur un axe. On reprend le classement entier et l'on y remplace un axe :
   // c'est le noyau qui sait lire un schéma, et lui seul doit le vérifier. L'écran compare des
@@ -215,7 +252,64 @@ export function Catalogue({
               </ul>
             </section>
           ))}
+
+          {documents === undefined
+            ? null
+            : axesClassants.map((axe) => (
+                <section key={`doc-${axe.cle}`} className="ln-filtres__axe" role="group" aria-labelledby={`filtre-doc-${axe.cle}`}>
+                  <h3 id={`filtre-doc-${axe.cle}`} className="ln-filtres__nom">
+                    {axe.nom}
+                  </h3>
+                  <ul className="ln-filtres__valeurs">
+                    {axe.valeurs
+                      .filter((valeur) => !valeur.retiree)
+                      .map((valeur) => {
+                        const clef = `doc:${axe.cle}/${valeur.cle}`;
+                        const combien = (documents ?? []).filter((document) => {
+                          const portees = classements?.get(document.empreinte)?.axes[axe.cle];
+                          return portees?.type === "reference" && portees.valeurs.includes(valeur.cle);
+                        }).length;
+                        return (
+                          <li key={clef}>
+                            <label className={choisis.has(clef) ? "ln-filtres__valeur ln-filtres__valeur--choisi" : "ln-filtres__valeur"}>
+                              <input type="checkbox" checked={choisis.has(clef)} onChange={() => basculer(clef)} />
+                              <span className="ln-filtres__libelle">{valeur.nom}</span>
+                              <span className="ln-filtres__nombre">{combien}</span>
+                            </label>
+                          </li>
+                        );
+                      })}
+                  </ul>
+                </section>
+              ))}
         </nav>
+
+        {documents === undefined ? null : (
+          <section className="ln-catalogue__documents" aria-labelledby="titre-documents">
+            <h2 id="titre-documents" className="ln-filtres__nom">
+              Documents
+            </h2>
+            {documentsRetenus.length === 0 ? (
+              <p className="ln-muted">Aucun document ne porte ce classement.</p>
+            ) : (
+              <ul aria-labelledby="titre-documents" className="ln-catalogue__documents-liste">
+                {documentsRetenus.map((document) => (
+                  <li key={document.empreinte}>
+                    <Bouton
+                      variante={document.empreinte === empreinte ? "principal" : "secondaire"}
+                      onClick={() => onDocument?.(document.empreinte)}
+                    >
+                      {document.nom}
+                    </Bouton>
+                    {classements?.get(document.empreinte) === undefined ? (
+                      <span className="ln-muted"> · non rangé</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         {schema === undefined || empreinte === undefined || onClasser === undefined ? null : (
           <section className="ln-catalogue__ranger" role="group" aria-labelledby="titre-ranger">

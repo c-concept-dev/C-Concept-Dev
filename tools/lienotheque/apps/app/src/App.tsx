@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import type {
   CasDouteux,
+  ApercuDocument,
   ClassementLocal,
   DescriptionBibliotheque,
   Passage,
@@ -76,6 +77,7 @@ export function App(): JSX.Element {
   // Le classement de chaque document de la bibliothèque, lu d'un coup : les filtres
   // comptent dessus, et les demander un par un vaudrait autant d'allers-retours.
   const [classements, setClassements] = useState<ReadonlyMap<string, ClassementLocal>>(new Map());
+  const [documents, setDocuments] = useState<readonly ApercuDocument[]>([]);
   const [, setDepots] = useState<readonly string[]>([]);
   const [route, setRoute] = useState<Route>(() => lireRoute(globalThis.location?.hash ?? ""));
   const [decisions, setDecisions] = useState<readonly { cas: CasDouteux; decision: Decision }[]>([]);
@@ -221,29 +223,15 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (courante === undefined || !estBureau()) return undefined;
     let vivant = true;
-    // Quel document : le plus récemment activé, lu dans l'aperçu. Explicite, là où c'était
-    // implicite — « celui du pointeur » n'avait de sens que tant qu'il n'y en avait qu'un.
-    // Choisir dans le Catalogue est l'étape suivante ; l'application n'en montre encore qu'un.
-    void apercuDeBibliotheque(courante.racine)
-      .then(async (apercus) => {
-        const dernier = [...apercus].sort((a, b) => b.activeeLe - a.activeeLe)[0];
-        if (dernier === undefined) return undefined;
-        setRegarde(dernier.empreinte);
-        // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent
-        // le texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
-        const [lue, lus, ranges] = await Promise.all([
-          vueDeDocument(courante.racine, dernier.empreinte),
-          passagesDeDocument(courante.racine, dernier.empreinte),
-          classementsDeBibliotheque(courante.racine),
-        ]);
-        if (vivant) {
-          setPassages(lus);
-          setClassements(ranges);
-        }
-        return lue;
-      })
-      .then((lue) => {
-        if (vivant && lue !== undefined) setVue(lue);
+    void Promise.all([apercuDeBibliotheque(courante.racine), classementsDeBibliotheque(courante.racine)])
+      .then(([apercus, ranges]) => {
+        if (!vivant) return;
+        setDocuments(apercus);
+        setClassements(ranges);
+        // Au premier chargement on ouvre le plus récemment activé. Ensuite c'est la personne
+        // qui choisit, et l'on ne lui reprend pas son choix : cet effet se rejoue à chaque
+        // relecture de la file, toutes les deux secondes.
+        setRegarde((avant) => avant ?? [...apercus].sort((a, b) => b.activeeLe - a.activeeLe)[0]?.empreinte);
       })
       .catch(() => {
         // Une bibliothèque qui n'a rien traité n'a rien à montrer : les écrans le disent déjà.
@@ -252,6 +240,37 @@ export function App(): JSX.Element {
       vivant = false;
     };
   }, [courante, file]);
+
+  // Changer de bibliothèque repart de zéro : garder le document d'une autre ferait lire une vue
+  // qui n'appartient pas à celle qu'on vient d'ouvrir.
+  useEffect(() => {
+    setRegarde(undefined);
+    setVue(undefined);
+    setPassages([]);
+    setDocuments([]);
+    setClassements(new Map());
+  }, [courante?.racine]);
+
+  // Le document regardé : sa vue et son texte. À part de la bibliothèque, parce qu'ils changent
+  // pour une autre raison — on change de document sans que la bibliothèque bouge.
+  useEffect(() => {
+    if (courante === undefined || regarde === undefined || !estBureau()) return undefined;
+    let vivant = true;
+    // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent le
+    // texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
+    void Promise.all([vueDeDocument(courante.racine, regarde), passagesDeDocument(courante.racine, regarde)])
+      .then(([lue, lus]) => {
+        if (!vivant) return;
+        setPassages(lus);
+        if (lue !== undefined) setVue(lue);
+      })
+      .catch(() => {
+        // Un document sans version active n'a rien à montrer, et ce n'est pas une panne.
+      });
+    return () => {
+      vivant = false;
+    };
+  }, [courante, regarde]);
 
   // La file est à l'hôte : on la relit, on ne la devine pas. Toutes les deux secondes suffisent —
   // un traitement se compte en minutes, et un écran qui se redessine sans cesse fatigue.
@@ -531,6 +550,9 @@ export function App(): JSX.Element {
             ? {}
             : { classement: classements.get(regarde) })}
           onClasser={classer}
+          documents={documents}
+          classements={classements}
+          onDocument={setRegarde}
           {...(route.page === undefined ? {} : { page: route.page })}
           onPage={(page) => aller({ ecran: "catalogue", page })}
           onLecteur={(page, element) => aller({ ecran: "lecteur", page, element })}

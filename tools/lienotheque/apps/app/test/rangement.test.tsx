@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { SchemaBibliotheque, VueBibliotheque, type ClassementLocal } from "@lienotheque/contrats";
+import { ApercuDocument, SchemaBibliotheque, VueBibliotheque, type ClassementLocal } from "@lienotheque/contrats";
 import { Catalogue } from "../src/pages/Catalogue.js";
 
 /** Ranger un document à la main, depuis le Catalogue (CLA-01, CLA-03).
@@ -135,5 +135,83 @@ describe("ranger un document à la main, depuis le Catalogue", () => {
 
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Premier axe" }), "");
     expect((range.mock.calls[0]?.[0] as ClassementLocal).axes["a"], "non rangé est une réponse").toBeUndefined();
+  });
+});
+
+describe("filtrer les documents de la bibliothèque sur leur classement (CLA-10)", () => {
+  /** Le Catalogue filtrait les **pages** d'un document, sur des valeurs portées page par page.
+   *  Le classement, lui, est par document. Les filtres comptent donc sur la table des
+   *  classements — reçue à part, jamais recopiée dans la vue. */
+  const A = "a".repeat(64);
+  const B = "b".repeat(64);
+  const C = "c".repeat(64);
+
+  const apercu = (empreinte: string, nom: string): unknown => ({
+    empreinte,
+    version: ID(9),
+    activeeLe: 1,
+    nom,
+    compteurs: [],
+    aVerifier: 0,
+  });
+
+  const DOCUMENTS = [apercu(A, "Premier document"), apercu(B, "Deuxième document"), apercu(C, "Troisième document")].map(
+    (un) => ApercuDocument.parse(un),
+  );
+
+  const range = (empreinte: string, valeur: string): ClassementLocal => ({
+    empreinte,
+    schema: "essai",
+    schemaVersion: 2,
+    axes: { a: { type: "reference", valeurs: [valeur] } },
+    origine: "import",
+  });
+
+  // Le troisième n'est rangé nulle part : c'est le cas qu'il faut pouvoir dire.
+  const CLASSEMENTS = new Map([
+    [A, range(A, "v1")],
+    [B, range(B, "v2")],
+  ]);
+
+  const avecDocuments = {
+    ...socle,
+    schema: SCHEMA,
+    documents: DOCUMENTS,
+    classements: CLASSEMENTS,
+  };
+
+  it("montre tous les documents quand aucun filtre n’est posé", () => {
+    render(<Catalogue {...avecDocuments} onDocument={() => undefined} />);
+    const liste = screen.getByRole("list", { name: /documents/i });
+    expect(within(liste).getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("ne rend que les documents rangés sous la valeur choisie", async () => {
+    render(<Catalogue {...avecDocuments} onDocument={() => undefined} />);
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /Valeur une/ }));
+
+    const liste = screen.getByRole("list", { name: /documents/i });
+    const restants = within(liste).getAllByRole("listitem");
+    expect(restants).toHaveLength(1);
+    expect(restants[0]?.textContent).toContain("Premier document");
+  });
+
+  it("un document rangé nulle part disparaît dès qu’un filtre est posé, au lieu de passer partout", async () => {
+    render(<Catalogue {...avecDocuments} onDocument={() => undefined} />);
+
+    await userEvent.click(screen.getByRole("checkbox", { name: /Valeur deux/ }));
+
+    const liste = screen.getByRole("list", { name: /documents/i });
+    expect(within(liste).getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.queryByText("Troisième document")).toBeNull();
+  });
+
+  it("choisir un document le dit à l’application", async () => {
+    const choisi = vi.fn();
+    render(<Catalogue {...avecDocuments} onDocument={choisi} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /Deuxième document/ }));
+    expect(choisi).toHaveBeenCalledWith(B);
   });
 });
