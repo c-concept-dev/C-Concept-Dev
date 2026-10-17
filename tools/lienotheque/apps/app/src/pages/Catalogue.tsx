@@ -1,5 +1,16 @@
 import { useMemo, useState, type JSX } from "react";
-import { accorder, enTete, nommer, type ElementAffiche, type PageAffichee, type VueBibliotheque } from "@lienotheque/contrats";
+import {
+  accorder,
+  enTete,
+  nommer,
+  type ClassementLocal,
+  type ElementAffiche,
+  type PageAffichee,
+  type SchemaBibliotheque,
+  type ValeursAxe,
+  type VueBibliotheque,
+} from "@lienotheque/contrats";
+import { classerUnDocument } from "@lienotheque/noyau";
 import { Bouton, FilAriane, Icone } from "../composants/index.js";
 import "./Catalogue.css";
 
@@ -14,6 +25,14 @@ type Props = {
   readonly onPage: (numero: number) => void;
   readonly onLecteur: (page: number, ancreId: string) => void;
   readonly onAjouter: () => void;
+  /** Les axes de la bibliothèque. Sans eux, il n'y a rien sur quoi ranger. */
+  readonly schema?: SchemaBibliotheque | undefined;
+  /** Le document regardé, désigné par l'empreinte de sa source. */
+  readonly empreinte?: string | undefined;
+  /** Ce qu'il porte déjà. En propriété séparée, jamais recopié dans la vue : le classement vit
+   *  dans la table de la bibliothèque, et un fait n'a qu'un seul endroit. */
+  readonly classement?: ClassementLocal | undefined;
+  readonly onClasser?: ((classement: ClassementLocal) => void) | undefined;
 };
 
 type Vue = "grille" | "liste";
@@ -38,7 +57,17 @@ type CleEtat = (typeof ETAT.valeurs)[number]["cle"];
 /** L'état d'une page : elle est à vérifier dès qu'un seul de ses éléments l'est. */
 const etatDe = (p: PageAffichee): CleEtat => (p.elements.some((e) => e.aVerifier) ? "a-verifier" : "valide");
 
-export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): JSX.Element {
+export function Catalogue({
+  vue,
+  page,
+  onPage,
+  onLecteur,
+  onAjouter,
+  schema,
+  empreinte,
+  classement,
+  onClasser,
+}: Props): JSX.Element {
   const [mode, setMode] = useState<Vue>("grille");
   const [choisis, setChoisis] = useState<ReadonlySet<string>>(new Set());
 
@@ -47,6 +76,19 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
     if (suivant.has(clef)) suivant.delete(clef);
     else suivant.add(clef);
     setChoisis(suivant);
+  };
+
+  // Ranger ce document sur un axe. On reprend le classement entier et l'on y remplace un axe :
+  // c'est le noyau qui sait lire un schéma, et lui seul doit le vérifier. L'écran compare des
+  // clés et ne sait rien de ce qu'elles veulent dire (CLA-01).
+  const ranger = (cleAxe: string, valeurs: readonly string[]): void => {
+    if (schema === undefined || empreinte === undefined || onClasser === undefined) return;
+    const apres: Record<string, ValeursAxe> = { ...(classement?.axes ?? {}) };
+    // Plus aucune valeur : l'axe sort du classement au lieu de garder une liste vide. « Non
+    // rangé » est une réponse, et ce n'est pas la même chose qu'une valeur par défaut.
+    if (valeurs.length === 0) delete apres[cleAxe];
+    else apres[cleAxe] = { type: "reference", valeurs: [...valeurs] };
+    onClasser(classerUnDocument(schema, empreinte, apres, "manuel"));
   };
 
   const pages = useMemo(() => {
@@ -174,6 +216,73 @@ export function Catalogue({ vue, page, onPage, onLecteur, onAjouter }: Props): J
             </section>
           ))}
         </nav>
+
+        {schema === undefined || empreinte === undefined || onClasser === undefined ? null : (
+          <section className="ln-catalogue__ranger" role="group" aria-labelledby="titre-ranger">
+            <h2 id="titre-ranger" className="ln-filtres__nom">
+              Ranger ce document
+            </h2>
+            {schema.axes
+              .filter((axe) => axe.nature === "referentiel" || axe.nature === "liste_semi_ouverte")
+              .map((axe) => {
+                const portees = classement?.axes[axe.cle];
+                const choisies = portees?.type === "reference" ? portees.valeurs : [];
+                // Une valeur retirée redirige, elle ne s'offre plus au rangement (CLA-03) : on
+                // garde ce qu'un document porte déjà, on ne propose plus de l'y mettre.
+                const offertes = axe.valeurs.filter((valeur) => !valeur.retiree);
+
+                if (axe.cardinalite === "une")
+                  return (
+                    <p key={axe.cle} className="ln-catalogue__ranger-axe">
+                      <label>
+                        <span className="ln-filtres__nom">{axe.nom}</span>
+                        <select
+                          className="ln-catalogue__ranger-choix"
+                          value={choisies[0] ?? ""}
+                          onChange={(evenement) => ranger(axe.cle, evenement.target.value === "" ? [] : [evenement.target.value])}
+                        >
+                          <option value="">Non rangé</option>
+                          {offertes.map((valeur) => (
+                            <option key={valeur.cle} value={valeur.cle}>
+                              {valeur.nom}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </p>
+                  );
+
+                return (
+                  <section key={axe.cle} className="ln-filtres__axe" role="group" aria-labelledby={`ranger-${axe.cle}`}>
+                    <h3 id={`ranger-${axe.cle}`} className="ln-filtres__nom">
+                      {axe.nom}
+                    </h3>
+                    <ul className="ln-filtres__valeurs">
+                      {offertes.map((valeur) => (
+                        <li key={valeur.cle}>
+                          <label className="ln-filtres__valeur">
+                            <input
+                              type="checkbox"
+                              checked={choisies.includes(valeur.cle)}
+                              onChange={() =>
+                                ranger(
+                                  axe.cle,
+                                  choisies.includes(valeur.cle)
+                                    ? choisies.filter((cle) => cle !== valeur.cle)
+                                    : [...choisies, valeur.cle],
+                                )
+                              }
+                            />
+                            <span className="ln-filtres__libelle">{valeur.nom}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                );
+              })}
+          </section>
+        )}
 
         <section className="ln-catalogue__liste" aria-labelledby="titre-pages">
           <div className="ln-catalogue__barre ln-panneau-titre">

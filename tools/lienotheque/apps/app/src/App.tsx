@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import type {
   CasDouteux,
+  ClassementLocal,
   DescriptionBibliotheque,
   Passage,
   SchemaBibliotheque,
@@ -44,6 +45,8 @@ import {
   imageDePage,
   versionActive,
   apercuDeBibliotheque,
+  classementsDeBibliotheque,
+  classerDocument,
   passagesDeDocument,
   vueDeDocument,
   choisirFichiers,
@@ -70,6 +73,9 @@ export function App(): JSX.Element {
   const [vue, setVue] = useState<VueBibliotheque | undefined>(undefined);
   // Le texte du document regardé, lu à part de sa vue et jamais recopié dedans.
   const [passages, setPassages] = useState<readonly Passage[]>([]);
+  // Le classement de chaque document de la bibliothèque, lu d'un coup : les filtres
+  // comptent dessus, et les demander un par un vaudrait autant d'allers-retours.
+  const [classements, setClassements] = useState<ReadonlyMap<string, ClassementLocal>>(new Map());
   const [, setDepots] = useState<readonly string[]>([]);
   const [route, setRoute] = useState<Route>(() => lireRoute(globalThis.location?.hash ?? ""));
   const [decisions, setDecisions] = useState<readonly { cas: CasDouteux; decision: Decision }[]>([]);
@@ -225,11 +231,15 @@ export function App(): JSX.Element {
         setRegarde(dernier.empreinte);
         // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent
         // le texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
-        const [lue, lus] = await Promise.all([
+        const [lue, lus, ranges] = await Promise.all([
           vueDeDocument(courante.racine, dernier.empreinte),
           passagesDeDocument(courante.racine, dernier.empreinte),
+          classementsDeBibliotheque(courante.racine),
         ]);
-        if (vivant) setPassages(lus);
+        if (vivant) {
+          setPassages(lus);
+          setClassements(ranges);
+        }
         return lue;
       })
       .then((lue) => {
@@ -359,6 +369,22 @@ export function App(): JSX.Element {
     } catch (erreur) {
       setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
     }
+  };
+
+  /** Ranger un document à la main, depuis le Catalogue.
+   *
+   *  La table de la bibliothèque fait foi ; celle que l'écran tient n'est que ce qu'on vient
+   *  d'en lire. On l'avance tout de suite pour que le geste se voie, et si l'hôte refuse on
+   *  relit plutôt que de garder à l'écran un classement qui n'existe pas sur le disque. */
+  const classer = (classement: ClassementLocal): void => {
+    if (courante === undefined) return;
+    setClassements((avant) => new Map(avant).set(classement.empreinte, classement));
+    if (!estBureau()) return;
+    void classerDocument(courante.racine, classement).catch(() => {
+      void classementsDeBibliotheque(courante.racine)
+        .then(setClassements)
+        .catch(() => undefined);
+    });
   };
 
   /** Une version de plus du schéma. L'hôte réécrit la description : la page n'écrit jamais. */
@@ -499,6 +525,12 @@ export function App(): JSX.Element {
       return (
         <Catalogue
           vue={vue}
+          {...(derniere?.description.schema === undefined ? {} : { schema: derniere.description.schema })}
+          {...(regarde === undefined ? {} : { empreinte: regarde })}
+          {...(regarde === undefined || classements.get(regarde) === undefined
+            ? {}
+            : { classement: classements.get(regarde) })}
+          onClasser={classer}
           {...(route.page === undefined ? {} : { page: route.page })}
           onPage={(page) => aller({ ecran: "catalogue", page })}
           onLecteur={(page, element) => aller({ ecran: "lecteur", page, element })}
