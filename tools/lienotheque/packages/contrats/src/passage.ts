@@ -22,7 +22,11 @@ export const Passage = z
     /** Ordre de lecture dans le document, à partir de zéro. La table le tient unique par
      *  version : c'est lui qui dit « le passage d'après », et non l'ordre d'insertion. */
     rang: z.number().int().nonnegative(),
-    /** Rang de la page dont ce texte est tiré, tel que `PageReperee.index` le porte. */
+    /** Rang de la page dont ce texte est tiré, **à partir de un**.
+     *
+     *  Et non `PageReperee.index`, qui compte à partir de zéro : les deux désignent la même
+     *  page physique mais ne la nomment pas pareil. `PageAffichee.index` suit cette
+     *  convention-ci, celle qu'on montre. */
     page: z.number().int().min(1),
     /** Le numéro **imprimé** sur la page, quand il est connu. Absent, le passage se cite par son
      *  rang de page, et le Lecteur le dit plutôt que de faire croire à un numéro. */

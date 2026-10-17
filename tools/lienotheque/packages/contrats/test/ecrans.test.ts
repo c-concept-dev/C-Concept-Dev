@@ -7,6 +7,7 @@ import {
   VueBibliotheque,
   ZoneRelative,
   accorder,
+  citerPage,
   enTete,
   nommer,
 } from "../src/index.js";
@@ -114,7 +115,7 @@ describe("vue d'une bibliothèque (CLA-10)", () => {
     compteurs: [{ nombre: 412, mot: "éléments" }],
     aVerifier: 9,
     filtres: [{ cle: "niveau", nom: "Niveau", valeurs: [{ cle: "debutant", nom: "Débutant", nombre: 146 }] }],
-    pages: [{ numero: 127, elements: [element()], texte: ["une ligne"], traduction: [] }],
+    pages: [{ index: 127, numero: 127, elements: [element()], texte: ["une ligne"], traduction: [] }],
     douteux: [],
   };
 
@@ -125,7 +126,7 @@ describe("vue d'une bibliothèque (CLA-10)", () => {
   });
 
   it("une page connaît son texte reconnu et sa traduction", () => {
-    const page = PageAffichee.parse({ numero: 1, elements: [] });
+    const page = PageAffichee.parse({ index: 1, elements: [] });
     expect(page.texte).toEqual([]);
     expect(page.traduction).toEqual([]);
   });
@@ -167,5 +168,57 @@ describe("affichage des mots du schéma (B4, correction 4)", () => {
   it("nomme un numéro, ne compte pas : c'est accorder qui compte", () => {
     expect(nommer(FEMININS.piste, 45)).toBe("Plage 45");
     expect(accorder(45, FEMININS.piste)).toBe("45 plages");
+  });
+});
+
+describe("le rang d'une page est toujours connu, son numéro imprimé non (RCH-09, OUT-03)", () => {
+  /** Mesuré sur les sept documents de la mini-bibliothèque : **zéro page dans la vue**, pour
+   *  tous. 108, 298, 316, 614 pages lues, et pas une seule affichable.
+   *
+   *  La cause tenait en une ligne : l'identité d'une page dans la vue était son **numéro
+   *  imprimé**, et celui-ci ne se dérive que des éléments reconnus. Un ouvrage ordinaire n'en a
+   *  aucun — ce ne sont pas des méthodes à exercices numérotés. Toutes les pages se rangeaient
+   *  alors sous la même clé de repli, s'écrasaient, et la dernière était rejetée par ce
+   *  contrat-ci parce qu'elle était négative.
+   *
+   *  Une page a donc deux choses, comme `Passage` depuis l'étape 4 : un **rang**, qu'on connaît
+   *  toujours, et un **numéro imprimé**, qu'on ne connaît pas toujours. */
+  const base = {
+    elements: [],
+    texte: [],
+    traduction: [],
+  };
+
+  it("accepte une page sans numéro imprimé, et garde son rang", () => {
+    const page = PageAffichee.parse({ ...base, index: 42 });
+    expect(page.index).toBe(42);
+    expect(page.numero, "un numéro imprimé inconnu reste absent, il ne s'invente pas").toBeUndefined();
+  });
+
+  it("garde les deux quand le numéro imprimé est connu, sans les confondre", () => {
+    const page = PageAffichee.parse({ ...base, index: 57, numero: 42 });
+    expect(page.index).toBe(57);
+    expect(page.numero).toBe(42);
+  });
+
+  it("refuse une page sans rang : c'est la seule identité dont on dispose toujours", () => {
+    expect(() => PageAffichee.parse({ ...base, numero: 42 })).toThrow();
+  });
+
+  it("refuse un rang qui n'en est pas un", () => {
+    expect(() => PageAffichee.parse({ ...base, index: 0 })).toThrow();
+    expect(() => PageAffichee.parse({ ...base, index: -1 })).toThrow();
+  });
+});
+
+describe("comment une page se cite (RCH-09)", () => {
+  const mots = { element: { un: "repère", plusieurs: "repères" }, piste: { un: "plage", plusieurs: "plages" }, page: { un: "feuillet", plusieurs: "feuillets" } };
+
+  it("cite le numéro imprimé quand il est connu", () => {
+    expect(citerPage(mots, { index: 57, numero: 42 })).toBe("feuillet 42");
+  });
+
+  it("cite le rang, et le dit, quand le numéro imprimé manque", () => {
+    expect(citerPage(mots, { index: 57 })).toBe("feuillet 57 du document");
   });
 });

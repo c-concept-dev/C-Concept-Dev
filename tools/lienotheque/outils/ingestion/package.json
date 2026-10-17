@@ -10,7 +10,8 @@
   "scripts": {
     "traiter": "tsx src/traiter.ts",
     "test": "vitest run --maxWorkers=2",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "classer": "tsx src/classer.ts"
   },
   "dependencies": {
     "@lienotheque/cache": "workspace:*",

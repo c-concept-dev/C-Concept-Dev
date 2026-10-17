@@ -2,6 +2,7 @@ import { useMemo, useState, type JSX } from "react";
 import {
   accorder,
   enTete,
+  citerPage,
   nommer,
   type ApercuDocument,
   type ClassementLocal,
@@ -157,7 +158,7 @@ export function Catalogue({
       return true;
     });
   }, [vue.pages, vue.filtres, choisis]);
-  const detail: PageAffichee | undefined = pages.find((p) => p.numero === page) ?? pages[0];
+  const detail: PageAffichee | undefined = pages.find((p) => p.index === page) ?? pages[0];
 
   // Ce qui attend un arbitrage et ce qui attend seulement d'être lu ne se comptent pas ensemble.
   const informations = vue.douteux.filter((cas) => cas.nature === "information").length;
@@ -404,10 +405,10 @@ export function Catalogue({
               <li key={p.numero}>
                 <button
                   type="button"
-                  className={p.numero === detail?.numero ? "ln-pages__carte ln-pages__carte--ouvert" : "ln-pages__carte"}
-                  onClick={() => onPage(p.numero)}
-                  aria-current={p.numero === detail?.numero ? "true" : undefined}
-                  aria-label={nommer(vue.mots.page, p.numero)}
+                  className={p.index === detail?.index ? "ln-pages__carte ln-pages__carte--ouvert" : "ln-pages__carte"}
+                  onClick={() => onPage(p.index)}
+                  aria-current={p.index === detail?.index ? "true" : undefined}
+                  aria-label={enTete(citerPage(vue.mots, p))}
                 >
                   {/* La vignette de la page quand le lot en porte une (OUT-04) ; son numéro
                       sinon. Décorative dans les deux cas : le nom accessible est sur le bouton. */}
@@ -419,7 +420,7 @@ export function Catalogue({
                     <img className="ln-pages__apercu" src={p.vignette} alt="" loading="lazy" decoding="async" />
                   )}
                   <span className="ln-pages__nom">
-                    {nommer(vue.mots.page, p.numero)}
+                    {enTete(citerPage(vue.mots, p))}
                   </span>
                   {p.titre === undefined ? null : <span className="ln-pages__titre">{p.titre}</span>}
                   <span className="ln-pages__relies">
@@ -444,18 +445,18 @@ export function Catalogue({
           ) : (
             <>
               <h2 className="ln-detail__titre">
-                {nommer(vue.mots.page, detail.numero)}
+                {enTete(citerPage(vue.mots, detail))}
               </h2>
               {detail.vignette === undefined ? (
-                <div className="ln-detail__apercu" role="img" aria-label={nommer(vue.mots.page, detail.numero)}>
-                  <span>{detail.numero}</span>
+                <div className="ln-detail__apercu" role="img" aria-label={enTete(citerPage(vue.mots, detail))}>
+                  <span>{detail.numero ?? detail.index}</span>
                   {detail.titre === undefined ? null : <span className="ln-detail__sous-titre">{detail.titre}</span>}
                 </div>
               ) : (
                 <img
                   className="ln-detail__apercu ln-detail__apercu--image"
                   src={detail.vignette}
-                  alt={nommer(vue.mots.page, detail.numero)}
+                  alt={enTete(citerPage(vue.mots, detail))}
                   loading="lazy"
                   decoding="async"
                 />
@@ -491,7 +492,7 @@ export function Catalogue({
               <button
                 type="button"
                 className="ln-detail__ouvrir"
-                onClick={() => onLecteur(detail.numero, detail.elements[0]?.ancreId ?? "")}
+                onClick={() => onLecteur(detail.index, detail.elements[0]?.ancreId ?? "")}
                 disabled={detail.elements.length === 0}
               >
                 Ouvrir dans le Lecteur <Icone nom="chevronDroite" />

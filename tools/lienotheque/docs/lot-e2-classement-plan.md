@@ -58,14 +58,29 @@ document.
 
 ### 2.1 Le classement existe déjà, et il est complet
 
+> **Chiffres révisés le 17 octobre 2026.** Les valeurs ci-dessous sont celles de
+> `correspondance.json` et de l'export D1, relues directement. Celles d'origine portaient
+> 205 appariements, 19 fichiers sans ouvrage et 33 ouvrages sans fichier : **ce n'était pas une
+> erreur**, mais un corpus plus petit. Un nouveau balayage a porté le fonds de 224 à 250
+> fichiers — il a trouvé les dossiers `Hypnose/` et `Therapie Manuelle/`, et les EPUB — et toute
+> la répartition a été recalculée dessus. La ventilation « 199 certains, 6 proposés » n'existe
+> plus dans aucune donnée : la table ne marque plus que `valide_par` sur dix entrées. On ne la
+> reconstitue pas, et le chiffre de 205 ne doit plus servir de référence nulle part.
+
 | Mesure | Valeur |
 |---|---|
-| Ouvrages dans la bibliothèque à reprendre | **240** |
-| Dont `approach` renseigné | **240 (100 %)** |
-| Dont `language` renseigné | **240 (100 %)** |
-| Appariements fichier ↔ ouvrage établis à l'étape 3 | **205** (199 certains, 6 proposés) |
-| Fichiers du corpus sans ouvrage | 19 |
-| Ouvrages sans fichier | 33 |
+| Ouvrages dans la bibliothèque à reprendre | **234** identifiants distincts (240 combinaisons de métadonnées) |
+| Dont `approach` renseigné | **234 (100 %)** |
+| Dont `language` renseigné | **234 (100 %)** |
+| Appariements fichier ↔ ouvrage | **216**, dont 10 portent `valide_par` |
+| Fichiers du corpus sans ouvrage | 29 |
+| Écartés — ressemblance de sujet, pas d'identité | 5 |
+| Ouvrages sans fichier | 2 |
+| Ouvrages hors périmètre (outils interactifs de Studio Clinique) | 13 |
+
+**La table couvre l'intégralité du corpus, et cela se vérifie d'une addition :**
+216 + 29 + 5 = **250**. Aucun fichier n'est hors compte. C'est cette couverture, et non la
+généalogie des chiffres, qui autorise l'import.
 
 **Le classement n'est donc pas à inventer : il est à transporter.** Sur les sept documents de
 l'essai, cinq reçoivent leur classement de l'ancienne base sans aucune supposition :
@@ -80,8 +95,14 @@ l'essai, cinq reçoivent leur classement de l'ancienne base sans aucune supposit
 | Le corps n'oublie rien | — aucun appariement | — |
 | PPT N2 LM 2 diapos | — aucun appariement | — |
 
-Extrapolé au corpus : **205 documents sur 250 classés par l'import, 45 à la main.** C'est une
-extrapolation depuis les appariements, non une mesure du résultat.
+Sur le corpus : **216 documents sur 250 classés par l'import, 34 à la main** — 29 fichiers sans
+ouvrage et 5 écartés pour ressemblance de sujet sans identité.
+
+Ce n'est plus une extrapolation. Mesuré le 17 octobre 2026 en croisant `correspondance.json` et
+l'export D1 des approches : **les 216 appariements se résolvent tous en un classement valide**,
+sans ouvrage sans approche et sans valeur absente du schéma. Les cinq documents de la
+mini-bibliothèque ont reçu par cette voie exactement les valeurs relevées plus haut — le relevé
+était juste, il est désormais vérifié depuis sa source.
 
 ### 2.2 La hiérarchie répond à une distribution mesurable
 

@@ -21,6 +21,7 @@ const VUE = VueBibliotheque.parse({
   compteurs: [],
   pages: [
     {
+      index: 127,
       numero: 127,
       elements: [
         {
@@ -40,12 +41,14 @@ const VUE = VueBibliotheque.parse({
       texte: ["Travailler l’articulation détachée au métronome, tempo lent.", "Puis accélérer."],
     },
     {
+      index: 158,
       numero: 158,
       titre: "Introduction du quatrième ensemble",
       elements: [{ ancreId: ID(11), numero: "512", page: 158 }],
       texte: ["Avant d’aborder l’articulation détachée, assurez-vous que la main reste souple."],
     },
     {
+      index: 200,
       numero: 200,
       elements: [{ ancreId: ID(12), numero: "844", page: 200 }],
       texte: ["Rien à voir avec ce qu’on cherche ici."],
@@ -187,6 +190,7 @@ describe("une liste qu'on ne parcourt plus d'un coup d'œil n'est plus une aide"
     const beaucoup = VueBibliotheque.parse({
       ...VUE,
       pages: Array.from({ length: PAR_GROUPE + 4 }, (_, rang) => ({
+        index: rang + 1,
         numero: rang + 1,
         elements: [],
         texte: ["articulation détachée"],
@@ -211,7 +215,7 @@ describe("la recherche lit les passages du document, non une copie dans la vue (
       page: { un: "feuillet", plusieurs: "feuillets" },
     },
     compteurs: [],
-    pages: [{ numero: 42, elements: [] }],
+    pages: [{ index: 42, numero: 42, elements: [] }],
   });
 
   const passage = (rang: number, page: number, texte: string, imprimee?: number): unknown => ({

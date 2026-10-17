@@ -73,6 +73,18 @@ export type Lot = {
  *
  *  Le lien se fait par les éléments : une page porte des numéros d'élément, et l'interprète dit
  *  sur quelle page imprimée chacun tombe. */
+/** Le décalage entre le rang **interne** d'une page et celui qu'on montre.
+ *
+ *  Deux conventions coexistent dans le projet, et ce n'est pas une coquette : la chaîne d'images
+ *  compte ses pages **à partir de zéro** (`PageReperee.index`, et les fichiers `page-0000.webp`),
+ *  tandis que le texte compte **à partir de un** (`Passage.page`). La vue est faite pour une
+ *  personne et cite ses pages : elle s'aligne donc sur le texte, et la conversion se fait ici,
+ *  une seule fois, plutôt que d'être refaite — ou oubliée — à chaque écran.
+ *
+ *  Sans elle, la vue et les passages d'un même document se décalent d'une page, et toute
+ *  citation tombe à côté. */
+const PREMIER_RANG = 1;
+
 export function numerosImprimes(
   lues: readonly { index: number; elements: readonly { numero: number }[] }[],
   lignes: readonly { numero: number; pageImprimee: number }[],
@@ -143,13 +155,17 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang
   // dans le document : c'est le décalage lu qui fait le lien entre les deux.
   const imprimes = numerosImprimes(resultat.pages, resultat.lignes);
-  const parPageImprimee = new Map<number, { image: string; largeur: number; hauteur: number; vignette?: string }>();
+  // Les images se rangent par **rang de page**, qu'on connaît toujours.
+  //
+  // Elles l'étaient par numéro imprimé, et toute page qui n'en avait pas tombait sous une même
+  // clé de repli : elles s'y écrasaient l'une l'autre, et la survivante était ensuite rejetée
+  // par le contrat. Mesuré sur un ouvrage de quatre-vingt-seize pages — quatorze images écrites
+  // sur le disque, une seule dans la table, zéro dans la vue.
+  const parRang = new Map<number, { image: string; largeur: number; hauteur: number; vignette?: string }>();
   if (lot.images !== undefined) {
     const adresse = lot.adresseImages ?? "/donnees/pages";
     for (const page of await exporterPages(lot.pdf, lot.images))
-      // Une page sans élément reconnu n'a pas de numéro imprimé sûr : mieux vaut pas d'image
-      // qu'une image attribuée à la mauvaise page.
-      parPageImprimee.set(imprimes.get(page.index) ?? -1, {
+      parRang.set(page.index + PREMIER_RANG, {
         image: `${adresse}/${page.fichier}`,
         largeur: page.largeur,
         hauteur: page.hauteur,
@@ -157,7 +173,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
       });
   }
 
-  lot.surPhase?.(`images de pages : ${parPageImprimee.size} écrite(s)`);
+  lot.surPhase?.(`images de pages : ${parRang.size} écrite(s)`);
 
   const vue = construireVue({
     id: description.id,
@@ -171,7 +187,13 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     // Le seuil vient de la recette, qui l'a fixé en même temps que ses règles de lecture. Le
     // redéclarer ailleurs, c'est se donner deux seuils et finir par en oublier un.
     seuil: recette.validation.seuil_confiance,
-    imageDePage: (page) => parPageImprimee.get(page),
+    // Une page existe parce qu'elle a été lue. Son numéro imprimé la cite quand on le connaît,
+    // il ne décide pas de son existence.
+    pages: resultat.pages.map((page) => {
+      const numero = imprimes.get(page.index);
+      return { index: page.index + PREMIER_RANG, ...(numero === undefined ? {} : { numero }) };
+    }),
+    imageDePage: (rang) => parRang.get(rang),
     // L'emplacement se résout à la lecture, pas à l'ingestion : la carte ne dit pas où le
     // fichier habite, elle dit lequel c'est (ANC-05).
     sourceDuMedia: (media) =>

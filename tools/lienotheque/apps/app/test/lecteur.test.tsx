@@ -22,12 +22,14 @@ const VUE = VueBibliotheque.parse({
   aVerifier: 1,
   pages: [
     {
+      index: 126,
       numero: 126,
       elements: [{ ancreId: ID(10), numero: "399", page: 126, aVerifier: false }],
       texte: [],
       traduction: [],
     },
     {
+      index: 127,
       numero: 127,
       titre: "Lecture et articulation",
       elements: [

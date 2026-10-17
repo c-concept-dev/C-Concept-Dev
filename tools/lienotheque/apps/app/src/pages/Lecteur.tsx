@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
-import { enTete, nommer, type ElementAffiche, type VueBibliotheque } from "@lienotheque/contrats";
+import { citerPage, enTete, nommer, type ElementAffiche, type VueBibliotheque } from "@lienotheque/contrats";
 import { Bouton, Icone } from "../composants/index.js";
 import { FilAriane } from "../composants/FilAriane.js";
 import { FilVersSegment } from "./lecteur/FilVersSegment.js";
@@ -113,7 +113,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
           chemin={[
             { libelle: "Accueil", href: "#" },
             { libelle: vue.nom, href: "#catalogue" },
-            { libelle: nommer(vue.mots.page, pageCourante?.numero ?? "") },
+            { libelle: pageCourante === undefined ? vue.mots.page.un : enTete(citerPage(vue.mots, pageCourante)) },
           ]}
         />
         <div className="ln-lecteur__pas">
@@ -145,13 +145,13 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
         <nav className="ln-vignettes" aria-label={`${vue.mots.page.plusieurs} du document`}>
           <ol className="ln-vignettes__liste">
             {vue.pages.map((p) => (
-              <li key={p.numero}>
+              <li key={p.index}>
                 <button
                   type="button"
-                  className={p.numero === pageCourante?.numero ? "ln-vignettes__page ln-vignettes__page--actif" : "ln-vignettes__page"}
-                  onClick={() => onPage(p.numero)}
-                  aria-current={p.numero === pageCourante?.numero ? "page" : undefined}
-                  aria-label={`${nommer(vue.mots.page, p.numero)}${p.elements.some((e) => e.media !== undefined) ? `, avec des ${vue.mots.element.plusieurs}` : ""}`}
+                  className={p.index === pageCourante?.index ? "ln-vignettes__page ln-vignettes__page--actif" : "ln-vignettes__page"}
+                  onClick={() => onPage(p.index)}
+                  aria-current={p.index === pageCourante?.index ? "page" : undefined}
+                  aria-label={`${enTete(citerPage(vue.mots, p))}${p.elements.some((e) => e.media !== undefined) ? `, avec des ${vue.mots.element.plusieurs}` : ""}`}
                 >
                   {/* La vraie vignette quand l'ingestion en a produit une (OUT-04) ; la feuille
                       vide sinon — un lot sans dérivés garde une bande cliquable. */}
@@ -238,7 +238,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
       <div className="ln-lecteur__pied ln-panneau-titre">
         <p className="ln-lecteur__compte">
           <span className="ln-sr-only">Position dans le document : </span>
-          {nommer(vue.mots.page, pageCourante?.numero ?? "—")} sur {vue.pages.length}
+          {pageCourante === undefined ? "—" : enTete(citerPage(vue.mots, pageCourante))} sur {vue.pages.length}
         </p>
         <div className="ln-lecteur__zoom" role="group" aria-label="Zoom">
           <Bouton compact icone={<Icone nom="moins" />} onClick={() => setZoom(Math.max(50, zoom - 10))} disabled={zoom <= 50} aria-label="Réduire">

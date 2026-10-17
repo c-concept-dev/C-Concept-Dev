@@ -27,6 +27,12 @@ export type Entree = {
    *  relevés. Ils viennent de lui et de personne d'autre : une page sans élément n'est pas une
    *  page absente, et les déduire ici une seconde fois, c'est se donner deux vérités. */
   readonly pagesAbsentes: readonly number[];
+  /** Les pages **lues**, dans l'ordre, chacune avec son rang et son numéro imprimé s'il est connu.
+   *
+   *  Une page existe parce qu'elle a été lue, et non parce qu'on y a reconnu quelque chose. La
+   *  vue les déduisait des éléments : un ouvrage ordinaire n'en portant aucun, il n'avait aucune
+   *  page — mesuré sur sept documents, 108 à 614 pages lues et zéro affichable, images comprises. */
+  readonly pages: readonly { readonly index: number; readonly numero?: number }[];
   readonly association: Association;
   readonly medias: readonly MediaIngere[];
   readonly seuil: number;
@@ -34,9 +40,12 @@ export type Entree = {
   readonly titreDePage?: (page: number) => string | undefined;
   /** Où un média est servi, quand il est joignable depuis les écrans (ANC-05). */
   readonly sourceDuMedia?: (media: MediaIngere) => string | undefined;
-  /** Image de la page, sa vignette et ses dimensions, quand le lot en a exporté. */
+  /** Image de la page, sa vignette et ses dimensions, quand le lot en a exporté.
+   *
+   *  Demandée par le **rang**, qu'on connaît toujours — et non par le numéro imprimé, qui
+   *  manque sur un ouvrage et rangeait alors toutes les images sous une même clé de repli. */
   readonly imageDePage?: (
-    page: number,
+    rang: number,
   ) => { readonly image: string; readonly largeur: number; readonly hauteur: number; readonly vignette?: string } | undefined;
 };
 
@@ -232,13 +241,18 @@ export function construireVue(entree: Entree): VueBibliotheque {
     });
   }
 
-  const pages: PageAffichee[] = [...parPage.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([numero, elements]) => {
-      const titre = entree.titreDePage?.(numero);
-      const vue = entree.imageDePage?.(numero);
+  // Une page par page lue, dans l'ordre de lecture. Les éléments viennent s'y poser par leur
+  // numéro imprimé — c'est le seul lien qu'ils aient avec une page — et une page qui n'en porte
+  // aucun reste une page.
+  const pages: PageAffichee[] = [...entree.pages]
+    .sort((un, autre) => un.index - autre.index)
+    .map((page) => {
+      const elements = page.numero === undefined ? [] : (parPage.get(page.numero) ?? []);
+      const titre = page.numero === undefined ? undefined : entree.titreDePage?.(page.numero);
+      const vue = entree.imageDePage?.(page.index);
       return {
-        numero,
+        index: page.index,
+        ...(page.numero === undefined ? {} : { numero: page.numero }),
         ...(titre === undefined ? {} : { titre }),
         ...(vue === undefined ? {} : vue),
         elements,
@@ -247,6 +261,26 @@ export function construireVue(entree: Entree): VueBibliotheque {
         valeurs: valeursDePage(entree.schema, elements),
       };
     });
+
+  // Un élément dont aucune page lue ne porte le numéro imprimé n'a nulle part où se poser.
+  //
+  // La question ne se posait pas tant que la page était **créée depuis** l'élément : il y avait
+  // toujours une page pour l'accueillir. Maintenant que les pages viennent des pages lues, elle
+  // se pose — et la seule réponse acceptable est de le nommer. Un élément qui disparaît en
+  // silence passe tous les contrôles et ne se découvre qu'à l'usage (OUT-15).
+  const portees = new Set(pages.map((page) => page.numero).filter((numero) => numero !== undefined));
+  for (const [numeroImprime, surCettePage] of parPage)
+    if (!portees.has(numeroImprime))
+      for (const element of surCettePage)
+        douteux.push({
+          id: identifiantDe(`${entree.id}/a-rattacher-${element.numero}`),
+          nature: "lien",
+          etat: "a_rattacher",
+          element,
+          proposition: `Rattacher ${entree.mots.element.un} ${element.numero}`,
+          motif: `aucune ${entree.mots.page.un} lue ne porte le numéro ${numeroImprime}`,
+          details: [],
+        });
 
   // Les filtres, comptés sur ce que les pages portent vraiment. Un axe que personne ne porte
   // n'est pas filtrable : son groupe reste masqué, et il reparaîtra le jour où l'application

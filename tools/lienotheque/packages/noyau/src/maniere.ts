@@ -301,7 +301,9 @@ export function entre(depart: { x: number; y: number }, arrivee: { x: number; y:
  */
 export function bilanDEssai(vue: {
   readonly pages: readonly {
-    readonly numero: number;
+    // Le rang, et non le numéro imprimé : un essai porte sur les pages lues, et une page sans
+    // numéro imprimé en est une comme une autre.
+    readonly index: number;
     readonly elements: readonly { readonly numero: string; readonly aVerifier: boolean }[];
   }[];
 }): {
@@ -310,7 +312,7 @@ export function bilanDEssai(vue: {
   readonly muettes: number;
 } {
   const pages = vue.pages.map((page) => ({
-    numero: page.numero,
+    numero: page.index,
     elements: page.elements.map((element) => element.numero),
     aVerifier: page.elements.filter((element) => element.aVerifier).length,
   }));
