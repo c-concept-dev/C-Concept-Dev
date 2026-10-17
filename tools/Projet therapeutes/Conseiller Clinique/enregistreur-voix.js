@@ -10,9 +10,11 @@
 // corrélation entre canaux, choix du canal retenu, blocs perdus. Le worklet poste des sommes
 // brutes et n'en tire rien (voir son en-tête) : une grandeur, une fonction — régression #11(f).
 //
-// CE QU'IL NE FAIT PAS AU JALON I : la bande rythmo, les repères, le compte à rebours, les
-// prises multiples nommées, la reprise avec amorce (jalon II) ; le chutier, la forme d'onde, les
-// coupes, l'import, les avis T6 (jalon III). Rien n'est grisé : ce qui n'existe pas est ABSENT.
+// CE QU'IL NE FAIT PAS À CE JALON (II) : la forme d'onde, donc ni le raccord d'une pause ni les
+// repères tracés dessus ; l'image à côté de la bande (R10, lot 4) ; le déplacement d'un repère à
+// la souris (T4) ; le chutier, les coupes, le blocage de l'export par T6. La bande rythmo, les
+// repères, le compte à rebours, l'import et la reprise avec amorce, eux, SONT là (T3, T3 bis).
+// Rien n'est grisé : ce qui n'existe pas est ABSENT.
 //
 // LES NOMS PRIS SUR `window` — la liste est BALAYÉE dans cette source par le contrôle, jamais
 // écrite à la main (régression #11(b)) : `window.VoixStockage` (le stockage, fichier voisin).
@@ -755,7 +757,7 @@
     return '' +
 '<div class="sc-bm-screen-shell sc-bm-screen-shell--no-montage sc-bm-screen-shell--record">' +
   '<header class="sc-bm-topbar">' +
-    '<span class="sc-bm-badge">Banc · jalon I</span>' +
+    '<span class="sc-bm-badge">Banc · jalon II</span>' +
     '<label class="sc-bm-video-title"><span class="sc-bm-sr">Nom de la prise</span>' +
       '<input class="sc-bm-input" data-nom-prise value="Prise d\'essai" aria-label="Nom de la prise"/></label>' +
     '<span class="sc-bm-top-save" data-etat-stockage>Voix conservée sur cet ordinateur</span>' +
@@ -942,10 +944,12 @@
       '</section>' +
       '<label class="sc-bm-field" data-lot="3">Importer une voix (WAV PCM 16 ou 24 bits)' +
         '<input class="sc-bm-input" type="file" accept=".wav,audio/wav,audio/x-wav" data-import aria-label="Importer un fichier WAV"/></label>' +
-      '<p class="sc-bm-help">Le jalon I ne pose aucun repère et n\'affiche aucune bande rythmo : ' +
-        'ils arrivent au jalon II. Rien n\'est grisé — ce qui n\'existe pas est absent. ' +
-        'La pause est journalisée comme un RACCORD (échantillon et durée) ; son tracé sur la ' +
-        'forme d\'onde appartient au jalon II, où la forme d\'onde existe.</p>' +
+      '<p class="sc-bm-help">Ce jalon pose les repères, affiche la bande rythmo et refait un ' +
+        'passage avec son amorce. Ce qui n\'y est pas : la FORME D\'ONDE, donc ni le raccord ' +
+        'd\'une pause ni les repères tracés dessus ; l\'IMAGE à côté de la bande (R10, lot 4) ; ' +
+        'le déplacement d\'un repère à la souris (T4) — ici on l\'ajuste au bouton, par pas de ' +
+        '100 ms ; et le blocage de l\'export par les trois contrôles de T6, qui informent ici et ' +
+        'bloqueront au lot 4. Rien n\'est grisé : ce qui n\'existe pas est absent.</p>' +
     '</section>' +
 
     '<aside class="sc-bm-panel sc-bm-record-side">' +
@@ -2816,6 +2820,71 @@
     return k;
   }
 
+  // ── (T3 ter) LE RELEVÉ DES TOUCHES, ET CE QU'IL NE DIT JAMAIS ────────────────────────────
+  //
+  // POURQUOI CE RELEVÉ EXISTE. La prise de 52 secondes du 17 octobre porte DEUX repères pour SIX
+  // passages, et rien au journal n'expliquait les quatre manquants : une touche refusée avant
+  // d'atteindre le module ne laissait aucune trace. §49 a montré la cause (le curseur dans la
+  // zone de texte), mais la mesure doit rester, parce que Safari n'est pas Chromium et que la
+  // prochaine touche perdue aura peut-être une autre cause.
+  //
+  // CE QU'IL NE CONSIGNE JAMAIS : le contenu d'une touche de texte. Le vocabulaire est FERMÉ —
+  // flèche droite, flèche gauche, Page suivante, Page précédente, Espace, touche apprise — et
+  // tout le reste est « autre touche », sans sa valeur. Christophe tape le texte de ses
+  // présentations dans cette page : un journal qui noterait `ev.key` serait un enregistreur de
+  // frappe, et ce journal part dans un rapport.
+  var VOCABULAIRE_DES_TOUCHES = {
+    ArrowRight: 'flèche droite', ArrowLeft: 'flèche gauche',
+    PageDown: 'Page suivante', PageUp: 'Page précédente', ' ': 'Espace',
+  };
+
+  function libelleDeTouche(ev, role) {
+    if (VOCABULAIRE_DES_TOUCHES[ev.key]) return VOCABULAIRE_DES_TOUCHES[ev.key];
+    if (role !== 'autre') return 'touche apprise';
+    return 'autre touche (non journalisée)';
+  }
+
+  // UNE SEULE FONCTION DIT LE RÔLE D'UNE TOUCHE, et c'est elle qui sert à la décision ET au
+  // relevé : deux lectures séparées auraient pu dire deux choses de la même frappe (#11(f)).
+  function roleDeLaTouche(ev) {
+    if (_etat.apprendLaTouche) return 'apprentissage-pause';
+    if (_etat.apprendLaToucheRepere) return 'apprentissage-repere';
+    if (ev.key === _etat.toucheRepere || ev.key === 'PageDown') return 'repere';
+    if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') return 'passage-precedent';
+    if (ev.key === _etat.toucheBascule) return 'pause';
+    return 'autre';
+  }
+
+  function compteursDeTouches() {
+    if (!_etat.touches) {
+      _etat.touches = { recues: 0, acceptees: 0, refusees: 0, parRaison: {} };
+    }
+    return _etat.touches;
+  }
+
+  function journaliserLaTouche(ev, role, accepte, raison) {
+    var c = compteursDeTouches();
+    c.recues++;
+    if (accepte) c.acceptees++;
+    else {
+      c.refusees++;
+      c.parRaison[raison] = (c.parRaison[raison] || 0) + 1;
+    }
+    var cible = ev.target;
+    journaliser('touche ' + (accepte ? 'acceptée' : 'refusée'), echantillonsCourants(), {
+      touche: libelleDeTouche(ev, role),
+      toucheApprise: !VOCABULAIRE_DES_TOUCHES[ev.key] && role !== 'autre',
+      role: role,
+      elementFocalise: (cible && cible.tagName) ? cible.tagName : 'aucun',
+      repetitionAutomatique: !!ev.repeat,
+      accepte: accepte,
+      raison: raison,
+      regle: 'le contenu d\'une touche de texte n\'est JAMAIS consigné : le vocabulaire est '
+        + 'fermé (flèche droite, flèche gauche, Page suivante, Page précédente, Espace, touche '
+        + 'apprise), et tout le reste est « autre touche » sans sa valeur.',
+    });
+  }
+
   function peindreReperes() {
     var hote = q('[data-reperes]');
     if (!hote) return;
@@ -3256,6 +3325,20 @@
     // le lot 1 et ne se montrait que par intermittence, selon l'ordre d'arrivée du changement
     // d'état du contexte et du premier relevé. §22c l'éprouve maintenant sans course.
     _etat.dernierReleve = null;
+    // ── (T3 ter) LE CHAMP DE TEXTE PERD LE FOCUS ET PASSE EN LECTURE SEULE ────────────────
+    // Politique décidée par Christophe le 17 octobre. Le `blur` traite la cause du défaut des
+    // quatre repères perdus : après avoir collé son texte, le curseur restait dans la zone, et
+    // la flèche droite y déplaçait le caret au lieu de poser un repère. La lecture seule traite
+    // une seconde conséquence, moins visible : le texte que la bande affiche ne doit pas changer
+    // PENDANT la prise, sinon les passages, les durées et les vitesses de R5 ne décriraient plus
+    // la voix qu'on est en train d'enregistrer. Les deux sont rendus à l'arrêt.
+    var champTexte = q('[data-texte-bande]');
+    if (champTexte) {
+      if (document.activeElement === champTexte) champTexte.blur();
+      champTexte.readOnly = true;
+    }
+    // Les compteurs de touches appartiennent à LEUR prise, comme les fenêtres et les relevés.
+    _etat.touches = { recues: 0, acceptees: 0, refusees: 0, parRaison: {} };
     // (d) LES FENÊTRES D'UNE PRISE N'APPARTIENNENT QU'À ELLE. Les garder d'une prise à l'autre
     // aurait fait exactement ce que le défaut 4 reproche au compteur d'échantillons : décrire la
     // prise précédente en croyant décrire celle-ci.
@@ -3621,6 +3704,9 @@
           // laissait croire que la prise courait encore.
           var intitule = q('[data-chrono-intitule]');
           if (intitule) intitule.textContent = 'Dernière prise';
+          // (T3 ter) LE CHAMP REDEVIENT MODIFIABLE : hors prise, on écrit librement.
+          var champFin = q('[data-texte-bande]');
+          if (champFin) champFin.readOnly = false;
           _etat.enPause = false;
           _etat.microPerdu = false;
           q('[data-action="pause"]').hidden = true;
@@ -3808,6 +3894,17 @@
         : 'aucun texte de bande',
       reperes: _etat.reperes.slice(),
       repetitionsDeToucheIgnorees: _etat.repetitionsIgnorees || 0,
+      // ── (T3 ter) LES TOUCHES REÇUES PENDANT LA PRISE, ET CE QU'ELLES SONT DEVENUES ──────
+      // Quatre repères perdus sur la prise du 17 octobre n'avaient laissé aucune trace : une
+      // touche refusée avant d'atteindre le module n'était comptée par personne. Ces compteurs
+      // existent pour que la prochaine touche perdue soit CHIFFRÉE, avec sa raison.
+      touchesPendantLaPrise: _etat.touches
+        ? { recues: _etat.touches.recues, acceptees: _etat.touches.acceptees,
+            refusees: _etat.touches.refusees, parRaison: _etat.touches.parRaison,
+            regle: 'une ligne de journal par frappe pendant la prise : l\'élément focalisé, la '
+              + 'touche (vocabulaire FERMÉ, jamais le contenu d\'une touche de texte), si elle '
+              + 'est apprise, acceptée ou refusée, et la raison du refus.' }
+        : 'aucune touche relevée',
       // ── (R5) LA VITESSE DE CHAQUE PASSAGE, AVEC SON SEUIL ───────────────────────────────
       vitessesParPassage: vitessesMaintenant()
         || 'sans objet : module de bande absent',
@@ -4152,13 +4249,37 @@
         message('pause', 'error', 'La pause n\'a pas abouti : ' + (e && e.message));
       });
     });
-    // (E4) ESPACE PAR DÉFAUT, RÉGLABLE. On n'intercepte pas la touche quand le curseur est dans
-    // un champ : taper un espace dans le nom de la prise ne doit pas mettre la prise en pause.
+    // ── (E4, E9, T14, T3 ter) UN SEUL POINT DE DÉCISION POUR TOUTES LES TOUCHES ───────────
+    //
+    // IL Y AVAIT DEUX ÉCOUTEURS, et c'était la cause du défaut. Chacun portait sa propre garde
+    // « le curseur est-il dans un champ ? », chacun décidait pour son compte, et aucun ne
+    // comptait. La prise de 52 secondes du 17 octobre a perdu quatre repères sur six sans que
+    // rien ne le dise, parce que la garde du second écouteur renvoyait avant le module : le
+    // curseur était resté dans la zone de texte après le collage du texte. Deux gardes pour une
+    // même question, c'est #11(f) ; et une décision qui ne laisse pas de trace, c'est un défaut
+    // qu'on ne peut pas chercher.
+    //
+    // LA POLITIQUE DE CHRISTOPHE (17 octobre), et elle comble un silence du CDC : E4 dit que la
+    // flèche droite pose le marqueur, T14 que les repères se posent « où l'utilisateur le
+    // souhaite, EN DIRECT » ; ni l'un ni l'autre ne parle du focus.
+    //   — PENDANT UNE PRISE, les touches de pilotage (flèches, Page suivante et précédente,
+    //     Espace, touche apprise) sont reçues par la page QUEL QUE SOIT l'élément focalisé.
+    //     Conséquence assumée : pendant une prise, ces touches appartiennent à la prise, et non
+    //     au champ qui a le focus. On n'écrit pas pendant qu'on enregistre.
+    //   — AU DÉMARRAGE, le champ de texte perd le focus et passe en lecture seule jusqu'à
+    //     l'arrêt (voir `demarrer` et `arreter`) : le curseur ne peut plus y être, et le texte
+    //     que la bande affiche ne peut plus changer sous les pieds de la prise.
+    //   — HORS PRISE, la saisie dans un champ n'est JAMAIS interceptée : taper un espace dans
+    //     le nom de la prise écrit un espace.
     document.addEventListener('keydown', function (ev) {
+      var role = roleDeLaTouche(ev);
       var cible = ev.target;
-      var dansUnChamp = cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA'
-                                  || cible.tagName === 'SELECT' || cible.isContentEditable);
-      if (_etat.apprendLaTouche) {
+      var dansUnChamp = !!(cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA'
+                                     || cible.tagName === 'SELECT' || cible.isContentEditable));
+
+      // L'APPRENTISSAGE PASSE AVANT TOUT ET PARTOUT : Christophe vient de cliquer « Apprendre
+      // une touche », la frappe qui suit est sa réponse, où que soit le curseur.
+      if (role === 'apprentissage-pause') {
         ev.preventDefault();
         _etat.toucheBascule = ev.key;
         _etat.apprendLaTouche = false;
@@ -4166,15 +4287,65 @@
         if (champ) champ.value = (ev.key === ' ' ? 'Espace' : ev.key);
         message('touche', 'info', 'La touche de pause est maintenant « '
           + (ev.key === ' ' ? 'Espace' : ev.key) + ' ».');
+        if (_etat.enPrise) journaliserLaTouche(ev, role, true, 'touche de pause apprise');
         return;
       }
-      if (dansUnChamp) return;
-      if (ev.key !== _etat.toucheBascule) return;
-      if (!_etat.enPrise) return;
+      if (role === 'apprentissage-repere') {
+        ev.preventDefault();
+        _etat.toucheRepere = ev.key;
+        _etat.apprendLaToucheRepere = false;
+        var champR = q('[data-touche-repere]');
+        if (champR) champR.value = nomDeTouche(ev.key);
+        message('touche-repere', 'info', 'La touche de repère est maintenant « '
+          + nomDeTouche(ev.key) + ' ».');
+        if (_etat.enPrise) journaliserLaTouche(ev, role, true, 'touche de repère apprise');
+        return;
+      }
+
+      // ── HORS PRISE : ON NE TOUCHE À RIEN DE CE QUE CHRISTOPHE TAPE ──────────────────────
+      if (!_etat.enPrise) {
+        if (dansUnChamp || role === 'autre') return;
+        // Hors prise et hors champ : une touche de pilotage n'a rien à piloter. `poserUnRepere`
+        // le dit déjà par un avis ; on l'appelle donc pour que l'avis apparaisse, sans rien
+        // inventer ici.
+        if (role === 'repere') { ev.preventDefault(); poserUnRepere('touche hors prise'); }
+        return;
+      }
+
+      // ── PENDANT UNE PRISE ──────────────────────────────────────────────────────────────
+      if (role === 'autre') {
+        journaliserLaTouche(ev, role, false, 'touche non attribuée');
+        return;
+      }
+      // (E9) LA TOUCHE MAINTENUE NE POSE QU'UN SEUL REPÈRE. `event.repeat` est le seul témoin
+      // fiable d'une répétition automatique : un délai ne la distinguerait pas d'un doigt rapide.
+      if (ev.repeat) {
+        ev.preventDefault();
+        _etat.repetitionsIgnorees = (_etat.repetitionsIgnorees || 0) + 1;
+        journaliserLaTouche(ev, role, false,
+          'répétition automatique d\'une touche maintenue, ignorée (E9)');
+        return;
+      }
       ev.preventDefault();
-      basculerPause('touche').catch(function () {});
+      if (role === 'repere') {
+        journaliserLaTouche(ev, role, true, 'repère demandé');
+        poserUnRepere(ev.key === 'PageDown' ? 'télécommande (Page suivante)' : 'touche '
+          + nomDeTouche(ev.key));
+        return;
+      }
+      if (role === 'passage-precedent') {
+        // E4 : « la flèche gauche revient SANS EFFACER ». Aucun repère n'est retiré.
+        journaliserLaTouche(ev, role, true, 'retour au passage précédent');
+        passagePrecedent();
+        return;
+      }
+      if (role === 'pause') {
+        journaliserLaTouche(ev, role, true, 'bascule pause / reprise');
+        basculerPause('touche').catch(function () {});
+        return;
+      }
     });
-    // ── (R6) LE TEXTE, LA VITESSE, LA TAILLE ───────────────────────────────────────────────
+    // ── (R6, R8) LE TEXTE, LA VITESSE, LA TAILLE ───────────────────────────────────────────
     q('[data-texte-bande]').addEventListener('input', relireLeTexte);
     q('[data-vitesse-bande]').addEventListener('change', function () {
       var v = parseFloat(q('[data-vitesse-bande]').value);
@@ -4196,48 +4367,6 @@
       }
     });
 
-    // ── (E4, E9) LES REPÈRES À LA TOUCHE ───────────────────────────────────────────────────
-    // E4 : « La flèche droite passe à l'étape suivante et pose le marqueur ; la flèche gauche
-    // revient sans effacer. Page suivante et Page précédente valent flèche droite et flèche
-    // gauche, pour une télécommande de présentation qui évite le claquement du clavier près du
-    // micro. » E9 : les répétitions d'une touche maintenue sont IGNORÉES.
-    document.addEventListener('keydown', function (ev) {
-      var cible = ev.target;
-      if (cible && (cible.tagName === 'INPUT' || cible.tagName === 'TEXTAREA'
-                    || cible.tagName === 'SELECT' || cible.isContentEditable)) return;
-      if (_etat.apprendLaToucheRepere) {
-        ev.preventDefault();
-        _etat.toucheRepere = ev.key;
-        _etat.apprendLaToucheRepere = false;
-        var champR = q('[data-touche-repere]');
-        if (champR) champR.value = nomDeTouche(ev.key);
-        message('touche-repere', 'info', 'La touche de repère est maintenant « '
-          + nomDeTouche(ev.key) + ' ».');
-        return;
-      }
-      // (E9) LA TOUCHE MAINTENUE NE POSE QU'UN SEUL REPÈRE. `event.repeat` est le seul témoin
-      // fiable d'une répétition automatique : un délai ne la distinguerait pas d'un doigt rapide.
-      if (ev.repeat) {
-        if (ev.key === _etat.toucheRepere || ev.key === 'PageDown'
-            || ev.key === 'ArrowLeft' || ev.key === 'PageUp') {
-          ev.preventDefault();
-          _etat.repetitionsIgnorees = (_etat.repetitionsIgnorees || 0) + 1;
-        }
-        return;
-      }
-      if (ev.key === _etat.toucheRepere || ev.key === 'PageDown') {
-        ev.preventDefault();
-        poserUnRepere(ev.key === 'PageDown' ? 'télécommande (Page suivante)' : 'touche '
-          + nomDeTouche(ev.key));
-        return;
-      }
-      if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') {
-        // E4 : « la flèche gauche revient SANS EFFACER ». Aucun repère n'est retiré.
-        ev.preventDefault();
-        passagePrecedent();
-        return;
-      }
-    });
     q('[data-action="apprendre-repere"]').addEventListener('click', function () {
       _etat.apprendLaToucheRepere = true;
       message('touche-repere', 'info', 'Pressez la touche de votre télécommande qui doit poser '

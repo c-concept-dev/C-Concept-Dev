@@ -4926,15 +4926,20 @@ async function prendreLaFin(page) {
       const E = window.EnregistreurVoix;
       const avant = E._etat();
       const prise1 = avant.echantillonsEcrits;
-      // ── LA PRÉCONDITION EST CONSTRUITE, ET C'EST VOULU ─────────────────────────────────
+      // ── LA PRÉCONDITION EST CONSTRUITE, ET TENUE PAR UN CONTEXTE SUSPENDU ──────────────
       // Après l'arrêt, le worklet remet SON compteur à zéro et continue d'envoyer des relevés :
       // le dernier relevé retombe donc à 0 en quelques dizaines de millisecondes, et un
       // contrôle qui attendrait de le trouver périmé n'éprouverait rien la plupart du temps —
       // c'est précisément pourquoi §22 ne tombait qu'une fois sur plusieurs. On pose donc
-      // explicitement l'état que la prise précédente laisse dans cet intervalle, et ce qu'on
-      // ÉPROUVE est le produit : est-ce que `demarrer` l'efface, et est-ce que la position
-      // courante refuse de s'en servir ?
+      // explicitement l'état que la prise précédente laisse dans cet intervalle.
+      //
+      // ET ON SUSPEND LE CONTEXTE AVANT DE LE POSER. Sans cela, un vrai relevé écrasait la
+      // valeur plantée pendant que `demarrer` faisait ses lectures de stockage, si bien que la
+      // mutation « ne pas remettre le relevé à zéro » passait inaperçue (trou #111) : le
+      // contrôle mesurait la vitesse du flux de relevés, pas la remise à zéro. Un contexte
+      // suspendu n'en produit plus aucun, et `demarrer` efface le relevé AVANT de le reprendre.
       const ancien = prise1;
+      await avant.ctx.suspend();
       avant.dernierReleve = { echantillonsEcrits: prise1, horodatage: 'relevé de la prise 1' };
       await E._demarrer();
       const e = E._etat();
@@ -4960,6 +4965,375 @@ async function prendreLaFin(page) {
           && e.aEchantillon > fin.module.echantillonsEcrits)));
     console.log('        prise 1 : ' + r.prise1 + ' éch (relevé ' + r.ancien + ') · au '
       + 'démarrage de la prise 2 la position est ' + r.position + ' (≤ ' + unReleve + ')');
+  });
+
+  // ── §49 — (E4, T14) LA FLÈCHE DROITE POSE UN REPÈRE MÊME SI LE CURSEUR EST DANS LE TEXTE ─
+  //
+  // CE CONTRÔLE EST ÉCRIT AVANT TOUTE CORRECTION, et il doit donc échouer à sa première
+  // exécution : il reproduit l'hypothèse formée sur la prise de 52 secondes du 17 octobre, qui
+  // ne porte que DEUX repères pour SIX passages.
+  //
+  // POURQUOI CETTE HYPOTHÈSE ET PAS UNE AUTRE. Christophe colle son texte dans la zone de
+  // narration, puis démarre la prise et lit. Son dernier geste a laissé le curseur DANS le
+  // `textarea` : le `keydown` de la flèche droite a donc pour cible le champ, et non le
+  // document. Trois autres causes étaient possibles — l'antirebond de E9, `event.repeat`, un
+  // repère hors de la voix —, mais aucune ne produirait exactement deux repères sur six : elles
+  // auraient laissé une trace au journal (« repère douteux », répétitions ignorées). Un repère
+  // qui n'arrive jamais jusqu'au module, lui, ne laisse rien.
+  //
+  // CE QUE E4 ET T14 EXIGENT. E4 : « La flèche droite passe à l'étape suivante et pose le
+  // marqueur. » T14 : « Les repères se posent où l'utilisateur le souhaite, EN DIRECT ou après
+  // coup, sans grille ni ordre imposé. » Ni l'un ni l'autre ne parle du focus : pendant une
+  // prise, la flèche droite pose un repère, un point.
+  await controle('§49 pendant une prise, la flèche droite pose un repère même si le curseur est dans la zone de texte (E4, T14)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    await page.fill('[data-texte-bande]',
+      'un deux trois\nquatre cinq six\nsept huit neuf\ndix onze douze');
+
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /en cours/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    await page.waitForTimeout(600);
+
+    // LE GESTE DE CHRISTOPHE, REPRODUIT : le curseur est dans la zone de texte, puis il presse
+    // la flèche droite pour passer au commentaire suivant.
+    await page.focus('[data-texte-bande]');
+    const focusAvant = await page.evaluate(() => ({
+      balise: document.activeElement ? document.activeElement.tagName : 'aucun',
+      estLeTexte: document.activeElement === document.querySelector('[data-texte-bande]'),
+      lectureSeule: document.querySelector('[data-texte-bande]').readOnly,
+    }));
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('PageDown');
+    await page.waitForTimeout(300);
+    const apres = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { reperes: e.reperes.map((r) => ({ ...r })),
+               focus: document.activeElement ? document.activeElement.tagName : 'aucun' };
+    });
+    const fin = await prendreLaFin(page);
+    await ctx.close();
+
+    // LA PRÉCONDITION DU CONTRÔLE : le curseur ÉTAIT bien dans la zone de texte. Sans cela, le
+    // contrôle passerait pour une bonne raison et n'éprouverait rien.
+    assert.ok(focusAvant.estLeTexte || apres.focus === 'TEXTAREA',
+      'la zone de texte doit avoir le focus au moment de la frappe, sinon ce contrôle '
+      + 'n\'éprouve rien : ' + JSON.stringify(focusAvant) + ' / ' + apres.focus);
+    // ET LE FAIT ATTENDU : deux frappes, deux repères.
+    assert.equal(apres.reperes.length, 2,
+      'la flèche droite puis Page suivante doivent poser DEUX repères, quel que soit l\'élément '
+      + 'focalisé (E4, T14) : ' + apres.reperes.length + ' posé(s) — '
+      + JSON.stringify(apres.reperes));
+    assert.ok(apres.reperes.every((r) => !r.douteux),
+      'et aucun ne doit être douteux : ' + JSON.stringify(apres.reperes));
+    assert.equal(fin.module.mesures.reperes.length, 2,
+      'le rapport porte les deux repères : ' + JSON.stringify(fin.module.mesures.reperes));
+    console.log('        focus ' + focusAvant.balise + ' · 2 frappes → '
+      + apres.reperes.length + ' repère(s) à '
+      + apres.reperes.map((r) => r.aEchantillon).join(' et '));
+  });
+
+  // ── §50 — (T3 ter) HORS PRISE, LA SAISIE N'EST JAMAIS INTERCEPTÉE ────────────────────────
+  //
+  // L'AUTRE MOITIÉ DE LA POLITIQUE, et celle qu'un correctif trop large casserait : recevoir les
+  // touches de pilotage quel que soit le focus PENDANT une prise ne doit pas empêcher Christophe
+  // d'écrire son texte HORS prise. Les flèches doivent déplacer son caret, l'espace écrire un
+  // espace, et aucune prise ne doit se mettre en pause parce qu'il tape.
+  await controle('§50 hors prise, le texte tapé reste intact et Espace ne déclenche rien (T3 ter)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    // ON TAPE VRAIMENT, au clavier, dans le champ : espaces, flèches et Page suivante comprises.
+    await page.click('[data-texte-bande]');
+    await page.keyboard.type('un deux trois');
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.type('X');
+    // ON REVIENT AVEC LES FLÈCHES, et non avec `End` : mesuré, `End` ne déplace pas le caret
+    // dans un `textarea` ici (c'est l'usage macOS, où la fin de ligne est Cmd+flèche droite).
+    // Les flèches servent donc deux fois : à se déplacer, et à prouver qu'elles se déplacent.
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.type(' quatre');
+    await page.keyboard.press('PageUp');
+    await page.keyboard.press('ArrowRight');
+    const vu = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { texte: document.querySelector('[data-texte-bande]').value,
+               lectureSeule: document.querySelector('[data-texte-bande]').readOnly,
+               reperes: e.reperes.length, enPause: e.enPause, enPrise: e.enPrise,
+               passages: e.passages.length,
+               focus: document.activeElement ? document.activeElement.tagName : 'aucun' };
+    });
+    // Et dans le champ du NOM de la prise, qui est un `input` : même règle.
+    await page.click('[data-nom-prise]');
+    await page.keyboard.press('End');
+    await page.keyboard.type(' du soir');
+    const nom = await page.evaluate(() =>
+      document.querySelector('[data-nom-prise]').value);
+    await ctx.close();
+
+    assert.equal(vu.texte, 'un deux troXis quatre',
+      'le texte tapé hors prise doit être exactement ce qui a été frappé, flèches comprises : '
+      + JSON.stringify(vu.texte));
+    assert.equal(vu.lectureSeule, false,
+      'hors prise, le champ n\'est pas en lecture seule : ' + vu.lectureSeule);
+    assert.equal(vu.reperes, 0,
+      'aucun repère ne doit être posé hors prise : ' + vu.reperes);
+    assert.equal(vu.enPause, false, 'et aucune pause déclenchée : ' + vu.enPause);
+    assert.ok(/ du soir$/.test(nom),
+      'le nom de la prise doit recevoir ses espaces : ' + JSON.stringify(nom));
+    console.log('        texte « ' + vu.texte + ' » · ' + vu.passages + ' passages · 0 repère · '
+      + 'nom « ' + nom + ' »');
+  });
+
+  // ── §51 — (E4, T3 ter) LA TOUCHE APPRISE EST REÇUE PENDANT UNE PRISE, ET LE CHAMP EST GELÉ ─
+  await controle('§51 la touche apprise est reçue pendant une prise, et le champ de texte est en lecture seule puis rendu (E4, T3 ter)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    await page.fill('[data-texte-bande]', 'un deux trois\nquatre cinq six');
+    // (E4) ON APPREND UNE TOUCHE DE REPÈRE qui n'est NI une flèche NI Page suivante : c'est le
+    // cas d'une télécommande qui envoie une lettre, et c'est la lecture validée par Christophe.
+    await page.click('[data-action="apprendre-repere"]');
+    await page.keyboard.press('KeyK');
+    const apprise = await page.evaluate(() => ({
+      touche: window.EnregistreurVoix._etat().toucheRepere,
+      champ: document.querySelector('[data-touche-repere]').value,
+    }));
+    assert.equal(apprise.touche, 'k', 'la touche de repère apprise doit être « k » : '
+      + apprise.touche);
+
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    // ── LA PRÉCONDITION DU BLUR : LE CHAMP DOIT AVOIR LE FOCUS AU DÉMARRAGE ──────────────
+    // Un clic sur « Commencer la prise » met le focus sur le BOUTON : le champ ne l'a jamais,
+    // et un contrôle qui démarre au clic ne peut rien dire du blur — trou #137. On reproduit
+    // donc le cas où le champ l'a : on l'y met, puis on démarre par la fonction du produit,
+    // comme le ferait un raccourci ou une télécommande qui ne déplace pas le focus.
+    await page.focus('[data-texte-bande]');
+    const focusJusteAvant = await page.evaluate(() =>
+      document.activeElement === document.querySelector('[data-texte-bande]'));
+    await page.evaluate(() => window.EnregistreurVoix._demarrer());
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /en cours/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    assert.equal(focusJusteAvant, true,
+      'le champ doit avoir le focus juste avant le démarrage, sinon le blur n\'est pas éprouvé');
+    // AU DÉMARRAGE, LE CHAMP A PERDU LE FOCUS ET EST EN LECTURE SEULE.
+    const auDemarrage = await page.evaluate(() => ({
+      lectureSeule: document.querySelector('[data-texte-bande]').readOnly,
+      focusEstLeTexte: document.activeElement === document.querySelector('[data-texte-bande]'),
+    }));
+    // ON REMET VOLONTAIREMENT LE FOCUS DANS LE CHAMP : la politique dit que les touches de
+    // pilotage sont reçues QUEL QUE SOIT l'élément focalisé, pas seulement grâce au blur.
+    await page.focus('[data-texte-bande]');
+    await page.waitForTimeout(500);
+    await page.keyboard.press('KeyK');
+    await page.waitForTimeout(300);
+    // ET ON ESSAIE D'ÉCRIRE : le champ est gelé.
+    await page.keyboard.type('ABC');
+    await page.waitForTimeout(200);
+    const pendant = await page.evaluate(() => {
+      const e = window.EnregistreurVoix._etat();
+      return { reperes: e.reperes.map((r) => ({ ...r })),
+               texte: document.querySelector('[data-texte-bande]').value,
+               passages: e.passages.length };
+    });
+    const fin = await prendreLaFin(page);
+    const apresArret = await page.evaluate(() => {
+      const c = document.querySelector('[data-texte-bande]');
+      return { lectureSeule: c.readOnly };
+    });
+    // À L'ARRÊT, LE CHAMP EST RENDU : on écrit de nouveau.
+    await page.click('[data-texte-bande]');
+    await page.keyboard.press('End');
+    await page.keyboard.type(' sept');
+    const texteFinal = await page.evaluate(() =>
+      document.querySelector('[data-texte-bande]').value);
+    await ctx.close();
+
+    assert.equal(auDemarrage.lectureSeule, true,
+      'au démarrage, le champ de texte doit passer en lecture seule : '
+      + auDemarrage.lectureSeule);
+    assert.equal(auDemarrage.focusEstLeTexte, false,
+      'et perdre le focus : ' + auDemarrage.focusEstLeTexte);
+    assert.equal(pendant.reperes.length, 1,
+      'la touche apprise doit poser un repère pendant la prise, curseur dans le champ ou non : '
+      + JSON.stringify(pendant.reperes));
+    assert.equal(pendant.texte, 'un deux trois\nquatre cinq six',
+      'et le champ en lecture seule ne doit avoir rien reçu : ' + JSON.stringify(pendant.texte));
+    assert.equal(pendant.passages, 2,
+      'donc les passages ne changent pas pendant la prise : ' + pendant.passages);
+    assert.equal(apresArret.lectureSeule, false,
+      'à l\'arrêt, le champ redevient modifiable : ' + apresArret.lectureSeule);
+    assert.equal(texteFinal, 'un deux trois\nquatre cinq six sept',
+      'et il reçoit de nouveau la frappe : ' + JSON.stringify(texteFinal));
+    assert.ok(fin.module.mesures.reperes.length === 1,
+      'le rapport porte le repère : ' + JSON.stringify(fin.module.mesures.reperes));
+    console.log('        touche apprise « k » · 1 repère posé le curseur dans le champ · champ '
+      + 'gelé pendant la prise, rendu à l\'arrêt');
+  });
+
+  // ── §52 — (T3 ter) LE RELEVÉ DES TOUCHES, ET CE QU'IL NE DIT JAMAIS ──────────────────────
+  //
+  // DEUX CHOSES À LA FOIS : que chaque frappe soit relevée avec sa raison et comptée, et que le
+  // CONTENU d'une touche de texte ne soit JAMAIS consigné. Christophe tape le texte de ses
+  // présentations dans cette page, et ce journal part dans un rapport.
+  await controle('§52 chaque touche de la prise est relevée avec sa raison, et le contenu du texte n\'est jamais consigné (T3 ter)', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    await page.fill('[data-texte-bande]', 'un deux trois\nquatre cinq six\nsept huit neuf');
+    await page.click('[data-action="autoriser"]');
+    await page.waitForFunction(() => {
+      const f = window.EnregistreurVoix._fenetreDeDecision();
+      return f.suffisante && f.secondes >= 1.5;
+    }, null, { timeout: 20000 });
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /en cours/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    await page.waitForTimeout(500);
+
+    await page.keyboard.press('ArrowRight');          // repère accepté
+    await page.waitForTimeout(400);
+    await page.keyboard.press('PageUp');             // passage précédent accepté
+    await page.waitForTimeout(200);
+    // LA RÉPÉTITION AUTOMATIQUE NE S'OBTIENT PAS EN MAINTENANT LA TOUCHE : mesuré, Playwright
+    // n'engendre qu'un seul `keydown` pour un `down` prolongé, sans `repeat`. Comme §41, on
+    // envoie donc l'événement que le système d'exploitation enverrait, avec `repeat: true` —
+    // c'est le seul témoin fiable d'une touche maintenue (E9).
+    await page.evaluate(() => {
+      for (let i = 0; i < 3; i++) {
+        document.dispatchEvent(new KeyboardEvent('keydown',
+          { key: 'ArrowRight', repeat: true, bubbles: true, cancelable: true }));
+      }
+    });
+    await page.waitForTimeout(200);
+    // UNE TOUCHE DE TEXTE, dont le contenu ne doit APPARAÎTRE NULLE PART.
+    await page.keyboard.press('KeyQ');
+    await page.keyboard.press('KeyW');
+    await page.waitForTimeout(200);
+    const fin = await prendreLaFin(page);
+
+    // UNE SECONDE PRISE, UNE SEULE FRAPPE.
+    await page.click('[data-action="demarrer"]');
+    await page.waitForFunction(() => {
+      const t = document.querySelector('[data-mode]');
+      return t && /en cours/i.test(t.textContent);
+    }, null, { timeout: 20000 });
+    await page.waitForTimeout(400);
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(200);
+    const fin2 = await prendreLaFin(page);
+    const deuxieme = fin2.module.mesures.touchesPendantLaPrise;
+    await ctx.close();
+
+    const r = fin.module.mesures;
+    const touches = fin.module.journal.filter((e) => /^touche (acceptée|refusée)$/.test(e.quoi));
+    assert.ok(touches.length >= 5,
+      'chaque frappe de la prise doit être relevée : ' + touches.length + ' relevée(s)');
+    // CHAQUE LIGNE PORTE LES CINQ CHAMPS DEMANDÉS.
+    touches.forEach((t) => {
+      ['touche', 'toucheApprise', 'elementFocalise', 'accepte', 'raison'].forEach((champ) => {
+        assert.ok(Object.prototype.hasOwnProperty.call(t, champ),
+          'le champ ' + champ + ' manque : ' + JSON.stringify(t));
+      });
+      assert.ok(typeof t.elementFocalise === 'string' && t.elementFocalise.length > 0,
+        'la balise de l\'élément focalisé doit être dite : ' + JSON.stringify(t));
+      assert.ok(typeof t.toucheApprise === 'boolean',
+        '« touche apprise : oui ou non » : ' + JSON.stringify(t));
+    });
+    // LE VOCABULAIRE EST FERMÉ : aucune ligne ne porte la valeur d'une touche de texte.
+    const vocabulaire = ['flèche droite', 'flèche gauche', 'Page suivante', 'Page précédente',
+                         'Espace', 'touche apprise', 'autre touche (non journalisée)'];
+    touches.forEach((t) => {
+      assert.ok(vocabulaire.indexOf(t.touche) >= 0,
+        'la touche doit venir du vocabulaire fermé : ' + JSON.stringify(t.touche));
+    });
+    const journalEntier = JSON.stringify(fin.module.journal);
+    assert.ok(!/"q"|"w"|"Q"|"W"|KeyQ|KeyW/.test(journalEntier),
+      'le contenu d\'une touche de texte ne doit apparaître NULLE PART dans le journal');
+    // LES COMPTEURS DU RAPPORT, et la somme qui doit tomber juste.
+    const c = r.touchesPendantLaPrise;
+    assert.equal(c.recues, touches.length,
+      'le compteur de touches reçues doit égaler le nombre de lignes : ' + c.recues + ' contre '
+      + touches.length);
+    assert.equal(c.acceptees + c.refusees, c.recues,
+      'acceptées + refusées = reçues : ' + c.acceptees + ' + ' + c.refusees + ' ≠ ' + c.recues);
+    assert.ok(c.acceptees >= 2, 'au moins le repère et le retour de passage : ' + c.acceptees);
+    const raisons = Object.keys(c.parRaison);
+    assert.ok(raisons.some((x) => /répétition automatique/.test(x)),
+      'la touche maintenue doit être refusée avec sa raison (E9) : ' + JSON.stringify(c.parRaison));
+    assert.ok(raisons.some((x) => /non attribuée/.test(x)),
+      'une touche de texte doit être refusée avec sa raison : ' + JSON.stringify(c.parRaison));
+    assert.equal(Object.keys(c.parRaison).reduce((t, k) => t + c.parRaison[k], 0), c.refusees,
+      'la somme des refus par raison doit égaler le total : ' + JSON.stringify(c.parRaison));
+    assert.ok(r.repetitionsDeToucheIgnorees >= 1,
+      'et les répétitions ignorées sont comptées à part (E9) : '
+      + r.repetitionsDeToucheIgnorees);
+    // LES COMPTEURS APPARTIENNENT À LEUR PRISE : une seconde prise repart de zéro, comme les
+    // fenêtres de bruit et le dernier relevé. Sans cela, le rapport d'une prise décrirait les
+    // frappes de la précédente — le défaut 4, sous une autre forme.
+    assert.ok(deuxieme.recues <= 2 && deuxieme.recues >= 1,
+      'la seconde prise ne compte que SES frappes (une seule ici) : '
+      + JSON.stringify(deuxieme));
+    assert.equal(deuxieme.acceptees, 1,
+      'dont la flèche droite acceptée : ' + JSON.stringify(deuxieme));
+    console.log('        ' + c.recues + ' touches reçues · ' + c.acceptees + ' acceptées · '
+      + c.refusees + ' refusées (' + raisons.join(' | ') + ') · '
+      + r.repetitionsDeToucheIgnorees + ' répétitions ignorées · aucun contenu de texte · '
+      + 'seconde prise : ' + deuxieme.recues + ' reçue(s)');
+  });
+
+  // ── §53 — (E13) CE QUE LA PAGE DIT D'ELLE-MÊME EST CE QU'ELLE EST ───────────────────────
+  //
+  // L'en-tête, l'introduction et le badge annonçaient « jalon I… pas de bande rythmo ni de
+  // repères » sur une page qui porte la bande, les repères, le rebours et la reprise. Un écran
+  // qui se décrit faux est un écran dont on n'ose plus lire les avis.
+  await controle('§53 l\'en-tête, l\'introduction et le badge de la page disent le jalon II', async () => {
+    const { ctx, page } = await ouvrirBanc(nav, base);
+    const vu = await page.evaluate(() => ({
+      titre: document.title,
+      h1: (document.querySelector('.banc-entete h1') || {}).textContent || '',
+      intro: [...document.querySelectorAll('.banc-entete .sc-bm-help')]
+        .map((p) => p.textContent).join(' '),
+      badge: (document.querySelector('[data-mode]') ? '' : '')
+        + ([...document.querySelectorAll('.sc-bm-badge')].map((b) => b.textContent).join(' | ')),
+      aide: [...document.querySelectorAll('[data-enregistreur] .sc-bm-help')]
+        .map((p) => p.textContent).join(' '),
+    }));
+    await ctx.close();
+
+    assert.ok(/jalon II/.test(vu.titre) && !/jalon I\b/.test(vu.titre),
+      'le titre de l\'onglet doit dire le jalon II : ' + JSON.stringify(vu.titre));
+    assert.ok(/jalon II/.test(vu.h1) && !/jalon I\b/.test(vu.h1),
+      'l\'en-tête doit dire le jalon II : ' + JSON.stringify(vu.h1));
+    assert.ok(/Banc · jalon II/.test(vu.badge),
+      'le badge doit dire « Banc · jalon II » : ' + JSON.stringify(vu.badge));
+    // L'INTRODUCTION NE DOIT PLUS ANNONCER ABSENT CE QUI EST LÀ…
+    assert.ok(!/pas de bande rythmo/i.test(vu.intro + ' ' + vu.aide),
+      'la page ne doit plus annoncer la bande rythmo absente : '
+      + (vu.intro + ' ' + vu.aide).slice(0, 400));
+    assert.ok(!/ne pose aucun repère/i.test(vu.intro + ' ' + vu.aide),
+      'ni les repères : ' + (vu.intro + ' ' + vu.aide).slice(0, 400));
+    // … ET DOIT ANNONCER CE QUI EST LÀ, ET CE QUI N'Y EST PAS.
+    assert.ok(/bande rythmo/i.test(vu.intro), 'elle doit nommer la bande : ' + vu.intro);
+    assert.ok(/lecture seule/i.test(vu.intro),
+      'et dire que le champ passe en lecture seule pendant une prise : ' + vu.intro);
+    assert.ok(/forme d'onde/i.test(vu.aide),
+      'et dire que la forme d\'onde n\'est pas là : ' + vu.aide);
+    assert.ok(/R10|image/i.test(vu.intro + ' ' + vu.aide),
+      'et que l\'image à côté de la bande est du lot 4 (R10) : ' + vu.aide);
+    console.log('        titre « ' + vu.titre + ' » · badges « ' + vu.badge + ' »');
   });
 
   // ── §19 — LA CONSTRUCTION DU GRAPHE : UNE SEULE À LA FOIS ─────────────────────────────────

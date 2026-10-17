@@ -18,6 +18,27 @@ Six épreuves, une heure et demie environ. **Sans casque et sans micro externe.*
 > application, un casque branché, l'écran qui s'éteint, rien du tout). C'est ce rapprochement-là
 > qui trouvera la cause.
 
+> **POURQUOI VOS REPÈRES MANQUAIENT, ET CE QUI CHANGE.** Sur votre prise de 52 secondes du
+> 17 octobre, **deux repères seulement pour six passages**. J'ai reproduit la cause avant de
+> toucher à quoi que ce soit : **si le curseur est resté dans la zone de texte de la narration**
+> — ce qui arrive naturellement après y avoir collé son texte —, la flèche droite y déplaçait le
+> caret et **aucun repère n'était posé**. Mesuré : deux frappes, zéro repère. Ce n'est pas vous.
+>
+> Ce qui change, et c'est votre décision du 17 octobre : **pendant une prise, les touches de
+> pilotage (flèches, Page suivante et précédente, Espace, votre touche apprise) appartiennent à
+> la prise**, où que soit le curseur. **Au démarrage, la zone de texte perd le focus et passe en
+> lecture seule** jusqu'à l'arrêt — vous ne pouvez plus la modifier pendant que vous lisez, et
+> c'est voulu : si le texte changeait en cours de prise, les passages, les durées et les vitesses
+> ne décriraient plus la voix enregistrée. **Hors prise, rien n'est intercepté** : vous tapez
+> normalement, espaces et flèches comprises.
+>
+> **Et le rapport compte désormais vos frappes** : combien de touches reçues pendant la prise,
+> combien acceptées, combien refusées et **pourquoi**. Le contenu de ce que vous tapez n'est
+> jamais consigné — le vocabulaire du journal est fermé (flèche droite, flèche gauche, Page
+> suivante, Page précédente, Espace, touche apprise) et tout le reste est « autre touche », sans
+> sa valeur. C'est ce compteur qui dira, sur **Safari**, si un repère manque encore et pour quelle
+> raison : les contrôles tournent sur Chromium, et Safari n'est pas Chromium.
+
 ```bash
 cd ~/Documents/GitHub/C-Concept-Dev-lot3-wt/"tools/Projet therapeutes/Conseiller Clinique" && python3 -m http.server 8765 --bind 127.0.0.1
 ```
@@ -54,6 +75,7 @@ suivant en dessous vous aide ou vous distrait.
 | **« Choisir la touche de repère »**, puis pressez la touche de votre télécommande | Le champ affiche son nom. **Page suivante** fonctionne de toute façon, sans rien régler : c'est ce que E4 prévoit pour une télécommande de présentation, précisément pour éviter le claquement du clavier près du micro. |
 | « Autoriser le micro », laissez tourner deux secondes, **« Commencer la prise »** | Un **compte à rebours de 3 secondes** se joue aux haut-parleurs, avec ses bips, puis une **garde** de 0,5 s, et la prise commence seulement après. Rien du rebours n'entre dans la voix. |
 | Lisez votre texte 5 minutes, et posez **un repère à chaque changement de passage** | Chaque repère apparaît dans la rangée, avec son instant et son numéro de passage. La bande avance d'un passage. |
+| **Cliquez d'abord dans la zone de texte**, puis posez un repère à la flèche droite | **Un repère est posé.** C'est le défaut de votre prise de 52 s, corrigé : la touche va à la prise, pas au caret. Vérifiez aussi que la zone de texte **refuse** votre frappe pendant la prise (elle est en lecture seule) et **l'accepte de nouveau** après l'arrêt. |
 | Essayez de **maintenir** la touche enfoncée une seconde | **Un seul repère**, pas dix. Les répétitions automatiques sont comptées et ignorées (E9 — au lot 0 vous aviez eu quatre repères en 0,3 s). |
 | Posez volontairement **deux repères très vite** (moins d'un quart de seconde) | Le second apparaît **en rouge, marqué DOUTEUX**, avec un avis. Il est **posé, pas jeté** : à vous de le garder ou non. C'est ce que E9 demande — « signalés avant validation ». |
 | **Flèche gauche** ou **Page précédente** | La bande **revient** au passage précédent **sans effacer** aucun repère. L'horloge audio, elle, ne recule pas : on ne défait pas des échantillons déjà écrits, et le rapport porte ce décalage. |
@@ -214,6 +236,10 @@ temps par rapport à les poser en lisant, ou si cela vous encombre.
    fuite des haut-parleurs vous gêne à l'écoute.
 3 ter. Pour l'épreuve 6 : le **seuil d'alerte** que vous retenez, et si les marqueurs théoriques
    vous font gagner du temps.
+3 quater. **Le compteur de touches du rapport** (`touchesPendantLaPrise`) : reçues, acceptées,
+   refusées et par quelle raison. S'il manque encore un repère sur Safari, c'est là que la raison
+   sera écrite, et le journal porte en plus une ligne par frappe avec la balise de l'élément qui
+   avait le focus. Dites-moi aussi si la lecture seule du champ pendant une prise vous gêne.
 4. Le **texte exact** de tout avis que je n'ai pas annoncé.
 5. Si le compte à rebours s'entend bien dans les haut-parleurs, et si la garde de 0,5 s suffit
    pour que son dernier bip ne soit pas dans la voix. **C'est à votre oreille de le dire** :
@@ -231,13 +257,17 @@ l'épreuve 5. Ce qui reste absent, et attendu ailleurs :
 - le **déplacement d'un repère à la souris** (T4) : vous les ajustez au bouton, par pas de 100 ms,
   et c'est tout ce que ce jalon donne. T4 reste en mémoire, comme convenu ;
 - le **blocage de l'export** par les trois contrôles de T6 : ils informent ici, le lot 4 bloque ;
+- **une conséquence assumée de la politique des touches** : pendant une prise, Espace et les
+  flèches appartiennent à la prise **même si le curseur est dans le champ du nom de la prise**.
+  Si vous voulez renommer une prise, faites-le avant ou après, pas pendant. Dites-moi si c'est
+  gênant : la règle pourrait n'épargner que ce champ-là ;
 - le **calibrage micro / haut-parleur** (lot 3B) : la latence de sortie est lue et écrite dans le
   rapport, mais elle n'est **pas** compensée. Si vous trouvez que la zone d'amorce est décalée à
   l'oreille de quelques dizaines de millisecondes par rapport à ce que le rapport annonce, c'est
   là que cela se réglera, et votre mesure est exactement ce qu'il me faudra.
 
-**Mesuré automatiquement avant de vous le donner** : 81 contrôles, 135 mutations falsifiées sur
-135, 0 trou. La bande se fige en pause (3 s d'horloge du mur, 0 mot) · dérive nulle sur 15 minutes
+**Mesuré automatiquement avant de vous le donner** : 86 contrôles, 146 mutations falsifiées sur
+146, 0 trou. La bande se fige en pause (3 s d'horloge du mur, 0 mot) · dérive nulle sur 15 minutes
 à 48 et 44,1 kHz · un repère daté à l'échantillon, encadré par deux relevés · 8 répétitions de
 touche ignorées et 0 repère posé · deux repères à 55 ms signalés · rebours de 2 s + garde de 0,5 s,
 2 bips, 0 échantillon écrit avant · les quatre empreintes de modules conformes aux fichiers du
