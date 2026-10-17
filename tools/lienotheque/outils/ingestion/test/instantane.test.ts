@@ -37,8 +37,18 @@ describe("instantané pour les écrans (B5)", () => {
   });
 
   it("groupe les éléments par page, dans l'ordre", () => {
-    const vue = construireVue(entree({ lignes: [ligne(5), ligne(1), ligne(9)] }));
-    expect(vue.pages.map((page) => page.numero)).toEqual([...vue.pages.map((page) => page.numero)].sort((a, b) => a - b));
+    // `ligne(n)` est imprimée page 100 + ⌊n/3⌋ : 101, 100 et 103. Les pages lues doivent les
+    // porter, sinon ce test éprouverait la perte d'un élément et non son groupement.
+    const vue = construireVue(
+      entree({
+        lignes: [ligne(5), ligne(1), ligne(9)],
+        pages: [{ index: 1, numero: 100 }, { index: 2, numero: 101 }, { index: 4, numero: 103 }],
+      }),
+    );
+    // L'ordre garanti est celui des **rangs** : c'est l'ordre de lecture, et le seul qui existe
+    // toujours. Le numéro imprimé peut manquer, et ne range donc rien.
+    const rangs = vue.pages.map((page) => page.index);
+    expect(rangs).toEqual([...rangs].sort((un, autre) => un - autre));
     expect(vue.pages.flatMap((page) => page.elements).length).toBe(3);
   });
 

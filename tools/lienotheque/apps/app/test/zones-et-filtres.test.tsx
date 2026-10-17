@@ -28,6 +28,7 @@ const VUE_LECTEUR = VueBibliotheque.parse({
   douteux: [],
   pages: [
     {
+      index: 126,
       numero: 126,
       image: "/donnees/pages/page-0000.webp",
       largeur: 1240,
@@ -107,6 +108,7 @@ describe("B1 : le Lecteur cadre les zones lues sur la vraie page", () => {
 });
 
 const page = (numero: number, valeurs: Record<string, string[]>, relie: boolean): unknown => ({
+  index: numero,
   numero,
   texte: [],
   traduction: [],

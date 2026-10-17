@@ -23,6 +23,7 @@ const VUE = VueBibliotheque.parse({
   compteurs: [],
   pages: [
     {
+      index: 127,
       numero: 127,
       elements: [
         {
@@ -37,6 +38,7 @@ const VUE = VueBibliotheque.parse({
       texte: ["Travailler l’articulation détachée au métronome."],
     },
     {
+      index: 158,
       numero: 158,
       titre: "Introduction du quatrième ensemble",
       elements: [{ ancreId: ID(11), numero: "512", page: 158 }],

@@ -27,7 +27,7 @@ const VUE = VueBibliotheque.parse({
     page: { un: "feuillet", plusieurs: "feuillets" },
   },
   compteurs: [],
-  pages: [{ numero: 1, elements: [], texte: [] }],
+  pages: [{ index: 1, numero: 1, elements: [], texte: [] }],
 });
 
 const SCHEMA = SchemaBibliotheque.parse({

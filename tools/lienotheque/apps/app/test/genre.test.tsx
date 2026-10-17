@@ -62,6 +62,7 @@ const vueDe = (v: Vocabulaire, sur: Record<string, unknown> = {}): VueBibliotheq
     ],
     pages: [
       {
+        index: 126,
         numero: 126,
         titre: "Gammes",
         elements: [{ ancreId: ID(20), numero: "399", page: 126, aVerifier: false }],
@@ -69,6 +70,7 @@ const vueDe = (v: Vocabulaire, sur: Record<string, unknown> = {}): VueBibliotheq
         traduction: [],
       },
       {
+        index: 127,
         numero: 127,
         titre: "Lecture et articulation",
         elements: [

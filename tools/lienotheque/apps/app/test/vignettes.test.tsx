@@ -25,6 +25,7 @@ const vue = (vignettes: boolean): VueBibliotheque =>
     aVerifier: 0,
     filtres: [],
     pages: [126, 127].map((numero, rang) => ({
+      index: numero,
       numero,
       elements: [{ ancreId: ID(20 + rang), numero: String(400 + rang), page: numero, aVerifier: false }],
       texte: [],

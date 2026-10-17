@@ -28,6 +28,7 @@ const VUE = VueBibliotheque.parse({
   ],
   pages: [
     {
+      index: 126,
       numero: 126,
       titre: "Gammes",
       elements: [{ ancreId: ID(20), numero: "399", page: 126, aVerifier: false }],
@@ -35,6 +36,7 @@ const VUE = VueBibliotheque.parse({
       traduction: [],
     },
     {
+      index: 127,
       numero: 127,
       titre: "Lecture et articulation",
       elements: [

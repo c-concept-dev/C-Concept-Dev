@@ -17,6 +17,7 @@ const TITRES = ["Lecture simple", "Gammes en legato", "Lecture et articulation",
 const page = (numero: number, rang: number) => {
   const premier = 397 + rang * 3;
   return {
+    index: numero,
     numero,
     titre: TITRES[rang],
     elements: [0, 1, 2].map((decalage) => {

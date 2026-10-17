@@ -72,7 +72,20 @@ export type ElementAffiche = z.infer<typeof ElementAffiche>;
 
 export const PageAffichee = z
   .object({
-    numero: z.number().int().positive(),
+    /** Le rang de la page dans le document, à partir de un. **Toujours connu.**
+     *
+     *  C'est la seule identité dont on dispose en toutes circonstances, et c'est par elle qu'une
+     *  page se range. Mesuré sur sept ouvrages : aucun ne portait de numéro imprimé dérivable,
+     *  et la vue n'en gardait **aucune page** — toutes s'écrasaient sous une clé de repli que ce
+     *  contrat rejetait ensuite. */
+    index: z.number().int().positive(),
+    /** Le numéro **imprimé** sur la page, quand il est connu — celui que le lecteur a sous les
+     *  yeux, et par lequel on cite (RCH-09).
+     *
+     *  Il se dérive des éléments reconnus, qu'un ouvrage ordinaire n'a pas. Absent, la page se
+     *  cite par son rang, et on le dit : un numéro imprimé ne s'invente pas. Même partage que
+     *  `Passage.page` et `Passage.pageImprimee`. */
+    numero: z.number().int().positive().optional(),
     titre: z.string().min(1).optional(),
     /** Image de la page, telle que le dépôt la sert. */
     image: z.string().min(1).optional(),
@@ -195,6 +208,17 @@ export const accorder = (nombre: number, mot: { un: string; plusieurs: string })
  *  En tête de titre ou de phrase, ils prennent la majuscule comme n'importe quel mot français.
  *  Une seule fonction pour tous les écrans : sans quoi l'un écrit « Page 127 » et l'autre
  *  « page 127 », et c'est le genre d'écart qu'on ne voit qu'une fois livré. */
+/** Comment une page se cite, en un seul endroit (RCH-09).
+ *
+ *  Par son numéro **imprimé** quand on le connaît — c'est celui que le lecteur a sous les yeux.
+ *  Par son **rang** sinon, et on le dit : un document dont rien n’est numéroté n’a pas de numéro
+ *  imprimé dérivable, et en inventer un citerait des pages sous un numéro qu'elles ne portent
+ *  pas. Les mots viennent de la bibliothèque, jamais du code (CLA-01). */
+export const citerPage = (
+  mots: MotsBibliotheque,
+  page: { readonly index: number; readonly numero?: number | undefined },
+): string => (page.numero === undefined ? `${mots.page.un} ${page.index} du document` : `${mots.page.un} ${page.numero}`);
+
 export const enTete = (texte: string): string =>
   texte.length === 0 ? texte : texte.charAt(0).toLocaleUpperCase("fr-FR") + texte.slice(1);
 

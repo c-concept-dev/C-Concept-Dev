@@ -173,9 +173,9 @@ describe("la géométrie des zones vit ici, et non dans l'écran", () => {
 describe("ce qu'un essai a donné se lit page par page (REC-07)", () => {
   const VUE = {
     pages: [
-      { numero: 1, elements: [{ numero: "2.1", aVerifier: false }, { numero: "2.2", aVerifier: true }] },
-      { numero: 2, elements: [] },
-      { numero: 3, elements: [{ numero: "2.3", aVerifier: false }] },
+      { index: 1, elements: [{ numero: "2.1", aVerifier: false }, { numero: "2.2", aVerifier: true }] },
+      { index: 2, elements: [] },
+      { index: 3, elements: [{ numero: "2.3", aVerifier: false }] },
     ],
   };
 

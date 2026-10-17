@@ -1,4 +1,4 @@
-import type { Passage, VueBibliotheque } from "@lienotheque/contrats";
+import { citerPage, type Passage, type VueBibliotheque } from "@lienotheque/contrats";
 
 /** Chercher dans une bibliothèque, sans rien envoyer nulle part (RCH, UX-02).
  *
@@ -176,7 +176,12 @@ export function chercher(
   const pistes: Resultat[] = [];
 
   for (const page of vue.pages) {
-    const ou = `${vue.nom} · ${vue.mots.page.un} ${page.numero}`;
+    // Une page se **désigne** par son rang, qu'on connaît toujours, et se **cite** par son
+    // numéro imprimé, qu'on ne connaît pas toujours. Les confondre citait des pages sous un
+    // numéro qu'elles ne portent pas — et, avant que le contrat ne les sépare, faisait
+    // disparaître de la vue toute page d’un document dont rien n’est numéroté.
+    const citation = citerPage(vue.mots, page);
+    const ou = `${vue.nom} · ${citation}`;
 
     for (const element of page.elements) {
       const titre = element.titre === undefined ? element.numero : `${element.numero} — ${element.titre}`;
@@ -190,8 +195,8 @@ export function chercher(
         surlignesTitre,
         source: ou,
         ...(autour === undefined ? {} : { extrait: autour.extrait, surlignesExtrait: autour.surlignes }),
-        cote: `${vue.mots.page.un} ${page.numero}`,
-        page: page.numero,
+        cote: citation,
+        page: page.index,
         element: element.ancreId,
         ...(element.media === undefined ? {} : { piste: element.media.piste }),
       });
@@ -206,25 +211,25 @@ export function chercher(
           surlignesTitre: trouver(`${capitaliser(vue.mots.piste.un)} ${element.media.piste} — ${element.media.nom}`, morceaux),
           source: `${vue.nom} · ${vue.mots.element.un} ${element.numero}`,
           ...(autour === undefined ? {} : { extrait: autour.extrait, surlignesExtrait: autour.surlignes }),
-          page: page.numero,
+          page: page.index,
           element: element.ancreId,
           piste: element.media.piste,
         });
     }
 
-    const titrePage = page.titre ?? `${capitaliser(vue.mots.page.un)} ${page.numero}`;
+    const titrePage = page.titre ?? capitaliser(citation);
     const surlignesTitre = trouver(titrePage, morceaux);
     const autour = extraireAutour(page.texte, morceaux);
     if (surlignesTitre.length > 0 || autour !== undefined)
       pages.push({
         genre: "page",
-        cle: `page:${page.numero}`,
+        cle: `page:${page.index}`,
         titre: titrePage,
         surlignesTitre,
         source: ou,
         ...(autour === undefined ? {} : { extrait: autour.extrait, surlignesExtrait: autour.surlignes }),
-        cote: `${vue.mots.page.un} ${page.numero}`,
-        page: page.numero,
+        cote: citation,
+        page: page.index,
       });
   }
 
@@ -254,10 +259,7 @@ export function chercher(
   for (const [cle, citation] of parCitation) {
     const autour = extraireAutour(citation.lignes, morceaux);
     if (autour === undefined) continue;
-    const cote =
-      citation.imprimee === undefined
-        ? `${vue.mots.page.un} ${citation.rang} du document`
-        : `${vue.mots.page.un} ${citation.imprimee}`;
+    const cote = citerPage(vue.mots, { index: citation.rang, numero: citation.imprimee });
     const titre = capitaliser(cote);
     pages.push({
       genre: "page",

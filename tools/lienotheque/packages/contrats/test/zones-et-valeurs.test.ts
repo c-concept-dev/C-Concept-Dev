@@ -52,7 +52,7 @@ describe("la zone traverse la lecture puis l'interprétation (B1)", () => {
 });
 
 describe("une page porte ses valeurs d'axe (CLA-10)", () => {
-  const page = { numero: 127, elements: [], texte: [], traduction: [] };
+  const page = { index: 127, numero: 127, elements: [], texte: [], traduction: [] };
 
   it("range les clés de valeurs par clé d'axe", () => {
     const lue = PageAffichee.safeParse({ ...page, valeurs: { "etat-du-lien": ["avec"], theme: ["a", "b"] } });

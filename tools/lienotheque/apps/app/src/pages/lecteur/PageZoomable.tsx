@@ -1,5 +1,13 @@
 import { forwardRef, useMemo, type JSX } from "react";
-import { nommer, type ElementAffiche, type MotsBibliotheque, type PageAffichee, type ZoneRelative } from "@lienotheque/contrats";
+import {
+  citerPage,
+  enTete,
+  nommer,
+  type ElementAffiche,
+  type MotsBibliotheque,
+  type PageAffichee,
+  type ZoneRelative,
+} from "@lienotheque/contrats";
 
 /** La page elle-même, avec les zones de ses éléments (B1, UX-01, UX-07).
  *
@@ -68,12 +76,12 @@ export const PageZoomable = forwardRef<HTMLSpanElement, Props>(function PageZoom
     <div className="ln-page" style={{ width: `${zoom}%` }}>
       <div className="ln-page__feuille">
         {page.image === undefined ? (
-          <div className="ln-page__attente" role="img" aria-label={nommer(mots.page, page.numero)}>
-            <span className="ln-page__numero">{page.numero}</span>
+          <div className="ln-page__attente" role="img" aria-label={enTete(citerPage(mots, page))}>
+            <span className="ln-page__numero">{page.numero ?? page.index}</span>
             {page.titre === undefined ? null : <span className="ln-page__titre">{page.titre}</span>}
           </div>
         ) : (
-          <img className="ln-page__image" src={page.image} alt={nommer(mots.page, page.numero)} />
+          <img className="ln-page__image" src={page.image} alt={enTete(citerPage(mots, page))} />
         )}
 
         {bandes.map(({ element, zone }) => (

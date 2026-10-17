@@ -54,6 +54,7 @@ const vueLecteur = (sur: Record<string, unknown> = {}): VueBibliotheque =>
     douteux: [],
     pages: [
       {
+        index: 126,
         numero: 126,
         texte: [],
         traduction: [],
@@ -105,6 +106,7 @@ describe("le Lecteur lit vraiment", () => {
       ...vueLecteur(),
       pages: [
         {
+          index: 126,
           numero: 126,
           texte: [],
           traduction: [],
