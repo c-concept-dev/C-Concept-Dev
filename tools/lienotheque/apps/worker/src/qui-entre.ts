@@ -4,7 +4,7 @@ import {
   SessionEnregistree,
   type OperationSensible,
 } from "@lienotheque/contrats";
-import { DUREE_SESSION, empreinteDuJeton } from "@lienotheque/noyau";
+import { DUREE_SESSION, NIVEAUX, empreinteDuJeton, type Niveau } from "@lienotheque/noyau";
 import { journaliser, type BaseSql, type Resultat } from "./registre.js";
 
 /** Lire et écrire qui entre : une personne, une clé, une session (SEC-02, SEC-03).
@@ -385,4 +385,86 @@ export async function revoquerLaSession(
     faitLe: maintenant,
   });
   return { fait: true, valeur: { ...session, revoqueeLe: maintenant } };
+}
+
+// ---------------------------------------------------------------- les droits
+
+/** Le niveau d'une personne sur une bibliothèque (SEC-03).
+ *
+ *  La table ne dit que le **niveau** ; ce que chaque niveau permet est dans `droits.ts`, une
+ *  table unique qu'on relit en revue de sécurité. Une action absente de celle-là n'est permise à
+ *  personne, et une personne absente de celle-ci n'a aucun droit — jamais un droit par défaut.
+ *
+ *  Rien ne lève sur un niveau inconnu : un niveau que `droits.ts` ne connaît pas vaut **aucun
+ *  droit**. Une base trafiquée ne doit pas pouvoir faire tomber la porte ; elle doit la laisser
+ *  fermée. */
+export async function leNiveauDe(
+  registre: BaseSql,
+  personneId: string,
+  bibliotheque: string,
+): Promise<Niveau | undefined> {
+  const ligne = await registre
+    .prepare("SELECT niveau FROM droit WHERE utilisateur_id = ? AND bibliotheque = ?")
+    .bind(personneId, bibliotheque)
+    .first<{ niveau: string }>();
+  if (ligne === null) return undefined;
+  return (NIVEAUX as readonly string[]).includes(ligne.niveau) ? (ligne.niveau as Niveau) : undefined;
+}
+
+/** Donne — ou change — le niveau d'une personne sur une bibliothèque. Journalisé : c'est par là
+ *  qu'on saura un jour qui a élargi l'accès de qui. */
+export async function inscrireUnDroit(
+  registre: BaseSql,
+  droit: { readonly personneId: string; readonly bibliotheque: string; readonly niveau: Niveau },
+  maintenant: string,
+  auteur: string,
+): Promise<Resultat<Niveau>> {
+  if ((await laPersonne(registre, droit.personneId)) === undefined)
+    return { fait: false, raison: "Personne inconnue." };
+  if (!(NIVEAUX as readonly string[]).includes(droit.niveau)) return { fait: false, raison: "Niveau inconnu." };
+
+  await registre
+    .prepare(
+      "INSERT INTO droit (utilisateur_id, bibliotheque, niveau) VALUES (?, ?, ?) " +
+        "ON CONFLICT(utilisateur_id, bibliotheque) DO UPDATE SET niveau = excluded.niveau",
+    )
+    .bind(droit.personneId, droit.bibliotheque, droit.niveau)
+    .run();
+  await journaliser(registre, {
+    objet: droit.personneId,
+    operation: "reviser_droits" satisfies OperationSensible,
+    auteur,
+    detail: `${droit.niveau} sur ${droit.bibliotheque}`,
+    faitLe: maintenant,
+  });
+  return { fait: true, valeur: droit.niveau };
+}
+
+/** Combien de clés sont enrôlées, révoquées comprises.
+ *
+ *  C'est **la** condition de l'amorçage du premier accès : un registre sans aucune clé est un
+ *  registre où personne ne peut entrer, donc un registre qu'il faut bien amorcer d'une façon ou
+ *  d'une autre. Dès qu'une clé existe, la porte d'amorçage se referme pour toujours.
+ *
+ *  On compte les clés et non les personnes, parce que l'amorçage crée la personne **avant**
+ *  d'enrôler sa clé : compter les personnes refermerait la porte au milieu du geste. */
+export async function combienDeCles(registre: BaseSql): Promise<number> {
+  const ligne = await registre
+    .prepare("SELECT COUNT(*) AS combien FROM cle_acces")
+    .bind()
+    .first<{ combien: number }>();
+  return ligne === null ? 0 : Number(ligne.combien);
+}
+
+/** Combien de personnes sont inscrites.
+ *
+ *  Sert à une seule chose : savoir si le registre est **vierge**, ce qui est la condition de
+ *  l'amorçage du premier accès. Une question qui ne se pose qu'une fois dans la vie d'un
+ *  registre. */
+export async function combienDePersonnes(registre: BaseSql): Promise<number> {
+  const ligne = await registre
+    .prepare("SELECT COUNT(*) AS combien FROM utilisateur")
+    .bind()
+    .first<{ combien: number }>();
+  return ligne === null ? 0 : Number(ligne.combien);
 }

@@ -76,6 +76,9 @@ export const OperationSensible = z.enum([
   // publier, et c'est la ligne qu'on cherchera le jour où on se demandera depuis quand un
   // appareil entre.
   "enrolement",
+  // Élargir ou restreindre l'accès de quelqu'un : la ligne qu'on cherchera le jour où l'on se
+  // demandera qui a donné quoi à qui.
+  "reviser_droits",
   "revocation",
   // Une entrée refusée ne laisse aucune autre trace : une entrée réussie, elle, laisse sa ligne
   // de session. Seuls les refus qui ont présenté un défi valide s'inscrivent ici — sans quoi on

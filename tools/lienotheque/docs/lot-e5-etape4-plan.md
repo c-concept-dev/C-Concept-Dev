@@ -100,8 +100,8 @@ l'attestation, est **déjà le compromis d'E1**, assumé pour les mêmes utilisa
 | ~~4.2~~ **fait** | Le registre sait écrire et lire une personne, une clé, une session | **46 tests** : les trois tables lues et écrites, le décodage DER à longueur variable, et les trois issues d'une vérification. Section 10 |
 | ~~4.3~~ **fait** | L'enrôlement : défi, création, clé publique rangée | **39 tests** : la clé enrôlée se relit, `getPublicKey()` nul refuse en le nommant, et le défi ne sert qu'une fois — y compris sous deux requêtes simultanées. Section 11 |
 | ~~4.4~~ **fait** | L'authentification : défi, signature, vérification, session ouverte | **26 tests** : la cérémonie mesurée du 18 octobre ouvre une session de bout en bout ; une preuve rejouée est refusée deux fois, par le défi puis par le compteur. Section 12 |
-| 4.5 | La session : cookie 90 jours, repoussé une fois par jour, révocable | Une session révoquée refuse à la requête suivante |
-| 4.6 | Les droits enfin appliqués : `droits.ts` branché à la porte | Une action absente de la table est refusée à tout le monde |
+| ~~4.5~~ **fait avec 4.6** | La session : témoin 90 jours, repoussé une fois par jour, révocable | Faire 4.5 seule aurait demandé une route sans garde, ou une garde sans route. Section 13 |
+| ~~4.6~~ **fait** | Les droits enfin appliqués : `droits.ts` branché à la porte | **41 tests** : chaque route dit sa porte dès sa première ligne, et n'en a qu'une. Section 13 |
 
 L'étape 4.6 n'était pas au plan d'E5. Elle y entre parce que la vérification l'a rendue
 nécessaire : une identité sans droits appliqués ne sert à rien.
@@ -511,3 +511,133 @@ neuf à chaque tentative.
 
 C'est la troisième fois de ce lot que l'échec vient du test et non du code. À chaque fois le
 mécanisme sous test se comportait correctement ; à chaque fois c'est l'échafaudage qui mentait.
+
+---
+
+## 13. Les étapes 4.5 et 4.6 : la porte, les droits, et les routes
+
+### Chaque route dit sa porte, et n'en a qu'une
+
+| route | porte |
+|---|---|
+| `GET /sante` | **aucune** — elle ne dit que le nom et la version |
+| les quatre de la façade | **jeton de service _ou_ session**, selon la bascule, jamais les deux |
+| `POST /entree/defi`, `POST /entree` | **aucune** — c'est la porte qu'on vient ouvrir |
+| `POST /enrolement/defi`, `POST /enrolement` | **session + droit `enroler_cle`** (administration) |
+| `POST /amorce/defi`, `POST /amorce` | **jeton de service _et_ aucune clé enrôlée** |
+| `DELETE /session` | **le témoin seul** |
+| `POST /vision`, `/vision/jetons` | jeton de service (inchangé) |
+| `GET /fichier/:laissez` | laissez-passer signé (inchangé) |
+
+Se déconnecter demande une **identité**, pas une autorisation : quelqu'un sans aucun droit doit
+pouvoir fermer sa session. Et la réponse est la même avec ou sans témoin — se déconnecter ne doit
+pas apprendre si l'on était connecté.
+
+### La porte est en deux temps, et c'est une règle qui l'a imposé
+
+Les deux premières questions — qui présente ce témoin, sa session vaut-elle encore — ne demandent
+**aucune configuration**. La troisième — a-t-il le droit de ce geste, sur cette bibliothèque — a
+besoin de savoir laquelle.
+
+Or la règle acquise le 10 octobre veut la porte **avant** la configuration : vérifier la
+configuration d'abord apprenait à un appelant anonyme si la façade est configurée, et sur quelle
+bibliothèque elle bute. D'où `identifierParSession` puis `autoriser`, que la façade appelle de
+part et d'autre de sa configuration. Une seule mise en œuvre, deux ordres d'appel.
+
+Un test le vérifie en **retirant** le réglage de la façade : sans session, la réponse reste
+« Accès refusé. » et 401, et non un 503 qui aurait tout dit.
+
+### Un seul mot, un seul statut
+
+Aucun refus de la porte ne dit lequel des trois temps a échoué, et **tous rendent 401**. Un 403
+là où un 401 suffit apprendrait qu'on a été reconnu ; un « droits insuffisants » apprendrait que
+la bibliothèque existe. La règle de `droits.ts` — « jamais une phrase qui apprend ce qui
+existe » — s'applique donc aussi au **statut**, et pas seulement à la phrase.
+
+**Une exception, assumée : l'enrôlement dit pourquoi il refuse.** L'appelant y est une personne
+identifiée, qui a le droit d'enrôler, et qui a besoin d'apprendre que son navigateur n'a pas
+rendu de clé plutôt que de réessayer sans fin. Ce n'est pas la situation d'une entrée refusée.
+
+### Rien par défaut
+
+| ce qui manque | ce qui s'ensuit |
+|---|---|
+| une personne absente de la table des droits | **aucun** droit |
+| une action absente de la table des exigences | permise à **personne** |
+| un niveau que le code ne connaît pas (base trafiquée) | ne vaut **rien** — la porte reste fermée, elle ne tombe pas |
+
+Les trois ont leur test, dont celui qui écrit `tout_permis` dans la base à la main.
+
+### La bascule : une porte ou l'autre, jamais les deux
+
+`SESSIONS_EXIGEES` reste **faux**. Elle décide, à elle seule, laquelle des deux portes ouvre la
+façade :
+
+| `SESSIONS_EXIGEES` | ce qui ouvre la façade |
+|---|---|
+| faux (aujourd'hui) | le jeton de service, et la garde de 4.0 limite à une bibliothèque d'essai |
+| vrai | la session seule — **le jeton cesse d'ouvrir ces routes** |
+
+Les deux positions sont éprouvées, parce qu'une bascule dont on ne connaît qu'une position est
+une bascule dont on suppose l'autre. Une mutation qui fait accepter le jeton **aussi** quand les
+sessions sont exigées fait tomber deux tests.
+
+Ce n'est pas un réglage d'hébergement mais une ligne de code : la bascule est une décision, qu'on
+change et qu'on déploie, pas une variable qu'on pousse un soir.
+
+### L'amorçage : le problème de l'œuf et de la poule, et sa réponse
+
+Enrôler exige une session ; obtenir une session exige une clé enrôlée. Le premier accès ne peut
+donc se donner par aucune des deux.
+
+Il se donne par **le seul secret qu'on détienne déjà** — le jeton de service — et seulement tant
+qu'**aucune clé n'est enrôlée**. Dès qu'il y en a une, la porte d'amorçage se referme pour
+toujours, et le test le vérifie dans les deux sens.
+
+Deux routes distinctes (`/amorce/defi`, `/amorce`) plutôt qu'une route d'enrôlement qui
+accepterait deux portes : chacune n'en a qu'une, et la doctrine reste lisible.
+
+On compte les **clés** et non les personnes, parce que l'amorçage crée la personne avant
+d'enrôler sa clé : compter les personnes refermerait la porte au milieu du geste. Le premier
+accès reçoit l'administration, sans quoi personne ne pourrait enrôler le second.
+
+### Deux réglages à poser à la main, que je n'ai pas posés
+
+| réglage | ce qu'il vaut |
+|---|---|
+| `ORIGINE_CEREMONIE` | l'origine exacte de la page qui mène les cérémonies — schéma, hôte, port |
+| `DOMAINE_CEREMONIE` | le domaine seul, celui pour lequel les clés sont enrôlées |
+
+**Jamais lus dans la requête.** Lire l'en-tête `Origin` rendrait la vérification vide de sens :
+c'est précisément ce qu'un attaquant contrôle. Et ce ne sont pas ceux du Worker — la page vit
+ailleurs.
+
+Sans eux, les routes de cérémonie refusent d'ouvrir (503), comme pour les laissez-passer :
+l'oubli d'un réglage ne doit pas se solder par une cérémonie permissive. Un test le vérifie.
+
+Ils se posent comme les autres, hors du dépôt :
+
+```
+npx wrangler secret put ORIGINE_CEREMONIE --config wrangler.toml
+npx wrangler secret put DOMAINE_CEREMONIE --config wrangler.toml
+```
+
+### L'ordre dans lequel tout cela se met en marche
+
+1. poser les deux réglages ci-dessus ;
+2. appliquer la migration 4 (la table des défis) au registre déployé ;
+3. déployer le Worker ;
+4. amorcer le premier accès par `/amorce/defi` puis `/amorce`, depuis la page, avec le jeton de
+   service — c'est le seul moment où il sert à cela, et il ne resservira plus ;
+5. vérifier qu'une entrée ordinaire fonctionne ;
+6. **alors seulement** basculer `SESSIONS_EXIGEES` à vrai et redéployer.
+
+Rien de tout cela n'est fait : les quatre premiers points demandent un accord, et le sixième est
+la décision que le drapeau attendait depuis l'étape 4.0.
+
+### Un garde-fou que j'avais oublié
+
+Un test balaie les sources du Worker et refuse toute adresse distante autre que celle du modèle.
+J'avais écrit une adresse en **exemple** dans un commentaire, et il l'a refusée. Il a raison : un
+exemple ne se distingue pas d'une vraie adresse par une expression régulière. Le commentaire a été
+reformulé, le garde-fou n'a pas été touché — comme pour les mots de domaine de CLA-01.

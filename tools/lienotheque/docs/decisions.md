@@ -9,6 +9,9 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
+| 2026-10-18 | **Le premier accès s'amorce par le jeton de service, et seulement tant qu'aucune clé n'est enrôlée** : enrôler exige une session, obtenir une session exige une clé | `docs/lot-e5-etape4-plan.md` §13 |
+| 2026-10-18 | **Tous les refus de la porte rendent 401** : un 403 apprendrait qu'on a été reconnu | `docs/lot-e5-etape4-plan.md` §13 |
+| 2026-10-18 | **`ORIGINE_CEREMONIE` et `DOMAINE_CEREMONIE` sont posés à la main**, jamais lus dans la requête — l'en-tête `Origin` est ce qu'un attaquant contrôle | `docs/lot-e5-etape4-plan.md` §13 |
 | 2026-10-18 | **Un défi vit dans la base, pas dans un jeton signé** : un jeton sait dire qu'il est authentique, jamais qu'il a déjà servi | `docs/lot-e5-etape4-plan.md` §11 |
 | 2026-10-18 | **Aucune route d'enrôlement avant que les droits la gardent** (étape 4.6) : une route qu'on n'a pas gardée est la porte qu'on vient de fermer | `docs/lot-e5-etape4-plan.md` §11 |
 | 2026-10-18 | **Voie C confirmée par la mesure** : la clé publique arrive en SPKI, zéro dépendance — mais la signature arrive en ASN.1 DER et demande vingt lignes de conversion | `docs/lot-e5-etape4-plan.md` §9 |

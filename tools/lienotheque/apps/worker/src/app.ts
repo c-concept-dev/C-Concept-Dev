@@ -1,10 +1,28 @@
 import { DemandeVision, EstimationVision, EtatService, ReponseVision, reponseRepondA, type Capacite } from "@lienotheque/contrats";
-import { verifier } from "@lienotheque/noyau";
+import { entetRetrait, entetTemoin, verifier, DUREE_SESSION } from "@lienotheque/noyau";
 import { Correspondance, chercher, compter } from "./facade.js";
 import { baseDeLaPlace } from "./reserve.js";
 import { laBibliotheque, type BaseSql } from "./registre.js";
 import { Hono } from "hono";
-import { laFacadePeutServir } from "./portes.js";
+import { SESSIONS_EXIGEES, laFacadePeutServir } from "./portes.js";
+import {
+  NOM_DU_TEMOIN,
+  autoriser,
+  identifierParSession,
+  laSessionDuTemoin,
+  ouvrirParSession,
+  repousserSiBesoin,
+} from "./porte.js";
+import { enroler, ouvrirUnDefi } from "./enrolement.js";
+import { entrer } from "./entree.js";
+import {
+  combienDeCles,
+  inscrireUnDroit,
+  inscrireUnePersonne,
+  lesPersonnes,
+  revoquerLaSession,
+} from "./qui-entre.js";
+import { PreuveDEnrolement, PreuveDEntree } from "@lienotheque/contrats";
 import {
   compterParModele,
   jetonPorte,
@@ -35,6 +53,21 @@ export type Liaisons = {
   /** La bibliothèque que la façade sert. Une seule : la façade existe pour une application qui
    *  n'en connaît qu'une, et lui en proposer plusieurs serait lui demander de changer. */
   readonly BIBLIOTHEQUE_FACADE?: string;
+  /** L'origine exacte de la page qui mène les cérémonies : schéma, hôte et port, telle qu'un
+   *  navigateur l'écrit.
+   *
+   *  **Posée à la main, jamais lue dans la requête.** La lire dans l'en-tête `Origin` rendrait la
+   *  vérification vide de sens : c'est précisément ce qu'un attaquant contrôle. Et ce n'est pas
+   *  l'origine du Worker : la page vit ailleurs.
+   *
+   *  Aucun exemple écrit ici : un test balaie les sources et refuse toute adresse distante autre
+   *  que celle du modèle, et il a raison — un exemple ne se distingue pas d'une vraie adresse. */
+  readonly ORIGINE_CEREMONIE?: string;
+  /** Le domaine, et lui seul, pour lequel les clés sont enrôlées — sans schéma ni port.
+   *
+   *  L'appareil l'inclut dans ce qu'il signe, et c'est la garde contre une signature prise sur un
+   *  site voisin. Posé à la main, pour la même raison que l'origine. */
+  readonly DOMAINE_CEREMONIE?: string;
 };
 
 /** Ce qu'un objet du compartiment doit savoir rendre pour qu'on le serve. */
@@ -52,6 +85,14 @@ type Options = {
    *  conforme est refusée. */
   readonly lecteur?: (cle: string) => LecteurDeZones;
   readonly compteur?: (cle: string) => CompteurDeJetons;
+  /** Les sessions personnelles sont-elles exigées pour entrer par la façade ?
+   *
+   *  La valeur vient de `portes.ts` ; cette option existe pour que les tests éprouvent **les deux
+   *  positions**. Sans quoi on ne saurait de la bascule que ce qu'on en suppose.
+   *
+   *  Ce n'est pas un réglage d'hébergement : la bascule est une décision, donc une ligne de code
+   *  qu'on change et qu'on déploie, pas une variable qu'on pousse un soir. */
+  readonly sessionsExigees?: boolean;
 };
 
 /** Application Hono de l'API Liénothèque.
@@ -59,7 +100,12 @@ type Options = {
  *  Deux routes au-delà de la santé, et une seule porte : un jeton d'accès exigé, comparé sans
  *  laisser le temps de réponse dire où il diffère. Tout ce qui entre et tout ce qui sort est
  *  validé par son contrat (règle 2). */
-export function creerApp({ maintenant = () => new Date(), lecteur = lireParModele, compteur = compterParModele }: Options = {}): Hono<{
+export function creerApp({
+  maintenant = () => new Date(),
+  lecteur = lireParModele,
+  compteur = compterParModele,
+  sessionsExigees = SESSIONS_EXIGEES,
+}: Options = {}): Hono<{
   Bindings: Liaisons;
 }> {
   const app = new Hono<{ Bindings: Liaisons }>();
@@ -193,14 +239,37 @@ export function creerApp({ maintenant = () => new Date(), lecteur = lireParModel
     // les refus indiscernables des droits : qui n'a pas le jeton n'apprend rien, pas même
     // l'état du service. Le défaut s'est vu en éprouvant les routes par-dessus le réseau, pas
     // dans les tests — ils passaient tous, chacun regardant une question à la fois.
-    const attendu = contexte.env.JETON_ACCES;
-    if (attendu === undefined || attendu.length === 0)
-      return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
-    const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
-    if (donne === undefined || !memeJeton(donne, attendu)) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+    //
+    // **Une porte ou l'autre, jamais les deux.** Tant que les sessions ne sont pas exigées, le
+    // jeton de service ouvre — c'est l'état d'aujourd'hui. Le jour où elles le sont, il cesse
+    // d'ouvrir ces routes, et seule la session compte. Deux serrures dont une seule est vérifiée
+    // seraient pires qu'une : le jour où l'une cède, rien ne dirait laquelle a servi.
+    const registre = contexte.env.REGISTRE;
+
+    if (sessionsExigees) {
+      // Premier temps de la porte : il ne demande aucune configuration, donc rien n'est appris
+      // par un appelant anonyme.
+      if (registre === undefined) return Response.json({ erreur: "Accès refusé." }, { status: 401 });
+      const qui = await identifierParSession(registre, contexte.req.raw.headers, maintenant().toISOString());
+      if (!qui.ouverte) return Response.json({ erreur: qui.mot }, { status: qui.statut });
+
+      const cleDeLaFacade = contexte.env.BIBLIOTHEQUE_FACADE;
+      if (cleDeLaFacade === undefined || cleDeLaFacade.length === 0)
+        return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
+
+      // Second temps : le droit, maintenant qu'on sait sur quoi.
+      const droit = await autoriser(registre, qui.personneId, cleDeLaFacade, "chercher");
+      if (!droit.ouverte) return Response.json({ erreur: droit.mot }, { status: droit.statut });
+      await repousserSiBesoin(registre, qui.session, maintenant().toISOString());
+    } else {
+      const attendu = contexte.env.JETON_ACCES;
+      if (attendu === undefined || attendu.length === 0)
+        return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+      const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
+      if (donne === undefined || !memeJeton(donne, attendu)) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+    }
 
     const cle = contexte.env.BIBLIOTHEQUE_FACADE;
-    const registre = contexte.env.REGISTRE;
     if (cle === undefined || cle.length === 0 || registre === undefined)
       return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
 
@@ -265,6 +334,218 @@ export function creerApp({ maintenant = () => new Date(), lecteur = lireParModel
       .filter(([, source]) => source !== null && "axe" in source)
       .map(([champ]) => champ);
     return contexte.json({ facets: await compter(ouverte.base, ouverte.correspondance, champs, { query: corps["query"] }) });
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Les cérémonies : entrer, enrôler, amorcer, sortir.
+  //
+  // Chaque route dit sa porte **dès sa première ligne**, et il n'y en a qu'une par route :
+  //
+  //   /entree/defi, /entree          aucune — c'est la porte elle-même
+  //   /enrolement/defi, /enrolement  session + droit « enroler_cle » (administration)
+  //   /amorce/defi, /amorce          jeton de service, **et** aucune clé enrôlée
+  //   /session (DELETE)              le témoin seul : se déconnecter n'est pas une autorisation
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** Ce qu'il faut pour mener une cérémonie, ou le refus qui dit ce qui manque.
+   *
+   *  L'origine et le domaine sont **posés à la main**, jamais lus dans la requête : lire
+   *  l'en-tête `Origin` rendrait la vérification vide de sens, puisque c'est exactement ce qu'un
+   *  attaquant contrôle. Sans eux, la route refuse d'ouvrir — comme pour les laissez-passer,
+   *  l'oubli d'un réglage ne doit pas se solder par une cérémonie permissive. */
+  const cadreDeCeremonie = (
+    contexte: { env: Liaisons },
+  ): { registre: BaseSql; origine: string; domaine: string; maintenant: string } | Response => {
+    const registre = contexte.env.REGISTRE;
+    const origine = contexte.env.ORIGINE_CEREMONIE;
+    const domaine = contexte.env.DOMAINE_CEREMONIE;
+    if (registre === undefined || origine === undefined || origine.length === 0 || domaine === undefined || domaine.length === 0)
+      return Response.json({ erreur: "La cérémonie n'est pas configurée" }, { status: 503 });
+    return { registre, origine, domaine, maintenant: maintenant().toISOString() };
+  };
+
+  const corpsObjet = async (contexte: { req: { json: () => Promise<unknown> } }): Promise<Record<string, unknown>> => {
+    try {
+      const lu = await contexte.req.json();
+      return typeof lu === "object" && lu !== null ? (lu as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  app.post("/entree/defi", async (contexte) => {
+    // Aucune porte : c'est celle-ci qu'on vient ouvrir. Un défi ne vaut qu'avec une clé
+    // enrôlée et une signature, et il ne dit rien de ce qui existe.
+    const cadre = cadreDeCeremonie(contexte);
+    if (cadre instanceof Response) return cadre;
+
+    const ouvert = await ouvrirUnDefi(cadre.registre, { usage: "entree" }, cadre.maintenant);
+    if (!ouvert.fait) return contexte.json({ erreur: "Entrée refusée." }, 503);
+    return contexte.json({ defi: ouvert.valeur.valeur, domaine: cadre.domaine });
+  });
+
+  app.post("/entree", async (contexte) => {
+    const cadre = cadreDeCeremonie(contexte);
+    if (cadre instanceof Response) return cadre;
+
+    const lue = PreuveDEntree.safeParse(await corpsObjet(contexte));
+    // Un corps mal formé rend le **même** mot qu'une signature fausse : qui apprendrait la
+    // différence apprendrait où chercher.
+    if (!lue.success) return contexte.json({ erreur: "Entrée refusée." }, 401);
+
+    const entree = await entrer(cadre.registre, lue.data, {
+      origine: cadre.origine,
+      domaine: cadre.domaine,
+      maintenant: cadre.maintenant,
+    });
+    if (!entree.fait) return contexte.json({ erreur: entree.mot }, 401);
+
+    contexte.header("set-cookie", entetTemoin(NOM_DU_TEMOIN, entree.jeton, DUREE_SESSION));
+    // Le jeton part dans le témoin et nulle part ailleurs : jamais dans le corps, qu'un journal
+    // de navigateur ou une extension pourrait relire.
+    return contexte.json({ entre: true });
+  });
+
+  app.delete("/session", async (contexte) => {
+    const registre = contexte.env.REGISTRE;
+    if (registre === undefined) return contexte.json({ ferme: true });
+
+    const session = await laSessionDuTemoin(registre, contexte.req.raw.headers);
+    // Le témoin est retiré dans tous les cas, et la réponse est la même : se déconnecter ne doit
+    // pas apprendre si l'on était connecté.
+    if (session !== undefined && session.revoqueeLe === undefined)
+      await revoquerLaSession(registre, session.id, session.personneId, maintenant().toISOString());
+
+    contexte.header("set-cookie", entetRetrait(NOM_DU_TEMOIN));
+    return contexte.json({ ferme: true });
+  });
+
+  /** La porte des enrôlements : une session, et le droit d'enrôler une clé. */
+  const porteDEnrolement = async (contexte: { env: Liaisons; req: { raw: Request } }) => {
+    const cadre = cadreDeCeremonie(contexte);
+    if (cadre instanceof Response) return cadre;
+    const cle = contexte.env.BIBLIOTHEQUE_FACADE;
+    if (cle === undefined || cle.length === 0)
+      return Response.json({ erreur: "La cérémonie n'est pas configurée" }, { status: 503 });
+
+    const ouverte = await ouvrirParSession(cadre.registre, contexte.req.raw.headers, {
+      bibliotheque: cle,
+      action: "enroler_cle",
+      maintenant: cadre.maintenant,
+    });
+    if (!ouverte.ouverte) return Response.json({ erreur: ouverte.mot }, { status: ouverte.statut });
+    return { ...cadre, personneId: ouverte.personneId };
+  };
+
+  app.post("/enrolement/defi", async (contexte) => {
+    const porte = await porteDEnrolement(contexte);
+    if (porte instanceof Response) return porte;
+
+    // Le défi est lié à **la personne de la session** : on enrôle un appareil de plus pour
+    // soi-même. Enrôler pour quelqu'un d'autre est un autre geste, et il n'existe pas encore.
+    const ouvert = await ouvrirUnDefi(
+      porte.registre,
+      { usage: "enrolement", personneId: porte.personneId },
+      porte.maintenant,
+    );
+    if (!ouvert.fait) return contexte.json({ erreur: "Accès refusé." }, 503);
+    return contexte.json({ defi: ouvert.valeur.valeur, domaine: porte.domaine });
+  });
+
+  app.post("/enrolement", async (contexte) => {
+    const porte = await porteDEnrolement(contexte);
+    if (porte instanceof Response) return porte;
+
+    const lue = PreuveDEnrolement.safeParse(await corpsObjet(contexte));
+    if (!lue.success) return contexte.json({ erreur: "Accès refusé." }, 400);
+
+    const enrole = await enroler(porte.registre, lue.data, {
+      origine: porte.origine,
+      maintenant: porte.maintenant,
+      auteur: porte.personneId,
+    });
+    // Ici le motif **sort**, et c'est délibéré : l'appelant est une personne identifiée, qui a le
+    // droit d'enrôler, et qui a besoin de savoir que son navigateur n'a pas rendu de clé plutôt
+    // que de réessayer indéfiniment. Ce n'est pas la même situation qu'une entrée refusée.
+    if (!enrole.fait) return contexte.json({ erreur: enrole.raison }, 400);
+    return contexte.json({ enrolee: true, appareil: enrole.valeur.appareil ?? null });
+  });
+
+  /** La porte de l'amorçage : le jeton de service, **et** un registre sans aucune clé.
+   *
+   *  Le premier accès ne peut pas se donner par une session — il n'en existe aucune. Il se donne
+   *  donc par le seul secret qu'on détienne déjà, et seulement tant qu'aucune clé n'est enrôlée.
+   *  Dès qu'il y en a une, cette porte se referme pour toujours.
+   *
+   *  Deux routes distinctes plutôt qu'une qui accepterait deux portes : chacune n'en a qu'une,
+   *  et la doctrine reste lisible. */
+  const porteDAmorcage = async (contexte: { env: Liaisons; req: { raw: Request } }) => {
+    const attendu = contexte.env.JETON_ACCES;
+    if (attendu === undefined || attendu.length === 0) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+    const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
+    if (donne === undefined || !memeJeton(donne, attendu)) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+
+    const cadre = cadreDeCeremonie(contexte);
+    if (cadre instanceof Response) return cadre;
+
+    if ((await combienDeCles(cadre.registre)) > 0)
+      return Response.json({ erreur: "L'amorçage est clos." }, { status: 409 });
+    return cadre;
+  };
+
+  app.post("/amorce/defi", async (contexte) => {
+    const porte = await porteDAmorcage(contexte);
+    if (porte instanceof Response) return porte;
+
+    const corps = await corpsObjet(contexte);
+    const nom = typeof corps["nom"] === "string" ? corps["nom"] : "";
+
+    // Une personne peut déjà exister si un amorçage a été commencé puis abandonné : on la reprend
+    // plutôt que d'en créer une seconde qui n'aurait jamais de clé.
+    const dejaLa = await lesPersonnes(porte.registre);
+    const personne =
+      dejaLa[0] ??
+      (await (async () => {
+        const fait = await inscrireUnePersonne(porte.registre, nom, porte.maintenant, "amorçage");
+        if (!fait.fait) return undefined;
+        return fait.valeur;
+      })());
+    if (personne === undefined) return contexte.json({ erreur: "Amorçage refusé : il faut un nom." }, 400);
+
+    const cle = contexte.env.BIBLIOTHEQUE_FACADE;
+    if (cle === undefined || cle.length === 0)
+      return contexte.json({ erreur: "La cérémonie n'est pas configurée" }, 503);
+    // Le premier accès reçoit l'administration : sans quoi personne ne pourrait enrôler le second.
+    await inscrireUnDroit(
+      porte.registre,
+      { personneId: personne.id, bibliotheque: cle, niveau: "administration" },
+      porte.maintenant,
+      "amorçage",
+    );
+
+    const ouvert = await ouvrirUnDefi(
+      porte.registre,
+      { usage: "enrolement", personneId: personne.id },
+      porte.maintenant,
+    );
+    if (!ouvert.fait) return contexte.json({ erreur: "Amorçage refusé." }, 503);
+    return contexte.json({ defi: ouvert.valeur.valeur, domaine: porte.domaine, personne: personne.nom });
+  });
+
+  app.post("/amorce", async (contexte) => {
+    const porte = await porteDAmorcage(contexte);
+    if (porte instanceof Response) return porte;
+
+    const lue = PreuveDEnrolement.safeParse(await corpsObjet(contexte));
+    if (!lue.success) return contexte.json({ erreur: "Amorçage refusé." }, 400);
+
+    const enrole = await enroler(porte.registre, lue.data, {
+      origine: porte.origine,
+      maintenant: porte.maintenant,
+      auteur: "amorçage",
+    });
+    if (!enrole.fait) return contexte.json({ erreur: enrole.raison }, 400);
+    return contexte.json({ enrolee: true });
   });
 
   app.notFound((contexte) => contexte.json({ erreur: "Route inconnue" }, 404));
