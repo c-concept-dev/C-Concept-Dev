@@ -1,5 +1,36 @@
 # Le zip des images, une par étape — pour monter dans iMovie
 
+## Le plus court chemin : le convertisseur
+
+**Double-cliquez `~/Documents/Studio-Clinique-Outils/convertisseur-images.html`.** Un seul
+fichier, aucun serveur, aucune connexion.
+
+| Ce que vous faites | Ce qui se passe |
+|---|---|
+| Vous déposez l'export **`.html`** de votre présentation (n'importe où sur la page) | Le rendu **démarre tout seul**, avec les réglages du lot 2. Une barre dit « image 7 sur 19 ». |
+| *(facultatif)* Vous déposez aussi le **`.json`** du document de travail | « narration jointe (19 étapes) » : elle partira dans le zip, **sans refaire le rendu**. |
+| Vous regardez les **vignettes** | Une miniature par étape, avec sa diapositive, son étape et son titre. D'un coup d'œil. |
+| Vous cliquez **« Télécharger le zip (19 images) »** | Le zip arrive dans Téléchargements. |
+
+Le format est **PNG par défaut** (qualité maximale) ; un bouton **JPEG** le rend beaucoup plus
+léger. Changer de format après un rendu demande de redéposer l'export : la page vous le dit.
+
+**L'écran ne montre rien d'autre.** Les réglages du moteur — mode capture, scène, plancher de
+lisibilité, planche à l'œil, relevé technique… — sont tous là, repliés derrière **« Réglages
+avancés »**, et **« Aide »** ouvre les anciens textes d'explication. Mesuré : 18 contrôles
+repliés, 5 éléments cliquables à l'ouverture.
+
+**Les deux polices du Studio sont embarquées** (IBM Plex Sans et Source Serif 4, licence SIL
+OFL 1.1) : mesuré, le navigateur les charge et le texte des images n'est plus dans les polices du
+système. S'il arrivait qu'elles ne chargent pas, une ligne orange vous le dirait.
+
+**Si une image manque**, rien n'est téléchargé et la page le dit en nommant l'étape fautive. Un
+zip incomplet qui aurait l'air complet serait pire que pas de zip.
+
+---
+
+## Le banc complet, si vous voulez mesurer
+
 Une page. Tout se passe sur votre Mac : **aucun fichier ne part nulle part**, et l'export du zip
 n'ouvre aucune connexion — c'est mesuré, pas promis.
 
