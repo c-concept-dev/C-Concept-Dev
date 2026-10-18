@@ -296,5 +296,76 @@ SANS_PHOTO.documentId = 'chutier-sans-photo'; SANS_PHOTO.versionId = 'chutier-sa
 SANS_PHOTO.blocks[0].content.imageRef = null;
 SANS_PHOTO.blocks[0].content.imageAlt = null;
 
+// ── (lot 2B) DIX-NEUF ÉTAPES, DONT UNE DIAPOSITIVE HAUTE ─────────────────────────────────────
+//
+// POURQUOI DIX-NEUF, ET PAS UN CHIFFRE ROND. C'est le nombre d'étapes de la présentation réelle
+// mesurée au lot 2 (5 diapositives, 19 étapes) : la fixture reproduit donc la forme de ce que
+// Christophe exporte vraiment, et le zip qu'elle produit a la même taille que le sien.
+//
+// POURQUOI UN QUESTIONNAIRE DEDANS. C'est la seule diapositive qui déborde du cadre (V3) : son
+// image fait environ 1920×3152 et doit être livrée à sa HAUTEUR ENTIÈRE, jamais recadrée. Sans
+// elle, le zip n'éprouverait que des images de 1920×1080 et le cas qui compte dormirait.
+//
+// 5 + 4 + 4 + 3 + 3 = 19 étapes, dont la première diapositive porte le questionnaire.
+const questionnaire4 = (id) => ({
+  id, type: 'questionnaire',
+  content: {
+    questions: [1, 2, 3, 4].map((k) => ({
+      text: 'Question ' + k + ' : vous evitez une situation parce qu elle vous met mal a l aise.',
+      options: [{ text: 'Jamais', points: 0 }, { text: 'Parfois', points: 1 },
+                { text: 'Souvent', points: 2 }, { text: 'Presque toujours', points: 3 }],
+    })),
+    profiles: [
+      { label: 'Peu d evitement', minScore: 0, maxScore: 4,
+        interpretation: 'Les situations difficiles vous coutent, mais vous les traversez.' },
+      { label: 'Evitement installe', minScore: 5, maxScore: 8,
+        interpretation: 'Le soulagement a court terme guide une partie de vos choix.' },
+      { label: 'Evitement central', minScore: 9, maxScore: 12,
+        interpretation: 'L evitement organise votre quotidien.' },
+    ],
+    allowTwoPartners: false,
+  },
+  citationIds: [], validation: {},
+});
+
+const DIX_NEUF_ETAPES = enveloppe('chutier-dix-neuf', 'Dix-neuf etapes, dont une haute', [
+  // 5 étapes, dont le questionnaire qui fait déborder la diapositive.
+  carte('slide-01', 'Ou en etes-vous', [
+    titre('heading-01', 'Quatre questions, puis votre profil'),
+    bloc('paragraph-01', phraseLongue(1)),
+    questionnaire4('questionnaire-01'),
+    bloc('paragraph-02', phraseLongue(2)),
+    bloc('paragraph-03', phraseLongue(3)),
+  ]),
+  // 4 étapes, avec photo de couverture.
+  carte('slide-02', 'Deux temps', [
+    titre('heading-02', 'Nommer, puis laisser revenir'),
+    bloc('paragraph-04', phraseLongue(4)),
+    bloc('paragraph-05', phraseLongue(5)),
+    bloc('paragraph-06', phraseLongue(6)),
+  ], true),
+  // 4 étapes.
+  carte('slide-03', 'Le cercle de l evitement', [
+    titre('heading-03', 'Quatre moments, toujours les memes'),
+    bloc('paragraph-07', phraseLongue(7)),
+    bloc('paragraph-08', phraseLongue(8)),
+    { id: 'callout-01', type: 'callout',
+      content: { text: 'ENCADRE — ' + phraseLongue(9), visualRole: 'info' },
+      citationIds: [], validation: {} },
+  ]),
+  // 3 étapes.
+  carte('slide-04', 'Ce que disent les chiffres', [
+    bloc('paragraph-09', '37 % des personnes accompagnees citent l evitement en premier.'),
+    bloc('paragraph-10', phraseLongue(10)),
+    bloc('paragraph-11', '12 semaines suffisent souvent pour que le cercle se desserre.'),
+  ]),
+  // 3 étapes.
+  carte('slide-05', 'Ce qu il reste a faire', [
+    titre('heading-05', 'Une seule chose a retenir'),
+    bloc('paragraph-12', phraseLongue(11)),
+    bloc('paragraph-13', phraseLongue(12)),
+  ]),
+]);
+
 module.exports = { PRESENTATIONS, IMAGES_EMBARQUEES, REQUETE_PHOTO, PHOTO_DATA_URI,
-                   ILLUSTREE, SANS_PHOTO };
+                   ILLUSTREE, SANS_PHOTO, DIX_NEUF_ETAPES };

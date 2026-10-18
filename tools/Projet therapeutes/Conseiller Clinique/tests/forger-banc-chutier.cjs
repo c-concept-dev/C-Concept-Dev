@@ -68,6 +68,7 @@ const PANNEAU = `
     <button id="bc-tout" style="font:inherit;padding:6px 12px;cursor:pointer;">Rendre les trois</button>
     <button id="bc-jpeg" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Télécharger en JPEG haute qualité</button>
     <button id="bc-planche" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Planche à l’œil (un fichier)</button>
+    <button id="bc-zip" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Télécharger le zip des images</button>
     <button id="bc-perime" style="font:inherit;padding:6px 12px;cursor:pointer;" disabled>Modifier un texte et revérifier</button>
     <button id="bc-ouverte" style="font:inherit;padding:6px 12px;cursor:pointer;">Utiliser la présentation ouverte</button>
     <label style="font:inherit;padding:6px 12px;border:1px solid #888;border-radius:6px;cursor:pointer;">Charger un JSON
@@ -118,6 +119,11 @@ const PANNEAU = `
   async function rendre(p) {
     $('bc-recap').querySelector('tbody').innerHTML = '';
     $('bc-vignettes').innerHTML = '';
+    // (lot 2B) UN RENDU EN COURS REND LES IMAGES PRÉCÉDENTES PÉRIMÉES : le bouton du zip se
+    // désactive, sinon un clic exporterait l ancien rendu — avec l ancien FORMAT. Trouvé par le
+    // contrôle du PNG, qui attendait un bouton déjà actif et exportait des JPEG.
+    $('bc-zip').disabled = true;
+    dernier = null;
     var tasAvant = tas();
     var t0 = performance.now();
     var res = await window.AtelierImages.rendreImages(p.doc, Object.assign(reglages(), {
@@ -306,8 +312,13 @@ const PANNEAU = `
     $('bc-releve').textContent = lignes.join('\\n');
     $('bc-copier').disabled = false;
     dernier = { p: p, res: res };
+    // (lot 2B) LE RENDU EST EXPOSÉ AUX CONTRÔLES, comme l'enregistreur expose son état : un
+    // contrôle doit pouvoir comparer les octets du zip à ceux que la page a réellement rendus,
+    // sans les relire par une seconde voie qui pourrait mentir autrement.
+    window.__chutier = { dernier: function () { return dernier; } };
     $('bc-jpeg').disabled = false;
     $('bc-planche').disabled = false;
+    $('bc-zip').disabled = false;
     $('bc-perime').disabled = false;
     return res;
   }
@@ -537,6 +548,179 @@ const PANNEAU = `
     return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
+  // ── (lot 2B, X7) LE ZIP DES IMAGES, UNE PAR ÉTAPE ───────────────────────────────────────
+  //
+  // CE QU'IL CONTIENT, ET POURQUOI DANS CET ORDRE : un dossier racine pour qu'une décompression
+  // ne répande pas vingt fichiers dans les téléchargements, les images dans l'ordre des étapes,
+  // puis index.csv, puis narration.txt s'il y a une narration. iMovie importe un dossier ; le
+  // CSV sert à Christophe et au lot 4 ; la narration l'accompagne sous les mêmes numéros.
+  //
+  // CE QU'IL NE FAIT PAS : décoder une image (les octets rendus partent tels quels, méthode
+  // stockée), appeler le réseau, ni laisser un fichier derrière lui quand il échoue (X4).
+  var RACINE_ZIP = 'images-presentation-par-etape';
+
+  function deuxChiffres(n) { var s = String(n); return s.length < 2 ? '0' + s : s; }
+
+  function nomDeLImage(im, type) {
+    return deuxChiffres(im.cardIndex + 1) + '-' + im.rang + (type === 'image/png' ? '.png' : '.jpg');
+  }
+
+  // Le texte du travelling, dans la MÊME forme que la légende de la planche : deux formulations
+  // pour une seule grandeur finiraient par diverger, et c'est ce texte que Christophe lit.
+  function texteDuTravelling(im, hauteurDuCadre) {
+    var t = im.travelling;
+    if (t && t.course_px > 0) {
+      return 'travelling ' + t.course_px + ' px'
+        + (t.vitesse_px_par_s !== null ? ' à ' + t.vitesse_px_par_s + ' px/s'
+                                       : ' (durée du commentaire inconnue)');
+    }
+    // ── UNE IMAGE PLUS HAUTE QUE LE CADRE DOIT DIRE SA DISTANCE, TRAVELLING OU NON ────────
+    // X7 : « une image haute est livrée à sa hauteur entière, AVEC LA DISTANCE DE DÉFILEMENT
+    // dans l index ». Trouvé par le contrôle : l image du questionnaire fait 1455 px pour un
+    // cadre de 1080, et pourtant elle ne porte AUCUN objet travelling — sa scène, choisie par
+    // diapositive, couvre déjà tout son contenu, donc le moteur n a rien à faire défiler DANS
+    // la scène. Mais au montage, elle dépasse le cadre de 375 px, et c est cette distance que
+    // Christophe doit connaître. Sans cette ligne, l index répondait « aucun travelling » à la
+    // seule question que X7 pose.
+    if (hauteurDuCadre && im.hauteur > hauteurDuCadre) {
+      return 'image haute : ' + (im.hauteur - hauteurDuCadre) + ' px à faire défiler sur '
+        + im.hauteur + ' px (durée du commentaire inconnue)';
+    }
+    if (t) return 'rien à faire défiler à cette étape';
+    return 'aucun travelling';
+  }
+
+  // Un champ de CSV : point-virgule comme séparateur, donc tout champ qui en contient, ou qui
+  // porte un guillemet ou une fin de ligne, est mis entre guillemets et ses guillemets doublés.
+  function champCsv(v) {
+    var s = (v === null || v === undefined) ? '' : String(v);
+    if (s.indexOf(';') >= 0 || s.indexOf('"') >= 0 || s.indexOf('\\n') >= 0) {
+      return '"' + s.split('"').join('""') + '"';
+    }
+    return s;
+  }
+
+  // La narration du document de travail, par étape. « doc.narration » est une liste
+  // [{ stepId, text }] : on la lit telle quelle et on ne la modifie JAMAIS.
+  function narrationParEtape(doc) {
+    var par = {};
+    ((doc && doc.narration) || []).forEach(function (n) {
+      if (n && n.stepId && typeof n.text === 'string' && n.text.trim()) par[n.stepId] = n.text;
+    });
+    return par;
+  }
+
+  // Les mots d'un texte, comptés comme la bande rythmo les compte : des suites de caractères
+  // séparées par des blancs. La durée estimée en découle à la vitesse par défaut du CDC (R6).
+  var VITESSE_DEFAUT = 2.5;
+  // Les mots comptés SANS expression régulière : la forge interdit toute barre oblique inverse
+  // dans le script injecté, et un « s+ » avalé par le littéral de gabarit avait déjà produit une
+  // expression fausse au lot 2. Un blanc est tout caractère de code inférieur ou égal à 32.
+  function compterLesMots(texte) {
+    var t = String(texte || '');
+    var mots = 0, dedans = false;
+    for (var i = 0; i < t.length; i++) {
+      var blanc = t.charCodeAt(i) <= 32;
+      if (!blanc && !dedans) { mots++; dedans = true; }
+      else if (blanc) { dedans = false; }
+    }
+    return mots;
+  }
+
+  $('bc-zip').onclick = async function () {
+    if (!dernier) return;
+    var bouton = this;
+    bouton.disabled = true;
+    var res = dernier.res;
+    var doc = dernier.p && dernier.p.doc;
+    var type = (res.images[0] && res.images[0].blob && res.images[0].blob.type) || 'image/jpeg';
+    var debut = Date.now();
+    try {
+      if (!window.ZipStocke) throw new Error('le module zip-stocke.js n est pas chargé');
+      var narration = narrationParEtape(doc);
+      var avecNarration = Object.keys(narration).length > 0;
+
+      // ── LES ENTRÉES, DANS L'ORDRE DES ÉTAPES ───────────────────────────────────────────
+      var entrees = [];
+      var lignes = [];
+      var enTete = ['fichier', 'diapositive', 'etape', 'etapes_de_la_diapositive', 'largeur_px',
+                    'hauteur_px', 'octets', 'coupe_px', 'travelling'];
+      if (avecNarration) { enTete.push('mots'); enTete.push('duree_estimee_s'); }
+      lignes.push(enTete.join(';'));
+      var blocsNarration = [];
+      for (var i = 0; i < res.images.length; i++) {
+        var im = res.images[i];
+        if (!im.blob) {
+          throw new Error('l image de la diapositive ' + (im.cardIndex + 1) + ', étape '
+            + im.rang + ' est absente : rien n a été écrit.');
+        }
+        var nom = nomDeLImage(im, type);
+        entrees.push({ nom: RACINE_ZIP + '/' + nom, blob: im.blob });
+        var ligne = [nom, im.cardIndex + 1, im.rang, im.surRang, im.largeur, im.hauteur,
+                     im.blob.size, im.coupe_px,
+                     texteDuTravelling(im, res.sortie && res.sortie.hauteur)];
+        if (avecNarration) {
+          var texte = narration[im.stepId] || '';
+          var mots = compterLesMots(texte);
+          ligne.push(mots === 0 ? '' : mots);
+          ligne.push(mots === 0 ? '' : (mots / VITESSE_DEFAUT).toFixed(1));
+          if (texte) {
+            blocsNarration.push(nom.slice(0, nom.lastIndexOf('.')) + '\\n' + texte);
+          }
+        }
+        lignes.push(ligne.map(champCsv).join(';'));
+      }
+      entrees.push({ nom: RACINE_ZIP + '/index.csv',
+                     octets: new TextEncoder().encode(lignes.join('\\n') + '\\n') });
+      // JAMAIS UN FICHIER VIDE PRÉSENTÉ COMME COMPLET : sans narration chargée, narration.txt
+      // n est pas écrit du tout, et les deux colonnes du CSV restent vides.
+      if (blocsNarration.length) {
+        entrees.push({ nom: RACINE_ZIP + '/narration.txt',
+                       octets: new TextEncoder().encode(blocsNarration.join('\\n\\n') + '\\n') });
+      }
+
+      // ── L'ÉCRITURE, AVEC SON AVANCEMENT (X6) ───────────────────────────────────────────
+      var r = await window.ZipStocke.ecrire(entrees, {
+        surAvancement: function (faites, total) {
+          dire('zip : ' + faites + ' entrée(s) sur ' + total + ' écrite(s), '
+            + ((Date.now() - debut) / 1000).toFixed(1) + ' s');
+        },
+      });
+
+      // ── LE NOM DU FICHIER PORTE SA DATE, DONC DEUX EXPORTS NE S ÉCRASENT PAS (X5) ──────
+      var d = new Date();
+      var horodatage = d.getFullYear() + '-' + deuxChiffres(d.getMonth() + 1) + '-'
+        + deuxChiffres(d.getDate()) + '-' + deuxChiffres(d.getHours()) + deuxChiffres(d.getMinutes());
+      var nomZip = RACINE_ZIP + '-' + horodatage + '.zip';
+      // ── DEUX EXPORTS DE SUITE NE S ÉCRASENT JAMAIS ────────────────────────────────────
+      // Le nom demandé porte l heure à la MINUTE. Deux exports dans la même minute auraient donc
+      // le même nom : le navigateur ajouterait « (1) » de lui-même, mais le zip, lui, porterait
+      // deux fois le même nom et le second écraserait le premier si Christophe les déplace. On
+      // garde donc le format demandé et on numérote la répétition, qui est le seul cas où il ne
+      // suffit pas. Le compteur vit dans la page : deux exports de suite, c est la même session.
+      if (!window.__zipsEcrits) window.__zipsEcrits = {};
+      window.__zipsEcrits[nomZip] = (window.__zipsEcrits[nomZip] || 0) + 1;
+      if (window.__zipsEcrits[nomZip] > 1) {
+        nomZip = RACINE_ZIP + '-' + horodatage + '-' + window.__zipsEcrits[nomZip] + '.zip';
+      }
+      var url = URL.createObjectURL(r.blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = nomZip;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+      dire('zip écrit : ' + nomZip + ' — ' + r.entrees + ' entrées, '
+        + (r.octets / 1048576).toFixed(2) + ' Mo, '
+        + ((Date.now() - debut) / 1000).toFixed(1) + ' s'
+        + (avecNarration ? ' — narration incluse (' + blocsNarration.length + ' étapes)'
+                         : ' — aucune narration chargée, narration.txt non écrit'));
+    } catch (e) {
+      // X4 : RIEN N EST TÉLÉCHARGÉ. Un zip partiel serait crédible et faux.
+      dire('zip ABANDONNÉ, rien n a été téléchargé : ' + (e && e.message ? e.message : e));
+    } finally {
+      bouton.disabled = false;
+    }
+  };
+
   $('bc-planche').onclick = async function () {
     if (!dernier) return;
     this.disabled = true;
@@ -680,7 +864,24 @@ function forger() {
   let page = source
     .replace('<script src="studio-clinique-core.js"></script>', '<script src="../studio-clinique-core.js"></script>')
     .replace('<script src="atelier-images.js"></script>', '<script src="../atelier-images.js"></script>')
-    .replace('<script src="vendor/ajv2020.min.js"></script>', '<script src="../vendor/ajv2020.min.js"></script>');
+    .replace('<script src="vendor/ajv2020.min.js"></script>', '<script src="../vendor/ajv2020.min.js"></script>')
+    // (lot 2B) L'écrivain de zip, servi depuis le dossier parent comme les autres modules.
+    .replace('<script src="../atelier-images.js"></script>',
+             '<script src="../atelier-images.js"></script>\n<script src="../zip-stocke.js"></script>')
+    // (lot 2B) DÉFAUT CORRIGÉ EN PASSANT : la page copiée gardait « narration-ia.js » sans le
+    // « ../ », donc le banc demandait un fichier qui n'existe pas dans son dossier et recevait
+    // un 404 silencieux. `window.NarrationIA` n'a jamais été chargé dans le banc.
+    .replace('<script src="narration-ia.js"></script>', '<script src="../narration-ia.js"></script>')
+    // ── (lot 2B, X7) LES TROIS BIBLIOTHÈQUES DE CDN SONT RETIRÉES DU BANC ────────────────
+    // X7 exige un zip « écrit sans connexion ni appel au Worker », et un contrôle le mesure en
+    // refusant toute requête qui sort de 127.0.0.1. Ces trois balises venaient de
+    // l'application : mesuré dans la page forgée, AUCUNE n'y est employée — « JSZip » et
+    // « mammoth » n'apparaissent que dans leur propre balise, « pdfjsLib » nulle part. Elles
+    // restent dans l'application en ligne, qui s'en sert (l'export JPEG du Studio appelle
+    // JSZip) ; c'est la COPIE locale qui s'en passe. Le banc ne doit dépendre de rien qu'il ne
+    // serve lui-même.
+    .replace(/<script src="https:\/\/cdnjs\.cloudflare\.com\/[^"]*"><\/script>/g,
+             '<!-- (lot 2B) bibliothèque de CDN retirée du banc : aucun réseau (X7) -->');
   ['../studio-clinique-core.js', '../atelier-images.js', '../vendor/ajv2020.min.js'].forEach((r) => {
     if (page.indexOf('src="' + r + '"') === -1) throw new Error('référence non réécrite : ' + r);
   });
@@ -735,7 +936,7 @@ console.log('Pour l\'ouvrir — UNE seule commande, chemins absolus, aucun « cd
 console.log('Un module ES ne s\'importe pas depuis file:// : il FAUT un serveur, sans quoi SnapDOM');
 console.log('ne se charge pas et rien ne se capture.');
 console.log('');
-console.log('  python3 -m http.server 8765 --directory ' + JSON.stringify(RACINE)
-  + ' & sleep 1 && open "http://127.0.0.1:8765/banc-chutier/chutier.html"');
+console.log('  python3 -m http.server 8766 --directory ' + JSON.stringify(RACINE)
+  + ' & sleep 1 && open "http://127.0.0.1:8766/banc-chutier/chutier.html"');
 console.log('');
 console.log('Pour l\'arrêter ensuite :   kill %1');
