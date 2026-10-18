@@ -76,12 +76,26 @@ export async function verifier(secret: string, jeton: string, maintenant: number
     return { ouvert: false, raison: "Signature illisible" };
   }
 
-  const juste = await crypto.subtle.verify(
-    "HMAC",
-    await cleDeSignature(secret),
-    signature as unknown as ArrayBuffer,
-    encodeur.encode(charge),
-  );
+  // La vérification elle-même est sous garde, par symétrie avec `signature.ts` : une signature
+  // **refusée** et une vérification **impossible** ne sont pas la même chose, et aucune des deux
+  // ne doit sortir d'ici en exception.
+  //
+  // Mesuré, pour ne pas s'en remettre à une intuition : avec HMAC, `verify` ne lève jamais sur
+  // une signature de longueur absurde — il rend faux, de zéro à soixante-quatre octets. Ce qui
+  // lève, c'est **l'import de la clé** quand le secret est vide (« Zero-length key is not
+  // supported »). La route refuse déjà un secret vide avant d'arriver ici ; cette garde est donc
+  // une ceinture de plus, pour tout appelant qui n'aurait pas la même vigilance.
+  let juste: boolean;
+  try {
+    juste = await crypto.subtle.verify(
+      "HMAC",
+      await cleDeSignature(secret),
+      signature as unknown as ArrayBuffer,
+      encodeur.encode(charge),
+    );
+  } catch {
+    return { ouvert: false, raison: "Signature invérifiable" };
+  }
   if (!juste) return { ouvert: false, raison: "Signature refusée" };
 
   let lu: unknown;

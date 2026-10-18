@@ -65,4 +65,58 @@ describe("le laissez-passer qui ouvre un fichier (SEC-05)", () => {
   it("dure trois minutes par défaut : assez pour charger, trop peu pour partager", () => {
     expect(DUREE_PAR_DEFAUT).toBe(180);
   });
+
+  it("refuse au lieu de lever quand la clé de signature est inutilisable", async () => {
+    // Un secret vide fait lever l'import de la clé — mesuré : « Zero-length key is not
+    // supported ». Sans garde, une vérification rendrait une exception là où tout le reste du
+    // module rend un verdict, et la route répondrait 500 au lieu de refuser.
+    //
+    // La route refuse déjà un secret vide avant d'arriver là ; ce test tient la promesse du
+    // module lui-même — « jamais une exception » — pour tout appelant qui n'aurait pas la même
+    // vigilance.
+    const jeton = await signer(SECRET, laissez());
+
+    const verdict = await verifier("", jeton, MAINTENANT);
+    expect(verdict.ouvert).toBe(false);
+    if (!verdict.ouvert) expect(verdict.raison).toBe("Signature invérifiable");
+  });
+
+  it("ne confond pas une signature invérifiable avec une signature refusée", async () => {
+    // La distinction est la même que dans `signature.ts` : l'une est une tentative qui échoue,
+    // l'autre est un défaut. Les deux refusent, et elles ne se nomment pas pareil.
+    const jeton = await signer(SECRET, laissez());
+    const falsifie = `${jeton.slice(0, jeton.lastIndexOf("."))}.${"A".repeat(43)}`;
+
+    const refusee = await verifier(SECRET, falsifie, MAINTENANT);
+    expect(refusee.ouvert).toBe(false);
+    if (!refusee.ouvert) expect(refusee.raison).toBe("Signature refusée");
+
+    const inverifiable = await verifier("", jeton, MAINTENANT);
+    expect(inverifiable.ouvert).toBe(false);
+    if (!inverifiable.ouvert) expect(inverifiable.raison).not.toBe("Signature refusée");
+  });
+
+  it("rend faux plutôt que de lever sur une signature de longueur absurde", async () => {
+    // Mesuré sur HMAC : zéro, un, sept et soixante-quatre **octets** rendent tous faux, jamais
+    // une exception. C'est pourquoi la garde ajoutée ne couvre pas « verify » mais l'import de la
+    // clé — consigné ici pour qu'on n'aille pas chercher ailleurs plus tard.
+    const charge = (await signer(SECRET, laissez())).split(".")[0]!;
+    for (const octets of [0, 1, 7, 64]) {
+      // En base64url, et non en répétant un caractère : « A » tout seul ne se décode pas, et le
+      // refus serait alors « illisible » — ce qui est juste, mais ne mesure pas ce qu'on veut.
+      const signature = Buffer.from(new Uint8Array(octets)).toString("base64url");
+      const verdict = await verifier(SECRET, `${charge}.${signature}`, MAINTENANT);
+      expect(verdict.ouvert, `${octets} octets`).toBe(false);
+      if (!verdict.ouvert) expect(verdict.raison, `${octets} octets`).toBe("Signature refusée");
+    }
+  });
+
+  it("dit « illisible » quand la signature n'est même pas de la base64", async () => {
+    // Le cas que le test précédent a d'abord confondu avec le sien. Les deux refusent, et ils ne
+    // se nomment pas pareil — c'est exactement l'intérêt de la distinction.
+    const charge = (await signer(SECRET, laissez())).split(".")[0]!;
+    const verdict = await verifier(SECRET, `${charge}.A`, MAINTENANT);
+    expect(verdict.ouvert).toBe(false);
+    if (!verdict.ouvert) expect(verdict.raison).toBe("Signature illisible");
+  });
 });
