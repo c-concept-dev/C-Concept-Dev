@@ -1,0 +1,8 @@
+{
+  "_provenance": "Chromium 153.0.8010.12, authentificateur virtuel CTAP2, origine localhost",
+  "_rappel": "aucune clé privée ici : elle n'a jamais quitté l'authentificateur, qui n'existe plus",
+  "spki": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEsx0eZFLu1NJ8Fm0QdbYzZ2S+1kGarRn4K/PqBrkz6YwLMHW9Rnniv+UxNpPLwP/tkzxZiriWCWVIpVlnu73iOA==",
+  "donneesAuthentificateur": "SZYN5YgOjGh0NBcPZHZgW4/krrmihjLHmVzzuoMdl2MFAAAAAg==",
+  "donneesClient": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRa0pDUWtKQ1FrSkNRayIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6ODc4NyIsImNyb3NzT3JpZ2luIjpmYWxzZX0=",
+  "signature": "MEUCIDfNyobCDmfB/F/xLHhCMwtHYpYuSCXk0BmRb4J7DwUOAiEA7CF+i/7OapS8U1Ri3egYBVOPJCYN3ylRBegWfIWCIXU="
+}

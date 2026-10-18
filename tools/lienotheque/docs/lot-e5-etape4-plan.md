@@ -66,9 +66,13 @@ d'authentification est exactement là où une erreur ne se voit pas.
 ### Voie C — laisser le navigateur rendre la clé publique
 
 `AuthenticatorAttestationResponse.getPublicKey()` rend la clé publique **déjà en SPKI**, et
-`getPublicKeyAlgorithm()` son algorithme. Le serveur n'a alors plus rien à analyser : il importe
-la clé avec `crypto.subtle.importKey("spki", …)` et vérifie les signatures avec
+`getPublicKeyAlgorithm()` son algorithme. ~~Le serveur n'a alors plus rien à analyser~~ — il
+importe la clé avec `crypto.subtle.importKey("spki", …)` et vérifie les signatures avec
 `crypto.subtle.verify`. Les deux sont dans WebCrypto, présent nativement dans les Workers.
+
+**Correction après mesure (18 octobre) :** « plus rien à analyser » était faux d'une chose. La
+clé, oui. La **signature**, non : elle arrive en ASN.1 DER et `crypto.subtle.verify` veut r‖s
+brut. Il reste donc à lire deux entiers. Voir la section 9.
 
 **Zéro dépendance. Aucun CBOR, aucun COSE, aucune attestation.**
 
@@ -92,7 +96,7 @@ l'attestation, est **déjà le compromis d'E1**, assumé pour les mêmes utilisa
 
 | # | ce qui est fait | comment on sait que c'est fait |
 |---|---|---|
-| 4.1 | **Vérifier la voie C** : `getPublicKey()` rend bien une clé SPKI importable, sur les navigateurs employés | Une mesure, pas une supposition. Si elle échoue, le plan revient devant vous |
+| ~~4.1~~ **fait** | **Vérifier la voie C** : `getPublicKey()` rend bien une clé SPKI importable, sur les navigateurs employés | **Mesuré le 18 octobre** : cérémonie réelle sous Chromium, API présente sur le Safari livré, vérification faite dans workerd. Un écart trouvé : la signature demande un passage DER → brut. Section 9 |
 | 4.2 | Le registre sait écrire et lire une personne, une clé, une session | Tests sur les quatre tables, aujourd'hui vides de tout code |
 | 4.3 | L'enrôlement : défi, création, clé publique rangée | Une clé enrôlée se relit ; `getPublicKey()` nul **refuse** et le dit |
 | 4.4 | L'authentification : défi, signature, vérification, session ouverte | Une signature valide ouvre ; une signature rejouée est refusée (le compteur) |
@@ -117,3 +121,101 @@ lequel ouvre quoi — sans quoi on aura deux portes et une seule serrure vérifi
 
 **La révocation à distance** demande un écran pour la déclencher. Il n'existe pas, et il
 n'appartient pas à l'étape 4.
+
+---
+
+## 9. Ce que la mesure de 4.1 a dit (18 octobre 2026)
+
+Une cérémonie **réelle**, pas une simulation : un authentificateur virtuel du protocole CTAP2
+répond à `navigator.credentials.create()` puis à `.get()`, et les octets qu'il produit sont
+soumis tels quels au moteur du Worker.
+
+### La cérémonie, de bout en bout
+
+| ce qui est mesuré | résultat |
+|---|---|
+| `getPublicKey()` rend une clé | **oui**, 91 octets, non nulle |
+| en quel format | **SPKI** — l'en-tête `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE…` est celui d'une clé ECDSA P-256 |
+| `getPublicKeyAlgorithm()` | **−7** (ECDSA avec SHA-256), l'algorithme demandé |
+| `importKey("spki", …)` dans **workerd** | **réussi**, sans analyse d'aucune sorte |
+| une signature valide se vérifie | **oui** |
+| un message altéré est refusé | **oui** |
+| une signature tronquée est refusée | **oui**, sans faire tomber le code |
+| le défi revient tel qu'envoyé | **oui** |
+| l'origine annoncée par le navigateur | `http://localhost:8787`, celle de la page |
+| le drapeau « utilisateur vérifié » | **posé** (`00000101`) |
+| le compteur anti-rejeu | lu, à 2 après deux usages |
+| taille de l'objet d'attestation qu'on **n'analyse pas** | 194 octets de CBOR |
+
+Et la mesure a été faite **dans workerd**, pas seulement dans Node : les deux n'ont pas la même
+mise en œuvre de WebCrypto, et c'est workerd qui portera le code. `wrangler dev --local` sur un
+banc à part : aucun déploiement, aucun secret, la configuration figée intouchée.
+
+Les trois bancs vivent dans `apps/worker/bancs/`, hors de la vérification courante comme les
+autres bancs de mesure, et les octets mesurés y sont rangés — ils serviront de fixtures aux
+tests de l'étape 4.4. Aucun ne tourne sous le bac à sable : tout navigateur a besoin des
+services Mach que celui-ci refuse.
+
+### L'écart trouvé, et ce qu'il coûte
+
+**La signature de WebAuthn est en ASN.1 DER ; `crypto.subtle.verify` veut r‖s brut.** Mesuré
+dans les deux sens, et c'est net :
+
+| la signature est passée… | verdict |
+|---|---|
+| telle quelle, en DER | **refusée** — et silencieusement : `verify` rend `false`, il ne lève rien |
+| après passage DER → brut, 64 octets | **acceptée** |
+
+**La mesure a été relancée, et elle a appris une seconde chose.** La première cérémonie rendait
+une signature de **70** octets, la seconde de **71**. Ce n'est pas du bruit : la longueur d'un
+entier DER dépend de son premier bit, et un octet de bourre s'ajoute quand il est à un. Une
+signature DER d'ECDSA P-256 fait donc 70, 71 ou 72 octets selon les valeurs tirées.
+
+Conséquence, et c'est elle qui compte : **une découpe à offsets fixes marcherait une fois sur
+quatre environ, et se tairait le reste du temps.** Le passage doit lire les longueurs annoncées,
+ce que fait `derVersBrut`. Les deux relevés le confirment, sur deux longueurs différentes.
+
+C'est le piège exact dont la voie B devait nous préserver : une erreur binaire qui ne se voit
+pas, puisqu'une signature valide refusée ressemble à un mot de passe erroné.
+
+Le coût est néanmoins **sans commune mesure** avec l'analyse d'un objet d'attestation :
+
+- lire deux entiers d'une séquence ASN.1 **aux longueurs qu'elle annonce**, retirer l'octet de
+  bourre de signe, caler chacun sur trente-deux octets. Une vingtaine de lignes d'arithmétique,
+  à écrire une fois.
+- **toujours aucun CBOR, aucun COSE, aucune attestation, aucune dépendance.**
+
+Et surtout : c'est **testable complètement**, sur les octets réels mesurés ici. La voie B ne
+l'était pas — on n'avait aucune façon de prouver qu'un analyseur CBOR écrit à la main traite
+correctement ce qu'il ne verra qu'en production.
+
+**Conclusion : la voie C tient.** Le plan la gardait pour « rien à analyser » ; elle vaut en
+réalité pour « vingt lignes vérifiables au lieu de dix dépendances ». C'est toujours le bon
+choix, et la raison est maintenant exacte.
+
+### Les navigateurs, un par un
+
+| navigateur | `getPublicKey` | cérémonie |
+|---|---|---|
+| **Safari 26.3** (build 25D125, la plateforme de référence) | **présente**, avec `getPublicKeyAlgorithm` et `getAuthenticatorData` | non menée — voir ci-dessous |
+| WebKit de Playwright 26.6 | présente | impossible sans authentificateur |
+| Chromium 153 | présente | **menée de bout en bout** |
+| Firefox 155 | présente | impossible sans authentificateur |
+
+Le vrai Safari a été interrogé par `safaridriver`, et non par le WebKit de Playwright : ce
+dernier est en avance sur le Safari livré, et c'est le livré qui compte. Sur `localhost`, il se
+déclare en contexte sûr, expose les trois méthodes, dispose de la médiation conditionnelle, et
+`isUserVerifyingPlatformAuthenticatorAvailable()` rend **vrai** — Touch ID est là.
+
+### Ce que cette mesure ne dit pas, et qu'il ne faut pas lui faire dire
+
+**Sur Safari, la présence de `getPublicKey` n'est pas la preuve qu'elle rend une clé non nulle.**
+C'est précisément le risque que la section 4 nommait. Le vérifier demande une cérémonie réelle,
+donc la feuille de Touch ID, donc un doigt sur le capteur : cela ne peut pas être mesuré sans
+Christophe devant l'écran, et ce document ne le fera pas croire autrement.
+
+Le risque résiduel est faible — la méthode est spécifiée pour rendre `null` seulement si
+l'algorithme est inconnu du navigateur, et −7 est l'algorithme le plus répandu qui soit — mais
+il n'est pas nul, et il se lèvera en une minute le jour de l'enrôlement. **L'étape 4.3 prévoit
+déjà qu'une clé nulle fasse échouer l'enrôlement en le disant** : si Safari surprend, le refus
+sera explicite au lieu d'être silencieux.

@@ -9,6 +9,7 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
+| 2026-10-18 | **Voie C confirmée par la mesure** : la clé publique arrive en SPKI, zéro dépendance — mais la signature arrive en ASN.1 DER et demande vingt lignes de conversion | `docs/lot-e5-etape4-plan.md` §9 |
 | 2026-10-18 | **Trois portes, et aucune route n'en accepte deux** : session pour la façade, jeton de service pour la vision, laissez-passer signé pour les fichiers | Section ci-dessous |
 | 2026-10-18 | **La façade ne sert qu'une bibliothèque d'essai tant qu'aucune personne n'est identifiée.** Règle codée, non confiée à la vigilance | Section ci-dessous |
 | 2026-10-18 | **La version en ligne lit par la façade Worker sur D1**, et non par SQLite en WebAssembly. Remplace la décision du 3 octobre | Section ci-dessous |
