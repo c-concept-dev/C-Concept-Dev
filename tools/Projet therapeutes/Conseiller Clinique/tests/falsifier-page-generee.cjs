@@ -36,6 +36,14 @@ if (process.argv.includes('--reprendre')) {
 
 const MUTATIONS = [
   {
+    nom: 'le schéma de la page neuve n’est plus déclaré strict',
+    controle: 'verify-schema-nouvelle-page.cjs',
+    fichier: 'coeur',
+    de: "    strict: true,\n    input_schema: {\n      type: 'object',\n      additionalProperties: false,\n      required: ['title', 'blocks'],",
+    vers: "    input_schema: {\n      type: 'object',\n      additionalProperties: false,\n      required: ['title', 'blocks'],",
+    attendu: 'le « strict » demandé pour D2 disparaît sans que rien ne proteste',
+  },
+  {
     // Le septième schéma doit rester extractible par le test de fumée réel, qui ne connaît que
     // `const `. Si cette déclaration repasse à `var`, rien ne casse localement — sauf ceci.
     nom: 'le schéma de la page neuve redevient introuvable pour le test de fumée',

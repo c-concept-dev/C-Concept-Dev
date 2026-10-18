@@ -21028,16 +21028,25 @@ ${recent}`;
       + 'quelques blocs de contenu. N’ajoute AUCUNE référence bibliographique, aucun renvoi de '
       + 'citation, aucun nom d’auteur et aucune année : les citations de ce document sont gérées '
       + 'ailleurs et ne doivent pas être inventées ici. N’ajoute ni image ni vidéo.',
+    // `strict` : demandé pour D2, et c'est aussi ce que portent les six autres schémas. Il met ce
+    // schéma sur le chemin où l'API compile une GRAMMAIRE — celui de l'incident du 28/09/2026,
+    // « compiled grammar is too large ». D'où deux choix calqués sur le patron éprouvé en
+    // production plutôt que sur mon idée : `required` n'est PAS exhaustif (les champs d'un bloc
+    // dépendent de son type, et les six autres font déjà ainsi), et aucune borne de taille
+    // (minLength/maxLength/minItems/maxItems) n'est employée — aucun des six n'en emploie, et
+    // j'étais le seul à diverger. La borne haute du nombre de blocs tient donc à la description ;
+    // la seule garantie dure, « au moins un bloc », est vérifiée dans le code après l'appel.
+    strict: true,
     input_schema: {
       type: 'object',
       additionalProperties: false,
       required: ['title', 'blocks'],
       properties: {
-        title: { type: 'string', minLength: 1, maxLength: 120,
+        title: { type: 'string',
                  description: 'Titre court de la diapositive, sans numéro ni ponctuation finale.' },
         blocks: {
-          type: 'array', minItems: 1, maxItems: 6,
-          description: 'Les blocs de la diapositive, dans l’ordre de lecture.',
+          type: 'array',
+          description: 'Les blocs de la diapositive, dans l’ordre de lecture : un à six, pas plus.',
           items: {
             type: 'object', additionalProperties: false, required: ['type'],
             properties: {

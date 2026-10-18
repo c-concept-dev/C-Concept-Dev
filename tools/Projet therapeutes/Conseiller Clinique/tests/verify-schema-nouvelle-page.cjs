@@ -39,6 +39,18 @@ pass('l\'outil s\'appelle emit_new_slide, et c\'est un schéma à part entière.
 const bac = { window: {}, console: console };
 bac.globalThis = bac;
 vm.runInNewContext(fs.readFileSync(path.join(RACINE, 'vendor', 'ajv2020.min.js'), 'utf8'), bac);
+// `strict` était DEMANDÉ pour D2, et je l'avais oublié : les six autres schémas le portent, pas
+// le mien. Il est vérifié ici, et une mutation le fait tomber s'il repart.
+assert.equal(outil.strict, true, 'l\'outil doit être déclaré strict (D2) : ' + outil.strict);
+// Aucune borne de taille : aucun des six schémas de production n'en emploie, et un schéma strict
+// est compilé en grammaire par l'API — ce n'est pas l'endroit où diverger tout seul.
+const brut = JSON.stringify(outil.input_schema);
+for (const mot of ['minLength', 'maxLength', 'minItems', 'maxItems', 'pattern', 'format']) {
+  assert.ok(!brut.includes('"' + mot + '"'),
+    'aucune borne de taille dans un schéma strict ; trouvé : ' + mot);
+}
+pass('déclaré strict, et sans aucune borne de taille — comme les six schémas de production.');
+
 const Ajv2020 = bac.window.Ajv2020.default || bac.window.Ajv2020;
 const ajv = new Ajv2020({ strict: false });
 const valide = ajv.compile(outil.input_schema);
