@@ -30,31 +30,7 @@ import { Recherche } from "./pages/Recherche.js";
 import { ManiereDeLire, type Essai } from "./pages/ManiereDeLire.js";
 import { Prototype } from "./pages/Prototype.js";
 import { chargerModeles } from "./donnees/modeles.js";
-import {
-  bibliothequesRetenues,
-  choisirDossier,
-  creerBibliotheque,
-  ecrireBibliotheque,
-  estBureau,
-  lireBibliotheque,
-  retenirBibliotheque,
-  agirSurTravail,
-  apercuDePages,
-  enregistrerManiere,
-  essayerManiere,
-  lireManiere,
-  imageDePage,
-  versionActive,
-  apercuDeBibliotheque,
-  classementsDeBibliotheque,
-  classerDocument,
-  passagesDeDocument,
-  vueDeDocument,
-  choisirFichiers,
-  deposer as deposerChezLHote,
-  faireTourner,
-  travauxDe,
-} from "./pont/bureau.js";
+import { pontDAdministration, pontDeLecture } from "./pont/choix.js";
 import { useTheme } from "./theme/useTheme.js";
 
 /** Les écrans qui tiennent dans la fenêtre au lieu de la faire défiler (correction 3). */
@@ -67,6 +43,12 @@ const PLEINE_HAUTEUR: ReadonlySet<Route["ecran"]> = new Set(["lecteur"]);
  *  tenir — le Lecteur — le demande par `.ln-application--pleine` et fait défiler son contenu à
  *  l'intérieur (correction 3). */
 export function App(): JSX.Element {
+  // Qui répond, ici. Les écrans demandaient dix-sept fois « sommes-nous sur le bureau ? » —
+  // la mauvaise question : ce qui les intéresse est de savoir si la capacité qu'ils veulent
+  // est là. Une lecture n'a pas à être bloquée parce qu'une écriture est impossible.
+  const lecture = pontDeLecture();
+  const administration = pontDAdministration();
+
   const [theme, changerTheme] = useTheme();
   const [donnees, setDonnees] = useState<DonneesAccueil>(ACCUEIL_VIDE);
   /** Le document dont les écrans montrent la version active. Un seul à la fois aujourd'hui. */
@@ -142,8 +124,8 @@ export function App(): JSX.Element {
     });
     // Les bibliothèques que l'hôte a retenues : sans elles, il faudrait repointer l'application
     // vers son dossier à chaque lancement.
-    if (estBureau())
-      void bibliothequesRetenues().then((retenues) => {
+    if (administration !== undefined)
+      void administration.bibliothequesRetenues().then((retenues) => {
         if (vivant && retenues.length > 0) setCreees(retenues);
       });
     void chargerBibliothequeDemonstration(globalThis.location?.search ?? "").then((bibliotheque) => {
@@ -176,10 +158,10 @@ export function App(): JSX.Element {
   /** Créer une bibliothèque : l'hôte écrit, jamais la page. Sans hôte — sur le web — on le dit
    *  plutôt que de faire semblant d'avoir créé quelque chose. */
   const creer = async (description: DescriptionBibliotheque, dossier: string): Promise<void> => {
-    if (!estBureau())
+    if (administration === undefined)
       throw new Error("La création d’une bibliothèque demande l’application de bureau : elle seule écrit sur votre disque.");
-    await creerBibliotheque(dossier, description);
-    await retenirBibliotheque(dossier);
+    await administration.creerBibliotheque(dossier, description);
+    await administration.retenirBibliotheque(dossier);
     setCreees((anciennes) => [...anciennes, { racine: dossier, description }]);
     aller({ ecran: "organisation" });
   };
@@ -191,7 +173,8 @@ export function App(): JSX.Element {
   // pages pèse des centaines de mégaoctets, et le Lecteur n'en montre qu'une. Elle remplace
   // l'adresse que la vue porte, qui ne désigne rien sur le bureau.
   useEffect(() => {
-    if (courante === undefined || !estBureau() || route.ecran !== "lecteur" || vue === undefined) return undefined;
+    if (courante === undefined || lecture === undefined || route.ecran !== "lecteur" || vue === undefined)
+      return undefined;
     // Par le **rang** : c'est lui que les écrans passent, et le numéro imprimé manque sur
     // tout ouvrage qui ne numérote rien.
     const page = vue.pages.find((candidate) => candidate.index === route.page);
@@ -201,8 +184,8 @@ export function App(): JSX.Element {
 
     let vivant = true;
     if (regarde === undefined) return undefined;
-    void versionActive(courante.racine, regarde)
-      .then(async (version) => (version === undefined ? undefined : imageDePage(courante.racine, version, fichier)))
+    void lecture.versionActive(courante.racine, regarde)
+      .then(async (version) => (version === undefined ? undefined : lecture.imageDePage(courante.racine, version, fichier)))
       .then((image) => {
         if (!vivant || image === undefined) return;
         setVue((avant) =>
@@ -229,9 +212,9 @@ export function App(): JSX.Element {
   // développement : sur le bureau, c'est le dépôt qui fait foi. On la relit après chaque
   // traitement, puisque c'est lui qui pose une nouvelle version active (JOB-06).
   useEffect(() => {
-    if (courante === undefined || !estBureau()) return undefined;
+    if (courante === undefined || lecture === undefined) return undefined;
     let vivant = true;
-    void Promise.all([apercuDeBibliotheque(courante.racine), classementsDeBibliotheque(courante.racine)])
+    void Promise.all([lecture.apercuDeBibliotheque(courante.racine), lecture.classementsDeBibliotheque(courante.racine)])
       .then(([apercus, ranges]) => {
         if (!vivant) return;
         setDocuments(apercus);
@@ -262,11 +245,11 @@ export function App(): JSX.Element {
   // Le document regardé : sa vue et son texte. À part de la bibliothèque, parce qu'ils changent
   // pour une autre raison — on change de document sans que la bibliothèque bouge.
   useEffect(() => {
-    if (courante === undefined || regarde === undefined || !estBureau()) return undefined;
+    if (courante === undefined || regarde === undefined || lecture === undefined) return undefined;
     let vivant = true;
     // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent le
     // texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
-    void Promise.all([vueDeDocument(courante.racine, regarde), passagesDeDocument(courante.racine, regarde)])
+    void Promise.all([lecture.vueDeDocument(courante.racine, regarde), lecture.passagesDeDocument(courante.racine, regarde)])
       .then(([lue, lus]) => {
         if (!vivant) return;
         setPassages(lus);
@@ -283,13 +266,13 @@ export function App(): JSX.Element {
   // La file est à l'hôte : on la relit, on ne la devine pas. Toutes les deux secondes suffisent —
   // un traitement se compte en minutes, et un écran qui se redessine sans cesse fatigue.
   useEffect(() => {
-    if (courante === undefined || !estBureau()) return undefined;
+    if (courante === undefined || administration === undefined) return undefined;
     let vivant = true;
-    void faireTourner(courante.racine).catch((erreur: unknown) => {
+    void administration.faireTourner(courante.racine).catch((erreur: unknown) => {
       setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur));
     });
     const relire = (): void => {
-      void travauxDe(courante.racine).then((travaux) => {
+      void administration.travauxDe(courante.racine).then((travaux) => {
         if (vivant) setFile(travaux);
       });
     };
@@ -304,16 +287,17 @@ export function App(): JSX.Element {
   /** Ouvre une bibliothèque qui existe déjà. L'hôte la retient, pour la retrouver au prochain
    *  lancement ; un dossier qui n'en porte pas le dit, au lieu d'ouvrir un écran vide. */
   const ouvrir = async (): Promise<void> => {
+    if (administration === undefined) return;
     setEchecOuverture(undefined);
-    const racine = await choisirDossier("Quelle bibliothèque ouvrir ?");
+    const racine = await administration.choisirDossier("Quelle bibliothèque ouvrir ?");
     if (racine === undefined) return;
     try {
-      const description = await lireBibliotheque(racine);
+      const description = await administration.lireBibliotheque(racine);
       if (description === undefined) {
         setEchecOuverture("Ce dossier ne porte pas de bibliothèque. Choisissez celui que Liénothèque a créé.");
         return;
       }
-      await retenirBibliotheque(racine);
+      await administration.retenirBibliotheque(racine);
       setCreees((anciennes) => [{ racine, description }, ...anciennes.filter((autre) => autre.racine !== racine)]);
       aller({ ecran: "organisation" });
     } catch (erreur) {
@@ -326,9 +310,10 @@ export function App(): JSX.Element {
 
   /** Dépose des fichiers : l'hôte copie les originaux et met la file à jour. */
   const deposerDesFichiers = async (racine: string): Promise<void> => {
-    const chemins = await choisirFichiers("Quels fichiers ajouter ?");
+    if (administration === undefined) return;
+    const chemins = await administration.choisirFichiers("Quels fichiers ajouter ?");
     if (chemins.length === 0) return;
-    const arrivee = await deposerChezLHote(racine, chemins);
+    const arrivee = await administration.deposer(racine, chemins);
     setFile(arrivee.travaux);
     setAccompagnements((anciens) => [...anciens, ...arrivee.accompagnements]);
     setRefuses(arrivee.refuses);
@@ -336,16 +321,18 @@ export function App(): JSX.Element {
 
   /** Met un travail en pause, le reprend, ou l'annule. L'hôte décide, l'écran demande. */
   const agir = async (racine: string, id: string, action: ActionTravail): Promise<void> => {
-    const apres = await agirSurTravail(racine, id, action);
+    if (administration === undefined) return;
+    const apres = await administration.agirSurTravail(racine, id, action);
     setFile((anciens) => anciens.map((travail) => (travail.id === apres.id ? apres : travail)));
   };
 
   /** Montre quelques pages d'un document : c'est la première chose dont l'éditeur a besoin. */
   const montrerLesPages = async (racine: string, nom: string, depuis: number): Promise<void> => {
+    if (administration === undefined) return;
     setManiere((avant) => ({ ...avant, document: nom, occupe: true, echec: undefined }));
     try {
-      const pages = await apercuDePages(racine, nom, depuis, 8);
-      const connue = await lireManiere(racine);
+      const pages = await administration.apercuDePages(racine, nom, depuis, 8);
+      const connue = await administration.lireManiere(racine);
       setManiere((avant) => ({
         ...avant,
         document: nom,
@@ -362,11 +349,12 @@ export function App(): JSX.Element {
 
   /** Essaie la manière de lire sur dix pages, sans rien enregistrer (REC-07). */
   const essayer = async (racine: string): Promise<void> => {
+    if (administration === undefined) return;
     setManiere((avant) => ({ ...avant, occupe: true, echec: undefined }));
     try {
       // On essaie là où l'on regarde : les dix premières pages d'un document n'ont souvent rien
       // à lire, et un essai qui ne lit rien ne dit rien.
-      const vue = await essayerManiere(
+      const vue = await administration.essayerManiere(
         racine,
         maniere.document,
         enRecette(maniere.brouillon),
@@ -386,9 +374,10 @@ export function App(): JSX.Element {
 
   /** Enregistre la manière de lire. C'est elle que les traitements emploieront ensuite. */
   const enregistrer = async (racine: string, brouillon: Brouillon): Promise<void> => {
+    if (administration === undefined) return;
     setManiere((avant) => ({ ...avant, occupe: true, echec: undefined }));
     try {
-      await enregistrerManiere(racine, enRecette(brouillon));
+      await administration.enregistrerManiere(racine, enRecette(brouillon));
       setManiere((avant) => ({ ...avant, brouillon, occupe: false }));
       // On revient au traitement : c'est de là qu'on venait, et c'est là qu'on reprend les
       // travaux que l'absence de manière de lire avait arrêtés.
@@ -406,9 +395,9 @@ export function App(): JSX.Element {
   const classer = (classement: ClassementLocal): void => {
     if (courante === undefined) return;
     setClassements((avant) => new Map(avant).set(classement.empreinte, classement));
-    if (!estBureau()) return;
-    void classerDocument(courante.racine, classement).catch(() => {
-      void classementsDeBibliotheque(courante.racine)
+    if (lecture === undefined) return;
+    void lecture.classerDocument(courante.racine, classement).catch(() => {
+      void lecture.classementsDeBibliotheque(courante.racine)
         .then(setClassements)
         .catch(() => undefined);
     });
@@ -418,7 +407,7 @@ export function App(): JSX.Element {
   const organiser = async (schema: SchemaBibliotheque): Promise<void> => {
     if (derniere === undefined) return;
     const description = { ...derniere.description, schema };
-    if (estBureau()) await ecrireBibliotheque(derniere.racine, description);
+    if (administration !== undefined) await administration.ecrireBibliotheque(derniere.racine, description);
     setCreees((anciennes) => anciennes.map((creee) => (creee === derniere ? { ...creee, description } : creee)));
   };
 
@@ -442,7 +431,7 @@ export function App(): JSX.Element {
           theme={theme}
           onCreer={() => aller({ ecran: "creer" })}
           onFichiers={deposer}
-          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
           echec={echecOuverture}
         />
       ) : (
@@ -466,7 +455,7 @@ export function App(): JSX.Element {
           theme={theme}
           onCreer={() => aller({ ecran: "creer" })}
           onFichiers={deposer}
-          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
           echec={echecOuverture}
         />
       ) : (
@@ -475,12 +464,12 @@ export function App(): JSX.Element {
           travaux={file}
           accompagnements={accompagnements}
           refuses={refuses}
-          onParcourir={estBureau() ? () => void deposerDesFichiers(derniere.racine) : undefined}
+          onParcourir={administration !== undefined ? () => void deposerDesFichiers(derniere.racine) : undefined}
           onFichiers={deposer}
           onAction={(id, action) => void agir(derniere.racine, id, action)}
           onVerifier={() => aller({ ecran: "verifier" })}
           onManiere={
-            estBureau()
+            administration !== undefined
               ? (nom) => {
                   aller({ ecran: "maniere" });
                   void montrerLesPages(derniere.racine, nom, 0);
@@ -495,7 +484,7 @@ export function App(): JSX.Element {
           theme={theme}
           onCreer={() => aller({ ecran: "creer" })}
           onFichiers={deposer}
-          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
           echec={echecOuverture}
         />
       ) : (
@@ -513,7 +502,9 @@ export function App(): JSX.Element {
           prises={creees.map((creee) => creee.description.id)}
           onCreer={creer}
           onAnnuler={() => aller(ACCUEIL)}
-          onChoisirDossier={estBureau() ? () => choisirDossier("Où vivra cette bibliothèque ?") : undefined}
+          onChoisirDossier={
+            administration !== undefined ? () => administration.choisirDossier("Où vivra cette bibliothèque ?") : undefined
+          }
         />
       );
     if (vue === undefined || restants === undefined) {
@@ -522,7 +513,7 @@ export function App(): JSX.Element {
           theme={theme}
           onCreer={() => aller({ ecran: "creer" })}
           onFichiers={deposer}
-          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
           echec={echecOuverture}
         />
       ) : (
@@ -572,7 +563,7 @@ export function App(): JSX.Element {
           theme={theme}
           onCreer={() => aller({ ecran: "creer" })}
           onFichiers={deposer}
-          onOuvrir={estBureau() ? () => void ouvrir() : undefined}
+          onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
           echec={echecOuverture}
         />
     ) : (
@@ -632,7 +623,7 @@ export function App(): JSX.Element {
           }}
         />
       ) : null}
-      {estBureau() ? (
+      {administration !== undefined ? (
         <div className="ln-layout">
           <Prototype />
         </div>
