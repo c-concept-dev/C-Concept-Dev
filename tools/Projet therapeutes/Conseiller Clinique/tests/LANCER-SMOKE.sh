@@ -1,5 +1,5 @@
 #!/bin/sh
-# Test de fumée des schémas d'outil — six VRAIS appels à max_tokens:1, quelques centimes.
+# Test de fumée des schémas d'outil — sept VRAIS appels à max_tokens:1, quelques centimes.
 # La clé est demandée ici, sans écho : elle ne passe ni par la ligne de commande, ni par
 # l'historique du shell, ni par un fichier du dépôt.
 #

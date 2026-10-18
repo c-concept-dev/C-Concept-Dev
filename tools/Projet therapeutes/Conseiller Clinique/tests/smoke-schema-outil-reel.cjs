@@ -91,7 +91,10 @@ function extraire(nom) {
 
 const OUTILS = ['ADOC_STRUCTURED_FICHE_TOOL', 'ADOC_STRUCTURED_CARROUSEL_TOOL',
   'ADOC_STRUCTURED_PRESENTATION_TOOL', 'ADOC_STRUCTURED_SCRIPT_TOOL',
-  'ADOC_STRUCTURED_TABLEAU_TOOL', 'ADOC_STRUCTURED_LIENS_TOOL'];
+  'ADOC_STRUCTURED_TABLEAU_TOOL', 'ADOC_STRUCTURED_LIENS_TOOL',
+  // Lot 2C (D2) — schéma NOUVEAU et SÉPARÉ de la page créée par le Studio. Aucun contrôle local
+  // ne dit si Anthropic l'accepte : seul cet appel réel le dit, et il demande la clé.
+  'ADOC_NEW_SLIDE_TOOL'];
 
 (async function () {
   let refuses = 0, indetermines = 0;

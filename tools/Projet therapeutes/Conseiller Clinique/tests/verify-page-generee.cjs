@@ -33,6 +33,13 @@ function servir(etat) {
         let corps = '';
         q.on('data', (c) => { corps += c; });
         q.on('end', () => {
+          // L'APPLICATION POSTE AUSSI, pour elle-même (bibliothèque, facettes), vers la même
+          // adresse détournée. Seuls les POST vers la RACINE sont des appels au modèle : tout
+          // compter faisait croire à deux appels là où il n'y en avait qu'un, et aurait masqué
+          // un vrai double appel.
+          if (q.url !== '/') { etat.autresPosts = (etat.autresPosts || 0) + 1;
+                               r.writeHead(200, { 'content-type': 'application/json' });
+                               return r.end('{}'); }
           etat.appels.push({ corps: corps, quand: Date.now() });
           if (etat.refuser) { r.writeHead(500, { 'content-type': 'application/json' });
                               return r.end(JSON.stringify({ error: 'simulé' })); }
@@ -75,8 +82,18 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       if (u.startsWith('http://127.0.0.1:' + port + '/') || u.startsWith('data:') || u.startsWith('blob:')) {
         return route.continue();
       }
-      dehors.push(u);
+      dehors.push(1);
       return route.abort();
+    });
+    // Une requête TENTÉE puis coupée n'est pas une fuite ; une RÉPONSE venue du dehors en serait
+    // une. L'application appelle ses propres points d'entrée au démarrage : on les compte, et on
+    // vérifie que rien ne lui est jamais revenu de l'extérieur. On n'imprime aucune adresse.
+    const reponsesDehors = [];
+    page.on('response', (r) => {
+      const u = r.url();
+      if (!(u.startsWith('http://127.0.0.1:' + port + '/') || u.startsWith('data:') || u.startsWith('blob:'))) {
+        reponsesDehors.push(r.status());
+      }
     });
     // L'ADRESSE DU WORKER EST DÉTOURNÉE AVANT TOUT CHARGEMENT : le vrai Worker ne doit pas même
     // être joignable depuis ce contrôle.
@@ -152,8 +169,44 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
 
     // ── L'INSERTION, AVEC L'APERÇU PUIS « INSÉRER » ───────────────────────────────────────
     await page.getByRole('button', { name: /Insérer une page après/i }).click();
-    await page.waitForFunction(() => document.querySelector('[data-page-apercu]'), { timeout: 30000 });
-    await page.getByRole('button', { name: /^Insérer$/i }).click();
+    // Le champ d'instruction : une phrase suffit (D2). On l'exerce ici ; la branche « champ
+    // vide, le Studio propose » est exercée plus bas.
+    await page.locator('[data-page-instruction]').fill('Parler du troisieme temps, celui du retour au calme.');
+    // DOUBLE CLIC sur « Créer la page » : un seul appel doit partir.
+    // Les deux clics sont portés coup sur coup SUR LE BOUTON VIVANT, dans le même tour de
+    // boucle : c'est ce que fait une main qui clique deux fois, et c'est le seul moment où la
+    // garde est réellement mise à l'épreuve. Passer par deux clics successifs de l'automate ne
+    // mesurait rien : le bouton a déjà disparu quand le second part.
+    const deuxClics = (libelle) => page.evaluate((t) => {
+      const b = [...document.querySelectorAll('button')].find((x) => (x.textContent || '').trim() === t);
+      if (!b) throw new Error('bouton introuvable : ' + t);
+      b.click(); b.click();
+    }, libelle);
+    await deuxClics('Créer la page');
+    await page.waitForFunction(() => document.querySelector('[data-page-apercu]'), { timeout: 12000 })
+      .catch(async () => { console.log('>>> panneau : '
+        + await page.evaluate(() => { const r = document.querySelector('.cc-block-edit-result');
+            return r ? r.textContent.slice(0, 220) : '(disparu)'; })
+        + '\n>>> état : ' + await page.evaluate(() => JSON.stringify(window._adocPageInsertState
+            ? { enCours: window._adocPageInsertState.enCours, page: !!window._adocPageInsertState.page } : null))
+        + '\n>>> appels modèle : ' + etat.appels.length + ' · autres POST : ' + (etat.autresPosts || 0)
+        + '\n>>> erreurs : ' + JSON.stringify(erreurs.slice(0, 3))); throw new Error('pas d_apercu'); });
+    assert.equal(etat.appels.length, 1,
+      'un double clic sur « Créer la page » ne doit partir qu\'une fois : ' + etat.appels.length);
+    // L'OUTIL APPELÉ EST LE NOUVEAU, ET JAMAIS LE SCHÉMA GELÉ.
+    const envoye = JSON.parse(etat.appels[0].corps).payload;
+    assert.equal(envoye.tool_choice && envoye.tool_choice.name, 'emit_new_slide',
+      'l\'outil forcé doit être emit_new_slide : ' + JSON.stringify(envoye.tool_choice));
+    assert.deepEqual((envoye.tools || []).map((t) => t.name), ['emit_new_slide'],
+      'un seul outil est envoyé, et c\'est le nouveau');
+    assert.ok(!/emit_presentation_document/.test(etat.appels[0].corps),
+      'le schéma gelé ne doit jamais partir dans cet appel');
+    assert.ok(/instruction de l|troisieme temps/i.test(JSON.stringify(envoye.system) + JSON.stringify(envoye.messages)),
+      'la phrase de l\'utilisatrice doit être transmise');
+    assert.ok(/aucune référence bibliographique|AUCUNE référence/i.test(envoye.system || ''),
+      'la consigne « aucune référence bibliographique » doit être dans le prompt système');
+    // DOUBLE CLIC sur « Insérer » : une seule page doit entrer.
+    await deuxClics('Insérer');
     await page.waitForFunction(() => {
       const d = window._adocArtifacts['lot2c-essai']._adocStructuredDoc;
       return d.blocks.length === 6;
@@ -173,6 +226,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         narration: (d.narration || []).map((x) => x.stepId + ' :: ' + x.text),
         images: res.images.map((im) => im.stepId + ' :: ' + im.signature),
         validations: d.blocks[2].content.blocks.map((b) => JSON.stringify(b.validation || {})),
+        relectureDocument: (d.validation || {}).humanClinicalReview,
       };
     });
 
@@ -201,12 +255,25 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.deepEqual(imagesAutres, avant.images,
       'aucune image des autres étapes ne devient périmée (D3)');
     // LES BLOCS DE LA PAGE NEUVE SONT NON VALIDÉS (D2).
-    assert.ok(apres.validations.length > 0 && apres.validations.every((v) => v === '{}' || /pending|false/.test(v)),
+    // « Non validé » se mesure à deux endroits, parce que le schéma des blocs n'admet aucun
+    // marqueur de relecture (seulement citationLinks, additionalProperties: false) : la
+    // validation de chaque bloc neuf est VIDE — rien n'y est attesté — et c'est le DOCUMENT
+    // qui porte « relecture humaine requise », là où l'application la pose elle-même.
+    assert.equal(apres.relectureDocument, 'required',
+      'le document doit redemander une relecture humaine : ' + apres.relectureDocument);
+    assert.ok(apres.validations.length > 0
+      && apres.validations.every((v) => v === '{}'),
       'chaque bloc inséré reste non validé (D2) : ' + JSON.stringify(apres.validations));
     // UN SEUL APPEL AU MODÈLE SIMULÉ, et le vrai Worker n'a jamais été joint.
     assert.equal(etat.appels.length, 1, 'un seul appel au modèle : ' + etat.appels.length);
+    assert.equal(apres.cartes.length, new Set(apres.cartes).size, 'aucun identifiant de carte en double');
+    const tousBlocs = apres.blocs.flat();
+    assert.equal(tousBlocs.length, new Set(tousBlocs).size, 'aucun identifiant de bloc en double');
+    assert.deepEqual(tousBlocs.filter((id) => avant.blocs.flat().includes(id)).sort(),
+      avant.blocs.flat().sort(), 'aucun identifiant existant n\'a été réutilisé pour la page neuve');
     // On ne recrache jamais ces adresses (celle du Worker en fait partie) : un nombre suffit.
-    assert.equal(dehors.length, 0, 'aucune requête hors 127.0.0.1 : ' + dehors.length + ' vue(s)');
+    assert.equal(reponsesDehors.length, 0,
+      'aucune réponse ne doit venir de l\'extérieur ; ' + reponsesDehors.length + ' reçue(s) pour ' + dehors.length + ' tentative(s) coupée(s)');
     assert.deepEqual(erreurs, [], 'aucune erreur de page : ' + JSON.stringify(erreurs.slice(0, 3)));
 
     console.log('      cartes après : ' + apres.cartes.join(', '));

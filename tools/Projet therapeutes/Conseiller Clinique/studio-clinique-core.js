@@ -21014,8 +21014,122 @@ ${recent}`;
   }
   function adocPageGesturesAllowed(storeKey) { return adocPageGesturesRefusal(storeKey) === null; }
 
-  // Le chemin que prend réellement un clic sur « Insérer une page … ». Pour D1 il établit la
-  // cible et refuse en clair ; c'est D2 qui y branchera la page créée par le Studio.
+  // ── D2 — LE SCHÉMA D'OUTIL DE LA PAGE NEUVE ─────────────────────────────────────────────
+  // SCHÉMA NOUVEAU ET SÉPARÉ, comme demandé : il ne touche pas, ne dérive pas et ne réutilise
+  // pas emit_presentation_document (b1b0155cb8eba26c), qui reste gelé octet pour octet.
+  //
+  // Il n'autorise QUE les types de blocs qui existent déjà et que l'éditeur sait corriger :
+  // ni image ni vidéo (une page neuve n'invente pas d'illustration), et aucun champ libre —
+  // `additionalProperties: false` partout, pour qu'un champ inventé par le modèle soit un
+  // refus franc plutôt qu'une donnée silencieusement gardée.
+  var ADOC_NEW_SLIDE_TOOL = {
+    name: 'emit_new_slide',
+    description: 'Rend UNE diapositive neuve pour une présentation existante : un titre court et '
+      + 'quelques blocs de contenu. N’ajoute AUCUNE référence bibliographique, aucun renvoi de '
+      + 'citation, aucun nom d’auteur et aucune année : les citations de ce document sont gérées '
+      + 'ailleurs et ne doivent pas être inventées ici. N’ajoute ni image ni vidéo.',
+    input_schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['title', 'blocks'],
+      properties: {
+        title: { type: 'string', minLength: 1, maxLength: 120,
+                 description: 'Titre court de la diapositive, sans numéro ni ponctuation finale.' },
+        blocks: {
+          type: 'array', minItems: 1, maxItems: 6,
+          description: 'Les blocs de la diapositive, dans l’ordre de lecture.',
+          items: {
+            type: 'object', additionalProperties: false, required: ['type'],
+            properties: {
+              type: { type: 'string', enum: ['heading', 'paragraph', 'list', 'callout', 'quote', 'table'] },
+              text: { type: 'string', description: 'Pour heading, paragraph, callout et quote.' },
+              level: { type: 'integer', enum: [2, 3], description: 'Pour heading seulement.' },
+              items: { type: 'array', items: { type: 'string' }, description: 'Pour list seulement.' },
+              ordered: { type: 'boolean', description: 'Pour list seulement.' },
+              visualRole: { type: 'string', enum: ['info', 'warning', 'success'], description: 'Pour callout seulement.' },
+              headers: { type: 'array', items: { type: 'string' }, description: 'Pour table seulement.' },
+              rows: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'Pour table seulement.' },
+            },
+          },
+        },
+      },
+    },
+  };
+  window.ADOC_NEW_SLIDE_TOOL = ADOC_NEW_SLIDE_TOOL;
+
+  function adocBuildNewSlideSystemPrompt(doc, voisines, instruction) {
+    const lignes = [
+      'Tu écris UNE diapositive neuve pour une présentation qui existe déjà.',
+      'Titre de la présentation : ' + (doc.title || '(sans titre)') + '.',
+      'Visée : ' + (doc.purpose || '(non précisée)') + '.',
+      'Public visé : ' + (doc.audience || '(non précisé)') + '.',
+      'Écris pour CE public, dans la même langue et le même registre que les diapositives voisines.',
+      '',
+      'Diapositives voisines, pour le ton et l’enchaînement :',
+    ];
+    voisines.forEach(function (v) { lignes.push('  — ' + v); });
+    lignes.push('');
+    lignes.push(instruction
+      ? 'Ce que cette page doit dire, demandé par l’utilisatrice : ' + instruction
+      : 'L’utilisatrice n’a rien précisé : propose toi-même le sujet qui manque entre ces '
+        + 'diapositives voisines, sans répéter ce qu’elles disent déjà.');
+    lignes.push('');
+    lignes.push('N’ajoute AUCUNE référence bibliographique, aucun renvoi de citation, aucun nom '
+      + 'd’auteur, aucune année, aucun « (voir … ) » : les citations sont gérées ailleurs dans ce '
+      + 'document, et une référence inventée ici serait fausse.');
+    lignes.push('N’ajoute ni image ni vidéo.');
+    return lignes.join('\n');
+  }
+
+  async function adocCallNewSlideModel(systemPrompt, userContent) {
+    const workerUrl = adocGetWorkerUrl();
+    const resp = await fetch(workerUrl.replace(/\/+$/, ''), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+      body: JSON.stringify({ payload: {
+        provider: 'anthropic', model: 'claude-sonnet-4-6', max_tokens: 1500, stream: false,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userContent }],
+        tools: [ADOC_NEW_SLIDE_TOOL],
+        tool_choice: { type: 'tool', name: 'emit_new_slide' },
+      }}),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    const toolUse = (data.content || []).filter(function (c) { return c.type === 'tool_use' && c.name === 'emit_new_slide'; })[0];
+    if (!toolUse) throw new Error('Réponse sans bloc tool_use (emit_new_slide).');
+    return toolUse.input;
+  }
+
+  // Le contenu rendu par le modèle est RECONSTRUIT champ par champ, jamais recopié tel quel :
+  // un champ inventé n'entre pas dans le document, même si le modèle insiste.
+  function adocNewSlideBlockContent(brut) {
+    switch (brut && brut.type) {
+      case 'heading': return { text: adocStripEmoji(brut.text || ''), level: (brut.level === 3 ? 3 : 2) };
+      case 'paragraph': return { text: adocStripEmoji(brut.text || '') };
+      case 'quote': return { text: adocStripEmoji(brut.text || '') };
+      case 'callout': return { text: adocStripEmoji(brut.text || ''),
+                               visualRole: ['info', 'warning', 'success'].indexOf(brut.visualRole) >= 0 ? brut.visualRole : 'info' };
+      case 'list': return { items: (brut.items || []).filter(Boolean).map(adocStripEmoji), ordered: !!brut.ordered };
+      case 'table': return { headers: (brut.headers || []).map(adocStripEmoji),
+                             rows: (brut.rows || []).map(function (r) { return (r || []).map(adocStripEmoji); }) };
+      default: throw new Error('Type de bloc refusé pour une page neuve : ' + (brut && brut.type));
+    }
+  }
+
+  function adocNewSlideVoisines(doc, index) {
+    const out = [];
+    for (let i = Math.max(0, index - 1); i < Math.min((doc.blocks || []).length, index + 1); i++) {
+      const c = doc.blocks[i];
+      if (!c) continue;
+      const textes = (c.content.blocks || []).map(function (b) {
+        return adocBlockContentText(b.type, b.content); }).filter(Boolean);
+      out.push((c.content.title || '(sans titre)') + ' : ' + textes.join(' ').slice(0, 300));
+    }
+    return out;
+  }
+
+  // Le chemin que prend réellement un clic sur « Insérer une page … ».
   window.adocRequestPageInsert = function (direction) {
     const st = window._adocBlockEditState || {};
     const refus = adocPageGesturesRefusal(st.storeKey);
@@ -21025,8 +21139,141 @@ ${recent}`;
     try { cible = adocResolvePageInsertion(doc, st.blockId, st.zone, direction); }
     catch (e) { alert('Ajout impossible : ' + (e && e.message || 'erreur inconnue')); return null; }
     window._adocPageInsertState = { storeKey: st.storeKey, direction: direction,
-                                    cardId: cible.cardId, index: cible.index };
+                                    cardId: cible.cardId, index: cible.index,
+                                    panelEl: st.panelEl, page: null, enCours: false, posee: false };
+    const resultEl = st.panelEl && st.panelEl.querySelector('.cc-block-edit-result');
+    const controlsEl = st.panelEl && st.panelEl.querySelector('.cc-block-edit-controls');
+    if (!resultEl) return window._adocPageInsertState;   // appelée hors panneau (contrôles) : la cible suffit
+    if (controlsEl) controlsEl.hidden = true;
+    resultEl.hidden = false;
+    resultEl.innerHTML = adocBuildNewSlideFormHTML(direction);
+    const champ = resultEl.querySelector('[data-page-instruction]');
+    if (champ) champ.focus();
     return window._adocPageInsertState;
+  };
+
+  function adocBuildNewSlideFormHTML(direction) {
+    const ou = direction === 'before' ? 'avant cette diapositive'
+             : direction === 'after' ? 'après cette diapositive' : 'à la fin de la présentation';
+    return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify')
+        + '<span>Nouvelle page, ' + ou + '</span></div>'
+      + '<div style="display:flex;gap:8px;align-items:flex-start;margin-top:8px;">'
+      +   '<textarea class="adoc-textarea" data-page-instruction rows="1" '
+      +     'style="flex:1;min-height:34px;max-height:120px;" '
+      +     'placeholder="En une phrase, de quoi cette page doit parler — ou laissez vide, le Studio proposera" '
+      +     'onclick="event.stopPropagation();" '
+      +     'onkeydown="event.stopPropagation();if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();window.adocRunNewSlide();}"></textarea>'
+      +   '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRunNewSlide()">Créer la page</button>'
+      +   '<button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelNewSlide()">Annuler</button>'
+      + '</div>';
+  }
+
+  // RIEN n'entre dans le document tant que « Insérer » n'a pas été cliqué, quelle que soit
+  // l'issue de cet appel — même promesse que la correction d'un passage.
+  window.adocRunNewSlide = async function () {
+    const ps = window._adocPageInsertState;
+    if (!ps || ps.enCours) return;              // double clic : le second ne fait rien
+    const art = window._adocArtifacts && window._adocArtifacts[ps.storeKey];
+    if (!art || !art._adocStructuredDoc) return;
+    const doc = art._adocStructuredDoc;
+    const resultEl = ps.panelEl && ps.panelEl.querySelector('.cc-block-edit-result');
+    if (!resultEl) return;
+    const champ = resultEl.querySelector('[data-page-instruction]');
+    const instruction = champ ? String(champ.value || '').trim().slice(0, 500) : (ps.instruction || '');
+    ps.instruction = instruction;
+    ps.enCours = true;
+    resultEl.innerHTML = adocIconSvg('icon-progress') + ' Page en cours de création…';
+    try {
+      const voisines = adocNewSlideVoisines(doc, ps.index);
+      const page = await adocCallNewSlideModel(
+        adocBuildNewSlideSystemPrompt(doc, voisines, instruction),
+        instruction || 'Propose la page qui manque ici.');
+      const titre = adocStripEmoji(String(page && page.title || '')).trim();
+      if (!titre) throw new Error('Page sans titre.');
+      const blocs = (page && page.blocks || []).map(function (b) {
+        return { type: b.type, content: adocNewSlideBlockContent(b) }; });
+      if (!blocs.length) throw new Error('Page sans contenu.');
+      ps.page = { title: titre, blocks: blocs };
+      ps.enCours = false;
+      resultEl.innerHTML = adocBuildNewSlidePreviewHTML(ps.page);
+    } catch (e) {
+      // Échec : RIEN n'est inséré, et le message le dit.
+      ps.page = null;
+      ps.enCours = false;
+      resultEl.innerHTML = adocIconSvg('icon-error') + ' Page impossible à créer : '
+        + adocEsc(e && e.message || 'erreur inconnue') + '. Rien n’a été inséré.'
+        + '<div style="margin-top:8px;display:flex;gap:8px;">'
+        +   '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRunNewSlide()">Réessayer</button>'
+        +   '<button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelNewSlide()">Fermer</button>'
+        + '</div>';
+    }
+  };
+
+  function adocBuildNewSlidePreviewHTML(page) {
+    const corps = page.blocks.map(function (b) {
+      return '<div class="cc-block-edit-text">' + adocEsc(adocBlockContentText(b.type, b.content)) + '</div>';
+    }).join('');
+    return '<div class="cc-block-edit-diff" data-page-apercu>'
+      +   '<div class="cc-block-edit-after">'
+      +     '<div class="cc-block-edit-label">Aperçu de la page</div>'
+      +     '<div class="cc-block-edit-text"><strong>' + adocEsc(page.title) + '</strong></div>'
+      +     corps
+      +   '</div>'
+      +   '<div class="cc-block-edit-flag">' + adocIconSvg('icon-warning')
+      +     ' Chaque bloc de cette page reste à relire et à valider.</div>'
+      + '</div>'
+      + '<div class="cc-block-edit-actions" style="display:flex;gap:8px;margin-top:10px;">'
+      +   '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocConfirmNewSlide()">Insérer</button>'
+      +   '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRunNewSlide()">Refaire</button>'
+      +   '<button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelNewSlide()">Abandonner</button>'
+      + '</div>';
+  }
+
+  window.adocCancelNewSlide = function () {
+    window._adocPageInsertState = null;
+    adocWsClearBlockSelection();
+  };
+
+  window.adocConfirmNewSlide = async function () {
+    const ps = window._adocPageInsertState;
+    if (!ps || !ps.page || ps.enCours || ps.posee) return;   // double clic : jamais deux pages
+    ps.enCours = true;
+    const art = window._adocArtifacts && window._adocArtifacts[ps.storeKey];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc) { ps.enCours = false; return; }
+    // Identifiants UNIQUES, jamais réutilisés : adocNextBlockId lit le document entier, y compris
+    // les blocs qu'on vient d'ajouter — d'où l'insertion de la carte AVANT de créer ses blocs.
+    const carte = { id: adocNextBlockId(doc, 'card'), type: 'card',
+                    content: { title: ps.page.title, imageRef: null, imageAlt: null, blocks: [] },
+                    citationIds: [], validation: {} };
+    const etapesAvant = adocPresentStepList(doc);
+    doc.blocks.splice(ps.index, 0, carte);
+    // Une page écrite par le modèle remet la relecture humaine à faire, au même endroit et avec
+    // la même valeur que l'application pose elle-même sur un document qu'elle vient de produire.
+    doc.validation = Object.assign({}, doc.validation || {}, { humanClinicalReview: 'required' });
+    ps.page.blocks.forEach(function (b) {
+      // NON VALIDÉ, « comme pour les autres contenus produits » : la validation d'un bloc est
+      // vide, exactement comme celle d'un bloc inséré à la main (adocInsertStructuredBlock).
+      // Le schéma des blocs n'admet QUE `citationLinks` et refuse tout le reste : y poser un
+      // marqueur de relecture aurait été un champ inventé — le rendu l'a refusé, et c'est ainsi
+      // que ce défaut a été trouvé. La relecture humaine se marque sur le DOCUMENT, là où
+      // l'application elle-même la marque.
+      carte.content.blocks.push({ id: adocNextBlockId(doc, b.type), type: b.type, content: b.content,
+                                  citationIds: [], validation: {} });
+    });
+    try {
+      adocNarrationSuivreChangementEtapes(doc, etapesAvant);
+      adocWsClearBlockSelection();
+      if (!await window.adocOpenWorkspace(ps.storeKey)) throw new Error('Le rendu a refusé cette page ; l’insertion a été annulée.');
+      adocEditorMarkDirty();
+      ps.posee = true;
+      window._adocPageInsertState = null;
+    } catch (e) {
+      const i = doc.blocks.indexOf(carte);
+      if (i >= 0) doc.blocks.splice(i, 1);
+      ps.enCours = false;
+      alert('Insertion impossible : ' + (e && e.message || 'erreur inconnue'));
+    }
   };
 
   function adocResolveBlockInsertion(doc, blockId, direction) {
