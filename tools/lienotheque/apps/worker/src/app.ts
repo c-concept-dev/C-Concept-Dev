@@ -1,5 +1,13 @@
 import { DemandeVision, EstimationVision, EtatService, ReponseVision, reponseRepondA, type Capacite } from "@lienotheque/contrats";
-import { entetRetrait, entetTemoin, verifier, DUREE_SESSION } from "@lienotheque/noyau";
+import {
+  DUREE_PAR_DEFAUT,
+  DUREE_SESSION,
+  cleDerive,
+  entetRetrait,
+  entetTemoin,
+  signer,
+  verifier,
+} from "@lienotheque/noyau";
 import { Correspondance, chercher, compter } from "./facade.js";
 import { baseDeLaPlace } from "./reserve.js";
 import { laBibliotheque, type BaseSql } from "./registre.js";
@@ -204,7 +212,10 @@ export function creerApp({
     if (secret === undefined || secret.length === 0 || compartiment === undefined)
       return contexte.json({ erreur: "Le service de fichiers n'est pas configuré" }, 503);
 
-    const verdict = await verifier(secret, contexte.req.param("laissez"), Math.floor(Date.now() / 1000));
+    // L'horloge injectée, et non `Date.now()`. L'application en a une pour que ses routes
+    // s'éprouvent à un instant choisi ; cette route-ci l'ignorait, et c'est le seul endroit qui
+    // le faisait. En production la valeur est la même — l'horloge par défaut est l'horloge.
+    const verdict = await verifier(secret, contexte.req.param("laissez"), Math.floor(maintenant().getTime() / 1000));
     if (!verdict.ouvert) return contexte.json({ erreur: verdict.raison }, 403);
 
     const objet = await compartiment.get(verdict.laissez.cle);
@@ -228,6 +239,51 @@ export function creerApp({
    *
    *  La bibliothèque servie vient de la configuration, jamais de la requête — demander laquelle
    *  servir reviendrait à laisser choisir celui qui appelle. */
+  /** La porte des routes de lecture : **une porte ou l'autre, jamais les deux.**
+   *
+   *  Tant que les sessions ne sont pas exigées, le jeton de service ouvre — c'est l'état
+   *  d'aujourd'hui. Le jour où elles le sont, il cesse d'ouvrir ces routes, et seule la session
+   *  compte. Deux serrures dont une seule est vérifiée seraient pires qu'une : le jour où l'une
+   *  cède, rien ne dirait laquelle a servi.
+   *
+   *  L'ordre est celui de la règle du 10 octobre : on identifie **avant** de lire le moindre
+   *  réglage, de sorte qu'un appelant anonyme n'apprenne pas si la façade est configurée.
+   *
+   *  Rend `undefined` quand la porte s'ouvre — un refus est une réponse, et il n'y a rien à
+   *  rendre quand il n'y a pas de refus. */
+  const porteParBascule = async (
+    contexte: { env: Liaisons; req: { raw: Request } },
+    action: string,
+  ): Promise<Response | undefined> => {
+    if (!sessionsExigees) {
+      const attendu = contexte.env.JETON_ACCES;
+      if (attendu === undefined || attendu.length === 0)
+        return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+      const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
+      if (donne === undefined || !memeJeton(donne, attendu))
+        return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+      return undefined;
+    }
+
+    const registre = contexte.env.REGISTRE;
+    if (registre === undefined) return Response.json({ erreur: "Accès refusé." }, { status: 401 });
+
+    // Premier temps : aucun réglage n'est lu, donc rien n'est appris.
+    const qui = await identifierParSession(registre, contexte.req.raw.headers, maintenant().toISOString());
+    if (!qui.ouverte) return Response.json({ erreur: qui.mot }, { status: qui.statut });
+
+    const cle = contexte.env.BIBLIOTHEQUE_FACADE;
+    if (cle === undefined || cle.length === 0)
+      return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
+
+    // Second temps : le droit, maintenant qu'on sait sur quoi.
+    const droit = await autoriser(registre, qui.personneId, cle, action);
+    if (!droit.ouverte) return Response.json({ erreur: droit.mot }, { status: droit.statut });
+
+    await repousserSiBesoin(registre, qui.session, maintenant().toISOString());
+    return undefined;
+  };
+
   const ouvrirFacade = async (contexte: {
     env: Liaisons;
     req: { raw: Request };
@@ -239,36 +295,10 @@ export function creerApp({
     // les refus indiscernables des droits : qui n'a pas le jeton n'apprend rien, pas même
     // l'état du service. Le défaut s'est vu en éprouvant les routes par-dessus le réseau, pas
     // dans les tests — ils passaient tous, chacun regardant une question à la fois.
-    //
-    // **Une porte ou l'autre, jamais les deux.** Tant que les sessions ne sont pas exigées, le
-    // jeton de service ouvre — c'est l'état d'aujourd'hui. Le jour où elles le sont, il cesse
-    // d'ouvrir ces routes, et seule la session compte. Deux serrures dont une seule est vérifiée
-    // seraient pires qu'une : le jour où l'une cède, rien ne dirait laquelle a servi.
+    const refus = await porteParBascule(contexte, "chercher");
+    if (refus !== undefined) return refus;
+
     const registre = contexte.env.REGISTRE;
-
-    if (sessionsExigees) {
-      // Premier temps de la porte : il ne demande aucune configuration, donc rien n'est appris
-      // par un appelant anonyme.
-      if (registre === undefined) return Response.json({ erreur: "Accès refusé." }, { status: 401 });
-      const qui = await identifierParSession(registre, contexte.req.raw.headers, maintenant().toISOString());
-      if (!qui.ouverte) return Response.json({ erreur: qui.mot }, { status: qui.statut });
-
-      const cleDeLaFacade = contexte.env.BIBLIOTHEQUE_FACADE;
-      if (cleDeLaFacade === undefined || cleDeLaFacade.length === 0)
-        return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
-
-      // Second temps : le droit, maintenant qu'on sait sur quoi.
-      const droit = await autoriser(registre, qui.personneId, cleDeLaFacade, "chercher");
-      if (!droit.ouverte) return Response.json({ erreur: droit.mot }, { status: droit.statut });
-      await repousserSiBesoin(registre, qui.session, maintenant().toISOString());
-    } else {
-      const attendu = contexte.env.JETON_ACCES;
-      if (attendu === undefined || attendu.length === 0)
-        return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
-      const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
-      if (donne === undefined || !memeJeton(donne, attendu)) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
-    }
-
     const cle = contexte.env.BIBLIOTHEQUE_FACADE;
     if (cle === undefined || cle.length === 0 || registre === undefined)
       return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
@@ -334,6 +364,53 @@ export function creerApp({
       .filter(([, source]) => source !== null && "axe" in source)
       .map(([champ]) => champ);
     return contexte.json({ facets: await compter(ouverte.base, ouverte.correspondance, champs, { query: corps["query"] }) });
+  });
+
+  /** Un nom de dérivé, tel qu'une version en produit : des minuscules, des chiffres, des
+   *  points, des tirets, et des barres obliques pour les paliers.
+   *
+   *  Volontairement étroit, et vérifié **avant** toute composition de clé. R2 ne résout pas les
+   *  chemins — « .. » y serait un segment comme un autre, pas une remontée — mais une clé qui
+   *  ressemble à une remontée finit par être lue par quelque chose qui, lui, la résout : un
+   *  cache, un miroir, un outil d'inspection. Mieux vaut qu'elle n'existe jamais.
+   *
+   *  Ni majuscule ni espace : les noms sont composés par nous, et un nom qui s'en écarte est le
+   *  signe que quelqu'un d'autre l'a composé. */
+  const NOM_DE_DERIVE = /^[a-z0-9][a-z0-9.\-]*(\/[a-z0-9][a-z0-9.\-]*)*$/;
+  const IDENTIFIANT_DE_VERSION = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+  /** Signe un laissez-passer pour une image de page (SEC-05).
+   *
+   *  **La clé de l'objet est composée ici**, à partir de la clé de la bibliothèque, et jamais
+   *  reçue : c'est la règle d'`objets.ts`, et c'est elle qui tient l'isolation des fichiers,
+   *  puisqu'un seul compartiment les porte toutes. L'appelant donne une version et un nom ; il ne
+   *  désigne pas un chemin.
+   *
+   *  La porte est celle de la bascule — la même que la façade, et pas une seconde inventée pour
+   *  l'occasion. Elle est franchie **avant** qu'on regarde le corps : un corps absurde présenté
+   *  sans porte doit rendre un refus de porte, sans quoi un inconnu apprendrait ce que la route
+   *  attend. */
+  app.post("/laissez", async (contexte) => {
+    const refus = await porteParBascule(contexte, "ouvrir_fichier");
+    if (refus !== undefined) return refus;
+
+    const secret = contexte.env.SECRET_LAISSEZ;
+    const cle = contexte.env.BIBLIOTHEQUE_FACADE;
+    if (secret === undefined || secret.length === 0 || cle === undefined || cle.length === 0)
+      return contexte.json({ erreur: "Le service de fichiers n'est pas configuré" }, 503);
+
+    const corps = await corpsObjet(contexte);
+    const version = corps["version"];
+    const fichier = corps["fichier"];
+    if (typeof version !== "string" || !IDENTIFIANT_DE_VERSION.test(version))
+      return contexte.json({ erreur: "Demande refusée" }, 400);
+    if (typeof fichier !== "string" || fichier.length > 200 || !NOM_DE_DERIVE.test(fichier))
+      return contexte.json({ erreur: "Demande refusée" }, 400);
+
+    const jusqua = Math.floor(maintenant().getTime() / 1000) + DUREE_PAR_DEFAUT;
+    const laissez = await signer(secret, { bibliotheque: cle, cle: cleDerive(cle, version, fichier), jusqua });
+    // Le laissez-passer porte la clé signée ; on ne la répète pas en clair à côté.
+    return contexte.json({ laissez, secondes: DUREE_PAR_DEFAUT });
   });
 
   // ══════════════════════════════════════════════════════════════════════════
