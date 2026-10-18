@@ -285,6 +285,18 @@
 
   async function chargerSnapdom() {
     if (_snapdom) return _snapdom;
+    // ── (lot 2C) UN SNAPDOM DÉJÀ PRÉSENT EST PRÉFÉRÉ À UN SNAPDOM À ALLER CHERCHER ────────
+    // POURQUOI CETTE LIGNE EXISTE. Dans une page servie, `import()` va chercher le module à côté
+    // du script, et c'est très bien. Dans un fichier UNIQUE ouvert par double-clic, c'est
+    // impossible : mesuré le 18 octobre, un navigateur refuse d'importer un module depuis
+    // `file://` — « Cross origin requests are only supported for protocol schemes: chrome,
+    // data, http, https » — et refuse même de le LIRE pour le contourner. Le convertisseur
+    // autonome embarque donc le module en ligne et l'expose sur `window` ; cette ligne est tout
+    // ce qu'il fallait pour que le moteur s'en serve, sans rien dupliquer de la capture.
+    if (typeof window !== 'undefined' && typeof window.snapdom === 'function') {
+      _snapdom = window.snapdom;
+      return _snapdom;
+    }
     var mod = await import(_cheminSnapdom);
     if (!mod || typeof mod.snapdom !== 'function') {
       throw new Error('SnapDOM introuvable à ' + _cheminSnapdom + ' — le moteur ne capture rien sans lui.');
