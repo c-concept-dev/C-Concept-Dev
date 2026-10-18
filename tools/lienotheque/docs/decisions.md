@@ -9,6 +9,8 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
+| 2026-10-18 | **Trois portes, et aucune route n'en accepte deux** : session pour la façade, jeton de service pour la vision, laissez-passer signé pour les fichiers | Section ci-dessous |
+| 2026-10-18 | **La façade ne sert qu'une bibliothèque d'essai tant qu'aucune personne n'est identifiée.** Règle codée, non confiée à la vigilance | Section ci-dessous |
 | 2026-10-18 | **La version en ligne lit par la façade Worker sur D1**, et non par SQLite en WebAssembly. Remplace la décision du 3 octobre | Section ci-dessous |
 | 2026-10-18 | **« Lot E2 » cesse de désigner le travail de capacité.** BAS-02 reste réservé au réimport réel, toujours différé | Section ci-dessous |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
@@ -2697,3 +2699,54 @@ Les documents `lot-e2-texte-plan.md` et `lot-e2-classement-plan.md` gardent leur
 fichiers : les renommer casserait les liens qui les citent, pour un gain nul. Ce sont des plans
 de capacité, et cette ligne-ci le dit. **Aucun nouveau document n'emploiera « lot E2 »** pour
 autre chose que BAS-02.
+
+## Trois portes, et aucune route n'en accepte deux (18 octobre 2026)
+
+| route | porte |
+|---|---|
+| les quatre de la façade — `/search-library`, `/rag-search`, `/d1-query`, `/library-facets` | **session personnelle** |
+| `/vision`, `/vision/jetons` | **jeton de service** — appels de machine à machine vers un modèle payant |
+| `/fichier/:laissez` | **laissez-passer signé** (SEC-05) |
+| `/sante` | aucune : elle ne dit que le nom et la version du service |
+
+Deux portes pour deux usages est légitime. **Une route qui accepterait l'une ou l'autre ne
+l'est pas** : on aurait deux serrures et une seule vérifiée, et le jour où l'une cède, rien ne
+dirait laquelle a servi.
+
+Cette doctrine est écrite dans `apps/worker/src/portes.ts`, au contact du code qui l'applique.
+
+### Ce qui est vrai aujourd'hui, et qu'il ne faut pas se raconter autrement
+
+**Le Worker n'a aucune personne.** Vérifié le 18 octobre 2026 :
+
+| pièce | état |
+|---|---|
+| tables `utilisateur`, `cle_acces`, `session`, `droit` | créées par la migration 2 du registre, **lues et écrites par rien** |
+| logique des droits (`packages/noyau/src/droits.ts`) | écrite, testée, **appelée nulle part dans le Worker** |
+| porte effective de la façade | **un jeton de service unique**, pour tout le monde |
+
+La note d'E1 écrit que l'exigence dure de SEC-02 — session de quatre-vingt-dix jours sans
+ressaisie, révocable à distance — « est tenue ». Elle décrit la **conception** : la session est
+spécifiée, elle n'est pas vivante. Les tables portent la forme ; aucun code ne la remplit.
+
+Ce n'est pas un manquement d'E1, dont la note dit clairement « les tables l'attendent ». Mais la
+phrase laisse croire qu'une session existe, et il faut la lire autrement.
+
+### La garde qui tient l'intervalle
+
+Entre aujourd'hui et la cérémonie, il existe une fenêtre où la façade est ouverte par un jeton
+partagé. Tant qu'elle ne sert que `lienotheque-essai` — dont le contenu est un document
+intitulé « Document d'essai » — cela ne garde rien de sensible.
+
+Le danger naîtrait le jour où un réglage ferait pointer la façade sur une vraie bibliothèque.
+**La règle vit donc dans le code et non dans la vigilance** : `laFacadePeutServir` refuse toute
+bibliothèque dont la clé n'est pas `essai` ou ne finit pas par `-essai`, tant que
+`SESSIONS_EXIGEES` est faux.
+
+C'est le motif que `preparer-essai.ts` emploie déjà, et pour la même raison : une règle qu'on
+doit se rappeler finit par être oubliée le jour où elle compte.
+
+Le refus rend le même mot que toute autre indisponibilité — « Bibliothèque indisponible », 503 —
+et vient **après** la vérification du jeton. Un appelant anonyme n'apprend ni qu'une
+bibliothèque existe, ni pourquoi elle lui est refusée. C'est le défaut d'ordre qu'E1 avait
+corrigé le 10 octobre, et qu'aucun test ne voyait alors ; celui-ci le vérifie.

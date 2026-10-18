@@ -4,6 +4,7 @@ import { Correspondance, chercher, compter } from "./facade.js";
 import { baseDeLaPlace } from "./reserve.js";
 import { laBibliotheque, type BaseSql } from "./registre.js";
 import { Hono } from "hono";
+import { laFacadePeutServir } from "./portes.js";
 import {
   compterParModele,
   jetonPorte,
@@ -202,6 +203,12 @@ export function creerApp({ maintenant = () => new Date(), lecteur = lireParModel
     const registre = contexte.env.REGISTRE;
     if (cle === undefined || cle.length === 0 || registre === undefined)
       return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
+
+    // Tant que personne n'est identifié, la façade ne sert qu'une bibliothèque d'essai.
+    //
+    // Le même mot de refus que pour toute autre indisponibilité, et **après** le jeton : un
+    // appelant n'apprend ni qu'une bibliothèque existe, ni pourquoi elle lui est refusée.
+    if (!laFacadePeutServir(cle)) return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
 
     const inscrite = await laBibliotheque(registre, cle);
     if (inscrite === undefined || inscrite.liaison === undefined)
