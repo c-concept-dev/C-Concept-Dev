@@ -1,0 +1,175 @@
+{
+ "schemaVersion": 1,
+ "documentId": "lot2c-essai",
+ "versionId": "lot2c-essai-v1",
+ "previousVersionId": null,
+ "requestId": "lot2c-essai-r",
+ "sourceSnapshotId": "lot2c-essai-s",
+ "createdAt": "2026-10-18T09:00:00Z",
+ "language": "fr",
+ "status": "draft",
+ "title": "Cinq pages pour un essai",
+ "purpose": "Essai du lot 2C",
+ "audience": "clinicien",
+ "documentKind": "presentation",
+ "renderManifestId": "manifest-default-001",
+ "derivedFrom": null,
+ "blocks": [
+  {
+   "id": "card-01",
+   "type": "card",
+   "content": {
+    "title": "Premiere page",
+    "imageRef": null,
+    "imageAlt": null,
+    "blocks": [
+     {
+      "id": "heading-01",
+      "type": "heading",
+      "content": {
+       "text": "Trois temps",
+       "level": 2
+      },
+      "citationIds": [],
+      "validation": {}
+     },
+     {
+      "id": "paragraph-01",
+      "type": "paragraph",
+      "content": {
+       "text": "Le premier temps consiste a nommer ce qui se passe."
+      },
+      "citationIds": [],
+      "validation": {}
+     },
+     {
+      "id": "paragraph-02",
+      "type": "paragraph",
+      "content": {
+       "text": "Le second temps consiste a laisser le corps revenir."
+      },
+      "citationIds": [],
+      "validation": {}
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "card-02",
+   "type": "card",
+   "content": {
+    "title": "Deuxieme page",
+    "imageRef": null,
+    "imageAlt": null,
+    "blocks": [
+     {
+      "id": "paragraph-03",
+      "type": "paragraph",
+      "content": {
+       "text": "Une seule idee par page, et elle tient en deux phrases."
+      },
+      "citationIds": [],
+      "validation": {}
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "card-03",
+   "type": "card",
+   "content": {
+    "title": "Troisieme page",
+    "imageRef": null,
+    "imageAlt": null,
+    "blocks": [
+     {
+      "id": "paragraph-04",
+      "type": "paragraph",
+      "content": {
+       "text": "Ce que l evitement promet, il le tient a court terme."
+      },
+      "citationIds": [],
+      "validation": {}
+     },
+     {
+      "id": "paragraph-05",
+      "type": "paragraph",
+      "content": {
+       "text": "C est pour cela qu il s installe si solidement."
+      },
+      "citationIds": [],
+      "validation": {}
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "card-04",
+   "type": "card",
+   "content": {
+    "title": "Quatrieme page",
+    "imageRef": null,
+    "imageAlt": null,
+    "blocks": [
+     {
+      "id": "paragraph-06",
+      "type": "paragraph",
+      "content": {
+       "text": "Douze semaines suffisent souvent pour desserrer le cercle."
+      },
+      "citationIds": [],
+      "validation": {}
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  },
+  {
+   "id": "card-05",
+   "type": "card",
+   "content": {
+    "title": "Cinquieme page",
+    "imageRef": null,
+    "imageAlt": null,
+    "blocks": [
+     {
+      "id": "paragraph-07",
+      "type": "paragraph",
+      "content": {
+       "text": "Ce qu il reste a faire tient en une phrase."
+      },
+      "citationIds": [],
+      "validation": {}
+     }
+    ]
+   },
+   "citationIds": [],
+   "validation": {}
+  }
+ ],
+ "citations": [],
+ "validation": {
+  "sourceIntegrity": "pending",
+  "contentCompleteness": "pending",
+  "layout": "pending",
+  "accessibility": "pending",
+  "humanClinicalReview": "required"
+ },
+ "narration": [
+  {
+   "stepId": "paragraph-02",
+   "text": "Commentaire de la deuxieme etape de la premiere page."
+  },
+  {
+   "stepId": "paragraph-04",
+   "text": "Commentaire de la premiere etape de la troisieme page."
+  }
+ ]
+}
