@@ -19,6 +19,9 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
                 '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
                 '.css': 'text/css; charset=utf-8' };
 const LARGEURS = [1024, 1272, 1440];
+// Les deux états de la barre. L'état ENREGISTRÉ est le plus chargé : il ajoute « Supprimer »
+// et allonge « Enregistrer » en « Nouvelle version ». C'est lui qui décide de la hauteur.
+const ETATS = [{ nom: 'non enregistré', enregistre: false }, { nom: 'enregistré', enregistre: true }];
 
 function servir() {
   return new Promise((ok) => {
@@ -55,6 +58,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       const doc = JSON.parse(JSON.stringify(PRESENTATION));
       doc.documentKind = kind;
       for (const largeur of LARGEURS) {
+       for (const etat of ETATS) {
         const ctx = await nav.newContext({ viewport: { width: largeur, height: 900 } });
         const page = await ctx.newPage();
         await page.route('**/*', (route) => {
@@ -64,22 +68,40 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         });
         await page.goto('http://127.0.0.1:' + port + '/studio-clinique.html?atelier-local=1');
         await page.waitForFunction(() => typeof window.adocOpenWorkspace === 'function', { timeout: 30000 });
-        const ouvert = await page.evaluate(async (d) => {
+        const ouvert = await page.evaluate(async (a) => {
           const cle = 'barre-essai';
           window._adocArtifacts = window._adocArtifacts || {};
-          window._adocArtifacts[cle] = { name: d.title, _adocGenerationEngine: 'structured',
-            _adocStructuredDoc: JSON.parse(JSON.stringify(d)), _adocStructuredSnapshot: null,
+          const art = { name: a.d.title, _adocGenerationEngine: 'structured',
+            _adocStructuredDoc: JSON.parse(JSON.stringify(a.d)), _adocStructuredSnapshot: null,
             _adocCapabilities: { workspace: true, persist: true, fineCitations: true,
               blockEditing: true, transform: true, export: true, qualityControlledExport: true } };
+          // ── L'ÉTAT ENREGISTRÉ S'OBTIENT PAR L'ÉTAT, PAS PAR LE LIBELLÉ ────────────────
+          // Ce contrôle a d'abord « simulé » l'état enregistré en réécrivant le texte du
+          // bouton. C'était un trompe-l'œil : le libellé changeait, mais l'application, elle,
+          // restait dans l'état NON enregistré — et le bouton « Supprimer », qui n'apparaît
+          // que lorsqu'un document a été enregistré, restait caché. La barre la plus chargée
+          // n'a donc jamais été mesurée. On marque maintenant l'artefact comme l'application
+          // le marque (`_adocClinicalDocumentId`) et c'est elle qui en déduit le libellé long
+          // ET le bouton supplémentaire.
+          if (a.enregistre) { art._adocClinicalDocumentId = 'document-synthetique-0001'; art._ccEditorDirty = false; }
+          window._adocArtifacts[cle] = art;
           return !!(await window.adocOpenWorkspace(cle));
-        }, doc);
-        assert.ok(ouvert, kind + ' à ' + largeur + ' px : le document doit s\'ouvrir');
-        // On force l'état « enregistré », qui est celui où le libellé long apparaissait.
-        await page.evaluate(() => {
-          const l = document.querySelector('#cc-ws-save-btn span');
-          if (l) l.textContent = 'Nouvelle version';
-        });
+        }, { d: doc, enregistre: etat.enregistre });
+        assert.ok(ouvert, kind + ' ' + etat.nom + ' à ' + largeur + ' px : le document doit s\'ouvrir');
         await page.waitForTimeout(250);
+        // Le libellé long et le bouton « Supprimer » doivent venir de l'application elle-même :
+        // si cette précondition tombe, l'état mesuré n'est pas celui qu'on croit.
+        if (etat.enregistre) {
+          const reel = await page.evaluate(() => ({
+            libelle: (document.querySelector('#cc-ws-save-btn span') || {}).textContent || '',
+            supprimerVisible: (() => { const b = document.getElementById('cc-ws-delete-btn');
+              if (!b) return false; const r = b.getBoundingClientRect();
+              return r.width > 0 && r.height > 0 && getComputedStyle(b).display !== 'none'; })() }));
+          assert.strictEqual(reel.libelle, 'Nouvelle version',
+            kind + ' à ' + largeur + ' px, état enregistré : libellé attendu « Nouvelle version », vu « ' + reel.libelle + ' »');
+          assert.ok(reel.supprimerVisible,
+            kind + ' à ' + largeur + ' px, état enregistré : « Supprimer » doit être visible, sinon l\'état n\'est pas celui qu\'on mesure');
+        }
 
         const vu = await page.evaluate((ordre) => {
           const barre = document.querySelector('.cc-ws-topbar');
@@ -90,7 +112,17 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
             const sp = b.querySelector('span');
             const hs = sp ? sp.getBoundingClientRect().height : 0;
             const hl = sp ? parseFloat(getComputedStyle(sp).lineHeight) || lignePx : lignePx;
-            return { id: b.id, cache: !!b.hidden,
+            const st = getComputedStyle(b);
+            // ── UNE SEULE DÉFINITION DE « VISIBLE », ET ELLE MESURE ────────────────────
+            // L'attribut `hidden` ne suffit pas : le bouton des sources est masqué par une
+            // CLASSE (`display: none`), donc son cadre fait 0 × 0 et son `top` vaut 0. Compté
+            // comme visible, il ajoutait une RANGÉE FANTÔME à l'ordonnée zéro — la barre
+            // faisait deux rangées de 80 px et le contrôle en annonçait trois. C'est la
+            // deuxième fois dans ce contrôle que `hidden` m'a trompé : la définition vit
+            // désormais ici, une fois, et tout le reste s'en sert.
+            return { id: b.id,
+                     cache: !!b.hidden || bb.width === 0 || bb.height === 0
+                            || st.display === 'none' || st.visibility === 'hidden',
                      gauche: Math.round(bb.left), droite: Math.round(bb.right),
                      haut: Math.round(bb.top), bas: Math.round(bb.bottom),
                      lignes: hs ? Math.round(hs / hl) : 0,
@@ -108,33 +140,62 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
 
         // ── 1. AUCUN DÉFILEMENT HORIZONTAL ────────────────────────────────────────────────
         assert.ok(vu.defilement <= 1,
-          kind + ' à ' + largeur + ' px : la barre ne doit pas défiler horizontalement, '
+          kind + ' ' + etat.nom + ' à ' + largeur + ' px : la barre ne doit pas défiler horizontalement, '
           + vu.defilement + ' px de trop');
         // ── 2. TOUT BOUTON VISIBLE A SON CADRE ENTIÈREMENT DANS LA FENÊTRE ───────────────
         const dehors = vu.boutons.filter((b) => !b.cache
           && (b.droite > vu.fenetre + 1 || b.gauche < -1));
         assert.deepEqual(dehors.map((b) => b.id + ' (droite ' + b.droite + ' > ' + vu.fenetre + ')'), [],
-          kind + ' à ' + largeur + ' px : un bouton dépasse la fenêtre');
+          kind + ' ' + etat.nom + ' à ' + largeur + ' px : un bouton dépasse la fenêtre');
         // ── 3. AUCUN LIBELLÉ SUR PLUS DE DEUX LIGNES ─────────────────────────────────────
         const trop = vu.boutons.filter((b) => !b.cache && b.lignes > 2);
         assert.deepEqual(trop.map((b) => b.id + ' : ' + b.lignes + ' lignes (« ' + b.libelle + ' »)'), [],
-          kind + ' à ' + largeur + ' px : un libellé dépasse deux lignes');
+          kind + ' ' + etat.nom + ' à ' + largeur + ' px : un libellé dépasse deux lignes');
         // ── 4. L'ORDRE N'A PAS CHANGÉ ────────────────────────────────────────────────────
         const attendu = ORDRE.filter((id) => vu.ordreDocument.indexOf(id) >= 0);
         assert.deepEqual(vu.ordreDocument, attendu,
-          kind + ' à ' + largeur + ' px : l\'ordre des boutons a changé');
+          kind + ' ' + etat.nom + ' à ' + largeur + ' px : l\'ordre des boutons a changé');
 
-        if (largeur === 1272) {
-          const visibles = vu.boutons.filter((b) => !b.cache);
-          const lignes = [...new Set(visibles.map((b) => b.haut))].length;
-          console.log('      ' + kind + ' à ' + largeur + ' px : ' + visibles.length
-            + ' boutons visibles sur ' + lignes + ' ligne(s), barre de ' + vu.barre.hauteur
-            + ' px, défilement ' + vu.defilement + ', le plus à droite finit à '
-            + Math.max(...visibles.map((b) => b.droite)) + ' pour ' + vu.fenetre + ' px de fenêtre');
+        // ── LA HAUTEUR ET LE NOMBRE DE LIGNES, SELON LA LARGEUR ─────────────────────────
+        // Objectif de Christophe : DEUX lignes au plus et QUATRE-VINGTS pixels au plus dès
+        // 1 200 px de large ; trois lignes restent acceptables sous 1 000 px, où la place
+        // manque vraiment.
+        const visibles0 = vu.boutons.filter((b) => !b.cache);
+        // ── COMPTER LES RANGÉES, PAS LES `top` DISTINCTS ────────────────────────────────
+        // Mon premier compteur prenait les valeurs de `top` distinctes et annonçait TROIS
+        // lignes là où il y en avait deux : dans une rangée centrée verticalement, une icône
+        // de 20 px et un bouton de 30 px n'ont pas le même `top` (y = 12, 17, 18, 19 pour une
+        // seule rangée, mesuré). On regroupe donc par CENTRE vertical, à la demi-hauteur de
+        // bouton près — c'est ce qu'un œil appelle une ligne.
+        const centres = visibles0.map((b) => (b.haut + b.bas) / 2).sort((a, b) => a - b);
+        const rangees = [];
+        centres.forEach((c) => {
+          if (!rangees.length || c - rangees[rangees.length - 1] > 14) rangees.push(c);
+        });
+        const lignesBarre = rangees.length;
+        if (process.env.BARRE_DETAIL) {
+          console.log('        centres : ' + centres.map((c) => Math.round(c)).join(' ')
+            + ' → rangées ' + rangees.map((c) => Math.round(c)).join(' ')
+            + ' · hauteurs : ' + visibles0.map((b) => (b.bas - b.haut)).join(' '));
         }
+        if (largeur >= 1200) {
+          assert.ok(lignesBarre <= 2,
+            kind + ' ' + etat.nom + ' à ' + largeur + ' px : deux lignes au plus, mesuré ' + lignesBarre);
+          assert.ok(vu.barre.hauteur <= 80,
+            kind + ' ' + etat.nom + ' à ' + largeur + ' px : 80 px au plus, mesuré ' + vu.barre.hauteur);
+        } else {
+          assert.ok(lignesBarre <= 3,
+            kind + ' ' + etat.nom + ' à ' + largeur + ' px : trois lignes au plus, mesuré ' + lignesBarre);
+        }
+        console.log('      ' + kind + ' ' + etat.nom + ' à ' + largeur + ' px : ' + lignesBarre + ' ligne(s), '
+          + vu.barre.hauteur + ' px, défilement ' + vu.defilement + ', bord droit à '
+          + Math.max(...visibles0.map((b) => b.droite)) + ' pour ' + vu.fenetre);
+
         await ctx.close();
+       }
       }
-      pass('barre complète et jamais tronquée pour un ' + kind + ', à 1 024, 1 272 et 1 440 px.');
+      pass('barre complète et jamais tronquée pour un ' + kind + ', à 1 024, 1 272 et 1 440 px, '
+        + 'dans les deux états (non enregistré et enregistré, ce dernier portant « Supprimer »).');
     }
 
     // ── 5. AUCUN BOUTON N'A PERDU SON ACTION ────────────────────────────────────────────
