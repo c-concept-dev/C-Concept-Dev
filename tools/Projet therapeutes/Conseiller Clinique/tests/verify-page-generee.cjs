@@ -205,7 +205,8 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       'chaque bloc inséré reste non validé (D2) : ' + JSON.stringify(apres.validations));
     // UN SEUL APPEL AU MODÈLE SIMULÉ, et le vrai Worker n'a jamais été joint.
     assert.equal(etat.appels.length, 1, 'un seul appel au modèle : ' + etat.appels.length);
-    assert.deepEqual(dehors, [], 'aucune requête hors 127.0.0.1 : ' + JSON.stringify(dehors));
+    // On ne recrache jamais ces adresses (celle du Worker en fait partie) : un nombre suffit.
+    assert.equal(dehors.length, 0, 'aucune requête hors 127.0.0.1 : ' + dehors.length + ' vue(s)');
     assert.deepEqual(erreurs, [], 'aucune erreur de page : ' + JSON.stringify(erreurs.slice(0, 3)));
 
     console.log('      cartes après : ' + apres.cartes.join(', '));

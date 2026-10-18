@@ -20032,7 +20032,7 @@ ${recent}`;
   // Boutons d'intention + champ libre AU MÊME NIVEAU VISUEL (jamais les boutons seuls) — même
   // patron que la carte de clarification déjà établie (cc-clarity-card/cc-clarity-reply-btn/
   // cc-clarity-other-btn), jamais un nouveau style réinventé pour ce panneau.
-  function adocBuildBlockEditPanelHTML(blockType, blockId) {
+  function adocBuildBlockEditPanelHTML(blockType, blockId, storeKey) {
     const btn = function (key) {
       return '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocRequestBlockCorrectionByIntent(\'' + key + '\')">' +
         adocEsc(ADOC_BLOCK_EDIT_INTENTS[key].label) + '</button>';
@@ -20044,6 +20044,10 @@ ${recent}`;
     // celui-ci. Un seul point d'entrée pour toute action sur un bloc, comme demandé.
     const insertBtn = function (direction, label) {
       return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRequestBlockInsert(\'' + direction + '\')">' + label + '</button>';
+    };
+    const pageBtn = function (direction, label) {
+      return '<button type="button" class="cc-clarity-reply-btn" data-page-insert="' + direction + '" '
+        + 'onclick="event.stopPropagation();window.adocRequestPageInsert(\'' + direction + '\')">' + label + '</button>';
     };
     // LOT 3 — symétrique de "Ajouter du texte" (adocBuildImageEditPanelHTML) : le glisser-déposer
     // de fond (style.backgroundAssetId, Lot E) fonctionne déjà sur N'IMPORTE QUEL bloc générique
@@ -20059,6 +20063,14 @@ ${recent}`;
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
         '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
         ((blockType === 'card' || (blockId || '').startsWith('root:card-title:')) ? '' : insertBtn('before', 'Insérer un bloc avant')) + insertBtn('after', 'Insérer un bloc après') + addImageBtn +
+        // D1 — les gestes de PAGE, après ceux de bloc et derrière le même repère visuel discret :
+        // ils ne corrigent pas ce passage, ils ajoutent une diapositive entière. Absents, et non
+        // pas inertes, hors d'une présentation.
+        (adocPageGesturesAllowed(storeKey)
+          ? '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>'
+            + pageBtn('before', 'Insérer une page avant') + pageBtn('after', 'Insérer une page après')
+            + pageBtn('end', 'Ajouter une page à la fin')
+          : '') +
         ((blockId || '').startsWith('root:card-title:') ? adocImageReplacementButtonsHTML(true) : '') +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
@@ -20237,7 +20249,7 @@ ${recent}`;
       // .is-selected une fois contextuel, mais garde un rappel textuel utile si le bloc défile
       // hors champ pendant que le panneau reste ouvert.
       const preview = adocEsc(adocBlockPreviewText(block)) || '(bloc sans texte)';
-      panel.innerHTML = adocBlockEditPanelHeaderHTML(preview) + adocBuildBlockEditPanelHTML(block.type, blockId);
+      panel.innerHTML = adocBlockEditPanelHeaderHTML(preview) + adocBuildBlockEditPanelHTML(block.type, blockId, storeKey);
       adocMountContextualBlockEditPanel(panel, blockEl);
       window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, pendingBlock: null, originalBlock: block, zone: 'text' };
       // Item 57c Lot 1 — ne vole plus le focus vers le champ libre pour un bloc directement
@@ -20925,6 +20937,98 @@ ${recent}`;
   // code de recherche — l'image n'est jamais sélectionnable via ce panneau (hors périmètre,
   // comme pour la correction de bloc).
   // Une résolution pour TOUS les parcours : texte, Pexels, fichier, Médias et vidéo.
+  // ── D1 — OÙ UNE PAGE VA SE POSER ────────────────────────────────────────────────────────
+  // Une seule fonction répond à la question « quelle diapositive, et à quel rang ? », quelle que
+  // soit la façon dont l'utilisatrice a sélectionné cette diapositive. Il y en a trois, et elles
+  // existaient déjà dans l'éditeur bien avant ce lot :
+  //   — le TITRE de la diapositive, repéré par la convention `root:card-title:<id>` ;
+  //   — la diapositive ELLE-MÊME, `blockId = <id>` avec `zone: 'cover'` (clic sur son image) ;
+  //   — un bloc de CONTENU qu'elle porte : on remonte alors jusqu'à elle.
+  // Les trois doivent donner la même réponse, sans quoi le geste dépendrait de l'endroit exact
+  // où le clic est tombé.
+  //
+  // « avant » la première diapositive est ACCEPTÉ, et donne le rang 0 : contrairement à un bloc,
+  // qui ne peut pas précéder le titre de sa diapositive, une page avant la première a un sens
+  // parfaitement clair. La couverture du document (titre, visée, public) n'est pas une
+  // diapositive et n'est pas déplacée : la page neuve devient la première DIAPOSITIVE.
+  function adocPageCardIdFor(doc, blockId, zone) {
+    if (!doc || !blockId) return null;
+    if (blockId.startsWith('root:card-title:')) return blockId.slice('root:card-title:'.length);
+    const direct = adocFindEditableBlock(doc, blockId);
+    if (direct && direct.type === 'card') return direct.id;   // couvre zone === 'cover'
+    // Un bloc de contenu : on cherche la diapositive qui le porte, à n'importe quelle profondeur.
+    const porte = function (blocs) {
+      if (!Array.isArray(blocs)) return false;
+      for (const b of blocs) {
+        if (!b) continue;
+        if (b.id === blockId) return true;
+        if (b.content && porte(b.content.blocks)) return true;
+      }
+      return false;
+    };
+    for (const carte of (doc.blocks || [])) {
+      if (carte && carte.type === 'card' && carte.content && porte(carte.content.blocks)) return carte.id;
+    }
+    return null;
+  }
+
+  function adocResolvePageInsertion(doc, blockId, zone, direction) {
+    if (!doc) throw new Error('Document indisponible. Rouvrez le document.');
+    if (doc.documentKind !== 'presentation') {
+      throw new Error('Ajouter une page n’est possible que dans une présentation.');
+    }
+    if (direction !== 'before' && direction !== 'after' && direction !== 'end') {
+      throw new Error('Position de page invalide.');
+    }
+    const cartes = doc.blocks || [];
+    if (direction === 'end') {
+      return { cardId: adocPageCardIdFor(doc, blockId, zone), index: cartes.length };
+    }
+    const cardId = adocPageCardIdFor(doc, blockId, zone);
+    if (!cardId) throw new Error('Sélectionnez une diapositive, ou un de ses blocs, avant d’ajouter une page.');
+    const rang = cartes.findIndex((c) => c && c.id === cardId);
+    if (rang < 0) throw new Error('La diapositive sélectionnée est introuvable. Sélectionnez-la à nouveau.');
+    return { cardId: cardId, index: direction === 'before' ? rang : rang + 1 };
+  }
+  window.adocResolvePageInsertion = adocResolvePageInsertion;
+
+  // Les gestes de page n'ont de sens que dans une présentation produite par le moteur structuré :
+  // ni dans un carrousel, ni dans un document ancien (legacy-html), qui n'ont pas de diapositives
+  // au sens de ce modèle. Plutôt que de montrer des boutons inertes, on ne les montre pas.
+  // La règle vit ICI, une seule fois, et elle rend la PHRASE du refus : les boutons s'en servent
+  // pour décider de paraître, et le point d'entrée s'en sert pour refuser. Deux copies de la même
+  // règle finiraient par diverger — c'est exactement ce qu'un contrôle a attrapé ici : le
+  // résolveur, qui ne reçoit que le document, laissait passer un document ANCIEN dont le genre
+  // est « présentation », parce que le moteur n'est pas dans le document mais sur l'artefact.
+  function adocPageGesturesRefusal(storeKey) {
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc) return 'Document indisponible. Rouvrez le document.';
+    if (art._adocGenerationEngine === 'legacy-html') {
+      return 'Ajouter une page n’est possible que dans une présentation créée par le Studio ; ce document est un document ancien.';
+    }
+    if (doc.documentKind !== 'presentation') {
+      return 'Ajouter une page n’est possible que dans une présentation.';
+    }
+    return null;
+  }
+  function adocPageGesturesAllowed(storeKey) { return adocPageGesturesRefusal(storeKey) === null; }
+
+  // Le chemin que prend réellement un clic sur « Insérer une page … ». Pour D1 il établit la
+  // cible et refuse en clair ; c'est D2 qui y branchera la page créée par le Studio.
+  window.adocRequestPageInsert = function (direction) {
+    const st = window._adocBlockEditState || {};
+    const refus = adocPageGesturesRefusal(st.storeKey);
+    if (refus) { alert(refus); return null; }
+    const doc = window._adocArtifacts[st.storeKey]._adocStructuredDoc;
+    let cible;
+    try { cible = adocResolvePageInsertion(doc, st.blockId, st.zone, direction); }
+    catch (e) { alert('Ajout impossible : ' + (e && e.message || 'erreur inconnue')); return null; }
+    window._adocPageInsertState = { storeKey: st.storeKey, direction: direction,
+                                    cardId: cible.cardId, index: cible.index };
+    return window._adocPageInsertState;
+  };
+
   function adocResolveBlockInsertion(doc, blockId, direction) {
     if (direction !== 'before' && direction !== 'after') throw new Error('Position d’insertion invalide.');
     if (!doc || !blockId) throw new Error('Sélectionnez un bloc avant d’insérer.');
