@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { appartientA, bibliothequeDe, cleDerive, cleSource } from "../src/objets.js";
+import { appartientA, bibliothequeDe, cleDerive, cleSource, cleVue } from "../src/objets.js";
 
 const EMPREINTE = "a".repeat(64);
 
@@ -13,6 +13,14 @@ describe("où un objet vit dans le compartiment", () => {
 
   it("range un dérivé sous sa version", () => {
     expect(cleDerive("essai", "v3", "pages/page-0001.webp")).toBe("essai/derives/v3/pages/page-0001.webp");
+  });
+
+  it("range une vue de bibliothèque sous sa propre famille", () => {
+    // La troisième famille. Une vue n'appartient à aucune version : elle rassemble ce que
+    // **toutes** les versions actives d'une bibliothèque donnent à voir. La ranger sous
+    // « derives/<version>/ » demanderait d'inventer une version qui n'existe pas.
+    expect(cleVue("essai", "bibliotheque.json")).toBe("essai/vues/bibliotheque.json");
+    expect(cleVue("essai", "passages.json")).toBe("essai/vues/passages.json");
   });
 
   it("retrouve la bibliothèque d'une clé", () => {
@@ -31,6 +39,8 @@ describe("où un objet vit dans le compartiment", () => {
 
   it("refuse une clé qui remonte dans l'arborescence", () => {
     expect(bibliothequeDe("../autre/sources/aa/x")).toBeUndefined();
+    expect(bibliothequeDe("essai/vues/bibliotheque.json")).toBe("essai");
+    expect(appartientA("essai-bis/vues/bibliotheque.json", "essai")).toBe(false);
     expect(appartientA("essai/../autre/sources/aa/x", "essai")).toBe(false);
   });
 });
@@ -60,7 +70,7 @@ describe("personne d'autre ne compose de préfixe (le garde-fou)", () => {
     return entrees.filter((nom) => nom.endsWith(".ts")).map((nom) => `${dossier}/${enBarresObliques(nom)}`);
   };
 
-  it("aucun module hors objets.ts ne fabrique « /sources/ » ni « /derives/ »", () => {
+  it("aucun module hors objets.ts ne fabrique « /sources/ », « /derives/ » ni « /vues/ »", () => {
     const coupables: string[] = [];
     for (const dossier of SOURCES) {
       for (const chemin of fichiersTypeScript(dossier)) {
@@ -69,7 +79,7 @@ describe("personne d'autre ne compose de préfixe (le garde-fou)", () => {
         // On cherche la composition, pas la mention : un gabarit ou une concaténation qui
         // fabrique le chemin. Un commentaire qui en parle ne gêne personne.
         const lignes = contenu.split("\n").filter((ligne) => !ligne.trimStart().startsWith("//") && !ligne.trimStart().startsWith("*"));
-        if (/["'`][^"'`]*\/(sources|derives)\//.test(lignes.join("\n"))) coupables.push(chemin);
+        if (/["'`][^"'`]*\/(sources|derives|vues)\//.test(lignes.join("\n"))) coupables.push(chemin);
       }
     }
     expect(coupables, `ces modules composent un chemin d'objet : ${coupables.join(", ")}`).toEqual([]);

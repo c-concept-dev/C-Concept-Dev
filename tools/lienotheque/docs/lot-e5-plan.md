@@ -130,8 +130,8 @@ qu'il faut le dire, et non après le second pont.
 | 2 | **Le second pont** : `pont/ligne.ts`, même port, façade Worker derrière | Les mêmes épreuves d'écran passent avec un Worker simulé |
 | 3 | **Le choix du pont en un seul endroit**, à la place des 17 gardes | Aucune `estBureau()` ne subsiste hors du choix lui-même |
 | 4 | **La cérémonie WebAuthn** — la page qui manquait, et dont l'absence a fait reporter la cérémonie au lot E1 | Deux utilisateurs s'authentifient ; aucune clé dans le navigateur (LIV-04) |
-| 5 | **Les images et médias par liens signés**, depuis R2 | Une page s'affiche en ligne ; un lien expiré refuse |
-| 6 | **La recherche en ligne sur la mini-bibliothèque** | Les mêmes quatre épreuves qu'au bureau, mêmes résultats |
+| ~~5~~ **fait** | **Les images et médias par liens signés**, depuis R2 | Personne ne signait : `signer` n'avait aucun appelant. La route `/laissez` les émet, et un lien expiré refuse. Section 8 |
+| ~~6~~ **fait, avec une réserve nommée** | **La recherche en ligne sur la mini-bibliothèque** | Le **même** `chercher` sur la **même** vue : identiques par construction. Le découpage par document attend la décision des écrans. Section 8 |
 | 7 | **Le déploiement** | **Soumis avant**, jamais fait d'office |
 
 Les étapes 1 à 3 sont de la mécanique : elles ne changent aucun comportement et se vérifient par
@@ -186,3 +186,96 @@ version en ligne, qui ne traite rien — mais elle concerne le jour où le vrai 
 le porte. Elle ne le résout **pas** pour le bureau, qui continuera de parcourir ses fichiers de
 version. Deux chemins, deux sources : c'est exactement le genre de divergence que le passage par
 document a corrigé ailleurs, et il faudra y revenir.
+
+---
+
+## 8. Les étapes 5 et 6 : les liens signés, et la vue servie plutôt que rebâtie
+
+### Étape 5 — personne ne signait
+
+Les laissez-passer existaient depuis E1, et `signer` **n'avait aucun appelant dans tout le
+dépôt**. La route `/laissez` les émet.
+
+**La clé de l'objet est composée par le service, jamais reçue.** C'est la règle d'`objets.ts`, et
+c'est elle qui tient l'isolation des fichiers puisqu'un seul compartiment les porte toutes :
+l'appelant donne une version et un nom, pas un chemin. Un test envoie une clé toute faite avec
+des remontées de répertoire et vérifie qu'elle n'ouvre rien — et que le compartiment n'est pas
+même touché.
+
+Le nom est vérifié **avant** toute composition, sur une forme étroite. R2 ne résout pas les
+chemins — « .. » y serait un segment comme un autre — mais une clé qui ressemble à une remontée
+finit par être lue par quelque chose qui, lui, la résout : un cache, un miroir, un outil
+d'inspection. Mieux vaut qu'elle n'existe jamais.
+
+**Un vrai défaut trouvé au passage :** `/fichier/:laissez` lisait `Date.now()` au lieu de
+l'horloge injectée, seul endroit de l'application à le faire. Mon test de péremption a échoué
+pour cette raison, et c'est le test qui avait raison.
+
+### Étape 6 — la vue est servie, pas rebâtie
+
+`chercher` prend une `VueBibliotheque` entière. Deux chemins s'offraient : rebâtir la vue en SQL
+dans le Worker, ou servir l'instantané que `instantane.ts` construit déjà à l'ingestion.
+
+**Retenu : l'instantané, rangé comme objet R2.** Une seconde mise en œuvre de la vue serait une
+seconde vérité, et celle des deux qui finirait par mentir — c'est le mode de panne contre lequel
+ce dépôt met en garde partout, et `instantaneDeLot` porte déjà la cicatrice d'un second chemin de
+code qui avait divergé.
+
+Conséquence directe, et c'est tout l'intérêt : la recherche en ligne fait tourner **le même
+`chercher` sur la même vue**. Les résultats sont identiques **par construction**, et non par
+ressemblance. Un test le montre sur cinq requêtes, dont la suite entière avant le mot isolé.
+
+### Une troisième famille d'objets, avec sa raison
+
+`objets.ts` disait « deux familles, et il n'y en aura pas d'autres **sans raison** ». La voici.
+
+Une vue de bibliothèque rassemble ce que **toutes** les versions actives donnent à voir. La
+ranger sous `derives/<version>/` obligerait à inventer une version qui n'existe pas, et cette
+version inventée serait ensuite lue par du code qui croit aux versions. Une famille de plus coûte
+une ligne et un motif de plus au garde-fou ; une fausse version coûte un malentendu durable.
+
+Le garde-fou qui interdit à tout autre module de composer un préfixe **couvre la famille neuve** :
+sans quoi elle serait née sans surveillance.
+
+### La fraîcheur : à l'activation, pas sur un intervalle
+
+`PUT /vue` et `PUT /vue/passages` rangent la vue, **derrière le jeton de service et lui seul** :
+c'est un appel de machine à machine — la chaîne de traitement tourne sur la machine de
+l'ingestion, pas dans un navigateur, et n'a aucune session personnelle à présenter. C'est
+exactement l'usage pour lequel le jeton existe, comme `/vision`.
+
+Une vue poussée toutes les heures serait périmée cinquante-neuf minutes sur soixante sans que
+personne sache de combien. Poussée à l'activation, elle est aussi fraîche que la dernière
+activation, et **jamais plus périmée que ce que le bureau montre lui-même**.
+
+**La vue est validée avant d'être rangée.** Ranger un objet qu'on ne saurait pas relire
+reporterait la panne chez le lecteur, le jour où il ouvre la bibliothèque. Mieux vaut refuser
+maintenant, à qui peut corriger. La lecture, elle, ne valide pas : elle transmet des octets, et
+le pont les passe par leur contrat à l'arrivée. L'asymétrie est voulue — les défauts du contrat
+s'appliquent une fois, à l'écriture.
+
+### Ce qui n'est pas fait, et qui le dit
+
+**Quatre fonctions du port en ligne refusent**, avec une erreur nommée `PasEncoreEnLigne` qui
+cite le geste : `apercuDeBibliotheque`, `versionActive`, `classementsDeBibliotheque`,
+`classerDocument`. Elles demandent un découpage des objets **par document** — un aperçu, une vue
+et des passages par empreinte — et ce découpage dépend de ce que les écrans montreront en ligne,
+question ouverte et tranchée à part.
+
+Elles **lèvent plutôt que de rendre une liste vide** : une liste vide se confond avec une
+bibliothèque vide, et un écran qui n'affiche rien sans dire pourquoi coûte des heures à
+diagnostiquer. C'est la même raison qui fait qu'un enrôlement sans clé échoue en le disant.
+
+**Le déclenchement côté bureau reste à brancher.** La route existe et est éprouvée ; ce qui
+l'appellera au moment de l'activation appartient au chemin de publication, c'est-à-dire à
+l'étape 7. La chaîne d'ingestion n'a pas encore de geste « publier cette version en ligne ».
+
+### Les « quatre épreuves », et ce qu'elles pouvaient être ici
+
+Le plan annonçait « les mêmes quatre épreuves qu'au bureau, mêmes résultats ». Ces épreuves
+étaient celles de l'épreuve humaine, menées sur des documents sous droits qui ne sont pas au
+dépôt : elles ne peuvent pas devenir des tests versionnés.
+
+Ce qui a été éprouvé à la place est plus fort que leur transposition : non pas que les résultats
+se ressemblent, mais qu'ils soient **la même chose** — même fonction, mêmes octets. Les épreuves
+humaines pourront se rejouer en ligne le jour de la mise en marche, sur la mini-bibliothèque.

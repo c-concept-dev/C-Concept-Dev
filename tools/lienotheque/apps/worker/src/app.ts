@@ -3,6 +3,7 @@ import {
   DUREE_PAR_DEFAUT,
   DUREE_SESSION,
   cleDerive,
+  cleVue,
   entetRetrait,
   entetTemoin,
   signer,
@@ -30,7 +31,7 @@ import {
   lesPersonnes,
   revoquerLaSession,
 } from "./qui-entre.js";
-import { PreuveDEnrolement, PreuveDEntree } from "@lienotheque/contrats";
+import { PassagesDuDocument, PreuveDEnrolement, PreuveDEntree, VueBibliotheque } from "@lienotheque/contrats";
 import {
   compterParModele,
   jetonPorte,
@@ -54,8 +55,15 @@ export type Liaisons = {
   readonly JETON_ACCES?: string;
   /** Le secret qui signe les laissez-passer des fichiers (SEC-05). */
   readonly SECRET_LAISSEZ?: string;
-  /** Le compartiment des fichiers. Jamais lu sans laissez-passer vérifié. */
-  readonly MEDIAS?: { readonly get: (cle: string, options?: unknown) => Promise<ObjetServi | null> };
+  /** Le compartiment des fichiers. Jamais lu sans laissez-passer vérifié.
+   *
+   *  `put` ne sert qu'aux vues : les sources et les dérivés sont écrits par la chaîne, qui ne
+   *  passe pas par ici. Le Worker n'a donc d'écriture que sur une famille d'objets, et c'est
+   *  tout ce qu'il lui faut. */
+  readonly MEDIAS?: {
+    readonly get: (cle: string, options?: unknown) => Promise<ObjetServi | null>;
+    readonly put?: (cle: string, corps: ArrayBuffer | string, options?: unknown) => Promise<unknown>;
+  };
   /** Le registre des bibliothèques publiées. */
   readonly REGISTRE?: BaseSql;
   /** La bibliothèque que la façade sert. Une seule : la façade existe pour une application qui
@@ -365,6 +373,108 @@ export function creerApp({
       .map(([champ]) => champ);
     return contexte.json({ facets: await compter(ouverte.base, ouverte.correspondance, champs, { query: corps["query"] }) });
   });
+
+  /** Sert une vue de bibliothèque telle qu'elle a été rangée (étape 6 d'E5).
+   *
+   *  **Rien n'est rebâti ici.** `instantane.ts` construit la vue à l'ingestion, et une seconde
+   *  mise en œuvre serait une seconde vérité — celle des deux qui finirait par mentir. La
+   *  recherche en ligne fait ensuite tourner le **même** `chercher` sur la **même** vue, de sorte
+   *  que les résultats soient identiques par construction et non par ressemblance.
+   *
+   *  Les deux noms sont **constants**, et c'est pourquoi il y a deux routes et non une route
+   *  paramétrée : un nom reçu dans une requête demanderait d'être vérifié avant de composer une
+   *  clé, et un nom constant n'a rien à vérifier.
+   *
+   *  L'absence de vue rend **404**, que l'application lit comme un dépôt vide — l'état de
+   *  quiconque n'a rien importé. C'est déjà la convention du greffon de Vite côté bureau, et
+   *  elle vaut ici pour la même raison. */
+  const servirLaVue = async (
+    contexte: { env: Liaisons; req: { raw: Request } },
+    nom: "bibliotheque.json" | "passages.json",
+  ): Promise<Response> => {
+    const refus = await porteParBascule(contexte, "lire");
+    if (refus !== undefined) return refus;
+
+    const compartiment = contexte.env.MEDIAS;
+    const cle = contexte.env.BIBLIOTHEQUE_FACADE;
+    if (compartiment === undefined || cle === undefined || cle.length === 0)
+      return Response.json({ erreur: "Le service de fichiers n'est pas configuré" }, { status: 503 });
+
+    const objet = await compartiment.get(cleVue(cle, nom));
+    if (objet === null || objet.body === null) return Response.json({ erreur: "Rien à lire" }, { status: 404 });
+
+    return new Response(objet.body, {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        ...(objet.httpEtag === undefined ? {} : { etag: objet.httpEtag }),
+        // Jamais de cache partagé : la vue dit ce qu'une personne a le droit de voir.
+        "cache-control": "private, no-store",
+      },
+    });
+  };
+
+  app.get("/vue", (contexte) => servirLaVue(contexte, "bibliotheque.json"));
+  app.get("/vue/passages", (contexte) => servirLaVue(contexte, "passages.json"));
+
+  /** Range une vue de bibliothèque, au moment où une version s'active.
+   *
+   *  **Derrière le jeton de service, et lui seul.** C'est un appel de machine à machine : la
+   *  chaîne de traitement tourne sur la machine de l'ingestion, pas dans un navigateur, et elle
+   *  n'a pas de session personnelle à présenter. C'est exactement l'usage pour lequel le jeton de
+   *  service existe — comme `/vision`.
+   *
+   *  **Au moment de l'activation, pas sur un intervalle.** Une vue poussée toutes les heures
+   *  serait périmée cinquante-neuf minutes sur soixante sans que personne sache de combien ;
+   *  poussée à l'activation, elle est aussi fraîche que la dernière activation, et jamais plus
+   *  périmée que ce que le bureau montre lui-même.
+   *
+   *  La vue est **validée avant d'être rangée**. Ranger un objet qu'on ne saurait pas relire
+   *  reporterait la panne au moment de la lecture, c'est-à-dire chez le lecteur, le jour où il
+   *  ouvre la bibliothèque. Mieux vaut refuser maintenant, à qui peut corriger. */
+  const rangerLaVue = async (
+    contexte: { env: Liaisons; req: { raw: Request; json: () => Promise<unknown> } },
+    nom: "bibliotheque.json" | "passages.json",
+  ): Promise<Response> => {
+    const attendu = contexte.env.JETON_ACCES;
+    if (attendu === undefined || attendu.length === 0)
+      return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+    const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
+    if (donne === undefined || !memeJeton(donne, attendu))
+      return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+
+    const compartiment = contexte.env.MEDIAS;
+    const cle = contexte.env.BIBLIOTHEQUE_FACADE;
+    if (compartiment?.put === undefined || cle === undefined || cle.length === 0)
+      return Response.json({ erreur: "Le service de fichiers n'est pas configuré" }, { status: 503 });
+
+    let brut: unknown;
+    try {
+      brut = await contexte.req.json();
+    } catch {
+      return Response.json({ erreur: "Corps illisible" }, { status: 400 });
+    }
+
+    const lue =
+      nom === "bibliotheque.json" ? VueBibliotheque.safeParse(brut) : PassagesDuDocument.safeParse(brut);
+    if (!lue.success)
+      return Response.json(
+        {
+          erreur: "Vue refusée",
+          ecarts: lue.error.issues.slice(0, 5).map((souci) => `${souci.path.join(".")} : ${souci.message}`),
+        },
+        { status: 400 },
+      );
+
+    // Ce qui est rangé est ce que le contrat a rendu, et non les octets reçus : les défauts du
+    // contrat sont ainsi appliqués une fois, à l'écriture, et non à chaque lecture.
+    await compartiment.put(cleVue(cle, nom), JSON.stringify(lue.data), {
+      httpMetadata: { contentType: "application/json; charset=utf-8" },
+    });
+    return Response.json({ rangee: true });
+  };
+
+  app.put("/vue", (contexte) => rangerLaVue(contexte, "bibliotheque.json"));
+  app.put("/vue/passages", (contexte) => rangerLaVue(contexte, "passages.json"));
 
   /** Un nom de dérivé, tel qu'une version en produit : des minuscules, des chiffres, des
    *  points, des tirets, et des barres obliques pour les paliers.
