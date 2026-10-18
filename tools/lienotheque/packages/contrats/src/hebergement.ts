@@ -77,6 +77,10 @@ export const OperationSensible = z.enum([
   // appareil entre.
   "enrolement",
   "revocation",
+  // Une entrée refusée ne laisse aucune autre trace : une entrée réussie, elle, laisse sa ligne
+  // de session. Seuls les refus qui ont présenté un défi valide s'inscrivent ici — sans quoi on
+  // pourrait noyer le journal en envoyant des défis au hasard.
+  "entree_refusee",
   "suppression",
 ]);
 export type OperationSensible = z.infer<typeof OperationSensible>;

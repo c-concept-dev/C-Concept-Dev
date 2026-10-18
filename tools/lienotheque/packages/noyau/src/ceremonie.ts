@@ -83,6 +83,62 @@ export function examinerLesDonneesClient(donneesClient: string, attendu: Attendu
   return { bon: true };
 }
 
+/** Ce que la norme impose aux données de l'authentificateur : trente-deux octets d'empreinte du
+ *  domaine, un octet de drapeaux, quatre octets de compteur. */
+export const TAILLE_DONNEES_AUTH = 37;
+
+/** Les drapeaux qu'on regarde. Les autres existent et ne nous apprennent rien d'utile ici. */
+const PRESENCE = 0x01;
+const UTILISATEUR_VERIFIE = 0x04;
+
+export type ExamenDesDonneesAuth =
+  | { readonly bon: true; readonly compteur: number; readonly utilisateurVerifie: boolean }
+  | { readonly bon: false; readonly raison: string };
+
+/** Ce que l'authentificateur dit de lui-même : pour quel domaine, avec quelle attestation de
+ *  présence, et à quel rang de son compteur.
+ *
+ *  **L'empreinte du domaine est la garde contre un site voisin.** L'appareil ne signe que pour le
+ *  domaine où la clé a été enrôlée, et il le prouve en incluant son empreinte dans ce qu'il
+ *  signe. Une signature prise ailleurs ne vaut donc rien ici — à condition de vérifier, ce que
+ *  fait cette fonction.
+ *
+ *  **La présence doit être attestée.** Sans ce drapeau, personne n'a touché l'appareil, et la
+ *  signature pourrait venir d'un logiciel qui garde la clé. La vérification de l'utilisateur —
+ *  Touch ID, un code — est exigée par défaut, puisque c'est elle qui fait la différence entre
+ *  « cet appareil » et « cette personne ».
+ *
+ *  Des données **plus longues** sont acceptées : la norme permet des extensions après les
+ *  trente-sept octets, et les refuser casserait des appareils corrects. On ne les lit pas. */
+export async function examinerLesDonneesAuthentificateur(
+  donnees: Uint8Array<ArrayBuffer>,
+  attendu: { readonly domaine: string; readonly exigerUtilisateurVerifie?: boolean },
+): Promise<ExamenDesDonneesAuth> {
+  if (donnees.length < TAILLE_DONNEES_AUTH)
+    return {
+      bon: false,
+      raison: `données de l'authentificateur trop courtes : ${donnees.length} octets au lieu de ${TAILLE_DONNEES_AUTH} au moins`,
+    };
+
+  const attendue = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(attendu.domaine)),
+  );
+  // Comparaison octet par octet, sur toute la longueur : une empreinte à moitié juste est fausse.
+  let ecart = 0;
+  for (let rang = 0; rang < 32; rang += 1) ecart |= donnees[rang]! ^ attendue[rang]!;
+  if (ecart !== 0) return { bon: false, raison: "la signature n'a pas été faite pour ce domaine" };
+
+  const drapeaux = donnees[32]!;
+  if ((drapeaux & PRESENCE) === 0) return { bon: false, raison: "présence de l'utilisateur non attestée" };
+
+  const utilisateurVerifie = (drapeaux & UTILISATEUR_VERIFIE) !== 0;
+  if (attendu.exigerUtilisateurVerifie !== false && !utilisateurVerifie)
+    return { bon: false, raison: "utilisateur non vérifié par l'appareil" };
+
+  const compteur = new DataView(donnees.buffer, donnees.byteOffset).getUint32(33);
+  return { bon: true, compteur, utilisateurVerifie };
+}
+
 /** Pourquoi une clé publique est refusée. Nommé, parce que ces causes ne se corrigent pas de la
  *  même façon : les deux premières viennent du navigateur, la dernière d'un défaut. */
 export type CauseDeRefus = "cle_nulle" | "algorithme_nul" | "algorithme_inattendu" | "cle_illisible";

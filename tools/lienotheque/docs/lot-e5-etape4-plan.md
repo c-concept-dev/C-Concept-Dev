@@ -99,7 +99,7 @@ l'attestation, est **déjà le compromis d'E1**, assumé pour les mêmes utilisa
 | ~~4.1~~ **fait** | **Vérifier la voie C** : `getPublicKey()` rend bien une clé SPKI importable, sur les navigateurs employés | **Mesuré le 18 octobre** : cérémonie réelle sous Chromium, API présente sur le Safari livré, vérification faite dans workerd. Un écart trouvé : la signature demande un passage DER → brut. Section 9 |
 | ~~4.2~~ **fait** | Le registre sait écrire et lire une personne, une clé, une session | **46 tests** : les trois tables lues et écrites, le décodage DER à longueur variable, et les trois issues d'une vérification. Section 10 |
 | ~~4.3~~ **fait** | L'enrôlement : défi, création, clé publique rangée | **39 tests** : la clé enrôlée se relit, `getPublicKey()` nul refuse en le nommant, et le défi ne sert qu'une fois — y compris sous deux requêtes simultanées. Section 11 |
-| 4.4 | L'authentification : défi, signature, vérification, session ouverte | Une signature valide ouvre ; une signature rejouée est refusée (le compteur) |
+| ~~4.4~~ **fait** | L'authentification : défi, signature, vérification, session ouverte | **26 tests** : la cérémonie mesurée du 18 octobre ouvre une session de bout en bout ; une preuve rejouée est refusée deux fois, par le défi puis par le compteur. Section 12 |
 | 4.5 | La session : cookie 90 jours, repoussé une fois par jour, révocable | Une session révoquée refuse à la requête suivante |
 | 4.6 | Les droits enfin appliqués : `droits.ts` branché à la porte | Une action absente de la table est refusée à tout le monde |
 
@@ -420,3 +420,94 @@ Ce n'est donc pas `verify` qu'il fallait garder, mais l'import de la clé. La ro
 secret vide avant d'y arriver, si bien que cette garde est une ceinture de plus et non un bogue
 vivant — mais le module promet « jamais une exception », et il la tient maintenant pour tout
 appelant qui n'aurait pas la même vigilance. Une mutation confirme que la garde porte.
+
+---
+
+## 12. L'étape 4.4 : l'entrée, et deux gardes qui ne dépendent pas l'une de l'autre
+
+### Le test qui compte le plus
+
+**La cérémonie réellement mesurée le 18 octobre ouvre une session, de bout en bout.** Clé
+publique, données de l'authentificateur, données du client et signature telles qu'un
+authentificateur CTAP2 les a produites — rien d'inventé pour la circonstance. Et le test retrouve
+au passage l'empreinte du domaine du banc (`localhost`) dans les octets mesurés, sans que rien
+n'ait été transcrit à la main.
+
+C'est la boucle de la voie C fermée : ce qui avait été mesuré en 4.1 comme possible est maintenant
+exécuté par le code du dépôt.
+
+### Ce que l'entrée vérifie
+
+| rang | ce qui est vérifié | ce qu'un refus veut dire |
+|---|---|---|
+| 1 | le défi existe, est d'usage `entree`, n'a pas servi, n'est pas périmé | **non journalisé** — voir plus bas |
+| 2 | la clé présentée existe et n'est pas révoquée | inconnue ≠ révoquée, et le journal le dit |
+| 3 | les données du client : `webauthn.get`, ce défi, notre origine, hors cadre tiers | |
+| 4 | les données de l'authentificateur : **empreinte du domaine**, présence, utilisateur vérifié | |
+| 5 | la signature | `refusee` ≠ `illisible`, jusqu'au bout de la chaîne |
+| 6 | le défi est **dépensé** | |
+| 7 | le compteur anti-rejeu a avancé | |
+| 8 | la session s'ouvre | |
+
+L'empreinte du domaine (rang 4) est la garde contre un site voisin : l'appareil n'inclut dans ce
+qu'il signe que le domaine où la clé a été enrôlée. Une signature prise ailleurs ne vaut rien
+ici — à condition de vérifier, et une mutation confirme que la vérification porte.
+
+### Deux gardes contre le rejeu, et c'est délibéré
+
+Elles ne dépendent pas l'une de l'autre, et chacune a son test :
+
+- **le défi**, qui ne sert qu'une fois ;
+- **le compteur** de l'authentificateur, qui doit avoir avancé.
+
+Un test rouvre un défi à la même valeur — ce qui ne devrait jamais arriver — et vérifie que
+l'entrée est refusée quand même, par le compteur. L'inverse est vrai aussi : une preuve rejouée
+sur un défi déjà dépensé n'atteint jamais le compteur.
+
+### Quand un défi est dépensé, et pourquoi la règle diffère de l'enrôlement
+
+**Un défi est dépensé dès qu'une signature a été jugée contre lui**, qu'elle ait tenu ou non.
+Sans cela, on pourrait essayer mille signatures sur le même défi.
+
+À l'enrôlement, le défi survit à un refus de clé. Ce n'est pas une incohérence mais une règle :
+là-bas, le refus survient **avant** toute vérification — rien n'a été éprouvé, et obliger à
+redemander un défi pour réessayer depuis un autre appareil serait une rudesse gratuite. Ici, la
+signature a été jugée.
+
+Les deux cas ont leur test, et une mutation qui déplace la dépense après la vérification de la
+signature fait tomber le second.
+
+### Ce que le journal retient, et ce qu'il refuse de retenir
+
+**Un défi inconnu n'écrit rien.** Sans cette retenue, n'importe qui remplirait le journal en
+envoyant des valeurs au hasard, et noierait les lignes qui comptent. Les refus journalisés sont
+ceux qui ont présenté un défi **valide** : ils sont donc bornés par les défis qu'on a émis.
+
+**Une entrée réussie n'est pas journalisée non plus** : elle laisse une ligne de session, datée et
+nommée, qui dit déjà qui est entré et quand. Un refus, lui, ne laisse rien d'autre.
+
+Une mutation qui journalise aussi les défis inconnus fait tomber le test correspondant.
+
+### Deux sorties qui ne se mélangent pas
+
+`entrer` ne rend pas un `Resultat` ordinaire : sa `raison` irait droit dans une réponse HTTP, et
+c'est exactement ce qu'on ne veut pas. Un refus porte **deux** champs :
+
+| champ | où il va |
+|---|---|
+| `mot` | au demandeur — toujours « Entrée refusée. » |
+| `pourLeJournal` | jamais au demandeur |
+
+Les noms font le travail : personne n'écrit `pourLeJournal` dans une réponse par distraction. Un
+test vérifie que quatre refus très différents rendent le même mot, et que leurs quatre raisons
+internes diffèrent toutes.
+
+### Mes tests, encore une fois
+
+Quatre échecs au premier passage, tous dans mon échafaudage : mes aides créaient deux fois la
+même clé et posaient deux fois le même défi, et les contraintes d'unicité — qui faisaient
+exactement leur travail — ressemblaient à des pannes. Les aides remettent maintenant le décor à
+neuf à chaque tentative.
+
+C'est la troisième fois de ce lot que l'échec vient du test et non du code. À chaque fois le
+mécanisme sous test se comportait correctement ; à chaque fois c'est l'échafaudage qui mentait.

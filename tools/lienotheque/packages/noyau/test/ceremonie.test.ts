@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ALGORITHME_ATTENDU,
+  TAILLE_DONNEES_AUTH,
   defiNeuf,
+  examinerLesDonneesAuthentificateur,
   examinerLesDonneesClient,
   examinerUneClePublique,
 } from "../src/ceremonie.js";
@@ -19,7 +21,7 @@ import {
 
 const CEREMONIE = JSON.parse(
   readFileSync(new URL("../../../fixtures/ceremonie-webauthn.json", import.meta.url), "utf8"),
-) as { spki: string; donneesClient: string };
+) as { spki: string; donneesClient: string; donneesAuthentificateur: string };
 
 /** Le défi et l'origine de la cérémonie mesurée, **lus dans la fixture** et non recopiés.
  *
@@ -211,5 +213,121 @@ describe("la clé publique que le navigateur rend, ou ne rend pas", () => {
 
   it("dit que l'algorithme attendu est celui qu'on demande à la création", () => {
     expect(ALGORITHME_ATTENDU).toBe(-7);
+  });
+});
+
+describe("les données de l'authentificateur disent le domaine, les drapeaux et le compteur", () => {
+  const MESUREES = Uint8Array.from(Buffer.from(CEREMONIE.donneesAuthentificateur, "base64"));
+
+  /** Des données d'authentificateur fabriquées : trente-deux octets d'empreinte, un de
+   *  drapeaux, quatre de compteur. C'est tout ce que la norme impose, et tout ce qu'on lit. */
+  const fabriquer = async (domaine: string, drapeaux: number, compteur: number): Promise<Uint8Array<ArrayBuffer>> => {
+    const empreinte = new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(domaine)),
+    );
+    const donnees = new Uint8Array(TAILLE_DONNEES_AUTH);
+    donnees.set(empreinte, 0);
+    donnees[32] = drapeaux;
+    new DataView(donnees.buffer).setUint32(33, compteur);
+    return donnees;
+  };
+
+  // Présence (0x01) et utilisateur vérifié (0x04) : ce qu'une entrée par Touch ID porte.
+  const PRESENT_ET_VERIFIE = 0x05;
+
+  it("lit les données réellement mesurées, et retrouve le domaine du banc", async () => {
+    // Le banc tournait sur « localhost ». L'empreinte du domaine est dans les octets mesurés :
+    // si la lecture est juste, elle concorde sans qu'on ait rien à transcrire.
+    const vu = await examinerLesDonneesAuthentificateur(MESUREES, { domaine: "localhost" });
+    expect(vu.bon).toBe(true);
+    if (vu.bon) {
+      expect(vu.compteur).toBe(2);
+      expect(vu.utilisateurVerifie).toBe(true);
+    }
+  });
+
+  it("refuse les mêmes données sous un autre domaine", async () => {
+    // C'est la garde contre un site voisin qui réutiliserait une signature prise ailleurs.
+    const vu = await examinerLesDonneesAuthentificateur(MESUREES, { domaine: "lienotheque.exemple" });
+    expect(vu.bon).toBe(false);
+    if (!vu.bon) expect(vu.raison).toContain("domaine");
+  });
+
+  it("lit le compteur, y compris très grand", async () => {
+    for (const compteur of [0, 1, 2, 65535, 4294967295]) {
+      const vu = await examinerLesDonneesAuthentificateur(
+        await fabriquer("lienotheque.exemple", PRESENT_ET_VERIFIE, compteur),
+        { domaine: "lienotheque.exemple" },
+      );
+      expect(vu.bon, `compteur ${compteur}`).toBe(true);
+      if (vu.bon) expect(vu.compteur).toBe(compteur);
+    }
+  });
+
+  it("refuse si la présence de l'utilisateur n'est pas attestée", async () => {
+    // Sans ce drapeau, personne n'a touché l'appareil : la signature pourrait venir d'un
+    // logiciel qui garde la clé.
+    const vu = await examinerLesDonneesAuthentificateur(
+      await fabriquer("lienotheque.exemple", 0x04, 1),
+      { domaine: "lienotheque.exemple" },
+    );
+    expect(vu.bon).toBe(false);
+    if (!vu.bon) expect(vu.raison).toContain("présence");
+  });
+
+  it("refuse si l'utilisateur n'a pas été vérifié, quand on l'exige", async () => {
+    const vu = await examinerLesDonneesAuthentificateur(
+      await fabriquer("lienotheque.exemple", 0x01, 1),
+      { domaine: "lienotheque.exemple" },
+    );
+    expect(vu.bon).toBe(false);
+    if (!vu.bon) expect(vu.raison).toContain("vérifié");
+  });
+
+  it("accepte sans vérification de l'utilisateur quand on ne l'exige pas", async () => {
+    const vu = await examinerLesDonneesAuthentificateur(
+      await fabriquer("lienotheque.exemple", 0x01, 1),
+      { domaine: "lienotheque.exemple", exigerUtilisateurVerifie: false },
+    );
+    expect(vu.bon).toBe(true);
+    if (vu.bon) expect(vu.utilisateurVerifie).toBe(false);
+  });
+
+  it("refuse des données trop courtes, sans lire au-delà", async () => {
+    const entieres = await fabriquer("lienotheque.exemple", PRESENT_ET_VERIFIE, 1);
+    for (const taille of [0, 1, 32, 36]) {
+      const vu = await examinerLesDonneesAuthentificateur(entieres.slice(0, taille), {
+        domaine: "lienotheque.exemple",
+      });
+      expect(vu.bon, `${taille} octets`).toBe(false);
+      if (!vu.bon) expect(vu.raison, `${taille} octets`).toContain("trop courtes");
+    }
+  });
+
+  it("accepte des données plus longues : un authentificateur peut en ajouter", async () => {
+    // La norme permet des extensions après les trente-sept octets. Les refuser casserait des
+    // appareils parfaitement corrects ; les lire n'est pas nécessaire.
+    const entieres = await fabriquer("lienotheque.exemple", PRESENT_ET_VERIFIE, 7);
+    const allongees = new Uint8Array(entieres.length + 12);
+    allongees.set(entieres, 0);
+    allongees.fill(0xab, entieres.length);
+
+    const vu = await examinerLesDonneesAuthentificateur(allongees, { domaine: "lienotheque.exemple" });
+    expect(vu.bon).toBe(true);
+    if (vu.bon) expect(vu.compteur).toBe(7);
+  });
+
+  it("compare l'empreinte du domaine octet par octet", async () => {
+    // Un domaine qui commence pareil ne doit pas passer : l'empreinte n'a pas de préfixe commun,
+    // mais le test fige l'exigence.
+    const vu = await examinerLesDonneesAuthentificateur(
+      await fabriquer("lienotheque.exemple", PRESENT_ET_VERIFIE, 1),
+      { domaine: "lienotheque.exemple.attaquant.test" },
+    );
+    expect(vu.bon).toBe(false);
+  });
+
+  it("dit que trente-sept octets est le minimum de la norme", () => {
+    expect(TAILLE_DONNEES_AUTH).toBe(37);
   });
 });
