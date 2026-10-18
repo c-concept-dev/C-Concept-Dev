@@ -76,6 +76,53 @@ export const SessionEnregistree = z
   .strict();
 export type SessionEnregistree = z.infer<typeof SessionEnregistree>;
 
+/** À quoi un défi sert. Un défi émis pour enrôler ne doit pas pouvoir servir à entrer : ce
+ *  serait permettre d'ouvrir une porte avec la clé qu'on venait de faire tailler. */
+export const UsageDuDefi = z.enum(["enrolement", "entree"]);
+export type UsageDuDefi = z.infer<typeof UsageDuDefi>;
+
+/** Le hasard que le serveur envoie et que l'appareil signe.
+ *
+ *  `consommeLe` est le cœur : un défi ne sert **qu'une fois**. La ligne consommée reste, pour
+ *  qu'on puisse répondre « ce défi a déjà servi » plutôt que « ce défi n'existe pas » — deux
+ *  phrases qui ne disent pas la même chose à qui lit un journal. */
+export const Defi = z
+  .object({
+    /** Trente-deux octets de hasard, en base64url. */
+    valeur: z.string().min(1),
+    usage: UsageDuDefi,
+    /** Nul à l'entrée : c'est la clé présentée qui dira qui. */
+    personneId: Identifiant.optional(),
+    creeLe: Horodatage,
+    expireLe: Horodatage,
+    consommeLe: Horodatage.optional(),
+  })
+  .strict();
+export type Defi = z.infer<typeof Defi>;
+
+/** Ce qu'un navigateur présente pour **enrôler** une clé.
+ *
+ *  `clePublique` et `algorithme` sont **explicitement nullables**, et c'est tout l'intérêt :
+ *  `getPublicKey()` rend `null` quand le navigateur ne reconnaît pas l'algorithme. La page doit
+ *  alors envoyer `null` et non rien — un champ absent se confondrait avec un bogue de la page,
+ *  et l'enrôlement échouerait sans qu'on sache lequel des deux s'est produit.
+ *
+ *  Dit autrement : la nullité est une **réponse** du navigateur, pas une donnée manquante, et le
+ *  contrat la laisse passer pour que le refus qui suit puisse la nommer. */
+export const PreuveDEnrolement = z
+  .object({
+    /** L'identifiant que l'authentificateur donne à la clé, en base64url. */
+    identifiant: z.string().min(1),
+    /** La clé publique en SPKI et en base64 — ou `null` si le navigateur n'a pas su la rendre. */
+    clePublique: z.string().min(1).nullable(),
+    /** L'algorithme annoncé — ou `null`, pour la même raison. −7 est ECDSA avec SHA-256. */
+    algorithme: z.number().int().nullable(),
+    donneesClient: z.string().min(1),
+    appareil: z.string().min(1).optional(),
+  })
+  .strict();
+export type PreuveDEnrolement = z.infer<typeof PreuveDEnrolement>;
+
 /** Ce qu'un navigateur présente pour entrer, une fois la clé enrôlée.
  *
  *  Tout arrive en base64url, parce que c'est ce que rend une page web sans transformation. Rien

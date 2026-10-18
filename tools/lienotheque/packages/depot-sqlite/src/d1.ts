@@ -71,7 +71,10 @@ export type BaseMinimale = {
     readonly bind: (...valeurs: unknown[]) => {
       readonly all: <T>() => Promise<{ results: T[] }>;
       readonly first: <T>() => Promise<T | null>;
-      readonly run: () => Promise<unknown>;
+      /** Ce que D1 rend d'une écriture. `meta.changes` dit **combien de lignes ont changé**, et
+       *  c'est la seule façon d'écrire un « une seule fois » sans course : on tente la mise à
+       *  jour sous condition, et le nombre dit si c'est nous qui l'avons emportée. */
+      readonly run: () => Promise<{ readonly meta: { readonly changes: number } }>;
     };
   };
 };
@@ -87,7 +90,9 @@ export function baseEnMemoire(migrations: readonly Migration[]): BaseMinimale & 
       bind: (...valeurs: unknown[]) => ({
         all: async <T>() => ({ results: base.prepare(sql).all(...(valeurs as never[])) as T[] }),
         first: async <T>() => (base.prepare(sql).get(...(valeurs as never[])) as T | undefined) ?? null,
-        run: async () => base.prepare(sql).run(...(valeurs as never[])),
+        // Normalisé à la forme de D1, et non à celle de node:sqlite : un double qui rend autre
+        // chose que l'hébergeur laisserait passer en test ce qui échouerait en ligne.
+        run: async () => ({ meta: { changes: Number(base.prepare(sql).run(...(valeurs as never[])).changes) } }),
       }),
     }),
     executer: (sql: string) => base.exec(sql),

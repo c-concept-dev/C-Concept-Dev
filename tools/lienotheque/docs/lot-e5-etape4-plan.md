@@ -98,7 +98,7 @@ l'attestation, est **déjà le compromis d'E1**, assumé pour les mêmes utilisa
 |---|---|---|
 | ~~4.1~~ **fait** | **Vérifier la voie C** : `getPublicKey()` rend bien une clé SPKI importable, sur les navigateurs employés | **Mesuré le 18 octobre** : cérémonie réelle sous Chromium, API présente sur le Safari livré, vérification faite dans workerd. Un écart trouvé : la signature demande un passage DER → brut. Section 9 |
 | ~~4.2~~ **fait** | Le registre sait écrire et lire une personne, une clé, une session | **46 tests** : les trois tables lues et écrites, le décodage DER à longueur variable, et les trois issues d'une vérification. Section 10 |
-| 4.3 | L'enrôlement : défi, création, clé publique rangée | Une clé enrôlée se relit ; `getPublicKey()` nul **refuse** et le dit |
+| ~~4.3~~ **fait** | L'enrôlement : défi, création, clé publique rangée | **39 tests** : la clé enrôlée se relit, `getPublicKey()` nul refuse en le nommant, et le défi ne sert qu'une fois — y compris sous deux requêtes simultanées. Section 11 |
 | 4.4 | L'authentification : défi, signature, vérification, session ouverte | Une signature valide ouvre ; une signature rejouée est refusée (le compteur) |
 | 4.5 | La session : cookie 90 jours, repoussé une fois par jour, révocable | Une session révoquée refuse à la requête suivante |
 | 4.6 | Les droits enfin appliqués : `droits.ts` branché à la porte | Une action absente de la table est refusée à tout le monde |
@@ -314,3 +314,109 @@ Un test qui ne peut pas échouer ne prouve rien — la leçon des fixtures où `
 | le compteur anti-rejeu n'est plus vérifié | **rouge** |
 
 Les deux ont été défaites juste après.
+
+---
+
+## 11. L'étape 4.3 : l'enrôlement, et sept refus qui se nomment
+
+### Ce que l'enrôlement vérifie, et dans quel ordre
+
+1. le défi existe, n'a pas servi, n'est pas périmé, a été émis **pour enrôler**, et désigne une
+   personne ;
+2. les données du client disent bien une **création**, pour ce défi, depuis notre origine, hors
+   de tout cadre étranger ;
+3. la clé publique est présente, de l'algorithme demandé, et **s'importe réellement** ;
+4. alors seulement la clé est rangée, et le défi marqué comme ayant servi.
+
+**L'ordre n'est pas indifférent.** Le défi est consommé en dernier : un refus qui vient de la clé
+n'est pas la faute du défi, et obliger à en redemander un pour réessayer depuis un autre appareil
+serait une rudesse gratuite. Un test le vérifie — après un refus de clé, le même défi enrôle.
+
+L'import de la clé est **fait pour de vrai**, et non supposé d'après l'algorithme annoncé : une
+clé d'une autre courbe peut annoncer `-7` et ne pas s'importer. Mieux vaut l'apprendre à
+l'enrôlement, où l'on peut le dire, qu'à la première entrée, où l'on ne pourra que refuser.
+
+### Le cas qui commandait l'étape
+
+`getPublicKey()` nul **refuse, et le dit** : « getPublicKey() n'a pas rendu de clé : ce navigateur
+ne reconnaît pas l'algorithme. » Aucun repli sur l'objet d'attestation — ce serait ramener le CBOR
+par la petite porte, un jour où personne ne regarde.
+
+Et quatre causes distinctes, parce qu'elles ne se corrigent pas de la même façon :
+
+| cause | ce que ça veut dire |
+|---|---|
+| `cle_nulle` | le navigateur n'a pas su rendre la clé — une **réponse**, pas un défaut |
+| `algorithme_nul` | il n'a pas su nommer l'algorithme |
+| `algorithme_inattendu` | un autre algorithme que celui qu'on vérifie |
+| `cle_illisible` | la clé ne s'importe pas — un **défaut** |
+
+Le contrat y est pour quelque chose : `clePublique` et `algorithme` sont **explicitement
+nullables**. La page doit envoyer `null`, et non omettre le champ — un champ absent se
+confondrait avec un bogue de la page, et l'enrôlement échouerait sans qu'on sache lequel des deux
+s'est produit.
+
+### Le défi vit dans la base, et pas dans un jeton signé
+
+Un jeton signé sait dire qu'il est authentique et qu'il n'est pas périmé. **Il ne saura jamais
+dire qu'il a déjà servi.** Une chose à usage unique a besoin d'un endroit où marquer qu'elle a
+servi : d'où la table, et la migration 4.
+
+La ligne consommée reste, pour qu'on puisse répondre « ce défi a déjà servi » plutôt que « ce défi
+n'existe pas ». Les deux refusent ; elles ne disent pas la même chose à qui lit un journal — une
+sonde, ou un double clic.
+
+### La course, trouvée en essayant de casser le code
+
+Une mutation a retiré le contrôle « ce défi a déjà servi » qui précède l'écriture : **tous les
+tests sont restés verts.** La mise à jour sous condition rattrapait. Ce n'était donc pas un trou
+de test, mais cela révélait autre chose : rien ne prouvait que le « une seule fois » tienne quand
+deux requêtes arrivent ensemble.
+
+Le test manquant a été écrit : deux consommations lancées sans attendre la première, de sorte que
+chacune lit la ligne vierge avant que l'autre n'écrive. C'est la course qu'un double clic produit,
+et elle est reproductible. Deux mutations la confirment, et **ce test est le seul que l'une ou
+l'autre fasse tomber** :
+
+| mutation | verdict |
+|---|---|
+| le nombre de lignes touchées n'est plus regardé | **rouge** |
+| la mise à jour n'est plus conditionnelle | **rouge** |
+
+Le port a dû s'élargir pour cela : une écriture rend maintenant `meta.changes`, comme D1 le fait.
+Une écriture qui ne sait pas dire si elle a touché une ligne ne peut pas exprimer un « une seule
+fois ». Le double en mémoire a été normalisé à la forme de D1 — un double qui rend autre chose que
+l'hébergeur laisserait passer en test ce qui échouerait en ligne.
+
+### Il n'y a pas de route, et c'est voulu
+
+Les fonctions existent et sont éprouvées ; **aucune n'est exposée sur le réseau.** Une route
+d'enrôlement que rien ne garde serait exactement la porte ouverte qu'on vient de fermer à l'étape
+4.0 : quiconque la trouverait s'enrôlerait, et il n'y a pas aujourd'hui d'identité pour la garder.
+
+Elle viendra quand les droits la garderont — étape 4.6 — ou au plus tôt après l'authentification.
+
+### Deux fois mon test, et non le code
+
+Deux échecs de cette étape venaient de mes tests, pas du code, et les deux fois le mécanisme
+faisait exactement son travail :
+
+- j'avais recopié un défi de quarante-trois caractères à la main depuis un journal, en perdant
+  quatre caractères. Le test lit maintenant le défi **dans la fixture** ; une chaîne de cette
+  longueur ne se transcrit pas à l'œil ;
+- j'avais confondu « longueur en octets » et « longueur en caractères de base64 » dans le test du
+  laissez-passer : « A » tout seul ne se décode pas, et le refus « illisible » était juste.
+
+### Le `try` du laissez-passer, par symétrie
+
+Ajouté, avec ses quatre tests. La mesure a déplacé le risque là où il est vraiment :
+
+| ce qui a été mesuré | résultat |
+|---|---|
+| `verify` HMAC sur une signature de 0, 1, 7, 64 octets | **rend faux**, ne lève jamais |
+| import d'une clé HMAC depuis un secret **vide** | **lève** — « Zero-length key is not supported » |
+
+Ce n'est donc pas `verify` qu'il fallait garder, mais l'import de la clé. La route refuse déjà un
+secret vide avant d'y arriver, si bien que cette garde est une ceinture de plus et non un bogue
+vivant — mais le module promet « jamais une exception », et il la tient maintenant pour tout
+appelant qui n'aurait pas la même vigilance. Une mutation confirme que la garde porte.
