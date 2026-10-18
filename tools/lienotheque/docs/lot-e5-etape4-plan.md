@@ -97,7 +97,7 @@ l'attestation, est **déjà le compromis d'E1**, assumé pour les mêmes utilisa
 | # | ce qui est fait | comment on sait que c'est fait |
 |---|---|---|
 | ~~4.1~~ **fait** | **Vérifier la voie C** : `getPublicKey()` rend bien une clé SPKI importable, sur les navigateurs employés | **Mesuré le 18 octobre** : cérémonie réelle sous Chromium, API présente sur le Safari livré, vérification faite dans workerd. Un écart trouvé : la signature demande un passage DER → brut. Section 9 |
-| 4.2 | Le registre sait écrire et lire une personne, une clé, une session | Tests sur les quatre tables, aujourd'hui vides de tout code |
+| ~~4.2~~ **fait** | Le registre sait écrire et lire une personne, une clé, une session | **46 tests** : les trois tables lues et écrites, le décodage DER à longueur variable, et les trois issues d'une vérification. Section 10 |
 | 4.3 | L'enrôlement : défi, création, clé publique rangée | Une clé enrôlée se relit ; `getPublicKey()` nul **refuse** et le dit |
 | 4.4 | L'authentification : défi, signature, vérification, session ouverte | Une signature valide ouvre ; une signature rejouée est refusée (le compteur) |
 | 4.5 | La session : cookie 90 jours, repoussé une fois par jour, révocable | Une session révoquée refuse à la requête suivante |
@@ -219,3 +219,98 @@ l'algorithme est inconnu du navigateur, et −7 est l'algorithme le plus répand
 il n'est pas nul, et il se lèvera en une minute le jour de l'enrôlement. **L'étape 4.3 prévoit
 déjà qu'une clé nulle fasse échouer l'enrôlement en le disant** : si Safari surprend, le refus
 sera explicite au lieu d'être silencieux.
+
+---
+
+## 10. L'étape 4.2 : le registre, et la signature traitée comme il faut
+
+Deux exigences commandaient cette étape, en plus de son objet.
+
+### Les trois tables, enfin vivantes
+
+`apps/worker/src/qui-entre.ts` lit et écrit une personne, une clé, une session. Comme pour le
+registre des bibliothèques, **tout ce qui sort passe par son contrat** : une ligne de base n'est
+pas une donnée de confiance, et ici moins qu'ailleurs — un compteur anti-rejeu relu de travers,
+c'est une signature rejouée qui passe. Deux tests le vérifient en trafiquant la base à la main.
+
+**Rien ne se supprime.** Une clé et une session révoquées gardent leur ligne, datée : c'est la
+lecture qui voit la révocation, pas la base qui l'efface. Un journal dont les lignes disparaissent
+ne répond plus à « depuis quand ».
+
+La table `droit` reste intouchée : elle est l'objet de l'étape 4.6, et rien ne gagnerait à
+l'écrire avant qu'une identité existe pour la porter.
+
+### Une colonne manquait, et la migration 3 la pose
+
+La migration 2 a été écrite avant la cérémonie. À l'entrée, le navigateur présente l'identifiant
+que l'authentificateur a donné à la clé — des octets quelconques, pas un UUID — et c'est **le
+seul chemin** pour retrouver la clé publique qui vérifiera la signature. Sans cette colonne, une
+clé enrôlée est introuvable au moment précis où elle sert.
+
+Elle ne remplace pas `id` : l'identifiant interne reste un UUID, comme partout ailleurs, et c'est
+lui que le journal cite. L'index d'unicité est partiel, pour que la règle ne dépende pas du fait
+que la table est vide aujourd'hui.
+
+**Elle n'est pas appliquée à la base déployée.** Appliquer une migration au registre en
+production est un geste explicite, qui se demande.
+
+### Le décodage DER est dans le code, pas seulement au banc
+
+`packages/noyau/src/signature.ts` lit les longueurs **annoncées**, jamais des positions
+supposées. Le test tire trois cents signatures réelles et vérifie que chacune se relit octet
+pour octet.
+
+Et la mesure est allée plus loin que l'étape 4.1 ne l'avait vue. Sur vingt mille signatures :
+
+| longueur | fréquence |
+|---|---|
+| 69 octets | **0,24 %** |
+| 70 octets | 25,1 % |
+| 71 octets | 49,2 % |
+| 72 octets | 25,5 % |
+
+Les soixante-neuf octets arrivent quand un des deux entiers commence par un octet nul. Une garde
+défensive tout à fait plausible à écrire — « moins de soixante-dix octets, ce n'est pas une
+signature » — refuserait **une entrée sur quatre cent seize**, au hasard, sans qu'aucun journal
+ne fasse de motif. Un test déterministe construit ce cas plutôt que de l'attendre du hasard.
+
+Au passage, cette mesure a corrigé mon propre test : il exigeait l'ensemble exact
+{70, 71, 72} et aurait donc échoué **une fois sur deux**. Il avait passé deux fois, ce qui ne
+prouvait rien. L'assertion dit maintenant que les trois longueurs courantes se présentent, sans
+interdire les autres.
+
+### Refusée, ou illisible : jamais le même mot
+
+**Aucune fonction de ce module ne rend un booléen.** Trois issues :
+
+| issue | ce que ça veut dire |
+|---|---|
+| `valide` | la signature correspond |
+| `refusee` | tout était lisible, et elle ne correspond pas — une tentative qui échoue |
+| `illisible` | un défaut : clé inimportable, DER mal formé, `verify` qui lève |
+
+Confondre les deux dernières dans un « faux » muet, c'est faire passer un bogue pour un mot de
+passe erroné et chercher pendant des jours. Le lecteur DER est strict pour la même raison : un
+zéro de tête superflu, un entier négatif, des octets en trop à la fin sont **refusés en le
+disant**, parce qu'un lecteur indulgent laisserait deux écritures différentes valoir la même
+signature.
+
+**Mais ce qui sort vers le demandeur ne distingue rien** : un seul mot, « Entrée refusée. », pour
+les trois. Apprendre qu'une signature est illisible plutôt que refusée, c'est apprendre qu'on a
+trouvé un défaut. La distinction est pour nous — `pourLeJournal` garde la raison technique, et
+c'est elle qui fera la différence entre une heure et trois jours.
+
+C'est le motif que `laissez-passer.ts` suit déjà, qui sépare « Signature illisible » de
+« Signature refusée ». Le nouveau module le reprend plutôt que d'en inventer un autre.
+
+### Deux mutations, pour voir si les tests mordent
+
+Un test qui ne peut pas échouer ne prouve rien — la leçon des fixtures où `index` valait
+`numero`. Deux gardes ont donc été cassées exprès :
+
+| mutation | verdict |
+|---|---|
+| la longueur DER devient tolérante (`>` au lieu de `!==`) | **rouge** |
+| le compteur anti-rejeu n'est plus vérifié | **rouge** |
+
+Les deux ont été défaites juste après.

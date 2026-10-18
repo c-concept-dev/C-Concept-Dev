@@ -2,7 +2,7 @@
 //
 // Node et workerd n'ont pas la même mise en œuvre de WebCrypto. Vérifier dans Node ne dit rien
 // de ce qui se passera en production — d'où ce banc, qui reçoit les octets réellement produits
-// par la cérémonie du navigateur (bancs/ceremonie-mesuree.json) et les traite comme le Worker
+// par la cérémonie du navigateur (fixtures/ceremonie-webauthn.json) et les traite comme le Worker
 // le fera.
 //
 // Sa configuration s'appelle « wrangler.banc.toml » et non « wrangler.toml » : ainsi aucun

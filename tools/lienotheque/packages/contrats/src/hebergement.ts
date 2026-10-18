@@ -69,6 +69,13 @@ export const OperationSensible = z.enum([
   "publication",
   "depublication",
   "changement_hebergement",
+  // Inscrire une personne lui donne le droit d'enrôler des clés : c'est la racine de tout accès,
+  // et la seule ligne qui dira qui l'a ajoutée.
+  "inscription",
+  // Enrôler une clé donne un accès durable à une personne : c'est au moins aussi sensible que
+  // publier, et c'est la ligne qu'on cherchera le jour où on se demandera depuis quand un
+  // appareil entre.
+  "enrolement",
   "revocation",
   "suppression",
 ]);

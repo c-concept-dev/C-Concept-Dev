@@ -47,25 +47,26 @@ cérémonie réelle sur Safari reste donc à faire, et le plan le dit plutôt qu
 ## `workerd/` — la moitié serveur, dans le bon moteur
 
 Node et workerd n'ont pas la même mise en œuvre de WebCrypto, et c'est workerd qui portera le
-code. Ce banc reçoit `ceremonie-mesuree.json` — les octets réellement produits par la cérémonie —
+code. Ce banc reçoit `fixtures/ceremonie-webauthn.json` — les octets réellement produits par la cérémonie —
 et les traite comme le Worker le fera.
 
 ```
 cd apps/worker/bancs/workerd
 pnpm exec wrangler dev --local --config wrangler.banc.toml --port 8788 --ip 127.0.0.1
 curl -X POST -H 'content-type: application/json' \
-  --data-binary @../ceremonie-mesuree.json http://127.0.0.1:8788/
+  --data-binary @../../../../fixtures/ceremonie-webauthn.json http://127.0.0.1:8788/
 ```
 
 Sa configuration s'appelle `wrangler.banc.toml` et non `wrangler.toml` : wrangler ne charge
 d'office que ce dernier, de sorte qu'aucun `wrangler deploy` lancé par mégarde ici ne trouve de
 quoi faire. Rien n'est déployé, aucun secret n'est lu, la configuration figée est intouchée.
 
-## `ceremonie-mesuree.json` — les octets eux-mêmes
+## `fixtures/ceremonie-webauthn.json` — les octets eux-mêmes
 
 Clé publique, données de l'authentificateur, données du client et signature, tels qu'un
 authentificateur virtuel les a produits à l'origine `localhost`. **Aucune clé privée** : elle
 n'a jamais quitté l'authentificateur, qui n'existe plus.
 
-Ils servent au banc workerd, et ils serviront de fixtures aux tests de l'étape 4.4 — un vrai
-jeu d'octets vaut mieux qu'un jeu inventé pour la circonstance.
+Ils servent au banc workerd **et** aux tests de `packages/noyau` depuis l'étape 4.2 — un vrai
+jeu d'octets vaut mieux qu'un jeu inventé pour la circonstance. Ils vivent dans `fixtures/`, et
+non ici, précisément parce qu'un test du noyau n'a rien à chercher dans `apps/worker`.

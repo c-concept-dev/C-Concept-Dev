@@ -29,6 +29,6 @@ const charge = {
   signature: mene.authentification.signature,
 };
 
-const sortie = new URL("ceremonie-mesuree.json", import.meta.url);
+const sortie = new URL("../../../fixtures/ceremonie-webauthn.json", import.meta.url);
 writeFileSync(sortie, `${JSON.stringify(charge, null, 2)}\n`);
-console.error(`octets de ${mene.navigateur} écrits dans ceremonie-mesuree.json`);
+console.error(`octets de ${mene.navigateur} écrits dans fixtures/ceremonie-webauthn.json`);

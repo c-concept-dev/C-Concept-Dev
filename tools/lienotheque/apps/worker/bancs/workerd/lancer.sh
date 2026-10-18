@@ -18,7 +18,7 @@ echo "=== le moteur se nomme ==="
 cat "$ICI/.sante.json"; echo ""
 echo "=== la vérification, dans workerd ==="
 curl -s -m 15 -X POST -H 'content-type: application/json' \
-  --data-binary "@$ICI/../ceremonie-mesuree.json" http://127.0.0.1:8788/
+  --data-binary "@$ICI/../../../../fixtures/ceremonie-webauthn.json" http://127.0.0.1:8788/
 echo ""
 
 kill $MOTEUR 2>/dev/null || true
