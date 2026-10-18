@@ -21967,7 +21967,10 @@ ${recent}`;
     }
     if (saveBtn) {
       const label = saveBtn.querySelector('span');
-      if (label) label.textContent = saved ? 'Enregistrer une nouvelle version' : 'Enregistrer';
+      // Lot 2C — « Nouvelle version » et non « Enregistrer une nouvelle version » : le long
+      // libellé s'empilait sur trois lignes dans la barre et poussait le dernier bouton hors du
+      // cadre. Le sens est le même, le geste est le même ; seul l'encombrement change.
+      if (label) label.textContent = saved ? 'Nouvelle version' : 'Enregistrer';
     }
     // Item 76 (Option A, décision produit actée) — bandeau réactif au VRAI format d'origine
     // (art.fmt, jamais réécrit par adocFinalizeGeneration) et à _adocEverEdited (jamais remis à
