@@ -9,6 +9,8 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
+| 2026-10-18 | **La version en ligne lit par la façade Worker sur D1**, et non par SQLite en WebAssembly. Remplace la décision du 3 octobre | Section ci-dessous |
+| 2026-10-18 | **« Lot E2 » cesse de désigner le travail de capacité.** BAS-02 reste réservé au réimport réel, toujours différé | Section ci-dessous |
 | 2026-10-03 | **Tauri 2 retenu le 3 octobre 2026 sur mesures Mac** (paquet 24,75 Mio dont 13,54 Mio de moteurs ; 4 critères tenus). Réserve : validation Windows obligatoire avant toute version livrée sous Windows | Lot 0, mesures ci-dessous |
 | 2026-10-03 | Réserve Windows **levée sur les quatre critères** : ils passent tous sur `windows-latest` (exécution 37120499122). Reste ouvert : l'agencement d'un paquet Windows **installé**, non mesuré | Lot 0, mesures Windows ci-dessous |
 | 2026-10-04 | Le **décalage des pages s'appuie sur tout le lot**, le vote local ne s'en écartant que de quatre | Section ci-dessous |
@@ -18,7 +20,7 @@
 | 2026-10-03 | **Échantillon F7 mesuré** : le critère ×5 d'OPT-01 tient sur un scan non optimisé (F4, ×8,7), pas sur des sources déjà comprimées (F2 ×2,6, F3 ×1,9) | Section ci-dessous |
 | 2026-10-03 | Noir et blanc 1 bit : **CCITT groupe 4**, encodeur écrit ici, libtiff comme oracle. JBIG2 en mode symboles refusé | Section ci-dessous |
 | 2026-10-03 | **Playwright** retenu pour les tests de rendu : trois moteurs (Chromium, Firefox, WebKit), hors de `pnpm check`, dans un job d'intégration continue à part | Section ci-dessous |
-| 2026-10-03 | Le port de dépôt aura **trois implémentations** : `node:sqlite` (tests et outillage), hôte Rust (application Tauri), SQLite en WebAssembly (version en ligne). Aucun code hors de l'adaptateur ne dépend de `node:sqlite` | Section ci-dessous |
+| 2026-10-03 | ~~Le port de dépôt aura **trois implémentations** : `node:sqlite` (tests et outillage), hôte Rust (application Tauri), SQLite en WebAssembly (version en ligne)~~ — **remplacée le 18 octobre 2026** : la version en ligne passe par la façade Worker, pas par WebAssembly. Les deux premières implémentations tiennent, et aucun code hors de l'adaptateur ne dépend de `node:sqlite` | Section ci-dessous, « La version en ligne lit par la façade » |
 | 2026-10-03 | Siegfried **téléchargé depuis la version publiée par son auteur**, version et empreintes figées dans le script des moteurs ; aucun tap Homebrew | Section ci-dessous |
 | 2026-10-03 | Dépôt local sur **`node:sqlite`**, intégré à Node, plutôt qu'un module natif : `better-sqlite3` ne se construit pas sur le runner Windows (pas de Visual Studio). Node passe à **24** partout | Section ci-dessous |
 | 2026-10-03 | **Stratégie de plateformes** : multiplateforme par conception, bêta macOS d'abord, transposition Windows ensuite, Linux hors périmètre | Section ci-dessous |
@@ -2652,3 +2654,46 @@ reprise.
 **Ce qu'il faut en retenir pour ne pas se tromper** : ce rouge ne dit rien du produit sous
 Windows. Il dit que deux de nos tests ne savent pas y poser le cas qu'ils veulent éprouver. La
 couverture Windows des critères est donc, à ce jour, de 89 tests sur 91 — et non nulle.
+
+## La version en ligne lit par la façade (18 octobre 2026)
+
+**Décision : la façade Worker sur D1. La décision du 3 octobre — SQLite en WebAssembly pour la
+version en ligne — est remplacée.** Les deux autres implémentations du port de dépôt tiennent :
+`node:sqlite` pour les tests, l'hôte Rust pour le bureau.
+
+Trois raisons, dans cet ordre.
+
+**Elle est déjà construite, et déjà mesurée.** E1 a franchi BAS-01 le 10 octobre : les quatre
+routes répondent par-dessus le réseau entre 162 et 168 ms. La voie WebAssembly demanderait de
+rebâtir cela dans le navigateur.
+
+**Elle résout la troisième réserve au lieu de la déplacer.** La recherche du bureau parcourt les
+fichiers de version — les passages y font 93 % du poids, environ 1,5 Ko chacun. Tenable à huit
+documents, intenable à deux cent cinquante. D1 porte l'index plein texte, et la façade le sert
+déjà ; SQLite en WebAssembly porterait le même problème dans le navigateur, avec moins de
+mémoire et un téléchargement à chaque visite.
+
+**Le hors-connexion a déjà son répondant : le bureau.** La version en ligne sert à lire depuis
+ailleurs, non à remplacer l'application installée.
+
+**Le coût est accepté et écrit : aucune lecture hors connexion.** Chaque geste paiera un
+aller-retour, mesuré à 165 ms. Ce n'est pas un détail d'implémentation — c'est ce que la version
+en ligne sera, et ce qu'elle ne sera pas.
+
+## « Lot E2 » : une étiquette pour deux choses (18 octobre 2026)
+
+Le mot a servi à deux choses sans rapport, et la confusion a failli faire écrire le plan du
+mauvais lot.
+
+| ce qu'on appelait « lot E2 » | ce que c'est réellement |
+|---|---|
+| le chemin du texte, le classement, le contrat des pages | **du travail de capacité**, fusionné les 17 et 18 octobre. Un raccourci de conversation, jamais une étiquette du CDC |
+| **E2 = BAS-02** dans l'ordre de construction | **le réimport réel des 234 ouvrages**, toujours différé |
+
+**BAS-02 reste réservé au réimport réel**, et celui-ci attend que Liénothèque soit terminée — ce
+n'est pas une étape du prochain lot, c'est une décision prise le 17 octobre 2026.
+
+Les documents `lot-e2-texte-plan.md` et `lot-e2-classement-plan.md` gardent leurs noms de
+fichiers : les renommer casserait les liens qui les citent, pour un gain nul. Ce sont des plans
+de capacité, et cette ligne-ci le dit. **Aucun nouveau document n'emploiera « lot E2 »** pour
+autre chose que BAS-02.
