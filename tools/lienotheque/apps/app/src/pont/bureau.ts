@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { PortDeDonnees } from "./port.js";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   ApercuDocument,
@@ -220,3 +221,37 @@ export async function versionActive(racine: string, empreinte: string): Promise<
 export async function imageDePage(racine: string, version: string, fichier: string): Promise<string | undefined> {
   return (await invoke<string | null>("image_de_page", { racine, version, fichier })) ?? undefined;
 }
+
+/** Le pont du bureau, vu comme un port.
+ *
+ *  Rien n'est réécrit : les fonctions ci-dessus sont rassemblées telles quelles, et le typage
+ *  vérifie qu'elles remplissent le contrat. Si l'une d'elles s'en écarte un jour, la compilation
+ *  le dira ici plutôt qu'à l'exécution dans la version en ligne.
+ *
+ *  `estBureau` n'y figure pas : elle choisit entre deux ports, elle n'en est pas un membre.
+ *  `oublierBibliotheque` non plus : aucun écran ne l'appelle. */
+export const pontDuBureau: PortDeDonnees = {
+  creerBibliotheque,
+  lireBibliotheque,
+  ecrireBibliotheque,
+  choisirDossier,
+  choisirFichiers,
+  reglages,
+  retenirBibliotheque,
+  bibliothequesRetenues,
+  deposer,
+  faireTourner,
+  travauxDe,
+  agirSurTravail,
+  apercuDePages,
+  essayerManiere,
+  enregistrerManiere,
+  lireManiere,
+  vueDeDocument,
+  passagesDeDocument,
+  versionActive,
+  imageDePage,
+  apercuDeBibliotheque,
+  classerDocument,
+  classementsDeBibliotheque,
+};
