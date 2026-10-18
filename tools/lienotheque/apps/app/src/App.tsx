@@ -192,7 +192,9 @@ export function App(): JSX.Element {
   // l'adresse que la vue porte, qui ne désigne rien sur le bureau.
   useEffect(() => {
     if (courante === undefined || !estBureau() || route.ecran !== "lecteur" || vue === undefined) return undefined;
-    const page = vue.pages.find((candidate) => candidate.numero === route.page);
+    // Par le **rang** : c'est lui que les écrans passent, et le numéro imprimé manque sur
+    // tout ouvrage qui ne numérote rien.
+    const page = vue.pages.find((candidate) => candidate.index === route.page);
     if (page?.image === undefined || page.image.startsWith("data:")) return undefined;
     const fichier = page.image.split("/").pop();
     if (fichier === undefined) return undefined;
@@ -206,7 +208,13 @@ export function App(): JSX.Element {
         setVue((avant) =>
           avant === undefined
             ? avant
-            : { ...avant, pages: avant.pages.map((autre) => (autre.numero === page.numero ? { ...autre, image } : autre)) },
+            : {
+                ...avant,
+                // Par le rang, et jamais par le numéro imprimé : deux pages sans numéro le
+                // portent toutes deux à `undefined`, et `undefined === undefined` est vrai —
+                // l'image d'une page serait recopiée sur toutes les autres.
+                pages: avant.pages.map((autre) => (autre.index === page.index ? { ...autre, image } : autre)),
+              },
         );
       })
       .catch(() => {
