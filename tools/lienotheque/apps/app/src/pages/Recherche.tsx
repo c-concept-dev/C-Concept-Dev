@@ -253,7 +253,7 @@ function Apercu({
   readonly onOuvrir: () => void;
   readonly onEcouter: () => void;
 }): JSX.Element {
-  const page = vue.pages.find((candidate) => candidate.numero === resultat.page);
+  const page = vue.pages.find((candidate) => candidate.index === resultat.page);
   const element = page?.elements.find((candidate) => candidate.ancreId === resultat.element);
 
   return (

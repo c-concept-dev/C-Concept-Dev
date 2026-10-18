@@ -1,0 +1,123 @@
+import type {
+  ApercuDocument,
+  ArriveeDeFichiers,
+  ClassementLocal,
+  DescriptionBibliotheque,
+  Passage,
+  Recette,
+  ReglagesHote,
+  Travail,
+  VueBibliotheque,
+} from "@lienotheque/contrats";
+
+/** Ce que l'application demande à son hôte — en **deux** contrats, et non un (PLT-02, PLT-03).
+ *
+ *  Le bureau **construit** une bibliothèque ; la version en ligne **consulte** ce qu'il a
+ *  produit. Un port unique obligeait la seconde à répondre à des questions qui n'ont pas de sens
+ *  chez elle : « quel dossier ouvrir ? » n'existe pas dans un navigateur, et un refus élégant
+ *  n'aurait fait qu'habiller le malentendu.
+ *
+ *  Le partage vient des **gestes qui appellent**, relevés le 18 octobre 2026 : `creer`,
+ *  `ouvrir`, `organiser`, `deposerDesFichiers`, `agir`, `essayer`, `enregistrer` et
+ *  `montrerLesPages` construisent ; tout le reste lit.
+ *
+ *  Sept fonctions pour lire, quinze pour construire. Le déséquilibre est le résultat :
+ *  **la version en ligne est une petite chose**, à condition de ne pas lui demander d'être le
+ *  bureau.
+ *
+ *  Deux fonctions du pont n'entrent dans aucun des deux — `reglages` et `oublierBibliotheque`,
+ *  qu'aucun écran n'appelle. Les inscrire obligerait la version en ligne à implémenter du vide.
+ *  Et `estBureau` non plus : elle **choisit** entre les deux ports, elle n'en est pas membre.
+ */
+
+/** Lire ce qui existe, et le ranger. Les deux implémentations le remplissent.
+ *
+ *  `classerDocument` y figure bien qu'elle écrive : le geste vit dans le Catalogue — décidé
+ *  ainsi plutôt que dans Organisation — et c'est le geste d'un lecteur sur ce qu'il lit. Le
+ *  second utilisateur a d'ailleurs « lecture et contribution » depuis E1. */
+export type PortDeLecture = {
+  readonly apercuDeBibliotheque: (racine: string) => Promise<readonly ApercuDocument[]>;
+  readonly vueDeDocument: (racine: string, empreinte: string) => Promise<VueBibliotheque | undefined>;
+  readonly passagesDeDocument: (racine: string, empreinte: string) => Promise<readonly Passage[]>;
+  readonly versionActive: (racine: string, empreinte: string) => Promise<string | undefined>;
+  readonly imageDePage: (racine: string, version: string, fichier: string) => Promise<string | undefined>;
+  readonly classementsDeBibliotheque: (racine: string) => Promise<ReadonlyMap<string, ClassementLocal>>;
+  readonly classerDocument: (racine: string, classement: ClassementLocal) => Promise<void>;
+};
+
+/** Construire et administrer. **Le bureau seul.**
+ *
+ *  Tout ce qui désigne un emplacement sur la machine, met un travail en file, ou règle la
+ *  manière de lire. L'écran Dépôt n'existe pas en ligne, et avec lui disparaissent la file et
+ *  ses gestes. */
+export type PortAdministration = {
+  readonly creerBibliotheque: (racine: string, description: DescriptionBibliotheque) => Promise<string>;
+  readonly lireBibliotheque: (racine: string) => Promise<DescriptionBibliotheque | undefined>;
+  readonly ecrireBibliotheque: (racine: string, description: DescriptionBibliotheque) => Promise<void>;
+  readonly retenirBibliotheque: (racine: string) => Promise<ReglagesHote>;
+  readonly bibliothequesRetenues: () => Promise<readonly { racine: string; description: DescriptionBibliotheque }[]>;
+
+  /** Désigner sur la machine : ce que la version en ligne ne peut pas faire, et n'a pas à feindre. */
+  readonly choisirDossier: (titre: string) => Promise<string | undefined>;
+  readonly choisirFichiers: (titre: string) => Promise<readonly string[]>;
+
+  /** La file : la remplir, la faire tourner, la lire, agir dessus. */
+  readonly deposer: (racine: string, chemins: readonly string[]) => Promise<ArriveeDeFichiers>;
+  readonly faireTourner: (racine: string) => Promise<boolean>;
+  readonly travauxDe: (racine: string) => Promise<readonly Travail[]>;
+  readonly agirSurTravail: (
+    racine: string,
+    id: string,
+    action: "pause" | "reprendre" | "annuler",
+  ) => Promise<Travail>;
+
+  /** La manière de lire : l'essayer sans rien enregistrer, puis l'enregistrer (REC-07). */
+  readonly apercuDePages: (
+    racine: string,
+    nom: string,
+    depuis: number,
+    combien: number,
+  ) => Promise<readonly { rang: number; image: string }[]>;
+  readonly essayerManiere: (
+    racine: string,
+    nom: string,
+    recette: unknown,
+    depuis: number,
+    pages: number,
+  ) => Promise<VueBibliotheque>;
+  readonly enregistrerManiere: (racine: string, recette: unknown) => Promise<string>;
+  readonly lireManiere: (racine: string) => Promise<Recette | undefined>;
+};
+
+/** Les noms de chaque port, pour que le partage soit vérifiable à l'exécution.
+ *
+ *  Un type disparaît à la compilation : il ne peut pas empêcher quelqu'un de glisser demain une
+ *  écriture dans le port de lecture, ni d'y oublier une fonction. Ces deux listes le peuvent,
+ *  et leur test s'en sert. */
+export const NOMS_DE_LECTURE = [
+  "apercuDeBibliotheque",
+  "vueDeDocument",
+  "passagesDeDocument",
+  "versionActive",
+  "imageDePage",
+  "classementsDeBibliotheque",
+  "classerDocument",
+] as const satisfies readonly (keyof PortDeLecture)[];
+
+export const NOMS_D_ADMINISTRATION = [
+  "creerBibliotheque",
+  "lireBibliotheque",
+  "ecrireBibliotheque",
+  "retenirBibliotheque",
+  "bibliothequesRetenues",
+  "choisirDossier",
+  "choisirFichiers",
+  "deposer",
+  "faireTourner",
+  "travauxDe",
+  "agirSurTravail",
+  "apercuDePages",
+  "essayerManiere",
+  "enregistrerManiere",
+  "lireManiere",
+] as const satisfies readonly (keyof PortAdministration)[];

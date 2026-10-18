@@ -42,7 +42,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
   const ancreActive = useRef<HTMLSpanElement>(null);
   const segmentActif = useRef<HTMLDivElement>(null);
 
-  const pageCourante = vue.pages.find((p) => p.numero === page) ?? vue.pages[0];
+  const pageCourante = vue.pages.find((p) => p.index === page) ?? vue.pages[0];
   const elements = pageCourante?.elements ?? [];
   const actif: ElementAffiche | undefined = elements.find((e) => e.ancreId === element) ?? elements[0];
   const rang = actif === undefined ? -1 : elements.indexOf(actif);

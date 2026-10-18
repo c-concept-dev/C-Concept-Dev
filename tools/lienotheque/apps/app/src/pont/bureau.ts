@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { PortAdministration, PortDeLecture } from "./port.js";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   ApercuDocument,
@@ -220,3 +221,39 @@ export async function versionActive(racine: string, empreinte: string): Promise<
 export async function imageDePage(racine: string, version: string, fichier: string): Promise<string | undefined> {
   return (await invoke<string | null>("image_de_page", { racine, version, fichier })) ?? undefined;
 }
+
+/** Le pont du bureau remplit **les deux** ports.
+ *
+ *  Rien n'est réécrit : les fonctions ci-dessus sont rassemblées telles quelles, et le typage
+ *  vérifie qu'elles remplissent leur contrat. Si l'une s'en écarte un jour, la compilation le
+ *  dira ici plutôt qu'à l'exécution dans la version en ligne.
+ *
+ *  La version en ligne ne remplira que le premier. C'est tout l'objet de la scission : elle
+ *  n'aura pas à feindre de savoir désigner un dossier. */
+export const lectureDuBureau: PortDeLecture = {
+  apercuDeBibliotheque,
+  vueDeDocument,
+  passagesDeDocument,
+  versionActive,
+  imageDePage,
+  classementsDeBibliotheque,
+  classerDocument,
+};
+
+export const administrationDuBureau: PortAdministration = {
+  creerBibliotheque,
+  lireBibliotheque,
+  ecrireBibliotheque,
+  retenirBibliotheque,
+  bibliothequesRetenues,
+  choisirDossier,
+  choisirFichiers,
+  deposer,
+  faireTourner,
+  travauxDe,
+  agirSurTravail,
+  apercuDePages,
+  essayerManiere,
+  enregistrerManiere,
+  lireManiere,
+};
