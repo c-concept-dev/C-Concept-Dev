@@ -36,6 +36,16 @@ if (process.argv.includes('--reprendre')) {
 
 const MUTATIONS = [
   {
+    // Le septième schéma doit rester extractible par le test de fumée réel, qui ne connaît que
+    // `const `. Si cette déclaration repasse à `var`, rien ne casse localement — sauf ceci.
+    nom: 'le schéma de la page neuve redevient introuvable pour le test de fumée',
+    controle: 'verify-schema-nouvelle-page.cjs',
+    fichier: 'coeur',
+    de: '  const ADOC_NEW_SLIDE_TOOL = {',
+    vers: '  var ADOC_NEW_SLIDE_TOOL = {',
+    attendu: 'le test de fumée réel échouerait sur l’extraction, pas sur un verdict d’Anthropic',
+  },
+  {
     nom: 'le Studio ne regarde plus les diapositives voisines',
     fichier: 'coeur',
     de: "      out.push((c.content.title || '(sans titre)') + ' : ' + textes.join(' ').slice(0, 300));",

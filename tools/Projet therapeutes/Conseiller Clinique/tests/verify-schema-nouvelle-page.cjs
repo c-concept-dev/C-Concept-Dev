@@ -22,7 +22,11 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
 // Le schéma n'est pas exposé au runtime Node : on le lit dans la source, comme le fait déjà
 // verify-schema-outil-fige.
 const source = fs.readFileSync(path.join(RACINE, 'studio-clinique-core.js'), 'utf8');
-const debut = source.indexOf('var ADOC_NEW_SLIDE_TOOL = {');
+// Le test de fumée réel n'extrait les schémas qu'avec `const ` : le septième avait été déclaré
+// `var`, et le test aurait échoué sur « schéma introuvable » en ayant l'air d'un refus de l'API.
+// Cette ancre est donc écrite comme la sienne, pour que le défaut ne puisse pas revenir d'un côté
+// sans faire tomber l'autre.
+const debut = source.indexOf('  const ADOC_NEW_SLIDE_TOOL = {');
 assert.ok(debut > 0, 'ADOC_NEW_SLIDE_TOOL doit exister dans le cœur');
 const fin = source.indexOf('\n  };', debut) + '\n  };'.length;
 const outil = vm.runInNewContext('(' + source.slice(debut + 'var ADOC_NEW_SLIDE_TOOL = '.length, fin).replace(/;\s*$/, '') + ')');

@@ -21022,7 +21022,7 @@ ${recent}`;
   // ni image ni vidéo (une page neuve n'invente pas d'illustration), et aucun champ libre —
   // `additionalProperties: false` partout, pour qu'un champ inventé par le modèle soit un
   // refus franc plutôt qu'une donnée silencieusement gardée.
-  var ADOC_NEW_SLIDE_TOOL = {
+  const ADOC_NEW_SLIDE_TOOL = {
     name: 'emit_new_slide',
     description: 'Rend UNE diapositive neuve pour une présentation existante : un titre court et '
       + 'quelques blocs de contenu. N’ajoute AUCUNE référence bibliographique, aucun renvoi de '
