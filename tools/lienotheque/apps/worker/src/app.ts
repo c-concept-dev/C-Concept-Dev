@@ -704,30 +704,47 @@ export function creerApp({
     return contexte.json({ enrolee: true, appareil: enrole.valeur.appareil ?? null });
   });
 
-  /** La porte de l'amorçage : le jeton de service, **et** un registre sans aucune clé.
+  /** L'amorçage se fait en deux temps, et **ce ne sont pas les mêmes portes**.
    *
-   *  Le premier accès ne peut pas se donner par une session — il n'en existe aucune. Il se donne
-   *  donc par le seul secret qu'on détienne déjà, et seulement tant qu'aucune clé n'est enrôlée.
-   *  Dès qu'il y en a une, cette porte se referme pour toujours.
+   *  Le premier accès ne peut pas se donner par une session — il n'en existe aucune. Mais il ne
+   *  peut pas non plus se donner par le jeton de service, car c'est un **navigateur** qui doit
+   *  mener la cérémonie, et un navigateur n'a pas le droit de porter ce jeton (règle 6, LIV-04).
+   *  Les deux routes l'exigeaient : aucune page ne pouvait les franchir, et le défaut n'est
+   *  apparu qu'en cherchant qui, concrètement, ferait l'appel.
    *
-   *  Deux routes distinctes plutôt qu'une qui accepterait deux portes : chacune n'en a qu'une,
-   *  et la doctrine reste lisible. */
-  const porteDAmorcage = async (contexte: { env: Liaisons; req: { raw: Request } }) => {
+   *  D'où la division : **le jeton invite, l'invitation entre.**
+   *
+   *  `ouvrirLInvitation` garde le jeton : émettre une invitation est un geste de machine, et
+   *  sans ce secret n'importe qui s'amorcerait.
+   *
+   *  `tenirLInvitation` n'exige rien d'autre que le **défi**, qui est le titre d'accès lui-même :
+   *  imprévisible, à usage unique, périmé en cinq minutes, et nul ne peut en obtenir un sans le
+   *  jeton. Une invitation est engendrée par le secret ; elle n'est jamais le secret.
+   *
+   *  Le défi n'est pas vérifié ici mais dans `enroler`, qui le fait déjà — et **en premier**,
+   *  avant de regarder la clé. Un appelant sans invitation s'arrête donc là, et n'apprend rien
+   *  de ce qui suit. */
+  const ouvrirLInvitation = async (contexte: { env: Liaisons; req: { raw: Request } }) => {
     const attendu = contexte.env.JETON_ACCES;
     if (attendu === undefined || attendu.length === 0) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
     const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
     if (donne === undefined || !memeJeton(donne, attendu)) return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
+    return tenirLInvitation(contexte);
+  };
 
+  const tenirLInvitation = async (contexte: { env: Liaisons }) => {
     const cadre = cadreDeCeremonie(contexte);
     if (cadre instanceof Response) return cadre;
 
+    // Dès qu'une clé existe, l'amorçage est clos pour toujours. Le dire à un appelant anonyme
+    // n'apprend que ceci : la bibliothèque a été mise en service. Qui voit la page le sait déjà.
     if ((await combienDeCles(cadre.registre)) > 0)
       return Response.json({ erreur: "L'amorçage est clos." }, { status: 409 });
     return cadre;
   };
 
   app.post("/amorce/defi", async (contexte) => {
-    const porte = await porteDAmorcage(contexte);
+    const porte = await ouvrirLInvitation(contexte);
     if (porte instanceof Response) return porte;
 
     const corps = await corpsObjet(contexte);
@@ -766,7 +783,8 @@ export function creerApp({
   });
 
   app.post("/amorce", async (contexte) => {
-    const porte = await porteDAmorcage(contexte);
+    // Le défi seul : c'est l'invitation qui ouvre, et elle a été émise par le jeton.
+    const porte = await tenirLInvitation(contexte);
     if (porte instanceof Response) return porte;
 
     const lue = PreuveDEnrolement.safeParse(await corpsObjet(contexte));

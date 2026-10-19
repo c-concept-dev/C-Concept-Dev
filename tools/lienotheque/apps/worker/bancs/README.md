@@ -61,6 +61,32 @@ Sa configuration s'appelle `wrangler.banc.toml` et non `wrangler.toml` : wrangle
 d'office que ce dernier, de sorte qu'aucun `wrangler deploy` lancé par mégarde ici ne trouve de
 quoi faire. Rien n'est déployé, aucun secret n'est lu, la configuration figée est intouchée.
 
+## `ceremonie-bout-en-bout.mjs` — de la page au registre
+
+Ce que les tests ne peuvent pas prouver : que la **page** sait parler au **service**. Les deux
+moitiés sont éprouvées séparément — l'une avec un service remplacé, l'autre avec un navigateur
+remplacé — et c'est précisément entre elles que le défaut du 19 octobre vivait : les routes
+d'amorçage exigeaient un jeton qu'aucune page n'a le droit de porter, et tous les tests passaient.
+
+Un Worker réel (workerd, bases locales), la page réelle servie par lui, un vrai navigateur, un
+authentificateur virtuel CTAP2 à la place du capteur. On amorce, on entre, on vérifie les portes.
+
+```
+cd apps/app && VITE_LIENOTHEQUE_EN_LIGNE=1 pnpm run build
+cd ../worker && node bancs/ceremonie-bout-en-bout.mjs
+```
+
+Il **repart de rien** à chaque fois, et le nettoyage vient avant le moteur : deux processus sur
+la même base locale se la disputent, et le moteur redémarre au milieu du banc.
+
+Deux choses qu'il a trouvées du premier coup :
+
+- **une adresse IP ne peut pas être un domaine de cérémonie.** `127.0.0.1` fait un contexte sûr
+  mais pas un `rpId` valide ; `create()` lève, et la page ne peut lire cela que comme une
+  cérémonie interrompue. Le banc tourne donc sur `localhost`.
+- **la façade refuse une session tant que `SESSIONS_EXIGEES` est faux** — ce qui est la doctrine,
+  et ce que ma première assertion contredisait. Le banc vérifie maintenant les deux états.
+
 ## `fixtures/ceremonie-webauthn.json` — les octets eux-mêmes
 
 Clé publique, données de l'authentificateur, données du client et signature, tels qu'un

@@ -1,11 +1,17 @@
-/** Qui ouvre quoi — **trois portes, et aucune route n'en accepte deux** (SEC-02, SEC-03, SEC-05).
+/** Qui ouvre quoi — **quatre portes, et aucune route n'en accepte deux** (SEC-02, SEC-03, SEC-05).
  *
  *  | route | porte |
  *  |---|---|
- *  | les quatre de la façade | **session personnelle** (à venir, étape 4.4) |
- *  | `/vision` et `/vision/jetons` | **jeton de service** — appels de machine à machine |
+ *  | les quatre de la façade | **session personnelle** |
+ *  | `/vision`, `/vision/jetons`, `PUT /vue/…`, `/amorce/defi` | **jeton de service** — machine à machine |
  *  | `/fichier/:laissez` | **laissez-passer signé** |
+ *  | `/amorce` | **l'invitation** — le défi lui-même, émis par le jeton |
  *  | `/sante` | aucune : elle ne dit que le nom et la version du service |
+ *
+ *  La quatrième est née d'un défaut : les deux routes d'amorçage exigeaient le jeton, et aucune
+ *  page ne pouvait donc les franchir — un navigateur n'a pas le droit de le porter. Le jeton
+ *  invite, l'invitation entre. Une invitation est engendrée par le secret ; elle n'est jamais le
+ *  secret. Voir `docs/decisions.md`.
  *
  *  Deux portes pour deux usages est légitime ; **une route qui accepterait l'une ou l'autre ne
  *  l'est pas** — on aurait alors deux serrures et une seule vérifiée.

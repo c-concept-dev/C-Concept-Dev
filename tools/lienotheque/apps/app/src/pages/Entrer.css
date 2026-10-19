@@ -1,0 +1,44 @@
+/* L'écran d'entrée : une seule chose à l'écran, un seul bouton principal (UX-09).
+   Aucune couleur ni taille en dur — uniquement les jetons « --ln-* » (règle 3). */
+
+.ln-entrer {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+}
+
+.ln-entrer__panneau {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  max-width: calc(var(--ln-grid) * 56);
+  padding: calc(var(--ln-grid) * 4);
+  text-align: center;
+}
+
+/* Inter, comme partout : le serif de marque n'est admis que sur le logo et « Bonjour », et un
+   garde-fou de la charte le vérifie. Il a eu raison contre moi. */
+.ln-entrer__titre {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.ln-entrer__aide {
+  margin: 0;
+  color: var(--ln-text-secondary);
+}
+
+.ln-entrer__gestes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ln-grid);
+  justify-content: center;
+}
+
+/* Le refus garde sa place même vide : sans quoi son apparition déplacerait les boutons sous le
+   doigt ou le curseur, au moment précis où l'on vient de cliquer. */
+.ln-entrer__refus {
+  min-height: calc(var(--ln-grid) * 3);
+  margin: 0;
+  color: var(--ln-text-primary);
+}

@@ -9,6 +9,7 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
+| 2026-10-19 | **Quatrième porte : l'invitation.** `/amorce` accepte le défi seul, parce qu'un navigateur ne peut pas porter le jeton de service | Section ci-dessous |
 | 2026-10-19 | **Le Worker sert aussi la page**, à la même origine que l'API : un témoin `SameSite=Lax` sans CORS ne peut pas fonctionner autrement | `docs/lot-e5-page-servie.md` |
 | 2026-10-19 | **Plus de repli TTF** : jamais téléchargé par les moteurs visés, toujours embarqué — deux mégaoctets sur quatre et demi | `apps/app/src/styles/polices.css` |
 | 2026-10-19 | **Le module d'entrée du Worker n'exporte que son gestionnaire** : avec des ressources déclarées, un export nommé qui n'est pas un gestionnaire empêche le moteur de démarrer | `apps/worker/src/index.ts` |
@@ -2714,18 +2715,53 @@ fichiers : les renommer casserait les liens qui les citent, pour un gain nul. Ce
 de capacité, et cette ligne-ci le dit. **Aucun nouveau document n'emploiera « lot E2 »** pour
 autre chose que BAS-02.
 
-## Trois portes, et aucune route n'en accepte deux (18 octobre 2026)
+## Quatre portes, et aucune route n'en accepte deux (18 octobre, élargi le 19)
 
 | route | porte |
 |---|---|
 | les quatre de la façade — `/search-library`, `/rag-search`, `/d1-query`, `/library-facets` | **session personnelle** |
 | `/vision`, `/vision/jetons` | **jeton de service** — appels de machine à machine vers un modèle payant |
 | `/fichier/:laissez` | **laissez-passer signé** (SEC-05) |
+| `/amorce` | **l'invitation** — le défi lui-même, émis par le jeton (19 octobre) |
 | `/sante` | aucune : elle ne dit que le nom et la version du service |
 
 Deux portes pour deux usages est légitime. **Une route qui accepterait l'une ou l'autre ne
 l'est pas** : on aurait deux serrures et une seule vérifiée, et le jour où l'une cède, rien ne
 dirait laquelle a servi.
+
+### La quatrième porte : l'invitation (19 octobre 2026)
+
+Elle est née d'un défaut, et il faut le dire ainsi. Les deux routes d'amorçage exigeaient le
+jeton de service — et le test « c'est un appel de machine à machine » était vert. Mais personne
+n'avait demandé **qui, concrètement, ferait l'appel** : un navigateur, qui n'a pas le droit de
+porter ce jeton (règle 6, LIV-04). J'avais donc conçu une porte qu'aucune page ne pouvait
+franchir sans enfreindre une règle non négociable.
+
+**Le jeton invite, l'invitation entre.**
+
+| route | porte |
+|---|---|
+| `POST /amorce/defi` | le **jeton de service** : émettre une invitation est un geste de machine |
+| `POST /amorce` | l'**invitation** seule, c'est-à-dire le défi |
+
+Pourquoi un défi peut porter un accès, alors qu'il n'est pas un secret du compte :
+
+- il fait trente-deux octets de hasard, et ne se devine pas ;
+- il ne sert **qu'une fois**, et la base le marque ;
+- il périme en **cinq minutes** ;
+- nul ne peut en obtenir un sans le jeton de service.
+
+**Une invitation est engendrée par le secret ; elle n'est jamais le secret lui-même.** C'est la
+différence entre confier sa clé et ouvrir la porte à quelqu'un : la seconde ne se transmet pas,
+ne se recopie pas utilement, et s'éteint d'elle-même.
+
+Le défi n'est pas vérifié par la porte mais par `enroler`, qui le fait déjà — et **en premier**,
+avant de regarder la clé publique. Un appelant sans invitation s'arrête donc là, et n'apprend
+rien de ce qui suit.
+
+Reste une chose que cette porte dit à un inconnu : « L'amorçage est clos », quand une clé existe
+déjà. Cela n'apprend que ceci — la bibliothèque a été mise en service. Qui voit la page le sait
+déjà.
 
 Cette doctrine est écrite dans `apps/worker/src/portes.ts`, au contact du code qui l'applique.
 
