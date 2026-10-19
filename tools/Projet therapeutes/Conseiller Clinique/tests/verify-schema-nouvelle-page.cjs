@@ -71,9 +71,11 @@ pass('strict, sans mot-clé non pris en charge, et minItems seulement aux valeur
 // porter des champs de table, ni omettre ses propres champs.
 const branches = outil.input_schema.properties.blocks.items.anyOf;
 assert.ok(Array.isArray(branches), 'blocks.items doit être un anyOf de branches par type');
+// CINQ branches : `table` est exclu, parce qu'une diapositive n'en admet pas
+// (block.schema.json#/$defs/nestedBlock). L'offrir invitait le modèle à l'impossible.
 assert.deepEqual(branches.map((b) => b.properties.type.const).sort(),
-  ['callout', 'heading', 'list', 'paragraph', 'quote', 'table'],
-  'six branches, une par type déjà existant');
+  ['callout', 'heading', 'list', 'paragraph', 'quote'],
+  'cinq branches, une par type réellement admis dans une diapositive');
 for (const b of branches) {
   const nom = b.properties.type.const;
   assert.equal(b.additionalProperties, false, nom + ' : la branche doit être fermée');
@@ -83,11 +85,11 @@ for (const b of branches) {
 const champs = (t) => Object.keys(branches.find((b) => b.properties.type.const === t).properties).sort();
 assert.deepEqual(champs('list'), ['items', 'ordered', 'type'],
   'une liste ne porte QUE ses champs : ' + champs('list').join(', '));
-assert.deepEqual(champs('table'), ['headers', 'rows', 'type'],
-  'un tableau ne porte QUE ses champs : ' + champs('table').join(', '));
+assert.ok(!branches.some((b) => b.properties.type.const === 'table'),
+  'aucune branche « table » : une diapositive n\'en admet pas');
 assert.deepEqual(champs('paragraph'), ['text', 'type'], 'un paragraphe ne porte que text');
-pass('six branches fermées, tous les champs requis : un bloc de liste ne peut plus porter '
-  + 'des champs de tableau — le défaut du 19 octobre est impossible à la source.');
+pass('cinq branches fermées, tous les champs requis, et aucune branche « table » : un bloc de '
+  + 'liste ne peut plus porter des champs de tableau — le défaut du 19 octobre est impossible.');
 
 // Un seul paramètre de type union, par la méthode documentée (un anyOf compte pour un).
 let unions = 0;
@@ -107,10 +109,10 @@ pass('le schéma compile.');
 
 // Rien d'autre que les types déjà existants, et ni image ni vidéo.
 const types = branches.map((b) => b.properties.type.const);
-assert.deepEqual([...types].sort(), ['callout', 'heading', 'list', 'paragraph', 'quote', 'table'],
+assert.deepEqual([...types].sort(), ['callout', 'heading', 'list', 'paragraph', 'quote'],
   'types autorisés : ' + JSON.stringify(types));
 assert.ok(!types.includes('image') && !types.includes('video'), 'ni image ni vidéo');
-pass('six types de blocs, tous déjà existants ; ni image ni vidéo : ' + types.join(', '));
+pass('cinq types de blocs, tous admis dans une diapositive ; ni image ni vidéo : ' + types.join(', '));
 
 // Un champ inventé est REFUSÉ, à la racine comme dans un bloc.
 assert.equal(outil.input_schema.additionalProperties, false, 'racine stricte');

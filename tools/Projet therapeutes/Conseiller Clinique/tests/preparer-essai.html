@@ -67,6 +67,10 @@
 
   bouton.addEventListener('click', async function () {
     bouton.disabled = true;
+    // SAFARI : une fenêtre ne s'ouvre que dans le geste DIRECT du clic. Après le moindre
+    // `await`, le navigateur ne la rattache plus au clic et la bloque. On l'ouvre donc tout de
+    // suite, vide, et on la remplit ensuite.
+    var onglet = window.open('', '_blank');
     try {
       // (a) AVANT toute ouverture du Studio : c'est tout l'intérêt de cette page.
       localStorage.setItem('workerUrl', location.origin);
@@ -82,8 +86,8 @@
 
       // (c) Le Studio s'ouvre dans un onglet de la MÊME origine : on peut donc y poser
       // l'artefact et appeler son API publique, exactement comme le ferait la console.
-      var onglet = window.open('studio-clinique.html', '_blank');
       if (!onglet) throw new Error('le nouvel onglet a été bloqué par le navigateur');
+      onglet.location = 'studio-clinique.html';
       var depart = Date.now();
       await new Promise(function (ok, ko) {
         (function attendre() {
@@ -110,6 +114,7 @@
            + 'Cliquez un paragraphe, puis « Insérer une page après ».');
       bouton.textContent = 'Rouvrir l’essai';
     } catch (e) {
+      if (onglet && !onglet.closed) { try { onglet.close(); } catch (x) {} }
       dire('Échec : ' + (e && e.message ? e.message : e) + '\nRien n’a été modifié.');
     } finally {
       bouton.disabled = false;

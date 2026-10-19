@@ -148,7 +148,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     }, { timeout: 30000 });
     const message = await page.evaluate(() => document.querySelector('.cc-block-edit-result').textContent);
     assert.equal(await nbCartes(), 5, 'un appel qui échoue n\'insère rien : ' + await nbCartes());
-    assert.ok(/La page n’a pas pu être créée, rien n’a été inséré/.test(message),
+    assert.ok(/La page n’a pas pu être créée. Rien n’a été inséré/.test(message),
       'le message doit dire que rien n\'a été inséré : ' + JSON.stringify(message.slice(0, 160)));
     assert.equal(await page.evaluate(() => document.querySelectorAll('[data-page-apercu]').length), 0,
       'aucun aperçu après un échec');

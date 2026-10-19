@@ -10862,6 +10862,9 @@ ${recent}`;
     return walk(doc && doc.blocks);
   }
   function adocEditorMarkDirty() {
+    // Toute écriture de l'éditeur passe ici : c'est donc ici qu'un retour en arrière à un pas
+    // cesse d'être proposé (D5).
+    if (window.adocOublierAnnulationPage) window.adocOublierAnnulationPage();
     const art=adocEditorArt();if(!art)return;
     art._ccEditorDirty=true;art._ccEditorRevision=(art._ccEditorRevision||0)+1;
     // Item 76 (Option A) — _adocEverEdited, JAMAIS remis à false (contrairement à _ccEditorDirty,
@@ -16297,6 +16300,10 @@ ${recent}`;
     // Présentation du moteur structuré, jamais legacy, jamais les 5 autres documentKind.
     const exportStandalonePresentationBtn = document.getElementById('cc-ws-export-standalone-presentation-btn');
     if (exportStandalonePresentationBtn) exportStandalonePresentationBtn.hidden = !(!isLegacy && docKind === 'presentation');
+    // D7 — même condition, et au même endroit que son voisin : le texte des diapositives n'a de
+    // sens que pour une présentation produite par le Studio.
+    const texteDiapositivesBtn = document.getElementById('cc-ws-texte-diapositives-btn');
+    if (texteDiapositivesBtn) texteDiapositivesBtn.hidden = !(!isLegacy && docKind === 'presentation');
 
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
@@ -16343,6 +16350,9 @@ ${recent}`;
   };
 
   window.adocCloseWorkspace = function () {
+    // Enregistrer, enregistrer sous et fermer n'appellent pas adocEditorMarkDirty :
+    // l'oubli du retour en arrière est donc dit ici, explicitement (D5).
+    if (window.adocOublierAnnulationPage) window.adocOublierAnnulationPage();
     const ws = document.getElementById('cc-workspace');
     if (!ws.classList.contains('open')) return;
     ws.classList.remove('open');
@@ -21014,6 +21024,77 @@ ${recent}`;
   }
   function adocPageGesturesAllowed(storeKey) { return adocPageGesturesRefusal(storeKey) === null; }
 
+  // ── D7 — LE TEXTE DES DIAPOSITIVES, POUR ÉCRIRE OU ENREGISTRER LA NARRATION ─────────────
+  // Déterministe, local, SANS AUCUN APPEL au modèle : les mêmes diapositives donnent toujours
+  // le même texte. Christine s'en sert pour écrire sa narration ou la lire au micro.
+  //
+  // Ce qui est repris, et ce qui ne l'est pas :
+  //   — le numéro et le titre de chaque diapositive, et la marque de chaque étape ;
+  //   — les listes GARDENT leurs puces, un élément par ligne ;
+  //   — les tableaux sont rendus LIGNE PAR LIGNE, colonnes séparées par « | » ;
+  //   — les renvois de citation ne sont PAS repris : ils vivent dans `citationIds` et dans la
+  //     section « Sources », et n'ont rien à faire dans un texte qu'on lit à voix haute.
+  function adocTexteBlocPourNarration(bloc) {
+    const c = bloc && bloc.content || {};
+    switch (bloc && bloc.type) {
+      case 'heading': case 'paragraph': case 'callout': case 'quote':
+        return [String(c.text || '').trim()].filter(Boolean);
+      case 'list':
+        return (c.items || []).map(function (x, i) {
+          return (c.ordered ? (i + 1) + '. ' : '— ') + String(x || '').trim(); }).filter(function (l) {
+          return l.replace(/^(—|\d+\.)\s*/, ''); });
+      case 'table': {
+        const lignes = [];
+        if ((c.headers || []).length) lignes.push(c.headers.join(' | '));
+        (c.rows || []).forEach(function (r) { lignes.push((r || []).join(' | ')); });
+        return lignes;
+      }
+      default: return [];
+    }
+  }
+
+  function adocTexteDesDiapositives(doc) {
+    if (!doc || !Array.isArray(doc.blocks)) return '';
+    const etapes = (typeof adocPresentStepList === 'function') ? adocPresentStepList(doc) : [];
+    const total = doc.blocks.length;
+    const out = [];
+    out.push(String(doc.title || '(sans titre)'));
+    out.push('');
+    doc.blocks.forEach(function (carte, i) {
+      if (!carte || carte.type !== 'card') return;
+      out.push('Diapositive ' + (i + 1) + ' / ' + total + ' — ' + String(carte.content.title || '(sans titre)'));
+      const desEtapes = etapes.filter(function (e) { return e.cardId === carte.id; });
+      const blocs = carte.content.blocks || [];
+      if (!blocs.length) { out.push('  (aucun contenu)'); out.push(''); return; }
+      blocs.forEach(function (b) {
+        const etape = desEtapes.find(function (e) { return e.stepId === b.id; });
+        if (etape) out.push('  [étape ' + etape.rang + (etape.surRang > 1 ? ' sur ' + etape.surRang : '') + ']');
+        adocTexteBlocPourNarration(b).forEach(function (l) { out.push('  ' + l); });
+      });
+      out.push('');
+    });
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  }
+  window.adocTexteDesDiapositives = adocTexteDesDiapositives;
+
+  // Le bouton : copie dans le presse-papiers ET propose le téléchargement, comme demandé.
+  window.adocWsTexteDiapositives = async function () {
+    const storeKey = window._adocWsState && window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'presentation') return null;
+    const texte = adocTexteDesDiapositives(doc);
+    try { await navigator.clipboard.writeText(texte); } catch (e) { /* refusé : le fichier reste */ }
+    const nom = String(doc.title || 'presentation').replace(/[^\w\- ]+/g, '').trim().slice(0, 60)
+      || 'presentation';
+    const lien = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([texte], { type: 'text/plain;charset=utf-8' }));
+    lien.href = url; lien.download = nom + ' — texte des diapositives.txt';
+    document.body.appendChild(lien); lien.click();
+    setTimeout(function () { URL.revokeObjectURL(url); lien.remove(); }, 2000);
+    return texte;
+  };
+
   // ── D2 — LE SCHÉMA D'OUTIL DE LA PAGE NEUVE ─────────────────────────────────────────────
   // SCHÉMA NOUVEAU ET SÉPARÉ, comme demandé : il ne touche pas, ne dérive pas et ne réutilise
   // pas emit_presentation_document (b1b0155cb8eba26c), qui reste gelé octet pour octet.
@@ -21027,7 +21108,6 @@ ${recent}`;
     description: 'Rend UNE diapositive neuve pour une présentation existante : un titre court et '
       + 'quelques blocs de contenu. Chaque bloc a la forme de SON type, et rien d’autre. '
       + 'Un bloc de liste contient au moins trois éléments rédigés, jamais une liste vide. '
-      + 'Un bloc de tableau a des en-têtes et au moins une ligne. '
       + 'Le Studio REFUSE une page qui contient un bloc vide, et rien n’est inséré. '
       + 'N’ajoute AUCUNE référence bibliographique, aucun renvoi de citation, aucun nom '
       + 'd’auteur et aucune année : les citations de ce document sont gérées ailleurs et ne '
@@ -21052,6 +21132,12 @@ ${recent}`;
     //   — `minItems` est accepté, mais SEULEMENT aux valeurs 0 et 1 ;
     //   — `minLength`, `maxLength` et `maxItems` ne sont PAS pris en charge : il n'y en a
     //     aucun. « Au moins trois éléments » est donc dit dans la consigne, pas dans le schéma.
+    //
+    // CINQ branches, et non six : `table` est ABSENT, parce qu'une diapositive n'en admet pas.
+    // Le schéma des documents le dit (block.schema.json#/$defs/nestedBlock : « mêmes types que
+    // l'ensemble éditorial, SAUF `table` (non imbriquée) »). L'offrir ici invitait le modèle à
+    // produire un bloc impossible : la page était refusée à juste titre, mais l'appel était
+    // perdu et l'utilisatrice devait refaire. Trouvé en écrivant le contrôle de D7.
     strict: true,
     input_schema: {
       type: 'object',
@@ -21085,13 +21171,6 @@ ${recent}`;
                               items: { type: 'array', minItems: 1, items: { type: 'string' },
                                        description: 'Au moins TROIS éléments rédigés. Jamais vide.' },
                               ordered: { type: 'boolean' } } },
-              { type: 'object', additionalProperties: false, required: ['type', 'headers', 'rows'],
-                properties: { type: { const: 'table' },
-                              headers: { type: 'array', minItems: 1, items: { type: 'string' },
-                                         description: 'Les en-têtes. Jamais vides.' },
-                              rows: { type: 'array', minItems: 1,
-                                      items: { type: 'array', items: { type: 'string' } },
-                                      description: 'Au moins une ligne. Jamais vide.' } } },
             ],
           },
         },
@@ -21124,8 +21203,8 @@ ${recent}`;
     // Dit dans le prompt ET dans la consigne de l'outil : le schéma ne peut pas exprimer
     // « au moins trois éléments » (minItems n'y est accepté qu'aux valeurs 0 et 1).
     lignes.push('Un bloc de liste contient au moins TROIS éléments rédigés, jamais une liste vide. '
-      + 'Un bloc de tableau a des en-têtes et au moins une ligne. Le Studio REFUSE une page qui '
-      + 'contient un bloc vide, et rien n’est inséré : écris chaque bloc en entier.');
+      + 'Le Studio REFUSE une page qui contient un bloc vide, et rien n’est inséré : écris '
+      + 'chaque bloc en entier.');
     return lignes.join('\n');
   }
 
@@ -21184,8 +21263,8 @@ ${recent}`;
       case 'callout': return { text: adocStripEmoji(brut.text || ''),
                                visualRole: ['info', 'warning', 'success'].indexOf(brut.visualRole) >= 0 ? brut.visualRole : 'info' };
       case 'list': return { items: (brut.items || []).filter(Boolean).map(adocStripEmoji), ordered: !!brut.ordered };
-      case 'table': return { headers: (brut.headers || []).map(adocStripEmoji),
-                             rows: (brut.rows || []).map(function (r) { return (r || []).map(adocStripEmoji); }) };
+      // Pas de `table` : le schéma ne peut plus en produire, et une diapositive n'en admet pas.
+      // Un tableau qui arriverait quand même tombe dans le refus ci-dessous.
       // Ce refus-ci garde le CONTRAT DE LA FONCTION (elle doit rendre un contenu), pas la
       // validité de la page : sans lui, elle rendrait `undefined`. Il n'est pas falsifiable
       // séparément, et c'est normal — ce n'est pas une garantie de plus, c'est sa définition.
@@ -21316,11 +21395,14 @@ ${recent}`;
       // Échec : RIEN n'est inséré, et le message le dit.
       ps.page = null;
       ps.enCours = false;
+      // UNE PHRASE À L'ÉCRAN, le détail en console. Christine n'a pas à lire un message de
+      // schéma pour comprendre qu'il faut refaire ; moi, j'ai besoin du détail pour corriger.
+      try { console.warn('[page neuve] refus :', (e && e.message) || e,
+        '\nRéponse brute conservée dans window._adocDernierBrutPageNeuve'); } catch (_) {}
       resultEl.innerHTML = adocIconSvg('icon-error')
         + (e && e.pageIncomplete
-            ? ' La page générée est incomplète, rien n’a été inséré.'
-            : ' La page n’a pas pu être créée, rien n’a été inséré.')
-        + ' <span style="opacity:.75">(' + adocEsc(e && e.message || 'erreur inconnue') + ')</span>'
+            ? ' La page est incomplète : un bloc n’a pas de contenu. Rien n’a été inséré.'
+            : ' La page n’a pas pu être créée. Rien n’a été inséré.')
         + '<div style="margin-top:8px;display:flex;gap:8px;">'
         +   '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRunNewSlide()">Réessayer</button>'
         +   '<button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelNewSlide()">Fermer</button>'
@@ -21348,6 +21430,59 @@ ${recent}`;
       + '</div>';
   }
 
+  // ── D5 — « ANNULER CETTE PAGE », À UN PAS ───────────────────────────────────────────────
+  // Armé juste après une insertion réussie, oublié à la PREMIÈRE écriture suivante. Ce n'est
+  // pas une pile d'annulation : c'est un rattrapage immédiat, du même esprit que le « Annuler
+  // ce geste » de la narration. Une fois qu'autre chose a été écrit, revenir en arrière
+  // emporterait ce travail-là : le bouton s'efface donc plutôt que de mentir.
+  //
+  // UN SEUL POINT D'OUBLI pour les écritures de l'éditeur : adocEditorMarkDirty, par où elles
+  // passent toutes (insertion de bloc, correction d'un passage, narration, seconde page). Les
+  // trois autres sorties — enregistrer, enregistrer sous, fermer l'espace — l'appellent
+  // explicitement, parce qu'elles ne marquent pas le document modifié.
+  function adocOublierAnnulationPage() {
+    const a = window._adocAnnulerPageNeuve;
+    if (!a) return;
+    if (a.panneau && a.panneau.parentNode) a.panneau.parentNode.removeChild(a.panneau);
+    window._adocAnnulerPageNeuve = null;
+  }
+  window.adocOublierAnnulationPage = adocOublierAnnulationPage;
+
+  function adocArmerAnnulationPage(storeKey, carte, avant) {
+    adocOublierAnnulationPage();
+    const ancre = document.getElementById(carte.id)
+      || document.querySelector('[data-card-id="' + carte.id + '"]');
+    const panneau = document.createElement('div');
+    panneau.className = 'cc-clarity-card';
+    panneau.setAttribute('data-annuler-page', '');
+    panneau.setAttribute('role', 'status');
+    panneau.innerHTML = '<div class="cc-clarity-question sc-icon-label">'
+      + adocIconSvg('icon-clarify') + '<span>Page ajoutée : « ' + adocEsc(carte.content.title) + ' »</span></div>'
+      + '<div style="display:flex;gap:8px;margin-top:8px;align-items:center;">'
+      +   '<button type="button" class="cc-clarity-other-btn" '
+      +     'onclick="event.stopPropagation();window.adocAnnulerPageNeuve()">Annuler cette page</button>'
+      +   '<span style="opacity:.7;font-size:.92em;">Ce retour en arrière disparaît dès la modification suivante.</span>'
+      + '</div>';
+    if (ancre && ancre.parentNode) ancre.parentNode.insertBefore(panneau, ancre);
+    else (document.getElementById('cc-ws-doc-card') || document.body).prepend(panneau);
+    window._adocAnnulerPageNeuve = { storeKey: storeKey, cardId: carte.id, avant: avant, panneau: panneau };
+  }
+
+  window.adocAnnulerPageNeuve = async function () {
+    const a = window._adocAnnulerPageNeuve;
+    if (!a) return false;
+    const art = window._adocArtifacts && window._adocArtifacts[a.storeKey];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc) { adocOublierAnnulationPage(); return false; }
+    // On remet l'état EXACT d'avant l'insertion : diapositives, narration, validation.
+    doc.blocks = a.avant.blocs;
+    if (a.avant.narration === null) delete doc.narration; else doc.narration = a.avant.narration;
+    if (a.avant.validation === null) delete doc.validation; else doc.validation = a.avant.validation;
+    adocOublierAnnulationPage();
+    await window.adocOpenWorkspace(a.storeKey);
+    return true;
+  };
+
   window.adocCancelNewSlide = function () {
     window._adocPageInsertState = null;
     adocWsClearBlockSelection();
@@ -21368,7 +21503,8 @@ ${recent}`;
     const refusTardif = adocPageNeuveRefus(doc, ps.index, ps.page);
     if (refusTardif) {
       ps.enCours = false;
-      alert('La page générée est incomplète, rien n’a été inséré. (' + refusTardif + ')');
+      try { console.warn('[page neuve] refus à l’insertion :', refusTardif); } catch (_) {}
+      alert('La page est incomplète : un bloc n’a pas de contenu. Rien n’a été inséré.');
       return;
     }
     // ── RETOUR ARRIÈRE COMPLET ────────────────────────────────────────────────────────────
@@ -21384,9 +21520,11 @@ ${recent}`;
                     citationIds: [], validation: {} };
     const etapesAvant = adocPresentStepList(doc);
     doc.blocks.splice(ps.index, 0, carte);
-    // Une page écrite par le modèle remet la relecture humaine à faire, au même endroit et avec
-    // la même valeur que l'application pose elle-même sur un document qu'elle vient de produire.
-    doc.validation = Object.assign({}, doc.validation || {}, { humanClinicalReview: 'required' });
+    // J'avais écrit ici « la relecture humaine est remise à faire ». C'était une ligne MORTE :
+    // `humanClinicalReview` est un `const: "required"` dans le schéma des documents — il vaut
+    // toujours « required » et ne peut jamais valoir autre chose. La relecture est donc due par
+    // construction, et l'écrire ne changeait rien. Cinquième mécanisme inerte de ce projet,
+    // celui-ci démontré par le schéma lui-même.
     ps.page.blocks.forEach(function (b) {
       // NON VALIDÉ, « comme pour les autres contenus produits » : la validation d'un bloc est
       // vide, exactement comme celle d'un bloc inséré à la main (adocInsertStructuredBlock).
@@ -21402,6 +21540,9 @@ ${recent}`;
       adocWsClearBlockSelection();
       if (!await window.adocOpenWorkspace(ps.storeKey)) throw new Error('Le rendu a refusé cette page ; l’insertion a été annulée.');
       adocEditorMarkDirty();
+      // ARMÉ APRÈS markDirty, jamais avant : markDirty est le point d'oubli, et l'insertion
+      // elle-même y passe. L'ordre est la garantie.
+      adocArmerAnnulationPage(ps.storeKey, carte, avant);
       ps.posee = true;
       window._adocPageInsertState = null;
     } catch (e) {
@@ -23269,6 +23410,9 @@ ${recent}`;
   }
 
   window.adocWsSave = async function () {
+    // Enregistrer, enregistrer sous et fermer n'appellent pas adocEditorMarkDirty :
+    // l'oubli du retour en arrière est donc dit ici, explicitement (D5).
+    if (window.adocOublierAnnulationPage) window.adocOublierAnnulationPage();
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
     if (!art || !art._adocCapabilities || !art._adocCapabilities.persist) return;
@@ -23351,6 +23495,9 @@ ${recent}`;
   // (adocWsSave) s'appliquent ensuite naturellement à CE nouveau document, sans changement côté
   // adocWsSave (elle ne fait que lire art._adocClinicalDocumentId, déjà réassigné ici).
   window.adocWsSaveAs = async function () {
+    // Enregistrer, enregistrer sous et fermer n'appellent pas adocEditorMarkDirty :
+    // l'oubli du retour en arrière est donc dit ici, explicitement (D5).
+    if (window.adocOublierAnnulationPage) window.adocOublierAnnulationPage();
     const storeKey = window._adocWsState.storeKey;
     const art = window._adocArtifacts?.[storeKey];
     if (!art || !art._adocCapabilities || !art._adocCapabilities.persist) return;

@@ -259,8 +259,11 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     // marqueur de relecture (seulement citationLinks, additionalProperties: false) : la
     // validation de chaque bloc neuf est VIDE — rien n'y est attesté — et c'est le DOCUMENT
     // qui porte « relecture humaine requise », là où l'application la pose elle-même.
+    // `humanClinicalReview` est un `const: "required"` dans le schéma : il vaut toujours
+    // « required », et cette ligne ne mesure donc PAS mon code — elle constate que la relecture
+    // humaine est due par construction. Elle est gardée pour le dire, pas pour le prouver.
     assert.equal(apres.relectureDocument, 'required',
-      'le document doit redemander une relecture humaine : ' + apres.relectureDocument);
+      'la relecture humaine est due par construction : ' + apres.relectureDocument);
     assert.ok(apres.validations.length > 0
       && apres.validations.every((v) => v === '{}'),
       'chaque bloc inséré reste non validé (D2) : ' + JSON.stringify(apres.validations));

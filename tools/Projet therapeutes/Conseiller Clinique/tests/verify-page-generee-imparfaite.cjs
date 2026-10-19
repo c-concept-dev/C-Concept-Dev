@@ -182,7 +182,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         continue;
       }
       assert.equal(vu.apercu, false, cas.nom + ' : aucun aperçu ne doit s\'afficher');
-      assert.ok(/La page générée est incomplète, rien n’a été inséré/.test(vu.message),
+      assert.ok(/La page est incomplète : un bloc n’a pas de contenu/.test(vu.message),
         cas.nom + ' : le message doit le dire en clair — vu : ' + JSON.stringify(vu.message.slice(0, 110)));
       assert.ok(/Refaire|Réessayer/.test(vu.message), cas.nom + ' : « Refaire » doit être proposé');
       assert.equal(vu.armee, false, cas.nom + ' : rien ne doit rester d\'insérable');
@@ -229,7 +229,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       () => JSON.stringify(window._adocArtifacts['imparfait']._adocStructuredDoc));
     assert.equal(apresTardif, avantTardif,
       'une page devenue invalide après l\'aperçu ne doit pas entrer : document intact');
-    assert.ok(dialogues.some((m) => /incomplète, rien n’a été inséré/.test(m)),
+    assert.ok(dialogues.some((m) => /incomplète : un bloc n’a pas de contenu/.test(m)),
       'le refus tardif doit le dire en clair ; vu : ' + JSON.stringify(dialogues.slice(-1)));
     pass('une page abîmée APRÈS l\'aperçu est rejugée à l\'insertion : rien n\'entre, document intact.');
 
