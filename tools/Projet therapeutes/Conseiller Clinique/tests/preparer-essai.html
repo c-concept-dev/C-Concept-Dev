@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Préparer l'essai du lot 2C</title>
+<!--
+  PAGE D'ESSAI STATIQUE — servie par le relais local, à http://127.0.0.1:8777/preparer-essai.html
+  Elle remplace les deux lignes de console du mode d'emploi.
+
+  AUCUNE CLÉ, AUCUN SECRET n'est écrit ici : la valeur posée dans workerApiKey est une valeur
+  FACTICE, que le relais jette et remplace par la vraie, qu'il a demandée lui-même.
+
+  POURQUOI ELLE ÉVITE DEUX REQUÊTES VERS LE VRAI WORKER : par la console, on ouvrait d'abord
+  studio-clinique.html, qui démarrait AVANT que `workerUrl` ne soit posé et appelait donc le
+  Worker réel deux fois. Ici, `workerUrl` est posé AVANT que la page du Studio n'existe ; le
+  localStorage étant partagé par origine, elle démarre déjà tournée vers le relais.
+
+  CAPACITÉS : `persist: false`. Vérifié dans le cœur : `persist` ne garde que `adocWsSave` et
+  `adocWsSaveAs` (lignes 23143 et 23225), c'est-à-dire les deux seules écritures vers la base.
+  L'éditeur, le correcteur et les gestes de page de D1/D2 n'en dépendent pas. Conséquence à
+  savoir : les boutons « Enregistrer » et « Enregistrer sous » restent VISIBLES mais ne font
+  rien. C'est voulu — rien de cet essai ne doit pouvoir écrire.
+-->
+<style>
+  :root { --encre:#102a2b; --fond:#f7f5f1; --accent:#b4543a; --trait:#d8d2c8; }
+  * { box-sizing: border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:var(--fond); color:var(--encre); padding:24px;
+         font:16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:620px; width:100%; }
+  h1 { font-size:1.45rem; margin:0 0 .35em; }
+  p { margin:0 0 1em; }
+  ul { margin:0 0 1.4em 1.1em; padding:0; }
+  li { margin:.3em 0; }
+  button { font:inherit; font-weight:600; color:#fff; background:var(--accent); border:0;
+           border-radius:10px; padding:14px 22px; cursor:pointer; }
+  button:disabled { opacity:.55; cursor:default; }
+  #etat { margin-top:1.1em; padding:12px 14px; border:1px solid var(--trait);
+          border-radius:10px; background:#fff; white-space:pre-wrap; min-height:1.5em; }
+  .discret { color:#5c6a6b; font-size:.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Préparer l'essai du lot 2C</h1>
+  <p>Ce bouton fait trois choses, puis ouvre le Studio dans un nouvel onglet :</p>
+  <ul>
+    <li>il tourne la page vers le relais local, avec une valeur d'accès <strong>factice</strong> ;</li>
+    <li>il charge la présentation d'essai (cinq diapositives, contenu synthétique) ;</li>
+    <li>il l'ouvre dans l'éditeur, <strong>sans aucun droit d'écriture</strong>.</li>
+  </ul>
+  <button id="go" type="button">Préparer et ouvrir l’essai</button>
+  <div id="etat" role="status" aria-live="polite"></div>
+  <p class="discret" style="margin-top:1.2em;">
+    Aucune clé ni secret n'est contenu dans cette page. Si le nouvel onglet est bloqué,
+    autorisez les fenêtres surgissantes pour 127.0.0.1 et recliquez.
+  </p>
+</main>
+<script>
+(function () {
+  'use strict';
+  var FACTICE = 'valeur-factice-remplacee-par-le-relais';
+  var bouton = document.getElementById('go');
+  var etat = document.getElementById('etat');
+  function dire(t) { etat.textContent = t; }
+
+  bouton.addEventListener('click', async function () {
+    bouton.disabled = true;
+    try {
+      // (a) AVANT toute ouverture du Studio : c'est tout l'intérêt de cette page.
+      localStorage.setItem('workerUrl', location.origin);
+      localStorage.setItem('workerApiKey', FACTICE);
+      dire('Relais posé. Chargement de la présentation d’essai…');
+
+      // (b) Le document d'essai, fichier statique servi par le relais.
+      var reponse = await fetch('tests/fixture-page-generee.json', { cache: 'no-store' });
+      if (!reponse.ok) throw new Error('fixture introuvable (HTTP ' + reponse.status + ')');
+      var doc = await reponse.json();
+      dire('Présentation chargée : « ' + doc.title + ' », '
+           + (doc.blocks || []).length + ' diapositives. Ouverture du Studio…');
+
+      // (c) Le Studio s'ouvre dans un onglet de la MÊME origine : on peut donc y poser
+      // l'artefact et appeler son API publique, exactement comme le ferait la console.
+      var onglet = window.open('studio-clinique.html', '_blank');
+      if (!onglet) throw new Error('le nouvel onglet a été bloqué par le navigateur');
+      var depart = Date.now();
+      await new Promise(function (ok, ko) {
+        (function attendre() {
+          if (onglet.closed) return ko(new Error('onglet fermé avant l’ouverture'));
+          if (typeof onglet.adocOpenWorkspace === 'function') return ok();
+          if (Date.now() - depart > 60000) return ko(new Error('le Studio n’a pas fini de charger'));
+          setTimeout(attendre, 150);
+        })();
+      });
+      onglet._adocArtifacts = onglet._adocArtifacts || {};
+      onglet._adocArtifacts['essai'] = {
+        name: doc.title,
+        _adocGenerationEngine: 'structured',
+        _adocStructuredDoc: doc,
+        _adocStructuredSnapshot: null,
+        // persist: false — aucune écriture possible depuis cet essai.
+        _adocCapabilities: { workspace: true, persist: false, fineCitations: true,
+                             blockEditing: true, transform: true, export: true,
+                             qualityControlledExport: true }
+      };
+      var ouvert = await onglet.adocOpenWorkspace('essai');
+      if (!ouvert) throw new Error('le Studio a refusé d’ouvrir la présentation');
+      dire('Prêt. L’essai est ouvert dans l’autre onglet.\n'
+           + 'Cliquez un paragraphe, puis « Insérer une page après ».');
+      bouton.textContent = 'Rouvrir l’essai';
+    } catch (e) {
+      dire('Échec : ' + (e && e.message ? e.message : e) + '\nRien n’a été modifié.');
+    } finally {
+      bouton.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>
