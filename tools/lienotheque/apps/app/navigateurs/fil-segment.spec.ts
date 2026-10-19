@@ -99,6 +99,10 @@ async function servirTroisSurUnePiste(page: Page): Promise<void> {
         douteux: [],
         pages: [
           {
+            // Le rang, et non le seul numéro imprimé : « #lecteur/page=3 » navigue par le rang,
+            // et une page sans index ne tient plus le contrat depuis le 17 octobre — la vue
+            // était refusée, et l'écran n'affichait rien.
+            index: 3,
             numero: 3,
             texte: [],
             traduction: [],
