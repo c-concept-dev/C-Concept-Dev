@@ -253,6 +253,22 @@ describe("l'enrôlement exige une session et le droit d'administrer", () => {
     expect((await appeler(avecSessions, "/enrolement", {})).status).toBe(401);
   });
 
+  it("refuse sans session **avant** de regarder la configuration", async () => {
+    // La règle du 10 octobre. L'ordre inverse était écrit ici, et c'est le Worker déployé qui
+    // l'a montré : un inconnu recevait 503 et apprenait que la cérémonie n'est pas configurée
+    // avant d'avoir rien présenté. Les tests ne le voyaient pas — ils éprouvaient la porte avec
+    // les réglages toujours posés.
+    delete liaisons["ORIGINE_CEREMONIE"];
+    delete liaisons["DOMAINE_CEREMONIE"];
+    delete liaisons["BIBLIOTHEQUE_FACADE"];
+
+    for (const route of ["/enrolement/defi", "/enrolement"]) {
+      const reponse = await appeler(avecSessions, route, {}, {});
+      expect(reponse.status, route).toBe(401);
+      expect(await reponse.json(), route).toEqual({ erreur: "Accès refusé." });
+    }
+  });
+
   it("refuse le jeton de service : ce n'est pas sa porte", async () => {
     expect((await appeler(avecSessions, "/enrolement/defi", {}, { "x-api-key": JETON })).status).toBe(401);
   });
