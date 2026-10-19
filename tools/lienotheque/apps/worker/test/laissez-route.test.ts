@@ -1,7 +1,7 @@
 import { MIGRATIONS_REGISTRE_EN_LIGNE, baseEnMemoire } from "@lienotheque/depot-sqlite";
 import { DUREE_PAR_DEFAUT, cleDerive, jetonNeuf } from "@lienotheque/noyau";
 import { beforeEach, describe, expect, it } from "vitest";
-import { creerApp } from "../src/index.js";
+import { creerApp } from "../src/app.js";
 import { NOM_DU_TEMOIN } from "../src/porte.js";
 import { inscrireUnDroit, inscrireUnePersonne, ouvrirUneSession } from "../src/qui-entre.js";
 

@@ -18,6 +18,11 @@
 #
 #     npx wrangler deploy --config wrangler.toml --dry-run
 #
+# Le Worker sert aussi la page : « ../app/dist » doit exister au moment du
+# déploiement. Le script « pnpm deploy » construit l'application avant d'envoyer ;
+# un « wrangler deploy » lancé à la main sur une construction absente ou périmée
+# servirait une page qui ne correspond pas à son API.
+#
 # ══════════════════════════════════════════════════════════════════════════════
 
 name = "lienotheque-api"
@@ -30,6 +35,30 @@ compatibility_date = "2026-03-08"
 # et celle-ci n'a pas à en avoir deux.
 workers_dev = true
 preview_urls = false
+
+# ── La page, servie par le Worker lui-même ────────────────────────────────────
+#
+# Ce n'est pas un choix de commodité : le témoin de session est « SameSite=Lax »
+# et il n'y a aucun CORS ici. Une page servie ailleurs ne pourrait donc jamais
+# présenter sa session — l'origine unique est ce que le code suppose déjà.
+#
+# « not_found_handling = none » laisse le Worker répondre aux adresses qu'aucun
+# fichier ne couvre : c'est lui qui rend les 404. Surtout, ce n'est **pas** le
+# repli d'application monopage : l'application navigue par ancres
+# (« #lecteur/page=3 »), elle n'en a aucun besoin, et l'activer renverrait
+# index.html sur n'importe quelle adresse en masquant les 404 de l'API.
+#
+# La couche des ressources répond **avant** le Worker pour les chemins qui
+# correspondent à un fichier. Un fichier peut donc masquer une route : la
+# surface livrée est « / » et « /assets/… », aucune route n'y touche, et
+# « test/page-servie.test.ts » refuse que cela change.
+#
+# Conséquence sur le déploiement : « dist » doit exister. Le script « deploy »
+# construit l'application avant d'envoyer, de sorte que la page servie
+# corresponde toujours à l'API qui la sert.
+[assets]
+directory = "../app/dist"
+not_found_handling = "none"
 
 # ── Les secrets ne sont pas ici, et n'y seront jamais ─────────────────────────
 #

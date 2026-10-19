@@ -10,7 +10,7 @@
   "scripts": {
     "test": "vitest run --maxWorkers=2",
     "typecheck": "tsc --noEmit",
-    "deploy": "wrangler deploy --config wrangler.toml",
+    "deploy": "pnpm --filter @lienotheque/app run build && wrangler deploy --config wrangler.toml",
     "deploy:essai": "wrangler deploy --config wrangler.toml --dry-run",
     "dev": "wrangler dev --config wrangler.toml"
   },
