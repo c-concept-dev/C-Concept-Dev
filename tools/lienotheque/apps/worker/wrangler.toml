@@ -56,6 +56,15 @@ preview_urls = false
 #
 #     npx wrangler secret put SECRET_LAISSEZ       --config wrangler.toml
 #     npx wrangler secret put BIBLIOTHEQUE_FACADE  --config wrangler.toml
+#     npx wrangler secret put ORIGINE_CEREMONIE    --config wrangler.toml
+#     npx wrangler secret put DOMAINE_CEREMONIE    --config wrangler.toml
+#
+# Les deux derniers disent où vivent les cérémonies d'identité : l'origine
+# exacte de la page (schéma, hôte, port) et le domaine seul, celui pour lequel
+# les clés sont enrôlées. Ils ne sont jamais lus dans la requête — l'en-tête
+# « Origin » est précisément ce qu'un attaquant contrôle — et ce ne sont pas
+# ceux du Worker, puisque la page vit ailleurs. Sans eux, les routes de
+# cérémonie refusent d'ouvrir plutôt que de vérifier à vide.
 
 # ── Le registre des bibliothèques publiées (lot E1, étape 1) ──────────────────
 #

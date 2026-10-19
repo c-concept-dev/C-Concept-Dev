@@ -17,7 +17,9 @@ export type BaseSql = {
     readonly bind: (...valeurs: unknown[]) => {
       readonly all: <T>() => Promise<{ results: T[] }>;
       readonly first: <T>() => Promise<T | null>;
-      readonly run: () => Promise<unknown>;
+      /** `meta.changes` dit combien de lignes ont changé : c'est ce qui permet un « une seule
+       *  fois » sans course. Voir `BaseMinimale` dans `@lienotheque/depot-sqlite`. */
+      readonly run: () => Promise<{ readonly meta: { readonly changes: number } }>;
     };
   };
 };

@@ -130,8 +130,8 @@ qu'il faut le dire, et non après le second pont.
 | 2 | **Le second pont** : `pont/ligne.ts`, même port, façade Worker derrière | Les mêmes épreuves d'écran passent avec un Worker simulé |
 | 3 | **Le choix du pont en un seul endroit**, à la place des 17 gardes | Aucune `estBureau()` ne subsiste hors du choix lui-même |
 | 4 | **La cérémonie WebAuthn** — la page qui manquait, et dont l'absence a fait reporter la cérémonie au lot E1 | Deux utilisateurs s'authentifient ; aucune clé dans le navigateur (LIV-04) |
-| 5 | **Les images et médias par liens signés**, depuis R2 | Une page s'affiche en ligne ; un lien expiré refuse |
-| 6 | **La recherche en ligne sur la mini-bibliothèque** | Les mêmes quatre épreuves qu'au bureau, mêmes résultats |
+| ~~5~~ **fait** | **Les images et médias par liens signés**, depuis R2 | Personne ne signait : `signer` n'avait aucun appelant. La route `/laissez` les émet, et un lien expiré refuse. Section 8 |
+| ~~6~~ **fait, avec une réserve nommée** | **La recherche en ligne sur la mini-bibliothèque** | Le **même** `chercher` sur la **même** vue : identiques par construction. Le découpage par document attend la décision des écrans. Section 8 |
 | 7 | **Le déploiement** | **Soumis avant**, jamais fait d'office |
 
 Les étapes 1 à 3 sont de la mécanique : elles ne changent aucun comportement et se vérifient par
@@ -186,3 +186,269 @@ version en ligne, qui ne traite rien — mais elle concerne le jour où le vrai 
 le porte. Elle ne le résout **pas** pour le bureau, qui continuera de parcourir ses fichiers de
 version. Deux chemins, deux sources : c'est exactement le genre de divergence que le passage par
 document a corrigé ailleurs, et il faudra y revenir.
+
+---
+
+## 8. Les étapes 5 et 6 : les liens signés, et la vue servie plutôt que rebâtie
+
+### Étape 5 — personne ne signait
+
+Les laissez-passer existaient depuis E1, et `signer` **n'avait aucun appelant dans tout le
+dépôt**. La route `/laissez` les émet.
+
+**La clé de l'objet est composée par le service, jamais reçue.** C'est la règle d'`objets.ts`, et
+c'est elle qui tient l'isolation des fichiers puisqu'un seul compartiment les porte toutes :
+l'appelant donne une version et un nom, pas un chemin. Un test envoie une clé toute faite avec
+des remontées de répertoire et vérifie qu'elle n'ouvre rien — et que le compartiment n'est pas
+même touché.
+
+Le nom est vérifié **avant** toute composition, sur une forme étroite. R2 ne résout pas les
+chemins — « .. » y serait un segment comme un autre — mais une clé qui ressemble à une remontée
+finit par être lue par quelque chose qui, lui, la résout : un cache, un miroir, un outil
+d'inspection. Mieux vaut qu'elle n'existe jamais.
+
+**Un vrai défaut trouvé au passage :** `/fichier/:laissez` lisait `Date.now()` au lieu de
+l'horloge injectée, seul endroit de l'application à le faire. Mon test de péremption a échoué
+pour cette raison, et c'est le test qui avait raison.
+
+### Étape 6 — la vue est servie, pas rebâtie
+
+`chercher` prend une `VueBibliotheque` entière. Deux chemins s'offraient : rebâtir la vue en SQL
+dans le Worker, ou servir l'instantané que `instantane.ts` construit déjà à l'ingestion.
+
+**Retenu : l'instantané, rangé comme objet R2.** Une seconde mise en œuvre de la vue serait une
+seconde vérité, et celle des deux qui finirait par mentir — c'est le mode de panne contre lequel
+ce dépôt met en garde partout, et `instantaneDeLot` porte déjà la cicatrice d'un second chemin de
+code qui avait divergé.
+
+Conséquence directe, et c'est tout l'intérêt : la recherche en ligne fait tourner **le même
+`chercher` sur la même vue**. Les résultats sont identiques **par construction**, et non par
+ressemblance. Un test le montre sur cinq requêtes, dont la suite entière avant le mot isolé.
+
+### Une troisième famille d'objets, avec sa raison
+
+`objets.ts` disait « deux familles, et il n'y en aura pas d'autres **sans raison** ». La voici.
+
+Une vue de bibliothèque rassemble ce que **toutes** les versions actives donnent à voir. La
+ranger sous `derives/<version>/` obligerait à inventer une version qui n'existe pas, et cette
+version inventée serait ensuite lue par du code qui croit aux versions. Une famille de plus coûte
+une ligne et un motif de plus au garde-fou ; une fausse version coûte un malentendu durable.
+
+Le garde-fou qui interdit à tout autre module de composer un préfixe **couvre la famille neuve** :
+sans quoi elle serait née sans surveillance.
+
+### La fraîcheur : à l'activation, pas sur un intervalle
+
+`PUT /vue` et `PUT /vue/passages` rangent la vue, **derrière le jeton de service et lui seul** :
+c'est un appel de machine à machine — la chaîne de traitement tourne sur la machine de
+l'ingestion, pas dans un navigateur, et n'a aucune session personnelle à présenter. C'est
+exactement l'usage pour lequel le jeton existe, comme `/vision`.
+
+Une vue poussée toutes les heures serait périmée cinquante-neuf minutes sur soixante sans que
+personne sache de combien. Poussée à l'activation, elle est aussi fraîche que la dernière
+activation, et **jamais plus périmée que ce que le bureau montre lui-même**.
+
+**La vue est validée avant d'être rangée.** Ranger un objet qu'on ne saurait pas relire
+reporterait la panne chez le lecteur, le jour où il ouvre la bibliothèque. Mieux vaut refuser
+maintenant, à qui peut corriger. La lecture, elle, ne valide pas : elle transmet des octets, et
+le pont les passe par leur contrat à l'arrivée. L'asymétrie est voulue — les défauts du contrat
+s'appliquent une fois, à l'écriture.
+
+### Ce qui n'est pas fait, et qui le dit
+
+**Quatre fonctions du port en ligne refusent**, avec une erreur nommée `PasEncoreEnLigne` qui
+cite le geste : `apercuDeBibliotheque`, `versionActive`, `classementsDeBibliotheque`,
+`classerDocument`. Elles demandent un découpage des objets **par document** — un aperçu, une vue
+et des passages par empreinte — et ce découpage dépend de ce que les écrans montreront en ligne,
+question ouverte et tranchée à part.
+
+Elles **lèvent plutôt que de rendre une liste vide** : une liste vide se confond avec une
+bibliothèque vide, et un écran qui n'affiche rien sans dire pourquoi coûte des heures à
+diagnostiquer. C'est la même raison qui fait qu'un enrôlement sans clé échoue en le disant.
+
+**Le déclenchement côté bureau reste à brancher.** La route existe et est éprouvée ; ce qui
+l'appellera au moment de l'activation appartient au chemin de publication, c'est-à-dire à
+l'étape 7. La chaîne d'ingestion n'a pas encore de geste « publier cette version en ligne ».
+
+### Les « quatre épreuves », et ce qu'elles pouvaient être ici
+
+Le plan annonçait « les mêmes quatre épreuves qu'au bureau, mêmes résultats ». Ces épreuves
+étaient celles de l'épreuve humaine, menées sur des documents sous droits qui ne sont pas au
+dépôt : elles ne peuvent pas devenir des tests versionnés.
+
+Ce qui a été éprouvé à la place est plus fort que leur transposition : non pas que les résultats
+se ressemblent, mais qu'ils soient **la même chose** — même fonction, mêmes octets. Les épreuves
+humaines pourront se rejouer en ligne le jour de la mise en marche, sur la mini-bibliothèque.
+
+---
+
+## 9. Trois scénarios pour les écrans en ligne — à trancher avant d'écrire le découpage
+
+Soumis le 19 octobre 2026. Rien n'est écrit sur cette base avant qu'un scénario soit retenu.
+
+### Les quatre faits qui commandent le choix
+
+Relevés dans `apps/app/src/App.tsx`, aux endroits où le port est réellement appelé :
+
+| ligne | ce qui est demandé | pour quel écran |
+|---|---|---|
+| 217 | `apercuDeBibliotheque` **et** `classementsDeBibliotheque`, ensemble, au chargement | le **Catalogue** : la liste et ses filtres |
+| 252 | `vueDeDocument` **et** `passagesDeDocument`, pour le document regardé | le **Lecteur** et la **recherche** |
+| 187 | `versionActive`, puis `imageDePage` | résoudre l'image d'une page, à la demande |
+| 399 | `classerDocument`, puis relecture des classements | le geste manuel depuis le Catalogue |
+
+Et le fait le plus structurant, vérifié dans `apps/app/src/pages/Recherche.tsx` :
+
+> **La recherche porte sur une seule vue — celle du document ouvert.** Pas sur la bibliothèque.
+> L'en-tête annonce « Rechercher dans toutes vos bibliothèques », et ce n'est pas ce que le code
+> fait ; cet écart existe déjà au bureau et ne relève pas d'E5.
+
+Autre fait utile : **`versionActive` ne sert qu'à `imageDePage`**. Rien d'autre ne l'appelle. Si
+l'instantané portait la version de ses images, cette fonction disparaîtrait du port en ligne.
+
+### Scénario A — un document à la fois
+
+Ce qui est en ligne : **le Lecteur et la recherche**, sur le document publié. Pas de Catalogue,
+pas de changement de document. C'est exactement ce que le code sert aujourd'hui.
+
+| fonction | ce qu'il faut |
+|---|---|
+| `apercuDeBibliotheque` | **rien** — aucun écran ne l'appelle, elle continue de refuser |
+| `versionActive` | **rien**, si l'instantané porte la version de ses images ; sinon, un champ à ajouter |
+| `classementsDeBibliotheque` | **rien** — pas de Catalogue, donc pas de filtres |
+| `classerDocument` | **rien** — la lecture seule en ligne, le classement reste un geste de bureau |
+
+Objets : les **deux** déjà en place. Aucun découpage par document.
+
+Ce qu'on perd : on ne choisit pas le document en ligne. La bibliothèque en ligne **est** le
+dernier document publié. Pour deux personnes qui consultent un ouvrage de référence, c'est
+peut-être tout ce qu'il faut ; pour une bibliothèque de deux cent cinquante documents, non.
+
+### Scénario B — Catalogue et Lecteur, en lecture seule
+
+Ce qui est en ligne : **le Catalogue** (liste, filtres), **le Lecteur**, la **recherche** dans le
+document ouvert. On choisit son document ; on ne classe pas.
+
+| fonction | ce qu'il faut |
+|---|---|
+| `apercuDeBibliotheque` | un objet `vues/apercu.json` — la liste des documents |
+| `vueDeDocument`, `passagesDeDocument` | **deux objets par document**, nommés par l'empreinte, qui doit être vérifiée avant de composer la clé |
+| `versionActive` | la version dans l'aperçu ou dans l'instantané — à décider là |
+| `classementsDeBibliotheque` | les classements, dans l'aperçu ou à côté |
+| `classerDocument` | **rien** — continue de refuser, et le dit |
+
+Ce que cela change pour la publication : elle devient **incrémentale**. Publier une version
+pousse les deux objets de **son** document, plus un aperçu rafraîchi. L'aperçu est alors le seul
+objet que deux publications simultanées pourraient se disputer — une question à traiter, pas un
+obstacle.
+
+C'est le scénario qui donne une bibliothèque en ligne utilisable sans rien rouvrir de ce qui est
+décidé.
+
+### Scénario C — tout, classement en ligne compris
+
+Le scénario B, plus `classerDocument` qui écrit.
+
+| fonction | ce qu'il faut |
+|---|---|
+| tout ce du scénario B | idem |
+| `classerDocument` | une route d'écriture, porte = session **et** droit de contribution, et le classement rangé dans la base de la bibliothèque |
+
+Et le coût qu'il faut nommer : **le classement existerait alors à deux endroits** — dans la base
+(ce que la route écrit) et dans l'instantané (ce que les écrans lisent). Les deux ne seraient
+d'accord qu'entre deux publications. C'est exactement la seconde vérité qu'on vient d'éviter en
+servant l'instantané plutôt qu'en le rebâtissant, et elle reviendrait ici pour de bon.
+
+Il y a des réponses — ne pas servir les classements depuis l'instantané mais depuis la base,
+republier aussitôt après chaque classement — mais chacune est une décision de plus, et aucune
+n'est petite.
+
+### Ma recommandation
+
+**B**, et A seulement si la version en ligne doit exister vite et pour un document.
+
+B donne ce qu'on attend d'une bibliothèque consultable — choisir, lire, chercher — sans rouvrir
+une seule décision prise. Son coût est du travail, pas du risque : trois objets de plus et une
+vérification d'empreinte.
+
+C attendra qu'on sache si classer en ligne est vraiment demandé. Le faire parce qu'on peut
+coûterait la cohérence qu'on vient d'acheter.
+
+---
+
+## 10. Le scénario B, écrit (19 octobre 2026)
+
+### Trois objets, et ce que chacun porte
+
+| objet | ce qu'il porte |
+|---|---|
+| `vues/apercu.json` | la liste des documents **et** leurs classements |
+| `vues/<empreinte>.json` | la vue de ce document |
+| `vues/<empreinte>-passages.json` | son texte, en entrée à part |
+
+**Un seul objet pour la liste et les classements**, parce que le Catalogue les demande toujours
+ensemble. Deux objets voudraient dire deux écritures, donc une fenêtre de plus où l'un est posé
+sans l'autre, pour rien.
+
+### `versionActive` a disparu du problème
+
+`ApercuDocument` **portait déjà sa version** — « un aperçu décrit un état, pas un document en
+général ». La version active se lit donc dans l'aperçu, sans objet supplémentaire et sans
+fonction qui refuse. Le scénario annonçait « la version dans l'aperçu ou dans l'instantané, à
+décider là » : il n'y avait rien à décider, c'était déjà écrit.
+
+### L'empreinte reçue ne devient jamais un chemin
+
+`cleVueDeDocument` et `clePassagesDeDocument` **rendent `undefined`** quand l'empreinte n'est pas
+soixante-quatre caractères hexadécimaux minuscules — plutôt que de lever ou de composer une clé
+douteuse. L'appelant est ainsi obligé de traiter le cas, et la route rend 400.
+
+La vérification vit dans `objets.ts` et non dans la route, parce que c'est la règle de ce
+fichier : si elle vivait dans la route, une seconde route l'oublierait. Le motif y est écrit en
+clair plutôt qu'emprunté au contrat `Empreinte`, pour que la composition des clés ne dépende de
+rien.
+
+### La publication est incrémentale, et son ordre est choisi
+
+Les passages, puis la vue, puis l'aperçu. **L'objet qui référence les autres va en dernier** : un
+document annoncé à l'aperçu mais pas encore rangé donnerait un 404 à qui le choisirait dans le
+Catalogue.
+
+Aucune atomicité entre trois objets, et aucun moyen d'en obtenir une ici. Ce qu'on peut faire est
+de choisir l'ordre et de refuser de taire une moitié : **chaque échec dit ce qui a été posé avant
+lui**, et termine par « relancer suffit ».
+
+Ce « relancer suffit » n'est pas une formule : l'entrée du document **remplace** la précédente et
+les autres documents restent, donc republier ne dédouble pas. Un test le vérifie, et une mutation
+qui retire le remplacement le fait tomber.
+
+### L'aperçu se lit avant d'être réécrit, et c'est une course nommée
+
+Publier remplace **une** entrée et garde les autres : il faut donc lire, modifier, réécrire. Deux
+publications simultanées pourraient se perdre l'une l'autre.
+
+C'est nommé plutôt que corrigé. Les publications se lancent à la main, une par une, et une
+correction demanderait soit une écriture conditionnelle que R2 n'offre pas ici, soit un objet par
+document pour l'aperçu lui-même — c'est-à-dire le problème déplacé. Si deux publications
+simultanées deviennent un usage réel, ce sera le moment d'y revenir.
+
+**Ce qui est garanti en revanche : un aperçu qu'on n'a pas pu lire n'est jamais écrasé.** L'écrire
+perdrait tous les autres documents. La commande s'arrête et le dit ; une mutation confirme.
+
+### `classerDocument` refuse, et dit pourquoi
+
+Un seul geste du port refuse désormais, et ce n'est plus « pas encore » mais « pas ici » :
+
+> « classerDocument » ne se fait pas en ligne : le classement vivrait à deux endroits,
+> l'instantané et la base, d'accord seulement entre deux publications.
+
+C'est la décision du scénario B, et l'erreur porte sa raison pour qu'un écran puisse la dire.
+
+### Ce qui reste, et qui n'est pas du code
+
+Le geste de publication appelle le service avec le jeton, l'entrée d'aperçu ne devine rien —
+l'empreinte vient du fichier, la version de ce traitement, les compteurs de la vue. La commande
+ne publie que si on le lui demande (`--publier`).
+
+Reste la **séquence de mise en marche**, les six points de `lot-e5-etape4-plan.md` §13. Rien n'en
+est fait.

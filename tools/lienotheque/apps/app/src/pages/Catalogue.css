@@ -341,3 +341,23 @@ img.ln-pages__apercu,
   width: calc(var(--ln-grid) * 6);
   flex: none;
 }
+
+/* La liste des documents repose sur le **fond de page**, et non sur une surface claire : les
+   filtres sont un panneau, elle ne l'est pas.
+
+   En thème hybride ce fond est sombre, et ses textes prenaient les couleurs prévues pour une
+   surface claire — mesuré : le titre « Documents » tombait exactement sur la teinte de son fond,
+   soit un rapport de 1,00. Un titre invisible, pendant deux jours, sans que « pnpm check » puisse
+   le voir : les épreuves de rendu ne sont pas dans « pnpm check ».
+
+   Aucune couleur n'est écrite ici : on reprend le mécanisme que « base.css » emploie déjà pour
+   les panneaux de titre, qui redirige les deux jetons de texte vers ceux du fond sombre. */
+[data-theme="hybrid"] .ln-catalogue__documents {
+  --ln-text-primary: var(--ln-heading-text);
+  --ln-text-secondary: var(--ln-heading-text-secondary);
+  /* Et la couleur **résolue ici**, sans quoi le titre n'y gagne rien : l'héritage transmet la
+     valeur calculée, pas la référence au jeton. Redéfinir le jeton seul a corrigé « .ln-muted »,
+     qui déclare sa propre couleur, et laissé le titre invisible — il héritait d'une couleur
+     calculée plus haut dans l'arbre. */
+  color: var(--ln-text-primary);
+}

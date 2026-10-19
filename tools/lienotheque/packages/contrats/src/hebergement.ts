@@ -69,7 +69,21 @@ export const OperationSensible = z.enum([
   "publication",
   "depublication",
   "changement_hebergement",
+  // Inscrire une personne lui donne le droit d'enrôler des clés : c'est la racine de tout accès,
+  // et la seule ligne qui dira qui l'a ajoutée.
+  "inscription",
+  // Enrôler une clé donne un accès durable à une personne : c'est au moins aussi sensible que
+  // publier, et c'est la ligne qu'on cherchera le jour où on se demandera depuis quand un
+  // appareil entre.
+  "enrolement",
+  // Élargir ou restreindre l'accès de quelqu'un : la ligne qu'on cherchera le jour où l'on se
+  // demandera qui a donné quoi à qui.
+  "reviser_droits",
   "revocation",
+  // Une entrée refusée ne laisse aucune autre trace : une entrée réussie, elle, laisse sa ligne
+  // de session. Seuls les refus qui ont présenté un défi valide s'inscrivent ici — sans quoi on
+  // pourrait noyer le journal en envoyant des défis au hasard.
+  "entree_refusee",
   "suppression",
 ]);
 export type OperationSensible = z.infer<typeof OperationSensible>;

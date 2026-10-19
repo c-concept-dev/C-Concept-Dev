@@ -1,0 +1,8 @@
+# Banc jetable : il ne touche ni la configuration figée du Worker, ni un secret, ni un
+# déploiement. « wrangler dev --local » n'exécute que workerd, sur cette machine.
+#
+# Le nom du fichier n'est pas « wrangler.toml » à dessein : wrangler ne charge d'office que ce
+# dernier, de sorte qu'aucun « wrangler deploy » lancé par mégarde ici ne trouve de quoi faire.
+name = "mesure-voie-c"
+main = "index.js"
+compatibility_date = "2026-03-17"

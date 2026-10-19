@@ -384,4 +384,57 @@ export const MIGRATIONS_REGISTRE_EN_LIGNE: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 3,
+    nom: "l-identifiant-que-l-appareil-presente",
+    sql: `
+      -- La migration 2 a été écrite avant la cérémonie, et il lui manquait une colonne.
+      --
+      -- À l'entrée, le navigateur présente l'identifiant que l'authentificateur a donné à la
+      -- clé — des octets quelconques, pas un UUID — et c'est **le seul chemin** pour retrouver
+      -- la clé publique qui vérifiera la signature. Sans cette colonne, une clé enrôlée est
+      -- introuvable au moment précis où elle sert.
+      --
+      -- On ne la met pas à la place de « id » : l'identifiant interne reste un UUID, comme
+      -- partout ailleurs, et c'est lui que le journal cite. Deux identités pour deux usages,
+      -- chacune avec sa forme.
+      ALTER TABLE cle_acces ADD COLUMN identifiant_cle TEXT;
+
+      -- Deux appareils ne peuvent pas prétendre au même identifiant : la contrainte vit dans la
+      -- base, pas dans la vigilance de qui écrit. Partiel, parce qu'ajouter une colonne à une
+      -- table peuplée la laisse nulle — ici elle est vide, mais la règle ne doit pas en dépendre.
+      CREATE UNIQUE INDEX idx_cle_identifiant ON cle_acces(identifiant_cle)
+        WHERE identifiant_cle IS NOT NULL;
+    `,
+  },
+  {
+    version: 4,
+    nom: "les-defis-d-une-ceremonie",
+    sql: `
+      -- Un défi : le hasard que le serveur envoie et que l'appareil signe.
+      --
+      -- Il vit dans la base, et non dans un jeton signé qu'on se repasserait, pour une seule
+      -- raison : **un défi ne doit servir qu'une fois**, et une chose à usage unique a besoin
+      -- d'un endroit où l'on puisse marquer qu'elle a servi. Un jeton signé sait dire qu'il est
+      -- authentique et qu'il n'est pas périmé ; il ne saura jamais dire qu'il a déjà été employé.
+      --
+      -- La valeur est la clé primaire : deux défis identiques ne peuvent pas coexister, et la
+      -- contrainte vit dans la base plutôt que dans la confiance au générateur.
+      CREATE TABLE defi (
+        valeur      TEXT PRIMARY KEY,
+        -- À quoi il sert : enrôler une clé, ou entrer avec une clé déjà enrôlée. Un défi émis
+        -- pour l'un ne doit pas pouvoir servir à l'autre.
+        usage       TEXT NOT NULL,
+        -- Pour qui, quand on le sait déjà. Nul à l'entrée : c'est la clé présentée qui dira qui.
+        personne_id TEXT REFERENCES utilisateur(id) ON DELETE CASCADE,
+        cree_le     TEXT NOT NULL,
+        expire_le   TEXT NOT NULL,
+        -- Marqué au moment où le défi sert. Une ligne consommée reste : c'est elle qui permet de
+        -- répondre « ce défi a déjà servi » plutôt que « ce défi n'existe pas », et les deux ne
+        -- disent pas la même chose à qui lit un journal.
+        consomme_le TEXT
+      );
+      CREATE INDEX idx_defi_expire ON defi(expire_le);
+    `,
+  },
 ];

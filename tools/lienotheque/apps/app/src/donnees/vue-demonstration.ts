@@ -17,7 +17,10 @@ const TITRES = ["Lecture simple", "Gammes en legato", "Lecture et articulation",
 const page = (numero: number, rang: number) => {
   const premier = 397 + rang * 3;
   return {
-    index: numero,
+    // Le **rang** dans le document, à partir de un — et non le numéro imprimé. Les deux
+    // désignent la même page et ne la nomment pas pareil : c'est par le rang qu'un écran
+    // navigue, et « #lecteur/page=3 » ne désignait aucune page tant que l'index valait 127.
+    index: rang + 1,
     numero,
     titre: TITRES[rang],
     elements: [0, 1, 2].map((decalage) => {

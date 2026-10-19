@@ -24,6 +24,10 @@ export const EXIGE: Readonly<Record<string, Niveau>> = {
   annoter: "contribution",
   corriger_lien: "contribution",
   deposer: "contribution",
+  // Enrôler une clé donne à un appareil un accès durable, et révoquer la retire : les deux
+  // touchent à qui peut entrer, et relèvent donc du niveau le plus haut.
+  enroler_cle: "administration",
+  revoquer_cle: "administration",
   changer_schema: "administration",
   publier: "administration",
   depublier: "administration",
