@@ -1,7 +1,7 @@
 import { MIGRATIONS_REGISTRE_EN_LIGNE, baseEnMemoire } from "@lienotheque/depot-sqlite";
 import { DUREE_SESSION, entetTemoin, jetonNeuf } from "@lienotheque/noyau";
 import { beforeEach, describe, expect, it } from "vitest";
-import { NOM_DU_TEMOIN, ouvrirParSession } from "../src/porte.js";
+import { NOM_DU_TEMOIN, autoriser, identifierParSession, repousserSiBesoin } from "../src/porte.js";
 import { inscrireUnDroit, inscrireUnePersonne, laSessionParEmpreinte, ouvrirUneSession, revoquerLaSession } from "../src/qui-entre.js";
 
 /** La porte : d'un témoin à une personne autorisée (SEC-02, SEC-03, étape 4.6).
@@ -35,6 +35,25 @@ const uneSession = async (personneId: string, quand = QUAND) => {
   const fait = await ouvrirUneSession(registre, { personneId, jeton }, quand);
   if (!fait.fait) throw new Error(fait.raison);
   return { jeton, session: fait.valeur };
+};
+
+/** Les deux temps de la porte, dans l'ordre où une route doit les appeler.
+ *
+ *  L'aide vit **ici**, dans le test, et non dans le module : une fonction qui composerait les
+ *  deux serait une seconde façon de franchir la porte, et c'est par elle que le défaut du
+ *  19 octobre est arrivé — « /enrolement/defi » lisait la configuration avant la session, et
+ *  rendait 503 à un inconnu. Une route doit voir l'ordre qu'elle écrit. */
+const ouvrirParSession = async (
+  base: typeof registre,
+  entetes: Headers,
+  demande: { readonly bibliotheque: string; readonly action: string; readonly maintenant: string },
+) => {
+  const qui = await identifierParSession(base, entetes, demande.maintenant);
+  if (!qui.ouverte) return qui;
+  const droit = await autoriser(base, qui.personneId, demande.bibliotheque, demande.action);
+  if (!droit.ouverte) return droit;
+  await repousserSiBesoin(base, qui.session, demande.maintenant);
+  return { ouverte: true as const, personneId: qui.personneId, session: qui.session, niveau: droit.niveau };
 };
 
 /** L'en-tête `Cookie` tel qu'un navigateur l'envoie. */

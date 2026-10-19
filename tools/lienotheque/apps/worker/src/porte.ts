@@ -25,9 +25,16 @@ import type { BaseSql } from "./registre.js";
  *  configuration : vérifier la configuration d'abord apprenait à un appelant anonyme si la façade
  *  est configurée, et sur quelle bibliothèque elle bute.
  *
- *  D'où `identifierParSession` puis `autoriser`, que la façade appelle de part et d'autre de sa
- *  configuration. `ouvrirParSession` les compose, pour les routes qui savent déjà sur quoi elles
- *  travaillent. Une seule mise en œuvre, deux ordres d'appel possibles.
+ *  D'où `identifierParSession` puis `autoriser`, qu'une route appelle de part et d'autre de sa
+ *  configuration.
+ *
+ *  **Et aucune fonction ne les compose**, délibérément. Il en existait une, et c'est par elle que
+ *  le défaut du 19 octobre est arrivé : la porte d'enrôlement l'appelait après avoir lu la
+ *  configuration, si bien qu'un inconnu recevait 503 et apprenait que la cérémonie n'est pas
+ *  configurée avant d'avoir rien présenté. Le Worker déployé l'a montré ; les tests ne le
+ *  voyaient pas, car ils éprouvaient la porte avec les réglages toujours posés.
+ *
+ *  Une composition cache l'ordre à qui l'appelle. Deux appels le montrent.
  *
  *  ## Un seul mot, un seul statut
  *
@@ -65,15 +72,6 @@ const fermee = (pourLeJournal: string): Fermee => ({ ouverte: false, statut: 401
 
 export type Identifiee =
   | { readonly ouverte: true; readonly personneId: string; readonly session: SessionEnregistree }
-  | Fermee;
-
-export type Ouverture =
-  | {
-      readonly ouverte: true;
-      readonly personneId: string;
-      readonly session: SessionEnregistree;
-      readonly niveau: Niveau;
-    }
   | Fermee;
 
 const enSecondes = (horodatage: string): number => Math.floor(Date.parse(horodatage) / 1000);
@@ -134,22 +132,6 @@ export async function repousserSiBesoin(
 ): Promise<void> {
   if (aRepousser(vueDuNoyau(session), enSecondes(maintenant)))
     await repousserLaSession(registre, session.id, maintenant);
-}
-
-/** Les deux temps d'un coup, pour une route qui sait déjà sur quoi elle travaille. */
-export async function ouvrirParSession(
-  registre: BaseSql,
-  entetes: Headers,
-  demande: { readonly bibliotheque: string; readonly action: string; readonly maintenant: string },
-): Promise<Ouverture> {
-  const qui = await identifierParSession(registre, entetes, demande.maintenant);
-  if (!qui.ouverte) return qui;
-
-  const droit = await autoriser(registre, qui.personneId, demande.bibliotheque, demande.action);
-  if (!droit.ouverte) return droit;
-
-  await repousserSiBesoin(registre, qui.session, demande.maintenant);
-  return { ouverte: true, personneId: qui.personneId, session: qui.session, niveau: droit.niveau };
 }
 
 /** La session que porte ce témoin, sans regarder ni son état ni aucun droit.

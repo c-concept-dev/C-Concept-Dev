@@ -21,7 +21,6 @@ import {
   autoriser,
   identifierParSession,
   laSessionDuTemoin,
-  ouvrirParSession,
   repousserSiBesoin,
 } from "./porte.js";
 import { enroler, ouvrirUnDefi } from "./enrolement.js";
@@ -644,19 +643,31 @@ export function creerApp({
 
   /** La porte des enrôlements : une session, et le droit d'enrôler une clé. */
   const porteDEnrolement = async (contexte: { env: Liaisons; req: { raw: Request } }) => {
+    // **La porte avant la configuration**, en deux temps — la règle du 10 octobre.
+    //
+    // L'ordre inverse était écrit ici, et le Worker déployé l'a montré : « /enrolement/defi »
+    // rendait 503 à un inconnu, lui apprenant que la cérémonie n'est pas configurée avant qu'il
+    // ait présenté quoi que ce soit. Mesuré sur le service en ligne, pas vu par les tests —
+    // ils éprouvaient la porte avec les réglages toujours posés.
+    const registre = contexte.env.REGISTRE;
+    if (registre === undefined) return Response.json({ erreur: "Accès refusé." }, { status: 401 });
+
+    const maintenantIso = maintenant().toISOString();
+    const qui = await identifierParSession(registre, contexte.req.raw.headers, maintenantIso);
+    if (!qui.ouverte) return Response.json({ erreur: qui.mot }, { status: qui.statut });
+
+    // Identifié : on peut maintenant parler de configuration sans rien apprendre à un inconnu.
     const cadre = cadreDeCeremonie(contexte);
     if (cadre instanceof Response) return cadre;
     const cle = contexte.env.BIBLIOTHEQUE_FACADE;
     if (cle === undefined || cle.length === 0)
       return Response.json({ erreur: "La cérémonie n'est pas configurée" }, { status: 503 });
 
-    const ouverte = await ouvrirParSession(cadre.registre, contexte.req.raw.headers, {
-      bibliotheque: cle,
-      action: "enroler_cle",
-      maintenant: cadre.maintenant,
-    });
-    if (!ouverte.ouverte) return Response.json({ erreur: ouverte.mot }, { status: ouverte.statut });
-    return { ...cadre, personneId: ouverte.personneId };
+    const droit = await autoriser(registre, qui.personneId, cle, "enroler_cle");
+    if (!droit.ouverte) return Response.json({ erreur: droit.mot }, { status: droit.statut });
+
+    await repousserSiBesoin(registre, qui.session, maintenantIso);
+    return { ...cadre, personneId: qui.personneId };
   };
 
   app.post("/enrolement/defi", async (contexte) => {
