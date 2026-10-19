@@ -102,7 +102,11 @@ try {
     console.log(`     ${invite.status} ${await invite.text()}`);
     process.exit(1);
   }
-  const { defi } = await invite.json();
+  const { defi, personneId, personne } = await invite.json();
+  // L'invitation telle que l'opérateur la remet : un seul jeton, qui porte le défi **et** qui
+  // est invité. L'identité de la personne sert à nommer la clé auprès de l'appareil — et à ce
+  // qu'une seconde tentative **remplace** la première au lieu d'en ajouter une.
+  const invitation = Buffer.from(JSON.stringify({ defi, personneId, personne }), "utf8").toString("base64url");
 
   exiger_que(
     "sans jeton, aucune invitation",
@@ -136,7 +140,7 @@ try {
     if (message.type() === "error") refus.push(message.text());
   });
 
-  await page.goto(`/#entrer/invitation=${defi}`);
+  await page.goto(`/#entrer/invitation=${invitation}`);
   await page.waitForSelector(".ln-entrer", { timeout: 15000 });
   exiger_que("la page d'entrée s'affiche, servie par le Worker", true);
 

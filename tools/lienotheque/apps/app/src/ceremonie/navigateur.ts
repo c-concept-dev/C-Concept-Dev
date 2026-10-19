@@ -133,7 +133,8 @@ async function creerUneCle(
   credentials: CredentialsContainer,
   defi: string,
   domaine: string,
-  nom: string,
+  personne: { readonly id: string; readonly nom: string },
+  appareil: string,
 ): Promise<{ readonly corps: Record<string, unknown> } | { readonly mot: string }> {
   let cree: Credential | null;
   try {
@@ -141,7 +142,21 @@ async function creerUneCle(
       publicKey: {
         challenge: depuisBase64Url(defi),
         rp: { name: "Liénothèque", id: domaine },
-        user: { id: depuisBase64Url(defi).slice(0, 16), name: nom, displayName: nom },
+        // **L'identité de la personne, et stable.** Elle était tirée du défi, donc différente à
+        // chaque tentative : l'appareil ajoutait une clé au lieu de remplacer la précédente, et
+        // une tentative ratée laissait une clé orpheline que le registre ne connaissait pas.
+        // Mesuré en production le 19 octobre, deux clés pour une seule enregistrée.
+        //
+        // Même domaine et même « user.id » : l'appareil **remplace**. C'est le mécanisme de
+        // WebAuthn, et c'est lui qui rend l'orpheline impossible.
+        //
+        // Le nom qui paraît dans la feuille est celui de la **personne** — l'appareil, lui, est
+        // nommé dans notre propre champ. J'avais mis l'un à la place de l'autre.
+        user: {
+          id: new TextEncoder().encode(personne.id),
+          name: personne.nom,
+          displayName: personne.nom,
+        },
         pubKeyCredParams: [{ type: "public-key", alg: -7 }],
         authenticatorSelection: {
           authenticatorAttachment: "platform",
@@ -168,7 +183,7 @@ async function creerUneCle(
       clePublique: clePublique === null ? null : enBase64(clePublique),
       algorithme: reponse.getPublicKeyAlgorithm?.() ?? null,
       donneesClient: enBase64Url(reponse.clientDataJSON),
-      appareil: nom,
+      appareil,
     },
   };
 }
@@ -187,9 +202,9 @@ export async function enrolerCetAppareil(
 
   const demande = await appel("/enrolement/defi", {});
   if (!demande.ok) return { fait: false, mot: await motDe(demande, "Accès refusé.") };
-  const { defi, domaine } = (await demande.json()) as { defi: string; domaine: string };
+  const lu = (await demande.json()) as { defi: string; domaine: string; personneId: string; personne: string };
 
-  const faite = await creerUneCle(credentials, defi, domaine, nom);
+  const faite = await creerUneCle(credentials, lu.defi, lu.domaine, { id: lu.personneId, nom: lu.personne }, nom);
   if ("mot" in faite) return { fait: false, mot: faite.mot };
 
   const enrole = await appel("/enrolement", faite.corps);
@@ -204,15 +219,37 @@ export async function enrolerCetAppareil(
  *  Le domaine vient de l'origine de la page, qui est celle du service — c'est le Worker qui sert
  *  les deux. On ne le demande donc à personne. */
 export async function amorcer(
-  nom: string,
+  appareil: string,
   invitation: string,
   { appeler = fetch, credentials = globalThis.navigator?.credentials }: Dehors = {},
 ): Promise<Verdict> {
   if (credentials === undefined) return { fait: false, mot: SANS_APPAREIL };
   if (invitation.length === 0) return { fait: false, mot: "Aucune invitation dans cette adresse." };
 
+  // L'invitation porte les trois choses d'un seul tenant : le défi, et **qui** est invité. Un
+  // seul jeton opaque plutôt que trois valeurs éparses — c'est ce qu'elle est, une chose qu'on
+  // remet, et cela évite une adresse dont on pourrait changer une partie sans voir l'autre.
+  //
+  // Ce que la page en tire sert à nommer la personne auprès de l'appareil, pas à l'autoriser :
+  // c'est le défi, et lui seul, que le service vérifie.
+  let dedans: { defi: string; personneId: string; personne: string };
+  try {
+    const texte = new TextDecoder().decode(depuisBase64Url(invitation));
+    dedans = JSON.parse(texte) as typeof dedans;
+    if (typeof dedans.defi !== "string" || typeof dedans.personneId !== "string")
+      return { fait: false, mot: "Cette invitation est illisible." };
+  } catch {
+    return { fait: false, mot: "Cette invitation est illisible." };
+  }
+
   const domaine = globalThis.location?.hostname ?? "";
-  const faite = await creerUneCle(credentials, invitation, domaine, nom);
+  const faite = await creerUneCle(
+    credentials,
+    dedans.defi,
+    domaine,
+    { id: dedans.personneId, nom: dedans.personne },
+    appareil,
+  );
   if ("mot" in faite) return { fait: false, mot: faite.mot };
 
   const amorce = await appelsVers(appeler)("/amorce", faite.corps);

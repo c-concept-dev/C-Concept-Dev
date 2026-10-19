@@ -42,3 +42,12 @@
   margin: 0;
   color: var(--ln-text-primary);
 }
+
+/* La réussite se voit. Son absence a coûté une clé orpheline : sans confirmation, on reclique. */
+.ln-entrer__reussite {
+  display: flex;
+  gap: calc(var(--ln-grid) * 0.75);
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+}

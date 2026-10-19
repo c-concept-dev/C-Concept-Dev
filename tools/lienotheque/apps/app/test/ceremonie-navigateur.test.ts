@@ -21,6 +21,14 @@ import { amorcer, enrolerCetAppareil, entrer, sortir } from "../src/ceremonie/na
  *  il porte son motif. Cette page n'en réécrit aucun. */
 
 const DEFI = "SE6tiuHB8s6QADL_OkXDkVIYHVAhMVtD3OAlcXrFuMg";
+const PERSONNE = { id: "476f2852-c8c8-4e60-8f5a-5380a9d6dbc6", nom: "Christophe" };
+
+/** L'invitation telle que l'opérateur la compose : un jeton opaque qui porte le défi **et** qui
+ *  est invité. */
+const INVITATION = Buffer.from(
+  JSON.stringify({ defi: DEFI, personneId: PERSONNE.id, personne: PERSONNE.nom }),
+  "utf8",
+).toString("base64url");
 const DOMAINE = "essai.invalide";
 
 const octets = (taille: number, valeur = 7): Uint8Array => new Uint8Array(taille).fill(valeur);
@@ -29,14 +37,26 @@ const octets = (taille: number, valeur = 7): Uint8Array => new Uint8Array(taille
 const authentificateur = (
   options: { clePubliqueNulle?: boolean; interrompt?: boolean; algorithme?: number | null } = {},
 ) => {
-  const demandes: { geste: "create" | "get"; defi: string; domaine: string | undefined }[] = [];
+  const demandes: {
+    geste: "create" | "get";
+    defi: string;
+    domaine: string | undefined;
+    utilisateur?: string;
+    nomAffiche?: string;
+  }[] = [];
   const enClair = (tampon: ArrayBuffer): string =>
     Buffer.from(new Uint8Array(tampon)).toString("base64url");
 
   const credentials = {
     create: async (demande: CredentialCreationOptions) => {
       const pk = demande.publicKey!;
-      demandes.push({ geste: "create", defi: enClair(pk.challenge as ArrayBuffer), domaine: pk.rp.id });
+      demandes.push({
+        geste: "create",
+        defi: enClair(pk.challenge as ArrayBuffer),
+        domaine: pk.rp.id,
+        utilisateur: new TextDecoder().decode(pk.user.id as ArrayBuffer),
+        nomAffiche: pk.user.name,
+      });
       if (options.interrompt === true) return null;
       return {
         rawId: octets(16, 3).buffer,
@@ -217,7 +237,7 @@ describe("amorcer sur une invitation", () => {
     // que cette page n'a pas le droit de porter (règle 6, LIV-04).
     const dehors = service();
     const appareil = authentificateur();
-    const verdict = await amorcer("Christophe", DEFI, {
+    const verdict = await amorcer("Portable", INVITATION, {
       appeler: dehors.appeler,
       credentials: appareil.credentials,
     });
@@ -227,9 +247,50 @@ describe("amorcer sur une invitation", () => {
     expect(appareil.demandes[0]?.defi).toBe(DEFI);
   });
 
+  it("donne à l'appareil l'identité de la **personne**, stable d'une fois sur l'autre", async () => {
+    // C'est la correction du 19 octobre, et elle vaut un test à elle seule.
+    //
+    // « user.id » était tiré du défi, donc différent à chaque tentative : l'appareil **ajoutait**
+    // une clé au lieu de remplacer la précédente. Mesuré en production — deux clés dans le
+    // trousseau, une seule au registre, et l'entrée refusée par « clé inconnue ».
+    //
+    // Même domaine et même « user.id » : l'appareil remplace. L'orpheline devient impossible.
+    const un = authentificateur();
+    await amorcer("Portable", INVITATION, { appeler: service().appeler, credentials: un.credentials });
+
+    const autre = authentificateur();
+    await amorcer("Bureau", INVITATION, { appeler: service().appeler, credentials: autre.credentials });
+
+    expect(un.demandes[0]?.utilisateur).toBe(PERSONNE.id);
+    expect(autre.demandes[0]?.utilisateur).toBe(PERSONNE.id);
+  });
+
+  it("montre le nom de la personne dans la feuille, pas celui de l'appareil", async () => {
+    // J'avais mis l'un à la place de l'autre : deux clés s'appelaient « MacBook Pro » et rien ne
+    // les distinguait. Le nom de l'appareil vit dans notre propre champ.
+    const appareil = authentificateur();
+    const dehors = service();
+    await amorcer("Portable", INVITATION, { appeler: dehors.appeler, credentials: appareil.credentials });
+
+    expect(appareil.demandes[0]?.nomAffiche).toBe(PERSONNE.nom);
+    const envoye = dehors.appels.find((un) => un.chemin === "/amorce")!.corps as Record<string, unknown>;
+    expect(envoye["appareil"]).toBe("Portable");
+  });
+
+  it("refuse une invitation illisible, sans ouvrir de cérémonie", async () => {
+    const appareil = authentificateur();
+    const verdict = await amorcer("Portable", "pas-un-jeton", {
+      appeler: service().appeler,
+      credentials: appareil.credentials,
+    });
+    expect(verdict.fait).toBe(false);
+    if (!verdict.fait) expect(verdict.mot).toContain("illisible");
+    expect(appareil.demandes).toEqual([]);
+  });
+
   it("refuse une adresse sans invitation, sans rien appeler", async () => {
     const dehors = service();
-    const verdict = await amorcer("Christophe", "", {
+    const verdict = await amorcer("Portable", "", {
       appeler: dehors.appeler,
       credentials: authentificateur().credentials,
     });
@@ -240,7 +301,7 @@ describe("amorcer sur une invitation", () => {
 
   it("montre le motif de l'amorçage refusé", async () => {
     const dehors = service({ "/amorce": { statut: 409, corps: { erreur: "L'amorçage est clos." } } });
-    const verdict = await amorcer("Christophe", DEFI, {
+    const verdict = await amorcer("Portable", INVITATION, {
       appeler: dehors.appeler,
       credentials: authentificateur().credentials,
     });
