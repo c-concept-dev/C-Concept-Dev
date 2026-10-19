@@ -37,10 +37,17 @@ const path = require('node:path');
 
 const WORKER = 'https://clone-proxy.11drumboy11.workers.dev';
 const CLE = (process.env.STUDIO_WORKER_API_KEY || '').trim();
+// ESSAI À BLANC — `--sans-appel` : extrait les schémas et donne leur taille, SANS clé et SANS
+// le moindre appel. Il répond à la seule question qu'on peut se poser gratuitement avant de
+// payer : « les sept schémas sont-ils bien trouvés dans la source ? ». Ajouté après un défaut
+// réel — le septième schéma était déclaré avec `var` quand l'extracteur n'accepte que `const`,
+// et le test aurait échoué sur du JavaScript introuvable en ayant l'air d'un refus de l'API.
+const SANS_APPEL = process.argv.includes('--sans-appel');
 // Une clé inutilisable doit être dite TOUT DE SUITE, et jamais confondue avec un refus de l'API.
 // Un en-tête HTTP n'accepte que de l'ASCII : le « … » d'une ligne de commande recopiée telle
 // quelle fait échouer fetch AVANT tout appel — et un test qui conclurait « refusé par l'API »
 // là-dessus mentirait sur la seule chose qu'on lui demande.
+if (!SANS_APPEL) {
 const placeholder = CLE === '…' || CLE === '...' || /^[<'"].*[>'"]$/.test(CLE) || /^votre/i.test(CLE);
 if (CLE && (placeholder || /[^\x20-\x7E]/.test(CLE))) {
   console.error("La valeur de STUDIO_WORKER_API_KEY n'est pas une clé utilisable" +
@@ -56,6 +63,7 @@ if (!CLE) {
     "(la même que localStorage.getItem('workerApiKey') dans le navigateur ; " +
     "ne la place jamais dans un fichier du dépôt.)");
   process.exit(2);
+}
 }
 
 // Extraction STATIQUE des schémas depuis la source réelle — jamais une copie tenue à jour à la
@@ -91,10 +99,45 @@ function extraire(nom) {
 
 const OUTILS = ['ADOC_STRUCTURED_FICHE_TOOL', 'ADOC_STRUCTURED_CARROUSEL_TOOL',
   'ADOC_STRUCTURED_PRESENTATION_TOOL', 'ADOC_STRUCTURED_SCRIPT_TOOL',
-  'ADOC_STRUCTURED_TABLEAU_TOOL', 'ADOC_STRUCTURED_LIENS_TOOL'];
+  'ADOC_STRUCTURED_TABLEAU_TOOL', 'ADOC_STRUCTURED_LIENS_TOOL',
+  // Lot 2C (D2) — schéma NOUVEAU et SÉPARÉ de la page créée par le Studio. Aucun contrôle local
+  // ne dit si Anthropic l'accepte : seul cet appel réel le dit, et il demande la clé.
+  'ADOC_NEW_SLIDE_TOOL'];
 
 (async function () {
   let refuses = 0, indetermines = 0;
+  if (SANS_APPEL) {
+    console.log('ESSAI À BLANC — aucun appel, aucune clé. On vérifie seulement que les schémas');
+    console.log('sont trouvés dans la source et on donne leur taille.\n');
+    let manquants = 0, octetsEnvoyes = 0;
+    for (const nom of OUTILS) {
+      let taille = null, souci = '';
+      try {
+        const o = extraire(nom);
+        taille = Buffer.byteLength(JSON.stringify(o.input_schema || {}));
+        // Ce qui part VRAIMENT dans l'appel, et non le seul schéma : c'est cela qui est facturé.
+        octetsEnvoyes += Buffer.byteLength(JSON.stringify({ payload: {
+          provider: 'anthropic', model: 'claude-sonnet-4-6', max_tokens: 1,
+          system: 'Test de compilation de schéma.', messages: [{ role: 'user', content: 'ok' }],
+          tools: [o], tool_choice: { type: 'tool', name: o.name } } }));
+      }
+      catch (e) { souci = (e && e.message) || String(e); manquants++; }
+      console.log((souci ? 'INTROUVABLE' : 'trouvé     ') + '  '
+        + nom.replace('ADOC_STRUCTURED_', '').replace('ADOC_', '').replace('_TOOL', '').padEnd(13)
+        + (souci ? souci : String(taille).padStart(6) + ' o'));
+    }
+    console.log('');
+    if (manquants) {
+      console.error('ÉCHEC — ' + manquants + ' schéma(s) introuvable(s) dans la source.');
+      console.error("Inutile de lancer le test réel : il échouerait sur l'extraction, pas sur l'API.");
+      process.exit(1);
+    }
+    console.log('Total réellement envoyé si l\'on lance le test réel : ' + octetsEnvoyes
+      + ' octets sur ' + OUTILS.length + ' appels, pour ' + OUTILS.length + ' jeton(s) produits.\n');
+    console.log('PASS (à blanc) — les ' + OUTILS.length + ' schémas sont extraits. Rien n\'a été appelé,');
+    console.log("et cela ne dit RIEN de ce qu'Anthropic en pense : seul le test réel le dira.");
+    return;
+  }
   console.log('Appels RÉELS à Anthropic via le Worker, max_tokens:1 — un par schéma.\n');
   for (const nom of OUTILS) {
     const outil = extraire(nom);
@@ -144,7 +187,7 @@ const OUTILS = ['ADOC_STRUCTURED_FICHE_TOOL', 'ADOC_STRUCTURED_CARROUSEL_TOOL',
     const verdict = joint && (statut === 200 || statut === 400);
     if (!verdict) indetermines++; else if (!ok) refuses++;
     const etiquette = ok ? 'PASS   ' : verdict ? 'REFUSÉ ' : 'INDÉT. ';
-    console.log(etiquette + ' ' + nom.replace('ADOC_STRUCTURED_', '').replace('_TOOL', '').padEnd(13)
+    console.log(etiquette + ' ' + nom.replace('ADOC_STRUCTURED_', '').replace('ADOC_', '').replace('_TOOL', '').padEnd(13)
       + String(taille).padStart(6) + ' o   ' + (joint ? 'HTTP ' + statut : 'aucun appel émis')
       + (detail ? '  | ' + detail : ''));
   }

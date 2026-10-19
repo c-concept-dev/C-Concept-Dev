@@ -116,7 +116,11 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(opened, true, 'le document doit s’ouvrir normalement, déjà enregistré (id existant)');
   await page.waitForFunction(() => !document.getElementById('cc-ws-delete-btn').hidden);
   const saveLabelBefore = await page.locator('#cc-ws-save-btn span').textContent();
-  assert.equal(saveLabelBefore, 'Enregistrer une nouvelle version', 'le bouton doit refléter un document déjà enregistré avant la suppression');
+  // Lot 2C — le libellé a été RACCOURCI en « Nouvelle version » pour que la barre du haut tienne
+  // en deux rangées de 80 px dès 1 200 px de large (mesuré, captures à l'appui). Ce que ce
+  // contrôle vérifie n'a pas changé : le bouton reflète bien un document DÉJÀ enregistré.
+  // Si le libellé long devait revenir, la barre repasserait à trois rangées à 1 272 px.
+  assert.equal(saveLabelBefore, 'Nouvelle version', 'le bouton doit refléter un document déjà enregistré avant la suppression');
   console.log('PASS 1/9 — document ouvert avec un id déjà valide (état initial, avant toute suppression)');
 
   // ── Suppression RÉELLE "depuis un autre onglet/session" — le document ouvert ici ne le sait

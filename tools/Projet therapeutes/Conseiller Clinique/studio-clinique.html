@@ -1901,8 +1901,24 @@
        change. z-index supérieur à #cc-workspace (8200) : cette superposition s'affiche PAR-DESSUS
        l'espace de travail déjà ouvert, jamais à sa place. */
     .cc-ws-topbar {
-      flex-shrink: 0; background: var(--petrol-950); color: #fff; padding: 12px 20px;
+      flex-shrink: 0; background: var(--petrol-950); color: #fff; padding: 8px 20px;
       display: flex; align-items: center; gap: 14px;
+      /* Lot 2C — LA BARRE PASSE À LA LIGNE AU LIEU DE DÉBORDER.
+         Constaté sur une capture de Christophe (fenêtre d'environ 1 270 px, document de type
+         présentation) : le dernier bouton était COUPÉ à droite. La cause tient en un mot
+         manquant — ce `display: flex` n'avait pas de `flex-wrap`, donc les boutons qui ne
+         tenaient pas sortaient du cadre au lieu de descendre. Rien n'est caché, rien n'est
+         déplacé dans un menu, l'ordre ne change pas : la barre prend simplement deux lignes
+         quand la place manque. `row-gap` sépare ces lignes sans toucher à l'espacement
+         horizontal, qui reste le `gap` d'origine. */
+      flex-wrap: wrap; row-gap: 6px;
+      /* Lot 2C — DEUX RANGÉES TIENNENT DANS 80 px, et c'est une arithmétique, pas un réglage
+         au jugé. Mesuré à 1 272 px : l'état occupe 517 px et les boutons 1 002 px, pour 1 232 px
+         utiles — une seule rangée est donc géométriquement impossible, et deux sont nécessaires.
+         Restait la hauteur : 12 px de marge + 30 de bouton + 10 d'interligne + 30 + 12 faisaient
+         94 px. En ramenant la marge à 8, l'interligne à 6 et la marge verticale des boutons de 6
+         à 5, on obtient 8 + 28 + 6 + 28 + 8 = 78 px. Seuls des espacements changent : aucun
+         bouton retiré, aucun libellé raccourci de plus. */
     }
     .cc-ws-icon { width: 16px; height: 16px; flex-shrink: 0; }
     .cc-ws-topbar-title {
@@ -1923,12 +1939,37 @@
     .cc-ws-status { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
     .cc-ws-status.review { background: var(--terracotta-100); color: var(--terracotta-700); }
     .cc-ws-status.ready { background: rgba(255,255,255,.14); color: #fff; }
+    /* Lot 2C — L'ÉCARTEUR GARDE SA CROISSANCE, ET C'EST UNE CORRECTION DE MA PART.
+       J'avais cru qu'il volait une rangée entière et je lui avais retiré son `flex: 1`. Le
+       falsifieur a démenti : la mutation qui le lui rend ne fait échouer aucun contrôle. Les
+       « trois lignes » que j'avais diagnostiquées étaient une RANGÉE FANTÔME de mon propre
+       compteur — un bouton masqué par une classe, de hauteur nulle et d'ordonnée zéro, que je
+       comptais comme une ligne. La barre faisait déjà deux rangées ; seul son HAUTEUR était
+       fautive, et ce sont les espacements qui l'ont réglée. L'écarteur reste donc ce qu'il
+       était, et les actions restent alignées à droite comme la page les a toujours montrées. */
     .cc-ws-topbar-spacer { flex: 1; }
     .cc-ws-topbar-btn {
       display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.12);
-      border: 1px solid rgba(255,255,255,.35); color: #fff; padding: 6px 14px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.35); color: #fff; padding: 5px 14px; border-radius: 8px;
       font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
     }
+    /* Lot 2C — POURQUOI IL N'Y A PAS DE `white-space: nowrap` ICI.
+       J'en avais ajouté un, en croyant que c'était lui qui empêchait « Enregistrer une nouvelle
+       version » de s'empiler sur trois lignes. Le falsifieur l'a démenti : la mutation qui le
+       retire ne fait échouer aucun contrôle. La vraie cause du libellé sur trois lignes était
+       l'ABSENCE de retour à la ligne — dans une rangée flex qui débordait, les boutons se
+       comprimaient sous leur largeur de contenu (`flex-shrink` vaut 1 par défaut) et le texte
+       se repliait à l'intérieur. Avec `flex-wrap: wrap`, plus rien ne se comprime : les boutons
+       gardent leur largeur et descendent d'une ligne. Un seul mécanisme, donc, et falsifiable —
+       une seconde règle qui ne protège de rien finit par disparaître sans que personne le voie. */
+    /* Lot 2C — REGROUPEMENT VISUEL, DANS L'ORDRE EXISTANT : état · enregistrement · sortie.
+       Un espace plus large marque la frontière entre groupes, sans aucun composant nouveau et
+       sans toucher à l'ordre des éléments : le `gap` de la barre vaut 14 px à l'intérieur d'un
+       groupe, 24 px entre deux. « Transformer » ouvre le groupe de sortie quand il est visible ;
+       sinon c'est « Exporter », et le sélecteur de frère ci-dessous évite alors un double
+       espace. */
+    #cc-ws-save-status, #cc-ws-transform-btn, #cc-ws-export-btn { margin-left: 10px; }
+    #cc-ws-transform-btn:not([hidden]) ~ #cc-ws-export-btn { margin-left: 0; }
     .cc-ws-topbar-btn:hover, .cc-ws-topbar-btn:focus-visible { background: rgba(255,255,255,.22); }
     /* UX-10A Étape 2 — bug découvert en testant #cc-ws-delete-btn : .cc-ws-topbar-btn fixe
        display:inline-flex avec la même spécificité que la règle UA [hidden]{display:none},
@@ -3702,6 +3743,18 @@
     <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-jpeg-btn" onclick="window.adocWsExportJPEG()" aria-label="Exporter en JPEG (une image par diapositive)" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
       <span>Exporter en JPEG</span>
+    </button>
+    <!-- Lot 2C (D7) — LA PLACE DU BOUTON « TEXTE DES DIAPOSITIVES » EST RÉSERVÉE ICI, dans le
+         groupe de SORTIE, à côté des autres exports : c'est une sortie du document, comme le PDF
+         ou le JPEG, et Christine l'emploiera dans le même geste. Il est `hidden` tant que D7
+         n'est pas livré — la barre compte donc déjà sa largeur dans ses contrôles, et le jour où
+         il paraîtra, rien ne se réorganisera sous les yeux de l'utilisatrice. Même patron de
+         visibilité que ses voisins : montré par adocOpenWorkspace selon le documentKind. -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-diapositives-btn" hidden
+      onclick="window.adocWsTexteDiapositives()"
+      aria-label="Texte des diapositives (copier ou télécharger)">
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
+      <span>Texte des diapositives</span>
     </button>
     <!-- ITEM 75 Phase 1 Lot 2 — même patron EXACT que le bouton JPEG ci-dessus (visibilité,
          placement, mécanisme) : bouton dédié plutôt qu'une option ajoutée au bouton "Exporter"
