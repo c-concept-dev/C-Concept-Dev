@@ -22611,7 +22611,13 @@ ${recent}`;
       // Lot 2C — « Nouvelle version » et non « Enregistrer une nouvelle version » : le long
       // libellé s'empilait sur trois lignes dans la barre et poussait le dernier bouton hors du
       // cadre. Le sens est le même, le geste est le même ; seul l'encombrement change.
+      // La phrase entière n'est pas perdue pour autant : elle devient l'infobulle et le nom
+      // lu par les lecteurs d'écran, posés ICI, au même endroit que le libellé — une seule
+      // source pour les trois, qui ne peuvent donc pas diverger.
+      const entier = saved ? 'Enregistrer une nouvelle version' : 'Enregistrer le document';
       if (label) label.textContent = saved ? 'Nouvelle version' : 'Enregistrer';
+      saveBtn.title = entier;
+      saveBtn.setAttribute('aria-label', entier);
     }
     // Item 76 (Option A, décision produit actée) — bandeau réactif au VRAI format d'origine
     // (art.fmt, jamais réécrit par adocFinalizeGeneration) et à _adocEverEdited (jamais remis à
