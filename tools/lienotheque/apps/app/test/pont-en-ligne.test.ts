@@ -1,7 +1,7 @@
 import { chercher } from "@lienotheque/noyau";
-import { PassagesDuDocument, VueBibliotheque, type Passage } from "@lienotheque/contrats";
+import { ApercuEnLigne, PassagesDuDocument, VueBibliotheque, type Passage } from "@lienotheque/contrats";
 import { describe, expect, it } from "vitest";
-import { PasEncoreEnLigne, pontEnLigne } from "../src/pont/ligne.js";
+import { PasEnLigne, pontEnLigne } from "../src/pont/ligne.js";
 
 /** Le pont de la version en ligne (étape 6 d'E5).
  *
@@ -15,6 +15,10 @@ import { PasEncoreEnLigne, pontEnLigne } from "../src/pont/ligne.js";
  *  des heures. */
 
 const BASE = "http://essai.invalide";
+const EMPREINTE = "a3".repeat(32);
+const AUTRE = "b4".repeat(32);
+const CHEMIN_VUE = `/vue/document/${EMPREINTE}`;
+const CHEMIN_PASSAGES = `/vue/document/${EMPREINTE}/passages`;
 
 const VUE = VueBibliotheque.parse({
   id: "01932f4e-7a1b-7c3d-8e5f-0123456789ab",
@@ -41,6 +45,32 @@ const PASSAGES: readonly Passage[] = [
   { rang: 0, page: 12, pageImprimee: 12, texte: "la mesure et la relecture", source: "couche_texte", lisible: true },
   { rang: 1, page: 13, texte: "une relecture ciblée", source: "couche_texte", lisible: true },
 ];
+
+const APERCU = ApercuEnLigne.parse({
+  documents: [
+    {
+      empreinte: EMPREINTE,
+      version: "01932f4e-7a1b-7c3d-8e5f-00000000c001",
+      activeeLe: 1_760_000_000,
+      nom: "Un document",
+    },
+    {
+      empreinte: AUTRE,
+      version: "01932f4e-7a1b-7c3d-8e5f-00000000c002",
+      activeeLe: 1_760_000_001,
+      nom: "Un autre",
+    },
+  ],
+  classements: [
+    {
+      empreinte: EMPREINTE,
+      schema: "un_schema",
+      schemaVersion: 1,
+      axes: { axe_un: { type: "reference", valeurs: ["une_valeur"] } },
+      origine: "manuel",
+    },
+  ],
+});
 
 /** Un service simulé : il note ce qu'on lui demande, et rend ce qu'on lui a dit de rendre. */
 const service = (reponses: Record<string, { statut?: number; corps?: unknown }>) => {
@@ -71,54 +101,54 @@ const pont = (reponses: Record<string, { statut?: number; corps?: unknown }>) =>
 
 describe("la vue et les passages arrivent du service, séparément", () => {
   it("rend la vue telle qu'elle a été rangée, passée par son contrat", async () => {
-    const { pont: p, appels } = pont({ "/vue": { corps: VUE } });
-    const vue = await p.vueDeDocument("peu importe", "peu importe");
+    const { pont: p, appels } = pont({ [CHEMIN_VUE]: { corps: VUE } });
+    const vue = await p.vueDeDocument("peu importe", EMPREINTE);
     expect(vue).toEqual(VUE);
-    expect(appels).toEqual([{ chemin: "/vue", methode: "GET", temoin: "inclus" }]);
+    expect(appels).toEqual([{ chemin: CHEMIN_VUE, methode: "GET", temoin: "inclus" }]);
   });
 
   it("rend les passages par une seconde route : deux objets, deux routes", async () => {
     // « Recopier les passages dans la vue donnerait deux endroits pour un même fait. » La
     // séparation du contrat vaut aussi sur le réseau.
-    const { pont: p, appels } = pont({ "/vue/passages": { corps: PASSAGES } });
+    const { pont: p, appels } = pont({ [CHEMIN_PASSAGES]: { corps: PASSAGES } });
     // Comparé à ce que le **contrat** fait de ces octets, et non au fixture brut : il applique
     // ses défauts — « lisible » en est un —, et c'est lui qui dit ce qu'un passage est.
-    expect(await p.passagesDeDocument("x", "y")).toEqual(PassagesDuDocument.parse(PASSAGES));
-    expect(appels[0]?.chemin).toBe("/vue/passages");
+    expect(await p.passagesDeDocument("x", EMPREINTE)).toEqual(PassagesDuDocument.parse(PASSAGES));
+    expect(appels[0]?.chemin).toBe(CHEMIN_PASSAGES);
   });
 
   it("lit un 404 comme un dépôt vide, et non comme une panne", async () => {
-    const { pont: p } = pont({ "/vue": { statut: 404 }, "/vue/passages": { statut: 404 } });
-    expect(await p.vueDeDocument("x", "y")).toBeUndefined();
-    expect(await p.passagesDeDocument("x", "y")).toEqual([]);
+    const { pont: p } = pont({ [CHEMIN_VUE]: { statut: 404 }, [CHEMIN_PASSAGES]: { statut: 404 } });
+    expect(await p.vueDeDocument("x", EMPREINTE)).toBeUndefined();
+    expect(await p.passagesDeDocument("x", EMPREINTE)).toEqual([]);
   });
 
   it("lève sur un service en panne : ce n'est pas une bibliothèque vide", async () => {
-    const { pont: p } = pont({ "/vue": { statut: 503 } });
-    await expect(p.vueDeDocument("x", "y")).rejects.toThrow("503");
+    const { pont: p } = pont({ [CHEMIN_VUE]: { statut: 503 } });
+    await expect(p.vueDeDocument("x", EMPREINTE)).rejects.toThrow("503");
   });
 
   it("refuse une vue qui ne tient pas son contrat", async () => {
-    const { pont: p } = pont({ "/vue": { corps: { id: "pas un identifiant", nom: "" } } });
-    await expect(p.vueDeDocument("x", "y")).rejects.toThrow();
+    const { pont: p } = pont({ [CHEMIN_VUE]: { corps: { id: "pas un identifiant", nom: "" } } });
+    await expect(p.vueDeDocument("x", EMPREINTE)).rejects.toThrow();
   });
 
   it("refuse des passages dont les rangs ne se suivent pas", async () => {
     // Un trou dans les rangs est exactement ce qu'un transport perd — un objet tronqué, une
     // écriture interrompue. Le contrat de liste le voit ; un contrat passage par passage non.
     const troues = [PASSAGES[0]!, { ...PASSAGES[1]!, rang: 7 }];
-    const { pont: p } = pont({ "/vue/passages": { corps: troues } });
-    await expect(p.passagesDeDocument("x", "y")).rejects.toThrow();
+    const { pont: p } = pont({ [CHEMIN_PASSAGES]: { corps: troues } });
+    await expect(p.passagesDeDocument("x", EMPREINTE)).rejects.toThrow();
   });
 
   it("refuse des passages qui ne sont pas une liste", async () => {
-    const { pont: p } = pont({ "/vue/passages": { corps: { pas: "une liste" } } });
-    await expect(p.passagesDeDocument("x", "y")).rejects.toThrow("liste");
+    const { pont: p } = pont({ [CHEMIN_PASSAGES]: { corps: { pas: "une liste" } } });
+    await expect(p.passagesDeDocument("x", EMPREINTE)).rejects.toThrow("liste");
   });
 
   it("envoie le témoin, et aucun jeton (LIV-04)", async () => {
-    const { pont: p, appels } = pont({ "/vue": { corps: VUE } });
-    await p.vueDeDocument("x", "y");
+    const { pont: p, appels } = pont({ [CHEMIN_VUE]: { corps: VUE } });
+    await p.vueDeDocument("x", EMPREINTE);
     // La session vit dans un témoin HttpOnly qu'aucun script ne lit — pas même celui-ci.
     expect(appels[0]?.temoin).toBe("inclus");
   });
@@ -128,10 +158,10 @@ describe("la recherche en ligne est la même recherche", () => {
   it("rend exactement ce que le bureau rendrait, sur les mêmes octets", async () => {
     // Le cœur de l'étape. Le pont ne cherche pas : il apporte la vue et les passages, et
     // `chercher` fait le reste. Les résultats sont donc identiques par **construction**.
-    const { pont: p } = pont({ "/vue": { corps: VUE }, "/vue/passages": { corps: PASSAGES } });
+    const { pont: p } = pont({ [CHEMIN_VUE]: { corps: VUE }, [CHEMIN_PASSAGES]: { corps: PASSAGES } });
 
-    const vue = await p.vueDeDocument("x", "y");
-    const passages = await p.passagesDeDocument("x", "y");
+    const vue = await p.vueDeDocument("x", EMPREINTE);
+    const passages = await p.passagesDeDocument("x", EMPREINTE);
     expect(vue).toBeDefined();
     if (vue === undefined) return;
 
@@ -145,9 +175,9 @@ describe("la recherche en ligne est la même recherche", () => {
   it("trouve la suite entière avant le mot isolé, en ligne comme au bureau", async () => {
     // La correction de classement du 17 octobre vaut aussi en ligne, sans rien de nouveau :
     // c'est la même fonction.
-    const { pont: p } = pont({ "/vue": { corps: VUE }, "/vue/passages": { corps: PASSAGES } });
-    const vue = await p.vueDeDocument("x", "y");
-    const passages = await p.passagesDeDocument("x", "y");
+    const { pont: p } = pont({ [CHEMIN_VUE]: { corps: VUE }, [CHEMIN_PASSAGES]: { corps: PASSAGES } });
+    const vue = await p.vueDeDocument("x", EMPREINTE);
+    const passages = await p.passagesDeDocument("x", EMPREINTE);
     if (vue === undefined) throw new Error("la vue manque");
 
     const groupes = chercher(vue, "relecture ciblée", { passages });
@@ -177,21 +207,59 @@ describe("l'image d'une page passe par un laissez-passer signé", () => {
   });
 });
 
-describe("ce qui n'est pas encore servi le dit, au lieu de rendre du vide", () => {
-  it("lève une erreur nommée pour les quatre gestes qui attendent le découpage", async () => {
-    const { pont: p } = pont({});
-    for (const geste of [
-      () => p.apercuDeBibliotheque("x"),
-      () => p.versionActive("x", "y"),
-      () => p.classementsDeBibliotheque("x"),
-      () => p.classerDocument("x", {} as never),
-    ]) {
-      expect(geste).toThrow(PasEncoreEnLigne);
-    }
+describe("l'aperçu porte la liste, les versions et les classements", () => {
+  it("rend la liste des documents", async () => {
+    const { pont: p, appels } = pont({ "/vue/apercu": { corps: APERCU } });
+    expect((await p.apercuDeBibliotheque("x")).map((un) => un.nom)).toEqual(["Un document", "Un autre"]);
+    expect(appels[0]?.chemin).toBe("/vue/apercu");
   });
 
-  it("nomme le geste dans son message, pour qu'un écran puisse le dire", () => {
+  it("rend la version active d'un document, sans objet de plus", async () => {
+    // ApercuDocument porte déjà sa version : « un aperçu décrit un état, pas un document en
+    // général ». C'est ce qui fait que versionActive n'a besoin de rien d'autre.
+    const { pont: p, appels } = pont({ "/vue/apercu": { corps: APERCU } });
+    expect(await p.versionActive("x", EMPREINTE)).toBe("01932f4e-7a1b-7c3d-8e5f-00000000c001");
+    expect(await p.versionActive("x", AUTRE)).toBe("01932f4e-7a1b-7c3d-8e5f-00000000c002");
+    expect(appels.every((un) => un.chemin === "/vue/apercu")).toBe(true);
+  });
+
+  it("ne rend aucune version pour un document qu'il ne connaît pas", async () => {
+    const { pont: p } = pont({ "/vue/apercu": { corps: APERCU } });
+    expect(await p.versionActive("x", "c5".repeat(32))).toBeUndefined();
+  });
+
+  it("rend les classements en carte par empreinte, comme au bureau", async () => {
+    const { pont: p } = pont({ "/vue/apercu": { corps: APERCU } });
+    const carte = await p.classementsDeBibliotheque("x");
+    expect(carte.size).toBe(1);
+    expect(carte.get(EMPREINTE)?.schema).toBe("un_schema");
+  });
+
+  it("lit un aperçu absent comme une bibliothèque vide", async () => {
+    // Personne n'a encore publié : c'est un état, pas une panne.
+    const { pont: p } = pont({ "/vue/apercu": { statut: 404 } });
+    expect(await p.apercuDeBibliotheque("x")).toEqual([]);
+    expect(await p.classementsDeBibliotheque("x")).toEqual(new Map());
+    expect(await p.versionActive("x", EMPREINTE)).toBeUndefined();
+  });
+
+  it("refuse un aperçu qui ne tient pas son contrat", async () => {
+    const { pont: p } = pont({ "/vue/apercu": { corps: { documents: [{ empreinte: "non" }] } } });
+    await expect(p.apercuDeBibliotheque("x")).rejects.toThrow();
+  });
+});
+
+describe("classer ne se fait pas en ligne, et ce n'est pas un manque", () => {
+  it("lève une erreur nommée qui dit pourquoi", () => {
+    // Le classement vivrait à deux endroits — l'instantané et la base — d'accord seulement entre
+    // deux publications. C'est la double vérité qu'on a éliminée.
     const { pont: p } = pont({});
-    expect(() => p.apercuDeBibliotheque("x")).toThrow("apercuDeBibliotheque");
+    expect(() => p.classerDocument("x", {} as never)).toThrow(PasEnLigne);
+    expect(() => p.classerDocument("x", {} as never)).toThrow("deux endroits");
+  });
+
+  it("nomme le geste, pour qu'un écran puisse le dire", () => {
+    const { pont: p } = pont({});
+    expect(() => p.classerDocument("x", {} as never)).toThrow("classerDocument");
   });
 });

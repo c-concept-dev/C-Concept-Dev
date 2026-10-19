@@ -373,3 +373,82 @@ vérification d'empreinte.
 
 C attendra qu'on sache si classer en ligne est vraiment demandé. Le faire parce qu'on peut
 coûterait la cohérence qu'on vient d'acheter.
+
+---
+
+## 10. Le scénario B, écrit (19 octobre 2026)
+
+### Trois objets, et ce que chacun porte
+
+| objet | ce qu'il porte |
+|---|---|
+| `vues/apercu.json` | la liste des documents **et** leurs classements |
+| `vues/<empreinte>.json` | la vue de ce document |
+| `vues/<empreinte>-passages.json` | son texte, en entrée à part |
+
+**Un seul objet pour la liste et les classements**, parce que le Catalogue les demande toujours
+ensemble. Deux objets voudraient dire deux écritures, donc une fenêtre de plus où l'un est posé
+sans l'autre, pour rien.
+
+### `versionActive` a disparu du problème
+
+`ApercuDocument` **portait déjà sa version** — « un aperçu décrit un état, pas un document en
+général ». La version active se lit donc dans l'aperçu, sans objet supplémentaire et sans
+fonction qui refuse. Le scénario annonçait « la version dans l'aperçu ou dans l'instantané, à
+décider là » : il n'y avait rien à décider, c'était déjà écrit.
+
+### L'empreinte reçue ne devient jamais un chemin
+
+`cleVueDeDocument` et `clePassagesDeDocument` **rendent `undefined`** quand l'empreinte n'est pas
+soixante-quatre caractères hexadécimaux minuscules — plutôt que de lever ou de composer une clé
+douteuse. L'appelant est ainsi obligé de traiter le cas, et la route rend 400.
+
+La vérification vit dans `objets.ts` et non dans la route, parce que c'est la règle de ce
+fichier : si elle vivait dans la route, une seconde route l'oublierait. Le motif y est écrit en
+clair plutôt qu'emprunté au contrat `Empreinte`, pour que la composition des clés ne dépende de
+rien.
+
+### La publication est incrémentale, et son ordre est choisi
+
+Les passages, puis la vue, puis l'aperçu. **L'objet qui référence les autres va en dernier** : un
+document annoncé à l'aperçu mais pas encore rangé donnerait un 404 à qui le choisirait dans le
+Catalogue.
+
+Aucune atomicité entre trois objets, et aucun moyen d'en obtenir une ici. Ce qu'on peut faire est
+de choisir l'ordre et de refuser de taire une moitié : **chaque échec dit ce qui a été posé avant
+lui**, et termine par « relancer suffit ».
+
+Ce « relancer suffit » n'est pas une formule : l'entrée du document **remplace** la précédente et
+les autres documents restent, donc republier ne dédouble pas. Un test le vérifie, et une mutation
+qui retire le remplacement le fait tomber.
+
+### L'aperçu se lit avant d'être réécrit, et c'est une course nommée
+
+Publier remplace **une** entrée et garde les autres : il faut donc lire, modifier, réécrire. Deux
+publications simultanées pourraient se perdre l'une l'autre.
+
+C'est nommé plutôt que corrigé. Les publications se lancent à la main, une par une, et une
+correction demanderait soit une écriture conditionnelle que R2 n'offre pas ici, soit un objet par
+document pour l'aperçu lui-même — c'est-à-dire le problème déplacé. Si deux publications
+simultanées deviennent un usage réel, ce sera le moment d'y revenir.
+
+**Ce qui est garanti en revanche : un aperçu qu'on n'a pas pu lire n'est jamais écrasé.** L'écrire
+perdrait tous les autres documents. La commande s'arrête et le dit ; une mutation confirme.
+
+### `classerDocument` refuse, et dit pourquoi
+
+Un seul geste du port refuse désormais, et ce n'est plus « pas encore » mais « pas ici » :
+
+> « classerDocument » ne se fait pas en ligne : le classement vivrait à deux endroits,
+> l'instantané et la base, d'accord seulement entre deux publications.
+
+C'est la décision du scénario B, et l'erreur porte sa raison pour qu'un écran puisse la dire.
+
+### Ce qui reste, et qui n'est pas du code
+
+Le geste de publication appelle le service avec le jeton, l'entrée d'aperçu ne devine rien —
+l'empreinte vient du fichier, la version de ce traitement, les compteurs de la vue. La commande
+ne publie que si on le lui demande (`--publier`).
+
+Reste la **séquence de mise en marche**, les six points de `lot-e5-etape4-plan.md` §13. Rien n'en
+est fait.

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Confiance, Empreinte, Identifiant, ZoneRelative } from "./commun.js";
+import { ClassementLocal } from "./classement.js";
 import { Preuve } from "./lien.js";
 import { PositionDansPiste } from "./segment.js";
 
@@ -260,3 +261,22 @@ export const ApercuDocument = z
   })
   .strict();
 export type ApercuDocument = z.infer<typeof ApercuDocument>;
+
+/** Ce que la version en ligne reçoit d'une bibliothèque entière : la liste et les classements.
+ *
+ *  **Un seul objet pour les deux**, parce que les écrans les demandent toujours ensemble — le
+ *  Catalogue affiche la liste et ses filtres d'un même geste. Deux objets voudraient dire deux
+ *  écritures, donc une seconde fenêtre où l'un est posé sans l'autre, pour rien.
+ *
+ *  Les classements portent chacun leur empreinte : la carte que les écrans emploient se
+ *  reconstruit à l'arrivée, et on ne transporte pas deux fois la même clé.
+ *
+ *  Chaque document y annonce sa **version active**, ce qui suffit à résoudre l'image d'une page
+ *  sans demander la version séparément. */
+export const ApercuEnLigne = z
+  .object({
+    documents: z.array(ApercuDocument),
+    classements: z.array(ClassementLocal).default([]),
+  })
+  .strict();
+export type ApercuEnLigne = z.infer<typeof ApercuEnLigne>;

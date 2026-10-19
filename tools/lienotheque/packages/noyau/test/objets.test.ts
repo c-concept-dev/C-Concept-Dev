@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { appartientA, bibliothequeDe, cleDerive, cleSource, cleVue } from "../src/objets.js";
+import { appartientA, bibliothequeDe, cleDerive, clePassagesDeDocument, cleSource, cleVue, cleVueDeDocument } from "../src/objets.js";
 
 const EMPREINTE = "a".repeat(64);
 
@@ -21,6 +21,20 @@ describe("où un objet vit dans le compartiment", () => {
     // « derives/<version>/ » demanderait d'inventer une version qui n'existe pas.
     expect(cleVue("essai", "bibliotheque.json")).toBe("essai/vues/bibliotheque.json");
     expect(cleVue("essai", "passages.json")).toBe("essai/vues/passages.json");
+  });
+
+  it("range la vue d'un document sous son empreinte", () => {
+    expect(cleVueDeDocument("essai", EMPREINTE)).toBe(`essai/vues/${EMPREINTE}.json`);
+    expect(clePassagesDeDocument("essai", EMPREINTE)).toBe(`essai/vues/${EMPREINTE}-passages.json`);
+  });
+
+  it("refuse une empreinte qui n'en est pas une, plutôt que de composer une clé douteuse", () => {
+    // L'empreinte arrive d'une requête. La vérifier ici, et non chez l'appelant, est la règle de
+    // ce fichier : si elle vivait dans la route, une seconde route l'oublierait.
+    for (const faux of ["", "../autre", "A".repeat(64), "f".repeat(63), "f".repeat(65), `${EMPREINTE}/x`]) {
+      expect(cleVueDeDocument("essai", faux), `« ${faux.slice(0, 16)} »`).toBeUndefined();
+      expect(clePassagesDeDocument("essai", faux), `« ${faux.slice(0, 16)} »`).toBeUndefined();
+    }
   });
 
   it("retrouve la bibliothèque d'une clé", () => {

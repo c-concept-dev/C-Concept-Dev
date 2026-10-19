@@ -4,7 +4,8 @@ import { dirname, join, resolve } from "node:path";
 import { coin, ouvrirCache } from "@lienotheque/cache";
 import { jetonDacces } from "@lienotheque/vision";
 import { chargeOuEchec, demandeDeTraitement, executerTravail } from "./executant.js";
-import { publierLaVue } from "./publier.js";
+import { empreinteDe } from "@lienotheque/formats";
+import { publierUnDocument } from "./publier.js";
 
 /** Traite un lot réel et écrit l'instantané que liront les écrans (correction 8).
  *
@@ -53,9 +54,14 @@ const images = resolve(lire("images") ?? join(dirname(sortie), "pages"));
 const adresseRelecture = lire("relecture");
 const adressePublication = lire("publier");
 
+// La version de ce traitement. Nommée plutôt que tirée dans l'appel : c'est elle que l'aperçu
+// annonce comme version active, et un aperçu qui citerait une autre valeur ne désignerait rien.
+const version = randomUUID();
+const chemin = resolve(exige("pdf"));
+
 const message = await executerTravail(
-  demandeDeTraitement(randomUUID(), randomUUID(), {
-    document: resolve(exige("pdf")),
+  demandeDeTraitement(randomUUID(), version, {
+    document: chemin,
     medias: resolve(exige("medias")),
     recette: resolve(exige("recette")),
     description: resolve(exige("description")),
@@ -93,10 +99,27 @@ if (adressePublication !== undefined) {
     console.error("Publication impossible : aucun jeton de service n'est posé dans l'environnement.");
     process.exit(1);
   }
-  const faite = await publierLaVue(adressePublication, jeton, { vue, passages });
+
+  // L'entrée d'aperçu ne devine rien : l'empreinte vient du fichier, la version de ce
+  // traitement, les compteurs de la vue qu'on vient de produire.
+  const faite = await publierUnDocument(adressePublication, jeton, {
+    entree: {
+      empreinte: await empreinteDe(chemin),
+      version,
+      activeeLe: Math.floor(Date.now() / 1000),
+      nom: vue.nom,
+      compteurs: [...vue.compteurs],
+      aVerifier: vue.aVerifier,
+    },
+    vue,
+    passages,
+  });
   if (!faite.faite) {
     console.error(`Publication refusée : ${faite.raison}`);
     process.exit(1);
   }
-  console.log(`Vue publiée : ${faite.pages} pages, ${faite.passages} passages.`);
+  console.log(
+    `Document publié : ${faite.pages} pages, ${faite.passages} passages. ` +
+      `L'aperçu en ligne annonce ${faite.documents} document(s).`,
+  );
 }

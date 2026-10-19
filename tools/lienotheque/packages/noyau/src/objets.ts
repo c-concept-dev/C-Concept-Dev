@@ -53,6 +53,33 @@ export function cleVue(bibliotheque: string, nom: string): string {
   return `${prefixeDe(bibliotheque)}vues/${nom}`;
 }
 
+/** Une empreinte, et rien d'autre : soixante-quatre caractères hexadécimaux minuscules.
+ *
+ *  Vérifiée **ici**, avant toute composition, et non chez l'appelant. C'est la règle de ce
+ *  fichier : si la vérification vivait dans la route, une seconde route l'oublierait. Le motif
+ *  est écrit en clair plutôt qu'emprunté au contrat `Empreinte`, pour que la composition des
+ *  clés ne dépende de rien. */
+const EMPREINTE = /^[0-9a-f]{64}$/;
+
+/** Le chemin de la vue d'un document : `<clé>/vues/<empreinte>.json`.
+ *
+ *  **Rend `undefined` si l'empreinte n'en est pas une**, plutôt que de composer une clé douteuse
+ *  ou de lever. L'appelant est ainsi obligé de traiter le cas, et une empreinte reçue d'une
+ *  requête ne peut pas devenir un chemin. */
+export function cleVueDeDocument(bibliotheque: string, empreinte: string): string | undefined {
+  if (!EMPREINTE.test(empreinte)) return undefined;
+  return `${prefixeDe(bibliotheque)}vues/${empreinte}.json`;
+}
+
+/** Le chemin des passages d'un document : `<clé>/vues/<empreinte>-passages.json`.
+ *
+ *  Un objet à part de la vue, parce que le contrat les sépare — « recopier les passages dans la
+ *  vue donnerait deux endroits pour un même fait ». */
+export function clePassagesDeDocument(bibliotheque: string, empreinte: string): string | undefined {
+  if (!EMPREINTE.test(empreinte)) return undefined;
+  return `${prefixeDe(bibliotheque)}vues/${empreinte}-passages.json`;
+}
+
 /** La bibliothèque à qui appartient une clé, si la clé est bien formée.
  *
  *  Sert à vérifier qu'un objet demandé appartient bien à la bibliothèque du jeton — la seule

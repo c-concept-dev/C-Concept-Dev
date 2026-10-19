@@ -1,7 +1,13 @@
-import { PassagesDuDocument, VueBibliotheque, type ApercuDocument, type ClassementLocal } from "@lienotheque/contrats";
+import {
+  ApercuEnLigne,
+  PassagesDuDocument,
+  VueBibliotheque,
+  type ApercuDocument,
+  type ClassementLocal,
+} from "@lienotheque/contrats";
 import type { PortDeLecture } from "./port.js";
 
-/** Le pont de la version en ligne : le même port, la façade Worker derrière.
+/** Le pont de la version en ligne : le même port, la façade Worker derrière (scénario B).
  *
  *  ## Ce qu'il sert, et d'où
  *
@@ -11,31 +17,47 @@ import type { PortDeLecture } from "./port.js";
  *  par ressemblance. Une seconde mise en œuvre de la vue serait une seconde vérité, et celle des
  *  deux qui finirait par mentir.
  *
- *  ## Ce qu'il ne sert pas encore, et le dit
+ *  Trois objets :
  *
- *  Quatre fonctions du port refusent, avec un mot qui nomme la raison. Elles demandent un
- *  découpage des objets par document — un aperçu, une vue et des passages par empreinte — et ce
- *  découpage dépend de ce que les écrans montreront en ligne, question ouverte et tranchée à
- *  part.
+ *  | objet | ce qu'il porte |
+ *  |---|---|
+ *  | `/vue/apercu` | la liste des documents **et** leurs classements, toujours demandés ensemble |
+ *  | `/vue/document/<empreinte>` | la vue de ce document |
+ *  | `/vue/document/<empreinte>/passages` | son texte, en entrée à part |
  *
- *  **Elles refusent plutôt que de rendre une liste vide.** Une liste vide se confond avec une
- *  bibliothèque vide, et un écran qui n'affiche rien sans dire pourquoi coûte des heures à
- *  diagnostiquer. C'est la même raison qui fait qu'un enrôlement sans clé échoue en le disant.
+ *  **L'aperçu porte la version active de chaque document**, ce qui suffit à résoudre l'image
+ *  d'une page : `versionActive` est donc une lecture dans l'aperçu, et non un objet de plus.
+ *
+ *  ## Ce qu'il ne fait pas, et le dit
+ *
+ *  `classerDocument` refuse, avec un mot qui nomme la raison. Classer en ligne demanderait
+ *  d'écrire un fait que l'instantané porte aussi, et les deux ne seraient d'accord qu'entre deux
+ *  publications — la double vérité qu'on a justement éliminée. La décision est prise : le
+ *  classement reste un geste de bureau.
  *
  *  ## Le témoin voyage, et rien d'autre
  *
  *  Chaque appel part avec `credentials: "include"` : la session vit dans un témoin `HttpOnly`,
  *  qu'aucun script ne lit — pas même celui-ci. Il n'y a donc **aucun jeton à manipuler ici**, et
- *  c'est tout l'intérêt (LIV-04 : aucune clé dans le navigateur). */
-
-/** Ce qu'une fonction du port en ligne lève quand elle ne peut pas encore répondre.
+ *  c'est tout l'intérêt (LIV-04 : aucune clé dans le navigateur).
  *
- *  Nommée, parce qu'un écran doit pouvoir la reconnaître et dire « pas encore en ligne » plutôt
- *  que « une erreur est survenue ». */
-export class PasEncoreEnLigne extends Error {
-  constructor(geste: string) {
-    super(`« ${geste} » n'est pas encore servi en ligne : les objets ne sont pas découpés par document.`);
-    this.name = "PasEncoreEnLigne";
+ *  ## Un coût assumé, et nommé
+ *
+ *  `apercuDeBibliotheque`, `versionActive` et `classementsDeBibliotheque` lisent le **même**
+ *  objet, et chacune le demande. Aucun cache ici : un cache figerait une liste que la
+ *  publication peut changer, et la staleness serait pire que l'appel. Le vrai remède est côté
+ *  écran — `App.tsx` tient déjà la liste des documents en mémoire quand il demande
+ *  `versionActive`, et pourrait y lire la version plutôt que de la redemander. C'est une
+ *  modification d'écran, pas de pont. */
+
+/** Ce qu'une fonction du port en ligne lève quand elle ne servira pas.
+ *
+ *  Nommée, parce qu'un écran doit pouvoir la reconnaître et dire « pas en ligne » plutôt que
+ *  « une erreur est survenue ». */
+export class PasEnLigne extends Error {
+  constructor(geste: string, pourquoi: string) {
+    super(`« ${geste} » ne se fait pas en ligne : ${pourquoi}`);
+    this.name = "PasEnLigne";
   }
 }
 
@@ -68,30 +90,50 @@ export function pontEnLigne({ base, appeler = fetch }: Adresse): PortDeLecture {
     return reponse.json();
   };
 
+  /** L'aperçu, passé par son contrat. Absent, la bibliothèque est vide — et c'est un état, pas
+   *  une panne : personne n'a encore publié. */
+  const apercu = async (): Promise<ApercuEnLigne | undefined> => {
+    const brut = await demander("/vue/apercu");
+    return brut === undefined ? undefined : ApercuEnLigne.parse(brut);
+  };
+
   return {
-    /** La vue de la bibliothèque, telle qu'elle a été rangée.
+    apercuDeBibliotheque: async (): Promise<readonly ApercuDocument[]> => (await apercu())?.documents ?? [],
+
+    /** La version active d'un document, lue dans l'aperçu.
      *
-     *  L'empreinte est ignorée aujourd'hui : un seul objet de vue est servi, et feindre de
-     *  choisir parmi plusieurs serait mentir sur ce qu'on sait faire. Le jour où les objets
-     *  seront découpés par document, c'est ici que l'empreinte entrera. */
-    vueDeDocument: async (_racine: string, _empreinte: string) => {
-      const brut = await demander("/vue");
+     *  Pas d'objet de plus : `ApercuDocument` porte déjà sa version — « un aperçu décrit un état,
+     *  pas un document en général ». */
+    versionActive: async (_racine: string, empreinte: string): Promise<string | undefined> => {
+      const vu = await apercu();
+      return vu?.documents.find((un) => un.empreinte === empreinte)?.version;
+    },
+
+    /** Les classements, en carte par empreinte — la forme que les écrans attendent.
+     *
+     *  Ils voyagent en liste, chacun portant son empreinte : on ne transporte pas deux fois la
+     *  même clé, et la carte se reconstruit à l'arrivée. */
+    classementsDeBibliotheque: async (): Promise<ReadonlyMap<string, ClassementLocal>> => {
+      const vu = await apercu();
+      return new Map((vu?.classements ?? []).map((un) => [un.empreinte, un]));
+    },
+
+    vueDeDocument: async (_racine: string, empreinte: string) => {
+      const brut = await demander(`/vue/document/${encodeURIComponent(empreinte)}`);
       return brut === undefined ? undefined : VueBibliotheque.parse(brut);
     },
 
     /** Les passages, en entrée **à part** de la vue.
      *
      *  Le contrat le dit : « recopier les passages dedans donnerait deux endroits pour un même
-     *  fait, et l'un des deux finirait par mentir ». La séparation vaut aussi sur le réseau, et
-     *  c'est pourquoi il y a deux objets et deux routes. */
-    passagesDeDocument: async (_racine: string, _empreinte: string) => {
-      const brut = await demander("/vue/passages");
+     *  fait, et l'un des deux finirait par mentir ». La séparation vaut aussi sur le réseau.
+     *
+     *  Le contrat de **liste** est employé, et non chaque passage séparément : lui seul vérifie
+     *  que les rangs se suivent, et un trou dans les rangs est ce qu'un transport perd. */
+    passagesDeDocument: async (_racine: string, empreinte: string) => {
+      const brut = await demander(`/vue/document/${encodeURIComponent(empreinte)}/passages`);
       if (brut === undefined) return [];
-      // Le message d'abord, le contrat ensuite : « ce n'est pas une liste » se diagnostique en
-      // un coup d'œil, là où l'écart d'un contrat de tableau se lit moins vite.
       if (!Array.isArray(brut)) throw new Error("Les passages servis ne sont pas une liste.");
-      // Le contrat de **liste**, et non chaque passage séparément : lui seul vérifie que les
-      // rangs se suivent, et un trou dans les rangs est exactement ce qu'un transport perd.
       return PassagesDuDocument.parse(brut);
     },
 
@@ -109,18 +151,16 @@ export function pontEnLigne({ base, appeler = fetch }: Adresse): PortDeLecture {
       return `${racineDuService}/fichier/${laissez}`;
     },
 
-    // ── Ce qui attend le découpage par document ───────────────────────────────
-    apercuDeBibliotheque: (): Promise<readonly ApercuDocument[]> => {
-      throw new PasEncoreEnLigne("apercuDeBibliotheque");
-    },
-    versionActive: (): Promise<string | undefined> => {
-      throw new PasEncoreEnLigne("versionActive");
-    },
-    classementsDeBibliotheque: (): Promise<ReadonlyMap<string, ClassementLocal>> => {
-      throw new PasEncoreEnLigne("classementsDeBibliotheque");
-    },
+    /** Classer ne se fait pas en ligne, et ce n'est pas un manque à combler.
+     *
+     *  Le classement vivrait alors à deux endroits — ce que la route écrirait, et ce que
+     *  l'instantané porte — d'accord seulement entre deux publications. C'est la double vérité
+     *  qu'on a éliminée en servant l'instantané plutôt qu'en le rebâtissant. */
     classerDocument: (): Promise<void> => {
-      throw new PasEncoreEnLigne("classerDocument");
+      throw new PasEnLigne(
+        "classerDocument",
+        "le classement vivrait à deux endroits, l'instantané et la base, d'accord seulement entre deux publications.",
+      );
     },
   };
 }

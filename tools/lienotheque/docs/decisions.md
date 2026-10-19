@@ -9,6 +9,8 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
+| 2026-10-19 | **Scénario B pour les écrans en ligne** : Catalogue et Lecteur en lecture seule, trois objets, publication incrémentale | `docs/lot-e5-plan.md` §9 et §10 |
+| 2026-10-19 | **Classer ne se fait pas en ligne**, et ce n'est pas un manque : le classement vivrait à deux endroits | `docs/lot-e5-plan.md` §10 |
 | 2026-10-18 | **La vue en ligne est l'instantané servi depuis R2, jamais rebâtie en SQL** : une seconde mise en œuvre serait une seconde vérité | `docs/lot-e5-plan.md` §8 |
 | 2026-10-18 | **Troisième famille d'objets, `vues`** : une vue n'appartient à aucune version, et l'y ranger imposerait d'inventer une version | `packages/noyau/src/objets.ts` |
 | 2026-10-18 | **La vue se pousse à l'activation d'une version**, par le jeton de service — appel de machine à machine, pas sur un intervalle | `docs/lot-e5-plan.md` §8 |

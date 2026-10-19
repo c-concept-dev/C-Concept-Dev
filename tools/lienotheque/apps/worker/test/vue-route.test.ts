@@ -1,37 +1,32 @@
+import { ApercuEnLigne, PassagesDuDocument, VueBibliotheque } from "@lienotheque/contrats";
 import { MIGRATIONS_REGISTRE_EN_LIGNE, baseEnMemoire } from "@lienotheque/depot-sqlite";
-import { cleVue, jetonNeuf } from "@lienotheque/noyau";
-import { PassagesDuDocument, VueBibliotheque } from "@lienotheque/contrats";
+import { clePassagesDeDocument, cleVue, cleVueDeDocument, jetonNeuf } from "@lienotheque/noyau";
 import { beforeEach, describe, expect, it } from "vitest";
 import { creerApp } from "../src/index.js";
 import { NOM_DU_TEMOIN } from "../src/porte.js";
 import { inscrireUnDroit, inscrireUnePersonne, ouvrirUneSession } from "../src/qui-entre.js";
 
-/** Servir la vue de bibliothèque en ligne (étape 6 d'E5).
+/** Servir et ranger les vues en ligne (étape 6 d'E5, scénario B).
  *
- *  La vue n'est **pas rebâtie ici**. `instantane.ts` la construit déjà, à l'ingestion, et une
- *  seconde mise en œuvre serait une seconde vérité — celle des deux qui finirait par mentir. Le
- *  Worker la sert telle qu'elle a été rangée, et la recherche en ligne fait ensuite tourner le
- *  **même** `chercher` sur la **même** vue.
+ *  Trois objets : l'aperçu de la bibliothèque — sa liste et ses classements, toujours demandés
+ *  ensemble —, puis la vue et les passages **de chaque document**, nommés par son empreinte.
  *
- *  Deux routes à noms fixes plutôt qu'une route paramétrée : un nom reçu dans une requête
- *  demanderait d'être vérifié avant de composer une clé, et un nom constant n'a rien à vérifier.
+ *  Rien n'est rebâti : `instantane.ts` construit la vue à l'ingestion, et le Worker la sert telle
+ *  quelle. La recherche en ligne fait ensuite tourner le **même** `chercher` sur la **même** vue.
  *
- *  L'absence de vue rend **404**, que l'application lit comme un dépôt vide — c'est l'état de
- *  quiconque n'a rien importé, et c'est déjà la convention du greffon de Vite côté bureau. */
+ *  Ce qui est éprouvé de plus près ici : **l'empreinte reçue ne devient jamais un chemin.** Elle
+ *  est vérifiée par `objets.ts`, qui refuse plutôt que de composer une clé douteuse, et la route
+ *  n'a aucun moyen de passer outre. */
 
 const JETON = "jeton d'essai";
 const BIBLIOTHEQUE = "essai";
-const QUAND = "2026-10-18T09:00:00.000Z";
+const QUAND = "2026-10-19T09:00:00.000Z";
+const EMPREINTE = "a3".repeat(32);
 
 const quand = () => new Date(QUAND);
 const avecSessions = creerApp({ maintenant: quand, sessionsExigees: true });
 const sansSessions = creerApp({ maintenant: quand, sessionsExigees: false });
 
-/** Une vue et des passages **conformes à leurs contrats**.
- *
- *  Mes premiers fixtures ne l'étaient pas, et la route d'écriture les a refusés. C'est elle qui
- *  avait raison : la lecture ne fait que transmettre des octets, l'écriture est le seul endroit
- *  qui vérifie — et c'est précisément pour que ce qui est rangé se relise. */
 const VUE = VueBibliotheque.parse({
   id: "01932f4e-7a1b-7c3d-8e5f-0123456789ab",
   nom: "Essai",
@@ -45,8 +40,21 @@ const VUE = VueBibliotheque.parse({
 });
 
 const PASSAGES = PassagesDuDocument.parse([
-  { rang: 0, page: 42, pageImprimee: 42, texte: "un passage", source: "couche_texte" },
+  { rang: 0, page: 1, pageImprimee: 42, texte: "un passage", source: "couche_texte" },
 ]);
+
+const APERCU = ApercuEnLigne.parse({
+  documents: [
+    {
+      empreinte: EMPREINTE,
+      version: "01932f4e-7a1b-7c3d-8e5f-00000000c001",
+      activeeLe: 1_760_000_000,
+      nom: "Un document",
+      compteurs: [{ nombre: 1, mot: "document" }],
+    },
+  ],
+  classements: [],
+});
 
 const compartiment = (contenu: Record<string, string>) => {
   const demandes: string[] = [];
@@ -81,8 +89,9 @@ let liaisons: Record<string, unknown>;
 beforeEach(() => {
   registre = baseEnMemoire(MIGRATIONS_REGISTRE_EN_LIGNE);
   medias = compartiment({
-    [cleVue(BIBLIOTHEQUE, "bibliotheque.json")]: JSON.stringify(VUE),
-    [cleVue(BIBLIOTHEQUE, "passages.json")]: JSON.stringify(PASSAGES),
+    [cleVue(BIBLIOTHEQUE, "apercu.json")]: JSON.stringify(APERCU),
+    [cleVueDeDocument(BIBLIOTHEQUE, EMPREINTE)!]: JSON.stringify(VUE),
+    [clePassagesDeDocument(BIBLIOTHEQUE, EMPREINTE)!]: JSON.stringify(PASSAGES),
   });
   liaisons = {
     JETON_ACCES: JETON,
@@ -106,123 +115,143 @@ const unTemoin = async (niveau: "lecture" | "aucun" = "lecture") => {
 const lire = (app: ReturnType<typeof creerApp>, route: string, entetes: Record<string, string> = {}) =>
   app.request(route, { method: "GET", headers: entetes }, liaisons);
 
-describe("la vue se sert telle qu'elle a été rangée", () => {
-  it("rend l'instantané, et demande la clé composée par objets.ts", async () => {
-    const reponse = await lire(sansSessions, "/vue", { "x-api-key": JETON });
+const ranger = (route: string, corps: unknown, entetes: Record<string, string> = { "x-api-key": JETON }) =>
+  sansSessions.request(
+    route,
+    { method: "PUT", headers: { "content-type": "application/json", ...entetes }, body: JSON.stringify(corps) },
+    liaisons,
+  );
+
+describe("les trois objets se servent tels qu'ils ont été rangés", () => {
+  it("rend l'aperçu : la liste et les classements, en un seul objet", async () => {
+    // Un seul objet pour les deux, parce que le Catalogue les demande toujours ensemble. Deux
+    // objets voudraient dire deux écritures, donc une fenêtre de plus, pour rien.
+    const reponse = await lire(sansSessions, "/vue/apercu", { "x-api-key": JETON });
+    expect(reponse.status).toBe(200);
+    expect(await reponse.json()).toEqual(APERCU);
+    expect(medias.demandes).toEqual([cleVue(BIBLIOTHEQUE, "apercu.json")]);
+  });
+
+  it("rend la vue d'un document, par son empreinte", async () => {
+    const reponse = await lire(sansSessions, `/vue/document/${EMPREINTE}`, { "x-api-key": JETON });
     expect(reponse.status).toBe(200);
     expect(await reponse.json()).toEqual(VUE);
-    expect(medias.demandes).toEqual([cleVue(BIBLIOTHEQUE, "bibliotheque.json")]);
+    expect(medias.demandes).toEqual([cleVueDeDocument(BIBLIOTHEQUE, EMPREINTE)]);
   });
 
-  it("rend les passages à part, comme le contrat l'exige", async () => {
-    // « En entrée à part, et non dans la vue : recopier les passages dedans donnerait deux
-    // endroits pour un même fait. » La séparation vaut aussi sur le réseau.
-    const reponse = await lire(sansSessions, "/vue/passages", { "x-api-key": JETON });
+  it("rend ses passages par une seconde route : deux objets, deux routes", async () => {
+    const reponse = await lire(sansSessions, `/vue/document/${EMPREINTE}/passages`, { "x-api-key": JETON });
     expect(reponse.status).toBe(200);
     expect(await reponse.json()).toEqual(PASSAGES);
-    expect(medias.demandes).toEqual([cleVue(BIBLIOTHEQUE, "passages.json")]);
+    expect(medias.demandes).toEqual([clePassagesDeDocument(BIBLIOTHEQUE, EMPREINTE)]);
   });
 
-  it("rend 404 quand rien n'a été rangé — un dépôt vide, pas une panne", async () => {
-    medias = compartiment({});
-    liaisons["MEDIAS"] = medias.liaison;
-    expect((await lire(sansSessions, "/vue", { "x-api-key": JETON })).status).toBe(404);
-    expect((await lire(sansSessions, "/vue/passages", { "x-api-key": JETON })).status).toBe(404);
+  it("rend 404 pour un document qu'on n'a pas rangé — un dépôt vide, pas une panne", async () => {
+    const autre = "b4".repeat(32);
+    expect((await lire(sansSessions, `/vue/document/${autre}`, { "x-api-key": JETON })).status).toBe(404);
   });
 });
 
-describe("la vue est derrière la porte de la bascule", () => {
+describe("l'empreinte reçue ne devient jamais un chemin", () => {
+  it("refuse ce qui n'est pas une empreinte, sans toucher au compartiment", async () => {
+    for (const faux of ["x", "A3".repeat(32), "a3".repeat(31), `${EMPREINTE}0`]) {
+      const reponse = await lire(sansSessions, `/vue/document/${faux}`, { "x-api-key": JETON });
+      expect(reponse.status, `« ${faux.slice(0, 16)} »`).toBe(400);
+      const passages = await lire(sansSessions, `/vue/document/${faux}/passages`, { "x-api-key": JETON });
+      expect(passages.status, `« ${faux.slice(0, 16)} » (passages)`).toBe(400);
+    }
+    expect(medias.demandes).toEqual([]);
+  });
+
+  it("refuse aussi à l'écriture, avant de ranger quoi que ce soit", async () => {
+    expect((await ranger("/vue/document/pas-une-empreinte", VUE)).status).toBe(400);
+    expect(medias.rangees).toEqual([]);
+  });
+});
+
+describe("les vues sont derrière la porte de la bascule", () => {
   it("sans sessions exigées : le jeton ouvre, une session non", async () => {
     const cookie = await unTemoin("lecture");
-    expect((await lire(sansSessions, "/vue", { "x-api-key": JETON })).status).toBe(200);
-    expect((await lire(sansSessions, "/vue", { cookie })).status).toBe(401);
+    expect((await lire(sansSessions, "/vue/apercu", { "x-api-key": JETON })).status).toBe(200);
+    expect((await lire(sansSessions, "/vue/apercu", { cookie })).status).toBe(401);
   });
 
   it("avec sessions exigées : la session ouvre, le jeton non", async () => {
     const cookie = await unTemoin("lecture");
-    expect((await lire(avecSessions, "/vue", { cookie })).status).toBe(200);
-    expect((await lire(avecSessions, "/vue", { "x-api-key": JETON })).status).toBe(401);
+    expect((await lire(avecSessions, "/vue/apercu", { cookie })).status).toBe(200);
+    expect((await lire(avecSessions, "/vue/apercu", { "x-api-key": JETON })).status).toBe(401);
+  });
+
+  it("garde les trois routes de lecture sous la même porte", async () => {
+    const cookie = await unTemoin("lecture");
+    for (const route of ["/vue/apercu", `/vue/document/${EMPREINTE}`, `/vue/document/${EMPREINTE}/passages`]) {
+      expect((await lire(avecSessions, route, { "x-api-key": JETON })).status, route).toBe(401);
+      expect((await lire(avecSessions, route, { cookie })).status, route).toBe(200);
+    }
   });
 
   it("refuse une session sans droit de lecture, et ne touche pas au compartiment", async () => {
     const cookie = await unTemoin("aucun");
-    const reponse = await lire(avecSessions, "/vue", { cookie });
-    expect(reponse.status).toBe(401);
-    expect(medias.demandes).toEqual([]);
-  });
-
-  it("ne touche pas au compartiment sans porte du tout", async () => {
-    expect((await lire(avecSessions, "/vue")).status).toBe(401);
-    expect((await lire(avecSessions, "/vue/passages")).status).toBe(401);
+    expect((await lire(avecSessions, "/vue/apercu", { cookie })).status).toBe(401);
     expect(medias.demandes).toEqual([]);
   });
 
   it("refuse d'ouvrir sans compartiment configuré", async () => {
     delete liaisons["MEDIAS"];
-    expect((await lire(sansSessions, "/vue", { "x-api-key": JETON })).status).toBe(503);
+    expect((await lire(sansSessions, "/vue/apercu", { "x-api-key": JETON })).status).toBe(503);
   });
 });
 
-describe("la vue se range au moment où une version s'active", () => {
-  const ranger = (corps: unknown, route = "/vue", entetes: Record<string, string> = { "x-api-key": JETON }) =>
-    sansSessions.request(
-      route,
-      { method: "PUT", headers: { "content-type": "application/json", ...entetes }, body: JSON.stringify(corps) },
-      liaisons,
-    );
-
-  const videPuisRange = () => {
+describe("les vues se rangent au moment où une version s'active", () => {
+  const vide = () => {
     medias = compartiment({});
     liaisons["MEDIAS"] = medias.liaison;
   };
 
-  it("range la vue, et elle se relit aussitôt", async () => {
-    videPuisRange();
-    const rangee = await ranger(VUE);
-    expect(rangee.status).toBe(200);
-    expect(medias.rangees[0]?.cle).toBe(cleVue(BIBLIOTHEQUE, "bibliotheque.json"));
+  it("range les trois objets, et ils se relisent aussitôt", async () => {
+    vide();
+    expect((await ranger(`/vue/document/${EMPREINTE}/passages`, PASSAGES)).status).toBe(200);
+    expect((await ranger(`/vue/document/${EMPREINTE}`, VUE)).status).toBe(200);
+    expect((await ranger("/vue/apercu", APERCU)).status).toBe(200);
 
-    const relue = await lire(sansSessions, "/vue", { "x-api-key": JETON });
-    expect(await relue.json()).toEqual(VUE);
-  });
-
-  it("range les passages par la seconde route", async () => {
-    videPuisRange();
-    expect((await ranger(PASSAGES, "/vue/passages")).status).toBe(200);
-    expect(medias.rangees[0]?.cle).toBe(cleVue(BIBLIOTHEQUE, "passages.json"));
+    expect(medias.rangees.map((une) => une.cle)).toEqual([
+      clePassagesDeDocument(BIBLIOTHEQUE, EMPREINTE),
+      cleVueDeDocument(BIBLIOTHEQUE, EMPREINTE),
+      cleVue(BIBLIOTHEQUE, "apercu.json"),
+    ]);
+    expect(await (await lire(sansSessions, "/vue/apercu", { "x-api-key": JETON })).json()).toEqual(APERCU);
   });
 
   it("n'accepte que le jeton de service : c'est un appel de machine à machine", async () => {
-    // La chaîne de traitement tourne sur la machine de l'ingestion, pas dans un navigateur :
-    // elle n'a pas de session personnelle à présenter, et c'est l'usage du jeton de service.
-    videPuisRange();
+    vide();
     const cookie = await unTemoin("lecture");
-    expect((await ranger(VUE, "/vue", { cookie })).status).toBe(401);
-    expect((await ranger(VUE, "/vue", {})).status).toBe(401);
+    expect((await ranger("/vue/apercu", APERCU, { cookie })).status).toBe(401);
+    expect((await ranger("/vue/apercu", APERCU, {})).status).toBe(401);
     expect(medias.rangees).toEqual([]);
   });
 
-  it("refuse une vue qui ne tient pas son contrat, **avant** de la ranger", async () => {
+  it("refuse un aperçu qui ne tient pas son contrat, **avant** de le ranger", async () => {
     // Ranger un objet qu'on ne saurait pas relire reporterait la panne chez le lecteur, le jour
     // où il ouvre la bibliothèque. Mieux vaut refuser maintenant, à qui peut corriger.
-    videPuisRange();
-    const refusee = await ranger({ id: "pas un identifiant", nom: "" });
-    expect(refusee.status).toBe(400);
-    const corps = (await refusee.json()) as { ecarts: string[] };
+    vide();
+    const refuse = await ranger("/vue/apercu", { documents: [{ empreinte: "pas une empreinte" }] });
+    expect(refuse.status).toBe(400);
+    const corps = (await refuse.json()) as { ecarts: string[] };
     expect(corps.ecarts.length).toBeGreaterThan(0);
     expect(medias.rangees).toEqual([]);
   });
 
-  it("refuse des passages dont les rangs ne se suivent pas", async () => {
-    videPuisRange();
-    expect((await ranger([{ ...PASSAGES[0], rang: 3 }], "/vue/passages")).status).toBe(400);
+  it("refuse une vue et des passages mal formés", async () => {
+    vide();
+    expect((await ranger(`/vue/document/${EMPREINTE}`, { id: "non", nom: "" })).status).toBe(400);
+    expect((await ranger(`/vue/document/${EMPREINTE}/passages`, [{ ...PASSAGES[0], rang: 5 }])).status).toBe(400);
     expect(medias.rangees).toEqual([]);
   });
 
   it("refuse un corps illisible", async () => {
-    videPuisRange();
+    vide();
     const reponse = await sansSessions.request(
-      "/vue",
+      "/vue/apercu",
       { method: "PUT", headers: { "content-type": "application/json", "x-api-key": JETON }, body: "{pas du json" },
       liaisons,
     );
@@ -231,6 +260,6 @@ describe("la vue se range au moment où une version s'active", () => {
 
   it("refuse d'ouvrir si le compartiment ne sait pas écrire", async () => {
     liaisons["MEDIAS"] = { get: medias.liaison.get };
-    expect((await ranger(VUE)).status).toBe(503);
+    expect((await ranger("/vue/apercu", APERCU)).status).toBe(503);
   });
 });
