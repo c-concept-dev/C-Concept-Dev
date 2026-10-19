@@ -142,11 +142,13 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     await cliquer('Créer la page');
     await page.waitForFunction(() => {
       const r = document.querySelector('.cc-block-edit-result');
-      return r && /impossible/i.test(r.textContent || '');
+      // Une panne de l'appel et une page incomplète ne se disent PAS avec les mêmes mots.
+      // Ici l'appel échoue (HTTP 500) : c'est la première formule qui doit paraître.
+      return r && /n’a pas pu être créée/.test(r.textContent || '');
     }, { timeout: 30000 });
     const message = await page.evaluate(() => document.querySelector('.cc-block-edit-result').textContent);
     assert.equal(await nbCartes(), 5, 'un appel qui échoue n\'insère rien : ' + await nbCartes());
-    assert.ok(/Rien n’a été inséré|Rien n'a été inséré/.test(message),
+    assert.ok(/La page n’a pas pu être créée, rien n’a été inséré/.test(message),
       'le message doit dire que rien n\'a été inséré : ' + JSON.stringify(message.slice(0, 160)));
     assert.equal(await page.evaluate(() => document.querySelectorAll('[data-page-apercu]').length), 0,
       'aucun aperçu après un échec');

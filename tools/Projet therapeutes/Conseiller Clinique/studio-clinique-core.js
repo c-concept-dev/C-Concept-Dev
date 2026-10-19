@@ -21112,6 +21112,23 @@ ${recent}`;
 
   // Le contenu rendu par le modèle est RECONSTRUIT champ par champ, jamais recopié tel quel :
   // un champ inventé n'entre pas dans le document, même si le modèle insiste.
+  // ── REFUSER, JAMAIS FABRIQUER ──────────────────────────────────────────────────────────
+  // Défaut réel, trouvé à l'essai du 19 octobre sur un VRAI modèle : cette fonction écrivait
+  // `brut.text || ''` et `brut.items || []`. Les champs d'un bloc sont FACULTATIFS dans le
+  // schéma d'outil (ils dépendent du type), donc un modèle a le droit de les omettre — et
+  // quand il le faisait, un champ manquant devenait une valeur VIDE au lieu d'un refus. Or le
+  // schéma des documents exige `minLength: 1` sur chaque texte et `minItems: 1` sur `items` et
+  // `headers` : la page était invalide par construction, s'affichait en cases vides, et
+  // l'application refusait ensuite d'ouvrir le document.
+  // CETTE FONCTION NE JUGE PAS : elle COPIE, champ par champ, et ne garde rien d'autre. Un
+  // champ inventé n'entre donc pas dans le document. Ce qui décide si la page est acceptable,
+  // c'est la validation contre le vrai schéma, plus bas — et elle seule.
+  //
+  // J'avais d'abord mis ici des refus explicites (« bloc sans texte », « liste sans élément »).
+  // La falsification a montré que chacun était INERTE : la validation les rattrapait tous, si
+  // bien qu'on pouvait les retirer sans qu'aucun contrôle ne bronche. C'est la quatrième fois
+  // dans ce projet que deux mécanismes se partagent une seule garantie, et qu'aucun des deux
+  // n'est alors falsifiable. Un seul reste, et c'est celui qui fait autorité.
   function adocNewSlideBlockContent(brut) {
     switch (brut && brut.type) {
       case 'heading': return { text: adocStripEmoji(brut.text || ''), level: (brut.level === 3 ? 3 : 2) };
@@ -21122,8 +21139,44 @@ ${recent}`;
       case 'list': return { items: (brut.items || []).filter(Boolean).map(adocStripEmoji), ordered: !!brut.ordered };
       case 'table': return { headers: (brut.headers || []).map(adocStripEmoji),
                              rows: (brut.rows || []).map(function (r) { return (r || []).map(adocStripEmoji); }) };
-      default: throw new Error('Type de bloc refusé pour une page neuve : ' + (brut && brut.type));
+      // Ce refus-ci garde le CONTRAT DE LA FONCTION (elle doit rendre un contenu), pas la
+      // validité de la page : sans lui, elle rendrait `undefined`. Il n'est pas falsifiable
+      // séparément, et c'est normal — ce n'est pas une garantie de plus, c'est sa définition.
+      default: throw adocPageIncomplete('type de bloc refusé pour une page neuve : ' + (brut && brut.type));
     }
+  }
+
+  // ── LA PAGE EST JUGÉE PAR LE VRAI SCHÉMA DES DOCUMENTS, PAS PAR MOI ────────────────────
+  // On construit le document TEL QU'IL SERAIT après insertion, et on le soumet au validateur
+  // que l'application emploie elle-même pour refuser d'afficher un document
+  // (adocValidateSchema('clinicalDocument', …)). Même validateur, même schéma, mêmes messages :
+  // ce qui passe ici passera à l'ouverture, et ce qui serait refusé là l'est déjà ici.
+  // Appelé AVANT l'aperçu et AVANT l'insertion.
+  function adocPageNeuveCandidat(doc, index, page) {
+    const candidat = JSON.parse(JSON.stringify(doc));
+    const carte = { id: adocNextBlockId(candidat, 'card'), type: 'card',
+                    content: { title: page.title, imageRef: null, imageAlt: null, blocks: [] },
+                    citationIds: [], validation: {} };
+    candidat.blocks.splice(index, 0, carte);
+    page.blocks.forEach(function (b) {
+      carte.content.blocks.push({ id: adocNextBlockId(candidat, b.type), type: b.type,
+                                  content: JSON.parse(JSON.stringify(b.content)),
+                                  citationIds: [], validation: {} });
+    });
+    return { candidat: candidat, carte: carte };
+  }
+  // Une page incomplète et une panne de réseau ne se disent pas avec les mêmes mots : un
+  // HTTP 500 n'est pas une page incomplète, et confondre les deux enverrait l'utilisatrice
+  // chercher le défaut au mauvais endroit.
+  function adocPageIncomplete(detail) {
+    const e = new Error(detail);
+    e.pageIncomplete = true;
+    return e;
+  }
+  function adocPageNeuveRefus(doc, index, page) {
+    const bilan = adocValidateSchema('clinicalDocument', adocPageNeuveCandidat(doc, index, page).candidat);
+    if (bilan.valid && !bilan.skipped) return null;
+    return (bilan.errors || ['validation impossible']).slice(0, 4).join(' | ');
   }
 
   function adocNewSlideVoisines(doc, index) {
@@ -21198,19 +21251,32 @@ ${recent}`;
         adocBuildNewSlideSystemPrompt(doc, voisines, instruction),
         instruction || 'Propose la page qui manque ici.');
       const titre = adocStripEmoji(String(page && page.title || '')).trim();
-      if (!titre) throw new Error('Page sans titre.');
       const blocs = (page && page.blocks || []).map(function (b) {
         return { type: b.type, content: adocNewSlideBlockContent(b) }; });
-      if (!blocs.length) throw new Error('Page sans contenu.');
-      ps.page = { title: titre, blocks: blocs };
+      // SEUL garde-fou écrit à la main qui reste, parce que la validation ne le couvre pas :
+      // une diapositive sans aucun bloc est VALIDE pour le schéma des documents (cardContent
+      // n'impose pas de minItems). Une page vide n'a pourtant aucun sens.
+      if (!blocs.length) throw adocPageIncomplete('la page ne contient aucun bloc');
+      // Le contenu BRUT est gardé pour le diagnostic : sans lui, on ne peut pas dire si un
+      // champ manquait dans la réponse du modèle ou si la reconstruction s'est trompée.
+      ps.brut = page;
+      const candidate = { title: titre, blocks: blocs };
+      // AVANT L'APERÇU : une page que l'application refuserait d'afficher n'est jamais montrée,
+      // et surtout jamais proposée à l'insertion.
+      const refus = adocPageNeuveRefus(doc, ps.index, candidate);
+      if (refus) throw adocPageIncomplete(refus);
+      ps.page = candidate;
       ps.enCours = false;
       resultEl.innerHTML = adocBuildNewSlidePreviewHTML(ps.page);
     } catch (e) {
       // Échec : RIEN n'est inséré, et le message le dit.
       ps.page = null;
       ps.enCours = false;
-      resultEl.innerHTML = adocIconSvg('icon-error') + ' Page impossible à créer : '
-        + adocEsc(e && e.message || 'erreur inconnue') + '. Rien n’a été inséré.'
+      resultEl.innerHTML = adocIconSvg('icon-error')
+        + (e && e.pageIncomplete
+            ? ' La page générée est incomplète, rien n’a été inséré.'
+            : ' La page n’a pas pu être créée, rien n’a été inséré.')
+        + ' <span style="opacity:.75">(' + adocEsc(e && e.message || 'erreur inconnue') + ')</span>'
         + '<div style="margin-top:8px;display:flex;gap:8px;">'
         +   '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRunNewSlide()">Réessayer</button>'
         +   '<button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelNewSlide()">Fermer</button>'
@@ -21252,6 +21318,23 @@ ${recent}`;
     if (!doc) { ps.enCours = false; return; }
     // Identifiants UNIQUES, jamais réutilisés : adocNextBlockId lit le document entier, y compris
     // les blocs qu'on vient d'ajouter — d'où l'insertion de la carte AVANT de créer ses blocs.
+    // AVANT L'INSERTION, une seconde fois : l'aperçu a pu rester ouvert pendant que le
+    // document changeait à côté (un autre bloc corrigé, une narration écrite). On juge donc le
+    // document TEL QU'IL EST MAINTENANT, et non tel qu'il était à la création de la page.
+    const refusTardif = adocPageNeuveRefus(doc, ps.index, ps.page);
+    if (refusTardif) {
+      ps.enCours = false;
+      alert('La page générée est incomplète, rien n’a été inséré. (' + refusTardif + ')');
+      return;
+    }
+    // ── RETOUR ARRIÈRE COMPLET ────────────────────────────────────────────────────────────
+    // L'insertion touche TROIS choses : les diapositives, la narration (adocNarrationSuivre…)
+    // et la validation du document. Le rattrapage d'origine ne retirait que la carte : une
+    // narration déplacée ou une relecture remise à faire seraient restées. On garde donc l'état
+    // exact d'avant, et on le remet TEL QUEL si l'ouverture échoue.
+    const avant = { blocs: doc.blocks.slice(),
+                    narration: JSON.parse(JSON.stringify(doc.narration || null)),
+                    validation: JSON.parse(JSON.stringify(doc.validation || null)) };
     const carte = { id: adocNextBlockId(doc, 'card'), type: 'card',
                     content: { title: ps.page.title, imageRef: null, imageAlt: null, blocks: [] },
                     citationIds: [], validation: {} };
@@ -21278,10 +21361,14 @@ ${recent}`;
       ps.posee = true;
       window._adocPageInsertState = null;
     } catch (e) {
-      const i = doc.blocks.indexOf(carte);
-      if (i >= 0) doc.blocks.splice(i, 1);
+      doc.blocks = avant.blocs;
+      if (avant.narration === null) delete doc.narration; else doc.narration = avant.narration;
+      if (avant.validation === null) delete doc.validation; else doc.validation = avant.validation;
       ps.enCours = false;
-      alert('Insertion impossible : ' + (e && e.message || 'erreur inconnue'));
+      // Le document est revenu à son état d'avant : on le rouvre pour que l'écran le montre.
+      try { await window.adocOpenWorkspace(ps.storeKey); } catch (_) {}
+      alert('La page n’a pas pu être insérée, et rien n’a changé : '
+        + (e && e.message || 'erreur inconnue'));
     }
   };
 
