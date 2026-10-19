@@ -16,7 +16,13 @@ export type Route =
   | { readonly ecran: "maniere" }
   | { readonly ecran: "catalogue"; readonly page?: number }
   | { readonly ecran: "lecteur"; readonly page: number; readonly element?: string }
-  | { readonly ecran: "verifier" };
+  | { readonly ecran: "verifier" }
+  /** Entrer, enrôler, sortir — le seul écran qui vive **avant** toute session.
+   *
+   *  `invitation` porte le défi d'amorçage quand il y en a un : le premier accès s'ouvre par une
+   *  invitation que le jeton de service a émise, et qui voyage dans l'adresse. Elle n'est pas un
+   *  secret du compte mais un titre à usage unique, périmé en cinq minutes. */
+  | { readonly ecran: "entrer"; readonly invitation?: string };
 
 export const ACCUEIL: Route = { ecran: "accueil" };
 
@@ -56,6 +62,10 @@ export function lireRoute(fragment: string): Route {
       return { ecran: "maniere" };
     case "verifier":
       return { ecran: "verifier" };
+    case "entrer": {
+      const invitation = parametres.get("invitation");
+      return invitation === undefined || invitation === "" ? { ecran: "entrer" } : { ecran: "entrer", invitation };
+    }
     case "catalogue": {
       const page = entier("page");
       return page === undefined ? { ecran: "catalogue" } : { ecran: "catalogue", page };
@@ -88,6 +98,8 @@ export function ecrireRoute(route: Route): string {
       return "#maniere";
     case "verifier":
       return "#verifier";
+    case "entrer":
+      return route.invitation === undefined ? "#entrer" : `#entrer/invitation=${route.invitation}`;
     case "catalogue":
       return route.page === undefined ? "#catalogue" : `#catalogue/page=${route.page}`;
     case "lecteur":

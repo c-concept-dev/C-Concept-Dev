@@ -19,6 +19,7 @@ import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
 import { pourLAccueil } from "./donnees/accueil.js";
 import { Accueil } from "./pages/Accueil.js";
 import { Catalogue } from "./pages/Catalogue.js";
+import { Entrer } from "./pages/Entrer.js";
 import { Lecteur } from "./pages/Lecteur.js";
 import { PremierLancement } from "./pages/PremierLancement.js";
 import { Reglages } from "./pages/Reglages.js";
@@ -424,6 +425,16 @@ export function App(): JSX.Element {
         };
 
   const ecran = ((): JSX.Element | null => {
+    // Avant tout le reste : cet écran doit s'afficher **sans session**, donc sans rien attendre
+    // du pont ni d'une bibliothèque. Le placer plus bas l'aurait mis derrière des gardes qui
+    // supposent une bibliothèque ouverte.
+    if (route.ecran === "entrer")
+      return (
+        <Entrer
+          {...(route.invitation === undefined ? {} : { invitation: route.invitation })}
+          onEntre={() => aller({ ecran: "catalogue" })}
+        />
+      );
     if (route.ecran === "reglages") return <Reglages theme={theme} onThemeChange={changerTheme} />;
     if (route.ecran === "maniere")
       return derniere === undefined ? (

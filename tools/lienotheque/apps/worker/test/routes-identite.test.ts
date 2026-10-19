@@ -357,6 +357,61 @@ describe("l'amorçage : le jeton de service, et une seule fois", () => {
     expect((await appeler(avecSessions, "/amorce/defi", {}, { "x-api-key": JETON })).status).toBe(400);
   });
 
+  it("le jeton invite, l'invitation entre : /amorce n'exige aucun jeton", async () => {
+    // Le défaut trouvé le 19 octobre : les deux routes d'amorçage exigeaient le jeton de
+    // service, donc aucune page ne pouvait les franchir — un navigateur n'a pas le droit de
+    // porter ce jeton (règle 6, LIV-04).
+    //
+    // Désormais le jeton n'émet que l'invitation. Le défi **est** le titre d'accès : imprévisible,
+    // à usage unique, périmé en cinq minutes, et nul ne peut en obtenir un sans le jeton.
+    const ouvert = await appeler(avecSessions, "/amorce/defi", { nom: "Christophe" }, { "x-api-key": JETON });
+    expect(ouvert.status).toBe(200);
+    const { defi } = (await ouvert.json()) as { defi: string };
+
+    const personne = (await registre.prepare("SELECT id FROM utilisateur").bind().first<{ id: string }>())!;
+    await registre.prepare("DELETE FROM defi").bind().run();
+    await poserLeDefi(MESURE.challenge, "enrolement", personne.id);
+    expect(defi.length).toBeGreaterThan(0);
+
+    const creation = Buffer.from(
+      JSON.stringify({ type: "webauthn.create", challenge: MESURE.challenge, origin: MESURE.origin, crossOrigin: false }),
+      "utf8",
+    ).toString("base64url");
+
+    // Sans jeton, et sans session : l'invitation suffit.
+    const enrole = await appeler(
+      avecSessions,
+      "/amorce",
+      { identifiant: IDENTIFIANT, clePublique: CEREMONIE.spki, algorithme: -7, donneesClient: creation },
+      {},
+    );
+    expect(enrole.status).toBe(200);
+    expect(await enrole.json()).toEqual({ enrolee: true });
+  });
+
+  it("refuse une invitation inventée, et n'apprend rien d'autre", async () => {
+    // Le seul moyen d'aboutir est de porter un défi que le service a émis. Un défi inventé ne
+    // désigne aucune ligne, et le refus s'arrête là — avant même de regarder la clé.
+    const creation = Buffer.from(
+      JSON.stringify({ type: "webauthn.create", challenge: "defi-invente", origin: MESURE.origin, crossOrigin: false }),
+      "utf8",
+    ).toString("base64url");
+
+    const enrole = await appeler(
+      avecSessions,
+      "/amorce",
+      { identifiant: IDENTIFIANT, clePublique: CEREMONIE.spki, algorithme: -7, donneesClient: creation },
+      {},
+    );
+    expect(enrole.status).toBe(400);
+    expect(JSON.stringify(await enrole.json())).toContain("inconnu");
+  });
+
+  it("garde le jeton sur l'émission de l'invitation", async () => {
+    // L'invitation, elle, ne s'obtient pas sans le secret : sans quoi n'importe qui s'amorcerait.
+    expect((await appeler(avecSessions, "/amorce/defi", { nom: "Autre" }, {})).status).toBe(401);
+  });
+
   it("se referme dès qu'une clé existe, et pour toujours", async () => {
     const personne = await unePersonne();
     await enrolerUneCle(
