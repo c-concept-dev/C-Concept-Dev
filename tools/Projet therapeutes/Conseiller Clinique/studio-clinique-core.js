@@ -21107,6 +21107,14 @@ ${recent}`;
     const data = await resp.json();
     const toolUse = (data.content || []).filter(function (c) { return c.type === 'tool_use' && c.name === 'emit_new_slide'; })[0];
     if (!toolUse) throw new Error('Réponse sans bloc tool_use (emit_new_slide).');
+    // ── LE BRUT EST GARDÉ ICI, ET ICI SEULEMENT ──────────────────────────────────────────
+    // Seul endroit où la réponse du modèle arrive : le garder ailleurs, ce serait risquer de
+    // l'oublier sur un chemin. Il survit DÉLIBÉRÉMENT à tout ce qui suit — reconstruction qui
+    // refuse, validation qui refuse, aperçu abandonné — parce que c'est précisément quand la
+    // page est refusée qu'on a besoin de savoir ce que le modèle avait répondu.
+    // EN MÉMOIRE SEULEMENT : jamais sur le disque, jamais dans localStorage, jamais dans un
+    // journal. Il peut contenir du texte écrit pour l'utilisatrice.
+    window._adocDernierBrutPageNeuve = { recuLe: new Date().toISOString(), brut: toolUse.input };
     return toolUse.input;
   }
 
@@ -21257,9 +21265,6 @@ ${recent}`;
       // une diapositive sans aucun bloc est VALIDE pour le schéma des documents (cardContent
       // n'impose pas de minItems). Une page vide n'a pourtant aucun sens.
       if (!blocs.length) throw adocPageIncomplete('la page ne contient aucun bloc');
-      // Le contenu BRUT est gardé pour le diagnostic : sans lui, on ne peut pas dire si un
-      // champ manquait dans la réponse du modèle ou si la reconstruction s'est trompée.
-      ps.brut = page;
       const candidate = { title: titre, blocks: blocs };
       // AVANT L'APERÇU : une page que l'application refuserait d'afficher n'est jamais montrée,
       // et surtout jamais proposée à l'insertion.

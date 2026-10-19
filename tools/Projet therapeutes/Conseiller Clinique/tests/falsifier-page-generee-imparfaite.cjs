@@ -56,6 +56,20 @@ const MUTATIONS = [
     attendu: 'le seul mecanisme qui juge la page cesse de juger',
   },
   {
+    nom: 'le brut n’est plus conserve',
+    fichier: 'coeur',
+    de: "    window._adocDernierBrutPageNeuve = { recuLe: new Date().toISOString(), brut: toolUse.input };",
+    vers: "    window._adocDernierBrutPageNeuve = null;",
+    attendu: 'la reponse du modele disparait des qu’elle est refusee — c’est justement la qu’on en a besoin',
+  },
+  {
+    nom: 'le brut est ecrit dans localStorage',
+    fichier: 'coeur',
+    de: "    window._adocDernierBrutPageNeuve = { recuLe: new Date().toISOString(), brut: toolUse.input };",
+    vers: "    window._adocDernierBrutPageNeuve = { recuLe: new Date().toISOString(), brut: toolUse.input };\n    try { localStorage.setItem('brut-page-neuve', JSON.stringify(toolUse.input)); } catch (e) {}",
+    attendu: 'le brut quitte la memoire pour le disque du navigateur : interdit',
+  },
+  {
     nom: 'une page sans aucun bloc redevient acceptable',
     fichier: 'coeur',
     de: "      if (!blocs.length) throw adocPageIncomplete('la page ne contient aucun bloc');",

@@ -136,10 +136,29 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
                  armee: !!(ps && ps.page),
                  doc: JSON.stringify(window._adocArtifacts['imparfait']._adocStructuredDoc),
                  vides: [...document.querySelectorAll('[data-page-apercu] .cc-block-edit-text')]
-                   .filter((e) => !(e.textContent || '').trim()).length };
+                   .filter((e) => !(e.textContent || '').trim()).length,
+                 // Le BRUT doit survivre au refus : c'est quand la page est refusée qu'on a
+                 // besoin de savoir ce que le modèle avait répondu.
+                 brut: window._adocDernierBrutPageNeuve
+                   ? JSON.stringify(window._adocDernierBrutPageNeuve.brut) : null,
+                 brutDate: window._adocDernierBrutPageNeuve
+                   ? window._adocDernierBrutPageNeuve.recuLe : null,
+                 // Et il ne doit avoir laissé AUCUNE trace ailleurs.
+                 dansLeStockage: Object.keys(localStorage)
+                   .filter((k) => /brut|slide|page/i.test(k)
+                     || /emit_new_slide|accordeon/i.test(localStorage.getItem(k) || '')) };
       });
 
       assert.equal(vu.vides, 0, cas.nom + ' : aucune case vide, jamais');
+      // LE BRUT, APRÈS CHAQUE CAS — y compris ceux refusés avant l'aperçu.
+      assert.equal(vu.brut, JSON.stringify(cas.page),
+        cas.nom + ' : la réponse brute doit rester disponible, telle que reçue ; vue : '
+        + String(vu.brut).slice(0, 110));
+      assert.ok(/^\d{4}-\d\d-\d\dT/.test(vu.brutDate || ''),
+        cas.nom + ' : le brut doit être daté : ' + vu.brutDate);
+      assert.deepEqual(vu.dansLeStockage, [],
+        cas.nom + ' : le brut ne doit laisser aucune trace dans localStorage : '
+        + JSON.stringify(vu.dansLeStockage));
       if (cas.accepte) {
         // Le seul cas qui doit PASSER : l'intrus est jeté, et la page reste valide.
         assert.equal(vu.apercu, true, cas.nom + ' : l\'aperçu doit s\'afficher');
@@ -163,7 +182,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       assert.ok(/Refaire|Réessayer/.test(vu.message), cas.nom + ' : « Refaire » doit être proposé');
       assert.equal(vu.armee, false, cas.nom + ' : rien ne doit rester d\'insérable');
       assert.equal(vu.doc, avant, cas.nom + ' : le document doit être INTACT, champ pour champ');
-      pass(cas.nom + ' — refusée, rien inséré, document intact.');
+      pass(cas.nom + ' — refusée, rien inséré, document intact, brut conservé.');
     }
 
     // ── LA SECONDE VALIDATION, CELLE D'AVANT L'INSERTION ──────────────────────────────────
