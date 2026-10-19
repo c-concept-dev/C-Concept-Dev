@@ -13,25 +13,30 @@ import type { PortAdministration, PortDeLecture } from "./port.js";
  *  écran ne change.
  */
 
-/** L'adresse du service, quand la version en ligne en a une.
+/** Cette construction est-elle celle de la version en ligne ?
  *
- *  Posée à la construction, et non devinée depuis l'adresse de la page : la page et le service ne
- *  vivent pas au même endroit. Absente, la version en ligne n'a pas de pont — et c'est mieux
- *  qu'un pont qui appellerait une adresse inventée. */
-const adresseDuService = (): string | undefined => {
-  const lue = import.meta.env?.VITE_LIENOTHEQUE_SERVICE;
-  return typeof lue === "string" && lue.length > 0 ? lue : undefined;
-};
+ *  **Un drapeau, et non une adresse.** Le service vit à la même origine que la page — c'est le
+ *  Worker qui sert les deux —, donc il n'y a aucune adresse à régler : les appels sont relatifs.
+ *
+ *  Mais le drapeau ne disparaît pas pour autant, et j'avais annoncé le contraire. Une
+ *  construction servie par `vite preview` **sans Worker derrière** est exactement ce que les
+ *  épreuves de rendu emploient : elles lisent l'instantané que le greffon de Vite sert, et elles
+ *  reposent sur l'absence de pont. Un pont présent en permanence appellerait un service qui
+ *  n'est pas là.
+ *
+ *  Le drapeau dit donc « cette construction parle à un service », et rien de plus. */
+const enLigne = (): boolean => import.meta.env?.VITE_LIENOTHEQUE_EN_LIGNE === "1";
 
-/** Lire ce qui existe. Le bureau le sait ; la version en ligne le sait maintenant aussi.
+/** Lire ce qui existe. Le bureau le sait ; la version en ligne le sait aussi.
  *
  *  Le pont en ligne est construit à la demande, et non une fois pour toutes : il ne garde aucun
- *  état, et un pont construit au chargement du module aurait figé l'adresse avant qu'elle soit
- *  connue. */
+ *  état, et rien ne gagnerait à le figer au chargement du module. */
 export function pontDeLecture(): PortDeLecture | undefined {
   if (estBureau()) return lectureDuBureau;
-  const base = adresseDuService();
-  return base === undefined ? undefined : pontEnLigne({ base });
+  // Base vide : les appels sont relatifs, donc adressés à l'origine de la page — celle du Worker
+  // qui la sert. C'est aussi ce qui fait que le témoin de session voyage : un témoin `SameSite=Lax`
+  // ne part pas vers un autre site.
+  return enLigne() ? pontEnLigne({ base: "" }) : undefined;
 }
 
 /** Construire et administrer. **Le bureau seul**, et c'est définitif : désigner un dossier n'a

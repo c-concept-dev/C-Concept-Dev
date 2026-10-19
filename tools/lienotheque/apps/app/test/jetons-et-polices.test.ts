@@ -35,15 +35,27 @@ describe("feuille de jetons (UX-07 : contrôle automatique des jetons)", () => {
 describe("polices locales (aucune ressource distante)", () => {
   const polices = lire("../src/styles/polices.css");
 
-  it("déclare Inter et Source Serif 4 en WOFF2 avec repli TTF", () => {
+  it("déclare Inter et Source Serif 4 en WOFF2", () => {
     expect(polices).toContain("Inter-latin-ext.woff2");
     expect(polices).toContain("SourceSerif4-latin-ext.woff2");
-    expect(polices).toContain("Inter.ttf");
-    expect(polices).toContain("SourceSerif4.ttf");
+  });
+
+  it("ne déclare plus de repli TTF (19 octobre 2026)", () => {
+    // Ce test exigeait le contraire, et sans dire pourquoi : il figeait l'état du jour plutôt
+    // qu'une exigence. L'exigence de ce bloc est « aucune ressource distante », et le WOFF2
+    // local la satisfait seul.
+    //
+    // Les trois moteurs visés acceptent WOFF2 depuis 2016 : le repli n'était jamais téléchargé,
+    // mais la construction l'embarquait toujours — deux mégaoctets sur quatre et demi, pour
+    // rien. Le jour où un moteur sans WOFF2 compterait, les piles « --ln-font-ui » et
+    // « --ln-font-brand » gardent Arial et Georgia derrière.
+    //
+    // Le kit continue de livrer les TTF ; c'est l'application qui cesse de les citer.
+    expect(polices).not.toContain(".ttf");
   });
 
   it("pointe vers des fichiers qui existent dans le kit", () => {
-    for (const nom of ["Inter-latin-ext.woff2", "SourceSerif4-latin-ext.woff2", "Inter.ttf", "SourceSerif4.ttf"]) {
+    for (const nom of ["Inter-latin-ext.woff2", "SourceSerif4-latin-ext.woff2"]) {
       expect(existsSync(KIT(nom)), nom).toBe(true);
     }
   });

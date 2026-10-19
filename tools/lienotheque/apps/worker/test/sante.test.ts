@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EtatService } from "@lienotheque/contrats";
 import { describe, expect, it } from "vitest";
-import { CAPACITES, SERVICE, VERSION, creerApp } from "../src/index.js";
+import { CAPACITES, SERVICE, VERSION, creerApp } from "../src/app.js";
 
 const RACINE = fileURLToPath(new URL("..", import.meta.url));
 const FIGE = new Date("2026-10-03T09:00:00.000Z");

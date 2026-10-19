@@ -9,6 +9,9 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
+| 2026-10-19 | **Le Worker sert aussi la page**, à la même origine que l'API : un témoin `SameSite=Lax` sans CORS ne peut pas fonctionner autrement | `docs/lot-e5-page-servie.md` |
+| 2026-10-19 | **Plus de repli TTF** : jamais téléchargé par les moteurs visés, toujours embarqué — deux mégaoctets sur quatre et demi | `apps/app/src/styles/polices.css` |
+| 2026-10-19 | **Le module d'entrée du Worker n'exporte que son gestionnaire** : avec des ressources déclarées, un export nommé qui n'est pas un gestionnaire empêche le moteur de démarrer | `apps/worker/src/index.ts` |
 | 2026-10-19 | **Scénario B pour les écrans en ligne** : Catalogue et Lecteur en lecture seule, trois objets, publication incrémentale | `docs/lot-e5-plan.md` §9 et §10 |
 | 2026-10-19 | **Classer ne se fait pas en ligne**, et ce n'est pas un manque : le classement vivrait à deux endroits | `docs/lot-e5-plan.md` §10 |
 | 2026-10-18 | **La vue en ligne est l'instantané servi depuis R2, jamais rebâtie en SQL** : une seconde mise en œuvre serait une seconde vérité | `docs/lot-e5-plan.md` §8 |

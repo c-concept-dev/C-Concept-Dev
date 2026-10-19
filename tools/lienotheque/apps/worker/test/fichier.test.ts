@@ -1,6 +1,6 @@
 import { cleSource, signer } from "@lienotheque/noyau";
 import { describe, expect, it } from "vitest";
-import { creerApp } from "../src/index.js";
+import { creerApp } from "../src/app.js";
 
 const SECRET = "secret d'essai";
 const EMPREINTE = "c".repeat(64);

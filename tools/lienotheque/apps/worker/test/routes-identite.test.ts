@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { MIGRATIONS, MIGRATIONS_REGISTRE_EN_LIGNE, baseEnMemoire } from "@lienotheque/depot-sqlite";
 import { jetonNeuf } from "@lienotheque/noyau";
 import { beforeEach, describe, expect, it } from "vitest";
-import { creerApp } from "../src/index.js";
+import { creerApp } from "../src/app.js";
 import { NOM_DU_TEMOIN } from "../src/porte.js";
 import { inscrire, publier } from "../src/registre.js";
 import {

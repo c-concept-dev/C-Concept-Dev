@@ -1,6 +1,6 @@
 import { MIGRATIONS, MIGRATIONS_REGISTRE_EN_LIGNE, baseEnMemoire } from "@lienotheque/depot-sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { creerApp } from "../src/index.js";
+import { creerApp } from "../src/app.js";
 import { inscrire, publier } from "../src/registre.js";
 import { SESSIONS_EXIGEES, estUneBibliothequeDEssai } from "../src/portes.js";
 
