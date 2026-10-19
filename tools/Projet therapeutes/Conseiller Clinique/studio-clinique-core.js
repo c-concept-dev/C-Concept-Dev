@@ -21279,7 +21279,16 @@ ${recent}`;
   // ce qui passe ici passera à l'ouverture, et ce qui serait refusé là l'est déjà ici.
   // Appelé AVANT l'aperçu et AVANT l'insertion.
   function adocPageNeuveCandidat(doc, index, page) {
-    const candidat = JSON.parse(JSON.stringify(doc));
+    // COPIE PROFONDE SANS SÉRIALISATION, et c'est voulu. Un garde-fou de source compte les
+    // endroits où le document entier est transformé en chaîne : il n'en tolère qu'UN,
+    // l'instantané d'annulation, pour qu'aucun second point d'embarquement n'apparaisse un jour
+    // et n'emporte la narration dans un export (verify-narration-etapes, contrôle 13).
+    // Ce candidat n'en est pas un — il ne quitte jamais cette fonction — mais le garde ne peut
+    // pas le savoir, et c'est très bien ainsi : `structuredClone` copie sans jamais produire de
+    // chaîne. Plus juste, et hors de portée du garde sans le contourner.
+    // Si `structuredClone` manquait, l'appel lèverait : la page serait refusée proprement
+    // (« page incomplète »), jamais insérée de travers.
+    const candidat = structuredClone(doc);
     const carte = { id: adocNextBlockId(candidat, 'card'), type: 'card',
                     content: { title: page.title, imageRef: null, imageAlt: null, blocks: [] },
                     citationIds: [], validation: {} };
