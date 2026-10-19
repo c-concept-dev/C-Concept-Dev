@@ -19,7 +19,7 @@ const { chromium } = require('playwright');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
-const { PRESENTATION } = require('./fixtures-page-generee.cjs');
+const { PRESENTATION, REPONSE_REELLE_19_OCTOBRE } = require('./fixtures-page-generee.cjs');
 
 const RACINE = path.join(__dirname, '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -28,7 +28,12 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 
 // Sept réponses qu'un vrai modèle peut produire, toutes permises par emit_new_slide.
 const IMPARFAITES = [
-  { nom: 'un paragraphe sans texte (le défaut réel du 19 octobre)',
+  // LA RÉPONSE RÉELLE DU 19 OCTOBRE, structure exacte, texte neutralisé : un paragraphe correct
+  // puis trois blocs « list » portant des champs de TABLE et aucun `items`. La forme B du schéma
+  // l'empêche désormais à la source ; ce cas prouve que même si elle revenait, elle est refusée.
+  { nom: 'la réponse RÉELLE du 19 octobre (trois listes aux champs de tableau)',
+    page: REPONSE_REELLE_19_OCTOBRE },
+  { nom: 'un paragraphe sans texte',
     page: { title: 'Le stress au cœur du cercle vicieux', blocks: [
       { type: 'paragraph', text: 'Un premier paragraphe correct.' },
       { type: 'paragraph' }, { type: 'paragraph' }, { type: 'paragraph' }, { type: 'paragraph' }] } },

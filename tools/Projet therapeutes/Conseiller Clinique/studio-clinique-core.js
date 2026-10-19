@@ -21025,17 +21025,33 @@ ${recent}`;
   const ADOC_NEW_SLIDE_TOOL = {
     name: 'emit_new_slide',
     description: 'Rend UNE diapositive neuve pour une présentation existante : un titre court et '
-      + 'quelques blocs de contenu. N’ajoute AUCUNE référence bibliographique, aucun renvoi de '
-      + 'citation, aucun nom d’auteur et aucune année : les citations de ce document sont gérées '
-      + 'ailleurs et ne doivent pas être inventées ici. N’ajoute ni image ni vidéo.',
-    // `strict` : demandé pour D2, et c'est aussi ce que portent les six autres schémas. Il met ce
-    // schéma sur le chemin où l'API compile une GRAMMAIRE — celui de l'incident du 28/09/2026,
-    // « compiled grammar is too large ». D'où deux choix calqués sur le patron éprouvé en
-    // production plutôt que sur mon idée : `required` n'est PAS exhaustif (les champs d'un bloc
-    // dépendent de son type, et les six autres font déjà ainsi), et aucune borne de taille
-    // (minLength/maxLength/minItems/maxItems) n'est employée — aucun des six n'en emploie, et
-    // j'étais le seul à diverger. La borne haute du nombre de blocs tient donc à la description ;
-    // la seule garantie dure, « au moins un bloc », est vérifiée dans le code après l'appel.
+      + 'quelques blocs de contenu. Chaque bloc a la forme de SON type, et rien d’autre. '
+      + 'Un bloc de liste contient au moins trois éléments rédigés, jamais une liste vide. '
+      + 'Un bloc de tableau a des en-têtes et au moins une ligne. '
+      + 'Le Studio REFUSE une page qui contient un bloc vide, et rien n’est inséré. '
+      + 'N’ajoute AUCUNE référence bibliographique, aucun renvoi de citation, aucun nom '
+      + 'd’auteur et aucune année : les citations de ce document sont gérées ailleurs et ne '
+      + 'doivent pas être inventées ici. N’ajoute ni image ni vidéo.',
+    // ── VARIANTE B : UNE BRANCHE PAR TYPE, ET CHAQUE BRANCHE N'A QUE SES CHAMPS ───────────
+    // L'essai réel du 19 octobre a montré pourquoi la forme plate ne tenait pas : le modèle a
+    // rendu trois blocs {type:'list', ordered:false, headers:[], rows:[]} — des champs de
+    // TABLE sur un bloc de LISTE, et aucun `items`. La forme plate le PERMETTAIT : les huit
+    // propriétés étaient disponibles sur n'importe quel bloc, une seule était requise, et
+    // seules des descriptions en prose disaient « Pour list seulement ». Une description n'est
+    // pas une contrainte.
+    //
+    // Ici, `blocks.items` est un `anyOf` de six branches fermées : une branche ne porte que
+    // les champs de son type, tous REQUIS, et `additionalProperties: false` partout. Un bloc
+    // de liste sans `items` ne peut plus être produit — le défaut est empêché à la source, et
+    // non plus seulement rattrapé après coup par la validation (qui reste, D8).
+    //
+    // Ce que la documentation d'Anthropic autorise, et qui a décidé cette forme :
+    //   — `anyOf` est pris en charge en mode strict ;
+    //   — un paramètre qui emploie `anyOf` compte pour UN dans la limite de 16 paramètres de
+    //     type union : il y en a UN ici, pas six ;
+    //   — `minItems` est accepté, mais SEULEMENT aux valeurs 0 et 1 ;
+    //   — `minLength`, `maxLength` et `maxItems` ne sont PAS pris en charge : il n'y en a
+    //     aucun. « Au moins trois éléments » est donc dit dans la consigne, pas dans le schéma.
     strict: true,
     input_schema: {
       type: 'object',
@@ -21046,19 +21062,37 @@ ${recent}`;
                  description: 'Titre court de la diapositive, sans numéro ni ponctuation finale.' },
         blocks: {
           type: 'array',
+          minItems: 1,
           description: 'Les blocs de la diapositive, dans l’ordre de lecture : un à six, pas plus.',
           items: {
-            type: 'object', additionalProperties: false, required: ['type'],
-            properties: {
-              type: { type: 'string', enum: ['heading', 'paragraph', 'list', 'callout', 'quote', 'table'] },
-              text: { type: 'string', description: 'Pour heading, paragraph, callout et quote.' },
-              level: { type: 'integer', enum: [2, 3], description: 'Pour heading seulement.' },
-              items: { type: 'array', items: { type: 'string' }, description: 'Pour list seulement.' },
-              ordered: { type: 'boolean', description: 'Pour list seulement.' },
-              visualRole: { type: 'string', enum: ['info', 'warning', 'success'], description: 'Pour callout seulement.' },
-              headers: { type: 'array', items: { type: 'string' }, description: 'Pour table seulement.' },
-              rows: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'Pour table seulement.' },
-            },
+            anyOf: [
+              { type: 'object', additionalProperties: false, required: ['type', 'text'],
+                properties: { type: { const: 'paragraph' },
+                              text: { type: 'string', description: 'Le paragraphe, rédigé.' } } },
+              { type: 'object', additionalProperties: false, required: ['type', 'text'],
+                properties: { type: { const: 'quote' },
+                              text: { type: 'string', description: 'La citation, rédigée.' } } },
+              { type: 'object', additionalProperties: false, required: ['type', 'text', 'level'],
+                properties: { type: { const: 'heading' },
+                              text: { type: 'string', description: 'L’intertitre, rédigé.' },
+                              level: { enum: [2, 3] } } },
+              { type: 'object', additionalProperties: false, required: ['type', 'text', 'visualRole'],
+                properties: { type: { const: 'callout' },
+                              text: { type: 'string', description: 'L’encadré, rédigé.' },
+                              visualRole: { enum: ['info', 'warning', 'success'] } } },
+              { type: 'object', additionalProperties: false, required: ['type', 'items', 'ordered'],
+                properties: { type: { const: 'list' },
+                              items: { type: 'array', minItems: 1, items: { type: 'string' },
+                                       description: 'Au moins TROIS éléments rédigés. Jamais vide.' },
+                              ordered: { type: 'boolean' } } },
+              { type: 'object', additionalProperties: false, required: ['type', 'headers', 'rows'],
+                properties: { type: { const: 'table' },
+                              headers: { type: 'array', minItems: 1, items: { type: 'string' },
+                                         description: 'Les en-têtes. Jamais vides.' },
+                              rows: { type: 'array', minItems: 1,
+                                      items: { type: 'array', items: { type: 'string' } },
+                                      description: 'Au moins une ligne. Jamais vide.' } } },
+            ],
           },
         },
       },
@@ -21087,6 +21121,11 @@ ${recent}`;
       + 'd’auteur, aucune année, aucun « (voir … ) » : les citations sont gérées ailleurs dans ce '
       + 'document, et une référence inventée ici serait fausse.');
     lignes.push('N’ajoute ni image ni vidéo.');
+    // Dit dans le prompt ET dans la consigne de l'outil : le schéma ne peut pas exprimer
+    // « au moins trois éléments » (minItems n'y est accepté qu'aux valeurs 0 et 1).
+    lignes.push('Un bloc de liste contient au moins TROIS éléments rédigés, jamais une liste vide. '
+      + 'Un bloc de tableau a des en-têtes et au moins une ligne. Le Studio REFUSE une page qui '
+      + 'contient un bloc vide, et rien n’est inséré : écris chaque bloc en entier.');
     return lignes.join('\n');
   }
 

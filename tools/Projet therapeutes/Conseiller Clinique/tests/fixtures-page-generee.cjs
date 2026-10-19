@@ -64,4 +64,25 @@ const PAGE_SIMULEE = {
   ],
 };
 
-module.exports = { PRESENTATION, PAGE_SIMULEE };
+
+// ── LA RÉPONSE RÉELLE DU 19 OCTOBRE, STRUCTURE EXACTE, TEXTE NEUTRALISÉ ──────────────────
+// Ce que le modèle a réellement rendu lors de l'essai dans Safari (vrai Worker, vrai modèle) :
+// un paragraphe correct, puis TROIS blocs de type « list » portant `headers` et `rows` — des
+// champs de TABLE — et AUCUN `items`, AUCUN `text`.
+//
+// La structure est conservée à l'identique ; seul le texte est remplacé par un texte neutre,
+// pour qu'aucun contenu de Christophe n'entre dans le dépôt.
+//
+// L'ancien schéma plat PERMETTAIT cette réponse : les huit propriétés étaient disponibles sur
+// n'importe quel bloc et seule `type` était requise. C'est le défaut même.
+const REPONSE_REELLE_19_OCTOBRE = {
+  title: 'Un titre neutre pour l\'essai',
+  blocks: [
+    { type: 'paragraph', text: 'Un premier paragraphe, correct, tel que le modele l\'a rendu.' },
+    { type: 'list', ordered: false, headers: [], rows: [] },
+    { type: 'list', ordered: false, headers: [], rows: [] },
+    { type: 'list', ordered: false, headers: [], rows: [] },
+  ],
+};
+
+module.exports = { REPONSE_REELLE_19_OCTOBRE, PRESENTATION, PAGE_SIMULEE };

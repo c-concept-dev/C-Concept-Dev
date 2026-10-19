@@ -35,6 +35,16 @@ if (process.argv.includes('--reprendre')) {
 
 const MUTATIONS = [
   {
+    // La forme B elle-meme : si les branches se rouvrent, la reponse du 19 octobre redevient
+    // emissible par le modele. Le controle du schema doit tomber.
+    nom: 'les branches du schema se rouvrent (retour a la forme plate)',
+    controle: 'verify-schema-nouvelle-page.cjs',
+    fichier: 'coeur',
+    de: "              { type: 'object', additionalProperties: false, required: ['type', 'items', 'ordered'],",
+    vers: "              { type: 'object', additionalProperties: false, required: ['type'],",
+    attendu: 'une liste sans items redevient permise : le defaut du 19 octobre est reouvert',
+  },
+  {
     nom: 'la page n’est plus jugee AVANT l’apercu',
     fichier: 'coeur',
     de: "      const refus = adocPageNeuveRefus(doc, ps.index, candidate);",
@@ -108,7 +118,10 @@ const restaurer = () => Object.keys(FICHIERS).forEach((k) => fs.writeFileSync(FI
       appliquer(m);
       let echoue = false;
       try {
-        execFileSync(process.execPath, [path.join(__dirname, 'verify-page-generee-imparfaite.cjs')],
+        // Une mutation peut viser un AUTRE contrôle que celui par défaut : celle qui rouvre les
+        // branches du schéma ne se voit que dans le contrôle du schéma. Sans cette ligne, elle
+        // passait pour un trou — et c'en était un, dans le falsificateur.
+        execFileSync(process.execPath, [path.join(__dirname, m.controle || 'verify-page-generee-imparfaite.cjs')],
           { stdio: 'pipe', timeout: 900000 });
       } catch (e) { echoue = true; }
       restaurer();
