@@ -279,3 +279,97 @@ dépôt : elles ne peuvent pas devenir des tests versionnés.
 Ce qui a été éprouvé à la place est plus fort que leur transposition : non pas que les résultats
 se ressemblent, mais qu'ils soient **la même chose** — même fonction, mêmes octets. Les épreuves
 humaines pourront se rejouer en ligne le jour de la mise en marche, sur la mini-bibliothèque.
+
+---
+
+## 9. Trois scénarios pour les écrans en ligne — à trancher avant d'écrire le découpage
+
+Soumis le 19 octobre 2026. Rien n'est écrit sur cette base avant qu'un scénario soit retenu.
+
+### Les quatre faits qui commandent le choix
+
+Relevés dans `apps/app/src/App.tsx`, aux endroits où le port est réellement appelé :
+
+| ligne | ce qui est demandé | pour quel écran |
+|---|---|---|
+| 217 | `apercuDeBibliotheque` **et** `classementsDeBibliotheque`, ensemble, au chargement | le **Catalogue** : la liste et ses filtres |
+| 252 | `vueDeDocument` **et** `passagesDeDocument`, pour le document regardé | le **Lecteur** et la **recherche** |
+| 187 | `versionActive`, puis `imageDePage` | résoudre l'image d'une page, à la demande |
+| 399 | `classerDocument`, puis relecture des classements | le geste manuel depuis le Catalogue |
+
+Et le fait le plus structurant, vérifié dans `apps/app/src/pages/Recherche.tsx` :
+
+> **La recherche porte sur une seule vue — celle du document ouvert.** Pas sur la bibliothèque.
+> L'en-tête annonce « Rechercher dans toutes vos bibliothèques », et ce n'est pas ce que le code
+> fait ; cet écart existe déjà au bureau et ne relève pas d'E5.
+
+Autre fait utile : **`versionActive` ne sert qu'à `imageDePage`**. Rien d'autre ne l'appelle. Si
+l'instantané portait la version de ses images, cette fonction disparaîtrait du port en ligne.
+
+### Scénario A — un document à la fois
+
+Ce qui est en ligne : **le Lecteur et la recherche**, sur le document publié. Pas de Catalogue,
+pas de changement de document. C'est exactement ce que le code sert aujourd'hui.
+
+| fonction | ce qu'il faut |
+|---|---|
+| `apercuDeBibliotheque` | **rien** — aucun écran ne l'appelle, elle continue de refuser |
+| `versionActive` | **rien**, si l'instantané porte la version de ses images ; sinon, un champ à ajouter |
+| `classementsDeBibliotheque` | **rien** — pas de Catalogue, donc pas de filtres |
+| `classerDocument` | **rien** — la lecture seule en ligne, le classement reste un geste de bureau |
+
+Objets : les **deux** déjà en place. Aucun découpage par document.
+
+Ce qu'on perd : on ne choisit pas le document en ligne. La bibliothèque en ligne **est** le
+dernier document publié. Pour deux personnes qui consultent un ouvrage de référence, c'est
+peut-être tout ce qu'il faut ; pour une bibliothèque de deux cent cinquante documents, non.
+
+### Scénario B — Catalogue et Lecteur, en lecture seule
+
+Ce qui est en ligne : **le Catalogue** (liste, filtres), **le Lecteur**, la **recherche** dans le
+document ouvert. On choisit son document ; on ne classe pas.
+
+| fonction | ce qu'il faut |
+|---|---|
+| `apercuDeBibliotheque` | un objet `vues/apercu.json` — la liste des documents |
+| `vueDeDocument`, `passagesDeDocument` | **deux objets par document**, nommés par l'empreinte, qui doit être vérifiée avant de composer la clé |
+| `versionActive` | la version dans l'aperçu ou dans l'instantané — à décider là |
+| `classementsDeBibliotheque` | les classements, dans l'aperçu ou à côté |
+| `classerDocument` | **rien** — continue de refuser, et le dit |
+
+Ce que cela change pour la publication : elle devient **incrémentale**. Publier une version
+pousse les deux objets de **son** document, plus un aperçu rafraîchi. L'aperçu est alors le seul
+objet que deux publications simultanées pourraient se disputer — une question à traiter, pas un
+obstacle.
+
+C'est le scénario qui donne une bibliothèque en ligne utilisable sans rien rouvrir de ce qui est
+décidé.
+
+### Scénario C — tout, classement en ligne compris
+
+Le scénario B, plus `classerDocument` qui écrit.
+
+| fonction | ce qu'il faut |
+|---|---|
+| tout ce du scénario B | idem |
+| `classerDocument` | une route d'écriture, porte = session **et** droit de contribution, et le classement rangé dans la base de la bibliothèque |
+
+Et le coût qu'il faut nommer : **le classement existerait alors à deux endroits** — dans la base
+(ce que la route écrit) et dans l'instantané (ce que les écrans lisent). Les deux ne seraient
+d'accord qu'entre deux publications. C'est exactement la seconde vérité qu'on vient d'éviter en
+servant l'instantané plutôt qu'en le rebâtissant, et elle reviendrait ici pour de bon.
+
+Il y a des réponses — ne pas servir les classements depuis l'instantané mais depuis la base,
+republier aussitôt après chaque classement — mais chacune est une décision de plus, et aucune
+n'est petite.
+
+### Ma recommandation
+
+**B**, et A seulement si la version en ligne doit exister vite et pour un document.
+
+B donne ce qu'on attend d'une bibliothèque consultable — choisir, lire, chercher — sans rouvrir
+une seule décision prise. Son coût est du travail, pas du risque : trois objets de plus et une
+vérification d'empreinte.
+
+C attendra qu'on sache si classer en ligne est vraiment demandé. Le faire parce qu'on peut
+coûterait la cohérence qu'on vient d'acheter.
