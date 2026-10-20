@@ -16078,7 +16078,7 @@ ${recent}`;
     // derivedFrom doit référencer un documentId/versionId RÉELS (schéma) — le document source doit
     // donc déjà être enregistré ; jamais construit avec une référence vide ou inventée.
     if (!sourceArt._adocClinicalDocumentId || !sourceArt._adocClinicalVersionId) {
-      throw new Error('Enregistrez d’abord ce document avant de le transformer.');
+      throw new Error('Sauvegardez d’abord ce document avant de le transformer.');
     }
     const sourceLabel = ADOC_GENERATION_KIND_LABELS[sourceKind] || sourceKind;
     const targetLabel = ADOC_GENERATION_KIND_LABELS[targetKind] || targetKind;
@@ -16403,7 +16403,7 @@ ${recent}`;
     const art = { name: data.title || 'Document' };
     art._adocClinicalDocumentId = data.document_id;
     art._adocClinicalVersionId = data.version.version_id;
-    // Q7 — un document ROUVERT doit dire QUAND il a été enregistré, pas seulement qu'il l'a été.
+    // Q7 — un document ROUVERT doit dire QUAND il a été sauvegardé, pas seulement qu'il l'a été.
     // Le Worker renvoie la date de la version courante (Worker/index.js, GET
     // /clinical-documents/:id → version.created_at) : on la reprend telle quelle. Si elle
     // manquait, l'état retomberait sur « Enregistré » tout court, sans inventer d'heure.
@@ -19794,7 +19794,7 @@ ${recent}`;
     // rend les identifiants retirés ; ils partent en console plutôt que de disparaître en silence.
     const narrationRetiree = adocNarrationPurge(art._adocStructuredDoc);
     if (narrationRetiree.length) {
-      console.warn('[narration] ' + narrationRetiree.length + ' narration(s) sans étape, retirée(s) à l\'enregistrement : ' + narrationRetiree.join(', '));
+      console.warn('[narration] ' + narrationRetiree.length + ' narration(s) sans étape, retirée(s) à la sauvegarde : ' + narrationRetiree.join(', '));
     }
     return {
       schemaVersion: (art._adocStructuredDoc && art._adocStructuredDoc.schemaVersion) || 1,
@@ -22335,7 +22335,7 @@ ${recent}`;
     const item = window._adocMediaHistoryResults && window._adocMediaHistoryResults[idx];
     if (!item) return;
     const confirmMsg = item.ref_count > 0
-      ? 'Cette image est utilisée dans au moins un document déjà enregistré — la supprimer la fera disparaître de ces documents. Continuer ?'
+      ? 'Cette image est utilisée dans au moins un document déjà sauvegardé — la supprimer la fera disparaître de ces documents. Continuer ?'
       : 'Supprimer cette image ?';
     if (!confirm(confirmMsg)) return;
     const btn = document.querySelector('[data-media-history-delete="' + idx + '"]');
@@ -22972,7 +22972,7 @@ ${recent}`;
   };
 
   // Chiffres bruts, pas de jugement de valeur (même esprit que la jauge d'usage, UX-10A Étape 1)
-  // — reflète simplement l'état réel : enregistré ou non, jamais une invitation insistante.
+  // — reflète simplement l'état réel : sauvegardé ou non, jamais une invitation insistante.
   function adocUpdateSaveStatusUI(art) {
     const statusEl = document.getElementById('cc-ws-save-status');
     const deleteBtn = document.getElementById('cc-ws-delete-btn');
@@ -22992,8 +22992,8 @@ ${recent}`;
         ? ' le ' + q.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
         : '') + ' à ' + hm;
     }
-    statusEl.textContent = art && art._ccEditorDirty ? 'Modifications non enregistrées'
-      : saved ? 'Enregistré' + heure : 'Non enregistré';
+    statusEl.textContent = art && art._ccEditorDirty ? 'Modifications non sauvegardées'
+      : saved ? 'Sauvegardé' + heure : 'Non sauvegardé';
     statusEl.className = 'cc-ws-save-status ' + (saved && !art._ccEditorDirty ? 'saved' : 'unsaved');
     if (deleteBtn) deleteBtn.hidden = !saved;
     // Item 20 — même garde que Supprimer ci-dessus (saved requis, derivedFrom doit référencer un
@@ -23010,16 +23010,16 @@ ${recent}`;
       // Lot 2C — « Nouvelle version » et non « Enregistrer une nouvelle version » : le long
       // libellé s'empilait sur trois lignes dans la barre et poussait le dernier bouton hors du
       // cadre. Le sens est le même, le geste est le même ; seul l'encombrement change.
-      // Q7 — UN SEUL LIBELLÉ, dans tous les cas : « Enregistrer ». « Nouvelle version »
+      // Q7 — UN SEUL LIBELLÉ, dans tous les cas : « Sauvegarder ». « Nouvelle version »
       // disparaît de la barre. Ce que fait le clic ne change pas d'un iota (création puis
       // versions successives) ; seul le mot change, parce que « Nouvelle version » décrivait
       // la mécanique du Worker plutôt que le geste de l'utilisatrice.
       // La nuance reste dite, à l'infobulle et aux lecteurs d'écran, posés ICI, au même
       // endroit que le libellé — une seule source pour les trois, qui ne peuvent pas diverger.
       const entier = saved
-        ? 'Enregistre vos modifications (la version précédente reste conservée)'
-        : 'Enregistrer le document';
-      if (label) label.textContent = 'Enregistrer';
+        ? 'Sauvegarde vos modifications (la version précédente reste conservée)'
+        : 'Sauvegarder le document';
+      if (label) label.textContent = 'Sauvegarder';
       saveBtn.title = entier;
       saveBtn.setAttribute('aria-label', entier);
     }
@@ -23044,9 +23044,9 @@ ${recent}`;
           ? (isXlsxRegenerable
               ? 'Ce document a été modifié depuis sa génération — « Exporter » régénère un fichier ' + realLabel + ' réel et à jour avec vos modifications.'
               : 'Ce document a été modifié depuis sa génération — « Exporter » livre désormais du HTML/PDF, seule sortie qui reflète fidèlement le contenu actuel. Le ' + link + ' (avant modification) reste disponible, mais ne reflète plus ces changements.')
-          : 'Aperçu HTML modifiable de ce document ' + realLabel + '. Tant qu’aucune modification n’est enregistrée, « Exporter » livre le ' + link + ' réel.';
+          : 'Aperçu HTML modifiable de ce document ' + realLabel + '. Tant qu’aucune modification n’est sauvegardée, « Exporter » livre le ' + link + ' réel.';
       } else {
-        bannerText.textContent = 'Document HTML : l’édition directe, la correction IA, l’enregistrement et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.';
+        bannerText.textContent = 'Document HTML : l’édition directe, la correction IA, la sauvegarde et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.';
       }
     }
   }
@@ -23874,7 +23874,7 @@ ${recent}`;
   // ses modifications.
   function adocQ7AbandonAccepte(geste) {
     if (!adocQ7ModificationsEnAttente()) return true;
-    return confirm('Ce document a des modifications non enregistrées. '
+    return confirm('Ce document a des modifications non sauvegardées. '
       + geste + ' maintenant les perdra définitivement. Continuer quand même ?');
   }
   window.adocQ7AbandonAccepte = adocQ7AbandonAccepte;
@@ -23921,7 +23921,7 @@ ${recent}`;
         // Première sauvegarde de ce document précis — crée le document ET sa version initiale.
         await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, saveTitle, saveKind);
       } else {
-        // Déjà enregistré — ajoute une nouvelle version immuable, ne modifie jamais l'existante.
+        // Déjà sauvegardé — ajoute une nouvelle version immuable, ne modifie jamais l'existante.
         const r = await fetch(workerUrl + '/clinical-documents/' + encodeURIComponent(art._adocClinicalDocumentId) + '/versions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
@@ -23934,7 +23934,7 @@ ${recent}`;
           // une autre cause). Jamais une erreur brute : propose explicitement de recommencer comme
           // un NOUVEAU document. Refus explicite → RIEN n'est perdu (déjà garanti par le principe
           // général de ce bouton), retour à l'état actuel exactement comme avant la tentative.
-          if (!confirm('Ce document a été supprimé depuis. Voulez-vous l’enregistrer comme un nouveau document ?')) return;
+          if (!confirm('Ce document a été supprimé depuis. Voulez-vous le sauvegarder comme un nouveau document ?')) return;
           art._adocClinicalDocumentId = null;
           art._adocClinicalVersionId = null;
           await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, saveTitle, saveKind);
@@ -23945,7 +23945,7 @@ ${recent}`;
         }
       }
       // Q7 — l'heure est posée ICI, sur le chemin du SUCCÈS et nulle part ailleurs : un échec
-      // ne peut donc pas afficher « Enregistré à … ».
+      // ne peut donc pas afficher « Sauvegardé à … ».
       art._adocEnregistreA = Date.now();
       art._adocEnregistreAvecDate = false;
       if ((art._ccEditorRevision || 0) === revision) art._ccEditorDirty = false;
@@ -23956,13 +23956,13 @@ ${recent}`;
       // (cf. adocCaptureAndPersistThumbnail, qui gère elle-même ses propres échecs).
       adocCaptureAndPersistThumbnail(art);
     } catch (e) {
-      alert('Impossible d’enregistrer ce document pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+      alert('Impossible de sauvegarder ce document pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
     } finally {
       if (btn) btn.disabled = false;
     }
   };
 
-  // Sujet 2 — "Enregistrer sous" : sauvegarde le document personnalisé actuel comme un NOUVEAU
+  // Sujet 2 — « Sauvegarder sous » : sauvegarde le document personnalisé actuel comme un NOUVEAU
   // document, distinct de l'original. Réutilise adocCreateNewClinicalDocument TELLE QUELLE (route
   // POST /clinical-documents, JAMAIS .../versions) — l'original (art._adocClinicalDocumentId
   // précédent) n'est jamais lu, ni modifié, ni supprimé ici : ce bouton ne fait qu'assigner un
@@ -23985,7 +23985,7 @@ ${recent}`;
     // la frappe en cours.
     if (isLegacy) adocSyncEditedLegacyBlocksToHtml(art); else { adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art); }
     const currentTitle = isLegacy ? (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' ') : art._adocStructuredDoc.title;
-    const newTitle = prompt('Enregistrer sous quel titre ?', currentTitle);
+    const newTitle = prompt('Sauvegarder sous quel titre ?', currentTitle);
     if (newTitle == null) return; // annulation explicite — rien n'est créé, l'original reste actif
     const trimmedTitle = newTitle.trim();
     if (!trimmedTitle) return;
@@ -24003,7 +24003,7 @@ ${recent}`;
       adocUpdateSaveStatusUI(art);
       adocCaptureAndPersistThumbnail(art);
     } catch (e) {
-      alert('Impossible d’enregistrer sous un nouveau titre pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, l’original reste inchangé, vous pouvez réessayer.');
+      alert('Impossible de sauvegarder sous un nouveau titre pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, l’original reste inchangé, vous pouvez réessayer.');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -24017,7 +24017,7 @@ ${recent}`;
     const art = window._adocArtifacts?.[storeKey];
     if (!art || !art._adocCapabilities || !art._adocCapabilities.transform) return;
     if (!art._adocClinicalDocumentId) {
-      alert('Enregistrez d’abord ce document avant de le transformer — la transformation crée un nouveau document dérivé qui doit pouvoir référencer l’original enregistré.');
+      alert('Sauvegardez d’abord ce document avant de le transformer — la transformation crée un nouveau document dérivé qui doit pouvoir référencer l’original sauvegardé.');
       return;
     }
     const sourceKind = art._adocStructuredDoc && art._adocStructuredDoc.documentKind;
@@ -24562,7 +24562,7 @@ ${recent}`;
           art._adocStructuredDoc = oldDoc; art._adocStructuredSnapshot = oldSnapshot; throw new Error('Insertion impossible.');
         }
       }
-      adocEditorMarkDirty(); card.status = 'Extrait inséré. Pensez à enregistrer le document.';
+      adocEditorMarkDirty(); card.status = 'Extrait inséré. Pensez à sauvegarder le document.';
     } catch (e) { card.status = e.message || 'Insertion impossible.'; }
     finally { _adocLibraryInsertBusy = false; card.inserting = false; adocRefreshLibraryCard(card); }
   };

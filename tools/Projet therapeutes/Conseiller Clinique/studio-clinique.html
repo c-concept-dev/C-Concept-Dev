@@ -2771,7 +2771,7 @@
         var bandeau = document.createElement('div');
         bandeau.id = 'cc-atelier-local-bandeau';
         bandeau.textContent = 'Mode local sans connexion — montage et export de fichiers seulement. '
-          + 'Enregistrer, Mes créations et la génération ne fonctionnent pas.';
+          + 'Sauvegarder, Mes créations et la génération ne fonctionnent pas.';
         bandeau.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:99998;max-width:420px;'
           + 'font:12px/1.45 -apple-system,system-ui,sans-serif;padding:8px 12px;border-radius:8px;'
           + 'background:rgba(16,47,49,.92);color:#f3efe8;pointer-events:none;'
@@ -3703,21 +3703,21 @@
     </button>
     <!-- UX-10A Étape 2 — sauvegarde EXPLICITE uniquement (jamais automatique à chaque
          génération, cf. rapport de lot) : geste volontaire symétrique d'"Exporter", pas un
-         comportement caché. "Non enregistré" tant qu'aucun clic n'a eu lieu ; aucun document
+         comportement caché. "Non sauvegardé" tant qu'aucun clic n'a eu lieu ; aucun document
          n'existe côté serveur avant ce geste (confirmé par l'investigation UX-10A Étape 1). -->
-    <span class="cc-ws-save-status unsaved" id="cc-ws-save-status">Non enregistré</span>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-btn" onclick="window.adocWsSave()" aria-label="Enregistrer le document">
+    <span class="cc-ws-save-status unsaved" id="cc-ws-save-status">Non sauvegardé</span>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-btn" onclick="window.adocWsSave()" aria-label="Sauvegarder le document">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-cloud"></use></svg>
-      <span>Enregistrer</span>
+      <span>Sauvegarder</span>
     </button>
     <!-- Sujet 2 — "Enregistrer sous" : crée toujours un NOUVEAU document (jamais la route de
          version), demande un titre via prompt(), l'original reste inchangé. Disponible dès qu'un
          enregistrement normal l'est (même garde de capacités, cf. window.adocWsSaveAs). -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-as-btn" onclick="window.adocWsSaveAs()" aria-label="Enregistrer sous un nouveau titre">
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-as-btn" onclick="window.adocWsSaveAs()" aria-label="Sauvegarder sous un nouveau titre">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-copy"></use></svg>
-      <span>Enregistrer sous</span>
+      <span>Sauvegarder sous</span>
     </button>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-delete-btn" onclick="window.adocWsDeleteRequest()" aria-label="Supprimer le document enregistré" hidden>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-delete-btn" onclick="window.adocWsDeleteRequest()" aria-label="Supprimer le document sauvegardé" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-trash"></use></svg>
       <span>Supprimer</span>
     </button>
@@ -3810,7 +3810,7 @@
        PDF ordinaire (texte statique ci-dessous conservé tel quel). -->
   <div class="cc-ws-legacy-banner" id="cc-ws-legacy-banner" role="status" hidden>
     <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-info"></use></svg>
-    <span id="cc-ws-legacy-banner-text">Document HTML : l’édition directe, la correction IA, l’enregistrement et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.</span>
+    <span id="cc-ws-legacy-banner-text">Document HTML : l’édition directe, la correction IA, la sauvegarde et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.</span>
   </div>
   <!-- Chargement dynamique des polices de charte — un bandeau par police de la charte active
        introuvable sur Google Fonts, construit dynamiquement par adocRenderBrandKitFontWarnings

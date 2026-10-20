@@ -39,6 +39,9 @@ const FICHE = {
     { id: 'f-liste-01', type: 'list',
       content: { items: ['Premier point', 'Deuxième point'], ordered: false },
       citationIds: [], validation: {} },
+    { id: 'f-img-01', type: 'image',
+      content: { query: 'ciel calme', alt: 'Un ciel calme, synthétique' },
+      citationIds: [], validation: {} },
     { id: 'f-tab-01', type: 'table',
       content: { headers: ['Temps', 'Geste'], rows: [['Un', 'Nommer'], ['Deux', 'Attendre']] },
       citationIds: [], validation: {} },
@@ -286,6 +289,34 @@ const CARROUSEL = Object.assign({}, PRESENTATION, {
         await action('sort-asc');
         await page.waitForTimeout(400);
       } },
+    { nom: 'image : opacité', doc: 'FICHE', faire: async () => {
+        await page.evaluate(() => document.getElementById('f-img-01')?.click());
+        await page.waitForTimeout(500);
+        await champ('data-image-opacity="opacity"', '70', 'input');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'image : taille', doc: 'FICHE', faire: async () => {
+        await page.evaluate(() => document.getElementById('f-img-01')?.click());
+        await page.waitForTimeout(500);
+        await champ('data-image-size="widthPercent"', '60', 'input');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'image : rotation', doc: 'FICHE', faire: async () => {
+        await page.evaluate(() => document.getElementById('f-img-01')?.click());
+        await page.waitForTimeout(500);
+        await champ('data-image-rotation="rotation"', '15', 'input');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'image : « Ajouter du texte » (bloc mixte)', doc: 'FICHE', faire: async () => {
+        await page.evaluate(() => document.getElementById('f-img-01')?.click());
+        await page.waitForTimeout(500);
+        await page.evaluate(() => {
+          const b = document.querySelector('[data-image-add-text]');
+          if (!b) throw new Error('champ absent : data-image-add-text');
+          b.click();
+        });
+        await page.waitForTimeout(600);
+      } },
     { nom: 'insertion d’un bloc', faire: async () => {
         await choisirBloc(1); await page.waitForTimeout(350);
         await page.getByRole('button', { name: /^Insérer un bloc après$/ }).click();
@@ -381,9 +412,11 @@ const CARROUSEL = Object.assign({}, PRESENTATION, {
   // Gestes de la liste de Christophe qu'on NE JOUE PAS, avec la raison exacte. Aucun n'est
   // déclaré vert : ils sont déclarés non mesurés.
   const NON_JOUES = [
-    ['image : ajout, changement, retrait',
+    ['image : AJOUT et RETRAIT seulement',
      'le seul chemin est la bibliothèque d’images (réseau) ou le glisser-déposer d’un vrai ' +
-     'fichier dans la page ; aucun des deux n’est disponible hors ligne dans ce banc.'],
+     'fichier dans la page ; aucun des deux n’est disponible hors ligne dans ce banc. Les ' +
+     'CHANGEMENTS d’une image (opacité, taille, rotation, passage en bloc mixte) sont, eux, ' +
+     'jouables et mesurés ci-dessus.'],
     ['vidéo : ajout',
      'passe par la recherche de média (window.adocVideoSearch), un appel réseau.'],
     ['transformation du document',

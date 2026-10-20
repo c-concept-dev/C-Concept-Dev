@@ -75,8 +75,8 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     await page.waitForTimeout(300);
     assert.equal(questions.length, 1,
       'fermer avec des modifications en attente pose UNE question ; posées : ' + questions.length);
-    assert.match(questions[0].texte, /modifications non enregistrées/i,
-      'la question nomme les modifications non enregistrées ; lue : ' + JSON.stringify(questions[0].texte));
+    assert.match(questions[0].texte, /modifications non sauvegardées/i,
+      'la question nomme les modifications non sauvegardées ; lue : ' + JSON.stringify(questions[0].texte));
     assert.equal(await ouvert(), true, 'un REFUS laisse l’espace de travail ouvert');
     pass('fermeture avec des modifications en attente : la question est posée et un refus ne ferme rien.');
 
@@ -116,8 +116,8 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.equal(questions.length, 1,
       'ouvrir un autre document avec des modifications en attente pose UNE question ; posées : '
       + questions.length);
-    assert.match(questions[0].texte, /modifications non enregistrées/i,
-      'la question nomme les modifications non enregistrées ; lue : ' + JSON.stringify(questions[0].texte));
+    assert.match(questions[0].texte, /modifications non sauvegardées/i,
+      'la question nomme les modifications non sauvegardées ; lue : ' + JSON.stringify(questions[0].texte));
     assert.equal(resultat, false, 'un refus renvoie faux : l’ouverture n’a pas eu lieu');
     assert.equal(await page.evaluate(() => window._adocWsState.storeKey), 'e',
       'le document COURANT est toujours celui qui est ouvert');

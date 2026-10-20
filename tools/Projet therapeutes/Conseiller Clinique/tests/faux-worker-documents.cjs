@@ -19,6 +19,12 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 function creerFauxWorker(racine, options) {
   const opt = options || {};
   const etat = { documents: new Map(), appels: [], compteur: 0, panne: false, supprimes: new Set() };
+  // HORLOGE PILOTABLE. Le vrai Worker date chaque version à l'instant de son écriture ; le faux
+  // en fait autant par défaut. Mais pour mesurer un état comme « Sauvegardé le 19 oct. à
+  // 14 h 32 », il faut pouvoir FIXER cette date : sans ça, le contrôle devrait deviner l'heure
+  // qu'il vient lui-même de produire. `options.horloge` rend l'ISO à écrire ; on ne touche à
+  // rien d'autre, et l'horodatage reste celui du SERVEUR, jamais du navigateur.
+  const maintenant = () => (opt.horloge ? opt.horloge() : new Date().toISOString());
   const json = (r, code, corps) => { const t = JSON.stringify(corps);
     r.writeHead(code, { 'content-type': 'application/json; charset=utf-8' }); r.end(t); };
 
@@ -44,7 +50,7 @@ function creerFauxWorker(racine, options) {
         if (chemin === '/clinical-documents' && q.method === 'POST') {
           const p = JSON.parse(corps || '{}');
           const id = 'doc-' + (++etat.compteur);
-          const version = { id: 'v1', quand: new Date().toISOString(), charge: p };
+          const version = { id: 'v1', quand: maintenant(), charge: p };
           etat.documents.set(id, { id: id, titre: (p.document && p.document.title) || p.title || 'sans titre',
             kind: (p.document && p.document.documentKind) || null, versions: [version] });
           return json(r, 200, { document_id: id, version_id: 'v1', created_at: version.quand,
@@ -58,7 +64,7 @@ function creerFauxWorker(racine, options) {
           // Nouvelle version — JAMAIS un remplacement.
           if (m[2] === '/versions' && q.method === 'POST') {
             const p = JSON.parse(corps || '{}');
-            const v = { id: 'v' + (d.versions.length + 1), quand: new Date().toISOString(), charge: p };
+            const v = { id: 'v' + (d.versions.length + 1), quand: maintenant(), charge: p };
             d.versions.push(v);
             d.titre = (p.document && p.document.title) || d.titre;
             return json(r, 200, { document_id: id, version_id: v.id,

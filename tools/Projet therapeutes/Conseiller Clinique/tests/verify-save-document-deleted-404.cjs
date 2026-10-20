@@ -122,7 +122,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   // dans le libellé, qui est le même partout. On lit donc l'INFOBULLE, qui porte désormais la
   // nuance : « la version précédente reste conservée » n'apparaît que pour un document déjà
   // enregistré. (Avant le lot 2C le libellé était « Enregistrer une nouvelle version ».)
-  assert.equal(saveLabelBefore, 'Enregistrer', 'le libellé est le même dans tous les cas (Q7)');
+  assert.equal(saveLabelBefore, 'Sauvegarder', 'le libellé est le même dans tous les cas (Q7)');
   const infobulleAvant = await page.evaluate(() =>
     (document.getElementById('cc-ws-save-btn') || {}).title || '');
   assert.ok(/la version précédente reste conservée/.test(infobulleAvant),

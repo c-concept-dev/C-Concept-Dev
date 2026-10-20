@@ -66,41 +66,41 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
 
     // ── 2.1 — UN SEUL LIBELLÉ, DANS TOUS LES CAS ──────────────────────────────────────────
     const neuf = await lire();
-    assert.equal(neuf.libelle, 'Enregistrer', 'document neuf : le libellé est « Enregistrer »');
-    assert.equal(neuf.infobulle, 'Enregistrer le document',
+    assert.equal(neuf.libelle, 'Sauvegarder', 'document neuf : le libellé est « Sauvegarder »');
+    assert.equal(neuf.infobulle, 'Sauvegarder le document',
       'document neuf : l\'infobulle le dit ; vue : ' + JSON.stringify(neuf.infobulle));
-    assert.equal(neuf.etat, 'Non enregistré', 'document jamais enregistré : « Non enregistré »');
-    pass('document neuf : « Enregistrer », infobulle « Enregistrer le document », état « Non enregistré ».');
+    assert.equal(neuf.etat, 'Non sauvegardé', 'document jamais sauvegardé : « Non sauvegardé »');
+    pass('document neuf : « Sauvegarder », infobulle « Sauvegarder le document », état « Non sauvegardé ».');
 
     // ── 2.3 — APRÈS UN ENREGISTREMENT RÉUSSI ──────────────────────────────────────────────
     await page.evaluate(() => window.adocWsSave());
-    await page.waitForFunction(() => /Enregistré à/.test(
+    await page.waitForFunction(() => /Sauvegardé à/.test(
       (document.getElementById('cc-ws-save-status') || {}).textContent || ''), { timeout: 20000 });
     const apres = await lire();
-    assert.ok(/^Enregistré à \d{1,2} h \d{2}$/.test(apres.etat),
+    assert.ok(/^Sauvegardé à \d{1,2} h \d{2}$/.test(apres.etat),
       'l\'état doit dire l\'heure en français : ' + JSON.stringify(apres.etat));
-    assert.equal(apres.libelle, 'Enregistrer', 'le libellé reste « Enregistrer » — plus de « Nouvelle version »');
-    assert.equal(apres.infobulle, 'Enregistre vos modifications (la version précédente reste conservée)',
+    assert.equal(apres.libelle, 'Sauvegarder', 'le libellé reste « Sauvegarder » — plus de « Nouvelle version »');
+    assert.equal(apres.infobulle, 'Sauvegarde vos modifications (la version précédente reste conservée)',
       'l\'infobulle change, pas le libellé ; vue : ' + JSON.stringify(apres.infobulle));
     assert.ok(apres.docId, 'le document a reçu un identifiant');
     assert.equal(etat.documents.size, 1, 'un document créé côté Worker');
-    pass('enregistré : « ' + apres.etat + ' », libellé inchangé, infobulle « la version précédente reste conservée ».');
+    pass('sauvegardé : « ' + apres.etat + ' », libellé inchangé, infobulle « la version précédente reste conservée ».');
 
     // ── 2.3 — UNE MODIFICATION REMET L'ÉTAT ───────────────────────────────────────────────
     await modifier('Un texte modifié pour l’essai.');
     const sale = await lire();
-    assert.equal(sale.etat, 'Modifications non enregistrées', 'une modification le dit : ' + sale.etat);
+    assert.equal(sale.etat, 'Modifications non sauvegardées', 'une modification le dit : ' + sale.etat);
     assert.equal(sale.actif, true, '« Enregistrer » est actif dès qu\'il y a une modification');
-    pass('après une modification : « Modifications non enregistrées », bouton actif.');
+    pass('après une modification : « Modifications non sauvegardées », bouton actif.');
 
     // ── 2.5 — LE DEUXIÈME ENREGISTREMENT AJOUTE UNE VERSION ───────────────────────────────
     await page.evaluate(() => window.adocWsSave());
-    await page.waitForFunction(() => /Enregistré à/.test(
+    await page.waitForFunction(() => /Sauvegardé à/.test(
       (document.getElementById('cc-ws-save-status') || {}).textContent || ''), { timeout: 20000 });
     const doc1 = [...etat.documents.values()][0];
     assert.equal(doc1.versions.length, 2, 'deux versions, la première conservée : ' + doc1.versions.length);
     assert.equal(etat.documents.size, 1, 'et toujours UN seul document');
-    pass('deuxième enregistrement : 2 versions du même document, la première intacte.');
+    pass('deuxième sauvegarde : 2 versions du même document, la première intacte.');
 
     // ── 2.2 — ⌘S ET Ctrl+S ────────────────────────────────────────────────────────────────
     for (const touche of ['Meta+s', 'Control+s']) {
@@ -109,9 +109,9 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       await page.keyboard.press(touche);
       await page.waitForFunction((n) => true, {}, 0).catch(() => {});
       await page.waitForTimeout(900);
-      assert.ok(doc1.versions.length > avant, touche + ' doit enregistrer : ' + doc1.versions.length);
+      assert.ok(doc1.versions.length > avant, touche + ' doit sauvegarder : ' + doc1.versions.length);
     }
-    pass('⌘S et Ctrl+S enregistrent : ' + doc1.versions.length + ' versions au total.');
+    pass('⌘S et Ctrl+S sauvegardent : ' + doc1.versions.length + ' versions au total.');
 
     // ── 2.3 — UN ÉCHEC NE DIT JAMAIS « ENREGISTRÉ » ───────────────────────────────────────
     etat.panne = true;
@@ -120,33 +120,33 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     await page.waitForTimeout(1200);
     const echec = await lire();
     etat.panne = false;
-    assert.equal(echec.etat, 'Modifications non enregistrées',
-      'après un échec, l\'état reste « Modifications non enregistrées » : ' + echec.etat);
-    pass('un enregistrement qui échoue laisse « Modifications non enregistrées ».');
+    assert.equal(echec.etat, 'Modifications non sauvegardées',
+      'après un échec, l\'état reste « Modifications non sauvegardées » : ' + echec.etat);
+    pass('une sauvegarde qui échoue laisse « Modifications non sauvegardées ».');
 
-    // ── (2) « ENREGISTRER » N'EST JAMAIS GRISÉ PAR LE DRAPEAU ─────────────────────────────
-    // Décision : on réenregistre TOUJOURS, même sans changement. Une version de plus ne coûte
+    // ── (2) « SAUVEGARDER » N'EST JAMAIS GRISÉ PAR LE DRAPEAU ─────────────────────────────
+    // Décision : on resauvegarde TOUJOURS, même sans changement. Une version de plus ne coûte
     // qu'une ligne, et les versions ne sont ni affichées ni écrasées ; une comparaison de
     // contenu qui se tromperait, elle, ferait croire à l'utilisatrice que son travail est
-    // enregistré alors qu'il ne l'est pas. Les deux risques ne pèsent pas le même poids.
+    // sauvegardé alors qu'il ne l'est pas. Les deux risques ne pèsent pas le même poids.
     // Le pas précédent a simulé une panne : on remet le document au propre avant de mesurer.
     await page.evaluate(() => window.adocWsSave());
-    await page.waitForFunction(() => /Enregistré/.test(
+    await page.waitForFunction(() => /Sauvegardé/.test(
       (document.getElementById('cc-ws-save-status') || {}).textContent || ''), { timeout: 20000 });
     const proprePuisClic = await page.evaluate(async () => {
       const b = document.getElementById('cc-ws-save-btn');
       const art = window._adocArtifacts.e;
       return { dirty: !!art._ccEditorDirty, actif: !b.disabled };
     });
-    assert.equal(proprePuisClic.dirty, false, 'le document est propre après enregistrement');
+    assert.equal(proprePuisClic.dirty, false, 'le document est propre après sauvegarde');
     assert.equal(proprePuisClic.actif, true,
       '« Enregistrer » reste ACTIF même sans modification : le drapeau ne grise jamais');
     const avantRedondant = doc1.versions.length;
     await page.evaluate(() => window.adocWsSave());
     await page.waitForTimeout(900);
     assert.equal(doc1.versions.length, avantRedondant + 1,
-      'un enregistrement sans changement ajoute quand même une version : ' + doc1.versions.length);
-    pass('« Enregistrer » n\'est jamais grisé, et un clic sans changement enregistre quand même ('
+      'une sauvegarde sans changement ajoute quand même une version : ' + doc1.versions.length);
+    pass('« Sauvegarder » n\'est jamais grisé, et un clic sans changement sauvegarde quand même ('
       + doc1.versions.length + ' versions).');
 
     // ── (4) et 2.5 — UN DOCUMENT ROUVERT DEPUIS « MES CRÉATIONS » ─────────────────────────
@@ -164,14 +164,14 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
                docId: (window._adocArtifacts[cle] || {})._adocClinicalDocumentId || null };
     }, idDoc);
     assert.ok(rouvert.ok, 'le document doit se rouvrir depuis la liste');
-    assert.ok(/^Enregistré le \d{1,2} [^ ]+ à \d{1,2} h \d{2}$/.test(rouvert.etat),
+    assert.ok(/^Sauvegardé le \d{1,2} [^ ]+ à \d{1,2} h \d{2}$/.test(rouvert.etat),
       'un document rouvert dit le JOUR et l\'heure : ' + JSON.stringify(rouvert.etat));
-    assert.equal(rouvert.libelle, 'Enregistrer', 'le libellé reste « Enregistrer »');
+    assert.equal(rouvert.libelle, 'Sauvegarder', 'le libellé reste « Sauvegarder »');
     assert.equal(rouvert.actif, true, 'et le bouton est actif');
     assert.equal(rouvert.docId, idDoc, 'c\'est bien le MÊME document');
     pass('document rouvert : « ' + rouvert.etat + ' », bouton actif, même identifiant.');
 
-    // 2.5 — modifié puis enregistré : une version du MÊME document, jamais un nouveau.
+    // 2.5 — modifié puis sauvegardé : une version du MÊME document, jamais un nouveau.
     const avantRouvert = etat.documents.get(idDoc).versions.length;
     await page.evaluate(() => {
       const cle = Object.keys(window._adocArtifacts)[0];
@@ -184,7 +184,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     assert.equal(etat.documents.size, 1, 'toujours UN document, jamais un second');
     assert.equal(etat.documents.get(idDoc).versions.length, avantRouvert + 1,
       'une version de plus sur le MÊME document');
-    pass('rouvert puis modifié puis enregistré : version de plus du même document, pas un nouveau.');
+    pass('rouvert puis modifié puis sauvegardé : version de plus du même document, pas un nouveau.');
 
     assert.deepEqual(erreurs, [], 'aucune erreur de page : ' + JSON.stringify(erreurs.slice(0, 2)));
   } finally {
