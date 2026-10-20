@@ -116,11 +116,17 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(opened, true, 'le document doit s’ouvrir normalement, déjà enregistré (id existant)');
   await page.waitForFunction(() => !document.getElementById('cc-ws-delete-btn').hidden);
   const saveLabelBefore = await page.locator('#cc-ws-save-btn span').textContent();
-  // Lot 2C — le libellé a été RACCOURCI en « Nouvelle version » pour que la barre du haut tienne
-  // en deux rangées de 80 px dès 1 200 px de large (mesuré, captures à l'appui). Ce que ce
-  // contrôle vérifie n'a pas changé : le bouton reflète bien un document DÉJÀ enregistré.
-  // Si le libellé long devait revenir, la barre repasserait à trois rangées à 1 272 px.
-  assert.equal(saveLabelBefore, 'Nouvelle version', 'le bouton doit refléter un document déjà enregistré avant la suppression');
+  // Q7 (lot 2D-0a) — le libellé est désormais « Enregistrer » DANS TOUS LES CAS : « Nouvelle
+  // version » décrivait la mécanique du Worker, pas le geste de l'utilisatrice, et disparaît de
+  // la barre. Ce que ce contrôle vérifie n'a pas changé — il ne peut simplement plus le lire
+  // dans le libellé, qui est le même partout. On lit donc l'INFOBULLE, qui porte désormais la
+  // nuance : « la version précédente reste conservée » n'apparaît que pour un document déjà
+  // enregistré. (Avant le lot 2C le libellé était « Enregistrer une nouvelle version ».)
+  assert.equal(saveLabelBefore, 'Enregistrer', 'le libellé est le même dans tous les cas (Q7)');
+  const infobulleAvant = await page.evaluate(() =>
+    (document.getElementById('cc-ws-save-btn') || {}).title || '');
+  assert.ok(/la version précédente reste conservée/.test(infobulleAvant),
+    'l\'infobulle doit refléter un document DÉJÀ enregistré avant la suppression : ' + infobulleAvant);
   console.log('PASS 1/9 — document ouvert avec un id déjà valide (état initial, avant toute suppression)');
 
   // ── Suppression RÉELLE "depuis un autre onglet/session" — le document ouvert ici ne le sait

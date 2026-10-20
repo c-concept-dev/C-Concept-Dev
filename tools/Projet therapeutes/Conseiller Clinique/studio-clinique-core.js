@@ -21863,6 +21863,11 @@ ${recent}`;
     if (a.avant.validation === null) delete doc.validation; else doc.validation = a.avant.validation;
     adocOublierAnnulationPage();
     await window.adocOpenWorkspace(a.storeKey);
+    // Q7 — OUBLI CORRIGÉ : annuler une page CHANGE le document, et il faut le dire. Sans cette
+    // ligne, l'état continuait d'afficher « Enregistré à … » sur un document qui avait changé,
+    // et l'avertissement de fermeture ne prévenait pas : le retour en arrière se perdait en
+    // silence. Trouvé en mesurant le drapeau geste par geste, pas en relisant le code.
+    adocEditorMarkDirty();
     return true;
   };
 

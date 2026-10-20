@@ -94,11 +94,15 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         if (etat.enregistre) {
           const reel = await page.evaluate(() => ({
             libelle: (document.querySelector('#cc-ws-save-btn span') || {}).textContent || '',
+            infobulle: (document.getElementById('cc-ws-save-btn') || {}).title || '',
             supprimerVisible: (() => { const b = document.getElementById('cc-ws-delete-btn');
               if (!b) return false; const r = b.getBoundingClientRect();
               return r.width > 0 && r.height > 0 && getComputedStyle(b).display !== 'none'; })() }));
-          assert.strictEqual(reel.libelle, 'Nouvelle version',
-            kind + ' à ' + largeur + ' px, état enregistré : libellé attendu « Nouvelle version », vu « ' + reel.libelle + ' »');
+          // Q7 (lot 2D-0a) — le libellé est « Enregistrer » dans tous les cas ; c'est l'INFOBULLE
+          // qui dit désormais si le document est déjà enregistré. La précondition de ce
+          // contrôle — mesurer la barre dans son état le plus chargé — est inchangée.
+          assert.ok(/la version précédente reste conservée/.test(reel.infobulle || ''),
+            kind + ' ' + etat.nom + ' à ' + largeur + ' px : l\'infobulle doit dire que le document est déjà enregistré ; vue « ' + reel.infobulle + ' »');
           assert.ok(reel.supprimerVisible,
             kind + ' à ' + largeur + ' px, état enregistré : « Supprimer » doit être visible, sinon l\'état n\'est pas celui qu\'on mesure');
         }
