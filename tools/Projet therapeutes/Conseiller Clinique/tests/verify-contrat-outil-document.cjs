@@ -232,17 +232,36 @@ const sseTexte = (t) => sse([
     // ── 3 — LE SCHÉMA DE DOCUMENT RESTE FERMÉ ───────────────────────────────────────────────
     // Admettre deux champs de plus ne doit pas avoir ouvert la porte : un champ inconnu reste
     // refusé. On l'éprouve par la validation réelle, jamais par lecture du schéma.
-    const refus = await page.evaluate(async (sk) => {
+    // ASSERTION ADAPTÉE, et pourquoi. Cette vérification passait par le chemin de RENDU, qui
+    // levait sur tout champ inconnu. Depuis l'exigence non fonctionnelle « Compatibilité
+    // ascendante » (CDC), ce chemin TOLÈRE délibérément un champ inconnu d'un document DÉJÀ
+    // SAUVEGARDÉ, l'avertit en console et le conserve : sans cela, annuler un lot qui ajoute un
+    // champ rendait inouvrables les documents enregistrés avec lui.
+    // L'intention de ce contrôle — « le schéma du document reste fermé » — ne change pas d'un
+    // iota ; seul l'INSTRUMENT change. On interroge désormais le validateur STRICT, celui que le
+    // cœur exporte et que D8 emploie pour juger la sortie du modèle. Et l'on mesure EN PLUS que
+    // le chemin d'ouverture, lui, tolère : les deux cohabitent, et aucun n'est supposé.
+    const refus = await page.evaluate((sk) => {
       const d = JSON.parse(JSON.stringify(window._adocArtifacts[sk]._adocStructuredDoc));
       d.deepDives[0].champInvente = 'valeur';
-      try { await window.adocRenderClinicalDocument(d, { sourceSnapshotId: 's', entries: [] }); return null; }
-      catch (e) { return String(e && e.message || e); }
+      const r = window.adocValidateSchema('clinicalDocument', d);
+      return r.valid ? null : (r.errors || []).join(' | ');
     }, storeKey);
     assert.ok(refus && /additional propert/i.test(refus),
-      'un champ INCONNU sur une page doit toujours être refusé — additionalProperties:false est '
-      + 'conservé. Reçu : ' + JSON.stringify(refus));
+      'un champ INCONNU doit toujours être refusé par le validateur STRICT — '
+      + 'additionalProperties:false est conservé au schéma. Reçu : ' + JSON.stringify(refus));
+    const tolereOuverture = await page.evaluate(async (sk) => {
+      const d = JSON.parse(JSON.stringify(window._adocArtifacts[sk]._adocStructuredDoc));
+      d.deepDives[0].champInvente = 'valeur';
+      try { await window.adocRenderClinicalDocument(d, { sourceSnapshotId: 's', entries: [] }); return true; }
+      catch (e) { return String(e && e.message || e); }
+    }, storeKey);
+    assert.equal(tolereOuverture, true,
+      'et le chemin d’OUVERTURE doit, lui, tolérer ce même champ (compatibilité ascendante) ; '
+      + 'obtenu : ' + JSON.stringify(tolereOuverture));
     assert.deepEqual(erreurs, [], 'aucune erreur JS : ' + erreurs.join(' | '));
-    console.log('PASS ' + (++n) + '/3 — le schéma reste fermé : un champ inconnu est toujours rejeté.');
+    console.log('PASS ' + (++n) + '/3 — le schéma reste fermé au validateur strict, et le chemin '
+      + 'd\'ouverture tolère le champ inconnu sans le perdre.');
     await page.close();
 
     console.log('\nTOUS LES TESTS DE CONTRAT PASSENT (' + n + '/3)');
