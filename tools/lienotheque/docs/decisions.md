@@ -2800,3 +2800,80 @@ Le refus rend le même mot que toute autre indisponibilité — « Bibliothèque
 et vient **après** la vérification du jeton. Un appelant anonyme n'apprend ni qu'une
 bibliothèque existe, ni pourquoi elle lui est refusée. C'est le défaut d'ordre qu'E1 avait
 corrigé le 10 octobre, et qu'aucun test ne voyait alors ; celui-ci le vérifie.
+
+
+## 20 octobre 2026 — la fenêtre est refermée : `SESSIONS_EXIGEES` passe à vrai
+
+La garde ci-dessus tenait un intervalle. L'intervalle est terminé, et il l'est sur une mesure et
+non sur une intention.
+
+| ce qui a été mesuré en production | quand |
+|---|---|
+| une clé enrôlée, sous `user.id` stable | 07:56:35 |
+| une session ouverte par signature vérifiée | 07:56:43 |
+| une seconde, le lendemain matin du même jour de travail | 08:13:06 |
+
+Le compteur de la clé est resté à **zéro** aux deux entrées. C'est le comportement connu des
+clés d'accès iCloud, que `avancerLeCompteur` tolérait déjà — « zéro après zéro » — sans l'avoir
+jamais rencontré. Nous savons maintenant que la tolérance servait à quelque chose de réel.
+
+Le jeton de service n'ouvre plus la façade. Vérifié après déploiement : `/vue/apercu` lui répond
+« Accès refusé. » exactement comme au vide, et avec le même mot — un porteur de jeton n'apprend
+donc pas qu'il a été reconnu comme tel.
+
+### Ce que la bascule a coûté à la garde, et ce qu'on a fait
+
+`laFacadePeutServir` lisait la constante. À vrai, sa branche de refus devenait inatteignable :
+le code restait écrit, plus jamais exécuté, et aucun test ne pouvait plus dire ce qu'il ferait le
+jour d'un retour en arrière — une cérémonie en panne, une restauration.
+
+Elle reçoit donc la bascule **en paramètre**, pour la même raison qui en a fait une option de
+`creerApp` : on ne saurait d'une bascule que ce qu'on en suppose si l'on ne pouvait plus
+l'éprouver que dans une position. Un test la tient maintenant dans les deux.
+
+De même, `facade-routes.test.ts` dit par quelle porte il entre au lieu de l'hériter d'une
+constante. Un défaut de serrure et un défaut de réponse ne doivent pas échouer au même endroit :
+on ne saurait pas lequel des deux on vient de casser.
+
+## 20 octobre 2026 — la version en ligne montrait un écran de bureau
+
+Trouvé par l'usage, et par rien d'autre : ouvrir `#catalogue` en ligne montrait « Créer ma
+première bibliothèque » et « Choisir un dossier ». Le premier geste lève — l'hôte seul écrit sur
+le disque —, le second n'est même pas offert faute de disque à parcourir.
+
+Le pont en ligne était écrit, déployé et correct ; la session était ouverte ; l'adresse était la
+bonne. La cause était un cran plus haut : `App.tsx` ne cherchait de bibliothèque que dans
+`creees`, la liste de celles que **la session a créées**. Créer est un geste de bureau, donc
+cette liste reste vide en ligne, donc `courante` restait indéfinie — et le service n'était
+**jamais appelé**. Tout retombait sur le premier lancement, seul écran que la retombée
+connaissait.
+
+Trois décisions en sortent.
+
+**La bibliothèque servie existe, et se nomme.** Une constante de module sans dossier : le pont
+en ligne reçoit `racine` et ne s'en sert pas, puisqu'il n'y a qu'une bibliothèque derrière la
+façade. `derniere` redevient alors ce que son nom disait — la bibliothèque créée ici, la seule
+qui porte une description à organiser.
+
+**La retombée dépend de qui répond.** En ligne, deux écrans honnêtes remplacent le premier
+lancement : la cérémonie quand le service nous refuse, l'attente quand il nous reçoit et n'a rien
+à montrer. Une bibliothèque dont aucune version ne s'est encore activée n'a pas d'instantané à
+servir, et c'est l'état normal du premier jour — ce n'est ni une panne ni un manque de droits.
+
+**Un 401 porte un nom.** Le témoin de session est `HttpOnly` par conception (LIV-04) : aucun
+script ne le lit, pas même le nôtre, et la page ne peut donc pas savoir seule qu'elle n'est pas
+entrée. Elle l'apprend du refus. Confondre ce refus avec une panne ou avec une bibliothèque vide
+menait exactement au défaut du jour.
+
+### Et un écran qui affirmait ce qu'il ignorait
+
+L'écran d'attente a d'abord dit « Vous êtes bien entré ». Mesuré dans un vrai navigateur, il
+s'affichait le temps que le refus du service revienne — donc il le disait précisément à qui ne
+l'était pas. La phrase est partie : un écran ne certifie pas ce qu'il attend encore d'apprendre.
+
+### Ce qui reste vrai après la correction
+
+La bibliothèque servie est **vide**. Deux documents dans sa base, aucun instantané rangé,
+puisque aucune version ne s'est activée en ligne — le geste de publication n'a encore jamais
+tourné contre le seau déployé. L'écran le dit maintenant, au lieu de proposer de créer une
+bibliothèque.
