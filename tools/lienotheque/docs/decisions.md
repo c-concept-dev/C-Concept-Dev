@@ -3390,3 +3390,46 @@ D'où la langue devrait venir : la description de la bibliothèque la connaît-e
 Faut-il la deviner du texte lu ? Aucune de ces réponses n'est évidente, et aucune n'est tranchée.
 Ce qui est sûr, c'est qu'un défaut à `eng` dans un outil générique est une hypothèse de domaine
 déguisée (CLA-01) — au même titre que les zones d'élément obligatoires l'étaient ce matin.
+
+
+## 20 octobre 2026 — le plus gros document du corpus : la mémoire plafonne à 3,2 Go
+
+480 pages, 391 Mo — le plus lourd des 250. Lancé pour sonder la seule ombre qui pouvait arrêter
+le réimport net.
+
+| relevé | valeur |
+|---|---:|
+| pages lues | 480 |
+| durée | **1 129 s**, soit 19 minutes |
+| cadence | 2,35 s par page |
+| **pointe mémoire** | **3 212 Mo, atteinte tôt et stable** |
+| servies par la couche | **0** — ce document n'a aucune couche texte |
+| servies par la reconnaissance | 480 |
+| passages illisibles | **0** sur 480 |
+| numéros de page lus | 166 sur 480 — 35 % |
+
+**La question de la mémoire est réglée.** Elle monte, puis elle plafonne : 3 212 Mo atteints avant
+la trois centième page et plus un octet ensuite. Le plafond du projet est à 8 Go, et c'est le plus
+gros document du corpus. **Aucun document ne le dépassera.**
+
+Ce qui montait sur les documents précédents n'était donc pas une fuite : c'est le régime de
+croisière d'une lecture d'images, atteint d'autant plus vite que le document est lourd.
+
+La cadence confirme l'estimation du chemin du texte : 2,35 s par page océrisée contre les 2 s
+mesurées le matin. Sur les ~8 000 pages à océriser du corpus, cela fait de l'ordre de **cinq
+heures**, dépense unique.
+
+### Les 35 % de folios, non expliqués, mais pas inexpliquables
+
+Trois documents, trois résultats : 100 % sur un natif, 80 % sur un numérisé avec couche, **35 %
+ici**. Ce qui distingue celui-ci est connu et déjà mesuré : il n'a **aucune couche texte**, donc
+chacun de ses folios doit venir de la reconnaissance — et Tesseract, en segmentation « page
+entière », **abandonne un chiffre isolé que rien n'entoure**. C'est ce qui a été constaté sur la
+fixture `couche-fautive.pdf`, dont le folio n'est jamais lu quelle que soit sa distance au bloc de
+texte.
+
+L'hypothèse n'est pas vérifiée sur ce document-ci, et le chiffre reste tel quel. Mais elle a une
+conséquence utile : **le vote du décalage ne peut pas récupérer ce que la reconnaissance n'a pas
+lu**. Si cette piste se confirme, le remède n'est pas dans le vote mais dans la façon dont on
+demande la lecture des marges — une segmentation serrée sur la bande, comme la lecture d'un repère
+le fait déjà.
