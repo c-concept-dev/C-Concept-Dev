@@ -3203,3 +3203,59 @@ La mémoire **monte avec les pages** : 1 034 Mo à la dixième feuille, 1 806 à
 en lecture simple, 1 477 en double. Sur un document de 480 pages et 410 Mo — le corpus en a un —
 rien ne dit où elle s'arrête. Le plafond du projet est à 8 Go. À mesurer avant de traiter les
 gros, et à ne pas supposer.
+
+
+## 20 octobre 2026 — étape 6 faite, et l'ampleur de la double page mesurée
+
+### Étape 6 : une manière de lire sans zone d'élément est légitime
+
+La règle exigeait une zone d'élément, **toujours**. Elle refusait donc un document ordinaire
+parce que rien n'y est numéroté pièce par pièce — et ces documents-là sont la quasi-totalité
+d'une bibliothèque. C'était une hypothèse de domaine dans du code générique (CLA-01).
+
+La règle juste, celle que le plan avait prévue : au moins **une** zone quel que soit son rôle, au
+plus **une** zone d'élément, au plus **une** zone de numéro de page. Aucun contrat n'a bougé, et
+les quatre recettes de méthode passent à l'identique.
+
+**Une quatrième règle est née avec les autres, et elle n'était pas au plan** : un repère de piste
+exige une zone d'élément. Une pastille se cherche à côté d'un élément — `relatif_a: "element"` au
+contrat — et en ouvrant la porte aux manières sans élément on ouvrait aussi celle d'une piste
+sans ancrage : chaque pièce valide séparément, la recette incohérente une fois assemblée.
+
+Deux contrôles ne jugent plus que ce qui les concerne : la hauteur des éléments et l'exemple de
+numéro décrivent un élément, et sans zone d'élément ils ne décrivent rien.
+
+### Et l'ampleur de la double page : trente-quatre documents mal rangés
+
+Trois feuilles lues par document, **couche texte seule, aucune reconnaissance** — un folio est
+fait de chiffres, et les chiffres n'ont pas d'accents à perdre. Le signe cherché est celui que
+`numeroImprime` a sous les yeux au moment où il renonce : **deux folios consécutifs dans les
+bandes de marge** (`mesures/combien-de-doubles-pages.ts`).
+
+| famille déclarée | deux pages mesurées | une page | couche muette |
+|---|---:|---:|---:|
+| livre photographié, deux pages par feuille | 17 | 7 | 0 |
+| **livre photographié, une page par feuille** | **34** | 15 | 4 |
+| feuillet photographié | 0 | 12 | 5 |
+
+**Trente-quatre documents sur les cinquante-trois examinés de la famille « une page par
+feuille » en portent deux — soit 64 %.** Le classement se trompe plus souvent qu'il n'a raison
+pour cette famille. Ce n'est pas une anomalie, c'est un chantier, et il passe devant le reste :
+lu selon son classement, chacun de ces documents mêlera les textes de deux pages dans un même
+passage et perdra les trois quarts de ses numéros imprimés, **sans rien signaler**.
+
+Ordre de grandeur des pages concernées : cette famille compte 7 728 pages pour 71 documents, soit
+une centaine chacun ; trente-quatre documents en représentent donc de l'ordre de **3 700 feuilles,
+7 400 pages**. C'est une extrapolation depuis une moyenne, et elle vaut ce que valent les
+extrapolations de ce journal — l'ordre de grandeur, pas le chiffre.
+
+**Ce que le relevé ne prouve pas**, et il faut le dire : le signe est une heuristique. Un cas est
+clairement faux — `Applications cliniques en ICV.pdf` rend « 2003+2004 », qui est une plage
+d'années et non deux folios. Les paires franches — 90+91, 132+133, 64+65 — ne laissent aucun
+doute, mais le compte exact demanderait un œil. L'ordre de grandeur, lui, est solide : des
+dizaines, pas deux.
+
+Les sept documents de la famille « deux pages » qui ne rendent qu'un folio pourraient être mal
+rangés dans l'autre sens. Le relevé ne le dit pas : il cherche une **preuve de double page**, pas
+une preuve de page simple, parce que c'est la double page non détectée qui abîme les citations.
+L'asymétrie est volontaire.
