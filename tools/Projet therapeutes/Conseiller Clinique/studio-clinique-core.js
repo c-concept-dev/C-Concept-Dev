@@ -8220,6 +8220,10 @@ ${recent}`;
   // LOT 1b — le module de rédaction rafraîchit le champ du lot 1a par CE point d'entrée, jamais
   // en écrivant dans le textarea : une seule source de vérité pour ce qu'affiche l'éditeur.
   window.adocEditorRefreshControls = function () { return adocEditorRefreshControls(); };
+  // Q7 — exposée pour qu'un contrôle marque le document modifié par la VRAIE fonction, celle
+  // que l'éditeur appelle, plutôt que de poser le drapeau à la main et de rater le
+  // rafraîchissement de l'état. Même patron que la ligne au-dessus.
+  window.adocEditorMarkDirty = function () { return adocEditorMarkDirty(); };
   // Le SEUL point de sérialisation pour l'enregistrement, exposé pour que le test de
   // l'aller-retour éprouve ce que l'application persiste réellement, et non une copie forgée.
   window.adocBuildClinicalDocumentContent = function (art) { return adocBuildClinicalDocumentContent(art); };
@@ -22957,7 +22961,15 @@ ${recent}`;
     const saveBtn = document.getElementById('cc-ws-save-btn');
     if (!statusEl) return;
     const saved = !!(art && art._adocClinicalDocumentId);
-    statusEl.textContent = art && art._ccEditorDirty ? 'Modifications non enregistrées' : saved ? 'Enregistré' : 'Non enregistré';
+    // Q7 — l'état dit l'heure du dernier enregistrement RÉUSSI, en français. Elle n'est posée
+    // que par adocWsSave/adocWsSaveAs quand la réponse est bonne : un échec ne peut donc pas
+    // afficher « Enregistré », quoi qu'il arrive ensuite.
+    const heure = art && art._adocEnregistreA
+      ? ' à ' + new Date(art._adocEnregistreA).toLocaleTimeString('fr-FR',
+          { hour: 'numeric', minute: '2-digit' }).replace(':', ' h ')
+      : '';
+    statusEl.textContent = art && art._ccEditorDirty ? 'Modifications non enregistrées'
+      : saved ? 'Enregistré' + heure : 'Non enregistré';
     statusEl.className = 'cc-ws-save-status ' + (saved && !art._ccEditorDirty ? 'saved' : 'unsaved');
     if (deleteBtn) deleteBtn.hidden = !saved;
     // Item 20 — même garde que Supprimer ci-dessus (saved requis, derivedFrom doit référencer un
@@ -22974,11 +22986,16 @@ ${recent}`;
       // Lot 2C — « Nouvelle version » et non « Enregistrer une nouvelle version » : le long
       // libellé s'empilait sur trois lignes dans la barre et poussait le dernier bouton hors du
       // cadre. Le sens est le même, le geste est le même ; seul l'encombrement change.
-      // La phrase entière n'est pas perdue pour autant : elle devient l'infobulle et le nom
-      // lu par les lecteurs d'écran, posés ICI, au même endroit que le libellé — une seule
-      // source pour les trois, qui ne peuvent donc pas diverger.
-      const entier = saved ? 'Enregistrer une nouvelle version' : 'Enregistrer le document';
-      if (label) label.textContent = saved ? 'Nouvelle version' : 'Enregistrer';
+      // Q7 — UN SEUL LIBELLÉ, dans tous les cas : « Enregistrer ». « Nouvelle version »
+      // disparaît de la barre. Ce que fait le clic ne change pas d'un iota (création puis
+      // versions successives) ; seul le mot change, parce que « Nouvelle version » décrivait
+      // la mécanique du Worker plutôt que le geste de l'utilisatrice.
+      // La nuance reste dite, à l'infobulle et aux lecteurs d'écran, posés ICI, au même
+      // endroit que le libellé — une seule source pour les trois, qui ne peuvent pas diverger.
+      const entier = saved
+        ? 'Enregistre vos modifications (la version précédente reste conservée)'
+        : 'Enregistrer le document';
+      if (label) label.textContent = 'Enregistrer';
       saveBtn.title = entier;
       saveBtn.setAttribute('aria-label', entier);
     }
@@ -23787,6 +23804,47 @@ ${recent}`;
     art._adocClinicalVersionId = data.version_id;
   }
 
+  // ── Q7 — ⌘S, Ctrl+S, ET L'AVERTISSEMENT AVANT DE FERMER ────────────────────────────────
+  // Posés UNE SEULE FOIS, au chargement, et non à chaque ouverture de document : deux
+  // écouteurs enregistreraient deux fois.
+  var _adocQ7Pose = false;
+  function adocQ7InstallerRaccourcis() {
+    if (_adocQ7Pose) return;
+    _adocQ7Pose = true;
+    // Le raccourci n'agit QUE lorsqu'un espace de travail est ouvert : ailleurs, le navigateur
+    // garde son propre enregistrement, qui est ce qu'on attend d'une page ordinaire.
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 's' && e.key !== 'S') return;
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      const st = window._adocWsState;
+      if (!st || !st.storeKey) return;
+      const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+      if (!art || !art._adocCapabilities || !art._adocCapabilities.persist) return;
+      // Le focus peut être dans une zone éditable : on enregistre quand même, et on empêche
+      // le navigateur d'ouvrir sa propre fenêtre d'enregistrement.
+      e.preventDefault();
+      window.adocWsSave();
+    }, true);
+    // L'avertissement natif, UNIQUEMENT s'il y a des modifications non enregistrées.
+    window.addEventListener('beforeunload', function (e) {
+      if (!adocQ7ModificationsEnAttente()) return;
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    });
+  }
+  function adocQ7ModificationsEnAttente() {
+    const st = window._adocWsState;
+    if (!st || !st.storeKey) return false;
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    return !!(art && art._ccEditorDirty);
+  }
+  window.adocQ7ModificationsEnAttente = adocQ7ModificationsEnAttente;
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', adocQ7InstallerRaccourcis, { once: true });
+    else adocQ7InstallerRaccourcis();
+  }
+
   window.adocWsSave = async function () {
     // Enregistrer, enregistrer sous et fermer n'appellent pas adocEditorMarkDirty :
     // l'oubli du retour en arrière est donc dit ici, explicitement (D5).
@@ -23848,6 +23906,9 @@ ${recent}`;
           art._adocClinicalVersionId = data.version_id;
         }
       }
+      // Q7 — l'heure est posée ICI, sur le chemin du SUCCÈS et nulle part ailleurs : un échec
+      // ne peut donc pas afficher « Enregistré à … ».
+      art._adocEnregistreA = Date.now();
       if ((art._ccEditorRevision || 0) === revision) art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
       // UX-10B — miniature réelle pour "Mes créations" : déclenchée APRÈS confirmation de la
@@ -23897,7 +23958,8 @@ ${recent}`;
       const content = adocBuildClinicalDocumentContent(art);
       const saveKind = isLegacy ? (art._adocDocumentKind || 'fiche') : art._adocStructuredDoc.documentKind;
       await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, trimmedTitle, saveKind);
-      art._ccEditorDirty = false;
+art._adocEnregistreA = Date.now();
+            art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
       adocCaptureAndPersistThumbnail(art);
     } catch (e) {
