@@ -124,6 +124,68 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       'après un échec, l\'état reste « Modifications non enregistrées » : ' + echec.etat);
     pass('un enregistrement qui échoue laisse « Modifications non enregistrées ».');
 
+    // ── (2) « ENREGISTRER » N'EST JAMAIS GRISÉ PAR LE DRAPEAU ─────────────────────────────
+    // Décision : on réenregistre TOUJOURS, même sans changement. Une version de plus ne coûte
+    // qu'une ligne, et les versions ne sont ni affichées ni écrasées ; une comparaison de
+    // contenu qui se tromperait, elle, ferait croire à l'utilisatrice que son travail est
+    // enregistré alors qu'il ne l'est pas. Les deux risques ne pèsent pas le même poids.
+    // Le pas précédent a simulé une panne : on remet le document au propre avant de mesurer.
+    await page.evaluate(() => window.adocWsSave());
+    await page.waitForFunction(() => /Enregistré/.test(
+      (document.getElementById('cc-ws-save-status') || {}).textContent || ''), { timeout: 20000 });
+    const proprePuisClic = await page.evaluate(async () => {
+      const b = document.getElementById('cc-ws-save-btn');
+      const art = window._adocArtifacts.e;
+      return { dirty: !!art._ccEditorDirty, actif: !b.disabled };
+    });
+    assert.equal(proprePuisClic.dirty, false, 'le document est propre après enregistrement');
+    assert.equal(proprePuisClic.actif, true,
+      '« Enregistrer » reste ACTIF même sans modification : le drapeau ne grise jamais');
+    const avantRedondant = doc1.versions.length;
+    await page.evaluate(() => window.adocWsSave());
+    await page.waitForTimeout(900);
+    assert.equal(doc1.versions.length, avantRedondant + 1,
+      'un enregistrement sans changement ajoute quand même une version : ' + doc1.versions.length);
+    pass('« Enregistrer » n\'est jamais grisé, et un clic sans changement enregistre quand même ('
+      + doc1.versions.length + ' versions).');
+
+    // ── (4) et 2.5 — UN DOCUMENT ROUVERT DEPUIS « MES CRÉATIONS » ─────────────────────────
+    const idDoc = [...etat.documents.keys()][0];
+    const rouvert = await page.evaluate(async (id) => {
+      window._adocArtifacts = {};
+      const ok = await window.adocOpenSavedClinicalDocument(id);
+      await new Promise((r) => setTimeout(r, 500));
+      const s = document.getElementById('cc-ws-save-status');
+      const b = document.getElementById('cc-ws-save-btn');
+      const cle = Object.keys(window._adocArtifacts)[0];
+      return { ok: !!ok, etat: s ? s.textContent : null,
+               libelle: ((b && b.querySelector('span')) || {}).textContent || '',
+               actif: b ? !b.disabled : null,
+               docId: (window._adocArtifacts[cle] || {})._adocClinicalDocumentId || null };
+    }, idDoc);
+    assert.ok(rouvert.ok, 'le document doit se rouvrir depuis la liste');
+    assert.ok(/^Enregistré le \d{1,2} [^ ]+ à \d{1,2} h \d{2}$/.test(rouvert.etat),
+      'un document rouvert dit le JOUR et l\'heure : ' + JSON.stringify(rouvert.etat));
+    assert.equal(rouvert.libelle, 'Enregistrer', 'le libellé reste « Enregistrer »');
+    assert.equal(rouvert.actif, true, 'et le bouton est actif');
+    assert.equal(rouvert.docId, idDoc, 'c\'est bien le MÊME document');
+    pass('document rouvert : « ' + rouvert.etat + ' », bouton actif, même identifiant.');
+
+    // 2.5 — modifié puis enregistré : une version du MÊME document, jamais un nouveau.
+    const avantRouvert = etat.documents.get(idDoc).versions.length;
+    await page.evaluate(() => {
+      const cle = Object.keys(window._adocArtifacts)[0];
+      const d = window._adocArtifacts[cle]._adocStructuredDoc;
+      d.blocks[0].content.blocks[0].content.text = 'Modifié après réouverture.';
+      window.adocEditorMarkDirty();
+    });
+    await page.evaluate(() => window.adocWsSave());
+    await page.waitForTimeout(900);
+    assert.equal(etat.documents.size, 1, 'toujours UN document, jamais un second');
+    assert.equal(etat.documents.get(idDoc).versions.length, avantRouvert + 1,
+      'une version de plus sur le MÊME document');
+    pass('rouvert puis modifié puis enregistré : version de plus du même document, pas un nouveau.');
+
     assert.deepEqual(erreurs, [], 'aucune erreur de page : ' + JSON.stringify(erreurs.slice(0, 2)));
   } finally {
     await ctx.close(); await nav.close(); serveur.close();

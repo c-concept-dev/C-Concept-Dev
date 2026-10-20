@@ -16400,6 +16400,13 @@ ${recent}`;
     const art = { name: data.title || 'Document' };
     art._adocClinicalDocumentId = data.document_id;
     art._adocClinicalVersionId = data.version.version_id;
+    // Q7 — un document ROUVERT doit dire QUAND il a été enregistré, pas seulement qu'il l'a été.
+    // Le Worker renvoie la date de la version courante (Worker/index.js, GET
+    // /clinical-documents/:id → version.created_at) : on la reprend telle quelle. Si elle
+    // manquait, l'état retomberait sur « Enregistré » tout court, sans inventer d'heure.
+    const quandVersion = data.version && data.version.created_at;
+    const tVersion = quandVersion ? Date.parse(quandVersion) : NaN;
+    if (!isNaN(tVersion)) { art._adocEnregistreA = tVersion; art._adocEnregistreAvecDate = true; }
     art._adocGenerationEngine = engine;
     if (engine === 'legacy-html') {
       art.html = data.version.document.html || '';
@@ -22964,10 +22971,16 @@ ${recent}`;
     // Q7 — l'état dit l'heure du dernier enregistrement RÉUSSI, en français. Elle n'est posée
     // que par adocWsSave/adocWsSaveAs quand la réponse est bonne : un échec ne peut donc pas
     // afficher « Enregistré », quoi qu'il arrive ensuite.
-    const heure = art && art._adocEnregistreA
-      ? ' à ' + new Date(art._adocEnregistreA).toLocaleTimeString('fr-FR',
-          { hour: 'numeric', minute: '2-digit' }).replace(':', ' h ')
-      : '';
+    // L'heure seule pour un enregistrement de CETTE session ; la date en plus pour un document
+    // rouvert, où « à 14 h 32 » sans jour ne voudrait rien dire.
+    let heure = '';
+    if (art && art._adocEnregistreA) {
+      const q = new Date(art._adocEnregistreA);
+      const hm = q.toLocaleTimeString('fr-FR', { hour: 'numeric', minute: '2-digit' }).replace(':', ' h ');
+      heure = (art._adocEnregistreAvecDate
+        ? ' le ' + q.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+        : '') + ' à ' + hm;
+    }
     statusEl.textContent = art && art._ccEditorDirty ? 'Modifications non enregistrées'
       : saved ? 'Enregistré' + heure : 'Non enregistré';
     statusEl.className = 'cc-ws-save-status ' + (saved && !art._ccEditorDirty ? 'saved' : 'unsaved');
@@ -23909,6 +23922,7 @@ ${recent}`;
       // Q7 — l'heure est posée ICI, sur le chemin du SUCCÈS et nulle part ailleurs : un échec
       // ne peut donc pas afficher « Enregistré à … ».
       art._adocEnregistreA = Date.now();
+      art._adocEnregistreAvecDate = false;
       if ((art._ccEditorRevision || 0) === revision) art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
       // UX-10B — miniature réelle pour "Mes créations" : déclenchée APRÈS confirmation de la
@@ -23958,7 +23972,8 @@ ${recent}`;
       const content = adocBuildClinicalDocumentContent(art);
       const saveKind = isLegacy ? (art._adocDocumentKind || 'fiche') : art._adocStructuredDoc.documentKind;
       await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, trimmedTitle, saveKind);
-art._adocEnregistreA = Date.now();
+            art._adocEnregistreA = Date.now();
+            art._adocEnregistreAvecDate = false;
             art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
       adocCaptureAndPersistThumbnail(art);

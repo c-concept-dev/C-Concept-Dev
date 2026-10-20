@@ -47,7 +47,8 @@ function creerFauxWorker(racine, options) {
           const version = { id: 'v1', quand: new Date().toISOString(), charge: p };
           etat.documents.set(id, { id: id, titre: (p.document && p.document.title) || p.title || 'sans titre',
             kind: (p.document && p.document.documentKind) || null, versions: [version] });
-          return json(r, 200, { document_id: id, version_id: 'v1' });
+          return json(r, 200, { document_id: id, version_id: 'v1', created_at: version.quand,
+            generation_engine: 'structured' });
         }
         if (m) {
           const id = decodeURIComponent(m[1]);
@@ -60,14 +61,29 @@ function creerFauxWorker(racine, options) {
             const v = { id: 'v' + (d.versions.length + 1), quand: new Date().toISOString(), charge: p };
             d.versions.push(v);
             d.titre = (p.document && p.document.title) || d.titre;
-            return json(r, 200, { document_id: id, version_id: v.id });
+            return json(r, 200, { document_id: id, version_id: v.id,
+              previous_version_id: d.versions[d.versions.length - 2].id,
+              created_at: v.quand, generation_engine: 'structured' });
           }
           if (m[2] === '/thumbnail') return json(r, 200, { ok: true });
           if (q.method === 'DELETE') { etat.supprimes.add(id); etat.documents.delete(id); return json(r, 200, { ok: true }); }
-          // Relecture — on rend TOUJOURS la dernière version.
+          // Relecture — on rend TOUJOURS la version courante, dans la FORME DU VRAI WORKER
+          // (Worker/index.js, route GET /clinical-documents/:id) : les champs du document, puis
+          // un objet `version` qui porte `version_id`, `previous_version_id`, `created_at` et
+          // `document`. C'est `version.created_at` qui date l'enregistrement.
           if (q.method === 'GET') {
             const v = d.versions[d.versions.length - 1];
-            return json(r, 200, Object.assign({ document_id: id, version_id: v.id }, v.charge));
+            const i = d.versions.indexOf(v);
+            return json(r, 200, {
+              document_id: id, title: d.titre, document_kind: d.kind,
+              created_at: d.versions[0].quand,
+              current_version_id: v.id,
+              version: { version_id: v.id,
+                previous_version_id: i > 0 ? d.versions[i - 1].id : null,
+                schema_version: 1, created_at: v.quand, change_summary: null,
+                generation_engine: 'structured',
+                document: (v.charge && v.charge.document) || v.charge },
+            });
           }
         }
         return json(r, 404, { error: 'route inconnue' });
