@@ -3054,13 +3054,47 @@ Le seuil est entre 8 et 12, et `PAS_ECHANTILLON` vaut **8**. Le vote d'orientati
 | 0 | 0 = 171,3 · 270 = 154,4 · 90 = 83,2 · 180 = 68,9 | partagé — l'écart est de 11 % |
 | 8 | 270 = 116,3 · 0 = 63,3 · 90 = 43,6 · 180 = 17,3 | net — l'écart est de 84 % |
 
-Un seul échantillon rend **rotation 0** : tourner de zéro degré est gratuit, et toutes les pages
-coûtent deux secondes. Deux échantillons rendent **rotation 270**, parce que le second vote est
-le plus **confiant** et non le plus fort — et c'est le bon critère. Mais alors **chaque page du
-lot est réellement tournée**, et cette rotation coûte treize secondes de calcul par page.
+Un seul échantillon rend **rotation 0**, et toutes les pages coûtent deux secondes. Deux
+échantillons rendent **rotation 270**, parce que le second vote est le plus **confiant** et non
+le plus fort — et c'est le bon critère. Le lot bascule alors, et chaque page coûte quinze
+secondes.
 
-La lenteur n'appartenait donc ni au document, ni à la longueur de la lecture, ni à la mémoire :
-elle appartient à **une rotation juste, payée au prix fort.**
+### Correction du même jour : ce n'est pas la rotation qui coûte
+
+J'ai d'abord écrit que les treize secondes étaient le prix de la rotation. **C'est faux, et la
+mesure le dit sans appel.** Chronométré sur deux clichés réels de F4, 4,3 mégapixels :
+
+| étape | durée |
+|---|---|
+| `tourner` 0°, 90°, 180°, 270° | **0,00 à 0,04 s** |
+| `gouttiere` | 0,01 s |
+| `couperDoublePage` | 0,00 s |
+| `effacerVerso` | 0,02 s |
+| `binariserAdaptatif` | 0,04 s |
+| **tout `redresser`, rotation comprise** | **~0,15 s** |
+
+Tourner une image est un remaniement de pixels : c'est gratuit. Le redressement entier pèse un
+sixième de seconde, et il pèse **la même chose** à 0° et à 270°.
+
+Les treize secondes sont donc **en aval**, dans `reperer` — la lecture des repères —, qui vit
+aussi dans l'intervalle chronométré (`lireLot` appelle `reperer([page])` avant d'annoncer la
+page). Ce que la bascule du vote change pour lui, ce n'est pas le coût de tourner : c'est **la
+forme de la page qu'il reçoit**, et donc ce qu'il a à y chercher.
+
+### Et ce que cela ouvre, qui n'est pas une finition
+
+Si 270° est la **bonne** orientation — et tout indique que oui, c'est pour cela que le vote
+existe —, alors la lecture lente est celle qui fait le travail, et la rapide était rapide parce
+qu'elle cherchait des repères sur des pages couchées, où il n'y a rien à trouver.
+
+**Dans ce cas il n'y a aucune économie à faire : les treize secondes sont le travail.** Et la
+question de la réserve 9.1 change de nature — elle cesse d'être « d'où vient cette lenteur » pour
+devenir « ce travail peut-il coûter moins ». Les deux ne se traitent pas pareil, et je ne l'ai
+pas encore tranché : il faudrait comparer ce que les deux lectures **trouvent**, et non ce
+qu'elles coûtent.
+
+La lenteur n'appartient donc ni au document, ni à la mémoire, ni à la rotation. Elle appartient à
+la lecture des repères sur des pages enfin droites — sous réserve de la vérification ci-dessus.
 
 ### Ce que cela corrige dans la note du 17 octobre
 
@@ -3077,9 +3111,9 @@ n'est donc pas qu'on tourne, c'est que tourner coûte treize secondes par page.
 
 Trois pistes, aucune mesurée, aucune engagée :
 
-1. **La rotation elle-même** — treize secondes pour tourner une image en gris de deux mille sur
-   trois mille est beaucoup ; il faut regarder comment elle est écrite avant de conclure quoi que
-   ce soit.
+1. ~~**La rotation elle-même**~~ — **écartée le jour même** : elle coûte 0,04 s, mesurée. La
+   piste à sa place est `reperer`, et seulement si la comparaison des **résultats** montre que la
+   lecture lente ne trouve pas plus que la rapide.
 2. **Tourner plus tard, ou moins** — les repères se cherchent dans des zones que la recette
    désigne ; tourner la zone plutôt que la page serait une autre conception.
 3. **La découpe**, décidée en 9.1 ter, reste le contournement en place. Elle a désormais un
