@@ -3433,3 +3433,57 @@ conséquence utile : **le vote du décalage ne peut pas récupérer ce que la re
 lu**. Si cette piste se confirme, le remède n'est pas dans le vote mais dans la façon dont on
 demande la lecture des marges — une segmentation serrée sur la bande, comme la lecture d'un repère
 le fait déjà.
+
+
+## 20 octobre 2026 — le chaînon manquant : du dépôt à la recherche
+
+### Ce qui n'existait pas, et que personne n'avait vu
+
+Relevé sur `origin/main` en préparant le plan : `executerTravail` lisait un document, construisait
+une vue et des passages, **rapportait** — et n'écrivait rien. `ingerer` savait écrire le lot et
+**n'était appelée que par ses propres épreuves**. `enregistrerPassages` n'avait **aucun appelant**,
+nulle part. `activerVersion` non plus, hors épreuves.
+
+L'étape 5 du chemin du texte — « écriture dans `passage` et l'index plein texte à l'activation
+d'une version » — n'était donc pas faite. **Toutes les pièces existaient, bien faites et
+éprouvées ; leur assemblage manquait**, et c'est lui seul qui séparait la chaîne d'une
+bibliothèque cherchable.
+
+### `enregistrerLeTraitement`, et l'ordre de ses trois gestes
+
+Le lot, puis les passages, puis l'activation — **l'activation en dernier**. Une version n'est
+active que lorsque tout ce qu'elle promet est écrit : si les passages sont refusés — un trou dans
+les rangs est ce qu'un transport perd —, la version précédente reste celle qu'on lit. Activer
+d'abord laisserait une version vivante et vide, ce qui est pire que pas de version du tout.
+
+Cinq épreuves, dont celle qui garde cet ordre : un lot aux rangs troués est refusé, et la version
+d'avant reste active avec son texte encore trouvable.
+
+### Le critère, vérifié sur un vrai livre
+
+*Biologie du couple*, 173 pages, par `mesures/du-depot-a-la-recherche.ts` :
+
+| | |
+|---|---|
+| lu | 173 pages, 173 passages, **1 s** |
+| déposé | 173 passages, version active |
+| recherche « provoquent en s'interpellant sans en » | 1 résultat |
+| **la recherche dit** | **page 87, numéro imprimé 87** |
+| **le PDF la porte** | **page 87** |
+
+**La citation pointe sur la page où le texte est réellement imprimé.** La vérification ne tourne
+pas en rond : la phrase est cherchée une seconde fois dans le PDF d'origine par un chemin qui ne
+partage rien avec celui qui l'a indexée — `lireCoucheTexte` seul, sans coupe de feuille, sans
+arbitrage, sans vote de décalage.
+
+**Ce que cela ne prouve pas**, et il faut le dire : les deux chemins lisent la même couche texte.
+Sur un document **numérisé**, dont le texte vient de la reconnaissance, cette vérification ne
+s'applique pas — il faudrait un œil sur l'image. Elle vaut pour un document natif, où la couche
+**est** le texte imprimé.
+
+### Et un défaut du banc, attrapé par le banc
+
+Son premier jet cherchait « les quatre premiers mots longs de la page », qui ne se suivent pas
+dans le texte : la phrase n'existait nulle part et la recherche ne la trouvait pas. Pendant un
+instant cela ressemblait à un défaut d'indexation. C'était le banc qui avait tort, et il cherche
+désormais des mots **contigus**.

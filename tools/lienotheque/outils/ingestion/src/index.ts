@@ -1,4 +1,5 @@
 import {
+  type Passage,
   type Ancre,
   type CarteSynchro,
   type DecoupeMedia,
@@ -97,6 +98,48 @@ const identifiant = (document: Identifiant, suffixe: string): Identifiant => ide
 export function segmentDuRang(decoupe: DecoupeMedia | undefined, rang: number, total: number): Segment | undefined {
   if (decoupe === undefined || decoupe.segments.length !== total) return undefined;
   return decoupe.segments[rang];
+}
+
+/** Ce qu'un traitement a réellement déposé.
+ *
+ *  Le bilan d'`ingerer` dit ce qui a été relié ; celui-ci y ajoute ce qui a été rendu
+ *  **cherchable**, qui est l'autre moitié du travail et n'était comptée nulle part. */
+export type BilanDepose = Bilan & { readonly passages: number };
+
+/** Du traitement au dépôt : le chaînon qui manquait (RCH-07, BAS-02).
+ *
+ *  ## Ce qui n'existait pas
+ *
+ *  Relevé le 20 octobre 2026 : `executerTravail` lisait un document, construisait une vue et des
+ *  passages, **rapportait** — et n'écrivait rien. `ingerer` savait écrire le lot et n'était
+ *  appelée que par ses propres épreuves ; `enregistrerPassages` n'avait **aucun appelant** ;
+ *  `activerVersion` non plus. L'étape 5 du chemin du texte n'était pas faite.
+ *
+ *  Toutes les pièces existaient, bien faites et éprouvées. **Leur assemblage manquait**, et c'est
+ *  lui seul qui séparait la chaîne d'une bibliothèque cherchable.
+ *
+ *  ## Trois gestes, et leur ordre compte
+ *
+ *  | | |
+ *  |---|---|
+ *  | 1 | le lot — document, version, fichiers, ancres, liens |
+ *  | 2 | les passages, et avec eux l'index plein texte |
+ *  | 3 | l'activation, **en dernier** |
+ *
+ *  Une version n'est active que lorsque **tout ce qu'elle promet est écrit**. Si les passages
+ *  sont refusés — un trou dans les rangs est ce qu'un transport perd —, la version précédente
+ *  reste celle qu'on lit, et la bibliothèque reste cohérente. Activer d'abord laisserait une
+ *  version vivante et vide, ce qui est pire que pas de version du tout.
+ */
+export async function enregistrerLeTraitement(
+  depot: Depot,
+  lot: Lot,
+  passages: readonly Passage[],
+): Promise<BilanDepose> {
+  const bilan = await ingerer(depot, lot);
+  await depot.enregistrerPassages(lot.version.id, passages);
+  await depot.activerVersion(lot.version.id);
+  return { ...bilan, passages: passages.length };
 }
 
 export async function ingerer(depot: Depot, lot: Lot): Promise<Bilan> {
