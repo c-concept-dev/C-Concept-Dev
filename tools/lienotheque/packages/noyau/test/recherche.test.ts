@@ -313,6 +313,39 @@ describe("la suite entière avant le mot isolé, et rien d'exclu (RCH-07, FMT-04
     expect(extraits).toContain("événement traumatique");
   });
 
+  /** Une page entière, où un mot de la requête traîne bien avant la suite qu'on cherche.
+   *
+   *  C'est le cas ordinaire d'un vrai livre, et il échappait aux épreuves ci-dessus parce
+   *  qu'elles tenaient en une ligne : la suite y était toujours à portée de la fenêtre. Relevé
+   *  le 20 octobre 2026 en faisant passer un document du corpus par la porte de l'application —
+   *  la recherche citait la première page du livre pour une phrase imprimée page 87. */
+  const AU_LOIN = passage(
+    3,
+    87,
+    "La mémoire des familles occupe ces pages, longuement, et l’on y revient sans jamais " +
+      "la nommer tout à fait ; puis vient la mémoire traumatique, qui ne se raconte pas.",
+  );
+
+  it("centre l’extrait sur la suite entière, même si un mot de la requête apparaît bien avant", () => {
+    const groupes = chercher(VIDE, "mémoire traumatique", { passages: [AU_LOIN] });
+    const premier = groupes.find((groupe) => groupe.genre === "page")?.resultats[0];
+    // La fenêtre se prenait autour de la **première** correspondance, quelle qu'elle soit : sur
+    // une page de deux mille signes, elle montrait un mot isolé du début et jamais la suite.
+    expect(premier?.extrait, "l’extrait montre un mot isolé au lieu de ce qu’on a cherché").toContain(
+      "mémoire traumatique",
+    );
+  });
+
+  it("met en tête la page qui porte la suite, même quand son premier mot trouvé est isolé", () => {
+    // Et c'est la conséquence qui compte : la sûreté se juge sur l'extrait. Un extrait qui
+    // manquait la suite faisait passer la bonne page pour du bruit, et la citation tombait sur
+    // une autre page — le critère de BAS-02 pris à l'envers.
+    const groupes = chercher(VIDE, "mémoire traumatique", { passages: [CORPUS[0]!, AU_LOIN] });
+    const pages = groupes.find((groupe) => groupe.genre === "page");
+    expect(pages?.resultats).toHaveLength(2);
+    expect(pages?.resultats[0]?.cote).toBe("feuillet 87 du document");
+  });
+
   it("ne change rien à l’ordre quand la requête n’a qu’un mot", () => {
     const groupes = chercher(VIDE, "traumatique", { passages: CORPUS });
     const pages = groupes.find((groupe) => groupe.genre === "page");

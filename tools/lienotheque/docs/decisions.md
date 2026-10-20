@@ -3644,3 +3644,71 @@ text/part0033.html** ». Le chapitre traverse la lecture, le découpage, le dép
 
 **Aucun écran ne le montre encore.** `citerPage` ne connaît pas `emplacement` : il dit « page 162
 du document » là où il pourrait dire où. La donnée est là, sa mise à l'écran ne l'est pas.
+
+
+## 20 octobre 2026 — la porte franchie pour de vrai, et une correction de mon diagnostic
+
+### Ce que j'avais conclu, et qui était faux
+
+J'ai relevé que `enregistrerLeTraitement` n'est appelée par rien dans le produit. **Le constat est
+juste.** La conclusion que j'en ai tirée — « le dernier chaînon manque, le texte déposé n'arrive
+pas à la recherche » — **était fausse**, et la consigne de brancher la porte sur cette fonction en
+découlait.
+
+Le produit a un chemin complet, et il ne passe pas par le dépôt SQLite :
+
+| | |
+|---|---|
+| 1 | `executerTravail` rend un instantané, passages compris — et **n'écrit rien** (JOB-06) |
+| 2 | l'hôte Rust écrit cet instantané tel quel, puis pose le pointeur d'activation |
+| 3 | il le relit et sert ses passages (`passages_de_document`) |
+| 4 | l'écran cherche dedans avec `chercher`, en mémoire |
+
+Je n'avais regardé que le dépôt SQLite, et pas l'hôte. Ce que j'aurais dû faire d'abord, et ce que
+j'ai fait cette fois : suivre le chemin depuis l'écran, pas depuis la fonction que je venais
+d'écrire.
+
+### Pourquoi la porte n'a pas été branchée comme demandé
+
+Trois raisons, et chacune suffirait :
+
+- **JOB-06** dit que l'hôte est le seul écrivain du dépôt — décision du 6 octobre 2026, inscrite
+  dans `processus.ts` et dans `traitement.rs`. Faire écrire le processus annexe la contredit.
+- Le texte serait écrit **deux fois à deux endroits**, l'instantané et SQLite, et l'un des deux
+  finirait par mentir.
+- `@lienotheque/depot-sqlite` est une dépendance de **développement** d'ingestion ; l'y faire
+  entrer en production pour nourrir un magasin que rien ne lit n'a pas d'usage.
+
+**Ce qui reste une question ouverte, et qui appartient à Christophe :** le dépôt SQLite, ses sept
+migrations et son index plein texte FTS5 sont **lus par rien dans l'application**. Ils ont été
+bâtis pour l'hébergement du lot E, où D1 reprendra le même schéma. Soit c'est leur raison d'être et
+ils attendent leur tour ; soit le produit local doit s'appuyer sur eux plutôt que sur l'instantané,
+et c'est un chantier en soi — pas un appel de fonction.
+
+### Le défaut que le passage par la vraie porte a trouvé
+
+*Biologie du couple*, 173 pages, traité par `executerTravail`, relu comme l'hôte le relit, cherché
+avec la fonction même de l'écran. La phrase cherchée est imprimée **page 87**. La recherche
+répondait **page 1** — la page de copyright.
+
+La fenêtre d'extrait se prenait autour de la **première correspondance venue**. Les morceaux
+cherchés sont composés `[phrase, ...mots]`, mais les correspondances sont rendues dans l'ordre du
+texte : sur une page de deux mille signes, la fenêtre tombait sur un mot isolé du début et ne
+contenait jamais la suite cherchée.
+
+Ce n'était pas qu'un extrait mal choisi. La sûreté d'un résultat se juge **sur son extrait**
+(`porteLaSuite`) : une page qui portait la suite passait donc pour du bruit, et la citation tombait
+ailleurs. Le correctif centre la fenêtre sur la suite entière quand la ligne la porte, et ne garde
+la première correspondance que par défaut. Les surlignages, eux, ne changent pas.
+
+Après correction : « page 87 », l'extrait porte la phrase, et un second chemin de lecture
+(`lireCoucheTexte` seul, sans coupe de feuille ni arbitrage) confirme que la page 87 du PDF la
+porte. **Le critère de BAS-02 est tenu sur ce document.**
+
+### Ce que les épreuves d'avant ne pouvaient pas voir
+
+Les épreuves de `chercher` tenaient en une ligne de texte, où la suite est toujours à portée de la
+fenêtre. C'est le genre de défaut qu'aucune épreuve unitaire bien écrite ne trouve, et qu'un vrai
+document trouve en une minute. D'où la nouvelle épreuve `de-la-porte-a-la-recherche.test.ts`, qui
+emprunte le chemin entier — porte, aller-retour JSON de l'hôte, contrats de relecture, `chercher` —
+sur une fixture qui dit elle-même quelle page porte quoi.
