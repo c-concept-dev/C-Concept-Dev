@@ -3120,3 +3120,35 @@ Trois pistes, aucune mesurée, aucune engagée :
    effet de bord connu : **une tranche de moins de neuf feuilles ne tourne pas du tout**, donc ne
    lit pas la même chose qu'une tranche plus longue. C'est un défaut sérieux du contournement, et
    il n'était pas visible avant aujourd'hui.
+
+### La mesure qui tranche : la lecture lente fait le travail
+
+Les **mêmes huit pages**, lues deux fois — une fois dans un lot de quatre feuilles, une fois dans
+un lot de douze — et l'on compte ce qui est **trouvé**, non ce qui est dépensé
+(`mesures/f4-gras-ou-travail.ts`) :
+
+| lecture | feuilles | rotation du lot | durée | éléments trouvés | numéros de page lus |
+|---|---:|---:|---:|---:|---:|
+| courte | 4 | 0° | 19 s | **12** | **0 sur 8** |
+| longue | 12 | 270° | 361 s | **35** | **8 sur 8** |
+
+**Il n'y a pas de gras.** La lecture rapide trouve un tiers des éléments et **ne lit aucun numéro
+de page** : elle cherchait des repères sur des pages couchées, en attrapait quelques-uns par
+chance, et n'a jamais su sur quelle page elle était. Une page dont le numéro imprimé n'est pas lu
+ne se cite pas (RCH-09) — c'est la promesse même du produit, « toujours sur la vraie page ». Une
+lecture qui n'en lit aucun ne vaut rien, quelle que soit sa vitesse.
+
+Les quinze secondes par page sont donc **le prix d'une lecture juste**, et non un défaut à
+corriger. La réserve 9.1 cesse d'être « d'où vient cette lenteur » : la question devient « ce
+travail peut-il coûter moins », ce qui est un tout autre chantier.
+
+### Et la découpe n'est pas un contournement : c'est un piège
+
+C'est la conséquence sérieuse, et elle renverse la décision de 9.1 ter. Une tranche de moins de
+neuf feuilles **ne tourne pas**, donc lit des pages couchées, donc rend un tiers des éléments et
+aucun numéro de page — **sans rien signaler**. Elle est rapide parce qu'elle échoue.
+
+Découper reste possible, mais plus comme on l'avait décidé : il faudrait que l'orientation du lot
+soit **votée sur le document entier et transmise à chaque tranche**, jamais revotée par tranche.
+Tant que ce n'est pas fait, une découpe fine produit silencieusement des lectures fausses, et
+c'est pire que la lenteur qu'elle évite.
