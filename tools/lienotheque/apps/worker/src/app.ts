@@ -323,7 +323,8 @@ export function creerApp({
     //
     // Le même mot de refus que pour toute autre indisponibilité, et **après** le jeton : un
     // appelant n'apprend ni qu'une bibliothèque existe, ni pourquoi elle lui est refusée.
-    if (!laFacadePeutServir(cle)) return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
+    if (!laFacadePeutServir(cle, sessionsExigees))
+      return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
 
     const inscrite = await laBibliotheque(registre, cle);
     if (inscrite === undefined || inscrite.liaison === undefined)
