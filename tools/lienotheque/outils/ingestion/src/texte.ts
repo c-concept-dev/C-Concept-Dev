@@ -4,11 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PageLue } from "@lienotheque/contrats";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
+import { decalageDominant } from "@lienotheque/recettes";
 import { decoderJpeg, enGris, versPgm } from "@lienotheque/images";
 import {
   type PageDeTexte,
   couperEnDeux,
   deuxPagesParFeuille,
+  numerosEnMarge,
   MOTS_MINIMUM,
   lireCoucheTexte,
   lisible,
@@ -118,6 +120,9 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
 
   let dossier: string | undefined;
   const pages: PageDeTexte[] = [];
+  /** Les nombres de la marge de chaque page, dans l'ordre des pages. Une page seule ne sait pas
+   *  lequel est son folio ; le document, lui, le sait. */
+  const candidats: (readonly number[])[] = [];
   let parLaCouche = 0;
   let parOcr = 0;
   let sansTexte = 0;
@@ -171,6 +176,9 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
       moities.forEach((moitie, cote) => {
         const index = doublePage ? (rang - 1) * 2 + cote + 1 : rang;
         pages.push({ ...pageDeTexte(moitie), index });
+        // Les candidats de la marge, gardés dans le même ordre que les pages : c'est tout ce
+        // qu'il faut pour trancher ensuite, et cela ne retient aucun pixel.
+        candidats.push(numerosEnMarge(moitie));
       });
 
       options.avancement?.(rang, total);
@@ -179,7 +187,27 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
     if (dossier !== undefined) rmSync(dossier, { recursive: true, force: true });
   }
 
-  return { pages, parLaCouche, parOcr, sansTexte };
+  // Le folio, tranché sur tout le document plutôt que page par page.
+  //
+  // On ne remplace la lecture locale que si le vote **a dit quelque chose** : sur un document
+  // trop court pour voter, ou sans aucun folio, le vote se tait et ce que chaque page a trouvé
+  // seule reste la meilleure réponse disponible.
+  //
+  // Quand il parle, en revanche, il l'emporte **y compris pour effacer** un numéro : une page
+  // dont le seul nombre de marge ne tient pas le décalage portait un numéro de partie ou un
+  // appel de note, et `numeroImprime` l'avait pris pour un folio. Mieux vaut pas de numéro qu'un
+  // faux (RCH-09).
+  const folios = foliosDuDocument(candidats);
+  const voteAParle = folios.some((folio) => folio !== undefined);
+  const numerotees = !voteAParle
+    ? pages
+    : pages.map((page, rang) => {
+        const folio = folios[rang];
+        const { pageImprimee: _ignore, ...sansNumero } = page;
+        return folio === undefined ? sansNumero : { ...sansNumero, pageImprimee: folio };
+      });
+
+  return { pages: numerotees, parLaCouche, parOcr, sansTexte };
 }
 
 /** En deçà de quelle part des mots de la couche une reconnaissance n'a **pas vraiment lu**.
@@ -195,6 +223,74 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
  *  de grandeur séparent les deux cas**, et le seuil tombe au milieu sans raser ni l'un ni
  *  l'autre. */
 export const PART_OCR_MINIMALE = 0.25;
+
+/** Sous combien de pages un décalage ne se vote pas.
+ *
+ *  Deux ou trois pages ne disent rien : le « plus fréquent » y serait un tirage au sort déguisé,
+ *  et il emporterait tout le document. */
+const PAGES_POUR_VOTER = 4;
+
+/** Sur quelle part des pages un décalage doit s'appuyer pour l'emporter, et sur combien au moins.
+ *
+ *  **Un « plus fréquent » tiré d'une seule voix n'est pas une majorité.** Attrapé par une fixture :
+ *  une feuille qui ne porte qu'un folio, coupée en deux, donne un folio toutes les deux pages ; le
+ *  décalage change alors à chaque fois — 1−1, 2−3, 3−5 — et aucun ne revient. Le vote aurait
+ *  retenu le premier venu et effacé les numéros justes que chaque page avait trouvés seule.
+ *
+ *  Un vrai folio, lui, s'appuie sur la quasi-totalité des pages : sur le livre ordinaire mesuré le
+ *  20 octobre, plus de la moitié d'un coup. Un cinquième des pages est donc large, et trois pages
+ *  au moins écartent les documents où la proportion seule ne voudrait rien dire. */
+const PART_DE_L_APPUI = 0.2;
+const APPUI_MINIMUM = 3;
+
+/** Le folio de chaque page, tranché en regardant **tout le document** (RCH-09, BAS-02).
+ *
+ *  ## Ce qu'une page seule ne peut pas savoir
+ *
+ *  `numeroImprime` refuse de trancher entre deux nombres de la marge, et c'est juste : une page
+ *  n'a aucun moyen de dire lequel est son folio. Mesuré le 20 octobre 2026 sur un livre ordinaire
+ *  de 173 pages, cela coûtait **39 % des numéros** — toutes les pages portaient un nombre, 67 en
+ *  portaient plusieurs.
+ *
+ *  ## Ce que le document dit, et qu'aucune page ne dit
+ *
+ *  **Un folio progresse.** Il avance d'un en un avec le rang de la feuille ; un titre courant
+ *  numéroté, un appel de note, une année ne le font pas. On vote donc le **décalage** — la
+ *  différence entre le nombre lu et le rang — sur tout le document, et l'on retient page par page
+ *  le candidat qui s'y tient.
+ *
+ *  Le vote n'est pas réécrit : `decalageDominant` existe depuis le 4 octobre pour le chemin des
+ *  images, et c'est la même question. Deux votes pour une même question finissent par ne plus
+ *  dire la même chose.
+ *
+ *  ## Ce qu'elle n'invente pas
+ *
+ *  Une page dont aucun candidat ne tient le décalage reste **sans numéro**. C'est la règle
+ *  d'origine et elle ne bouge pas : « ne rien rendre est une réponse, et la bonne » — une citation
+ *  renvoyée à la mauvaise page est pire qu'une citation renvoyée à un rang assumé comme tel.
+ */
+export function foliosDuDocument(parPage: readonly (readonly number[])[]): readonly (number | undefined)[] {
+  if (parPage.length < PAGES_POUR_VOTER) return parPage.map(() => undefined);
+
+  // Chaque candidat de chaque page vote pour son décalage. Le folio en apporte un par page, et
+  // toujours le même ; ses voisins en apportent d'épars, qui ne se regroupent pas.
+  const decalages: number[] = [];
+  parPage.forEach((candidats, rang) => {
+    for (const candidat of candidats) decalages.push(candidat - (rang + 1));
+  });
+
+  const decalage = decalageDominant(decalages);
+  if (decalage === undefined) return parPage.map(() => undefined);
+
+  // L'appui : combien de pages portent réellement ce décalage. `decalageDominant` rend toujours
+  // une réponse — c'est son contrat, « il faut une réponse » —, et c'est ici qu'on décide si elle
+  // vaut d'être suivie.
+  const retenus = parPage.map((candidats, rang) => candidats.find((candidat) => candidat - (rang + 1) === decalage));
+  const appui = retenus.filter((folio) => folio !== undefined).length;
+  if (appui < Math.max(APPUI_MINIMUM, parPage.length * PART_DE_L_APPUI)) return parPage.map(() => undefined);
+
+  return retenus;
+}
 
 /** De deux lectures de la même page, laquelle fait foi.
  *

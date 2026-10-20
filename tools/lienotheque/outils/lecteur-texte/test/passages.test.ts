@@ -16,6 +16,7 @@ import {
   motsBienFormes,
   deuxPagesParFeuille,
   numeroImprime,
+  numerosEnMarge,
   pageDeTexte,
   partDeMotsOutils,
   texteIllisible,
@@ -429,5 +430,37 @@ describe("une feuille qui porte deux pages se reconnaît à ses deux folios", ()
     const liminaires = Array.from({ length: 10 }, () => feuille([]));
     const corps = Array.from({ length: 10 }, (_, rang) => feuille([100 + rang * 2, 101 + rang * 2]));
     expect(deuxPagesParFeuille([...liminaires, ...corps])).toBe(true);
+  });
+});
+
+/** Tous les nombres de la marge, et non le seul qui s'y trouverait seul (BAS-02, 20 octobre). */
+describe("ce que la marge porte, avant qu'on tranche", () => {
+  const enMarge = (nombres: readonly number[], corps: readonly number[] = []): PageLue =>
+    page([
+      ...corps.map((valeur) => ({ texte: String(valeur), y: 500 })),
+      ...nombres.map((valeur) => ({ texte: String(valeur), y: 960 })),
+    ]);
+
+  it("rend les candidats dans l'ordre, sans en choisir aucun", () => {
+    expect(numerosEnMarge(enMarge([7, 64]))).toEqual([7, 64]);
+  });
+
+  it("ignore ce qui est au milieu du texte, comme le fait numeroImprime", () => {
+    expect(numerosEnMarge(enMarge([64], [12, 13]))).toEqual([64]);
+  });
+
+  it("ne garde qu'une fois un folio répété en haut et en bas", () => {
+    expect(numerosEnMarge(enMarge([64, 64]))).toEqual([64]);
+  });
+
+  it("écarte ce qui ne peut pas être un numéro de page", () => {
+    expect(numerosEnMarge(enMarge([0, 64, 123_456]))).toEqual([64]);
+  });
+
+  it("et numeroImprime reste ce qu'il était : il ne tranche pas entre deux", () => {
+    // La règle d'origine ne bouge pas. Ce qui change, c'est qu'un appelant qui voit tout le
+    // document peut désormais trancher là où une page seule ne le pouvait pas.
+    expect(numeroImprime(enMarge([7, 64]))).toBeUndefined();
+    expect(numeroImprime(enMarge([64]))).toBe(64);
   });
 });

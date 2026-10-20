@@ -211,6 +211,31 @@ export function deuxPagesParFeuille(pages: readonly PageLue[]): boolean {
   return aDeuxFolios >= FEUILLES_A_DEUX_FOLIOS;
 }
 
+/** Tous les nombres que portent les bandes de marge, dans l'ordre croissant.
+ *
+ *  `numeroImprime` ne tranche pas entre deux — et c'est juste pour une page seule, qui n'a aucun
+ *  moyen de savoir lequel est le folio. Un appelant qui voit **tout le document**, lui, le sait :
+ *  le folio est celui qui progresse avec le rang. Cette fonction lui donne de quoi le dire.
+ *
+ *  Mesuré le 20 octobre 2026 sur un livre ordinaire de 173 pages : **toutes** portent un nombre
+ *  dans leur marge, et **67 en portent plusieurs** — un titre courant numéroté, un appel de note.
+ *  Trente-neuf pour cent des pages perdaient leur numéro faute de pouvoir choisir.
+ *
+ *  Les mêmes bornes que `numeroImprime`, et pas d'autres : même bande, même plage de valeurs. Un
+ *  second jeu de bornes aurait fini par ne plus dire la même chose que le premier. */
+export function numerosEnMarge(page: PageLue): readonly number[] {
+  const haut = page.hauteur * BANDE_MARGE;
+  const bas = page.hauteur * (1 - BANDE_MARGE);
+  const candidats = new Set<number>();
+  for (const mot of page.mots) {
+    if (mot.y > haut && mot.y < bas) continue;
+    if (!/^\d+$/.test(mot.texte)) continue;
+    const valeur = Number.parseInt(mot.texte, 10);
+    if (valeur >= 1 && valeur <= PAGE_MAXIMUM) candidats.add(valeur);
+  }
+  return [...candidats].sort((un, autre) => un - autre);
+}
+
 /** Le numéro imprimé de la page, lu dans la couche texte.
  *
  *  On ne regarde que les bandes de marge, et l'on n'y retient qu'un mot **entièrement**

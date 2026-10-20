@@ -3311,3 +3311,48 @@ Deux remèdes se présentent, aucun mesuré : préférer le nombre le plus **pro
 page, ou celui dont la valeur **progresse** avec le rang de la feuille. Le second est le plus sûr
 — un folio avance d'un en un, un appel de note non — et le plus coûteux, puisqu'il demande de
 voir le document avant de trancher. À éprouver, pas à supposer.
+
+
+## 20 octobre 2026 — le folio se tranche sur le document, plus sur la page seule
+
+Quatrième chantier de la journée. `numeroImprime` refuse de trancher entre deux nombres de la
+marge, et c'est juste pour une page seule : elle n'a aucun moyen de savoir lequel est son folio.
+Mesuré sur un livre ordinaire, cela coûtait **39 % des numéros** — les 173 pages portaient toutes
+un nombre, 67 en portaient plusieurs.
+
+**Un folio progresse**, et c'est ce qui le distingue de ses voisins : il avance d'un en un avec le
+rang, là où un titre courant numéroté, un appel de note ou une année ne le font pas. On vote donc
+le **décalage** sur tout le document, et l'on retient page par page le candidat qui s'y tient.
+
+Le vote n'a pas été réécrit : `decalageDominant` existe depuis le 4 octobre pour le chemin des
+images, et c'est la même question. Deux votes pour une même question finissent par ne plus dire
+la même chose.
+
+### Le résultat, sur les deux documents déjà mesurés
+
+| document | avant | après |
+|---|---:|---:|
+| *Biologie du couple* — natif, 173 pages | 61 % | **100 %** |
+| *Théorie ACT* — numérisé, 132 pages | 75 % | **80 %** |
+
+Les deux montent, aucun ne baisse. Sur le livre natif, **la totalité des pages porte désormais son
+numéro imprimé** : une citation y est vérifiable de bout en bout.
+
+### Deux garde-fous, et le second a été trouvé par une fixture
+
+Le vote ne parle que si le document a **au moins quatre pages** — en deçà, « le plus fréquent »
+serait un tirage au sort déguisé.
+
+Et il lui faut un **appui** : au moins trois pages, et un cinquième du document. Ce second
+garde-fou n'était pas prévu ; une fixture l'a imposé. Une feuille qui ne porte **qu'un** folio,
+coupée en deux, donne un folio toutes les deux pages : le décalage change alors à chaque fois —
+1−1, 2−3, 3−5 — et aucun ne revient. `decalageDominant` rend toujours une réponse, c'est son
+contrat ; sans appui, cette réponse aurait emporté tout le document et **effacé les numéros justes
+que chaque page avait trouvés seule**.
+
+### Et le vote peut effacer, délibérément
+
+Quand il parle, il l'emporte y compris pour **retirer** un numéro : une page dont le seul nombre de
+marge ne tient pas le décalage portait un numéro de partie ou un appel de note, et `numeroImprime`
+l'avait pris pour un folio. Mieux vaut pas de numéro qu'un faux — une citation renvoyée à la
+mauvaise page est pire qu'une citation renvoyée à un rang assumé comme tel (RCH-09).
