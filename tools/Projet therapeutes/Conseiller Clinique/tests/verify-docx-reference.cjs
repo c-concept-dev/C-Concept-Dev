@@ -10,13 +10,21 @@
 //   node tests/verify-docx-reference.cjs
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
 const zlib = require('node:zlib');
 
 const RACINE = path.join(__dirname, '..');
-const REFERENCE = path.join(os.homedir(), 'Downloads', 'reference-texte-des-diapositives.docx');
+// LA RÉFÉRENCE VIT DANS LE DÉPÔT, à côté de ce contrôle. C'est une FIXTURE, une ENTRÉE de la
+// mesure — jamais un fichier produit par une mesure : la règle « aucun fichier produit par une
+// mesure dans le dépôt » ne s'y applique donc pas, et la règle « fixtures synthétiques
+// seulement » est respectée (contenu entièrement inventé, auteur « Studio Clinique », aucune
+// donnée personnelle, 9 568 octets — fouillé avant d'être versionné).
+// Elle était auparavant cherchée dans ~/Downloads : le contrôle ne pouvait alors tourner que sur
+// une machine précise, un jour précis, et refusait de conclure partout ailleurs. Comme aucun
+// validateur OOXML n'existe sur cette machine, ce contrôle est le SEUL garde-fou de la structure
+// du .docx : il doit pouvoir tourner sur un dépôt fraîchement cloné, sans rien installer.
+const REFERENCE = path.join(__dirname, 'reference-texte-des-diapositives.docx');
 let n = 0;
 const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
 
@@ -87,9 +95,13 @@ function chargerGenerateur() {
 }
 
 (() => {
+  // La référence est versionnée : si elle manque, c'est le dépôt qui est abîmé, pas la machine.
   if (!fs.existsSync(REFERENCE)) {
-    console.error('\nÉCHEC  référence absente : ' + REFERENCE);
-    console.error('Sans elle, la structure du .docx n\'est comparée à RIEN.');
+    console.error('\nÉCHEC  référence absente du dépôt : ' + REFERENCE);
+    console.error('Elle est versionnée avec ce contrôle ; sans elle, la structure du .docx');
+    console.error('n\'est comparée à RIEN. Restaurer le fichier, ne pas le refabriquer :');
+    console.error('le refabriquer avec notre propre générateur reviendrait à comparer');
+    console.error('notre sortie à elle-même.');
     process.exit(1);
   }
   const ref = lireZip(fs.readFileSync(REFERENCE));

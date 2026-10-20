@@ -21041,25 +21041,9 @@ ${recent}`;
   //   — les tableaux sont rendus LIGNE PAR LIGNE, colonnes séparées par « | » ;
   //   — les renvois de citation ne sont PAS repris : ils vivent dans `citationIds` et dans la
   //     section « Sources », et n'ont rien à faire dans un texte qu'on lit à voix haute.
-  function adocTexteBlocPourNarration(bloc) {
-    const c = bloc && bloc.content || {};
-    switch (bloc && bloc.type) {
-      case 'heading': case 'paragraph': case 'callout': case 'quote':
-        return [String(c.text || '').trim()].filter(Boolean);
-      case 'list':
-        return (c.items || []).map(function (x, i) {
-          return (c.ordered ? (i + 1) + '. ' : '— ') + String(x || '').trim(); }).filter(function (l) {
-          return l.replace(/^(—|\d+\.)\s*/, ''); });
-      case 'table': {
-        const lignes = [];
-        if ((c.headers || []).length) lignes.push(c.headers.join(' | '));
-        (c.rows || []).forEach(function (r) { lignes.push((r || []).join(' | ')); });
-        return lignes;
-      }
-      default: return [];
-    }
-  }
-
+  //
+  // Ce contrat est tenu par adocStructureDesDiapositives (ce qu'il y a) et par les deux rendus
+  // ci-dessous (comment on l'écrit) — ces trois fonctions sont les SEULES du périmètre D7.
   // ── UNE SEULE EXTRACTION, DEUX RENDUS (Q2) ──────────────────────────────────────────────
   // D7 produisait directement une chaîne. Le Word a besoin de la MÊME lecture des diapositives,
   // mais rendue autrement : la structure est donc séparée du rendu. Le .txt de D7 est
