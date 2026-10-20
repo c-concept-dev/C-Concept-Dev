@@ -8,6 +8,7 @@ import { decoderJpeg, enGris, versPgm } from "@lienotheque/images";
 import {
   type PageDeTexte,
   couperEnDeux,
+  deuxPagesParFeuille,
   MOTS_MINIMUM,
   lireCoucheTexte,
   lisible,
@@ -35,7 +36,14 @@ import {
 export type OptionsTexte = {
   /** N'en lire que les premières pages : pour essayer, ou pour éprouver. */
   readonly pages?: number | undefined;
-  /** La feuille porte deux pages : on la coupe, et chaque moitié devient une page. */
+  /** La feuille porte deux pages : on la coupe, et chaque moitié devient une page.
+   *
+   *  **Absent, le document répond lui-même.** La recette le déclarait seule, d'après un classement
+   *  en familles qui se trompe sur 64 % d'une famille entière (20 octobre 2026) : un document mal
+   *  rangé mêlait alors les textes de deux pages dans un même passage et perdait les trois quarts
+   *  de ses numéros imprimés, sans rien signaler. Donné explicitement, ce réglage l'emporte
+   *  toujours — c'est ce qui permet d'éprouver les deux positions, et de forcer la main à la
+   *  détection si elle se trompe. */
   readonly doublePage?: boolean | undefined;
   /** Appelé après chaque page lue, pour dire où en est le traitement (JOB-03). */
   readonly avancement?: ((faits: number, total: number) => void) | undefined;
@@ -79,6 +87,17 @@ function imagesParPage(objets: ReturnType<typeof objetsPdf>): Map<number, number
 export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Promise<TexteDuDocument> {
   const donnees = Buffer.from(await readFile(pdf));
   const couche = options.forcerOcr === true ? [] : (await lireCoucheTexte(pdf)).pages;
+
+  /** Deux pages sur une feuille ? **Le document le dit mieux que son classement.**
+   *
+   *  La couche suffit à le voir — un folio est fait de chiffres —, et elle est déjà lue : la
+   *  détection ne coûte donc rien de plus. Quand l'appelant tranche, il l'emporte ; c'est à ce
+   *  prix que les deux positions restent éprouvables et qu'une détection fautive se corrige à la
+   *  main plutôt que de s'imposer.
+   *
+   *  Sous `forcerOcr`, la couche n'est pas lue et il n'y a rien à regarder : on s'en remet alors
+   *  à l'appelant, faute de mieux, plutôt que de prétendre avoir vu. */
+  const doublePage = options.doublePage ?? (couche.length > 0 && deuxPagesParFeuille(couche));
 
   // Le document parsé **une fois**, et réutilisé.
   //
@@ -148,9 +167,9 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
 
       // La coupe vient **après** la lecture et avant le découpage : chaque moitié lit alors son
       // propre folio, là où les deux se contredisaient sur la feuille entière.
-      const moities = options.doublePage === true ? couperEnDeux(lue) : [lue];
+      const moities = doublePage ? couperEnDeux(lue) : [lue];
       moities.forEach((moitie, cote) => {
-        const index = options.doublePage === true ? (rang - 1) * 2 + cote + 1 : rang;
+        const index = doublePage ? (rang - 1) * 2 + cote + 1 : rang;
         pages.push({ ...pageDeTexte(moitie), index });
       });
 

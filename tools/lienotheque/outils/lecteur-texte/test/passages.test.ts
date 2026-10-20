@@ -14,6 +14,7 @@ import {
   lireCoucheTexte,
   lisible,
   motsBienFormes,
+  deuxPagesParFeuille,
   numeroImprime,
   pageDeTexte,
   partDeMotsOutils,
@@ -328,4 +329,105 @@ describe("sur la fixture native de cinq cents pages (OUT-05, RCH-07)", () => {
     },
     120_000,
   );
+});
+
+
+/** Une feuille porte-t-elle deux pages ? (BAS-02, 20 octobre 2026)
+ *
+ *  ## Pourquoi la chaîne doit le voir elle-même
+ *
+ *  Le classement en familles le déclare, et **il se trompe sur 34 documents du corpus sur 53
+ *  examinés** dans la famille « une page par feuille » — 64 %, mesuré le 20 octobre. Lu selon son
+ *  classement, un de ces documents mêle les textes de deux pages dans un même passage et perd les
+ *  trois quarts de ses numéros imprimés, sans rien signaler. Une citation en sort invérifiable,
+ *  et « toujours sur la vraie page » est la promesse du produit.
+ *
+ *  ## Le signe, et pourquoi il ne coûte rien
+ *
+ *  Une feuille qui porte deux pages porte **deux folios consécutifs** dans ses bandes de marge.
+ *  C'est exactement ce que `numeroImprime` a sous les yeux au moment où il renonce à trancher —
+ *  « s'ils se contredisent, on ne tranche pas ». Il suffisait de regarder ce qu'il jette.
+ *
+ *  Et cela se lit dans la **couche texte**, sans reconnaissance : un folio est fait de chiffres,
+ *  et les chiffres n'ont pas d'accents à perdre. Cinq millisecondes la page.
+ *
+ *  ## Deux pages au moins, et c'est mesuré
+ *
+ *  Une seule paire ne suffit pas : un document rendait « 2003+2004 » — une plage d'années dans
+ *  une bibliographie, non deux folios. Un vrai livre à deux pages par feuille en montre sur
+ *  presque toutes ses feuilles ; une plage d'années n'apparaît qu'une fois. D'où le seuil : **au
+ *  moins deux feuilles** parmi celles qu'on regarde.
+ */
+describe("une feuille qui porte deux pages se reconnaît à ses deux folios", () => {
+  /** Une feuille de livre : du texte au milieu, et ses folios dans la marge basse. */
+  const feuille = (folios: readonly number[], texte = "le texte courant de cette page"): PageLue =>
+    page([
+      ...texte.split(" ").map((mot) => ({ texte: mot, y: 500 })),
+      ...folios.map((numero) => ({ texte: String(numero), y: 960 })),
+    ]);
+
+  /** Vingt feuilles, soit la longueur d'un vrai ouvrage : la fonction refuse de trancher sur un
+   *  document trop court, et c'est une épreuve à part. `folios` reçoit le rang de la feuille. */
+  const ouvrage = (folios: (rang: number) => readonly number[]): readonly PageLue[] =>
+    Array.from({ length: 20 }, (_, rang) => feuille(folios(rang)));
+
+  it("reconnaît un livre numérisé deux pages à la fois", () => {
+    expect(deuxPagesParFeuille(ouvrage((rang) => [64 + rang * 2, 65 + rang * 2]))).toBe(true);
+  });
+
+  it("laisse tranquille un livre d'une page par feuille", () => {
+    expect(deuxPagesParFeuille(ouvrage((rang) => [64 + rang]))).toBe(false);
+  });
+
+  it("ne se laisse pas prendre par une paire isolée", () => {
+    // Le faux positif mesuré : « 2003+2004 », une plage d'années dans une bibliographie. Une
+    // seule feuille la montre ; un vrai livre double en montre sur presque toutes.
+    expect(deuxPagesParFeuille(ouvrage((rang) => (rang === 9 ? [2003, 2004] : [64 + rang])))).toBe(false);
+  });
+
+  it("exige que les deux folios se suivent", () => {
+    // Deux nombres quelconques dans la marge ne font pas une double page : un numéro de partie
+    // et un folio cohabitent très bien sur une feuille simple.
+    expect(deuxPagesParFeuille(ouvrage((rang) => [7, 64 + rang * 2]))).toBe(false);
+  });
+
+  it("ne lit que les marges, jamais le corps du texte", () => {
+    // Un texte qui cite « 64 » et « 65 » au fil des lignes n'est pas une double page. La bande de
+    // marge est la même que celle de `numeroImprime`, et pour la même raison.
+    const pages = Array.from({ length: 20 }, () =>
+      page([
+        { texte: "voir", y: 500 },
+        { texte: "64", y: 500 },
+        { texte: "et", y: 500 },
+        { texte: "65", y: 500 },
+      ]),
+    );
+    expect(deuxPagesParFeuille(pages)).toBe(false);
+  });
+
+  it("supporte des folios manquants : une couche en oublie souvent", () => {
+    // Mesuré sur le corpus : la couche rend parfois un seul des deux folios d'une feuille. Deux
+    // feuilles franches suffisent, et c'est pourquoi le seuil porte sur un compte et non sur une
+    // proportion.
+    // Deux feuilles franches suffisent au milieu de huit où la couche n'a rendu qu'un folio.
+    expect(
+      deuxPagesParFeuille(ouvrage((rang) => (rang === 10 || rang === 13 ? [140 + rang * 2, 141 + rang * 2] : [140 + rang * 2]))),
+    ).toBe(true);
+  });
+
+  it("ne dit rien d'un document sans aucun folio", () => {
+    expect(deuxPagesParFeuille(ouvrage(() => []))).toBe(false);
+  });
+
+  it("ne dit rien d'un document trop court pour en juger", () => {
+    expect(deuxPagesParFeuille([feuille([64, 65])])).toBe(false);
+  });
+
+  it("regarde le milieu du document, pas ses pages liminaires", () => {
+    // Couverture, faux-titre, table : elles ne portent pas de folio imprimé, et les lire ferait
+    // conclure « une page par feuille » sur un ouvrage qui en porte deux.
+    const liminaires = Array.from({ length: 10 }, () => feuille([]));
+    const corps = Array.from({ length: 10 }, (_, rang) => feuille([100 + rang * 2, 101 + rang * 2]));
+    expect(deuxPagesParFeuille([...liminaires, ...corps])).toBe(true);
+  });
 });

@@ -99,7 +99,10 @@ const avecNumero = lu.pages.filter((page) => page.pageImprimee !== undefined).le
 const illisibles = passages.filter((passage) => partDeMotsOutils(passage.texte) < SEUIL_LISIBILITE).length;
 const trie = [...cadence].sort((un, autre) => un - autre);
 
-console.log(`\n  ${basename(chemin)}${DOUBLE ? " — feuilles coupées en deux" : " — une page par feuille"}\n`);
+// Ce que le banc a **demandé**, jamais ce que la chaîne a décidé : depuis le 20 octobre elle
+// détecte la double page elle-même, et un banc qui annoncerait « une page par feuille » parce
+// qu'il n'a rien demandé mentirait sur un relevé qui dit le contraire.
+console.log(`\n  ${basename(chemin)}${DOUBLE ? " — coupe imposée au banc" : " — coupe laissée au document"}\n`);
 console.log("| relevé | valeur |");
 console.log("|---|---:|");
 console.log(`| pages lues | ${lu.pages.length} |`);

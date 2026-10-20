@@ -138,6 +138,79 @@ export function coucheSuffisante(page: PageLue): boolean {
   return page.mots.length >= MOTS_MINIMUM && lisible(page);
 }
 
+/** Combien de feuilles on regarde pour savoir si le document en porte deux par feuille, et
+ *  combien doivent montrer le signe.
+ *
+ *  **Deux au moins, et c'est mesuré.** Une seule paire ne prouve rien : un document du corpus
+ *  rendait « 2003+2004 », une plage d'années dans une bibliographie. Un livre numérisé deux pages
+ *  à la fois en montre sur presque toutes ses feuilles ; une plage d'années n'apparaît qu'une
+ *  fois. Dix feuilles regardées laissent de la marge aux couches qui n'en rendent qu'un des deux,
+ *  ce qui arrive souvent. */
+const FEUILLES_REGARDEES = 10;
+const FEUILLES_A_DEUX_FOLIOS = 2;
+
+/** Cette feuille porte-t-elle deux folios qui se suivent ?
+ *
+ *  Deux nombres quelconques ne font pas une double page — un numéro de partie et un folio
+ *  cohabitent très bien. **Consécutifs**, en revanche, ne s'expliquent pas autrement. */
+function deuxFoliosQuiSeSuivent(page: PageLue): boolean {
+  const haut = page.hauteur * BANDE_MARGE;
+  const bas = page.hauteur * (1 - BANDE_MARGE);
+  const nombres = new Set<number>();
+  for (const mot of page.mots) {
+    if (mot.y > haut && mot.y < bas) continue;
+    if (!/^\d+$/.test(mot.texte)) continue;
+    const valeur = Number.parseInt(mot.texte, 10);
+    if (valeur >= 1 && valeur <= PAGE_MAXIMUM) nombres.add(valeur);
+  }
+  const tries = [...nombres].sort((un, autre) => un - autre);
+  for (let rang = 0; rang + 1 < tries.length; rang += 1) if (tries[rang + 1]! - tries[rang]! === 1) return true;
+  return false;
+}
+
+/** Ce document est-il numérisé **deux pages par feuille** ? (BAS-02)
+ *
+ *  ## Pourquoi la chaîne le demande d'elle-même
+ *
+ *  La recette le déclare, d'après un classement en familles — et ce classement **se trompe sur 34
+ *  documents du corpus sur 53 examinés** dans la famille « une page par feuille », soit 64 %
+ *  (mesuré le 20 octobre 2026). Lu selon son classement, un de ces documents mêle les textes de
+ *  deux pages dans un même passage et perd les trois quarts de ses numéros imprimés, **sans rien
+ *  signaler**. Une citation en sort invérifiable, et « toujours sur la vraie page » est la
+ *  promesse du produit (RCH-09).
+ *
+ *  Corriger le classement document par document aurait laissé dehors tout ce qu'on n'aurait pas
+ *  vérifié à la main. Le document, lui, porte la réponse sur ses propres feuilles.
+ *
+ *  ## Le signe était déjà sous nos yeux
+ *
+ *  `numeroImprime` ne tranche pas quand deux folios se contredisent — et c'est la bonne règle.
+ *  Mais ce qu'il jette est précisément le signe : **deux folios consécutifs sur une feuille**, ce
+ *  qui ne s'explique que d'une façon. Il suffisait de regarder ce qu'il refuse.
+ *
+ *  Et cela ne coûte rien : la couche texte suffit, un folio est fait de chiffres et les chiffres
+ *  n'ont pas d'accents à perdre.
+ *
+ *  ## Ce qu'elle ne dit pas
+ *
+ *  Elle ne répond que « deux pages » ou « je n'en vois pas le signe ». Elle **ne détecte pas
+ *  l'erreur inverse** — un document rangé « deux pages » qui n'en porte qu'une —, et c'est
+ *  volontaire : c'est la double page non détectée qui abîme les citations, l'inverse se voit à
+ *  l'écran. */
+export function deuxPagesParFeuille(pages: readonly PageLue[]): boolean {
+  if (pages.length < FEUILLES_REGARDEES / 2) return false;
+
+  // Le milieu du document, jamais son début : couverture, faux-titre et table ne portent pas de
+  // folio imprimé, et les regarder ferait conclure « une page par feuille » sur un ouvrage qui en
+  // porte deux. Mesuré sur un document réel dont les quatre premières feuilles sont muettes.
+  const debut = Math.floor(pages.length * 0.4);
+  const regardees = pages.slice(debut, debut + FEUILLES_REGARDEES);
+
+  let aDeuxFolios = 0;
+  for (const page of regardees) if (deuxFoliosQuiSeSuivent(page)) aDeuxFolios += 1;
+  return aDeuxFolios >= FEUILLES_A_DEUX_FOLIOS;
+}
+
 /** Le numéro imprimé de la page, lu dans la couche texte.
  *
  *  On ne regarde que les bandes de marge, et l'on n'y retient qu'un mot **entièrement**
