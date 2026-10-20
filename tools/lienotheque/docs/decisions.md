@@ -3154,3 +3154,52 @@ Découper reste possible, mais plus comme on l'avait décidé : il faudrait que 
 soit **votée sur le document entier et transmise à chaque tranche**, jamais revotée par tranche.
 Tant que ce n'est pas fait, une découpe fine produit silencieusement des lectures fausses, et
 c'est pire que la lenteur qu'elle évite.
+
+
+## 20 octobre 2026 — le premier document réel traité en entier
+
+Troisième bloquant de BAS-02. *Théorie ACT* — 66 feuilles, 37,5 Mo, choisi pour être le **pire
+cas** du chemin du texte : sa couche n'a pas un seul accent.
+
+| relevé | valeur |
+|---|---:|
+| pages lues | 132 (66 feuilles coupées en deux) |
+| durée | **113 s**, soit 0,86 s par page |
+| pointe mémoire | 1 477 Mo |
+| servies par la couche | **1** feuille sur 66 |
+| servies par la reconnaissance | **65** |
+| passages produits | 130, dont **2** illisibles |
+| **numéros de page lus** | **99 sur 132 — 75 %** |
+
+**L'inversion du 20 octobre fait exactement ce qu'elle annonçait**, et à l'échelle d'un vrai
+document : 65 feuilles sur 66 passent par la reconnaissance, parce que la couche est lisible et
+fausse. Deux passages illisibles sur 130 — le reste entre dans l'index en pouvant être vérifié.
+
+### La surprise, et elle n'est pas où je la cherchais
+
+Le premier relevé annonçait **20 % de numéros lus**, et j'ai cru tenir un défaut grave. La sonde
+a montré l'inverse : les folios **sont lus**, mais par deux — « 12 13 », « 18 19 », « 28 29 ».
+C'est un livre numérisé **deux pages par feuille**, et `numeroImprime` refuse alors de trancher,
+comme il le doit : « s'ils se contredisent, on ne tranche pas ».
+
+Je lisais une double page comme une seule. Les 20 % mesuraient mon erreur. Coupé en deux, le
+même document rend **75 %**, et la quasi-totalité une fois les pages liminaires passées — elles
+ne portent pas de folio imprimé, et c'est normal.
+
+**Mais l'erreur est instructive, parce que ce n'est pas seulement la mienne.** Le classement en
+familles (`familles.json`, 18 octobre) range ce document dans « livre photographié, **une** page
+par feuille ». Il est manifestement à deux. Un réimport conduit par ce classement lirait donc
+deux pages comme une, mêlerait leurs textes dans un même passage, et perdrait les trois quarts
+des numéros imprimés — **sans rien signaler**, exactement comme mon banc.
+
+C'est la première surprise d'échelle réelle, et elle est en amont du traitement : **le classement
+en familles n'est pas fiable au document près.** Avant BAS-02, il faut soit le vérifier document
+par document, soit détecter la double page à la lecture — deux folios sur une feuille en sont
+précisément le signe, et la chaîne les a sous les yeux.
+
+### Ce qui reste ouvert, et n'est pas mesuré
+
+La mémoire **monte avec les pages** : 1 034 Mo à la dixième feuille, 1 806 à la soixante-sixième
+en lecture simple, 1 477 en double. Sur un document de 480 pages et 410 Mo — le corpus en a un —
+rien ne dit où elle s'arrête. Le plafond du projet est à 8 Go. À mesurer avant de traiter les
+gros, et à ne pas supposer.
