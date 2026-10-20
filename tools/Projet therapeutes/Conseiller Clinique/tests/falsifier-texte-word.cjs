@@ -63,8 +63,11 @@ const MUTATIONS = [
   {
     nom: 'une relation pointe vers une partie qui n’existe pas',
     fichier: 'coeur',
-    de: "      + '<Relationship Id=\"rId2\" Type=\"' + R + '/numbering\" Target=\"numbering.xml\"/>'",
-    vers: "      + '<Relationship Id=\"rId2\" Type=\"' + R + '/numbering\" Target=\"numerotation.xml\"/>'",
+    // La constante R a été scindée en R_CONTENEUR et R_TYPE le 20 octobre (défaut de l'espace
+    // de noms des relations) : l'ancre suit ce nom. Sans cette mise à jour le falsificateur
+    // refusait de conclure — ce qu'il a fait, et c'est ainsi qu'on l'a su.
+    de: "      + '<Relationship Id=\"rId2\" Type=\"' + R_TYPE + '/numbering\" Target=\"numbering.xml\"/>'",
+    vers: "      + '<Relationship Id=\"rId2\" Type=\"' + R_TYPE + '/numbering\" Target=\"numerotation.xml\"/>'",
     attendu: 'la relation casse : le controle des relations doit le dire',
   },
 ];

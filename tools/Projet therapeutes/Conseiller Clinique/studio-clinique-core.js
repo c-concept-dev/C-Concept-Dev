@@ -21303,15 +21303,23 @@ ${recent}`;
       + '<w:num w:numId="3"><w:abstractNumId w:val="3"/></w:num>'
       + '</w:numbering>';
 
-    const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-    const rels = ADOC_DOCX_ENTETE + '<Relationships xmlns="' + R + '">'
-      + '<Relationship Id="rId1" Type="' + R + '/officeDocument" Target="word/document.xml"/>'
-      + '<Relationship Id="rId2" Type="' + R + '/metadata/core-properties" Target="docProps/core.xml"/>'
-      + '<Relationship Id="rId3" Type="' + R + '/extended-properties" Target="docProps/app.xml"/>'
+    // DEUX adresses, très proches, qu'il ne faut JAMAIS confondre — défaut du 20 octobre, trouvé
+    // par Christophe : une seule constante servait aux deux, et la racine <Relationships>
+    // portait l'adresse des TYPES. Le validateur OOXML refusait alors la racine (« No matching
+    // global declaration available for the validation root ») et LibreOffice ne rendait aucun
+    // PDF. Les deux rôles sont désormais nommés séparément, et le nom dit lequel est lequel.
+    //   R_CONTENEUR : l'espace de noms du CONTENEUR, pour le xmlns de la racine <Relationships>
+    //   R_TYPE      : l'espace de noms des TYPES, pour l'attribut Type= de chaque <Relationship>
+    const R_CONTENEUR = 'http://schemas.openxmlformats.org/package/2006/relationships';
+    const R_TYPE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    const rels = ADOC_DOCX_ENTETE + '<Relationships xmlns="' + R_CONTENEUR + '">'
+      + '<Relationship Id="rId1" Type="' + R_TYPE + '/officeDocument" Target="word/document.xml"/>'
+      + '<Relationship Id="rId2" Type="' + R_TYPE + '/metadata/core-properties" Target="docProps/core.xml"/>'
+      + '<Relationship Id="rId3" Type="' + R_TYPE + '/extended-properties" Target="docProps/app.xml"/>'
       + '</Relationships>';
-    const docRels = ADOC_DOCX_ENTETE + '<Relationships xmlns="' + R + '">'
-      + '<Relationship Id="rId1" Type="' + R + '/styles" Target="styles.xml"/>'
-      + '<Relationship Id="rId2" Type="' + R + '/numbering" Target="numbering.xml"/>'
+    const docRels = ADOC_DOCX_ENTETE + '<Relationships xmlns="' + R_CONTENEUR + '">'
+      + '<Relationship Id="rId1" Type="' + R_TYPE + '/styles" Target="styles.xml"/>'
+      + '<Relationship Id="rId2" Type="' + R_TYPE + '/numbering" Target="numbering.xml"/>'
       + '</Relationships>';
 
     const CT = 'http://schemas.openxmlformats.org/package/2006/content-types';

@@ -13,6 +13,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const zlib = require('node:zlib');
+// La table des racines attendues vit dans le contrôle des espaces de noms : on la LIT, on n'en
+// écrit pas une seconde ici — deux tables auraient divergé.
+const { racineXml } = require('./docx-outils.cjs');
+const ATTENDU_RACINES = require('./docx-racines-attendues.cjs');
 
 const RACINE = path.join(__dirname, '..');
 // LA RÉFÉRENCE VIT DANS LE DÉPÔT, à côté de ce contrôle. C'est une FIXTURE, une ENTRÉE de la
@@ -138,6 +142,58 @@ function chargerGenerateur() {
   pass('word/document.xml : ' + a.length + ' éléments, ZÉRO différence avec la référence — '
     + 'mêmes balises, même ordre, mêmes attributs.');
 
+  // ── 2 bis. CHAQUE AUTRE PARTIE COMMUNE, RACINE ET ÉLÉMENTS ────────────────────────────
+  // Le trou du 20 octobre : seul word/document.xml était comparé, soit 1 partie sur 8. Les
+  // deux parties de relations portaient un espace de noms faux et RIEN ne le disait. Toutes
+  // les parties communes sont désormais confrontées, et chaque différence est NOMMÉE puis
+  // justifiée ici même — jamais tolérée en silence.
+  const elements = (x) => String(x).replace(/^[\s\S]*?\?>/, '')
+    .replace(/\s+(?=<)/g, '').replace(/></g, '>\n<').split('\n').filter(Boolean);
+  const COMMUNES = Object.keys(ATTENDU_RACINES).filter((k) => k !== 'PKG' && k !== 'TYPE'
+    && ref[k] !== undefined && k !== 'word/document.xml');
+  const ecarts = [];
+  for (const partie of COMMUNES) {
+    const r = racineXml(ref[partie]), m = racineXml(mien[partie]);
+    if (r.nom !== m.nom) ecarts.push(partie + ' : racine « ' + m.nom + ' » ≠ « ' + r.nom + ' »');
+    if (r.ns !== m.ns) ecarts.push(partie + ' : espace de noms « ' + m.ns + ' » ≠ « ' + r.ns + ' »');
+  }
+  if (ecarts.length) {
+    console.error('\nÉCHEC  racines divergentes :');
+    ecarts.forEach((e) => console.error('    ' + e)); process.exit(1);
+  }
+  pass('les ' + COMMUNES.length + ' autres parties communes ont la MÊME racine et le MÊME espace '
+    + 'de noms que la référence : ' + COMMUNES.join(', ') + '.');
+
+  // Le détail des éléments, partie par partie. Les différences qui subsistent sont listées une
+  // à une avec leur raison : ce sont des CHOIX de contenu, jamais des écarts de structure.
+  const JUSTIFIEES = {
+    '_rels/.rels': 'la référence déclare une relation de plus vers docProps/custom.xml, '
+      + 'partie que python-docx ajoute toujours et que nous n’écrivons pas (rien à y mettre).',
+    'word/_rels/document.xml.rels': 'la référence déclare settings.xml et webSettings.xml, '
+      + 'parties du modèle de python-docx que nous n’écrivons pas ; nos deux relations '
+      + '(styles, numbering) existent des deux côtés.',
+    '[Content_Types].xml': 'la référence déclare les parties du modèle de python-docx que nous '
+      + 'n’écrivons pas (settings, webSettings, fontTable, theme, custom) ; les Default et les '
+      + 'Override de nos 8 parties sont les mêmes.',
+    'word/styles.xml': 'la référence porte en plus les styles latents et le thème de '
+      + 'python-docx ; les identifiants dont dépend le document sont vérifiés ci-dessous.',
+    'word/numbering.xml': 'la référence définit huit numérotations de modèle, nous en '
+      + 'définissons deux (puces, numéros) — les seules que le document emploie.',
+    'docProps/core.xml': 'champs de métadonnées différents (titre, langue, révision chez nous ; '
+      + 'la référence ajoute creator et les dates) : contenu, pas structure.',
+    'docProps/app.xml': 'la référence nomme son application productrice, nous la nôtre.',
+  };
+  console.log('\n  LES DIFFÉRENCES, UNE À UNE, ET LEUR RAISON :');
+  for (const partie of COMMUNES) {
+    const er = elements(ref[partie]).length, em = elements(mien[partie]).length;
+    assert.ok(JUSTIFIEES[partie], 'toute partie commune doit avoir sa justification écrite : ' + partie);
+    console.log('    ' + partie + ' — référence ' + er + ' éléments, le mien ' + em
+      + (er === em ? ' (identique en nombre)' : ''));
+    console.log('      ' + JUSTIFIEES[partie]);
+  }
+  pass('les ' + COMMUNES.length + ' parties communes sont comparées et chaque différence est '
+    + 'justifiée par écrit dans ce contrôle — aucune n\'est structurelle.');
+
   // ── 3. STYLES ET NUMÉROTATION ─────────────────────────────────────────────────────────
   const ids = (x) => new Set((x.match(/w:styleId="([^"]+)"/g) || []).map((s) => s.slice(11, -1)));
   const idsRef = ids(ref['word/styles.xml']), idsMien = ids(mien['word/styles.xml']);
@@ -152,9 +208,13 @@ function chargerGenerateur() {
   pass('mêmes identifiants de style, et deux numérotations (puces, numéros) comme la référence.');
 
   // ── 4. CE QUI N'A PAS ÉTÉ FAIT, ET QU'IL FAUT DIRE ────────────────────────────────────
-  console.log('\n  RÉSERVE : aucun validateur OOXML n\'est présent sur cette machine (ni python-docx,');
-  console.log('  ni LibreOffice). Ce fichier N\'A PAS été validé contre le schéma, et N\'A PAS été');
-  console.log('  ouvert par un traitement de texte. La comparaison ci-dessus est le seul garde-fou ;');
-  console.log('  l\'ouverture dans Word par Christine reste le contrôle final.');
+  console.log('\n  RÉSERVE, relevée le 20 octobre et corrigée ici : il n\'y a sur cette machine');
+  console.log('  NI validateur OOXML (ni python-docx, ni LibreOffice), MAIS il y a des outils');
+  console.log('  indépendants : textutil (Apple), xmllint et lxml. Ils ont été lancés. textutil');
+  console.log('  lit SANS BRONCHER un fichier dont la racine <Relationships> porte un espace de');
+  console.log('  noms faux — il est donc indépendant mais TOLÉRANT, et ne peut servir de');
+  console.log('  garde-fou. C\'est précisément pourquoi verify-docx-espaces-de-noms existe.');
+  console.log('  Le fichier n\'a PAS été validé contre le schéma OOXML ni ouvert par Word :');
+  console.log('  l\'ouverture dans Word par Christophe reste le SEUL contrôle final.');
   console.log('\nPASS verify-docx-reference — ' + n + ' contrôles.');
 })();
