@@ -2877,3 +2877,86 @@ La bibliothèque servie est **vide**. Deux documents dans sa base, aucun instant
 puisque aucune version ne s'est activée en ligne — le geste de publication n'a encore jamais
 tourné contre le seau déployé. L'écran le dit maintenant, au lieu de proposer de créer une
 bibliothèque.
+
+
+## 20 octobre 2026 — la couche texte des documents photographiés ne fait pas foi
+
+Le premier des trois bloquants de BAS-02, mesuré. **Verdict : pour un document photographié, la
+reconnaissance refaite l'emporte sur la couche existante, et la chaîne doit cesser de préférer
+la seconde.**
+
+### Le protocole, et ce qu'il mesure vraiment
+
+Cinquante pages relues à l'œil, en aveugle : deux lectures « A » et « B » tirées au sort page par
+page, trente pages où les deux divergent le plus et vingt où elles s'accordent, mélangées sans
+dire lesquelles sont lesquelles.
+
+L'aveugle n'est pas une coquetterie. Le gros du corpus vient d'un dossier nommé d'après un
+logiciel de reconnaissance de texte : **sa couche est elle-même un OCR**, et deux reconnaissances
+sur la même image abîmée se trompent souvent ensemble. Un accord élevé ne prouve donc rien tout
+seul, et c'est pour cela que le second lot existe.
+
+| lot | pages | la couche a raison | la reconnaissance a raison | les deux ont tort |
+|---|---:|---:|---:|---:|
+| divergence (accord < 79 %) | 30 | **23 %** | **70 %** | 3 |
+| accord (≥ 95 %) | 20 | 80 % | 95 % | **0** |
+
+### Ce que chaque ligne dit, et ce qu'elle ne dit pas
+
+**La première tranche.** Là où les deux lectures divergent, la couche a tort trois fois sur
+quatre. Le défaut dominant est nommé : des couches entières **ont perdu tous leurs accents** —
+« criti quais », « mechamment », « therapeute », « du faire » — là où la reconnaissance rend
+« méchamment », « thérapeute », « dû ». Pour une recherche en français, c'est un mot sur trois
+qu'on ne retrouve plus.
+
+**La seconde tranche n'est pas ce que je croyais mesurer, et c'est une leçon sur l'instrument.**
+Le « 80 % contre 95 % » n'est pas un écart d'exactitude : vérifié sur une fiche, les deux textes
+y étaient tous deux justes, et la préférence est allée au plus propre — une couche ouvrant sur
+« rr » et collant deux titres courants, contre une reconnaissance qui en omet un. Demander
+« laquelle correspond » sur deux textes quasi identiques fait répondre « laquelle est la plus
+soignée ». Ce lot ne vaut donc que par sa dernière colonne, et elle est nette : **jamais les deux
+ensemble.** Là où les deux lectures s'accordent, elles ont raison.
+
+### Une bande entière n'a pas été jugée, et c'était un défaut du tirage
+
+Les trente « divergences » s'arrêtent à 79 % d'accord, les vingt « accords » commencent à 95 %.
+**Quatre-vingt-quinze pages sur cent quatre-vingts — plus de la moitié — tombent entre les deux
+et n'ont aucun verdict.** Le tirage a pris les extrêmes en oubliant le ventre.
+
+La décision tient quand même, parce que l'encadrement suffit. En donnant à la bande inconnue le
+meilleur sort possible, la couche est juste sur 70 % des pages ; le pire la met à 41 %. **Les
+deux bornes passent sous le seuil de 85 % fixé avant la mesure**, et la règle de décision tranche
+donc sans qu'il faille connaître le ventre.
+
+### Un garde-fou gratuit, trouvé en chemin
+
+La part de lettres accentuées se lit **sans rien océriser**, en cinq millisecondes par page. Sur
+les dix-huit documents comparés, trois couches françaises rendent **0,00 %** d'accents là où la
+reconnaissance en rend 3 % — et ce sont celles que l'œil condamne (0/6, 1/5, 3/6). Les quatorze
+autres tournent entre 2,7 et 3,5 % des deux côtés.
+
+Une couche française sans accent se reconnaît donc pour rien, et le quatrième cas à 0,00 % est un
+ouvrage anglais, que la reconnaissance confirme à 0,03 % : le signal ne se trompe pas de langue
+pour peu qu'on lui donne celle du document.
+
+### Ce que cela change pour le réimport
+
+La chaîne préfère aujourd'hui la couche dès que `coucheSuffisante` passe, et n'essaie la
+reconnaissance que si la couche cède. **Cet ordre s'inverse pour les documents photographiés.**
+
+| | pages | |
+|---|---:|---|
+| livre photographié, une page par feuille | ~6 180 | à océriser |
+| livre photographié, deux pages par feuille | ~1 565 | à océriser |
+| feuillet photographié | ~237 | à océriser |
+| **ensemble** | **~7 985** | **≈ 4,4 h à 2 s la page** |
+
+Les comptes tiennent compte d'une autre découverte du tirage : beaucoup de documents classés
+« photographiés » ne le sont pas. Un diaporama, une thèse, un support de cours portent une image
+par page — un fond, un décor — et leur texte est d'origine. Mesuré : **13 % seulement** des
+« feuillets photographiés » le sont vraiment, 57 % des « deux pages par feuille », 80 % des « une
+page par feuille ». Leur couche, elle, n'a rien à se faire pardonner.
+
+L'estimation précédente annonçait 3 650 pages d'OCR en une à deux heures ; elle comptait les
+pages **sans** couche. Celle-ci compte les pages dont la couche ne mérite pas qu'on s'y fie. Le
+coût du réimport double, et il reste une dépense unique.
