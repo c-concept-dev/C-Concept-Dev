@@ -16361,11 +16361,14 @@ ${recent}`;
   };
 
   window.adocCloseWorkspace = function () {
+    const ws = document.getElementById('cc-workspace');
+    if (!ws.classList.contains('open')) return;
+    // Q7 (2.4) — AVANT tout effet : une fermeture refusée ne doit RIEN avoir changé, pas même
+    // l'oubli du retour en arrière de D5 ci-dessous.
+    if (!adocQ7AbandonAccepte('Fermer ce document')) return;
     // Enregistrer, enregistrer sous et fermer n'appellent pas adocEditorMarkDirty :
     // l'oubli du retour en arrière est donc dit ici, explicitement (D5).
     if (window.adocOublierAnnulationPage) window.adocOublierAnnulationPage();
-    const ws = document.getElementById('cc-workspace');
-    if (!ws.classList.contains('open')) return;
     ws.classList.remove('open');
     document.body.style.overflow = '';
     adocWsUnmountMemory();
@@ -16460,6 +16463,9 @@ ${recent}`;
   }
 
   window.adocOpenSavedClinicalDocument = async function (documentId) {
+    // Q7 (2.4) — même garde que la fermeture, AVANT la requête réseau : un refus ne doit ni
+    // interroger le serveur, ni toucher le document courant.
+    if (!adocQ7AbandonAccepte('Ouvrir un autre document')) return false;
     try {
       const art = await adocResolveSavedClinicalDocumentArt(documentId);
       const storeKey = 'adocArt_saved_' + documentId;
@@ -23858,6 +23864,20 @@ ${recent}`;
     return !!(art && art._ccEditorDirty);
   }
   window.adocQ7ModificationsEnAttente = adocQ7ModificationsEnAttente;
+  // Q7 (2.4) — UN SEUL garde, partagé par la fermeture et par l'ouverture d'un autre document :
+  // jamais deux questions rédigées différemment pour le même risque. Le composant de
+  // confirmation est celui qui EXISTE DÉJÀ partout ailleurs dans le cœur — confirm() natif
+  // (suppression d'un document, retrait d'une charte, lien vidéo, document supprimé entre-temps)
+  // — jamais un second mécanisme de dialogue inventé ici.
+  // Renvoie VRAI quand on peut continuer : soit rien n'est en attente (aucune question posée,
+  // pour ne pas apprendre à cliquer « oui » sans lire), soit l'utilisatrice a accepté de perdre
+  // ses modifications.
+  function adocQ7AbandonAccepte(geste) {
+    if (!adocQ7ModificationsEnAttente()) return true;
+    return confirm('Ce document a des modifications non enregistrées. '
+      + geste + ' maintenant les perdra définitivement. Continuer quand même ?');
+  }
+  window.adocQ7AbandonAccepte = adocQ7AbandonAccepte;
   if (typeof document !== 'undefined') {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', adocQ7InstallerRaccourcis, { once: true });
     else adocQ7InstallerRaccourcis();
