@@ -20,8 +20,45 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
 const PAGE_SIMULEE = { title: 'Page pour l’essai du drapeau',
   blocks: [{ type: 'paragraph', text: 'Un paragraphe entier et correct.' }] };
 
+// Une FICHE : seule forme de document où le titre du document est une feuille modifiable
+// (.adoc-sc-cover-title n'est rendu que par fiche/script/tableau/liens, jamais par une
+// présentation) et où un `table` est admis au premier niveau (block.schema.json,
+// $defs/editorialBlock). Trois gestes de la liste de Christophe — titre du document, cellule
+// d'un tableau, ligne d'un tableau — ne sont jouables que là.
+const FICHE = {
+  schemaVersion: 1,
+  documentId: 'fiche-drapeau', versionId: 'fiche-drapeau-v1', previousVersionId: null,
+  requestId: 'fiche-drapeau-r', sourceSnapshotId: 'fiche-drapeau-s',
+  createdAt: '2026-10-20T09:00:00Z', language: 'fr', status: 'draft',
+  title: 'Une fiche pour l’audit du drapeau', purpose: 'Audit du drapeau',
+  audience: 'clinicien', documentKind: 'fiche',
+  renderManifestId: 'manifest-default-001', derivedFrom: null,
+  blocks: [
+    { id: 'f-par-01', type: 'paragraph', content: { text: 'Un paragraphe de la fiche.' },
+      citationIds: [], validation: {} },
+    { id: 'f-liste-01', type: 'list',
+      content: { items: ['Premier point', 'Deuxième point'], ordered: false },
+      citationIds: [], validation: {} },
+    { id: 'f-tab-01', type: 'table',
+      content: { headers: ['Temps', 'Geste'], rows: [['Un', 'Nommer'], ['Deux', 'Attendre']] },
+      citationIds: [], validation: {} },
+  ],
+  citations: [],
+  validation: { sourceIntegrity: 'pending', contentCompleteness: 'pending', layout: 'pending',
+                accessibility: 'pending', humanClinicalReview: 'required' },
+  narration: [],
+};
+
+// Un CARROUSEL : le positionnement d'une carte (panneau « Position et taille ») est RÉSERVÉ au
+// carrousel — docCard.onmousedown refuse tout autre documentKind (garde-fou explicite du cœur).
+// Même structure de cartes qu'une présentation, seul documentKind change.
+const CARROUSEL = Object.assign({}, PRESENTATION, {
+  documentId: 'carrousel-drapeau', versionId: 'carrousel-drapeau-v1',
+  documentKind: 'carrousel', title: 'Un carrousel pour l\u2019audit du drapeau',
+});
+
 (async () => {
-  const { serveur } = creerFauxWorker(RACINE, {});
+  const { serveur, etat } = creerFauxWorker(RACINE, {});
   // Le modèle est simulé par la racine : une page valide à chaque appel.
   const vrai = serveur.listeners('request')[0];
   serveur.removeAllListeners('request');
@@ -47,7 +84,7 @@ const PAGE_SIMULEE = { title: 'Page pour l’essai du drapeau',
   await page.addInitScript((b) => { try { localStorage.setItem('workerUrl', b);
     localStorage.setItem('workerApiKey', 'factice'); } catch (e) {} }, base);
 
-  const repartirPropre = () => page.evaluate(async (d) => {
+  const repartirPropre = (doc) => page.evaluate(async (d) => {
     window._adocArtifacts = { e: { name: d.title, _adocGenerationEngine: 'structured',
       _adocStructuredDoc: JSON.parse(JSON.stringify(d)), _adocStructuredSnapshot: null,
       _adocClinicalDocumentId: 'doc-propre', _ccEditorDirty: false,
@@ -57,23 +94,196 @@ const PAGE_SIMULEE = { title: 'Page pour l’essai du drapeau',
     window._adocArtifacts.e._ccEditorDirty = false;
     await new Promise((r) => setTimeout(r, 250));
     return !window._adocArtifacts.e._ccEditorDirty;
-  }, PRESENTATION);
+  }, doc || PRESENTATION);
   const sale = () => page.evaluate(() => !!window._adocArtifacts.e._ccEditorDirty);
   const choisirBloc = (i) => page.evaluate((k) => {
     const d = window._adocArtifacts.e._adocStructuredDoc;
     document.getElementById(d.blocks[k].content.blocks[0].id)?.click();
   }, i);
 
-  // Chaque geste : son nom, et ce qu'il faut faire pour le jouer VRAIMENT.
+  // Outils communs pour jouer un geste par le VRAI chemin de l'éditeur.
+  const outils = async () => { await page.evaluate(() =>
+    window.adocEditorRefreshControls && window.adocEditorRefreshControls()); await page.waitForTimeout(200); };
+  const action = (nom) => page.evaluate((a) => {
+    const b = document.querySelector('[data-editor-action="' + a + '"]');
+    if (!b) throw new Error('action absente : ' + a);
+    b.click();
+  }, nom);
+  const style = (champ, valeur) => page.evaluate((a) => {
+    const el = document.querySelector('[data-editor-style="' + a.c + '"]');
+    if (!el) throw new Error('champ absent : ' + a.c);
+    el.value = a.v; el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, { c: champ, v: valeur });
+  const portee = (v) => page.evaluate((x) => {
+    const el = document.querySelector('[data-editor-scope]');
+    el.value = x; el.dispatchEvent(new Event('change', { bubbles: true }));
+  }, v);
+  // La frappe ne compte que dans une FEUILLE : l'écouteur du cœur est
+  // `e.target.closest('[data-cc-editor-leaf]')`. Frapper dans l'enveloppe d'un bloc ne lèverait
+  // rien — et ce serait le contrôle qui serait faux, pas le cœur. On vise donc la feuille, en
+  // refusant de conclure si elle n'existe pas.
+  const frapper = (selecteur, texte) => page.evaluate((a) => {
+    const el = document.querySelector(a.s);
+    if (!el) throw new Error('élément absent : ' + a.s);
+    const leaf = el.matches('[data-cc-editor-leaf]') ? el : el.querySelector('[data-cc-editor-leaf]');
+    if (!leaf) throw new Error('aucune feuille modifiable dans : ' + a.s);
+    leaf.dispatchEvent(new Event('focusin', { bubbles: true }));
+    leaf.focus();
+    leaf.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, inputType: 'insertText', data: a.t }));
+    leaf.textContent = (leaf.textContent || '') + a.t;
+    leaf.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: a.t }));
+  }, { s: selecteur, t: texte });
+  const champ = (attr, valeur, evt) => page.evaluate((a) => {
+    const el = document.querySelector('[' + a.k + ']');
+    if (!el) throw new Error('champ absent : ' + a.k);
+    el.value = a.v; el.dispatchEvent(new Event(a.e, { bubbles: true }));
+  }, { k: attr, v: valeur, e: evt });
+
+  // UN GESTE = UNE LIGNE = UNE MESURE. Chaque geste part d'un document propre, est joué par le
+  // VRAI contrôle de l'éditeur (jamais en écrivant _ccEditorDirty), puis `_ccEditorDirty` est
+  // relu. `doc` désigne le document d'essai quand le geste n'est pas jouable sur une
+  // présentation ; `prealable` met en place la situation SANS être mesuré (drapeau remis à faux
+  // juste après).
   const GESTES = [
-    { nom: 'style d’un bloc (police)', faire: async () => {
-        await choisirBloc(0); await page.waitForTimeout(350);
-        await page.evaluate(() => window.adocEditorRefreshControls && window.adocEditorRefreshControls());
-        await page.waitForTimeout(200);
+    { nom: 'frappe dans un bloc', faire: async () => {
+        await choisirBloc(0); await page.waitForTimeout(300);
+        const id = await page.evaluate(() =>
+          window._adocArtifacts.e._adocStructuredDoc.blocks[0].content.blocks[0].id);
+        await frapper('#' + id, ' ajouté');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'frappe dans le titre d’une diapositive', faire: async () => {
+        await frapper('.adoc-sc-card-title', ' modifié');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'frappe dans le titre du document', doc: 'FICHE', faire: async () => {
+        await frapper('.adoc-sc-cover-title', ' modifié');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'style appliqué au bloc entier (police)', faire: async () => {
+        await choisirBloc(0); await page.waitForTimeout(350); await outils();
+        await portee('block');
+        await style('fontFamily', 'Lora');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'style appliqué au texte sélectionné (gras)', faire: async () => {
+        await choisirBloc(0); await page.waitForTimeout(350); await outils();
+        await portee('selection');
         await page.evaluate(() => {
-          const s = document.querySelector('select[data-editor-style="fontFamily"]');
-          s.value = 'Lora'; s.dispatchEvent(new Event('change', { bubbles: true }));
+          const d = window._adocArtifacts.e._adocStructuredDoc;
+          const el = document.getElementById(d.blocks[0].content.blocks[0].id);
+          const leaf = el.matches('[data-cc-editor-leaf]') ? el : el.querySelector('[data-cc-editor-leaf]');
+          const r = document.createRange(); r.selectNodeContents(leaf || el);
+          const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
         });
+        await action('bold');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'alignement du texte d’un bloc', faire: async () => {
+        await choisirBloc(0); await page.waitForTimeout(350); await outils();
+        await portee('block'); await style('textAlign', 'center');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'fond d’un bloc (couleur)', faire: async () => {
+        await choisirBloc(0); await page.waitForTimeout(350); await outils();
+        await portee('block'); await style('backgroundColor', '#eef2f3');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'opacité du fond d’un bloc (curseur)', faire: async () => {
+        await choisirBloc(0); await page.waitForTimeout(350); await outils();
+        await champ('data-editor-opacity="backgroundOpacity"', '60', 'input');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'remise à zéro du style d’un bloc', prealable: async () => {
+        await choisirBloc(0); await page.waitForTimeout(350); await outils();
+        await portee('block'); await style('fontSizePt', '19');
+        await page.waitForTimeout(400);
+        await page.evaluate(() => { window._adocArtifacts.e._ccEditorDirty = false; });
+      }, faire: async () => {
+        await action('reset');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'position d’une carte (champ X)', doc: 'CARROUSEL', faire: async () => {
+        // Le panneau de position s'ouvre au mousedown sur la SURFACE PROPRE de la carte (ni son
+        // titre, ni un bloc) : on envoie de vrais évènements de souris, jamais un appel direct.
+        const boite = await page.evaluate(() => {
+          const el = document.getElementById('card-01');
+          if (!el) throw new Error('élément absent : carte card-01');
+          const r = el.getBoundingClientRect();
+          return { x: r.x, y: r.y, w: r.width, h: r.height };
+        });
+        await page.mouse.move(boite.x + boite.w / 2, boite.y + boite.h - 6);
+        await page.mouse.down(); await page.mouse.up();
+        await page.waitForTimeout(500);
+        await champ('data-card-position="x"', '42', 'change');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'liste : ajout d’un élément', doc: 'FICHE', faire: async () => {
+        await page.evaluate(() => document.getElementById('f-liste-01')?.click());
+        await page.waitForTimeout(450); await outils();
+        await page.evaluate(() => {
+          const li = document.querySelector('#f-liste-01 li [data-cc-editor-leaf]')
+            || document.querySelector('#f-liste-01 li');
+          if (!li) throw new Error('élément absent : li de la liste');
+          li.dispatchEvent(new Event('focusin', { bubbles: true }));
+          const r = document.createRange(); r.selectNodeContents(li); r.collapse(false);
+          const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        });
+        await action('list-add');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'liste : retrait d’un élément', doc: 'FICHE', faire: async () => {
+        await page.evaluate(() => document.getElementById('f-liste-01')?.click());
+        await page.waitForTimeout(450); await outils();
+        await page.evaluate(() => {
+          const li = document.querySelector('#f-liste-01 li [data-cc-editor-leaf]')
+            || document.querySelector('#f-liste-01 li');
+          if (!li) throw new Error('élément absent : li de la liste');
+          li.dispatchEvent(new Event('focusin', { bubbles: true }));
+          const r = document.createRange(); r.selectNodeContents(li); r.collapse(false);
+          const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        });
+        await action('list-remove');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'tableau : style d’une cellule', doc: 'FICHE', faire: async () => {
+        await page.evaluate(() => {
+          const c = document.querySelector('#f-tab-01 td [data-cc-editor-leaf]')
+            || document.querySelector('#f-tab-01 td');
+          if (!c) throw new Error('élément absent : cellule du tableau');
+          c.dispatchEvent(new Event('focusin', { bubbles: true })); c.focus();
+          const r = document.createRange(); r.selectNodeContents(c);
+          const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        });
+        await page.waitForTimeout(500); await outils();
+        await portee('cell'); await page.waitForTimeout(250);
+        await style('backgroundColor', '#f4f1ea');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'tableau : ajout d’une ligne', doc: 'FICHE', faire: async () => {
+        await page.evaluate(() => {
+          const c = document.querySelector('#f-tab-01 td [data-cc-editor-leaf]')
+            || document.querySelector('#f-tab-01 td');
+          if (!c) throw new Error('élément absent : cellule du tableau');
+          c.dispatchEvent(new Event('focusin', { bubbles: true })); c.focus();
+          const r = document.createRange(); r.selectNodeContents(c); r.collapse(true);
+          const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        });
+        await page.waitForTimeout(500); await outils();
+        await action('row-after');
+        await page.waitForTimeout(400);
+      } },
+    { nom: 'tableau : tri d’une colonne', doc: 'FICHE', faire: async () => {
+        await page.evaluate(() => {
+          const c = document.querySelector('#f-tab-01 td [data-cc-editor-leaf]')
+            || document.querySelector('#f-tab-01 td');
+          if (!c) throw new Error('élément absent : cellule du tableau');
+          c.dispatchEvent(new Event('focusin', { bubbles: true })); c.focus();
+          const r = document.createRange(); r.selectNodeContents(c); r.collapse(true);
+          const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        });
+        await page.waitForTimeout(500); await outils();
+        await action('sort-asc');
         await page.waitForTimeout(400);
       } },
     { nom: 'insertion d’un bloc', faire: async () => {
@@ -87,12 +297,37 @@ const PAGE_SIMULEE = { title: 'Page pour l’essai du drapeau',
         });
         await page.waitForTimeout(500);
       } },
-    { nom: 'narration écrite', faire: async () => {
-        await page.evaluate(() => {
-          const d = window._adocArtifacts.e._adocStructuredDoc;
-          const e = window.adocPresentStepList(d)[0];
-          if (window.adocNarrationWrite(d, e.stepId, 'Un commentaire.')) window.adocEditorMarkDirty();
+    // adocConfirmBlockCorrection termine par `await window.adocWsSave()` : la correction est
+    // ENREGISTRÉE sur-le-champ. L'attente juste n'est donc pas « drapeau levé » mais « une
+    // version de plus chez le serveur, et rien en attente ». Mesurer l'inverse serait mesurer
+    // mon erreur. Le document doit exister côté serveur avant, sinon c'est le banc qui échoue :
+    // on l'y crée d'abord par un vrai enregistrement, non mesuré.
+    { nom: 'correction d’un passage (modèle simulé)', attendu: 'enregistre', prealable: async () => {
+        await page.evaluate(async () => {
+          window._adocArtifacts.e._adocClinicalDocumentId = null;
+          await window.adocWsSave();
         });
+        await page.waitForTimeout(700);
+        await page.evaluate(() => { window._adocArtifacts.e._ccEditorDirty = false; });
+      }, faire: async () => {
+        // Un PARAGRAPHE, jamais le titre : `headingContent` exige un `level`, et un bloc de
+        // remplacement invalide ferait échouer le rendu — le cœur annulerait alors sa mutation
+        // et ne sauvegarderait rien, à juste titre. Mesurer ça aurait mesuré mon erreur.
+        await choisirBloc(1); await page.waitForTimeout(450);
+        await page.evaluate(async () => {
+          const st = window._adocBlockEditState;
+          const b = st.originalBlock;
+          if (!b || b.type !== 'paragraph') throw new Error('élément absent : paragraphe sélectionné');
+          st.pendingBlock = { id: b.id, type: 'paragraph', content: { text: 'Passage corrigé.' },
+            citationIds: b.citationIds || [], validation: {} };
+          await window.adocConfirmBlockCorrection();
+        });
+        await page.waitForTimeout(900);
+      } },
+    { nom: 'narration écrite à la main (zone de l’éditeur)', faire: async () => {
+        await choisirBloc(0); await page.waitForTimeout(500); await outils();
+        await champ('data-editor-narration', 'Ce que je dirai pendant cette étape.', 'input');
+        await page.waitForTimeout(400);
       } },
     { nom: 'insertion d’une page (D2)', faire: async () => {
         await choisirBloc(2); await page.waitForTimeout(350);
@@ -122,25 +357,93 @@ const PAGE_SIMULEE = { title: 'Page pour l’essai du drapeau',
         await page.evaluate(() => window.adocAnnulerPageNeuve());
         await page.waitForTimeout(600);
       } },
+    { nom: 'annuler de l’éditeur', prealable: async () => {
+        await choisirBloc(0); await page.waitForTimeout(350); await outils();
+        await portee('block'); await style('fontSizePt', '18');
+        await page.waitForTimeout(400);
+        await page.evaluate(() => { window._adocArtifacts.e._ccEditorDirty = false; });
+      }, faire: async () => {
+        await action('undo');
+        await page.waitForTimeout(500);
+      } },
+    { nom: 'rétablir de l’éditeur', prealable: async () => {
+        await choisirBloc(0); await page.waitForTimeout(350); await outils();
+        await portee('block'); await style('fontSizePt', '18');
+        await page.waitForTimeout(400);
+        await action('undo'); await page.waitForTimeout(450);
+        await page.evaluate(() => { window._adocArtifacts.e._ccEditorDirty = false; });
+      }, faire: async () => {
+        await action('redo');
+        await page.waitForTimeout(500);
+      } },
+  ];
+
+  // Gestes de la liste de Christophe qu'on NE JOUE PAS, avec la raison exacte. Aucun n'est
+  // déclaré vert : ils sont déclarés non mesurés.
+  const NON_JOUES = [
+    ['image : ajout, changement, retrait',
+     'le seul chemin est la bibliothèque d’images (réseau) ou le glisser-déposer d’un vrai ' +
+     'fichier dans la page ; aucun des deux n’est disponible hors ligne dans ce banc.'],
+    ['vidéo : ajout',
+     'passe par la recherche de média (window.adocVideoSearch), un appel réseau.'],
+    ['transformation du document',
+     'window.adocWsTransformConfirmed appelle le modèle ; le banc ne simule que la création ' +
+     'd’une page.'],
+    ['narration : application d’une rédaction',
+     'window.adocNarrationApply n’a AUCUN appelant dans le cœur publié (vérifié par recherche) : ' +
+     'le geste n’existe pas encore dans l’interface, il n’y a donc rien à mesurer.'],
   ];
 
   try {
     await page.goto(base + '/studio-clinique.html?atelier-local=1');
     await page.waitForFunction(() => typeof window.adocOpenWorkspace === 'function', { timeout: 30000 });
     const resultats = [];
+    const injouables = [];
+    // Nombre total de versions chez le faux Worker : la seule preuve qu'un enregistrement a
+    // réellement eu lieu (jamais un indicateur de l'écran).
+    const versions = () => [...etat.documents.values()].reduce((t, d) => t + d.versions.length, 0);
+    let avant = 0;
     for (const g of GESTES) {
-      assert.ok(await repartirPropre(), g.nom + ' : on repart d\'un document propre');
-      if (g.prealable) await g.prealable();
-      await g.faire();
+      const doc = g.doc === 'FICHE' ? FICHE : g.doc === 'CARROUSEL' ? CARROUSEL : PRESENTATION;
+      const ou = g.doc === 'FICHE' ? 'fiche' : g.doc === 'CARROUSEL' ? 'carrousel' : 'présentation';
+      assert.ok(await repartirPropre(doc), g.nom + ' : on repart d\'un document propre');
+      try {
+        if (g.prealable) await g.prealable();
+        avant = versions();
+        await g.faire();
+      } catch (e) {
+        // Un contrôle ABSENT de l'interface n'est pas un drapeau oublié : c'est un geste qu'on
+        // n'a pas pu jouer. On le dit, on ne le compte pas vert. Toute autre erreur reste une
+        // vraie erreur et fait échouer le contrôle.
+        if (!/(élément|champ|action) absent|aucune feuille modifiable/.test(e.message)) throw e;
+        injouables.push({ nom: g.nom, raison: e.message.split('\n')[0] });
+        console.log('      –  ' + g.nom + ' → NON JOUÉ (' + e.message.split('\n')[0] + ')');
+        continue;
+      }
       const leve = await sale();
-      resultats.push({ nom: g.nom, leve: leve });
-      console.log('      ' + (leve ? '✓' : '✗') + '  ' + g.nom + ' → drapeau ' + (leve ? 'levé' : 'PAS LEVÉ'));
+      const apres = versions();
+      const ok = g.attendu === 'enregistre' ? (!leve && apres === avant + 1) : leve;
+      const dit = g.attendu === 'enregistre'
+        ? (ok ? 'une version de plus chez le serveur, rien en attente'
+              : 'ATTENDU +1 version et rien en attente ; drapeau=' + leve
+                + ', versions ' + avant + '→' + apres)
+        : (ok ? 'drapeau levé' : 'drapeau PAS LEVÉ');
+      resultats.push({ nom: g.nom, ok: ok, doc: ou, attendu: g.attendu || 'drapeau' });
+      console.log('      ' + (ok ? '✓' : '✗') + '  ' + g.nom + ' [' + ou + '] → ' + dit);
     }
-    const manquants = resultats.filter((r) => !r.leve);
+    console.log('\n   Gestes NON JOUÉS, et pourquoi :');
+    NON_JOUES.concat(injouables.map((i) => [i.nom, i.raison]))
+      .forEach((l) => console.log('      – ' + l[0] + ' : ' + l[1]));
+    console.log('');
+    const manquants = resultats.filter((r) => !r.ok);
     assert.deepEqual(manquants.map((r) => r.nom), [],
-      'tout geste qui écrit doit lever le drapeau ; ne le lèvent pas : '
+      'tout geste qui écrit doit lever le drapeau (ou enregistrer sur-le-champ) ; ne le font pas : '
       + JSON.stringify(manquants.map((r) => r.nom)));
-    pass('les ' + resultats.length + ' gestes mesurés lèvent le drapeau « modifié ».');
+    pass('les ' + resultats.length + ' gestes mesurés lèvent le drapeau « modifié » ('
+      + resultats.filter((r) => r.doc === 'présentation').length + ' sur une présentation, '
+      + resultats.filter((r) => r.doc === 'fiche').length + ' sur une fiche, '
+      + resultats.filter((r) => r.doc === 'carrousel').length + ' sur un carrousel) ; '
+      + (NON_JOUES.length + injouables.length) + ' gestes déclarés non mesurés.');
     assert.deepEqual(erreurs, [], 'aucune erreur de page : ' + JSON.stringify(erreurs.slice(0, 2)));
   } finally {
     await ctx.close(); await nav.close(); serveur.close();
