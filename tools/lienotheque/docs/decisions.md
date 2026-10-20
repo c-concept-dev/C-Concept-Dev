@@ -3001,3 +3001,88 @@ segmentation « page entière » abandonne un chiffre isolé que rien n'entoure.
 imprimé après OCR reste couvert par `500-pages-scan.pdf`, dont les pages sont couvertes de texte
 jusqu'au folio ; en poser une seconde épreuve ici n'aurait prouvé qu'une chose, qu'on sait écrire
 un test rouge.
+
+
+## 20 octobre 2026 — la dégradation de F4 : la cause est le vote d'orientation
+
+Réserve 9.1, ouverte depuis le 17 octobre, et deuxième bloquant de BAS-02. **La cause est
+trouvée, et ce n'était aucune des quatre hypothèses envisagées.**
+
+### Ce qui n'est pas en cause, cette fois mesuré avec les bons compteurs
+
+La note du 17 octobre écartait la mémoire parce que celle du processus **baisse** quand le
+traitement ralentit. Le raisonnement était fragile — une mémoire qui baisse pendant qu'on
+ralentit est aussi la signature d'un ramasse-miettes majeur ou du compresseur de macOS — et le
+banc `f4-ou-passe-le-temps.ts` a été écrit pour rouvrir la question. Verdict : **l'exclusion
+tient, pour de meilleures raisons.**
+
+| compteur | relevé pendant les pages lentes |
+|---|---|
+| ramasse-miettes | **zéro** milliseconde, zéro passage |
+| tas de V8 | **15 Mo**, plat du début à la fin |
+| hors tas | **~400 Mo**, plat |
+| compressions, swapins, swapouts du système | **zéro** en dix secondes |
+| débit de lecture du fichier | **4,9 Go/s** — il est entièrement en cache |
+| appels à Tesseract | **zéro**, vérifié par un relais posé en tête de `PATH` |
+
+### Un piège d'instrument, et il a failli emporter la conclusion
+
+`process.cpuUsage()` annonçait **2 à 6 %** du temps d'horloge : j'ai cru dix minutes durant que
+le processus attendait. `/usr/bin/time` sur le même travail dit **26,21 s « user » pour 27,04 s
+réelles**. Le processus calcule à plein ; c'est le compteur interne qui sous-compte sur macOS.
+
+À retenir pour toute mesure future de ce genre : **le temps processeur se lit du dehors.**
+
+### La cause, et le palier qui la désigne
+
+La durée par page ne se dégrade pas progressivement. Elle fait **un palier**, et il tombe à un
+endroit qui ne doit rien au hasard :
+
+| feuilles demandées | s par page |
+|---|---|
+| 4 | 1,94 |
+| 8 | 1,96 |
+| 12 | **14,92** |
+| 16 | **15,36** |
+
+Le seuil est entre 8 et 12, et `PAS_ECHANTILLON` vaut **8**. Le vote d'orientation du lot
+(`voterOrientation`) échantillonne un cliché sur huit : en deçà de neuf feuilles il n'en voit
+**qu'un**, au-delà il en voit **deux**. Mesuré sur F4 :
+
+| cliché | notes des quatre sens | ce que le vote en fait |
+|---|---|---|
+| 0 | 0 = 171,3 · 270 = 154,4 · 90 = 83,2 · 180 = 68,9 | partagé — l'écart est de 11 % |
+| 8 | 270 = 116,3 · 0 = 63,3 · 90 = 43,6 · 180 = 17,3 | net — l'écart est de 84 % |
+
+Un seul échantillon rend **rotation 0** : tourner de zéro degré est gratuit, et toutes les pages
+coûtent deux secondes. Deux échantillons rendent **rotation 270**, parce que le second vote est
+le plus **confiant** et non le plus fort — et c'est le bon critère. Mais alors **chaque page du
+lot est réellement tournée**, et cette rotation coûte treize secondes de calcul par page.
+
+La lenteur n'appartenait donc ni au document, ni à la longueur de la lecture, ni à la mémoire :
+elle appartient à **une rotation juste, payée au prix fort.**
+
+### Ce que cela corrige dans la note du 17 octobre
+
+« La lenteur appartient à la lecture longue, pas au document » : la formule visait juste sans le
+savoir. Ce n'est pas la lecture longue en elle-même, c'est le fait qu'une lecture longue voit
+assez de clichés pour que le vote bascule. Et « les mêmes feuilles lues seules mettent 2,08 s »
+s'explique enfin : lues seules, elles étaient moins de neuf, donc jamais tournées.
+
+### Ce qui reste, et qui est une décision, pas une mesure
+
+La rotation est **nécessaire** : la décider page par page avait rendu deux pages à l'envers et
+deux couchées sur F4, et le commentaire de `preparerLot` le dit depuis le 4 octobre. Le défaut
+n'est donc pas qu'on tourne, c'est que tourner coûte treize secondes par page.
+
+Trois pistes, aucune mesurée, aucune engagée :
+
+1. **La rotation elle-même** — treize secondes pour tourner une image en gris de deux mille sur
+   trois mille est beaucoup ; il faut regarder comment elle est écrite avant de conclure quoi que
+   ce soit.
+2. **Tourner plus tard, ou moins** — les repères se cherchent dans des zones que la recette
+   désigne ; tourner la zone plutôt que la page serait une autre conception.
+3. **La découpe**, décidée en 9.1 ter, reste le contournement en place. Elle a désormais un
+   effet de bord connu : **une tranche de moins de neuf feuilles ne tourne pas du tout**, donc ne
+   lit pas la même chose qu'une tranche plus longue. C'est un défaut sérieux du contournement, et
+   il n'était pas visible avant aujourd'hui.
