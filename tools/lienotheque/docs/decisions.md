@@ -3487,3 +3487,51 @@ Son premier jet cherchait « les quatre premiers mots longs de la page », qui n
 dans le texte : la phrase n'existait nulle part et la recherche ne la trouvait pas. Pendant un
 instant cela ressemblait à un défaut d'indexation. C'était le banc qui avait tort, et il cherche
 désormais des mots **contigus**.
+
+
+## 20 octobre 2026 — un document numérisé jusqu'à la recherche, et l'EPUB qui n'existe pas
+
+### 1. Le numérisé : trois citations prêtes à vérifier à l'œil
+
+*Théorie ACT* traverse la chaîne entière — lecture, dépôt, activation, recherche — et rend trois
+citations retrouvées (`mesures/citations-a-verifier.ts`) :
+
+| citation | la recherche dit | sur la feuille |
+|---|---|---|
+| « appellation sont interchangeables). C'est l'impli- cation » | page 34, folio **33** | 17, moitié droite |
+| « permettrait de poursuivre le trajet, de » | page 67, folio **66** | 34, moitié gauche |
+| « présent \| Acceptation \| Défusion _ » | page 99, folio **98** | 50, moitié gauche |
+
+Le décalage est constant — folio = rang − 1 — ce qui est le signe que le vote du décalage a trouvé
+la bonne série.
+
+**La vérification ne peut pas être faite par le programme, et c'est le point.** Sur un document
+natif, `du-depot-a-la-recherche.ts` recherche la phrase une seconde fois dans le PDF : la couche
+**est** le texte imprimé. Ici le texte vient de la reconnaissance, et la couche est précisément ce
+qu'on valide — la confronter à elle-même reviendrait à demander à l'accusé de témoigner pour
+lui-même. **Seule l'image de la feuille fait foi**, et seul un œil peut la lire. Le banc prépare
+la comparaison et s'arrête là.
+
+### 2. L'EPUB : la chaîne ne sait pas le lire, et c'est bloquant
+
+La composition réelle attendue des bibliothèques est **50 % PDF / 50 % EPUB**, et non les 7,6 %
+du corpus d'essai (19 fichiers sur 250). L'étape 7 du chemin du texte — « formats sans pages
+fixes : lecture par chapitre, ancre déclarée comme telle » — avait été différée sur l'hypothèse
+inverse. **Cette hypothèse est caduque.**
+
+Mesuré, sans ambiguïté : `lireLeTexte` sur un EPUB du corpus rend
+`InvalidPDFException: Invalid PDF structure.` La chaîne traite **tout** comme un PDF. L'EPUB est
+seulement **identifié** — `signatures.ts` reconnaît `application/epub+zip` — et rien ne le lit.
+
+Conséquence sur la demande de vérifier la propagation de la langue jusqu'à l'EPUB : **la question
+ne peut pas se poser**, il n'y a aucun chemin EPUB dans lequel une langue pourrait se propager.
+
+Et le refus n'est même pas poli : rien ne vérifie le type du document avant de le lire, et l'on
+obtient une levée de pdf.js plutôt qu'un message qui dise ce qui ne va pas. Un format que l'on ne
+sait pas lire doit se dire, pas planter.
+
+### Ce que cela change pour le troisième bloquant
+
+Il **n'est pas clos**. Le chaînon fonctionne, et il est prouvé sur deux documents PDF — un natif
+de bout en bout, un numérisé jusqu'à la citation. Mais la moitié de ce que les bibliothèques
+porteront ne franchit pas la première étape.
