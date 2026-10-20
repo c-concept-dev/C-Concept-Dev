@@ -9939,7 +9939,20 @@ ${recent}`;
         if(field==='borderWidth')target.style.borderStyle=value?'solid':'';
       } else adocApplyBlockStyleToElement(target, style, ctx.block ? ctx.block.type : adocLegacyBlockKind(ctx.el));
     }
-    adocEditorSync(); adocEditorRefreshControls(); adocEditorMessage('Modification appliquée.');
+    adocEditorSync(); adocEditorRefreshControls();
+    // Constat du 20 octobre — « Modification appliquée. » MENTAIT sur un titre. Un titre
+    // (root:doc-title, root:card-title:<id>) n'a AUCUN champ de style au schéma :
+    // adocFindEditableBlock lui fabrique un objet temporaire, le style vit le temps de l'écran,
+    // et la réouverture le perd — le texte, lui, est bien conservé. Christophe a mis un titre en
+    // 20 pt, lu « Modification appliquée. », sauvegardé, rouvert, et retrouvé l'ancienne taille.
+    // On ne corrige pas le MODÈLE ici (c'est le lot Q1) : on arrête de promettre. Le discriminant
+    // est adocRootFieldRef, la MÊME fonction qui décide qu'un identifiant est un champ racine —
+    // jamais un second test qui pourrait divergeer d'elle.
+    const titreRacine = !ctx.legacy && ctx.art._adocStructuredDoc
+      && !!adocRootFieldRef(ctx.art._adocStructuredDoc, ctx.st.blockId);
+    adocEditorMessage(titreRacine
+      ? 'Appliqué à l’écran seulement : le style d’un titre n’est pas encore sauvegardé.'
+      : 'Modification appliquée.');
   }
 
   // LOT E — curseur d'opacité universel (backgroundOpacity/textOpacity, bloc structuré
