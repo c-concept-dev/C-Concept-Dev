@@ -90,8 +90,15 @@ const lireSelect = (page) => page.evaluate(() => {
     // ── 2 — les polices du Mac priment, et la liste est saine ──
     const mac = s1.options.filter((o) => o.groupe === 'Polices de cet ordinateur').map((o) => o.v);
     assert.ok(mac.length > 100, 'la liste des polices de cet ordinateur doit être substantielle, reçu ' + mac.length);
-    assert.equal(s1.groupes[0], 'Polices de cet ordinateur',
-      'elles passent en PREMIER : ce sont les seules qui s\'afficheront vraiment chez l\'utilisatrice');
+    // Q3 (lot 2D-a, 20 octobre) — CET ORDRE EST INVERSÉ DEPUIS. Les polices de la charte et des
+    // paires passent désormais en premier : les 227 polices de l'ordinateur repoussaient hors de
+    // vue les trois ou quatre qu'on choisit presque toujours. Ce que ce contrôle vérifie par
+    // ailleurs — liste substantielle, aucune famille interne, aucun caractère invisible, aucun
+    // doublon — est inchangé.
+    assert.equal(s1.groupes[0], 'Polices des chartes et des paires',
+      'les polices de la charte et des paires passent en PREMIER (Q3)');
+    assert.equal(s1.groupes[1], 'Polices de cet ordinateur',
+      'celles de cet ordinateur viennent ensuite, toujours offertes');
     assert.equal(mac.filter((f) => f.trim().startsWith('.')).length, 0,
       'aucune famille interne de macOS (préfixe point) ne doit être proposée');
     assert.equal(mac.filter((f) => /\p{Cf}/u.test(f)).length, 0,

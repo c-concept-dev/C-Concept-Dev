@@ -53,16 +53,21 @@ const MUTATIONS = [
     nom: 'D7 — les listes perdent leurs puces',
     controle: 'verify-texte-diapositives.cjs',
     fichier: 'coeur',
-    de: "          return (c.ordered ? (i + 1) + '. ' : '— ') + String(x || '').trim(); }).filter(function (l) {",
-    vers: "          return String(x || '').trim(); }).filter(function (l) {",
+    // Q2 a séparé la structure du rendu : les puces ne sont plus posées par un auxiliaire mais
+    // DANS adocTexteDesDiapositives, le seul endroit vivant. L'ancienne ancre visait une
+    // fonction devenue morte — la mutation ne changeait donc plus rien, et le trou ne venait
+    // pas du contrôle mais de la cible.
+    de: "          e.items.forEach(function (x, i) { out.push('  ' + (e.ordonnee ? (i + 1) + '. ' : '— ') + x); });",
+    vers: "          e.items.forEach(function (x, i) { out.push('  ' + x); });",
     attendu: 'une liste lue a voix haute ne se distingue plus d’un paragraphe',
   },
   {
     nom: 'D7 — le tableau n’est plus rendu ligne par ligne',
     controle: 'verify-texte-diapositives.cjs',
     fichier: 'coeur',
-    de: "        (c.rows || []).forEach(function (r) { lignes.push((r || []).join(' | ')); });",
-    vers: "        lignes.push((c.rows || []).map(function (r) { return (r || []).join(' '); }).join(' '));",
+    // Même raison : les lignes du tableau sont écrites DANS adocTexteDesDiapositives.
+    de: "          e.lignes.forEach(function (r) { out.push('  ' + r.join(' | ')); });",
+    vers: "          out.push('  ' + e.lignes.map(function (r) { return r.join(' '); }).join(' '));",
     attendu: 'les lignes se confondent en une seule',
   },
 ];
