@@ -28,8 +28,8 @@ let n = 0;
 const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
 
 // Les champs inconnus de l'étape suivante (Q1), utilisés ici comme fixture SYNTHÉTIQUE.
-const STYLE_CARTE = { fontFamily: 'Lora', fontSizePt: 20, color: '#8a3f29' };
-const STYLE_RACINE = { fontSizePt: 26 };
+const VALEUR_CARTE = { reglage: 'carte', intensite: 20, teinte: '#8a3f29' };
+const VALEUR_RACINE = { reglage: 'racine', intensite: 26 };
 
 const base = () => ({ schemaVersion: 1, documentId: 'tol', versionId: 'tol-v1',
   previousVersionId: null, requestId: 'r', sourceSnapshotId: 's',
@@ -44,10 +44,19 @@ const base = () => ({ schemaVersion: 1, documentId: 'tol', versionId: 'tol-v1',
   validation: { sourceIntegrity: 'pending', contentCompleteness: 'pending', layout: 'pending',
                 accessibility: 'pending', humanClinicalReview: 'required' }, narration: [] });
 
+// LE NOM DU CHAMP D'ESSAI, ET POURQUOI IL A CHANGÉ (20 octobre).
+// Ce contrôle a d'abord pris `titleStyle` comme champ inconnu, parce que c'était le cas RÉEL
+// mesuré avant l'étape 1a. Le lot Q1 ajoute justement `titleStyle` aux schémas : le champ
+// devient CONNU, le document valide strictement, aucun avertissement n'est émis, et ce contrôle
+// tombait sur le résultat fusionné — mesuré. Un contrôle de compatibilité ascendante ne peut pas
+// dépendre d'un champ qu'un lot futur rendra légitime : il lui faut un nom qu'aucun lot
+// n'ajoutera jamais. D'où `__champDEssaiInconnu`, réservé aux essais.
+const CHAMP = '__champDEssaiInconnu';
+
 function avecChampsInconnus() {
   const d = base();
-  d.titleStyle = STYLE_RACINE;
-  d.blocks[0].content.titleStyle = STYLE_CARTE;
+  d[CHAMP] = VALEUR_RACINE;
+  d.blocks[0].content[CHAMP] = VALEUR_CARTE;
   return d;
 }
 
@@ -91,9 +100,9 @@ function avecChampsInconnus() {
     assert.ok(avert.length >= 1,
       'un avertissement en console doit le dire ; avertissements vus : '
       + JSON.stringify(avertissements.slice(0, 3)));
-    assert.match(avert[0], /\/titleStyle/,
+    assert.match(avert[0], new RegExp('/' + CHAMP),
       'l’avertissement nomme les CHEMINS exacts ; lu : ' + JSON.stringify(avert[0]));
-    assert.match(avert[0], /\/blocks\/0\/content\/titleStyle/,
+    assert.match(avert[0], new RegExp('/blocks/0/content/' + CHAMP),
       'y compris celui de la carte ; lu : ' + JSON.stringify(avert[0]));
     pass('document à champs inconnus : rendu, et l’avertissement nomme les deux chemins.');
 
@@ -104,7 +113,7 @@ function avecChampsInconnus() {
       ['type de bloc inconnu', (d) => { d.blocks[0].type = 'type-inexistant'; }],
       ['structure oneOf cassée', (d) => { d.blocks[0].content.blocks = 'pas un tableau'; }],
       ['documentKind incohérent', (d) => { d.documentKind = 'fiche'; }],
-      ['champ inconnu ET vraie erreur', (d) => { d.titleStyle = STYLE_RACINE; d.title = 123; }],
+      ['champ inconnu ET vraie erreur', (d) => { d[CHAMP] = VALEUR_RACINE; d.title = 123; }],
     ];
     for (const [nom, casser] of FAUTES) {
       const d = base(); casser(d);
@@ -188,21 +197,21 @@ function avecChampsInconnus() {
     const id = await page.evaluate(() => window._adocArtifacts.t._adocClinicalDocumentId);
     assert.ok(id, 'le document doit être sauvegardé');
     const ecrit = [...etat.documents.values()][0].versions.slice(-1)[0].charge.document.clinicalDocument;
-    assert.deepEqual(ecrit.blocks[0].content.titleStyle, STYLE_CARTE,
-      'le champ de la carte doit être ÉCRIT tel quel ; lu : ' + JSON.stringify(ecrit.blocks[0].content.titleStyle));
-    assert.deepEqual(ecrit.titleStyle, STYLE_RACINE,
-      'le champ de la racine aussi ; lu : ' + JSON.stringify(ecrit.titleStyle));
+    assert.deepEqual(ecrit.blocks[0].content[CHAMP], VALEUR_CARTE,
+      'le champ de la carte doit être ÉCRIT tel quel ; lu : ' + JSON.stringify(ecrit.blocks[0].content[CHAMP]));
+    assert.deepEqual(ecrit[CHAMP], VALEUR_RACINE,
+      'le champ de la racine aussi ; lu : ' + JSON.stringify(ecrit[CHAMP]));
     assert.equal(ecrit.blocks[0].content.blocks[0].content.text, 'Un paragraphe modifié.',
       'et la modification est bien là');
     const rouvert = await page.evaluate((i) => window.adocOpenSavedClinicalDocument(i), id);
     await page.waitForTimeout(900);
     assert.equal(rouvert, true, 'le document se rouvre');
-    const relu = await page.evaluate(() => {
+    const relu = await page.evaluate((c) => {
       const d = window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc;
-      return { carte: d.blocks[0].content.titleStyle, racine: d.titleStyle };
-    });
-    assert.deepEqual(relu.carte, STYLE_CARTE, 'à la réouverture, le champ de la carte est identique');
-    assert.deepEqual(relu.racine, STYLE_RACINE, 'et celui de la racine aussi');
+      return { carte: d.blocks[0].content[c], racine: d[c] };
+    }, CHAMP);
+    assert.deepEqual(relu.carte, VALEUR_CARTE, 'à la réouverture, le champ de la carte est identique');
+    assert.deepEqual(relu.racine, VALEUR_RACINE, 'et celui de la racine aussi');
     pass('ouvrir, modifier, sauvegarder, rouvrir : les champs inconnus sont PRÉSERVÉS, identiques.');
 
     // ── 5. SANS CHAMP INCONNU : AUCUN AVERTISSEMENT, ET LE RENDU EST LE MÊME ──────────────

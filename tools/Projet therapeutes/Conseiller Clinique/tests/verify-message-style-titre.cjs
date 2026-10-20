@@ -21,8 +21,13 @@ const { creerFauxWorker } = require('./faux-worker-documents.cjs');
 const { PRESENTATION } = require('./fixtures-page-generee.cjs');
 
 const RACINE = path.join(__dirname, '..');
-const ATTENDU_TITRE = 'Appliqué à l’écran seulement : le style d’un titre n’est pas encore sauvegardé.';
-const ATTENDU_BLOC = 'Modification appliquée.';
+// Q1 — CE QUI A CHANGÉ, ET POURQUOI. Avant ce lot, le style d'un titre n'était écrit nulle part
+// et le message avertissait pour TOUT titre. Il est désormais dans le document (titleStyle) :
+// avertir serait devenu un mensonge. L'avertissement ne reste donc que pour la mise en forme
+// d'une PORTION de titre — hors périmètre de ce lot, et toujours non conservée, parce qu'elle
+// vit dans un <span> du DOM que nul champ ne porte.
+const ATTENDU_PORTION = 'La mise en forme d’une partie du titre n’est pas conservée.';
+const ATTENDU_ENTIER = 'Modification appliquée.';
 let n = 0;
 const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
 
@@ -84,10 +89,10 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     await outils();
     await poser('fontSizePt', '20');
     await page.waitForTimeout(350);
-    assert.equal(await message(), ATTENDU_TITRE,
-      'sur un TITRE de diapositive, le message doit dire la vérité ; lu : '
+    assert.equal(await message(), ATTENDU_ENTIER,
+      'un titre ENTIER est sauvegardé : même message qu’un bloc ; lu : '
       + JSON.stringify(await message()));
-    pass('titre d’une diapositive, taille 20 pt : « ' + ATTENDU_TITRE + ' »');
+    pass('titre d’une diapositive, taille 20 pt : « ' + ATTENDU_ENTIER + ' »');
 
     // Le même message pour les autres réglages du panneau, et pour la remise à zéro : un seul
     // d'entre eux qui mentirait suffirait à tromper.
@@ -96,7 +101,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       await choisir('.adoc-sc-card-title'); await outils();
       await poser(champ, valeur);
       await page.waitForTimeout(300);
-      assert.equal(await message(), ATTENDU_TITRE,
+      assert.equal(await message(), ATTENDU_ENTIER,
         'réglage « ' + champ + ' » sur un titre : même message ; lu : ' + JSON.stringify(await message()));
     }
     await choisir('.adoc-sc-card-title'); await outils();
@@ -106,7 +111,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       b.click();
     });
     await page.waitForTimeout(300);
-    assert.equal(await message(), ATTENDU_TITRE,
+    assert.equal(await message(), ATTENDU_ENTIER,
       'la remise à zéro sur un titre dit la même chose ; lu : ' + JSON.stringify(await message()));
     // « Texte sélectionné » dans un titre : nommé par Christophe, donc mesuré. Le gras passe
     // par adocEditorAction, qui appelle adocEditorApplyStyle — même sortie, même message.
@@ -128,9 +133,11 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       b.click();
     });
     await page.waitForTimeout(350);
-    assert.equal(await message(), ATTENDU_TITRE,
-      '« Texte sélectionné » dans un titre dit la même chose ; lu : ' + JSON.stringify(await message()));
-    pass('les quatre autres réglages, la remise à zéro et « Texte sélectionné » disent la même chose.');
+    assert.equal(await message(), ATTENDU_PORTION,
+      '« Texte sélectionné » est le SEUL cas qui garde l’avertissement, avec son nouveau texte ; '
+      + 'lu : ' + JSON.stringify(await message()));
+    pass('les quatre autres réglages et la remise à zéro disent « Modification appliquée. » ; '
+      + '« Texte sélectionné » garde l’avertissement, avec son texte propre.');
 
     // ── 2. LE TITRE DU DOCUMENT, sur une FICHE (seule forme où il est modifiable) ─────────
     // Une présentation n'a pas de .adoc-sc-cover-title : ce n'est pas un oubli, c'est le rendu.
@@ -150,8 +157,8 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     await outils();
     await poser('fontSizePt', '22');
     await page.waitForTimeout(350);
-    assert.equal(await message(), ATTENDU_TITRE,
-      'sur le TITRE DU DOCUMENT aussi ; lu : ' + JSON.stringify(await message()));
+    assert.equal(await message(), ATTENDU_ENTIER,
+      'le titre du document aussi : son style est sauvegardé ; lu : ' + JSON.stringify(await message()));
     pass('titre du document (fiche), taille 22 pt : même message.');
 
     // ── 2 bis. LE TITRE D'UNE CARTE DE CARROUSEL ─────────────────────────────────────────
@@ -170,8 +177,8 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     await outils();
     await poser('fontSizePt', '21');
     await page.waitForTimeout(350);
-    assert.equal(await message(), ATTENDU_TITRE,
-      'sur le titre d’une carte de CARROUSEL aussi ; lu : ' + JSON.stringify(await message()));
+    assert.equal(await message(), ATTENDU_ENTIER,
+      'le titre d’une carte de carrousel aussi ; lu : ' + JSON.stringify(await message()));
     pass('titre d’une carte de carrousel, taille 21 pt : même message.');
 
     // ── 2 ter. L'OBJET ET LE PUBLIC : LE PANNEAU NE S'OUVRE PAS ──────────────────────────
@@ -215,28 +222,39 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     await outils();
     await poser('fontSizePt', '18');
     await page.waitForTimeout(350);
-    assert.equal(await message(), ATTENDU_BLOC,
-      'sur un BLOC, le message reste celui d’avant — un bloc est bel et bien sauvegardé ; lu : '
+    assert.equal(await message(), ATTENDU_ENTIER,
+      'un BLOC est inchangé par ce lot ; lu : '
       + JSON.stringify(await message()));
     // Et la preuve que ce bloc, lui, est écrit dans le document.
     assert.equal(await page.evaluate(() =>
       window._adocArtifacts.f._adocStructuredDoc.blocks[0].style.fontSizePt), 18,
       'le style du bloc est RÉELLEMENT dans le document, contrairement à celui d’un titre');
-    pass('bloc, taille 18 pt : « ' + ATTENDU_BLOC + " », et le style est bien dans le document.");
+    pass('bloc, taille 18 pt : « ' + ATTENDU_ENTIER + " », et le style est bien dans le document.");
 
     // ── 4. ET LE TITRE, LUI, N'EST TOUJOURS PAS DANS LE DOCUMENT ─────────────────────────
     // Le message dit vrai : on le vérifie, sinon il serait exact par hasard.
+    // RENVERSÉ PAR CE LOT. Ce contrôle affirmait « le document ne porte AUCUN style de titre » :
+    // c'était vrai, et c'est précisément le défaut que Q1 corrige. Il vérifie désormais
+    // l'inverse — le style EST dans le document — sans quoi le nouveau message serait, lui,
+    // le mensonge.
+    // On repose un style avant de lire : le pas « remise à zéro » ci-dessus a légitimement
+    // SUPPRIMÉ titleStyle, et lire à cet instant mesurerait l'effet du reset, pas la persistance.
+    await page.evaluate(async () => {
+      window._adocWsState.storeKey = 'e';
+      await window.adocOpenWorkspace('e');
+    });
+    await page.waitForTimeout(500);
+    await choisir('.adoc-sc-card-title');
+    await outils();
+    await poser('fontSizePt', '24');
+    await page.waitForTimeout(350);
     const titreDansLeDoc = await page.evaluate(() => {
       const d = window._adocArtifacts.e._adocStructuredDoc;
-      return { carte: d.blocks[0].content.titleStyle === undefined
-        && d.blocks[0].style === undefined,
-        racine: d.titleStyle === undefined };
+      return { carte: d.blocks[0].content.titleStyle, racine: d.titleStyle };
     });
-    assert.equal(titreDansLeDoc.carte, true,
-      'aucun style de titre de carte n’est écrit dans le document — le message dit vrai');
-    assert.equal(titreDansLeDoc.racine, true,
-      'aucun style de titre de document non plus');
-    pass('le message est exact : le document ne porte AUCUN style de titre.');
+    assert.ok(titreDansLeDoc.carte && Object.keys(titreDansLeDoc.carte).length,
+      'le style du titre de carte DOIT être dans le document ; lu : ' + JSON.stringify(titreDansLeDoc.carte));
+    pass('« Modification appliquée. » dit vrai : le style du titre est bien dans le document.');
 
     assert.deepEqual(erreurs, [], 'aucune erreur de page : ' + JSON.stringify(erreurs.slice(0, 2)));
   } finally {
