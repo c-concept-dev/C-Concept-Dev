@@ -1538,12 +1538,16 @@
       aEcrire.forEach(function (en) {
         window.adocNarrationWrite(doc, en.stepId, en.text);
       });
+      // Q7 — le document VIENT DE CHANGER : l'écran doit le dire. Sans cette ligne, le badge
+      // continuait d'afficher « Sauvegardé » après dix-neuf narrations écrites, et fermer le
+      // document les perdait toutes sans un mot. Défaut constaté en production le 20 octobre.
+      window.adocEditorMarkDirty();
       panneau.querySelector('.nia-annuler').disabled = false;
       dire(panneau, aEcrire.length + ' narration(s) écrite(s) dans le document'
         + (aEcrire.length < dernierResultat.entrees.length
             ? ' (' + (dernierResultat.entrees.length - aEcrire.length) + ' étape(s) écartée(s)).' : '.')
         + (existantes.length ? '\n' + existantes.length + ' remplacée(s), après confirmation.' : '')
-        + '\nRien n’est enregistré tant que vous n’avez pas enregistré le document.');
+        + '\nRien n’est sauvegardé tant que vous n’avez pas sauvegardé le document.');
       rafraichirChamp();
     };
 
@@ -1553,6 +1557,8 @@
       // étape par étape — une narration ajoutée là où il n'y en avait aucune doit disparaître.
       dernierGeste.doc.narration = JSON.parse(JSON.stringify(dernierGeste.avant));
       if (!dernierGeste.doc.narration.length) delete dernierGeste.doc.narration;
+      // Q7 — annuler ÉCRIT dans le document autant qu'appliquer : même devoir de le dire.
+      window.adocEditorMarkDirty();
       dire(panneau, 'Geste annulé : la narration est revenue à son état d’avant.');
       dernierGeste = null;
       this.disabled = true;

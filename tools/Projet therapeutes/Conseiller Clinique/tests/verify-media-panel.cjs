@@ -261,7 +261,7 @@ function selectBlock(page, storeKey, blockId) {
   await heavilyUsedRow.locator('.cc-media-delete-btn').click();
   await page.waitForFunction((i) => !document.querySelector('[data-media-item-history="' + i + '"]'), heavilyUsedIdx);
   const lastMsg = dialogMessages[dialogMessages.length - 1];
-  assert.ok(lastMsg.includes('utilisée dans au moins un document déjà enregistré') && lastMsg.includes('disparaître'), 'ref_count>0 doit produire un message renforcé et explicite : "' + lastMsg + '"');
+  assert.ok(lastMsg.includes('utilisée dans au moins un document déjà sauvegardé') && lastMsg.includes('disparaître'), 'ref_count>0 doit produire un message renforcé et explicite : "' + lastMsg + '"');
   assert.equal(deleteCalls, 2);
   assert.ok(!mediaStore.find((r) => r.asset_id === 'assetheavilyused'), 'la suppression doit être effective malgré ref_count>0 (Christophe reste seul juge)');
   console.log('PASS 12/14 — suppression d’une image déjà utilisée : message renforcé explicite, suppression tout de même effective');

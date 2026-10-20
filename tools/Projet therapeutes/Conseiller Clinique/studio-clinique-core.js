@@ -8220,6 +8220,10 @@ ${recent}`;
   // LOT 1b — le module de rédaction rafraîchit le champ du lot 1a par CE point d'entrée, jamais
   // en écrivant dans le textarea : une seule source de vérité pour ce qu'affiche l'éditeur.
   window.adocEditorRefreshControls = function () { return adocEditorRefreshControls(); };
+  // Q7 — exposée pour qu'un contrôle marque le document modifié par la VRAIE fonction, celle
+  // que l'éditeur appelle, plutôt que de poser le drapeau à la main et de rater le
+  // rafraîchissement de l'état. Même patron que la ligne au-dessus.
+  window.adocEditorMarkDirty = function () { return adocEditorMarkDirty(); };
   // Le SEUL point de sérialisation pour l'enregistrement, exposé pour que le test de
   // l'aller-retour éprouve ce que l'application persiste réellement, et non une copie forgée.
   window.adocBuildClinicalDocumentContent = function (art) { return adocBuildClinicalDocumentContent(art); };
@@ -9935,7 +9939,20 @@ ${recent}`;
         if(field==='borderWidth')target.style.borderStyle=value?'solid':'';
       } else adocApplyBlockStyleToElement(target, style, ctx.block ? ctx.block.type : adocLegacyBlockKind(ctx.el));
     }
-    adocEditorSync(); adocEditorRefreshControls(); adocEditorMessage('Modification appliquée.');
+    adocEditorSync(); adocEditorRefreshControls();
+    // Constat du 20 octobre — « Modification appliquée. » MENTAIT sur un titre. Un titre
+    // (root:doc-title, root:card-title:<id>) n'a AUCUN champ de style au schéma :
+    // adocFindEditableBlock lui fabrique un objet temporaire, le style vit le temps de l'écran,
+    // et la réouverture le perd — le texte, lui, est bien conservé. Christophe a mis un titre en
+    // 20 pt, lu « Modification appliquée. », sauvegardé, rouvert, et retrouvé l'ancienne taille.
+    // On ne corrige pas le MODÈLE ici (c'est le lot Q1) : on arrête de promettre. Le discriminant
+    // est adocRootFieldRef, la MÊME fonction qui décide qu'un identifiant est un champ racine —
+    // jamais un second test qui pourrait divergeer d'elle.
+    const titreRacine = !ctx.legacy && ctx.art._adocStructuredDoc
+      && !!adocRootFieldRef(ctx.art._adocStructuredDoc, ctx.st.blockId);
+    adocEditorMessage(titreRacine
+      ? 'Appliqué à l’écran seulement : le style d’un titre n’est pas encore sauvegardé.'
+      : 'Modification appliquée.');
   }
 
   // LOT E — curseur d'opacité universel (backgroundOpacity/textOpacity, bloc structuré
@@ -12020,21 +12037,21 @@ ${recent}`;
     const state = _adocBrandKitImportState;
     if (!state) return;
     const name = (document.getElementById('cc-brandkit-confirm-name').value || '').trim();
-    if (!name) { alert('Donnez un nom à cette charte avant de l’enregistrer.'); return; }
+    if (!name) { alert('Donnez un nom à cette charte avant de la sauvegarder.'); return; }
 
     const draftColors = adocBrandKitDraftColors();
     // Point 1 (import charte) — seuls les 4 rôles ci-dessous restent strictement obligatoires ;
     // success/warning/critical reçoivent un repli automatique côté Worker si absents.
     const missingColorRoles = ADOC_BRANDKIT_REQUIRED_COLOR_ROLES.filter((role) => !draftColors[role] || !draftColors[role].length);
     if (missingColorRoles.length) {
-      alert('Attribuez une couleur à chaque rôle manquant avant d’enregistrer : ' + missingColorRoles.join(', ') + '.');
+      alert('Attribuez une couleur à chaque rôle manquant avant de sauvegarder : ' + missingColorRoles.join(', ') + '.');
       return;
     }
     // Le conflit "même rôle attribué deux fois" reste vérifié sur les 7 rôles fonctionnels — un
     // rôle optionnel non couvert n'est pas une erreur, mais deux couleurs sur ce même rôle en est une.
     const duplicateColorRoles = ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.filter((role) => draftColors[role] && draftColors[role].length > 1);
     if (duplicateColorRoles.length) {
-      alert('Un seul rôle par couleur : ' + duplicateColorRoles.join(', ') + ' ' + (duplicateColorRoles.length > 1 ? 'sont' : 'est') + ' attribué(s) à plusieurs couleurs à la fois. Corrigez avant d’enregistrer.');
+      alert('Un seul rôle par couleur : ' + duplicateColorRoles.join(', ') + ' ' + (duplicateColorRoles.length > 1 ? 'sont' : 'est') + ' attribué(s) à plusieurs couleurs à la fois. Corrigez avant de sauvegarder.');
       return;
     }
     const draftFonts = adocBrandKitDraftFonts();
@@ -12042,14 +12059,14 @@ ${recent}`;
     // plusieurs candidates légitimes restent désormais possibles, jamais un blocage arbitraire ni
     // une réassignation forcée pour en écarter une.
     if (!draftFonts.heading || !draftFonts.heading.length || !draftFonts.body || !draftFonts.body.length) {
-      alert('Attribuez au moins une police aux titres et une police au corps avant d’enregistrer.');
+      alert('Attribuez au moins une police aux titres et une police au corps avant de sauvegarder.');
       return;
     }
     // Point 1 — "Accent" reste optionnel (0 police assignée est valide) ; seul un conflit
     // (plusieurs polices sur ce même rôle) est bloquant, jamais son absence. Contrairement à
     // heading/body, Accent ne porte pas de mécanisme "Par défaut" dans ce lot (hors périmètre).
     if (draftFonts.accent && draftFonts.accent.length > 1) {
-      alert('Un seul rôle "Accent" par police. Corrigez avant d’enregistrer.');
+      alert('Un seul rôle "Accent" par police. Corrigez avant de sauvegarder.');
       return;
     }
     // Partie B — jamais un choix silencieux : bloquant seulement si un rôle à 2+ candidates n'a
@@ -12080,14 +12097,14 @@ ${recent}`;
         if (textEl) textEl.textContent = 'Une charte nommée « ' + name + ' » est déjà active. Que voulez-vous faire ?';
         const modal = document.getElementById('cc-brandkit-duplicate-confirm');
         if (modal) modal.classList.add('open');
-        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Sauvegarder la charte'; }
         return;
       }
       await adocBrandKitProceedToSave(name, draftColors, draftFonts);
     } catch (e) {
       console.warn('[UX-8B Lot 3] Sauvegarde de charte en échec:', e);
-      alert('Impossible d’enregistrer cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
+      alert('Impossible de sauvegarder cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Sauvegarder la charte'; }
     }
   };
 
@@ -12097,7 +12114,7 @@ ${recent}`;
     const state = _adocBrandKitImportState;
     if (!state) return;
     const saveBtn = document.getElementById('cc-brandkit-confirm-save');
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement…'; }
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Sauvegarde…'; }
     try {
       const workerUrl = adocGetWorkerUrl();
       const apiKey = adocGetApiKey();
@@ -12181,9 +12198,9 @@ ${recent}`;
       }
     } catch (e) {
       console.warn('[UX-8B Lot 3] Sauvegarde de charte en échec:', e);
-      alert('Impossible d’enregistrer cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+      alert('Impossible de sauvegarder cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
     } finally {
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Sauvegarder la charte'; }
     }
   }
 
@@ -16074,7 +16091,7 @@ ${recent}`;
     // derivedFrom doit référencer un documentId/versionId RÉELS (schéma) — le document source doit
     // donc déjà être enregistré ; jamais construit avec une référence vide ou inventée.
     if (!sourceArt._adocClinicalDocumentId || !sourceArt._adocClinicalVersionId) {
-      throw new Error('Enregistrez d’abord ce document avant de le transformer.');
+      throw new Error('Sauvegardez d’abord ce document avant de le transformer.');
     }
     const sourceLabel = ADOC_GENERATION_KIND_LABELS[sourceKind] || sourceKind;
     const targetLabel = ADOC_GENERATION_KIND_LABELS[targetKind] || targetKind;
@@ -16357,11 +16374,14 @@ ${recent}`;
   };
 
   window.adocCloseWorkspace = function () {
+    const ws = document.getElementById('cc-workspace');
+    if (!ws.classList.contains('open')) return;
+    // Q7 (2.4) — AVANT tout effet : une fermeture refusée ne doit RIEN avoir changé, pas même
+    // l'oubli du retour en arrière de D5 ci-dessous.
+    if (!adocQ7AbandonAccepte('Fermer ce document')) return;
     // Enregistrer, enregistrer sous et fermer n'appellent pas adocEditorMarkDirty :
     // l'oubli du retour en arrière est donc dit ici, explicitement (D5).
     if (window.adocOublierAnnulationPage) window.adocOublierAnnulationPage();
-    const ws = document.getElementById('cc-workspace');
-    if (!ws.classList.contains('open')) return;
     ws.classList.remove('open');
     document.body.style.overflow = '';
     adocWsUnmountMemory();
@@ -16396,6 +16416,13 @@ ${recent}`;
     const art = { name: data.title || 'Document' };
     art._adocClinicalDocumentId = data.document_id;
     art._adocClinicalVersionId = data.version.version_id;
+    // Q7 — un document ROUVERT doit dire QUAND il a été sauvegardé, pas seulement qu'il l'a été.
+    // Le Worker renvoie la date de la version courante (Worker/index.js, GET
+    // /clinical-documents/:id → version.created_at) : on la reprend telle quelle. Si elle
+    // manquait, l'état retomberait sur « Enregistré » tout court, sans inventer d'heure.
+    const quandVersion = data.version && data.version.created_at;
+    const tVersion = quandVersion ? Date.parse(quandVersion) : NaN;
+    if (!isNaN(tVersion)) { art._adocEnregistreA = tVersion; art._adocEnregistreAvecDate = true; }
     art._adocGenerationEngine = engine;
     if (engine === 'legacy-html') {
       art.html = data.version.document.html || '';
@@ -16449,6 +16476,9 @@ ${recent}`;
   }
 
   window.adocOpenSavedClinicalDocument = async function (documentId) {
+    // Q7 (2.4) — même garde que la fermeture, AVANT la requête réseau : un refus ne doit ni
+    // interroger le serveur, ni toucher le document courant.
+    if (!adocQ7AbandonAccepte('Ouvrir un autre document')) return false;
     try {
       const art = await adocResolveSavedClinicalDocumentArt(documentId);
       const storeKey = 'adocArt_saved_' + documentId;
@@ -19777,7 +19807,7 @@ ${recent}`;
     // rend les identifiants retirés ; ils partent en console plutôt que de disparaître en silence.
     const narrationRetiree = adocNarrationPurge(art._adocStructuredDoc);
     if (narrationRetiree.length) {
-      console.warn('[narration] ' + narrationRetiree.length + ' narration(s) sans étape, retirée(s) à l\'enregistrement : ' + narrationRetiree.join(', '));
+      console.warn('[narration] ' + narrationRetiree.length + ' narration(s) sans étape, retirée(s) à la sauvegarde : ' + narrationRetiree.join(', '));
     }
     return {
       schemaVersion: (art._adocStructuredDoc && art._adocStructuredDoc.schemaVersion) || 1,
@@ -21844,6 +21874,11 @@ ${recent}`;
     if (a.avant.validation === null) delete doc.validation; else doc.validation = a.avant.validation;
     adocOublierAnnulationPage();
     await window.adocOpenWorkspace(a.storeKey);
+    // Q7 — OUBLI CORRIGÉ : annuler une page CHANGE le document, et il faut le dire. Sans cette
+    // ligne, l'état continuait d'afficher « Enregistré à … » sur un document qui avait changé,
+    // et l'avertissement de fermeture ne prévenait pas : le retour en arrière se perdait en
+    // silence. Trouvé en mesurant le drapeau geste par geste, pas en relisant le code.
+    adocEditorMarkDirty();
     return true;
   };
 
@@ -22305,7 +22340,7 @@ ${recent}`;
     const item = window._adocMediaHistoryResults && window._adocMediaHistoryResults[idx];
     if (!item) return;
     const confirmMsg = item.ref_count > 0
-      ? 'Cette image est utilisée dans au moins un document déjà enregistré — la supprimer la fera disparaître de ces documents. Continuer ?'
+      ? 'Cette image est utilisée dans au moins un document déjà sauvegardé — la supprimer la fera disparaître de ces documents. Continuer ?'
       : 'Supprimer cette image ?';
     if (!confirm(confirmMsg)) return;
     const btn = document.querySelector('[data-media-history-delete="' + idx + '"]');
@@ -22942,14 +22977,28 @@ ${recent}`;
   };
 
   // Chiffres bruts, pas de jugement de valeur (même esprit que la jauge d'usage, UX-10A Étape 1)
-  // — reflète simplement l'état réel : enregistré ou non, jamais une invitation insistante.
+  // — reflète simplement l'état réel : sauvegardé ou non, jamais une invitation insistante.
   function adocUpdateSaveStatusUI(art) {
     const statusEl = document.getElementById('cc-ws-save-status');
     const deleteBtn = document.getElementById('cc-ws-delete-btn');
     const saveBtn = document.getElementById('cc-ws-save-btn');
     if (!statusEl) return;
     const saved = !!(art && art._adocClinicalDocumentId);
-    statusEl.textContent = art && art._ccEditorDirty ? 'Modifications non enregistrées' : saved ? 'Enregistré' : 'Non enregistré';
+    // Q7 — l'état dit l'heure du dernier enregistrement RÉUSSI, en français. Elle n'est posée
+    // que par adocWsSave/adocWsSaveAs quand la réponse est bonne : un échec ne peut donc pas
+    // afficher « Enregistré », quoi qu'il arrive ensuite.
+    // L'heure seule pour un enregistrement de CETTE session ; la date en plus pour un document
+    // rouvert, où « à 14 h 32 » sans jour ne voudrait rien dire.
+    let heure = '';
+    if (art && art._adocEnregistreA) {
+      const q = new Date(art._adocEnregistreA);
+      const hm = q.toLocaleTimeString('fr-FR', { hour: 'numeric', minute: '2-digit' }).replace(':', ' h ');
+      heure = (art._adocEnregistreAvecDate
+        ? ' le ' + q.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+        : '') + ' à ' + hm;
+    }
+    statusEl.textContent = art && art._ccEditorDirty ? 'Modifications non sauvegardées'
+      : saved ? 'Sauvegardé' + heure : 'Non sauvegardé';
     statusEl.className = 'cc-ws-save-status ' + (saved && !art._ccEditorDirty ? 'saved' : 'unsaved');
     if (deleteBtn) deleteBtn.hidden = !saved;
     // Item 20 — même garde que Supprimer ci-dessus (saved requis, derivedFrom doit référencer un
@@ -22966,11 +23015,16 @@ ${recent}`;
       // Lot 2C — « Nouvelle version » et non « Enregistrer une nouvelle version » : le long
       // libellé s'empilait sur trois lignes dans la barre et poussait le dernier bouton hors du
       // cadre. Le sens est le même, le geste est le même ; seul l'encombrement change.
-      // La phrase entière n'est pas perdue pour autant : elle devient l'infobulle et le nom
-      // lu par les lecteurs d'écran, posés ICI, au même endroit que le libellé — une seule
-      // source pour les trois, qui ne peuvent donc pas diverger.
-      const entier = saved ? 'Enregistrer une nouvelle version' : 'Enregistrer le document';
-      if (label) label.textContent = saved ? 'Nouvelle version' : 'Enregistrer';
+      // Q7 — UN SEUL LIBELLÉ, dans tous les cas : « Sauvegarder ». « Nouvelle version »
+      // disparaît de la barre. Ce que fait le clic ne change pas d'un iota (création puis
+      // versions successives) ; seul le mot change, parce que « Nouvelle version » décrivait
+      // la mécanique du Worker plutôt que le geste de l'utilisatrice.
+      // La nuance reste dite, à l'infobulle et aux lecteurs d'écran, posés ICI, au même
+      // endroit que le libellé — une seule source pour les trois, qui ne peuvent pas diverger.
+      const entier = saved
+        ? 'Sauvegarde vos modifications (la version précédente reste conservée)'
+        : 'Sauvegarder le document';
+      if (label) label.textContent = 'Sauvegarder';
       saveBtn.title = entier;
       saveBtn.setAttribute('aria-label', entier);
     }
@@ -22995,9 +23049,9 @@ ${recent}`;
           ? (isXlsxRegenerable
               ? 'Ce document a été modifié depuis sa génération — « Exporter » régénère un fichier ' + realLabel + ' réel et à jour avec vos modifications.'
               : 'Ce document a été modifié depuis sa génération — « Exporter » livre désormais du HTML/PDF, seule sortie qui reflète fidèlement le contenu actuel. Le ' + link + ' (avant modification) reste disponible, mais ne reflète plus ces changements.')
-          : 'Aperçu HTML modifiable de ce document ' + realLabel + '. Tant qu’aucune modification n’est enregistrée, « Exporter » livre le ' + link + ' réel.';
+          : 'Aperçu HTML modifiable de ce document ' + realLabel + '. Tant qu’aucune modification n’est sauvegardée, « Exporter » livre le ' + link + ' réel.';
       } else {
-        bannerText.textContent = 'Document HTML : l’édition directe, la correction IA, l’enregistrement et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.';
+        bannerText.textContent = 'Document HTML : l’édition directe, la correction IA, la sauvegarde et l’export sont disponibles. Les citations ne disposent pas du contrôle fin du moteur structuré.';
       }
     }
   }
@@ -23779,6 +23833,61 @@ ${recent}`;
     art._adocClinicalVersionId = data.version_id;
   }
 
+  // ── Q7 — ⌘S, Ctrl+S, ET L'AVERTISSEMENT AVANT DE FERMER ────────────────────────────────
+  // Posés UNE SEULE FOIS, au chargement, et non à chaque ouverture de document : deux
+  // écouteurs enregistreraient deux fois.
+  var _adocQ7Pose = false;
+  function adocQ7InstallerRaccourcis() {
+    if (_adocQ7Pose) return;
+    _adocQ7Pose = true;
+    // Le raccourci n'agit QUE lorsqu'un espace de travail est ouvert : ailleurs, le navigateur
+    // garde son propre enregistrement, qui est ce qu'on attend d'une page ordinaire.
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 's' && e.key !== 'S') return;
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      const st = window._adocWsState;
+      if (!st || !st.storeKey) return;
+      const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+      if (!art || !art._adocCapabilities || !art._adocCapabilities.persist) return;
+      // Le focus peut être dans une zone éditable : on enregistre quand même, et on empêche
+      // le navigateur d'ouvrir sa propre fenêtre d'enregistrement.
+      e.preventDefault();
+      window.adocWsSave();
+    }, true);
+    // L'avertissement natif, UNIQUEMENT s'il y a des modifications non enregistrées.
+    window.addEventListener('beforeunload', function (e) {
+      if (!adocQ7ModificationsEnAttente()) return;
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    });
+  }
+  function adocQ7ModificationsEnAttente() {
+    const st = window._adocWsState;
+    if (!st || !st.storeKey) return false;
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    return !!(art && art._ccEditorDirty);
+  }
+  window.adocQ7ModificationsEnAttente = adocQ7ModificationsEnAttente;
+  // Q7 (2.4) — UN SEUL garde, partagé par la fermeture et par l'ouverture d'un autre document :
+  // jamais deux questions rédigées différemment pour le même risque. Le composant de
+  // confirmation est celui qui EXISTE DÉJÀ partout ailleurs dans le cœur — confirm() natif
+  // (suppression d'un document, retrait d'une charte, lien vidéo, document supprimé entre-temps)
+  // — jamais un second mécanisme de dialogue inventé ici.
+  // Renvoie VRAI quand on peut continuer : soit rien n'est en attente (aucune question posée,
+  // pour ne pas apprendre à cliquer « oui » sans lire), soit l'utilisatrice a accepté de perdre
+  // ses modifications.
+  function adocQ7AbandonAccepte(geste) {
+    if (!adocQ7ModificationsEnAttente()) return true;
+    return confirm('Ce document a des modifications non sauvegardées. '
+      + geste + ' maintenant les perdra définitivement. Continuer quand même ?');
+  }
+  window.adocQ7AbandonAccepte = adocQ7AbandonAccepte;
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', adocQ7InstallerRaccourcis, { once: true });
+    else adocQ7InstallerRaccourcis();
+  }
+
   window.adocWsSave = async function () {
     // Enregistrer, enregistrer sous et fermer n'appellent pas adocEditorMarkDirty :
     // l'oubli du retour en arrière est donc dit ici, explicitement (D5).
@@ -23817,7 +23926,7 @@ ${recent}`;
         // Première sauvegarde de ce document précis — crée le document ET sa version initiale.
         await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, saveTitle, saveKind);
       } else {
-        // Déjà enregistré — ajoute une nouvelle version immuable, ne modifie jamais l'existante.
+        // Déjà sauvegardé — ajoute une nouvelle version immuable, ne modifie jamais l'existante.
         const r = await fetch(workerUrl + '/clinical-documents/' + encodeURIComponent(art._adocClinicalDocumentId) + '/versions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
@@ -23830,7 +23939,7 @@ ${recent}`;
           // une autre cause). Jamais une erreur brute : propose explicitement de recommencer comme
           // un NOUVEAU document. Refus explicite → RIEN n'est perdu (déjà garanti par le principe
           // général de ce bouton), retour à l'état actuel exactement comme avant la tentative.
-          if (!confirm('Ce document a été supprimé depuis. Voulez-vous l’enregistrer comme un nouveau document ?')) return;
+          if (!confirm('Ce document a été supprimé depuis. Voulez-vous le sauvegarder comme un nouveau document ?')) return;
           art._adocClinicalDocumentId = null;
           art._adocClinicalVersionId = null;
           await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, saveTitle, saveKind);
@@ -23840,6 +23949,10 @@ ${recent}`;
           art._adocClinicalVersionId = data.version_id;
         }
       }
+      // Q7 — l'heure est posée ICI, sur le chemin du SUCCÈS et nulle part ailleurs : un échec
+      // ne peut donc pas afficher « Sauvegardé à … ».
+      art._adocEnregistreA = Date.now();
+      art._adocEnregistreAvecDate = false;
       if ((art._ccEditorRevision || 0) === revision) art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
       // UX-10B — miniature réelle pour "Mes créations" : déclenchée APRÈS confirmation de la
@@ -23848,13 +23961,13 @@ ${recent}`;
       // (cf. adocCaptureAndPersistThumbnail, qui gère elle-même ses propres échecs).
       adocCaptureAndPersistThumbnail(art);
     } catch (e) {
-      alert('Impossible d’enregistrer ce document pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+      alert('Impossible de sauvegarder ce document pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
     } finally {
       if (btn) btn.disabled = false;
     }
   };
 
-  // Sujet 2 — "Enregistrer sous" : sauvegarde le document personnalisé actuel comme un NOUVEAU
+  // Sujet 2 — « Sauvegarder sous » : sauvegarde le document personnalisé actuel comme un NOUVEAU
   // document, distinct de l'original. Réutilise adocCreateNewClinicalDocument TELLE QUELLE (route
   // POST /clinical-documents, JAMAIS .../versions) — l'original (art._adocClinicalDocumentId
   // précédent) n'est jamais lu, ni modifié, ni supprimé ici : ce bouton ne fait qu'assigner un
@@ -23877,7 +23990,7 @@ ${recent}`;
     // la frappe en cours.
     if (isLegacy) adocSyncEditedLegacyBlocksToHtml(art); else { adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art); }
     const currentTitle = isLegacy ? (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' ') : art._adocStructuredDoc.title;
-    const newTitle = prompt('Enregistrer sous quel titre ?', currentTitle);
+    const newTitle = prompt('Sauvegarder sous quel titre ?', currentTitle);
     if (newTitle == null) return; // annulation explicite — rien n'est créé, l'original reste actif
     const trimmedTitle = newTitle.trim();
     if (!trimmedTitle) return;
@@ -23889,11 +24002,13 @@ ${recent}`;
       const content = adocBuildClinicalDocumentContent(art);
       const saveKind = isLegacy ? (art._adocDocumentKind || 'fiche') : art._adocStructuredDoc.documentKind;
       await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, trimmedTitle, saveKind);
-      art._ccEditorDirty = false;
+            art._adocEnregistreA = Date.now();
+            art._adocEnregistreAvecDate = false;
+            art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
       adocCaptureAndPersistThumbnail(art);
     } catch (e) {
-      alert('Impossible d’enregistrer sous un nouveau titre pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, l’original reste inchangé, vous pouvez réessayer.');
+      alert('Impossible de sauvegarder sous un nouveau titre pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, l’original reste inchangé, vous pouvez réessayer.');
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -23907,7 +24022,7 @@ ${recent}`;
     const art = window._adocArtifacts?.[storeKey];
     if (!art || !art._adocCapabilities || !art._adocCapabilities.transform) return;
     if (!art._adocClinicalDocumentId) {
-      alert('Enregistrez d’abord ce document avant de le transformer — la transformation crée un nouveau document dérivé qui doit pouvoir référencer l’original enregistré.');
+      alert('Sauvegardez d’abord ce document avant de le transformer — la transformation crée un nouveau document dérivé qui doit pouvoir référencer l’original sauvegardé.');
       return;
     }
     const sourceKind = art._adocStructuredDoc && art._adocStructuredDoc.documentKind;
@@ -24452,7 +24567,7 @@ ${recent}`;
           art._adocStructuredDoc = oldDoc; art._adocStructuredSnapshot = oldSnapshot; throw new Error('Insertion impossible.');
         }
       }
-      adocEditorMarkDirty(); card.status = 'Extrait inséré. Pensez à enregistrer le document.';
+      adocEditorMarkDirty(); card.status = 'Extrait inséré. Pensez à sauvegarder le document.';
     } catch (e) { card.status = e.message || 'Insertion impossible.'; }
     finally { _adocLibraryInsertBusy = false; card.inserting = false; adocRefreshLibraryCard(card); }
   };

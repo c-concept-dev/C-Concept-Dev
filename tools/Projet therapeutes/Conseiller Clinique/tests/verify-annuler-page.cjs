@@ -16,6 +16,8 @@ const path = require('node:path');
 const { PRESENTATION } = require('./fixtures-page-generee.cjs');
 
 const RACINE = path.join(__dirname, '..');
+// Décide du sort des dialogues natifs ; voir l'écouteur 'dialog' plus bas.
+let _accepter = false;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
                 '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
                 '.css': 'text/css; charset=utf-8' };
@@ -80,9 +82,17 @@ const ECRITURES = [
         .find((x) => (x.textContent || '').trim() === 'Insérer'); b.click(); });
       await page.waitForTimeout(900);
     } },
-  { nom: 'fermeture de l’espace de travail', faire: async (page) => page.evaluate(() => {
+  // Q7 (2.4) a ajouté un avertissement avant de fermer un document modifié. Une page vient
+  // d'être insérée : il y a donc des modifications en attente, et la question est posée.
+  // DEUX cas, pas un : une fermeture REFUSÉE ne doit rien changer (le retour en arrière reste
+  // proposé), une fermeture ACCEPTÉE l'oublie comme avant.
+  { nom: 'fermeture refusée (avertissement de Q7)', resteAnnulable: true,
+    faire: async (page) => { _accepter = false; await page.evaluate(() => {
       window.adocCloseWorkspace();
-    }) },
+    }); } },
+  { nom: 'fermeture de l’espace de travail', faire: async (page) => {
+      _accepter = true; await page.evaluate(() => { window.adocCloseWorkspace(); });
+    } },
 ];
 
 (async () => {
@@ -107,7 +117,9 @@ const ECRITURES = [
   const page = await ctx.newPage();
   const erreurs = [];
   page.on('pageerror', (e) => erreurs.push(String(e.message)));
-  page.on('dialog', (d) => d.dismiss().catch(() => {}));
+  // Les dialogues sont refusés par défaut (rien ne doit se produire par accident) ; un scénario
+  // qui a besoin d'accepter le dit explicitement, en posant _accepter.
+  page.on('dialog', (d) => (_accepter ? d.accept() : d.dismiss()).catch(() => {}));
   await page.route('**/*', (route) => {
     const u = route.request().url();
     return (u.startsWith('http://127.0.0.1:' + port + '/') || u.startsWith('data:') || u.startsWith('blob:'))
@@ -190,6 +202,14 @@ const ECRITURES = [
       await page.waitForTimeout(600);
       const apresVise = await page.evaluate(() => window._adocAnnulerPageNeuve
         && window._adocAnnulerPageNeuve.cardId);
+      if (e.resteAnnulable) {
+        assert.equal(await bouton(), true,
+          e.nom + ' : une fermeture REFUSÉE doit laisser le bouton « Annuler cette page »');
+        assert.equal(apresVise, vise,
+          e.nom + ' : et le retour en arrière doit viser la même page qu’avant');
+        pass('après « ' + e.nom + ' » : rien n\'a changé — le retour en arrière reste proposé.');
+        continue;
+      }
       if (e.viseUneAutrePage) {
         assert.ok(apresVise && apresVise !== vise,
           e.nom + ' : le retour en arrière doit viser la NOUVELLE page, plus la première ('
