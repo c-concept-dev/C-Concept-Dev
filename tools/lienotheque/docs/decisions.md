@@ -3259,3 +3259,55 @@ Les sept documents de la famille « deux pages » qui ne rendent qu'un folio pou
 rangés dans l'autre sens. Le relevé ne le dit pas : il cherche une **preuve de double page**, pas
 une preuve de page simple, parce que c'est la double page non détectée qui abîme les citations.
 L'asymétrie est volontaire.
+
+
+## 20 octobre 2026 — la double page se détecte seule, et le premier livre ordinaire passe
+
+### La détection, et sa vérification
+
+`deuxPagesParFeuille` vit dans `passages.ts`, à côté de `numeroImprime` dont elle lit les restes :
+**deux folios consécutifs dans les bandes de marge**, ce que `numeroImprime` jette en refusant de
+trancher. La couche suffit, elle est déjà lue, et un folio est fait de chiffres — cela ne coûte
+rien.
+
+Deux garde-fous tirés de la mesure : **deux feuilles au moins** doivent montrer le signe (un
+document rendait « 2003+2004 », une plage d'années), et l'on regarde le **milieu** du document,
+jamais ses pages liminaires. L'appelant garde le dernier mot : `doublePage` donné explicitement
+l'emporte, ce qui laisse les deux positions éprouvables.
+
+**Vérifié sur le document qui avait révélé le défaut, sans rien lui dire** : *Théorie ACT* rend
+132 pages et **99 numéros imprimés sur 132**, exactement ce qu'il fallait lui imposer à la main.
+
+### Le premier livre ordinaire, et l'étape 6 à l'épreuve
+
+*Biologie du couple*, 173 pages, document natif sans la moindre pièce numérotée — le cas que la
+chaîne refusait jusqu'à ce matin.
+
+| relevé | valeur |
+|---|---:|
+| pages lues | 173 |
+| durée | **1 seconde** |
+| servies par la couche | **173** — aucune reconnaissance |
+| passages illisibles | **0** |
+| pointe mémoire | 581 Mo |
+| numéros de page lus | 106 sur 173 — 61 % |
+
+**Un livre natif ne coûte rien** : 0,01 s la page, contre 1,72 s pour un numérisé. Les deux
+extrêmes du corpus tiennent maintenant dans le même banc, et l'écart entre eux est d'un facteur
+cent soixante-dix.
+
+### Et une troisième trouvaille, que seul un livre ordinaire pouvait donner
+
+Les 39 % de folios manquants ne manquent pas : **les 173 pages portent toutes un nombre dans leur
+bande de marge**, et 67 d'entre elles en portent **plusieurs**. `numeroImprime` refuse alors de
+trancher — « s'ils se contredisent, on ne tranche pas ».
+
+Ce n'est **pas** une double page : la détection ne s'est pas déclenchée, et à raison — les valeurs
+ne se suivent pas. C'est un titre courant numéroté, ou un appel de note, qui partage la marge avec
+le folio. La règle « exactement un candidat » est juste pour un livre numérisé et trop stricte
+pour un livre composé.
+
+Deux remèdes se présentent, aucun mesuré : préférer le nombre le plus **proche du bord** de la
+page, ou celui dont la valeur **progresse** avec le rang de la feuille. Le second est le plus sûr
+— un folio avance d'un en un, un appel de note non — et le plus coûteux, puisqu'il demande de
+voir le document avant de trancher. À éprouver, pas à supposer.
