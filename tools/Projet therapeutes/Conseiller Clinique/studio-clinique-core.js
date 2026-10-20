@@ -7280,6 +7280,90 @@ ${recent}`;
     const valid = fn(obj);
     return { valid, errors: valid ? null : (fn.errors || []).map(e => (e.instancePath || '/') + ' ' + e.message) };
   }
+  // ── COMPATIBILITÉ ASCENDANTE (exigence non fonctionnelle du CDC) ──────────────────────────
+  // Un document DÉJÀ SAUVEGARDÉ qui porte un champ que ce schéma ne connaît pas encore doit
+  // s'ouvrir, avec un avertissement, et le champ doit survivre à la sauvegarde suivante.
+  // Mesuré le 20 octobre : sans cela, annuler un lot qui ajoute un champ rend INOUVRABLES les
+  // documents déjà sauvegardés avec ce champ. La préservation, elle, est déjà acquise — mesurée
+  // sur le code courant : ouvrir, modifier un mot, sauvegarder, rouvrir rend le champ identique.
+  //
+  // POURQUOI UNE REVALIDATION, et non un filtre sur la classe des erreurs. Le refus réel ne
+  // contient pas QUE des erreurs `additionalProperties` : il en porte aussi `oneOf` et `then`,
+  // qui en sont les conséquences — « /blocks/0/content must NOT have additional properties |
+  // /blocks/0 must match exactly one schema in oneOf | / must match "then" schema | / must NOT
+  // have additional properties ». Un filtre « toutes les erreurs sont additionalProperties » ne
+  // se déclencherait donc JAMAIS sur le cas réel. On revalide contre une copie des schémas dont
+  // `additionalProperties: false` a été retiré récursivement : si elle passe, le seul défaut
+  // était bien un champ inconnu, et rien d'autre.
+  function adocAssouplirSchema(valeur) {
+    if (Array.isArray(valeur)) return valeur.map(adocAssouplirSchema);
+    if (valeur && typeof valeur === 'object') {
+      const copie = {};
+      Object.keys(valeur).forEach(function (cle) {
+        // Seul `additionalProperties: false` tombe. `additionalProperties: {…}` (un schéma) est
+        // conservé : il contraint la FORME des champs libres, ce n'est pas une interdiction.
+        if (cle === 'additionalProperties' && valeur[cle] === false) return;
+        copie[cle] = adocAssouplirSchema(valeur[cle]);
+      });
+      return copie;
+    }
+    return valeur;
+  }
+  // Compilé PARESSEUSEMENT, au premier échec seulement : un document ordinaire ne paie rien.
+  let _adocAjvValidatorsSouples = null;
+  function adocInitSchemaValidatorsSouples() {
+    if (_adocAjvValidatorsSouples) return _adocAjvValidatorsSouples;
+    if (typeof window.Ajv2020 !== 'function') return null;
+    try {
+      const ajv = new window.Ajv2020({ strict: true, allErrors: true });
+      if (typeof window.ajvAddFormats === 'function') window.ajvAddFormats(ajv);
+      const schemasEl = document.getElementById('adoc-sc-schemas');
+      const schemas = JSON.parse(schemasEl.textContent);
+      Object.keys(schemas).forEach(function (id) {
+        ajv.addSchema(adocAssouplirSchema(schemas[id]), id);
+      });
+      _adocAjvValidatorsSouples = {
+        clinicalDocument: ajv.getSchema('clinical-document.schema.json'),
+        renderManifest: ajv.getSchema('render-manifest.schema.json'),
+        sourceSnapshot: ajv.getSchema('source-snapshot.schema.json'),
+        citation: ajv.getSchema('citation.schema.json'),
+        block: ajv.getSchema('block.schema.json'),
+      };
+      return _adocAjvValidatorsSouples;
+    } catch (e) {
+      // Un échec de compilation ne doit PAS faire passer un document : on retombe sur le strict.
+      console.warn('[compatibilité ascendante] schémas assouplis non compilables — '
+        + 'validation stricte conservée :', e && e.message);
+      return null;
+    }
+  }
+  // À N'EMPLOYER QUE pour un document DÉJÀ SAUVEGARDÉ (ouverture, rendu). JAMAIS pour la sortie
+  // du modèle : adocPageNeuveRefus (D8) garde adocValidateSchema, strict, et doit le garder.
+  function adocValidateSchemaTolerant(kind, obj) {
+    const validators = adocInitSchemaValidators();
+    if (!validators || !validators[kind]) return adocValidateSchema(kind, obj);
+    const fn = validators[kind];
+    if (fn(obj)) return { valid: true, errors: null };
+    // Les erreurs BRUTES, gardées avant toute autre validation : AJV les écrase à chaque appel,
+    // et c'est d'elles qu'on tire les chemins exacts (instancePath + params.additionalProperty).
+    const strictes = (fn.errors || []).slice();
+    const souples = adocInitSchemaValidatorsSouples();
+    if (souples && souples[kind] && souples[kind](obj)) {
+      const chemins = strictes
+        .filter(function (e) { return e.keyword === 'additionalProperties'; })
+        .map(function (e) {
+          return (e.instancePath || '') + '/' + ((e.params && e.params.additionalProperty) || '?');
+        });
+      console.warn('[compatibilité ascendante] ' + kind + ' : '
+        + (chemins.length || 'des') + ' champ(s) inconnu(s) de ce schéma, ignoré(s) à l’ouverture '
+        + 'et CONSERVÉ(s) à la sauvegarde — ' + (chemins.join(', ') || '(chemin indéterminé)'));
+      return { valid: true, errors: null, champsInconnus: chemins };
+    }
+    // Pas seulement un champ inconnu : on refuse EXACTEMENT comme avant.
+    return { valid: false, errors: strictes.map(function (e) {
+      return (e.instancePath || '/') + ' ' + e.message; }) };
+  }
+
   function AdocSchemaValidationError(kind, errors) {
     const e = new Error('Validation de schéma échouée (' + kind + ') : ' + (errors || []).join(' | '));
     e.name = 'AdocSchemaValidationError';
@@ -13402,13 +13486,15 @@ ${recent}`;
       throw new Error('adocRenderClinicalDocument: documentKind "' + doc.documentKind + '" est en mode "' + mode + '" (ancien moteur), pas encore migré vers le rendu canonique (voir UX-8M).');
     }
 
-    const docCheck = adocValidateSchema('clinicalDocument', doc);
+    // TOLÉRANT : ce chemin rend un document DÉJÀ SAUVEGARDÉ. Voir adocValidateSchemaTolerant.
+    const docCheck = adocValidateSchemaTolerant('clinicalDocument', doc);
     // CORRECTIF A18 — même correctif que adocResolveRenderManifest ci-dessus : échoue fermé si
     // AJV n'a pas pu charger, jamais un document non validé traité comme valide.
     if (!docCheck.valid || docCheck.skipped) throw AdocSchemaValidationError('clinical-document.schema.json', docCheck.errors);
 
     if (sourceSnapshot) {
-      const snapCheck = adocValidateSchema('sourceSnapshot', sourceSnapshot);
+      // TOLÉRANT, même raison : l'instantané des sources fait partie du document sauvegardé.
+      const snapCheck = adocValidateSchemaTolerant('sourceSnapshot', sourceSnapshot);
       if (!snapCheck.valid || snapCheck.skipped) throw AdocSchemaValidationError('source-snapshot.schema.json', snapCheck.errors);
     }
 
