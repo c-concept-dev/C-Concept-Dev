@@ -78,3 +78,47 @@ export function decouperEnMots(element: Element, hauteurPage: number): MotLu[] {
   }
   return mots;
 }
+
+/** Qui a fabriqué ce PDF, tel qu'il le déclare lui-même.
+ *
+ *  Vit ici parce que c'est ce module qui possède pdf.js. Une première version lisait les
+ *  métadonnées depuis le banc de mesure, par un `import("pdfjs-dist/…")` que le paquet appelant
+ *  ne déclare pas en dépendance : l'import levait, un `catch` le rattrapait, et **vingt-quatre
+ *  documents sur vingt-quatre ont été déclarés « sans producteur »** alors qu'on n'avait jamais
+ *  regardé. Un rattrapage qui confond « il n'y en a pas » et « je n'ai pas pu voir » rend un
+ *  chiffre faux sans jamais rien signaler.
+ *
+ *  D'où la forme rendue : `connu` dit si l'on a pu lire, et il est faux quand la lecture a
+ *  échoué. Un document qui s'ouvre et ne déclare rien rend `connu` vrai et les deux champs
+ *  vides — ce qui est une réponse, et une autre réponse.
+ *
+ *  Les scans d'un corpus ne portent souvent aucune de ces deux clés : elles ne survivent pas
+ *  toujours à une chaîne de conversion. */
+export type MetadonneesPdf = {
+  readonly connu: boolean;
+  readonly producteur?: string;
+  readonly createur?: string;
+};
+
+export async function metadonneesDuPdf(chemin: string): Promise<MetadonneesPdf> {
+  poserDOMMatrixSiAbsent();
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const donnees = new Uint8Array(await readFile(chemin));
+  const document = await pdfjs.getDocument({ data: donnees, useSystemFonts: false }).promise;
+  try {
+    const { info } = (await document.getMetadata()) as unknown as { info: Record<string, unknown> };
+    const texte = (clef: string): string | undefined => {
+      const valeur = info[clef];
+      return typeof valeur === "string" && valeur.trim() !== "" ? valeur.trim() : undefined;
+    };
+    const producteur = texte("Producer");
+    const createur = texte("Creator");
+    return {
+      connu: true,
+      ...(producteur === undefined ? {} : { producteur }),
+      ...(createur === undefined ? {} : { createur }),
+    };
+  } finally {
+    await document.destroy();
+  }
+}

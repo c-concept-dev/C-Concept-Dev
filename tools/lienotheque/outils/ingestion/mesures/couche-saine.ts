@@ -11,8 +11,11 @@
  *
  *  Un tel défaut se reconnaît **sans océriser**, et c'est tout l'intérêt : du texte français
  *  est fait de mots, et un mot est fait de lettres. Une couche cassée rend des suites de
- *  symboles. Comparer à l'OCR coûtait une minute par page ; ce contrôle-ci coûte une seconde par
- *  document, et il peut donc passer sur les deux cent vingt-quatre.
+ *  symboles. Comparer à l'OCR coûte **deux secondes par page** — « une minute », écrit ici
+ *  d'abord, était faux d'un facteur trente, et personne ne l'a vérifié avant le 20 octobre 2026
+ *  (`cout-de-la-comparaison.ts`). Ce contrôle-ci coûte une seconde par document, et il peut donc
+ *  passer sur les deux cent vingt-quatre ; la comparaison aussi, d'ailleurs, et c'est le chiffre
+ *  faux qui l'avait fait écarter.
  *
  *  Il ne tranche pas pour autant tout seul : il classe, et la zone grise revient à l'œil.
  */
