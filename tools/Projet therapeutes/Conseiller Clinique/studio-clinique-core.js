@@ -7882,13 +7882,30 @@ ${recent}`;
   // réservés ('root:doc-title', 'root:card-title:<cardId>') posés en id= sur l'élément rendu
   // (adocRenderFicheHTML et consorts, adocRenderCardHTML) pour que document.getElementById
   // (adocEditorContext) les résolve exactement comme un bloc normal, sans mécanisme séparé.
+  // Q1 — un titre porte désormais, EN PLUS de son texte, un emplacement de STYLE persistant :
+  // `doc.titleStyle` à la racine, `card.content.titleStyle` pour une carte. Les deux couples
+  // d'accesseurs vivent ICI, dans la fonction qui décide déjà qu'un identifiant est un champ
+  // racine — jamais dans un second endroit qui pourrait divergeer d'elle.
+  // `styleSet(undefined)` SUPPRIME le champ au lieu d'écrire `{}` : un titre jamais mis en forme
+  // ne doit rien laisser dans le document, sous peine de figer son apparence et de casser tout
+  // changement de charte. C'est ce qui garantit « absent = affichage actuel exact ».
   function adocRootFieldRef(doc, id) {
     if (!doc || !id) return null;
-    if (id === 'root:doc-title') return { get: function () { return doc.title; }, set: function (v) { doc.title = v; } };
+    function reference(cible) {
+      return {
+        get: function () { return cible.title; },
+        set: function (v) { cible.title = v; },
+        styleGet: function () { return cible.titleStyle; },
+        styleSet: function (v) {
+          if (v && Object.keys(v).length) cible.titleStyle = v; else delete cible.titleStyle;
+        },
+      };
+    }
+    if (id === 'root:doc-title') return reference(doc);
     if (id.indexOf('root:card-title:') === 0) {
       const cardId = id.slice('root:card-title:'.length);
       const card = (doc.blocks || []).find(function (c) { return c.id === cardId; });
-      if (card) return { get: function () { return card.content.title; }, set: function (v) { card.content.title = v; } };
+      if (card) return reference(card.content);
     }
     return null;
   }
@@ -7897,7 +7914,22 @@ ${recent}`;
     // Niveau 1 par convention (jamais recalculé depuis un rendu existant, ni deviné) : ces
     // titres ne sont jamais des .adoc-sc-block réels, adocBlockContentText/adocDescribeBlockContent
     // n'utilisent que .text pour 'heading' — level ne sert ici qu'au clamp d'affichage existant.
-    if (rootRef) return { id: id, type: 'heading', content: { text: rootRef.get() || '', level: 1 }, citationIds: [], validation: {} };
+    // Q1 — l'objet reste construit à la volée pour le TEXTE, mais sa propriété `style` est un
+    // ACCESSEUR branché sur l'emplacement persistant. C'est le plus petit changement possible :
+    // adocEditorApplyStyle ne fait que LIRE (Object.assign({}, ctx.block.style)) et ÉCRIRE
+    // (ctx.block.style = style) — un get/set satisfait les deux sans qu'une seule ligne de cette
+    // fonction, longue et délicate, ne bouge. Avant ce lot, l'objet était jeté au geste suivant
+    // et le style avec lui : c'est le défaut constaté en production par Christophe.
+    if (rootRef) {
+      const temporaire = { id: id, type: 'heading', content: { text: rootRef.get() || '', level: 1 },
+        citationIds: [], validation: {} };
+      Object.defineProperty(temporaire, 'style', {
+        enumerable: true, configurable: true,
+        get: function () { return rootRef.styleGet(); },
+        set: function (v) { rootRef.styleSet(v); },
+      });
+      return temporaire;
+    }
     function walk(blocks) { for (const b of blocks || []) { if (b.id === id) return b; const child = walk(b.content && b.content.blocks); if (child) return child; } }
     return walk(doc && doc.blocks);
   }
@@ -9948,10 +9980,15 @@ ${recent}`;
     // On ne corrige pas le MODÈLE ici (c'est le lot Q1) : on arrête de promettre. Le discriminant
     // est adocRootFieldRef, la MÊME fonction qui décide qu'un identifiant est un champ racine —
     // jamais un second test qui pourrait divergeer d'elle.
+    // Q1 — le titre ENTIER est désormais sauvegardé : plus rien à avertir, le message redevient
+    // celui de tout le monde. Il ne RESTE que pour la mise en forme d'une PORTION de titre, qui
+    // n'est pas dans ce lot : elle vit dans un <span> du DOM, et aucun champ du document ne la
+    // porte. Dire « Modification appliquée. » là serait reprendre le mensonge qu'on vient de
+    // retirer, à un seul endroit près.
     const titreRacine = !ctx.legacy && ctx.art._adocStructuredDoc
       && !!adocRootFieldRef(ctx.art._adocStructuredDoc, ctx.st.blockId);
-    adocEditorMessage(titreRacine
-      ? 'Appliqué à l’écran seulement : le style d’un titre n’est pas encore sauvegardé.'
+    adocEditorMessage(titreRacine && scope === 'selection'
+      ? 'La mise en forme d’une partie du titre n’est pas conservée.'
       : 'Modification appliquée.');
   }
 
@@ -13085,6 +13122,17 @@ ${recent}`;
   // fabriquée pour l'occasion) : ce bloc est alors retiré du corps normal et sa requête
   // devient l'image de la bannière, résolue par le mécanisme data-pexels déjà existant et
   // éprouvé (adocResolveImages, div[data-pexels] — aucun nouveau mécanisme).
+  // Q1 — l'attribut style d'un TITRE, rendu par la MÊME chaîne que celle d'un bloc
+  // (adocBlockStyleToCSSText → adocEditorStyleCSS, genre 'heading') : une seule grammaire de
+  // style dans tout le produit. Rend la CHAÎNE VIDE quand le champ est absent ou vide : aucun
+  // attribut n'est alors émis, et le rendu est identique à l'octet près à celui d'avant ce lot
+  // — c'est la garantie de migration, et elle est mesurée (verify-titres-migration).
+  function adocTitleStyleAttr(titleStyle) {
+    if (!titleStyle || !Object.keys(titleStyle).length) return '';
+    const css = adocBlockStyleToCSSText(titleStyle, 'heading');
+    return css ? ' style="' + adocEsc(css) + '"' : '';
+  }
+
   function adocRenderFicheHTML(doc, tokens) {
     const blocks = doc.blocks || [];
     let coverBlock = null;
@@ -13117,7 +13165,7 @@ ${recent}`;
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
-      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title"' + adocTitleStyleAttr(doc.titleStyle) + '>' + adocEsc(doc.title) + '</h1>' +
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
@@ -13218,7 +13266,7 @@ ${recent}`;
       // Item 68 — même mécanisme d'édition directe que la bannière Fiche (data-cc-editor-leaf
       // générique, jamais .adoc-sc-block : un titre de carte reste une DÉCORATION de card.content,
       // synchronisé par adocSyncEditedRootFieldsToDoc, jamais par adocEditorSyncStructured).
-      img + couvZoomBadge + coverChipsHTML + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title">' + adocEsc(card.content.title) + '</h2>' + nested + resizeHandle + '</section>';
+      img + couvZoomBadge + coverChipsHTML + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title"' + adocTitleStyleAttr(card.content.titleStyle) + '>' + adocEsc(card.content.title) + '</h2>' + nested + resizeHandle + '</section>';
   }
   // CORRECTIF ITEM 75 (effondrement du Carrousel) — `.adoc-sc-carrousel` est en display:flex, sa
   // hauteur dépend normalement de ses cartes en flux normal ; une carte avec x/y/width/height
@@ -13302,7 +13350,7 @@ ${recent}`;
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
-      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title"' + adocTitleStyleAttr(doc.titleStyle) + '>' + adocEsc(doc.title) + '</h1>' +
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
@@ -13340,7 +13388,7 @@ ${recent}`;
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
-      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title"' + adocTitleStyleAttr(doc.titleStyle) + '>' + adocEsc(doc.title) + '</h1>' +
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
@@ -13378,7 +13426,7 @@ ${recent}`;
     const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
-      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title">' + adocEsc(doc.title) + '</h1>' +
+      '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title"' + adocTitleStyleAttr(doc.titleStyle) + '>' + adocEsc(doc.title) + '</h1>' +
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
@@ -18788,6 +18836,13 @@ ${recent}`;
       // la demande restant alors propre au mode live. Sans elle ici, le premier clic sur
       // « Démarrer » d'un export lèverait une ReferenceError — attrapé par le test, pas par lecture.
       adocDemanderPleinEcran: adocDemanderPleinEcran,
+      // Q1 — adocRenderCardHTML, déjà sérialisée dans tout export, appelle désormais
+      // adocTitleStyleAttr. Sans cette ligne, TOUT export autonome lèverait une ReferenceError au
+      // rendu de la première diapositive : c'est exactement la classe d'oubli que les
+      // commentaires ci-dessus décrivent, et la suite l'a attrapée — 31 contrôles en échec, pas
+      // un seul par lecture. Ses deux dépendances, adocBlockStyleToCSSText et adocEditorStyleCSS,
+      // figuraient DÉJÀ dans cette liste : vérifié, rien à y ajouter de plus.
+      adocTitleStyleAttr: adocTitleStyleAttr,
       // Appelées par adocPresentOpenWithDoc, qui s'exécute au démarrage de tout export : sans elles
       // ici, aucune présentation exportée ne s'ouvrirait — ReferenceError dès la première ligne.
       adocPresentCalculerEchelle: adocPresentCalculerEchelle,
