@@ -8,6 +8,9 @@ Aucune œuvre sous droits (CLAUDE.md, règle 5) : tout est synthétique et rég�
 Produit :
   500-pages.pdf        PDF natif de 500 pages, une ligne de texte par page
   500-pages-scan.pdf   PDF de 500 pages numérisées (JPEG gris 100 ppp) — cas réel du CDC (F2)
+  couche-fautive.pdf   8 pages portant **une image ET une couche texte sans accents** — le cas
+                       que l'inversion de BAS-02 doit corriger, et le seul que les fixtures
+                       existantes ne savaient pas poser
   page-ocr.png         Image 1240 x 1754 (A4 à 150 ppp) avec du texte français à reconnaître
   piste.mp3            MP3 de trois minutes, 128 kb/s (`lame` s'il est là, sinon silence synthétique)
 """
@@ -28,6 +31,27 @@ RACINE = pathlib.Path(__file__).resolve().parent
 SORTIE = RACINE / "fichiers"
 PAGES = 500
 PHRASE_OCR = "Liénothèque reconnaît cette page."
+
+# Le texte de `couche-fautive.pdf`. Du français ordinaire, et **rien du domaine** (règle 1) :
+# ces phrases ne nomment ni ce que la bibliothèque contient ni ce qu'elle sert.
+#
+# Deux propriétés le rendent capable de poser le problème, et il faut les deux :
+#   — beaucoup d'**accents**, qui sont ce que la couche fautive perd et ce que l'image garde ;
+#   — beaucoup de **mots outils** (le, la, de, que, les, dans, pour), qui font qu'une couche sans
+#     accents reste « lisible » au sens de `lisible()` et franchissait donc l'ancien arbitrage.
+# Sans la seconde, la fixture serait attrapée par le contrôle de lisibilité et ne prouverait rien.
+LIGNES_FAUTIVES = (
+    "Le présent récit décrit une méthode éprouvée que les élèves",
+    "répètent très régulièrement, dans la pièce où la lumière",
+    "arrive dès le matin. Il ne s'agit pas de mémoire, mais de",
+    "la régularité : celle qui révèle, après quelques années,",
+    "ce que la hâte avait caché. Les êtres les plus âgés le",
+    "répètent à qui veut l'entendre, et c'est très à propos.",
+)
+PAGES_FAUTIVES = 8
+# Trois fois le passage : le bloc remplit alors la feuille et le folio se tient juste dessous,
+# comme sur un vrai livre numérisé. Voir la docstring de `pdf_couche_fautive`.
+LIGNES_PAGE = LIGNES_FAUTIVES * 3
 
 
 def pdf_500_pages(chemin: pathlib.Path) -> None:
@@ -59,6 +83,109 @@ def pdf_500_pages(chemin: pathlib.Path) -> None:
     )
     objets[police - 1] = b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
 
+    chemin.write_bytes(_assembler(objets, catalogue))
+
+
+def _sans_accents(texte: str) -> str:
+    """Le défaut, reproduit : les lettres restent, leurs accents disparaissent.
+
+    C'est exactement ce que la mesure du 20 octobre a trouvé sur le corpus réel — « mechamment »
+    pour « méchamment », « therapeute » pour « thérapeute » —, et exactement ce qu'aucun des deux
+    seuils de `passages.ts` ne peut signaler."""
+    import unicodedata
+
+    return "".join(c for c in unicodedata.normalize("NFD", texte) if not unicodedata.combining(c))
+
+
+def pdf_couche_fautive(chemin: pathlib.Path) -> None:
+    """Une image qui dit vrai, une couche texte qui dit faux — sur la même page.
+
+    **La fixture qui manquait**, et son absence était un trou de couverture reconnu le 20 octobre
+    2026 : aucune fixture du dépôt ne portait à la fois une couche texte et une image de page,
+    donc l'inversion de l'arbitrage (BAS-02) n'était éprouvée que par ses tests unitaires.
+
+    Ce qu'elle pose, et qui ne s'obtient d'aucune autre façon :
+
+    | | |
+    |---|---|
+    | l'image | le texte **avec** ses accents, lisible par la reconnaissance |
+    | la couche | le **même** texte, accents retirés — lisible au sens de `lisible()`, et faux |
+
+    La couche est posée en mode de rendu invisible (`3 Tr`), comme le font les vrais outils de
+    reconnaissance qui déposent leur lecture sous l'image. Elle n'est donc pas visible à l'écran
+    et ne salit pas la page ; seule la lecture la voit, ce qui est tout l'intérêt.
+
+    Huit pages : assez pour que la règle se vérifie sur plusieurs, assez peu pour que la
+    reconnaissance coûte une vingtaine de secondes et non dix minutes.
+    Le bloc de texte **remplit la page** et le folio se tient juste dessous. Ce n'est pas de la
+    décoration : mesuré, un chiffre isolé à mille pixels sous le dernier paragraphe n'est pas lu
+    du tout par la reconnaissance en segmentation « page entière » — elle le traite comme une
+    région à part et l'abandonne. Un vrai livre numérisé ne présente jamais cet écart, et une
+    fixture qui le présenterait éprouverait un cas qui n'existe pas.
+    """
+    import random
+
+    from PIL import Image, ImageDraw
+
+    largeur, hauteur = 1240, 1754  # A4 à 150 ppp — la reconnaissance veut de la résolution
+    police = _police(40)
+    objets: list[bytes] = [b"", b"", b""]
+    catalogue, racine_pages, police_pdf = 1, 2, 3
+
+    def ajouter(contenu: bytes) -> int:
+        objets.append(contenu)
+        return len(objets)
+
+    alea = random.Random(2026)
+    ids_pages: list[int] = []
+    for n in range(1, PAGES_FAUTIVES + 1):
+        page = Image.new("L", (largeur, hauteur), color=252)
+        dessin = ImageDraw.Draw(page)
+        for rang, ligne in enumerate(LIGNES_PAGE):
+            dessin.text((110, 150 + rang * 78), ligne, fill=25, font=police)
+        dessin.text((largeur // 2 - 20, hauteur - 170), str(n), fill=25, font=police)
+        # Un grain léger, et **léger** à dessein : cette fixture doit poser le problème de
+        # l'exactitude, pas celui de la lisibilité d'un scan abîmé. Un bruit qui ferait hésiter la
+        # reconnaissance mesurerait autre chose que ce qu'on veut mesurer.
+        bruit = Image.frombytes("L", (largeur, hauteur), bytes(alea.randrange(240, 255) for _ in range(largeur * hauteur)))
+        page = Image.blend(page, bruit, 0.05)
+
+        tampon = io.BytesIO()
+        page.save(tampon, format="JPEG", quality=85)
+        jpeg = tampon.getvalue()
+
+        id_image = ajouter(
+            b"<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceGray "
+            b"/BitsPerComponent 8 /Filter /DCTDecode /Length %d >>\nstream\n" % (largeur, hauteur, len(jpeg))
+            + jpeg
+            + b"\nendstream"
+        )
+
+        # L'image d'abord, la couche par-dessus et invisible : l'ordre des vrais fichiers.
+        contenu = b"q %d 0 0 %d 0 0 cm /Im0 Do Q\n" % (largeur, hauteur)
+        for rang, ligne in enumerate(LIGNES_PAGE):
+            y = hauteur - (150 + rang * 78) - 40
+            contenu += b"BT 3 Tr /F1 40 Tf 110 %d Td (%s) Tj ET\n" % (
+                y,
+                _sans_accents(ligne).replace("(", "").replace(")", "").encode("latin-1"),
+            )
+        contenu += b"BT 3 Tr /F1 40 Tf %d 130 Td (%d) Tj ET\n" % (largeur // 2 - 20, n)
+        flux = zlib.compress(contenu)
+        id_flux = ajouter(b"<< /Length %d /Filter /FlateDecode >>\nstream\n" % len(flux) + flux + b"\nendstream")
+        ids_pages.append(
+            ajouter(
+                b"<< /Type /Page /Parent %d 0 R /MediaBox [0 0 %d %d] "
+                b"/Resources << /XObject << /Im0 %d 0 R >> /Font << /F1 %d 0 R >> >> /Contents %d 0 R >>"
+                % (racine_pages, largeur, hauteur, id_image, police_pdf, id_flux)
+            )
+        )
+
+    objets[catalogue - 1] = b"<< /Type /Catalog /Pages %d 0 R >>" % racine_pages
+    objets[racine_pages - 1] = b"<< /Type /Pages /Count %d /Kids [%s] >>" % (
+        PAGES_FAUTIVES,
+        b" ".join(b"%d 0 R" % i for i in ids_pages),
+    )
+    objets[police_pdf - 1] = b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
     chemin.write_bytes(_assembler(objets, catalogue))
 
 
@@ -215,6 +342,7 @@ def main() -> int:
     taches = (
         ("500-pages.pdf", pdf_500_pages),
         ("500-pages-scan.pdf", pdf_500_pages_scan),
+        ("couche-fautive.pdf", pdf_couche_fautive),
         ("page-ocr.png", image_ocr),
         ("piste.mp3", mp3_trois_minutes),
     )

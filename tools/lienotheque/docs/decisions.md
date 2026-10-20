@@ -2979,7 +2979,25 @@ Ce que la vérification a montré sur les fixtures, et qui n'était pas évident
 | **F5** | `fixtures/fichiers/F5` est vide : c'est le jeu de requêtes du lot C, aucun fichier à lire |
 | natif | vingt pages servies par la couche, **zéro océrisée** : une page sans image ne coûte toujours rien |
 
-**Un trou de couverture, dit plutôt que tu :** aucune fixture du dépôt ne porte **à la fois** une
-couche texte et une image de page. L'inversion est donc éprouvée unitairement, et son branchement
-— une ligne — ne l'est de bout en bout que dans le sens « pas d'image, rien ne change ». Fabriquer
-une telle fixture est le vrai remède, et il n'est pas fait.
+**Le trou de couverture, et sa fermeture le même jour.** Aucune fixture du dépôt ne portait **à
+la fois** une couche texte et une image de page : `500-pages.pdf` n'a pas d'image, le scan et F3
+n'ont pas de couche, F4 non plus. L'inversion n'était donc éprouvée qu'unitairement, et son
+branchement — une ligne — seulement dans le sens « pas d'image, rien ne change ».
+
+`couche-fautive.pdf` pose enfin le cas, et `generer-locales.py` la fabrique : huit pages portant
+l'image du texte **avec** ses accents, et par-dessus, en rendu invisible comme le font les vrais
+outils de reconnaissance, la même phrase **sans** aucun accent.
+
+Elle discrimine, et c'est mesuré plutôt qu'espéré : la couche rend **63 mots** contre **62** à la
+reconnaissance, toutes deux lisibles à 45 % de mots outils. L'ancienne règle gardait donc la
+couche — la plus fournie — et la nouvelle prend la reconnaissance. Un seul mot d'écart : la
+fixture ne peut rien prouver d'autre que le renversement lui-même. Les deux mutations qui
+remettent l'ancien comportement — la règle, puis le branchement — la font échouer toutes les
+deux.
+
+**Ce qu'elle n'éprouve pas, et pourquoi.** Son folio n'est **jamais lu** par la reconnaissance :
+aucun mot purement numérique sur la page, à 244 pixels du bloc de texte comme à 70. Tesseract en
+segmentation « page entière » abandonne un chiffre isolé que rien n'entoure. Le chemin du numéro
+imprimé après OCR reste couvert par `500-pages-scan.pdf`, dont les pages sont couvertes de texte
+jusqu'au folio ; en poser une seconde épreuve ici n'aurait prouvé qu'une chose, qu'on sait écrire
+un test rouge.
