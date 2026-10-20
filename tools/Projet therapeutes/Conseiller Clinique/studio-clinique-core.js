@@ -12037,21 +12037,21 @@ ${recent}`;
     const state = _adocBrandKitImportState;
     if (!state) return;
     const name = (document.getElementById('cc-brandkit-confirm-name').value || '').trim();
-    if (!name) { alert('Donnez un nom à cette charte avant de l’enregistrer.'); return; }
+    if (!name) { alert('Donnez un nom à cette charte avant de la sauvegarder.'); return; }
 
     const draftColors = adocBrandKitDraftColors();
     // Point 1 (import charte) — seuls les 4 rôles ci-dessous restent strictement obligatoires ;
     // success/warning/critical reçoivent un repli automatique côté Worker si absents.
     const missingColorRoles = ADOC_BRANDKIT_REQUIRED_COLOR_ROLES.filter((role) => !draftColors[role] || !draftColors[role].length);
     if (missingColorRoles.length) {
-      alert('Attribuez une couleur à chaque rôle manquant avant d’enregistrer : ' + missingColorRoles.join(', ') + '.');
+      alert('Attribuez une couleur à chaque rôle manquant avant de sauvegarder : ' + missingColorRoles.join(', ') + '.');
       return;
     }
     // Le conflit "même rôle attribué deux fois" reste vérifié sur les 7 rôles fonctionnels — un
     // rôle optionnel non couvert n'est pas une erreur, mais deux couleurs sur ce même rôle en est une.
     const duplicateColorRoles = ADOC_BRANDKIT_FUNCTIONAL_COLOR_ROLES.filter((role) => draftColors[role] && draftColors[role].length > 1);
     if (duplicateColorRoles.length) {
-      alert('Un seul rôle par couleur : ' + duplicateColorRoles.join(', ') + ' ' + (duplicateColorRoles.length > 1 ? 'sont' : 'est') + ' attribué(s) à plusieurs couleurs à la fois. Corrigez avant d’enregistrer.');
+      alert('Un seul rôle par couleur : ' + duplicateColorRoles.join(', ') + ' ' + (duplicateColorRoles.length > 1 ? 'sont' : 'est') + ' attribué(s) à plusieurs couleurs à la fois. Corrigez avant de sauvegarder.');
       return;
     }
     const draftFonts = adocBrandKitDraftFonts();
@@ -12059,14 +12059,14 @@ ${recent}`;
     // plusieurs candidates légitimes restent désormais possibles, jamais un blocage arbitraire ni
     // une réassignation forcée pour en écarter une.
     if (!draftFonts.heading || !draftFonts.heading.length || !draftFonts.body || !draftFonts.body.length) {
-      alert('Attribuez au moins une police aux titres et une police au corps avant d’enregistrer.');
+      alert('Attribuez au moins une police aux titres et une police au corps avant de sauvegarder.');
       return;
     }
     // Point 1 — "Accent" reste optionnel (0 police assignée est valide) ; seul un conflit
     // (plusieurs polices sur ce même rôle) est bloquant, jamais son absence. Contrairement à
     // heading/body, Accent ne porte pas de mécanisme "Par défaut" dans ce lot (hors périmètre).
     if (draftFonts.accent && draftFonts.accent.length > 1) {
-      alert('Un seul rôle "Accent" par police. Corrigez avant d’enregistrer.');
+      alert('Un seul rôle "Accent" par police. Corrigez avant de sauvegarder.');
       return;
     }
     // Partie B — jamais un choix silencieux : bloquant seulement si un rôle à 2+ candidates n'a
@@ -12097,14 +12097,14 @@ ${recent}`;
         if (textEl) textEl.textContent = 'Une charte nommée « ' + name + ' » est déjà active. Que voulez-vous faire ?';
         const modal = document.getElementById('cc-brandkit-duplicate-confirm');
         if (modal) modal.classList.add('open');
-        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Sauvegarder la charte'; }
         return;
       }
       await adocBrandKitProceedToSave(name, draftColors, draftFonts);
     } catch (e) {
       console.warn('[UX-8B Lot 3] Sauvegarde de charte en échec:', e);
-      alert('Impossible d’enregistrer cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
+      alert('Impossible de sauvegarder cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Sauvegarder la charte'; }
     }
   };
 
@@ -12114,7 +12114,7 @@ ${recent}`;
     const state = _adocBrandKitImportState;
     if (!state) return;
     const saveBtn = document.getElementById('cc-brandkit-confirm-save');
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement…'; }
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Sauvegarde…'; }
     try {
       const workerUrl = adocGetWorkerUrl();
       const apiKey = adocGetApiKey();
@@ -12198,9 +12198,9 @@ ${recent}`;
       }
     } catch (e) {
       console.warn('[UX-8B Lot 3] Sauvegarde de charte en échec:', e);
-      alert('Impossible d’enregistrer cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
+      alert('Impossible de sauvegarder cette charte pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, vous pouvez réessayer.');
     } finally {
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer la charte'; }
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Sauvegarder la charte'; }
     }
   }
 
