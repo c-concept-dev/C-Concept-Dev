@@ -22,6 +22,7 @@ import { Catalogue } from "./pages/Catalogue.js";
 import { Entrer } from "./pages/Entrer.js";
 import { Lecteur } from "./pages/Lecteur.js";
 import { PremierLancement } from "./pages/PremierLancement.js";
+import { RienAMontrer } from "./pages/RienAMontrer.js";
 import { Reglages } from "./pages/Reglages.js";
 import { Verifier, type Decision } from "./pages/Verifier.js";
 import { Creer } from "./pages/Creer.js";
@@ -32,7 +33,22 @@ import { ManiereDeLire, type Essai } from "./pages/ManiereDeLire.js";
 import { Prototype } from "./pages/Prototype.js";
 import { chargerModeles } from "./donnees/modeles.js";
 import { pontDAdministration, pontDeLecture } from "./pont/choix.js";
+import { PasIdentifie } from "./pont/ligne.js";
 import { useTheme } from "./theme/useTheme.js";
+
+/** La bibliothèque que le service sert, quand c'est lui qui répond.
+ *
+ *  Elle n'a pas de dossier, et ce n'est pas un trou à combler : le pont en ligne reçoit `racine`
+ *  et ne s'en sert pas — il n'y a qu'une bibliothèque derrière la façade, celle que le Worker a
+ *  en liaison. Une constante de module plutôt qu'un objet refait à chaque rendu : les effets de
+ *  lecture ont `courante` en dépendance, et un nouvel objet à chaque passage les relancerait
+ *  sans fin.
+ *
+ *  Sans elle, `creees` restait vide en ligne — rien n'y crée de bibliothèque, puisque créer est
+ *  un geste de bureau — donc `courante` restait indéfinie, **rien n'était jamais demandé au
+ *  service**, et tous les écrans retombaient sur le premier lancement. C'est exactement ce qu'on
+ *  voyait le 20 octobre 2026 en ouvrant `#catalogue` en ligne. */
+const SERVIE_EN_LIGNE = { racine: "" } as const;
 
 /** Les écrans qui tiennent dans la fenêtre au lieu de la faire défiler (correction 3). */
 const PLEINE_HAUTEUR: ReadonlySet<Route["ecran"]> = new Set(["lecteur"]);
@@ -72,6 +88,12 @@ export function App(): JSX.Element {
   const modeles = useMemo(() => chargerModeles(), []);
   /** Ce qui s'est passé à la dernière tentative d'ouverture, quand elle n'a mené à rien. */
   const [echecOuverture, setEchecOuverture] = useState<string | undefined>(undefined);
+  /** Le service nous connaît-il ? **La page ne peut pas le savoir seule.**
+   *
+   *  Le témoin de session est `HttpOnly` par conception (LIV-04) : aucun script ne le lit, pas
+   *  même le nôtre. On l'apprend donc de la seule façon possible — en demandant, et en voyant si
+   *  l'on est reçu. Tant qu'on n'a pas demandé, on ne prétend ni l'un ni l'autre. */
+  const [recuEnLigne, setRecuEnLigne] = useState<"on ne sait pas" | "oui" | "non">("on ne sait pas");
   /** La file de la bibliothèque ouverte, relue régulièrement : c'est l'hôte qui la tient. */
   const [file, setFile] = useState<readonly Travail[]>([]);
   const [accompagnements, setAccompagnements] = useState<readonly { nom: string; contenu: TypeDeContenu }[]>([]);
@@ -167,8 +189,14 @@ export function App(): JSX.Element {
     aller({ ecran: "organisation" });
   };
 
-  /** La bibliothèque ouverte. C'est elle dont on montre la file, et dont les écrans lisent. */
-  const courante = creees[creees.length - 1];
+  /** La bibliothèque ouverte. C'est elle dont on montre la file, et dont les écrans lisent.
+   *
+   *  Sur le bureau, la dernière ouverte, avec son dossier. **En ligne, celle que le service
+   *  sert** — il n'y en a qu'une, et elle n'a pas de dossier. La condition dit la capacité et
+   *  non l'hôte, comme `pont/choix.ts` : on lit sans pouvoir administrer, donc c'est le service
+   *  qui répond. */
+  const courante: { readonly racine: string } | undefined =
+    creees[creees.length - 1] ?? (lecture !== undefined && administration === undefined ? SERVIE_EN_LIGNE : undefined);
 
   // L'image de la page qu'on regarde, prise à la demande. Une par une : un livre de trois cents
   // pages pèse des centaines de mégaoctets, et le Lecteur n'en montre qu'une. Elle remplace
@@ -224,8 +252,17 @@ export function App(): JSX.Element {
         // qui choisit, et l'on ne lui reprend pas son choix : cet effet se rejoue à chaque
         // relecture de la file, toutes les deux secondes.
         setRegarde((avant) => avant ?? [...apercus].sort((a, b) => b.activeeLe - a.activeeLe)[0]?.empreinte);
+        setRecuEnLigne("oui");
       })
-      .catch(() => {
+      .catch((erreur: unknown) => {
+        if (!vivant) return;
+        // Ne pas être entré n'est pas une panne, et ce n'est pas une bibliothèque vide : c'est
+        // l'état de tout le monde avant la cérémonie. On y conduit au lieu de se taire — le
+        // silence menait au premier lancement, qui ne propose que des gestes de bureau.
+        if (erreur instanceof PasIdentifie) {
+          setRecuEnLigne("non");
+          return;
+        }
         // Une bibliothèque qui n'a rien traité n'a rien à montrer : les écrans le disent déjà.
       });
     return () => {
@@ -306,8 +343,12 @@ export function App(): JSX.Element {
     }
   };
 
-  /** La dernière bibliothèque créée : celle qu'on organise au sortir de l'assistant. */
-  const derniere = courante;
+  /** La dernière bibliothèque créée : celle qu'on organise au sortir de l'assistant.
+   *
+   *  Elle n'est plus `courante`, qui peut désormais être la bibliothèque servie en ligne — et
+   *  celle-là n'a pas de description à organiser. Les écrans de construction demandent la
+   *  description ; ils ne s'ouvrent que sur ce que cette session a créé. */
+  const derniere = creees[creees.length - 1];
 
   /** Dépose des fichiers : l'hôte copie les originaux et met la file à jour. */
   const deposerDesFichiers = async (racine: string): Promise<void> => {
@@ -424,6 +465,37 @@ export function App(): JSX.Element {
           ),
         };
 
+  /** Ce qu'on montre quand il n'y a rien à montrer — **et qui dépend de qui répond**.
+   *
+   *  Sur le bureau : le premier lancement, qui propose de créer ou d'ouvrir. En ligne, ces deux
+   *  gestes n'existent pas — `creer` lève, `ouvrir` n'est même pas passé — et les proposer
+   *  disait à quelqu'un d'identifié qu'il n'avait rien, alors que sa bibliothèque existait et
+   *  était simplement vide. Deux écrans honnêtes à la place : la cérémonie quand le service
+   *  nous a refusés, l'attente quand il nous a reçus et n'a rien.
+   *
+   *  Tant qu'on ne sait pas encore — la première demande n'est pas revenue — on montre
+   *  l'attente plutôt que la cérémonie : proposer d'entrer à quelqu'un qui est déjà entré est
+   *  plus trompeur que de le faire patienter le temps d'un aller-retour. */
+  const sansRienAMontrer = (): JSX.Element => {
+    if (administration === undefined && lecture !== undefined)
+      return recuEnLigne === "non" ? (
+        <Entrer onEntre={() => aller({ ecran: "catalogue" })} />
+      ) : (
+        <RienAMontrer theme={theme} />
+      );
+    return aLAccueil.bibliotheques.length === 0 ? (
+      <PremierLancement
+        theme={theme}
+        onCreer={() => aller({ ecran: "creer" })}
+        onFichiers={deposer}
+        onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
+        echec={echecOuverture}
+      />
+    ) : (
+      <Accueil donnees={aLAccueil} onFichiers={deposer} />
+    );
+  };
+
   const ecran = ((): JSX.Element | null => {
     // Avant tout le reste : cet écran doit s'afficher **sans session**, donc sans rien attendre
     // du pont ni d'une bibliothèque. Le placer plus bas l'aurait mis derrière des gardes qui
@@ -518,19 +590,7 @@ export function App(): JSX.Element {
           }
         />
       );
-    if (vue === undefined || restants === undefined) {
-      return aLAccueil.bibliotheques.length === 0 ? (
-        <PremierLancement
-          theme={theme}
-          onCreer={() => aller({ ecran: "creer" })}
-          onFichiers={deposer}
-          onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
-          echec={echecOuverture}
-        />
-      ) : (
-        <Accueil donnees={aLAccueil} onFichiers={deposer} />
-      );
-    }
+    if (vue === undefined || restants === undefined) return sansRienAMontrer();
     if (route.ecran === "verifier")
       return (
         <Verifier
@@ -569,17 +629,7 @@ export function App(): JSX.Element {
           onAjouter={() => aller(ACCUEIL)}
         />
       );
-    return aLAccueil.bibliotheques.length === 0 ? (
-      <PremierLancement
-          theme={theme}
-          onCreer={() => aller({ ecran: "creer" })}
-          onFichiers={deposer}
-          onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
-          echec={echecOuverture}
-        />
-    ) : (
-      <Accueil donnees={aLAccueil} onFichiers={deposer} />
-    );
+    return sansRienAMontrer();
   })();
 
   return (

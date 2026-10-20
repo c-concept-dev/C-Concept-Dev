@@ -38,6 +38,16 @@ type Props = {
 export function Entrer({ invitation, identifie = false, onEntre, gestes }: Props): JSX.Element {
   const [enCours, setEnCours] = useState<"entree" | "enrolement" | undefined>(undefined);
   const [refus, setRefus] = useState<string | undefined>(undefined);
+  /** Ce qui a abouti, et qui ferme la porte derrière lui.
+   *
+   *  Sans cet état, un enrôlement réussi ne disait rien : l'écran effaçait le message et restait
+   *  en place. Le geste naturel était de recliquer, ce qui **créait une clé de plus dans le
+   *  trousseau** et affichait ensuite « L'amorçage est clos » — une phrase qui ressemble à une
+   *  panne alors que tout avait marché. Mesuré en production le 19 octobre. */
+  const [enroleSous, setEnroleSous] = useState<string | undefined>(undefined);
+  /** Un refus venu du **service** : le répéter créerait une clé de plus pour le même non. Une
+   *  cérémonie interrompue, elle, n'a rien créé : celle-là se recommence. */
+  const [serviceARefuse, setServiceARefuse] = useState(false);
   const [nom, setNom] = useState("");
   const champNom = useId();
 
@@ -54,10 +64,13 @@ export function Entrer({ invitation, identifie = false, onEntre, gestes }: Props
     setEnCours(undefined);
     if (verdict.fait) {
       if (quoi === "entree") onEntre();
-      else setRefus(undefined);
+      else setEnroleSous(nomDeLAppareil());
       return;
     }
     setRefus(verdict.mot);
+    // Une cérémonie interrompue n'a rien créé et se recommence. Un refus du service, lui, peut
+    // avoir laissé une clé dans le trousseau : réessayer en ajouterait une autre.
+    if (quoi === "enrolement" && verdict.mot !== "Cérémonie interrompue.") setServiceARefuse(true);
   };
 
   const nomDeLAppareil = (): string => (nom.trim() === "" ? "Cet appareil" : nom.trim());
@@ -95,8 +108,27 @@ export function Entrer({ invitation, identifie = false, onEntre, gestes }: Props
           </p>
         )}
 
+        {enroleSous === undefined ? null : (
+          <p className="ln-entrer__reussite">
+            <Icone nom="valide" /> Cet appareil est maintenant votre clé, sous le nom «&nbsp;
+            {enroleSous}&nbsp;». Vous pouvez entrer.
+          </p>
+        )}
+
         <div className="ln-entrer__gestes">
-          {invitation === undefined ? (
+          {/* Après un enrôlement réussi, un seul geste reste : entrer. Reproposer l'enrôlement
+              inviterait à créer une clé de trop. */}
+          {enroleSous !== undefined ? (
+            <Bouton
+              variante="principal"
+              icone={<Icone nom="personnes" />}
+              onClick={() => void mener("entree", () => lesGestes.entrer())}
+              chargement={enCours === "entree"}
+              disabled={enCours !== undefined}
+            >
+              Entrer
+            </Bouton>
+          ) : invitation === undefined ? (
             <Bouton
               variante="principal"
               icone={<Icone nom="personnes" />}
@@ -112,7 +144,7 @@ export function Entrer({ invitation, identifie = false, onEntre, gestes }: Props
               icone={<Icone nom="personnes" />}
               onClick={() => void mener("enrolement", () => lesGestes.amorcer(nomDeLAppareil(), invitation))}
               chargement={enCours === "enrolement"}
-              disabled={enCours !== undefined}
+              disabled={enCours !== undefined || serviceARefuse}
             >
               {enCours === "enrolement" ? "Cérémonie en cours…" : "Faire de cet appareil ma clé"}
             </Bouton>
@@ -126,7 +158,7 @@ export function Entrer({ invitation, identifie = false, onEntre, gestes }: Props
               icone={<Icone nom="plus" />}
               onClick={() => void mener("enrolement", () => lesGestes.enroler(nomDeLAppareil()))}
               chargement={enCours === "enrolement"}
-              disabled={enCours !== undefined}
+              disabled={enCours !== undefined || serviceARefuse}
             >
               Enrôler cet appareil
             </Bouton>

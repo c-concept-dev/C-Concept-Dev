@@ -16,26 +16,27 @@
  *  Deux portes pour deux usages est légitime ; **une route qui accepterait l'une ou l'autre ne
  *  l'est pas** — on aurait alors deux serrures et une seule vérifiée.
  *
- *  ## Ce qui est vrai aujourd'hui, et qu'il ne faut pas se raconter autrement
+ *  ## Ce qui est vrai depuis le 20 octobre 2026
  *
- *  Le Worker n'a **aucune personne**. Les tables `utilisateur`, `cle_acces`, `session` et
- *  `droit` existent depuis la migration 2 du registre et ne sont lues ni écrites par rien ; la
- *  logique des droits (`@lienotheque/noyau`, `droits.ts`) est écrite, testée, et appelée nulle
- *  part. Un jeton de service unique ouvre la façade, pour tout le monde.
+ *  Le Worker a **une personne**, et elle est entrée. Les tables `utilisateur`, `cle_acces`,
+ *  `session` et `droit` sont lues et écrites par la cérémonie. Le jeton de service n'ouvre plus
+ *  la façade ; il invite, et c'est tout.
  *
- *  La note d'E1 dit que l'exigence dure de SEC-02 — session de quatre-vingt-dix jours,
- *  révocable — « est tenue ». Elle décrit la **conception** : la session est spécifiée, elle
- *  n'est pas vivante.
+ *  La note d'E1 disait que l'exigence dure de SEC-02 — session de quatre-vingt-dix jours,
+ *  révocable — « est tenue ». Elle décrivait la **conception**. Elle décrit maintenant ce qui
+ *  tourne.
  */
 
 /** Les sessions personnelles sont-elles exigées pour entrer par la façade ?
  *
- *  **Non, et pas encore.** Cette valeur passera à vrai quand la cérémonie existera (étape 4.4),
- *  et le jeton de service cessera alors d'ouvrir les routes de la façade.
+ *  **Oui, depuis le 20 octobre 2026**, et c'est la bascule du §13 du plan d'E5. Elle n'a pas été
+ *  posée sur une intention mais sur une mesure : une clé enrôlée à 07:56:35, puis deux sessions
+ *  ouvertes à 07:56:43 et 08:13:06 par signature vérifiée en production. Le jeton de service
+ *  cesse ici d'ouvrir les routes de la façade.
  *
- *  Tant qu'elle est fausse, elle est la seule chose qui empêche qu'une vraie bibliothèque soit
- *  servie derrière un jeton partagé. */
-export const SESSIONS_EXIGEES = false;
+ *  Tant qu'elle était fausse, elle était la seule chose qui empêchait qu'une vraie bibliothèque
+ *  soit servie derrière un jeton partagé. Ce rôle revient désormais à la session elle-même. */
+export const SESSIONS_EXIGEES = true;
 
 /** Cette bibliothèque est-elle une bibliothèque d'essai ?
  *
@@ -55,7 +56,13 @@ export function estUneBibliothequeDEssai(cle: string): boolean {
  *  Tant que personne n'est identifié, elle ne sert qu'une bibliothèque d'essai. La règle vit
  *  ici plutôt que dans l'attention de qui pose un réglage : `preparer-essai.ts` fait déjà de
  *  même en refusant toute base dont le nom ne finit pas par « -essai », et pour la même
- *  raison — une règle qu'on doit se rappeler finit par être oubliée le jour où elle compte. */
-export function laFacadePeutServir(cle: string): boolean {
-  return SESSIONS_EXIGEES || estUneBibliothequeDEssai(cle);
+ *  raison — une règle qu'on doit se rappeler finit par être oubliée le jour où elle compte.
+ *
+ *  La bascule se passe en **paramètre** depuis le 20 octobre, et non plus en lecture directe de
+ *  la constante. Sans cela, la garde devenait inéprouvable le jour même où la constante passait
+ *  à vrai : son refus serait resté écrit, plus jamais exécuté, et aucun test n'aurait pu dire ce
+ *  qu'il ferait si l'on revenait en arrière. C'est la même raison qui a fait de `sessionsExigees`
+ *  une option de `creerApp`. */
+export function laFacadePeutServir(cle: string, sessionsExigees: boolean = SESSIONS_EXIGEES): boolean {
+  return sessionsExigees || estUneBibliothequeDEssai(cle);
 }

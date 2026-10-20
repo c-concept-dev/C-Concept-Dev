@@ -61,6 +61,20 @@ export class PasEnLigne extends Error {
   }
 }
 
+/** Ce que le service répond quand personne n'est identifié — et qu'aucun script ne peut deviner.
+ *
+ *  Le témoin de session est `HttpOnly` **par conception** : la page ne le lit pas, et ne saura
+ *  donc jamais d'elle-même si quelqu'un est entré. Elle l'apprend en demandant et en se faisant
+ *  refuser. Levée nommée plutôt qu'« une erreur est survenue », parce que l'écran doit pouvoir
+ *  conduire à la cérémonie plutôt que d'afficher une panne : ne pas être entré n'est pas une
+ *  panne, c'est l'état de tout le monde avant d'entrer. */
+export class PasIdentifie extends Error {
+  constructor() {
+    super("Personne n'est identifié ici.");
+    this.name = "PasIdentifie";
+  }
+}
+
 /** Ce que le pont en ligne a besoin de savoir pour appeler le service. */
 export type Adresse = {
   /** La racine du service, sans barre oblique finale. */
@@ -86,6 +100,10 @@ export function pontEnLigne({ base, appeler = fetch }: Adresse): PortDeLecture {
       headers: { ...(options.body === undefined ? {} : { "content-type": "application/json" }), ...options.headers },
     });
     if (reponse.status === 404) return undefined;
+    // Un 401 n'est pas une panne et n'est pas une bibliothèque vide : c'est « entrez d'abord ».
+    // Le confondre avec l'un ou l'autre menait exactement au défaut du 20 octobre — un écran de
+    // premier lancement servi à quelqu'un qui avait simplement oublié d'entrer.
+    if (reponse.status === 401) throw new PasIdentifie();
     if (!reponse.ok) throw new Error(`Le service a refusé « ${chemin} » (${reponse.status}).`);
     return reponse.json();
   };

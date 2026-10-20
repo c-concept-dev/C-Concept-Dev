@@ -2,21 +2,23 @@ import { MIGRATIONS, MIGRATIONS_REGISTRE_EN_LIGNE, baseEnMemoire } from "@lienot
 import { beforeEach, describe, expect, it } from "vitest";
 import { creerApp } from "../src/app.js";
 import { inscrire, publier } from "../src/registre.js";
-import { SESSIONS_EXIGEES, estUneBibliothequeDEssai } from "../src/portes.js";
+import { SESSIONS_EXIGEES, estUneBibliothequeDEssai, laFacadePeutServir } from "../src/portes.js";
 
 /** Qui ouvre quoi, et ce que la façade refuse de servir tant que personne n'est identifié.
  *
- *  Le Worker n'a aujourd'hui **aucune personne** : un jeton de service unique ouvre la façade
- *  pour tout le monde. Les tables `utilisateur`, `cle_acces`, `session` et `droit` existent
- *  depuis E1 et ne sont lues par rien.
+ *  Depuis le 20 octobre 2026 le Worker a **une personne**, et la bascule est posée : la façade
+ *  s'ouvre à une session, plus jamais au jeton de service.
  *
- *  Tant qu'il en est ainsi, la façade ne doit servir qu'une bibliothèque d'essai. La règle vit
- *  ici plutôt que dans l'attention de qui pose un réglage — c'est déjà ce que fait
- *  `preparer-essai.ts`, qui refuse toute base dont le nom ne finit pas par « -essai ».
+ *  La garde d'essai n'en disparaît pas pour autant, et ces épreuves la tiennent **dans sa
+ *  position fausse**. Une garde qu'on ne peut plus exécuter n'est pas une garde, c'est une
+ *  phrase. Le jour où quelqu'un ramènerait la bascule en arrière — une cérémonie en panne, une
+ *  restauration — elle redeviendrait la seule chose qui empêche qu'une vraie bibliothèque soit
+ *  servie derrière un jeton partagé, et il faut savoir aujourd'hui ce qu'elle fera ce jour-là.
  */
 
 const JETON = "jeton d'essai";
-const app = creerApp();
+/** L'application **d'avant la bascule**, celle que la garde d'essai concerne. */
+const app = creerApp({ sessionsExigees: false });
 
 let registre: ReturnType<typeof baseEnMemoire>;
 let bibliotheque: ReturnType<typeof baseEnMemoire>;
@@ -52,11 +54,19 @@ describe("la bibliothèque d'essai se reconnaît à son nom", () => {
     expect(estUneBibliothequeDEssai("")).toBe(false);
   });
 
-  it("dit ouvertement qu'aucune session n'est encore exigée", () => {
-    // Le jour où la cérémonie existe, cette valeur passe à vrai et la garde ci-dessous cesse
-    // de mordre. Tant qu'elle est fausse, elle est la seule chose qui empêche une vraie
-    // bibliothèque d'être servie derrière un jeton partagé.
-    expect(SESSIONS_EXIGEES).toBe(false);
+  it("dit ouvertement que les sessions sont désormais exigées", () => {
+    // Posée le 20 octobre 2026 sur une mesure et non sur une intention : une clé enrôlée, puis
+    // deux sessions ouvertes par signature vérifiée en production. Le jeton de service n'ouvre
+    // plus la façade.
+    expect(SESSIONS_EXIGEES).toBe(true);
+  });
+
+  it("laisse la garde d'essai mordre quand la bascule est fausse, et s'effacer quand elle est vraie", () => {
+    // Les deux positions, explicitement. La constante du jour n'en dit qu'une, et c'est
+    // précisément ce qu'une garde devenue inexécutable cesse de pouvoir prouver.
+    expect(laFacadePeutServir("therapie", false)).toBe(false);
+    expect(laFacadePeutServir("essai", false)).toBe(true);
+    expect(laFacadePeutServir("therapie", true)).toBe(true);
   });
 });
 

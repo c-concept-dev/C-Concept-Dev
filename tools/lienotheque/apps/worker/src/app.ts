@@ -29,6 +29,7 @@ import {
   combienDeCles,
   inscrireUnDroit,
   inscrireUnePersonne,
+  laPersonne as laPersonneDe,
   lesPersonnes,
   revoquerLaSession,
 } from "./qui-entre.js";
@@ -322,7 +323,8 @@ export function creerApp({
     //
     // Le même mot de refus que pour toute autre indisponibilité, et **après** le jeton : un
     // appelant n'apprend ni qu'une bibliothèque existe, ni pourquoi elle lui est refusée.
-    if (!laFacadePeutServir(cle)) return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
+    if (!laFacadePeutServir(cle, sessionsExigees))
+      return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
 
     const inscrite = await laBibliotheque(registre, cle);
     if (inscrite === undefined || inscrite.liaison === undefined)
@@ -682,7 +684,17 @@ export function creerApp({
       porte.maintenant,
     );
     if (!ouvert.fait) return contexte.json({ erreur: "Accès refusé." }, 503);
-    return contexte.json({ defi: ouvert.valeur.valeur, domaine: porte.domaine });
+    // `personneId` part avec le défi : c'est lui que la page donnera comme identité de
+    // l'utilisateur à l'appareil. Un identifiant **stable** fait qu'une seconde tentative
+    // **remplace** la clé au lieu d'en ajouter une — c'est le mécanisme de WebAuthn, et c'est ce
+    // qui empêche les clés orphelines.
+    const laPersonne = await laPersonneDe(porte.registre, porte.personneId);
+    return contexte.json({
+      defi: ouvert.valeur.valeur,
+      domaine: porte.domaine,
+      personneId: porte.personneId,
+      personne: laPersonne?.nom ?? "",
+    });
   });
 
   app.post("/enrolement", async (contexte) => {
@@ -779,7 +791,12 @@ export function creerApp({
       porte.maintenant,
     );
     if (!ouvert.fait) return contexte.json({ erreur: "Amorçage refusé." }, 503);
-    return contexte.json({ defi: ouvert.valeur.valeur, domaine: porte.domaine, personne: personne.nom });
+    return contexte.json({
+      defi: ouvert.valeur.valeur,
+      domaine: porte.domaine,
+      personneId: personne.id,
+      personne: personne.nom,
+    });
   });
 
   app.post("/amorce", async (contexte) => {

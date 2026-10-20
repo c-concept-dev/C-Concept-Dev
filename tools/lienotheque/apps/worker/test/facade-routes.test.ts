@@ -4,7 +4,16 @@ import { creerApp } from "../src/app.js";
 import { inscrire, publier } from "../src/registre.js";
 
 const JETON = "jeton d'essai";
-const app = creerApp();
+/** Ces épreuves portent sur **ce que les routes répondent**, pas sur la serrure qui les ouvre.
+ *
+ *  Elles entrent donc par le jeton de service, c'est-à-dire la bascule en position fausse, et
+ *  le disent plutôt que de l'hériter d'une constante qui a changé le 20 octobre 2026. La porte,
+ *  elle, est éprouvée dans ses **deux** positions par `routes-identite.test.ts`, sur les quatre
+ *  routes de la façade : jeton accepté puis refusé, témoin refusé puis accepté.
+ *
+ *  Mêler les deux ici ferait qu'un défaut de serrure et un défaut de réponse échoueraient au
+ *  même endroit, et qu'on ne saurait pas lequel des deux on vient de casser. */
+const app = creerApp({ sessionsExigees: false });
 
 const enMemoire = baseEnMemoire;
 

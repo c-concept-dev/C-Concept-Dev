@@ -85,6 +85,45 @@ describe("l'amorçage, sur invitation", () => {
     expect(geste).toHaveBeenCalledWith("Cet appareil", "un-defi");
   });
 
+  it("annonce la réussite, et ne propose plus que d'entrer", async () => {
+    // Sans cette annonce, l'enrôlement réussissait en silence : on recliquait, l'appareil créait
+    // une clé de plus, et le service répondait « L'amorçage est clos » — une phrase qui
+    // ressemble à une panne alors que tout avait marché. Mesuré en production le 19 octobre.
+    render(<Entrer invitation="un-jeton" onEntre={vi.fn()} gestes={{ amorcer: accepte(), entrer: accepte() }} />);
+
+    await userEvent.type(screen.getByLabelText(/nom de cet appareil/i), "MacBook Pro");
+    await userEvent.click(screen.getByRole("button", { name: /ma clé/i }));
+
+    expect(await screen.findByText(/MacBook Pro/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /ma clé/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /entrer/i })).toBeTruthy();
+  });
+
+  it("entre directement depuis l'écran de réussite", async () => {
+    const onEntre = vi.fn();
+    render(<Entrer invitation="un-jeton" onEntre={onEntre} gestes={{ amorcer: accepte(), entrer: accepte() }} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /ma clé/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /entrer/i }));
+    expect(onEntre).toHaveBeenCalledOnce();
+  });
+
+  it("retire le geste quand le **service** a refusé : le répéter créerait une clé de trop", async () => {
+    render(<Entrer invitation="un-jeton" onEntre={vi.fn()} gestes={{ amorcer: refuse("L'amorçage est clos.") }} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /ma clé/i }));
+    expect(await screen.findByText("L'amorçage est clos.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /ma clé/i }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("laisse recommencer une cérémonie interrompue : elle n'a rien créé", async () => {
+    render(<Entrer invitation="un-jeton" onEntre={vi.fn()} gestes={{ amorcer: refuse("Cérémonie interrompue.") }} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /ma clé/i }));
+    expect(await screen.findByText("Cérémonie interrompue.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /ma clé/i }).hasAttribute("disabled")).toBe(false);
+  });
+
   it("montre le motif de l'enrôlement, qui en porte un", async () => {
     // À la différence de l'entrée. C'est ici que « getPublicKey() nul » s'entendra, si Safari
     // surprend — le cas que la mesure du 18 octobre n'a pas pu trancher.
