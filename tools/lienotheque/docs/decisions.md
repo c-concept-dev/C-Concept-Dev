@@ -2960,3 +2960,26 @@ page par feuille ». Leur couche, elle, n'a rien à se faire pardonner.
 L'estimation précédente annonçait 3 650 pages d'OCR en une à deux heures ; elle comptait les
 pages **sans** couche. Celle-ci compte les pages dont la couche ne mérite pas qu'on s'y fie. Le
 coût du réimport double, et il reste une dépense unique.
+
+### Fait le 20 octobre 2026, sur l'encadrement et sans les vingt pages de plus
+
+L'inversion est écrite : `laLectureRetenue` remplace `mieuxServi`, l'OCR se tente **dès qu'il y a
+une image à lire**, et la reconnaissance l'emporte dès qu'elle a vraiment lu. Onze épreuves
+unitaires figent la règle, dont les trois qui empêchent de reperdre ce qui marchait : une couche
+illisible perd toujours, une couche vide ne gagne jamais, une page courte sans image n'est pas
+perdue.
+
+Ce que la vérification a montré sur les fixtures, et qui n'était pas évident :
+
+| | |
+|---|---|
+| **F1** | son critère passe par `releverCoucheTexte`, jamais par l'arbitrage : immunisé par construction, et vérifié exact |
+| **F3** | passe bien par le nouvel arbitrage — mais **sa couche est vide sur toutes ses pages**, l'OCR la servait déjà : 95 sur 95, inchangé par construction |
+| **F4** | n'a aucune couche texte (143 images, pas une police) ; ses épreuves locales de lecture, de segments et d'orientation passent. Son critère complet demande le relais payant, non lancé |
+| **F5** | `fixtures/fichiers/F5` est vide : c'est le jeu de requêtes du lot C, aucun fichier à lire |
+| natif | vingt pages servies par la couche, **zéro océrisée** : une page sans image ne coûte toujours rien |
+
+**Un trou de couverture, dit plutôt que tu :** aucune fixture du dépôt ne porte **à la fois** une
+couche texte et une image de page. L'inversion est donc éprouvée unitairement, et son branchement
+— une ligne — ne l'est de bout en bout que dans le sens « pas d'image, rien ne change ». Fabriquer
+une telle fixture est le vrai remède, et il n'est pas fait.

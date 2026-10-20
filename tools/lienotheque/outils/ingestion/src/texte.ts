@@ -9,7 +9,6 @@ import {
   type PageDeTexte,
   couperEnDeux,
   MOTS_MINIMUM,
-  coucheSuffisante,
   lireCoucheTexte,
   lisible,
   lireParOcr,
@@ -18,13 +17,19 @@ import {
 
 /** Le texte d'un document, d'où qu'il vienne (RCH-07, OUT-05).
  *
- *  La couche texte quand elle tient, l'OCR sinon, et la décision se prend **page par page**.
+ *  **La reconnaissance quand la page est photographiée, la couche sinon**, et la décision se
+ *  prend page par page. Cet ordre est l'inverse de celui des premiers lots, et le renversement
+ *  date du 20 octobre 2026 : voir `laLectureRetenue`, qui porte la mesure.
  *
- *  Mesuré sur seize documents du corpus, quatre par famille : dix sont servis à cent pour cent
- *  par leur couche, treize à quatre-vingt-dix pour cent ou plus, et trois presque pas. Décider
- *  par document océriserait des milliers de pages déjà lisibles, ou en manquerait autant. Lire
- *  la couche coûte 0,0054 s par page ; l'OCR, trois ordres de grandeur de plus. C'est tout
- *  l'écart entre deux minutes et plusieurs heures sur le corpus entier.
+ *  La décision reste **par page** et non par document : mesuré sur seize documents du corpus,
+ *  dix sont servis à cent pour cent par leur couche et trois presque pas, et un même ouvrage
+ *  rend 3 % sur une page et 38 % sur une autre.
+ *
+ *  Ce que l'inversion coûte, et qui n'est pas caché : l'OCR se tente désormais sur **toute page
+ *  portant une image**, y compris celles des diaporamas dont l'image n'est qu'un décor. Lire la
+ *  couche coûte 0,0054 s par page, l'OCR environ deux secondes — mesuré le 20 octobre, contre
+ *  « une minute » annoncé jusque-là, faux d'un facteur trente. Une page native, elle, ne porte
+ *  aucune image et ne coûte toujours rien de plus.
  */
 
 export type OptionsTexte = {
@@ -102,21 +107,19 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
     for (let rang = 1; rang <= total; rang += 1) {
       const deLaCouche = options.forcerOcr === true ? undefined : couche[rang - 1];
 
-      // L'OCR ne se tente que si la couche ne suffit pas **et** qu'il y a une image à lire.
+      // L'OCR se tente **dès qu'il y a une image à lire**, et non plus seulement quand la
+      // couche cède (BAS-02, 20 octobre 2026). L'inversion vient d'une mesure : cinquante pages
+      // du corpus relues à l'œil, en aveugle, donnent tort à la couche trois fois sur quatre là
+      // où les deux lectures divergent — 23 % contre 70 %.
       //
-      // Le seuil ne décide pas si la couche est *valable* — il décide s'il vaut la peine
-      // d'essayer autre chose. Une première version le lisait comme un verdict, et envoyait à
-      // l'OCR toute page de moins de vingt mots : une page de titre, une ouverture de chapitre,
-      // un poème. Sur un document natif, qui ne porte aucune image, l'OCR n'avait alors rien à
-      // lire et la page était perdue — sept mots parfaitement lisibles jetés pour n'avoir pas
-      // atteint vingt.
-      const aEssayer = deLaCouche === undefined || !coucheSuffisante(deLaCouche);
-      const parOcrSiMieux = aEssayer ? await tenterOcr() : undefined;
-
-      // Et quand les deux ont parlé, c'est le plus fourni qui gagne. Une comparaison, pas un
-      // verdict : la couche peut rendre sept mots là où l'OCR en rend trois cents, et l'inverse
-      // arrive aussi — mesuré sur le corpus, un document rendait 487 mots en couche et 2 par OCR.
-      const lue = mieuxServi(deLaCouche, parOcrSiMieux);
+      // Une page native ne porte aucune image : `tenterOcr` y rend `undefined`, rien ne se
+      // tente, rien ne change. Le surcoût ne touche donc que les pages photographiées — et,
+      // c'est le prix assumé, celles des diaporamas dont l'image n'est qu'un décor, qu'on
+      // océrise pour découvrir qu'il n'y avait rien à y lire. Les reconnaître d'avance
+      // demanderait de les océriser : la circularité n'a pas de sortie bon marché, et
+      // `laLectureRetenue` rattrape le cas en rendant la couche.
+      const parOcrSiMieux = await tenterOcr();
+      const lue = laLectureRetenue(deLaCouche, parOcrSiMieux);
       if (lue !== undefined && lue.mots.length > 0) {
         if (lue.source === "ocr") parOcr += 1;
         else parLaCouche += 1;
@@ -160,35 +163,74 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
   return { pages, parLaCouche, parOcr, sansTexte };
 }
 
-/** De deux lectures de la même page, la meilleure — et « meilleure » n'est pas « plus longue ».
+/** En deçà de quelle part des mots de la couche une reconnaissance n'a **pas vraiment lu**.
  *
- *  **Comparer les nombres de mots choisissait le charabia.** Une couche dont l'encodage de
- *  police est faux rend plus de « mots » que l'OCR de la même image : 2 561 contre 837 sur une
- *  page du corpus, et pas un seul lisible. Le critère de quantité la préférait donc, et
- *  d'autant plus volontiers qu'elle était abondante.
+ *  Le garde-fou de l'inversion, et il est nécessaire : des diaporamas, des thèses et des
+ *  supports de cours portent une image par page — un fond, un décor — et leur texte est
+ *  d'origine. La reconnaissance y lit le décor et n'y trouve rien. Préférer aveuglément l'OCR y
+ *  perdrait tout le texte.
  *
- *  On regarde d'abord si c'est du langage. Une lecture lisible bat une illisible, quelle que
- *  soit sa longueur. Entre deux lisibles, la plus fournie gagne — c'est là que la quantité
- *  redevient un bon signe. À égalité, la couche : elle est exacte là où l'OCR approche.
+ *  Mesuré le 20 octobre 2026 sur trente-neuf documents : là où la comparaison a un sens, les
+ *  deux lectures rendent un nombre de mots voisin — 516 contre 517, 744 contre 735 ; là où elle
+ *  n'en a pas, la reconnaissance rend zéro ou deux mots contre quelques centaines. **Deux ordres
+ *  de grandeur séparent les deux cas**, et le seuil tombe au milieu sans raser ni l'un ni
+ *  l'autre. */
+export const PART_OCR_MINIMALE = 0.25;
+
+/** De deux lectures de la même page, laquelle fait foi.
+ *
+ *  ## Ce que l'ancienne règle jugeait, et ce qu'elle ne pouvait pas voir
+ *
+ *  Elle comparait la **lisibilité** — part de mots outils, part de mots bien formés — puis, à
+ *  égalité, la quantité. Cela attrapait le charabia d'un encodage de police faux, qui rendait
+ *  2 561 « mots » contre 837 à la reconnaissance sans qu'un seul soit lisible.
+ *
+ *  Cela ne pouvait **pas** attraper une couche lisible mais inexacte. Une couche qui lit
+ *  « mechamment » pour « méchamment » garde ses mots outils — *le*, *la*, *de* sont courts et
+ *  passent presque toujours — et ses mots restent bien formés. Elle franchissait les deux
+ *  seuils, et elle était fausse.
+ *
+ *  ## Ce que la mesure a tranché
+ *
+ *  Cinquante pages du corpus réel, relues à l'œil en aveugle le 20 octobre 2026 : là où les
+ *  deux lectures divergent, **la couche a tort trois fois sur quatre** (23 % contre 70 %). Le
+ *  défaut dominant est la perte de tous les accents, qu'aucun des deux seuils ne signale.
+ *
+ *  Là où les deux s'accordent, en revanche, elles ont raison : **aucune page du lot d'accord
+ *  n'a vu les deux se tromper ensemble**. C'est ce qui permet de préférer la reconnaissance
+ *  sans rien risquer sur les pages faciles — elle y dit la même chose.
+ *
+ *  ## La règle, dans l'ordre
+ *
+ *  1. une lecture absente ou vide ne gagne jamais contre une lecture qui a dit quelque chose ;
+ *  2. entre deux lectures jugeables, une lisible bat une illisible — le charabia reste exclu ;
+ *  3. **la reconnaissance l'emporte dès qu'elle a vraiment lu**, même moins fournie que la
+ *     couche. La quantité n'est plus un argument en faveur de la couche : c'est précisément ce
+ *     que la mesure a renversé ;
+ *  4. sinon la couche, qui est alors le seul texte de la page.
  */
-function mieuxServi(couche: PageLue | undefined, ocr: PageLue | undefined): PageLue | undefined {
+export function laLectureRetenue(couche: PageLue | undefined, ocr: PageLue | undefined): PageLue | undefined {
   if (couche === undefined) return ocr;
   if (ocr === undefined) return couche;
 
   // Rien ne bat rien. `lisible` répond « oui » pour une page trop courte à juger — c'est ce
   // qu'il faut pour une page de titre, et c'est un piège ici : une couche **vide** passait donc
   // pour lisible et l'emportait sur un OCR de huit cents mots. Une fixture l'a attrapé.
-  if (couche.mots.length === 0) return ocr;
   if (ocr.mots.length === 0) return couche;
+  if (couche.mots.length === 0) return ocr;
 
   // La lisibilité ne tranche qu'entre deux lectures dont on a de quoi juger. En deçà, le
-  // critère n'a pas de sens, et c'est la quantité qui parle.
+  // critère n'a pas de sens.
   const jugeables = couche.mots.length >= MOTS_MINIMUM && ocr.mots.length >= MOTS_MINIMUM;
   if (jugeables) {
     const coucheLisible = lisible(couche);
     if (coucheLisible !== lisible(ocr)) return coucheLisible ? couche : ocr;
   }
-  return ocr.mots.length > couche.mots.length ? ocr : couche;
+
+  // Le renversement. La reconnaissance doit avoir **vraiment lu** — assez de mots pour qu'on en
+  // juge, et pas deux ordres de grandeur sous la couche, ce qui signerait une image décorative.
+  const vraimentLue = ocr.mots.length >= MOTS_MINIMUM && ocr.mots.length >= couche.mots.length * PART_OCR_MINIMALE;
+  return vraimentLue ? ocr : couche;
 }
 
 /** Océrise une page entière, par un fichier temporaire effacé aussitôt.
