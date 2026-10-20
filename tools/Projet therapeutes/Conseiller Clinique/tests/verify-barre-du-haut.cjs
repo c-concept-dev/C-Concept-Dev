@@ -43,7 +43,7 @@ function servir() {
 // la liste qui était fausse, pas le document.
 const ORDRE = ['cc-ws-panel-toggle-btn', 'cc-ws-save-btn', 'cc-ws-save-as-btn', 'cc-ws-delete-btn',
                'cc-ws-transform-btn', 'cc-ws-export-btn', 'cc-ws-export-jpeg-btn',
-               'cc-ws-texte-diapositives-btn', 'cc-ws-export-pdf-carrousel-btn',
+               'cc-ws-texte-word-btn', 'cc-ws-texte-diapositives-btn', 'cc-ws-export-pdf-carrousel-btn',
                'cc-ws-export-pptx-carrousel-btn'];
 
 let n = 0;

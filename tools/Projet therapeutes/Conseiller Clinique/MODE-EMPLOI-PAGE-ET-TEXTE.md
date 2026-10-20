@@ -48,6 +48,14 @@ texte à lire, pas une bibliographie.
 Il est **calculé sur place** : aucun appel, aucune attente, et deux clics donnent toujours
 le même fichier.
 
+## Pour Christine — le même texte en Word
+
+Le bouton **« Texte en Word »**, à côté, donne le même contenu en **.docx**, à ouvrir dans
+Word pour le retravailler : un vrai titre par diapositive, les étapes en sous-titres, de
+vraies listes à puces et numérotées, les citations en retrait et les encadrés signalés.
+Le fichier s'appelle `texte-des-diapositives-AAAA-MM-JJ.docx` et deux exports de suite ne
+s'écrasent pas. Il est fabriqué **sur votre ordinateur**, sans rien envoyer nulle part.
+
 ---
 
 ## Pour Christophe — ce qui se passe dessous

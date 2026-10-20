@@ -3750,6 +3750,12 @@
          n'est pas livré — la barre compte donc déjà sa largeur dans ses contrôles, et le jour où
          il paraîtra, rien ne se réorganisera sous les yeux de l'utilisatrice. Même patron de
          visibilité que ses voisins : montré par adocOpenWorkspace selon le documentKind. -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-word-btn" hidden
+      onclick="window.adocWsTexteDiapositivesWord()"
+      aria-label="Texte des diapositives au format Word">
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
+      <span>Texte en Word</span>
+    </button>
     <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-diapositives-btn" hidden
       onclick="window.adocWsTexteDiapositives()"
       aria-label="Texte des diapositives (copier ou télécharger)">

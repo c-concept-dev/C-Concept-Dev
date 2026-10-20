@@ -16309,6 +16309,8 @@ ${recent}`;
     // sens que pour une présentation produite par le Studio.
     const texteDiapositivesBtn = document.getElementById('cc-ws-texte-diapositives-btn');
     if (texteDiapositivesBtn) texteDiapositivesBtn.hidden = !(!isLegacy && docKind === 'presentation');
+    const texteWordBtn = document.getElementById('cc-ws-texte-word-btn');
+    if (texteWordBtn) texteWordBtn.hidden = !(!isLegacy && docKind === 'presentation');
 
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
@@ -21058,29 +21060,384 @@ ${recent}`;
     }
   }
 
-  function adocTexteDesDiapositives(doc) {
-    if (!doc || !Array.isArray(doc.blocks)) return '';
+  // ── UNE SEULE EXTRACTION, DEUX RENDUS (Q2) ──────────────────────────────────────────────
+  // D7 produisait directement une chaîne. Le Word a besoin de la MÊME lecture des diapositives,
+  // mais rendue autrement : la structure est donc séparée du rendu. Le .txt de D7 est
+  // reconstruit à partir d'elle et doit rester IDENTIQUE À L'OCTET — un contrôle le compare
+  // avant et après sur une présentation d'essai.
+  //
+  // La structure ne décide de rien : elle dit ce qu'il y a (titre du document, diapositives,
+  // marques d'étape, blocs typés), et chaque rendu décide comment l'écrire.
+  function adocStructureDesDiapositives(doc) {
+    if (!doc || !Array.isArray(doc.blocks)) return null;
     const etapes = (typeof adocPresentStepList === 'function') ? adocPresentStepList(doc) : [];
     const total = doc.blocks.length;
-    const out = [];
-    out.push(String(doc.title || '(sans titre)'));
-    out.push('');
+    const struct = { titre: String(doc.title || '(sans titre)'), diapositives: [] };
     doc.blocks.forEach(function (carte, i) {
       if (!carte || carte.type !== 'card') return;
-      out.push('Diapositive ' + (i + 1) + ' / ' + total + ' — ' + String(carte.content.title || '(sans titre)'));
       const desEtapes = etapes.filter(function (e) { return e.cardId === carte.id; });
       const blocs = carte.content.blocks || [];
-      if (!blocs.length) { out.push('  (aucun contenu)'); out.push(''); return; }
+      const d = { numero: i + 1, total: total,
+                  titre: String(carte.content.title || '(sans titre)'), elements: [] };
       blocs.forEach(function (b) {
         const etape = desEtapes.find(function (e) { return e.stepId === b.id; });
-        if (etape) out.push('  [étape ' + etape.rang + (etape.surRang > 1 ? ' sur ' + etape.surRang : '') + ']');
-        adocTexteBlocPourNarration(b).forEach(function (l) { out.push('  ' + l); });
+        if (etape) d.elements.push({ genre: 'etape', rang: etape.rang, surRang: etape.surRang });
+        const c = b && b.content || {};
+        switch (b && b.type) {
+          case 'heading': case 'paragraph': case 'callout': case 'quote': {
+            const t = String(c.text || '').trim();
+            if (t) d.elements.push({ genre: b.type, texte: t });
+            break;
+          }
+          case 'list': {
+            const items = (c.items || []).map(function (x) { return String(x || '').trim(); })
+              .filter(Boolean);
+            if (items.length) d.elements.push({ genre: 'list', ordonnee: !!c.ordered, items: items });
+            break;
+          }
+          case 'table': {
+            const entetes = (c.headers || []).map(function (x) { return String(x == null ? '' : x); });
+            const lignes = (c.rows || []).map(function (r) {
+              return (r || []).map(function (x) { return String(x == null ? '' : x); }); });
+            if (entetes.length || lignes.length) d.elements.push({ genre: 'table', entetes: entetes, lignes: lignes });
+            break;
+          }
+          default: break;
+        }
+      });
+      struct.diapositives.push(d);
+    });
+    return struct;
+  }
+  window.adocStructureDesDiapositives = adocStructureDesDiapositives;
+
+  // ── Q2 — LE MÊME CONTENU, RENDU EN .docx POUR WORD ──────────────────────────────────────
+  // Écrit à la main, sans bibliothèque et sans appel réseau. L'outil de Christine est Microsoft
+  // Word, plus sévère que LibreOffice : un ordre d'éléments non conforme au schéma OOXML lui
+  // fait proposer de « réparer » le fichier. La structure reprend donc celle d'un fichier de
+  // RÉFÉRENCE produit par la bibliothèque docx et validé contre le schéma : mêmes parties,
+  // mêmes identifiants de style (Title, Heading1, Heading2, Citation, Encadre, ListParagraph),
+  // deux définitions de numérotation (puces et numéros), mêmes propriétés de page (A4, marges
+  // de 1440 twips, langue fr-FR), et surtout le même ORDRE à l'intérieur de w:pPr, w:rPr,
+  // w:numPr, w:style et w:sectPr — cet ordre est imposé par le schéma, pas décoratif.
+  //
+  // Une seule divergence assumée avec la référence : elle définit Title, Heading1 et Heading2
+  // DEUX FOIS (le modèle de python-docx, plus les styles ajoutés). On ne les écrit qu'une fois.
+
+  // CRC-32, table calculée une seule fois — l'en-tête ZIP l'exige pour chaque entrée.
+  var _adocCrcTable = null;
+  function adocCrc32(octets) {
+    if (!_adocCrcTable) {
+      _adocCrcTable = new Uint32Array(256);
+      for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        _adocCrcTable[n] = c >>> 0;
+      }
+    }
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < octets.length; i++) c = _adocCrcTable[(c ^ octets[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  // Archive ZIP par la méthode STOCKÉE : aucune compression, donc aucun code de compression à
+  // écrire, et Word l'accepte sans réserve. Chaque entrée porte son CRC-32 et sa taille.
+  function adocZipStocke(entrees) {
+    const enc = new TextEncoder();
+    const morceaux = [], central = [];
+    let decalage = 0;
+    const u16 = (v) => [v & 0xFF, (v >>> 8) & 0xFF];
+    const u32 = (v) => [v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF];
+    entrees.forEach(function (e) {
+      const nom = enc.encode(e.nom);
+      const donnees = typeof e.contenu === 'string' ? enc.encode(e.contenu) : e.contenu;
+      const crc = adocCrc32(donnees);
+      // Date MS-DOS figée : un fichier identique doit avoir des octets identiques, sans quoi
+      // deux exports de suite ne seraient pas comparables.
+      const heure = 0, date = ((2026 - 1980) << 9) | (1 << 5) | 1;
+      const local = [].concat([0x50, 0x4B, 0x03, 0x04], u16(20), u16(0x0800), u16(0), u16(heure),
+        u16(date), u32(crc), u32(donnees.length), u32(donnees.length), u16(nom.length), u16(0));
+      morceaux.push(new Uint8Array(local), nom, donnees);
+      central.push([].concat([0x50, 0x4B, 0x01, 0x02], u16(20), u16(20), u16(0x0800), u16(0),
+        u16(heure), u16(date), u32(crc), u32(donnees.length), u32(donnees.length),
+        u16(nom.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(decalage)), nom);
+      decalage += local.length + nom.length + donnees.length;
+    });
+    const centralOctets = [];
+    central.forEach(function (x) { if (Array.isArray(x)) centralOctets.push(new Uint8Array(x)); else centralOctets.push(x); });
+    let tailleCentral = 0;
+    centralOctets.forEach(function (x) { tailleCentral += x.length; });
+    const fin = new Uint8Array([].concat([0x50, 0x4B, 0x05, 0x06], u16(0), u16(0),
+      u16(entrees.length), u16(entrees.length), u32(tailleCentral), u32(decalage), u16(0)));
+    let total = 0;
+    morceaux.forEach(function (x) { total += x.length; });
+    total += tailleCentral + fin.length;
+    const sortie = new Uint8Array(total);
+    let i = 0;
+    morceaux.forEach(function (x) { sortie.set(x, i); i += x.length; });
+    centralOctets.forEach(function (x) { sortie.set(x, i); i += x.length; });
+    sortie.set(fin, i);
+    return sortie;
+  }
+
+  // Échappement XML : les cinq caractères réservés, plus les caractères de contrôle que XML
+  // 1.0 interdit (ils feraient refuser le fichier). Les accents, « » et les apostrophes
+  // typographiques passent tels quels — le fichier est en UTF-8.
+  function adocXmlEchappe(t) {
+    return String(t == null ? '' : t)
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  }
+
+  const ADOC_DOCX_NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+  const ADOC_DOCX_ENTETE = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+
+  function adocDocxParagraphe(style, runs, numId) {
+    // ORDRE IMPOSÉ PAR LE SCHÉMA dans w:pPr : pStyle, puis numPr (ilvl avant numId).
+    let pPr = '';
+    if (style) pPr += '<w:pStyle w:val="' + style + '"/>';
+    if (numId) pPr += '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="' + numId + '"/></w:numPr>';
+    return '<w:p>' + (pPr ? '<w:pPr>' + pPr + '</w:pPr>' : '') + runs + '</w:p>';
+  }
+  function adocDocxRun(texte, gras) {
+    // ORDRE IMPOSÉ dans w:rPr : b avant bCs.
+    return '<w:r>' + (gras ? '<w:rPr><w:b/><w:bCs/></w:rPr>' : '')
+      + '<w:t xml:space="preserve">' + adocXmlEchappe(texte) + '</w:t></w:r>';
+  }
+
+  function adocDocxCorps(struct) {
+    const p = [];
+    p.push(adocDocxParagraphe('Title', adocDocxRun(struct.titre)));
+    struct.diapositives.forEach(function (d) {
+      p.push(adocDocxParagraphe('Heading1', adocDocxRun('Diapositive ' + d.numero + ' — ' + d.titre)));
+      let rangEtape = 0;
+      d.elements.forEach(function (e) {
+        switch (e.genre) {
+          case 'etape':
+            rangEtape = e.rang;
+            p.push(adocDocxParagraphe('Heading2', adocDocxRun('Étape ' + d.numero + '-' + e.rang)));
+            break;
+          case 'list':
+            e.items.forEach(function (x) {
+              p.push(adocDocxParagraphe('ListParagraph', adocDocxRun(x), e.ordonnee ? 3 : 2));
+            });
+            break;
+          case 'quote':
+            p.push(adocDocxParagraphe('Citation', adocDocxRun('Citation : ', true) + adocDocxRun(e.texte)));
+            break;
+          case 'callout':
+            p.push(adocDocxParagraphe('Encadre', adocDocxRun('Encadré : ', true) + adocDocxRun(e.texte)));
+            break;
+          case 'table': {
+            // Une diapositive n'admet pas de tableau ; si l'extraction en rencontre un (autre
+            // genre de document), il devient un VRAI tableau Word.
+            const lignes = [];
+            if (e.entetes.length) lignes.push(e.entetes);
+            e.lignes.forEach(function (r) { lignes.push(r); });
+            const largeur = Math.max.apply(null, lignes.map(function (r) { return r.length; }).concat([1]));
+            let t = '<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/>'
+              + '<w:tblW w:w="0" w:type="auto"/></w:tblPr><w:tblGrid>';
+            for (let i = 0; i < largeur; i++) t += '<w:gridCol/>';
+            t += '</w:tblGrid>';
+            lignes.forEach(function (r) {
+              t += '<w:tr>';
+              for (let i = 0; i < largeur; i++) {
+                t += '<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr>'
+                  + adocDocxParagraphe(null, adocDocxRun(r[i] == null ? '' : r[i])) + '</w:tc>';
+              }
+              t += '</w:tr>';
+            });
+            p.push(t + '</w:tbl>' + adocDocxParagraphe(null, ''));
+            break;
+          }
+          default:
+            p.push(adocDocxParagraphe(e.genre === 'heading' ? 'Heading3' : null, adocDocxRun(e.texte)));
+            break;
+        }
+      });
+      if (!d.elements.length) p.push(adocDocxParagraphe(null, adocDocxRun('(aucun contenu)')));
+    });
+    void 0;
+    return p.join('');
+  }
+
+  function adocDocxParties(struct) {
+    // ORDRE IMPOSÉ dans w:sectPr : pgSz, pgMar, pgNumType, docGrid — comme la référence.
+    const sectPr = '<w:sectPr><w:pgSz w:w="11906" w:h="16838" w:orient="portrait"/>'
+      + '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"'
+      + ' w:header="708" w:footer="708" w:gutter="0"/><w:pgNumType/>'
+      + '<w:docGrid w:linePitch="360"/></w:sectPr>';
+    const document = ADOC_DOCX_ENTETE + '<w:document ' + ADOC_DOCX_NS + '><w:body>'
+      + adocDocxCorps(struct) + sectPr + '</w:body></w:document>';
+
+    // ORDRE IMPOSÉ dans w:style : name, basedOn, next, qFormat, pPr, rPr.
+    const style = function (id, nom, pPr, rPr, qFormat) {
+      return '<w:style w:type="paragraph" w:styleId="' + id + '">'
+        + '<w:name w:val="' + adocXmlEchappe(nom) + '"/>'
+        + '<w:basedOn w:val="Normal"/><w:next w:val="Normal"/>'
+        + (qFormat ? '<w:qFormat/>' : '')
+        + (pPr ? '<w:pPr>' + pPr + '</w:pPr>' : '')
+        + (rPr ? '<w:rPr>' + rPr + '</w:rPr>' : '') + '</w:style>';
+    };
+    const styles = ADOC_DOCX_ENTETE + '<w:styles ' + ADOC_DOCX_NS + '>'
+      + '<w:docDefaults><w:rPrDefault><w:rPr>'
+      + '<w:rFonts w:ascii="Calibri" w:cs="Calibri" w:eastAsia="Calibri" w:hAnsi="Calibri"/>'
+      + '<w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="fr-FR"/>'
+      + '</w:rPr></w:rPrDefault><w:pPrDefault/></w:docDefaults>'
+      + '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>'
+      + style('Title', 'Title', null, '<w:sz w:val="56"/><w:szCs w:val="56"/>', true)
+      + style('Heading1', 'heading 1', null, '<w:color w:val="2E74B5"/><w:sz w:val="32"/><w:szCs w:val="32"/>', true)
+      + style('Heading2', 'heading 2', null, '<w:color w:val="2E74B5"/><w:sz w:val="26"/><w:szCs w:val="26"/>', true)
+      + style('Heading3', 'heading 3', null, '<w:color w:val="2E74B5"/><w:sz w:val="24"/><w:szCs w:val="24"/>', true)
+      + style('ListParagraph', 'List Paragraph', null, null, true)
+      + style('Citation', 'Citation', '<w:spacing w:after="80" w:before="80"/><w:ind w:left="720"/>',
+              '<w:i/><w:iCs/>')
+      + style('Encadre', 'Encadré',
+              '<w:pBdr><w:left w:val="single" w:color="999999" w:sz="12" w:space="8"/></w:pBdr>'
+              + '<w:spacing w:after="80" w:before="80"/><w:ind w:left="360"/>', null)
+      + '<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/>'
+      + '<w:tblPr><w:tblBorders>'
+      + ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(function (c) {
+          return '<w:' + c + ' w:val="single" w:sz="4" w:space="0" w:color="999999"/>'; }).join('')
+      + '</w:tblBorders></w:tblPr></w:style>'
+      + '</w:styles>';
+
+    // DEUX définitions de numérotation, comme la référence : 2 pour les puces, 3 pour les
+    // numéros. L'ordre dans w:lvl est imposé : start, numFmt, lvlText, lvlJc, pPr, rPr.
+    const niveau = function (fmt, texte) {
+      return '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="' + fmt + '"/>'
+        + '<w:lvlText w:val="' + adocXmlEchappe(texte) + '"/><w:lvlJc w:val="left"/>'
+        + '<w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr>'
+        + (fmt === 'bullet' ? '<w:rPr><w:rFonts w:ascii="Symbol" w:hAnsi="Symbol" w:hint="default"/></w:rPr>' : '')
+        + '</w:lvl>';
+    };
+    const numbering = ADOC_DOCX_ENTETE + '<w:numbering ' + ADOC_DOCX_NS + '>'
+      + '<w:abstractNum w:abstractNumId="2">' + niveau('bullet', '·') + '</w:abstractNum>'
+      + '<w:abstractNum w:abstractNumId="3">' + niveau('decimal', '%1.') + '</w:abstractNum>'
+      + '<w:num w:numId="2"><w:abstractNumId w:val="2"/></w:num>'
+      + '<w:num w:numId="3"><w:abstractNumId w:val="3"/></w:num>'
+      + '</w:numbering>';
+
+    const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    const rels = ADOC_DOCX_ENTETE + '<Relationships xmlns="' + R + '">'
+      + '<Relationship Id="rId1" Type="' + R + '/officeDocument" Target="word/document.xml"/>'
+      + '<Relationship Id="rId2" Type="' + R + '/metadata/core-properties" Target="docProps/core.xml"/>'
+      + '<Relationship Id="rId3" Type="' + R + '/extended-properties" Target="docProps/app.xml"/>'
+      + '</Relationships>';
+    const docRels = ADOC_DOCX_ENTETE + '<Relationships xmlns="' + R + '">'
+      + '<Relationship Id="rId1" Type="' + R + '/styles" Target="styles.xml"/>'
+      + '<Relationship Id="rId2" Type="' + R + '/numbering" Target="numbering.xml"/>'
+      + '</Relationships>';
+
+    const CT = 'http://schemas.openxmlformats.org/package/2006/content-types';
+    const W = 'application/vnd.openxmlformats-officedocument.wordprocessingml';
+    const contentTypes = ADOC_DOCX_ENTETE + '<Types xmlns="' + CT + '">'
+      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+      + '<Default Extension="xml" ContentType="application/xml"/>'
+      + '<Override PartName="/word/document.xml" ContentType="' + W + '.document.main+xml"/>'
+      + '<Override PartName="/word/styles.xml" ContentType="' + W + '.styles+xml"/>'
+      + '<Override PartName="/word/numbering.xml" ContentType="' + W + '.numbering+xml"/>'
+      + '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+      + '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+      + '</Types>';
+
+    const core = ADOC_DOCX_ENTETE
+      + '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"'
+      + ' xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/"'
+      + ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+      + '<dc:title>' + adocXmlEchappe(struct.titre) + '</dc:title>'
+      + '<dc:language>fr-FR</dc:language>'
+      + '<cp:revision>1</cp:revision></cp:coreProperties>';
+    const app = ADOC_DOCX_ENTETE
+      + '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"'
+      + ' xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
+      + '<Application>Studio Clinique</Application></Properties>';
+
+    return [
+      { nom: '[Content_Types].xml', contenu: contentTypes },
+      { nom: '_rels/.rels', contenu: rels },
+      { nom: 'word/document.xml', contenu: document },
+      { nom: 'word/styles.xml', contenu: styles },
+      { nom: 'word/numbering.xml', contenu: numbering },
+      { nom: 'word/_rels/document.xml.rels', contenu: docRels },
+      { nom: 'docProps/core.xml', contenu: core },
+      { nom: 'docProps/app.xml', contenu: app },
+    ];
+  }
+
+  function adocDocxDesDiapositives(doc) {
+    const struct = adocStructureDesDiapositives(doc);
+    if (!struct) throw new Error('document illisible');
+    return adocZipStocke(adocDocxParties(struct));
+  }
+  window.adocDocxDesDiapositives = adocDocxDesDiapositives;
+  window.adocDocxPartiesPourEssai = function (doc) { return adocDocxParties(adocStructureDesDiapositives(doc)); };
+
+
+  function adocTexteDesDiapositives(doc) {
+    const struct = adocStructureDesDiapositives(doc);
+    if (!struct) return '';
+    const out = [];
+    out.push(struct.titre);
+    out.push('');
+    struct.diapositives.forEach(function (d) {
+      out.push('Diapositive ' + d.numero + ' / ' + d.total + ' — ' + d.titre);
+      if (!d.elements.length) { out.push('  (aucun contenu)'); out.push(''); return; }
+      d.elements.forEach(function (e) {
+        if (e.genre === 'etape') {
+          out.push('  [étape ' + e.rang + (e.surRang > 1 ? ' sur ' + e.surRang : '') + ']');
+        } else if (e.genre === 'list') {
+          e.items.forEach(function (x, i) { out.push('  ' + (e.ordonnee ? (i + 1) + '. ' : '— ') + x); });
+        } else if (e.genre === 'table') {
+          if (e.entetes.length) out.push('  ' + e.entetes.join(' | '));
+          e.lignes.forEach(function (r) { out.push('  ' + r.join(' | ')); });
+        } else {
+          out.push('  ' + e.texte);
+        }
       });
       out.push('');
     });
     return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
   }
   window.adocTexteDesDiapositives = adocTexteDesDiapositives;
+
+  // X5 — nom stable, sans espace ni accent, daté du jour. Deux exports de suite ne s'écrasent
+  // pas : un numéro d'ordre est ajouté dès le second de la même journée.
+  var _adocDocxDuJour = {};
+  function adocNomTexteDiapositives(ext) {
+    const d = new Date();
+    const jour = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-'
+      + String(d.getDate()).padStart(2, '0');
+    const cle = jour + '.' + ext;
+    _adocDocxDuJour[cle] = (_adocDocxDuJour[cle] || 0) + 1;
+    const n = _adocDocxDuJour[cle];
+    return 'texte-des-diapositives-' + jour + (n > 1 ? '-' + n : '') + '.' + ext;
+  }
+
+  window.adocWsTexteDiapositivesWord = async function () {
+    const storeKey = window._adocWsState && window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'presentation') return null;
+    let octets;
+    try {
+      octets = adocDocxDesDiapositives(doc);
+    } catch (e) {
+      // X4 — un échec en cours de fabrication ne laisse JAMAIS un fichier présenté comme
+      // complet : rien n'est téléchargé, et le message le dit.
+      try { console.warn('[texte en Word] fabrication interrompue :', (e && e.message) || e); } catch (_) {}
+      alert('Le fichier Word n’a pas pu être fabriqué. Rien n’a été téléchargé.');
+      return null;
+    }
+    const lien = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([octets],
+      { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+    lien.href = url; lien.download = adocNomTexteDiapositives('docx');
+    document.body.appendChild(lien); lien.click();
+    setTimeout(function () { URL.revokeObjectURL(url); lien.remove(); }, 2000);
+    return octets.length;
+  };
 
   // Le bouton : copie dans le presse-papiers ET propose le téléchargement, comme demandé.
   window.adocWsTexteDiapositives = async function () {
@@ -21090,11 +21447,12 @@ ${recent}`;
     if (!doc || doc.documentKind !== 'presentation') return null;
     const texte = adocTexteDesDiapositives(doc);
     try { await navigator.clipboard.writeText(texte); } catch (e) { /* refusé : le fichier reste */ }
-    const nom = String(doc.title || 'presentation').replace(/[^\w\- ]+/g, '').trim().slice(0, 60)
-      || 'presentation';
     const lien = document.createElement('a');
     const url = URL.createObjectURL(new Blob([texte], { type: 'text/plain;charset=utf-8' }));
-    lien.href = url; lien.download = nom + ' — texte des diapositives.txt';
+    // X5 — le .txt prend le même nom stable que le Word : sans espace ni accent, daté, et deux
+    // exports de suite ne s'écrasent pas. L'ancien nom portait le titre du document, donc des
+    // espaces et des accents.
+    lien.href = url; lien.download = adocNomTexteDiapositives('txt');
     document.body.appendChild(lien); lien.click();
     setTimeout(function () { URL.revokeObjectURL(url); lien.remove(); }, 2000);
     return texte;
