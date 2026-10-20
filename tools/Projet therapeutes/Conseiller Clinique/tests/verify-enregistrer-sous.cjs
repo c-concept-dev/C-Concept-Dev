@@ -4,7 +4,7 @@
 // NOUVEAU document_id est créé (route POST /clinical-documents, JAMAIS .../versions sur l'ancien
 // id), et que l'original reste RIGOUREUSEMENT INCHANGÉ côté "serveur" (aucun appel qui le cible,
 // contenu et titre intacts dans le "stockage" simulé).
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
@@ -26,7 +26,7 @@ function heading(id, text) { return { id: id, type: 'heading', content: { text: 
 function para(id, text) { return { id: id, type: 'paragraph', content: { text: text }, citationIds: [], validation: {} }; }
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await (process.env.STUDIO_TEST_BROWSER === 'webkit' ? webkit : chromium).launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const pageErrors = [];
   page.on('pageerror', (e) => pageErrors.push(e.message));
@@ -69,6 +69,9 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
     if (url.match(/\/clinical-documents\/[^/]+$/) && (req.method() === 'PATCH' || req.method() === 'PUT')) { patchCalls++; return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) }); }
     if (url.endsWith('/media-assets') && req.method() === 'GET') {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ media: [] }) });
+    }
+    if (url.includes('/library-facets')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' }, body: JSON.stringify({ facets: {} }) });
     }
     if (url.endsWith('/brand-kits')) {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ brand_kits: [] }) });
@@ -136,12 +139,23 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(createCalls, 1, 'un titre confirmé doit déclencher EXACTEMENT un appel de création (POST /clinical-documents)');
   assert.equal(versionCalls, 0, 'jamais un appel à la route de VERSION pour "Enregistrer sous"');
   assert.equal(createCallBodies[0].title, 'Ma copie personnalisée', 'le titre envoyé au serveur doit être celui saisi dans le prompt()');
+  assert.equal(createCallBodies[0].document.clinicalDocument.title, 'Ma copie personnalisée', 'le titre DANS le document structuré envoyé doit être celui de la copie');
   console.log('PASS 4/9 — prompt() pré-rempli avec le titre actuel, titre édité envoyé à la création (route de création, jamais de version)');
 
   // ── L’écran de travail bascule sur le NOUVEAU document ──
   const idAfterSaveAs = await page.evaluate((key) => window._adocArtifacts[key]._adocClinicalDocumentId, storeKey);
   assert.equal(idAfterSaveAs, NEW_ID_1, 'l’artefact ouvert doit désormais porter le NOUVEL id créé');
   assert.notEqual(idAfterSaveAs, ORIG_ID, 'le nouvel id ne doit JAMAIS être l’id de l’original');
+  const copyUI = await page.evaluate((key) => ({
+    title: window._adocArtifacts[key]._adocStructuredDoc.title,
+    header: document.getElementById('cc-ws-title').textContent,
+    cover: document.getElementById('root:doc-title')?.textContent,
+    status: document.getElementById('cc-ws-save-status').textContent,
+  }), storeKey);
+  assert.equal(copyUI.title, 'Ma copie personnalisée', 'la copie active doit porter le titre structuré demandé');
+  assert.equal(copyUI.header, 'Ma copie personnalisée', 'le titre affiché dans la barre doit désigner la copie active');
+  assert.equal(copyUI.cover, 'Ma copie personnalisée', 'le titre de couverture de la fiche doit désigner la copie active');
+  assert.match(copyUI.status, /Copie créée : Ma copie personnalisée/, 'la zone de statut doit annoncer la création de la copie');
   console.log('PASS 5/9 — l’écran de travail bascule sur le nouveau document (nouvel _adocClinicalDocumentId)');
 
   // ── L’ORIGINAL reste totalement inchangé côté "serveur" : jamais ciblé par DELETE/PATCH, son
