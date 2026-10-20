@@ -48,28 +48,38 @@ const commeUnEpub = (): string => {
 };
 
 describe("un format que la chaîne ne lit pas se dit plutôt que de planter", () => {
-  it("refuse un EPUB en le nommant, et ne parle pas d'un PDF abîmé", async () => {
-    await expect(lireLeTexte(commeUnEpub())).rejects.toThrow(FormatNonLu);
-    await expect(lireLeTexte(commeUnEpub())).rejects.toThrow(/EPUB/);
-    await expect(lireLeTexte(commeUnEpub()), "le message accuse encore le PDF").rejects.not.toThrow(/PDF structure/);
-  });
-
-  it("dit que c'est la chaîne qui ne sait pas lire, et non le document qui serait abîmé", async () => {
-    // La nuance est tout le défaut : « Invalid PDF structure » envoie chercher un problème dans
-    // le fichier de quelqu'un, alors que le fichier va très bien.
-    await expect(lireLeTexte(commeUnEpub())).rejects.toThrow(/ne sait pas encore lire/i);
-  });
-
-  it("nomme aussi un format qu'il ne reconnaît pas du tout", async () => {
+  it("nomme un format qu'il ne reconnaît pas du tout", async () => {
     const chemin = join(dossier, "mystere.bin");
     writeFileSync(chemin, Buffer.from([0x00, 0x01, 0x02, 0x03, 0x04, 0x05]));
     await expect(lireLeTexte(chemin)).rejects.toThrow(FormatNonLu);
     await expect(lireLeTexte(chemin)).rejects.toThrow(/inconnu/i);
   });
 
+  it("dit que c'est la chaîne qui ne sait pas lire, et non le document qui serait abîmé", async () => {
+    // La nuance est tout le défaut : « Invalid PDF structure » envoie chercher un problème dans
+    // le fichier de quelqu'un, alors que le fichier va très bien.
+    const chemin = join(dossier, "mystere.bin");
+    writeFileSync(chemin, Buffer.from([0x00, 0x01, 0x02, 0x03, 0x04, 0x05]));
+    await expect(lireLeTexte(chemin)).rejects.toThrow(/ne sait pas encore lire/i);
+  });
+
   it("porte le chemin du document, pour qu'on sache lequel est en cause", async () => {
-    // Dans un lot de deux cent cinquante, « un EPUB n'est pas lu » sans nom de fichier oblige à
-    // les rouvrir un par un.
-    await expect(lireLeTexte(commeUnEpub())).rejects.toThrow(/un-livre\.epub/);
+    // Dans un lot de deux cent cinquante, « un format n'est pas lu » sans nom de fichier oblige
+    // à les rouvrir un par un.
+    const chemin = join(dossier, "mystere.bin");
+    writeFileSync(chemin, Buffer.from([0x00, 0x01, 0x02, 0x03, 0x04, 0x05]));
+    await expect(lireLeTexte(chemin)).rejects.toThrow(/mystere\.bin/);
+  });
+});
+
+describe("un EPUB n'est plus refusé — et une archive abîmée n'accuse jamais le PDF", () => {
+  it("ne parle pas d'un PDF abîmé devant un EPUB qui n'est pas une archive valable", async () => {
+    // L'EPUB est lu depuis le 20 octobre 2026, donc ce fichier-ci ne va plus chez pdf.js. Ce que
+    // cette épreuve garde est l'invariant du défaut d'origine : **aucun message n'accuse un PDF
+    // quand le fichier n'en est pas un.** Le message parle désormais de l'archive, ce qui est
+    // la cause réelle.
+    const chemin = commeUnEpub();
+    await expect(lireLeTexte(chemin)).rejects.toThrow(/archive/i);
+    await expect(lireLeTexte(chemin), "le message accuse encore le PDF").rejects.not.toThrow(/PDF structure/);
   });
 });

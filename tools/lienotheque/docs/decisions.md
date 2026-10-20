@@ -3535,3 +3535,74 @@ sait pas lire doit se dire, pas planter.
 Il **n'est pas clos**. Le chaînon fonctionne, et il est prouvé sur deux documents PDF — un natif
 de bout en bout, un numérisé jusqu'à la citation. Mais la moitié de ce que les bibliothèques
 porteront ne franchit pas la première étape.
+
+
+## 20 octobre 2026 — la chaîne lit les EPUB : des feuillets, pas des pages
+
+L'étape 7 du chemin du texte, avancée parce que la composition réelle attendue est **50 % PDF /
+50 % EPUB** et non les 7,6 % du corpus d'essai.
+
+### Ce que la mesure a décidé à notre place
+
+Quatre EPUB du corpus sondés : **aucun** ne porte de pagination d'édition imprimée — ni
+`page-list`, ni repère `pagebreak`. « Toujours sur la vraie page » n'a donc pas de sens littéral
+ici, et fabriquer des numéros promettrait une vérification impossible.
+
+Et le découpage de l'auteur ne fait pas mesure : **3 fichiers de contenu** pour un livre,
+**69** pour un autre ; 1 Kio médian contre 16. « Chapitre 1 sur 3 » ne situe rien.
+
+### Ce qui a été retenu
+
+| | |
+|---|---|
+| le **rang** | un découpage régulier en **feuillets de 300 mots**, figé avec la version |
+| la **vérifiabilité** | le texte exact du feuillet, qui est son propre repère |
+| le **contexte** | le chapitre d'où il vient |
+
+Un feuillet **n'est pas une page** et ne s'appelle pas ainsi : `pageImprimee` reste **absent**, et
+`citerPage` dit alors « passage 47 du document » plutôt qu'un numéro que le livre ne porte pas. Le
+contrat prévoyait déjà ce cas — **rien n'a eu à changer**.
+
+Trois cents mots parce que c'est l'ordre de grandeur d'une page de livre. La valeur est figée avec
+la version : la changer renumérote toutes les citations d'un livre déjà lu, et cela demande de le
+relire, comme changer une recette le demande.
+
+### La langue vient du livre, pas de la bibliothèque
+
+Chaque EPUB sondé déclare la sienne, et **l'un des quatre est en anglais dans une bibliothèque
+française**. Une bibliothèque dit la langue de sa collection ; un livre dit la sienne, et c'est
+celle-là qui compte pour le lire. `lireEpub` la rend.
+
+### Un lecteur de ZIP écrit plutôt qu'emprunté
+
+Un EPUB n'emploie que deux façons de ranger un fichier, telle quelle ou dégonflée, et `node:zlib`
+sait dégonfler. Le reste est un format de table qui tient en quelques dizaines de lignes — la même
+décision que l'encodeur CCITT et la table d'objets PDF du dépôt, et pour la même raison.
+
+**La table centrale fait foi, jamais les en-têtes locaux** : c'est elle qui fait autorité, et un
+fichier dont les deux se contredisent est précisément celui qu'on ne veut pas lire au hasard. Une
+méthode de compression inconnue se dit plutôt que de rendre des octets qui ressembleraient à du
+texte.
+
+### Vérifié de bout en bout
+
+*L'Intelligence du cœur*, EPUB de 69 chapitres :
+
+| | |
+|---|---|
+| lu | **322 feuillets**, moins d'une seconde |
+| déposé | 322 passages, version active |
+| recherche « possibilité de s'affirmer, d'être entendu, » | 1 résultat |
+| la recherche dit | **feuillet 162, sans numéro imprimé** |
+| le livre le porte | **feuillet 162** |
+
+La vérification relit les chapitres **depuis l'archive**, sans passer par le dépôt : ce qu'elle
+établit est que la citation est un extrait réel du livre, et que le feuillet cité est celui qui la
+porte. C'est ce qu'un EPUB permet de vérifier — il n'a pas de page imprimée à confronter.
+
+### Ce qui reste, et qui n'est pas fait
+
+**Le chapitre n'est pas conservé.** `Feuillet` le porte, `lireUnEpub` le laisse tomber : `Passage`
+est `.strict()` et n'a pas de champ pour lui. Le montrer à l'écran demande donc un champ au
+contrat, une colonne au dépôt et une migration. C'est le tiers de la décision du 20 octobre qui
+n'est pas livré, et il est dit ici plutôt que tu.

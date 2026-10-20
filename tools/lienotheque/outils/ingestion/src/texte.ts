@@ -10,6 +10,7 @@ import {
   type PageDeTexte,
   couperEnDeux,
   deuxPagesParFeuille,
+  lireEpub,
   numerosEnMarge,
   MOTS_MINIMUM,
   lireCoucheTexte,
@@ -120,10 +121,11 @@ function imagesParPage(objets: ReturnType<typeof objetsPdf>): Map<number, number
 export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Promise<TexteDuDocument> {
   const donnees = Buffer.from(await readFile(pdf));
 
-  // Le format **avant** la lecture, et par le contenu plutôt que par l'extension (FMT-01). Sans
-  // cette garde, un EPUB partait chez pdf.js et en revenait avec « Invalid PDF structure », qui
-  // accuse le document au lieu de dire que la chaîne ne sait pas le lire.
+  // Le format **avant** la lecture, et par le contenu plutôt que par l'extension (FMT-01).
+  // Sans cette garde, un EPUB partait chez pdf.js et en revenait avec « Invalid PDF structure »,
+  // qui accuse le document au lieu de dire ce qui se passe.
   const format = formatParSignature(donnees.subarray(0, TAILLE_ENTETE));
+  if (format?.typeMime === "application/epub+zip") return lireUnEpub(pdf);
   if (format?.typeMime !== "application/pdf") throw new FormatNonLu(pdf, format?.nom ?? "format inconnu");
   const couche = options.forcerOcr === true ? [] : (await lireCoucheTexte(pdf)).pages;
 
@@ -260,6 +262,38 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
  *  de grandeur séparent les deux cas**, et le seuil tombe au milieu sans raser ni l'un ni
  *  l'autre. */
 export const PART_OCR_MINIMALE = 0.25;
+
+/** Un EPUB, rendu sous la même forme que le reste de la chaîne attend.
+ *
+ *  ## Ce qu'un feuillet occupe comme place
+ *
+ *  Un EPUB n'a pas de pages — aucun du corpus ne porte de pagination d'édition imprimée, mesuré
+ *  le 20 octobre 2026. Le **feuillet** tient donc lieu de rang, et `pageImprimee` reste
+ *  **absent** : le contrat le prévoit déjà, et `citerPage` dit alors « passage 47 du document »
+ *  plutôt qu'un numéro que le livre ne porte pas.
+ *
+ *  ## La langue du livre, et non celle de la bibliothèque
+ *
+ *  Elle n'est pas employée ici — un EPUB n'a rien à océriser — mais elle est **rendue**, parce
+ *  que c'est le livre qui la sait : l'un des quatre EPUB sondés est en anglais dans une
+ *  bibliothèque française. Ce que la bibliothèque déclare vaut pour sa collection, pas pour
+ *  chacun de ses livres.
+ *
+ *  ## Les comptes
+ *
+ *  Tous les feuillets viennent du texte d'origine : ils comptent donc comme servis par la
+ *  couche, et jamais par une reconnaissance qui n'a pas eu lieu. Annoncer autre chose
+ *  fausserait la seule mesure qui dit d'où le texte vient. */
+async function lireUnEpub(chemin: string): Promise<TexteDuDocument> {
+  const livre = await lireEpub(chemin);
+  const pages: PageDeTexte[] = livre.feuillets.map((feuillet) => ({
+    index: feuillet.rang,
+    texte: feuillet.texte,
+    source: "couche_texte" as const,
+    mots: [],
+  }));
+  return { pages, parLaCouche: pages.length, parOcr: 0, sansTexte: 0 };
+}
 
 /** Sous combien de pages un décalage ne se vote pas.
  *

@@ -20,8 +20,15 @@
  *
  *  Ce que cela ne prouve pas, et qu'il faut dire : les deux chemins lisent la même couche texte.
  *  Sur un document numérisé, dont le texte vient de la reconnaissance, cette vérification-ci ne
- *  s'applique pas — il faudrait un œil sur l'image. Elle vaut pour un document natif, où la
- *  couche **est** le texte imprimé.
+ *  s'applique pas — il faudrait un œil sur l'image, et `citations-a-verifier.ts` le prépare.
+ *  Elle vaut pour un document natif, où la couche **est** le texte imprimé.
+ *
+ *  ## Et pour un EPUB
+ *
+ *  La phrase est cherchée dans le texte des chapitres relus **depuis l'archive**, sans passer par
+ *  le découpage en feuillets ni par le dépôt. Ce qu'on vérifie est donc : la citation est bien un
+ *  extrait du livre, et le feuillet qu'on cite est celui qui la porte. C'est exactement ce qu'un
+ *  EPUB permet de vérifier — il n'a pas de page imprimée à confronter.
  *
  *  ## Ce qu'il ne fait pas
  *
@@ -34,7 +41,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { VersionDocument, type Passage, type SchemaBibliotheque } from "@lienotheque/contrats";
 import { ouvrirDepot } from "@lienotheque/depot-sqlite";
-import { enPassages, langueOcr, lireCoucheTexte } from "@lienotheque/lecteur-texte";
+import { enPassages, langueOcr, lireCoucheTexte, lireEpub, TAILLE_FEUILLET } from "@lienotheque/lecteur-texte";
 import { enregistrerLeTraitement } from "../src/index.js";
 import { lireLeTexte } from "../src/texte.js";
 
@@ -133,19 +140,35 @@ try {
   if (premier === undefined) throw new Error("La recherche ne retrouve pas un texte qu'elle vient d'indexer.");
 
   // 4. **La vérification** : la même phrase, cherchée dans le PDF d'origine par un autre chemin.
-  const brut = (await lireCoucheTexte(chemin)).pages;
-  const rangsReels = brut
-    .map((page, rang) => ({ rang: rang + 1, texte: page.mots.map((mot) => mot.texte).join(" ") }))
-    .filter((page) => page.texte.includes(phrase))
-    .map((page) => page.rang);
+  const estEpub = chemin.toLowerCase().endsWith(".epub");
+  const rangsReels = estEpub
+    ? // Les chapitres relus depuis l'archive, recoupés en feuillets de la même taille : c'est
+      // ce que « la citation est bien dans le livre, et à cet endroit » veut dire ici.
+      (await lireEpub(chemin)).feuillets
+        .map((feuillet) => ({ rang: feuillet.rang, texte: feuillet.texte }))
+        .filter((feuillet) => feuillet.texte.includes(phrase))
+        .map((feuillet) => feuillet.rang)
+    : (await lireCoucheTexte(chemin)).pages
+        .map((page, rang) => ({ rang: rang + 1, texte: page.mots.map((mot) => mot.texte).join(" ") }))
+        .filter((page) => page.texte.includes(phrase))
+        .map((page) => page.rang);
 
   console.log(`  la recherche dit : page ${premier.passage.page}` +
     `${premier.passage.pageImprimee === undefined ? ", sans numéro imprimé" : `, numéro imprimé ${premier.passage.pageImprimee}`}`);
-  console.log(`  le PDF la porte  : page(s) ${rangsReels.join(", ") || "aucune"}`);
+  console.log(
+    `  le livre la porte : ${estEpub ? "feuillet(s)" : "page(s)"} ${rangsReels.join(", ") || "aucun"}` +
+      `${estEpub ? ` (feuillets de ${TAILLE_FEUILLET} mots)` : ""}`,
+  );
 
   const juste = rangsReels.includes(premier.passage.page);
   console.log(
-    `\n  ${juste ? "La citation pointe sur la page où le texte est imprimé." : "ÉCART : la citation ne pointe pas sur la bonne page."}`,
+    `\n  ${
+      juste
+        ? estEpub
+          ? "La citation pointe sur le feuillet qui porte réellement ce texte."
+          : "La citation pointe sur la page où le texte est imprimé."
+        : `ÉCART : la citation ne pointe pas sur ${estEpub ? "le bon feuillet" : "la bonne page"}.`
+    }`,
   );
   if (!juste) process.exitCode = 1;
 } finally {
