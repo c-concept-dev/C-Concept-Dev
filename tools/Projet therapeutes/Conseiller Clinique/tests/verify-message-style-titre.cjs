@@ -154,6 +154,61 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       'sur le TITRE DU DOCUMENT aussi ; lu : ' + JSON.stringify(await message()));
     pass('titre du document (fiche), taille 22 pt : même message.');
 
+    // ── 2 bis. LE TITRE D'UNE CARTE DE CARROUSEL ─────────────────────────────────────────
+    // Même forme d'identifiant (root:card-title:<id>), donc même absence d'emplacement de style.
+    await page.evaluate(async (d) => {
+      const doc = JSON.parse(JSON.stringify(d));
+      doc.documentKind = 'carrousel';
+      doc.narration = [];
+      window._adocArtifacts.k = Object.assign({}, window._adocArtifacts.e,
+        { _adocStructuredDoc: doc });
+      window._adocWsState = Object.assign({}, window._adocWsState, { storeKey: 'k' });
+      await window.adocOpenWorkspace('k');
+    }, PRESENTATION);
+    await page.waitForTimeout(600);
+    await choisir('.adoc-sc-card-title');
+    await outils();
+    await poser('fontSizePt', '21');
+    await page.waitForTimeout(350);
+    assert.equal(await message(), ATTENDU_TITRE,
+      'sur le titre d’une carte de CARROUSEL aussi ; lu : ' + JSON.stringify(await message()));
+    pass('titre d’une carte de carrousel, taille 21 pt : même message.');
+
+    // ── 2 ter. L'OBJET ET LE PUBLIC : LE PANNEAU NE S'OUVRE PAS ──────────────────────────
+    // Christophe demande de le DIRE pour chacun. Mesuré, pas lu : les ancres de sélection du
+    // cœur sont « .adoc-sc-block, .adoc-sc-cover-title, .adoc-sc-card-title » — l'objet
+    // (.adoc-sc-cover-category) et le public (.adoc-sc-cover-audience) n'y figurent pas. Leur
+    // TEXTE est modifiable et bien sauvegardé (adocSyncEditedRootFieldsToDoc) ; leur style ne
+    // peut pas être demandé du tout, il n'y a donc aucun message à afficher.
+    await page.evaluate(async () => {
+      window._adocWsState = Object.assign({}, window._adocWsState, { storeKey: 'f' });
+      await window.adocOpenWorkspace('f');
+    });
+    await page.waitForTimeout(600);
+    for (const [nom, sel] of [['objet (purpose)', '.adoc-sc-cover-category'],
+                              ['public (audience)', '.adoc-sc-cover-audience']]) {
+      const present = await page.evaluate((x) => !!document.querySelector(x), sel);
+      assert.equal(present, true, nom + ' est bien rendu sur une fiche');
+      await page.evaluate(() => {
+        const p = document.querySelector('.cc-block-edit-panel');
+        if (p) p.remove();
+      });
+      await page.evaluate((x) => document.querySelector(x).click(), sel);
+      await page.waitForTimeout(500);
+      const panneau = await page.evaluate(() => !!document.querySelector('.cc-block-edit-panel'));
+      assert.equal(panneau, false,
+        nom + ' : le panneau de mise en forme ne s’ouvre PAS — aucun style ne peut y être '
+        + 'demandé, donc aucun message à afficher');
+      // Et son TEXTE, lui, est bien un champ du document.
+      const dansLeDoc = await page.evaluate((x) => {
+        const d = window._adocArtifacts.f._adocStructuredDoc;
+        return x.includes('category') ? typeof d.purpose : typeof d.audience;
+      }, sel);
+      assert.equal(dansLeDoc, 'string', nom + ' : son TEXTE est un champ du document, sauvegardé');
+    }
+    pass('objet et public : le panneau ne s’ouvre pas (leur style n’est pas demandable) ; '
+      + 'leur texte, lui, est un champ du document et il est sauvegardé.');
+
     // ── 3. UN BLOC NE DOIT RIEN CHANGER ──────────────────────────────────────────────────
     // C'est la moitié du contrôle : un message qui s'afficherait partout n'avertirait de rien.
     await choisir('#f1');
