@@ -35,6 +35,27 @@ export const Passage = z
      *  exact, et un extrait exact ne se retrouve que s'il a été gardé exact. */
     texte: z.string().trim().min(1),
     source: SourceLecture,
+    /** D'où ce passage vient **dans le document**, quand le format le nomme : un chapitre pour
+     *  un EPUB, rien pour une page de PDF.
+     *
+     *  ## Pourquoi un format sans pages en a besoin
+     *
+     *  Un EPUB ne porte aucune pagination d'édition imprimée — aucun des quatre sondés le
+     *  20 octobre 2026 n'en a. Son rang est un **feuillet**, un découpage régulier qui donne une
+     *  granularité comparable d'un livre à l'autre, et « feuillet 162 » ne situe rien pour un
+     *  lecteur. Le chapitre, lui, le situe.
+     *
+     *  ## Ce qu'il n'est pas
+     *
+     *  **Il ne sert jamais à citer.** Deux livres ne découpent pas leurs chapitres de la même
+     *  façon — trois fichiers de contenu pour l'un, soixante-neuf pour l'autre, mesuré — et un
+     *  rang tiré de là ne se comparerait pas. Citer reste l'affaire de `page` et, quand le
+     *  document le porte, de `pageImprimee`.
+     *
+     *  **Il reste absent plutôt que de porter du remplissage.** Une page de PDF n'a rien à
+     *  déclarer au-delà de son numéro, et un champ qui dirait « je sais » sans rien savoir
+     *  vaudrait moins que son absence. */
+    emplacement: z.string().trim().min(1).optional(),
     confiance: Confiance.optional(),
     /** Ce texte se lit-il ? (FMT-04)
      *

@@ -290,6 +290,9 @@ async function lireUnEpub(chemin: string): Promise<TexteDuDocument> {
     index: feuillet.rang,
     texte: feuillet.texte,
     source: "couche_texte" as const,
+    // Le chapitre suit jusqu'au dépôt : « feuillet 162 » ne situe rien pour un lecteur, et c'est
+    // lui qui le situe. Il ne sert jamais à citer — voir `Passage.emplacement`.
+    emplacement: feuillet.chapitre,
     mots: [],
   }));
   return { pages, parLaCouche: pages.length, parOcr: 0, sansTexte: 0 };

@@ -464,3 +464,23 @@ describe("ce que la marge porte, avant qu'on tranche", () => {
     expect(numeroImprime(enMarge([64]))).toBe(64);
   });
 });
+
+
+/** Ce qu'une page sait d'où elle vient suit jusqu'au passage (étape 7). */
+describe("l'emplacement traverse la mise en passages", () => {
+  const dUnePage = (emplacement?: string) => ({
+    index: 1,
+    texte: "un texte assez long pour faire un passage honnête",
+    source: "couche_texte" as const,
+    ...(emplacement === undefined ? {} : { emplacement }),
+  });
+
+  it("porte l'emplacement de la page jusqu'au passage", () => {
+    expect(enPassages([dUnePage("Text/ch07.xhtml")])[0]?.emplacement).toBe("Text/ch07.xhtml");
+  });
+
+  it("n'en invente pas quand la page n'en déclare aucun", () => {
+    // Une page de PDF n'a rien de plus à dire que son numéro.
+    expect(enPassages([dUnePage()])[0]?.emplacement).toBeUndefined();
+  });
+});

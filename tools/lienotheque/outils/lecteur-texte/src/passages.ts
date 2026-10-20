@@ -19,6 +19,9 @@ export type PageDeTexte = {
   readonly source: SourceLecture;
   readonly pageImprimee?: number | undefined;
   readonly confiance?: number | undefined;
+  /** D'où cette page vient dans le document, quand le format le nomme : un chapitre pour un
+   *  EPUB, rien pour une page de PDF. Voir `Passage.emplacement`. */
+  readonly emplacement?: string | undefined;
 };
 
 /** Part de la hauteur, en haut et en bas, où un numéro de page peut se trouver.
@@ -326,6 +329,7 @@ export function enPassages(pages: readonly PageDeTexte[]): Passage[] {
       lisible: !texteIllisible(texte),
       ...(page.pageImprimee === undefined ? {} : { pageImprimee: page.pageImprimee }),
       ...(page.confiance === undefined ? {} : { confiance: page.confiance }),
+      ...(page.emplacement === undefined ? {} : { emplacement: page.emplacement }),
     });
   }
   return passages;

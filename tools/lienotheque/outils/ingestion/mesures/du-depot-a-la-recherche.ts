@@ -153,8 +153,11 @@ try {
         .filter((page) => page.texte.includes(phrase))
         .map((page) => page.rang);
 
-  console.log(`  la recherche dit : page ${premier.passage.page}` +
-    `${premier.passage.pageImprimee === undefined ? ", sans numéro imprimé" : `, numéro imprimé ${premier.passage.pageImprimee}`}`);
+  console.log(
+    `  la recherche dit : page ${premier.passage.page}` +
+      `${premier.passage.pageImprimee === undefined ? ", sans numéro imprimé" : `, numéro imprimé ${premier.passage.pageImprimee}`}` +
+      `${premier.passage.emplacement === undefined ? "" : `, dans ${premier.passage.emplacement}`}`,
+  );
   console.log(
     `  le livre la porte : ${estEpub ? "feuillet(s)" : "page(s)"} ${rangsReels.join(", ") || "aucun"}` +
       `${estEpub ? ` (feuillets de ${TAILLE_FEUILLET} mots)` : ""}`,

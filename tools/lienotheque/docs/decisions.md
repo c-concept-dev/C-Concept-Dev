@@ -3606,3 +3606,41 @@ porte. C'est ce qu'un EPUB permet de vérifier — il n'a pas de page imprimée 
 est `.strict()` et n'a pas de champ pour lui. Le montrer à l'écran demande donc un champ au
 contrat, une colonne au dépôt et une migration. C'est le tiers de la décision du 20 octobre qui
 n'est pas livré, et il est dit ici plutôt que tu.
+
+
+## 20 octobre 2026 — un passage dit d'où il vient (contrat, colonne, migration 7)
+
+Le tiers manquant de la décision sur les EPUB. `Passage` gagne **`emplacement`**, une chaîne
+facultative : le chapitre pour un EPUB, rien pour une page de PDF.
+
+### Pourquoi un format sans pages en a besoin
+
+« Feuillet 162 » ne situe rien pour un lecteur. Le chapitre le situe. Mais il **ne sert jamais à
+citer** : deux livres ne découpent pas leurs chapitres de la même façon — trois fichiers de
+contenu pour l'un, soixante-neuf pour l'autre, mesuré — et un rang tiré de là ne se comparerait
+pas. Citer reste l'affaire de `page` et, quand le document le porte, de `pageImprimee`.
+
+Et il reste **absent** plutôt que de porter du remplissage : une page de PDF n'a rien à déclarer
+au-delà de son numéro, et un champ qui dirait « je sais » sans rien savoir vaudrait moins que son
+absence. Le contrat refuse d'ailleurs une chaîne vide.
+
+### La migration ne casse rien, et c'est éprouvé
+
+`ALTER TABLE passage ADD COLUMN emplacement TEXT` — nulle par défaut, donc rien à réécrire ni à
+recalculer. L'épreuve qui compte est celle qui reproduit ce qui arrive à la bibliothèque de
+quelqu'un : **un dépôt arrêté à la migration 6, rempli, puis migré**. Ses passages se relisent, son
+index plein texte les retrouve toujours, et leur emplacement est `undefined` — une colonne neuve
+qui aurait inventé une valeur se serait vue là.
+
+Les migrations D1 ont été réengendrées : le garde-fou compare les fichiers du disque à ce qu'il
+engendrerait, et il a refusé tant que la septième manquait.
+
+### Vérifié de bout en bout
+
+*L'Intelligence du cœur* : la recherche rend « page 162, sans numéro imprimé, **dans
+text/part0033.html** ». Le chapitre traverse la lecture, le découpage, le dépôt et la recherche.
+
+### Ce qui reste, et qui n'est pas fait
+
+**Aucun écran ne le montre encore.** `citerPage` ne connaît pas `emplacement` : il dit « page 162
+du document » là où il pourrait dire où. La donnée est là, sa mise à l'écran ne l'est pas.

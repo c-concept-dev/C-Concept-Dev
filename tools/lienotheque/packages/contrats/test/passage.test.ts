@@ -12,7 +12,31 @@ const PASSAGE = { rang: 0, page: 1, texte: "Le texte de la première page.", sou
 
 describe("un passage dit son texte, sa page et d'où il vient (RCH-07)", () => {
   it("accepte le cas nominal", () => {
-    expect(Passage.parse(PASSAGE)).toEqual({ ...PASSAGE, confiance: undefined, lisible: true });
+    expect(Passage.parse(PASSAGE)).toEqual({
+      ...PASSAGE,
+      confiance: undefined,
+      emplacement: undefined,
+      lisible: true,
+    });
+  });
+
+  it("peut dire d'où il vient dans le document, quand le format le nomme (étape 7)", () => {
+    // Un EPUB n'a pas de pages : son rang est un feuillet, et « feuillet 162 » ne situe rien
+    // pour un lecteur. Le chapitre, lui, le situe — sans jamais servir à citer, puisque deux
+    // livres ne découpent pas leurs chapitres de la même façon.
+    const situe = Passage.parse({ ...PASSAGE, emplacement: "Text/ch07.xhtml" });
+    expect(situe.emplacement).toBe("Text/ch07.xhtml");
+  });
+
+  it("n'a pas à en dire : un format qui ne nomme rien ne doit rien inventer", () => {
+    // Une page de PDF n'a pas d'emplacement à déclarer au-delà de son numéro. Le champ reste
+    // absent plutôt que de porter une valeur de remplissage.
+    expect(Passage.parse(PASSAGE).emplacement).toBeUndefined();
+  });
+
+  it("refuse un emplacement vide, qui dirait « je sais » sans rien savoir", () => {
+    expect(() => Passage.parse({ ...PASSAGE, emplacement: "" })).toThrow();
+    expect(() => Passage.parse({ ...PASSAGE, emplacement: "   " })).toThrow();
   });
 
   it("refuse un passage sans page : une citation sans page n'est pas vérifiable (RCH-09)", () => {
