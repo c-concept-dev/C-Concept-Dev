@@ -65,15 +65,35 @@ function poser(sur: Partial<Parameters<typeof ManiereDeLire>[0]> = {}): {
 
 describe("ce que l'écran dit avant qu'on trace", () => {
   it("emploie les mots de la bibliothèque, jamais les nôtres (CLA-01)", () => {
-    poser({ brouillon: BROUILLON_NEUF });
+    // L'étape 6 a déplacé la phrase qui porte le mot de la bibliothèque. Un brouillon vide ne
+    // nomme plus aucun objet du domaine — « tracez au moins une zone » n'a rien à traduire — et
+    // c'est la phrase sur **deux** zones d'éléments qui doit parler sa langue.
+    poser({
+      brouillon: {
+        ...AVEC_ZONE,
+        zones: [...AVEC_ZONE.zones, { cle: "z", role: "element", rectangle: { x: 0.5, y: 0.1, l: 0.1, h: 0.5 } }],
+      },
+    });
     expect(screen.getByText(/Tracez une zone sur la feuillet/)).toBeInTheDocument();
-    expect(screen.getByText(/numéro d’exercice/)).toBeInTheDocument();
+    expect(screen.getByText(/numéros d’exercice/)).toBeInTheDocument();
   });
 
   it("dit ce qui manque plutôt que d'éteindre un bouton sans raison (UX-09)", () => {
     poser({ brouillon: BROUILLON_NEUF });
-    expect(screen.getByText(/Tracez d’abord la zone/)).toBeInTheDocument();
+    expect(screen.getByText(/au moins une zone/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Essayer sur 10 feuillets/ })).toBeDisabled();
+  });
+
+  it("laisse essayer une manière qui ne lit que le numéro de page (étape 6)", () => {
+    // Le défaut corrigé, vu de l'écran : un document sans pièces numérotées restait bloqué sur
+    // « tracez d'abord la zone des numéros », qu'il n'aura jamais.
+    poser({
+      brouillon: {
+        ...BROUILLON_NEUF,
+        zones: [{ cle: "p", role: "page_imprimee", rectangle: { x: 0.8, y: 0.92, l: 0.15, h: 0.05 } }],
+      },
+    });
+    expect(screen.getByRole("button", { name: /Essayer sur 10 feuillets/ })).toBeEnabled();
   });
 
   it("laisse essayer dès qu'une zone d'éléments est tracée", () => {
