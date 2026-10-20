@@ -72,3 +72,15 @@
   color: var(--ln-error-text);
   font-size: 14px;
 }
+
+/* « Rien à montrer » emprunte ce panneau : même place dans le parcours, l'écran qu'on voit
+   quand il n'y a rien à voir. Le ton n'est pas celui d'un échec — une bibliothèque vide le
+   premier jour est normale — donc la couleur du texte ordinaire, et non celle d'une alerte. */
+.ln-premier__attente {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  margin: calc(var(--ln-grid)) 0 0 0;
+  color: var(--ln-text-secondary);
+  text-align: left;
+}
