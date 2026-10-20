@@ -24142,25 +24142,11 @@ ${recent}`;
       const apiKey = adocGetApiKey();
       const content = adocBuildClinicalDocumentContent(art);
       const saveKind = isLegacy ? (art._adocDocumentKind || 'fiche') : art._adocStructuredDoc.documentKind;
-      // Le titre demandé appartient aussi au document structuré, pas seulement à l'enveloppe
-      // de « Mes créations ». Préparer une copie évite de renommer l'original en mémoire si le
-      // POST échoue ; l'artefact actif ne bascule qu'après la réponse de création réussie.
-      if (!isLegacy) content.clinicalDocument = { ...content.clinicalDocument, title: trimmedTitle };
       await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, trimmedTitle, saveKind);
-      if (!isLegacy) {
-        art._adocStructuredDoc.title = trimmedTitle;
-        const coverTitle = document.getElementById('root:doc-title');
-        if (coverTitle) coverTitle.textContent = trimmedTitle;
-      }
-      art.name = trimmedTitle;
-      const headerTitle = document.getElementById('cc-ws-title');
-      if (headerTitle) headerTitle.textContent = trimmedTitle;
-      art._adocEnregistreA = Date.now();
-      art._adocEnregistreAvecDate = false;
-      art._ccEditorDirty = false;
+            art._adocEnregistreA = Date.now();
+            art._adocEnregistreAvecDate = false;
+            art._ccEditorDirty = false;
       adocUpdateSaveStatusUI(art);
-      const statusEl = document.getElementById('cc-ws-save-status');
-      if (statusEl) statusEl.textContent = 'Copie créée : ' + trimmedTitle + ' · ' + statusEl.textContent;
       adocCaptureAndPersistThumbnail(art);
     } catch (e) {
       alert('Impossible de sauvegarder sous un nouveau titre pour le moment : ' + (e && e.message || 'erreur inconnue') + '. Rien n’a été perdu, l’original reste inchangé, vous pouvez réessayer.');
