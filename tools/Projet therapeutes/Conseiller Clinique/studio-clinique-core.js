@@ -9837,8 +9837,13 @@ ${recent}`;
     }
     // Les options sont construites ICI et non dans le balisage : les sources ne sont connues qu'au
     // rafraîchissement (charte active du document, polices chargées par queryLocalFonts).
-    // ORDRE : les polices réellement installées sur ce Mac d'abord, puisque ce sont les seules qui
-    // s'afficheront vraiment chez l'utilisatrice ; les autres ensuite, dans un groupe distinct.
+    // ORDRE (Q3, 20 octobre) : les polices de la CHARTE et des paires d'abord, puis celles de cet
+    // ordinateur. L'ordre inverse était en place et se justifiait ainsi : « les polices réellement
+    // installées sur ce Mac d'abord, puisque ce sont les seules qui s'afficheront vraiment chez
+    // l'utilisatrice ». L'usage réel a tranché autrement — la liste de l'ordinateur compte 227
+    // entrées et repoussait les trois ou quatre polices de la charte hors de vue, alors que ce
+    // sont celles qu'on choisit presque toujours. Les polices locales restent offertes, et la
+    // note qui prévient qu'elles ne survivent pas à un export est inchangée.
     const selectPolice = tools.querySelector('select[data-editor-style="fontFamily"]');
     if (selectPolice) {
       const mac = (typeof ADOC_MAC_FONT_FAMILIES !== 'undefined' ? ADOC_MAC_FONT_FAMILIES : []);
@@ -9847,8 +9852,8 @@ ${recent}`;
         .sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
       const opt = function (f) { return '<option value="' + adocEsc(f) + '">' + adocEsc(f) + '</option>'; };
       let html = '<option value="">Police de la charte</option>';
-      if (mac.length) html += '<optgroup label="Polices de cet ordinateur">' + mac.map(opt).join('') + '</optgroup>';
       if (autres.length) html += '<optgroup label="Polices des chartes et des paires">' + autres.map(opt).join('') + '</optgroup>';
+      if (mac.length) html += '<optgroup label="Polices de cet ordinateur">' + mac.map(opt).join('') + '</optgroup>';
       // VALEUR HÉRITÉE INCONNUE — un document venu d'un autre poste peut porter une police absente
       // d'ici. Sans cette option, affecter select.value la remettrait silencieusement à vide, et le
       // premier réglage suivant EFFACERAIT la police du document. Elle est donc conservée, montrée
