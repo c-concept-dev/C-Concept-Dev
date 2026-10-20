@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { exporterPages } from "./pages-images.js";
 import { DescriptionBibliotheque, type Passage, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
 import { chargerRecette, rejouer, type Association, type Media, type Relecture } from "@lienotheque/recettes";
-import { type AdresseRecurrente, adressesRecurrentes, enPassages } from "@lienotheque/lecteur-texte";
+import { type AdresseRecurrente, adressesRecurrentes, enPassages, langueOcr } from "@lienotheque/lecteur-texte";
 import { construireVue } from "./instantane.js";
 import { lireLeTexte } from "./texte.js";
 
@@ -206,8 +206,23 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // deux folios se contredisent et le document perd ses numéros imprimés.
   lot.surPhase?.("vue assemblée ; lecture du texte");
 
+  // La langue de la reconnaissance vient de la **bibliothèque**, qui la déclare déjà :
+  // `SchemaBibliotheque.langue` est obligatoire au contrat. Elle ne venait de nulle part jusqu'au
+  // 20 octobre 2026, et la reconnaissance partait donc sur l'anglais : sur un corpus français,
+  // **un accent sur six était perdu** — 284 contre 337, mesuré sur six feuilles. C'est exactement
+  // ce que l'inversion de la couche venait de gagner.
+  //
+  // Une langue que la table ne connaît pas **se dit** au lieu de se remplacer en silence : la
+  // reconnaissance partira sur son propre défaut, et le journal du traitement portera pourquoi.
+  const langue = langueOcr(description.schema.langue);
+  if (langue === undefined)
+    lot.surPhase?.(
+      `langue « ${description.schema.langue} » inconnue de la reconnaissance : elle lira avec son modèle par défaut`,
+    );
+
   const lu = await lireLeTexte(lot.pdf, {
     doublePage: recette.preparation.double_page,
+    ...(langue === undefined ? {} : { langue }),
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),
   });
   const passages = enPassages(lu.pages);
