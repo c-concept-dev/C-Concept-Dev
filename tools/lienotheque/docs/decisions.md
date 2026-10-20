@@ -9,6 +9,8 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
+| 2026-10-20 | ~~**La découpe** est le remède à la lenteur de F4 (décidée le 17 octobre, `lot-e2-texte-plan.md` §9.1 ter)~~ — **invalidée** : une tranche de moins de neuf feuilles ne vote pas la même orientation, lit donc des pages couchées, rend un tiers des éléments et **aucun numéro imprimé**, sans rien signaler. Elle est rapide parce qu'elle échoue | Section ci-dessous, « la lecture lente fait le travail » |
+| 2026-10-20 | **Les quinze secondes par page de F4 sont le coût d'une lecture juste**, et acceptées comme telles. L'optimisation de `reperer` reste une piste, **hors périmètre de BAS-02** | Section ci-dessous |
 | 2026-10-19 | **Quatrième porte : l'invitation.** `/amorce` accepte le défi seul, parce qu'un navigateur ne peut pas porter le jeton de service | Section ci-dessous |
 | 2026-10-19 | **Le Worker sert aussi la page**, à la même origine que l'API : un témoin `SameSite=Lax` sans CORS ne peut pas fonctionner autrement | `docs/lot-e5-page-servie.md` |
 | 2026-10-19 | **Plus de repli TTF** : jamais téléchargé par les moteurs visés, toujours embarqué — deux mégaoctets sur quatre et demi | `apps/app/src/styles/polices.css` |

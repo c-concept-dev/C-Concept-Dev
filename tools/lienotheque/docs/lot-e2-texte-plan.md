@@ -294,7 +294,19 @@ Au-delà, médiane et moyenne divergent : des pages rapides entrecoupées de lon
 mémoire, le contenu — et je n'en propose pas une quatrième sans l'avoir éprouvée. Ce qui est
 établi : la lenteur appartient à la lecture longue, pas au document.
 
-### 9.1 ter La décision : la découpe
+### 9.1 ter La décision : la découpe — ~~retenue le 17 octobre~~, **invalidée le 20 octobre 2026**
+
+> **Cette décision n'est plus valable, et ce qui suit est conservé pour ce qu'il était.**
+>
+> La cause de la lenteur a été trouvée le 20 octobre : le vote d'orientation bascule au neuvième
+> cliché et impose 270°, et c'est la lecture des repères sur des pages enfin droites qui coûte
+> quinze secondes. Mesuré sur les mêmes huit pages, une tranche de quatre feuilles trouve **12
+> éléments et 0 numéro imprimé sur 8** là où une tranche de douze en trouve **35 et 8 sur 8**.
+>
+> **Une tranche courte est rapide parce qu'elle échoue**, et elle échoue en silence. Découper
+> resterait possible si l'orientation était votée sur le document entier et **transmise** à
+> chaque tranche ; revotée par tranche, elle produit des lectures fausses. Voir
+> `docs/decisions.md`, « la dégradation de F4 ».
 
 Des trois options envisagées — flux, découpe, refus motivé — **la découpe est la seule que la
 mesure soutienne.**
