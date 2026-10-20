@@ -65,12 +65,21 @@ const MUTATIONS = [
     attendu: 'la mise en forme d’une portion se perdrait sans un mot — le défaut d’origine, déplacé',
     controles: ['verify-titres-mis-en-forme.cjs', 'verify-message-style-titre.cjs'] },
 
-  { nom: 'le SCHÉMA refuse titleStyle (champ retiré des copies embarquées)',
-    fichier: PAGE,
-    de: '"titleStyle"',
-    vers: '"titleStyleNeutralise"',
-    tous: true,
-    attendu: 'la sauvegarde serait refusée par AJV côté client, avant même le réseau',
+  // POURQUOI CETTE MUTATION A CHANGÉ DE CIBLE (20 octobre).
+  // Elle visait d'abord le SCHÉMA embarqué : retirer `titleStyle` des copies de la page devait
+  // faire refuser la sauvegarde par AJV avant même le réseau. Depuis l'étape 1a — la tolérance
+  // aux champs inconnus, en ligne dans `main` — un champ absent du schéma n'est plus un refus
+  // mais un avertissement : la mutation ne cassait plus rien et devenait un TROU. Mesuré sur le
+  // résultat fusionné : 7 mutations conformes sur 8, le schéma n'est plus un garde.
+  // Le garde VIVANT le plus proche est la RELECTURE du style par l'éditeur : `adocEditorApplyStyle`
+  // part de `Object.assign({}, ctx.block.style)`, donc d'un `styleGet`. Aveugle, il fait repartir
+  // chaque réglage de zéro, et le précédent est écrasé.
+  { nom: 'l’éditeur ne RELIT plus titleStyle (styleGet rendu aveugle)',
+    fichier: COEUR,
+    de: '        styleGet: function () { return cible.titleStyle; },',
+    vers: '        styleGet: function () { return undefined; },',
+    attendu: 'appliquer une couleur après une taille effacerait la taille : le style ne '
+      + 's’accumulerait plus, et l’annulation ne retrouverait rien',
     controles: ['verify-titres-mis-en-forme.cjs'] },
 
   { nom: 'le validateur du Worker refuserait un champ inconnu',

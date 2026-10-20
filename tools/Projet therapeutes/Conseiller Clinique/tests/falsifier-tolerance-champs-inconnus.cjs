@@ -35,7 +35,7 @@ const MUTATIONS = [
   { nom: 'le champ inconnu est perdu à la sauvegarde',
     de: "      clinicalDocument: art._adocStructuredDoc,",
     vers: "      clinicalDocument: JSON.parse(JSON.stringify(art._adocStructuredDoc, function (k, v) {\n"
-      + "        return k === 'titleStyle' ? undefined : v; })),",
+      + "        return k === '__champDEssaiInconnu' ? undefined : v; })),",
     attendu: 'une tolérance qui perd le champ est PIRE qu’un refus : l’utilisatrice croit son '
       + 'réglage gardé et le retrouve absent' },
 
