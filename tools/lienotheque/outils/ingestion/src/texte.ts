@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PageLue } from "@lienotheque/contrats";
-import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
+import { formatParSignature, objetsPdf, octetsImage, pagesPdf, TAILLE_ENTETE } from "@lienotheque/formats";
 import { decalageDominant } from "@lienotheque/recettes";
 import { decoderJpeg, enGris, versPgm } from "@lienotheque/images";
 import {
@@ -34,6 +34,37 @@ import {
  *  « une minute » annoncé jusque-là, faux d'un facteur trente. Une page native, elle, ne porte
  *  aucune image et ne coûte toujours rien de plus.
  */
+
+/** Ce que la chaîne lève quand elle reçoit un format dont elle ne sait rien tirer.
+ *
+ *  ## Le défaut qu'elle corrige
+ *
+ *  `lireLeTexte` sur un EPUB rendait `InvalidPDFException: Invalid PDF structure.` — mesuré le
+ *  20 octobre 2026. La chaîne traitait **tout** comme un PDF, et le message **accusait la
+ *  mauvaise cause** : il parlait d'un PDF abîmé là où le fichier n'en est simplement pas un.
+ *  Quelqu'un qui le lit cherche un défaut dans son document plutôt que dans notre outillage.
+ *
+ *  C'est la même exigence que les autres signaux nommés de ce lot — `PasEnLigne`,
+ *  `PasIdentifie`, « illisible » distingué de « refusée » : **une impossibilité porte son nom**,
+ *  et ce nom dit ce qui manque.
+ *
+ *  ## Ce qu'elle dit, et ce qu'elle ne promet pas
+ *
+ *  Elle nomme le format trouvé, parce que c'est ce qui permet d'agir, et le chemin du document,
+ *  parce que dans un lot de deux cent cinquante « un EPUB n'est pas lu » oblige sinon à les
+ *  rouvrir un par un.
+ *
+ *  Elle ne promet pas que le format viendra. L'EPUB est l'étape 7 du chemin du texte, et une
+ *  promesse dans un message d'erreur est une dette qu'on n'a pas datée. */
+export class FormatNonLu extends Error {
+  readonly format: string;
+
+  constructor(chemin: string, format: string) {
+    super(`La chaîne ne sait pas encore lire ce format (${format}) : ${chemin}`);
+    this.name = "FormatNonLu";
+    this.format = format;
+  }
+}
 
 export type OptionsTexte = {
   /** N'en lire que les premières pages : pour essayer, ou pour éprouver. */
@@ -88,6 +119,12 @@ function imagesParPage(objets: ReturnType<typeof objetsPdf>): Map<number, number
 /** Lit le texte du document, page par page, en disant d'où chaque page vient. */
 export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Promise<TexteDuDocument> {
   const donnees = Buffer.from(await readFile(pdf));
+
+  // Le format **avant** la lecture, et par le contenu plutôt que par l'extension (FMT-01). Sans
+  // cette garde, un EPUB partait chez pdf.js et en revenait avec « Invalid PDF structure », qui
+  // accuse le document au lieu de dire que la chaîne ne sait pas le lire.
+  const format = formatParSignature(donnees.subarray(0, TAILLE_ENTETE));
+  if (format?.typeMime !== "application/pdf") throw new FormatNonLu(pdf, format?.nom ?? "format inconnu");
   const couche = options.forcerOcr === true ? [] : (await lireCoucheTexte(pdf)).pages;
 
   /** Deux pages sur une feuille ? **Le document le dit mieux que son classement.**
