@@ -3356,3 +3356,37 @@ Quand il parle, il l'emporte y compris pour **retirer** un numéro : une page do
 marge ne tient pas le décalage portait un numéro de partie ou un appel de note, et `numeroImprime`
 l'avait pris pour un folio. Mieux vaut pas de numéro qu'un faux — une citation renvoyée à la
 mauvaise page est pire qu'une citation renvoyée à un rang assumé comme tel (RCH-09).
+
+
+## 20 octobre 2026 — la chaîne océrise en anglais, et personne ne lui dit la langue
+
+Trouvé en faisant le bilan des trois bloquants, et c'est une zone d'ombre que les mesures de la
+journée **masquaient** : `lireParOcr` emploie `options.langue ?? "eng"`, et **rien dans `lot.ts`
+ne passe de langue**. La chaîne réelle lit donc un corpus français avec le modèle anglais.
+
+Tous les bons chiffres de la journée venaient d'un `langue: "fra"` que mes bancs ajoutaient. Ils
+mesuraient donc une chaîne que la chaîne n'est pas.
+
+### Ce que cela coûte, mesuré plutôt que redouté
+
+Six feuilles de *Théorie ACT*, lues deux fois :
+
+| langue | mots | accents | mots outils | folios |
+|---|---:|---:|---:|---:|
+| défaut de la chaîne (`eng`) | 1 946 | **284** | 35,4 % | 6/12 |
+| `fra` | 1 944 | **337** | 34,9 % | 6/12 |
+
+**Un accent sur six est perdu**, et rien d'autre ne bouge : même nombre de mots, même part de mots
+outils, mêmes folios. J'avais écrit « c'est grave » avant de mesurer ; c'est un défaut réel et
+borné, pas un effondrement — le modèle anglais reconnaît la plupart des glyphes accentués.
+
+Mais c'est **exactement ce que l'inversion de la couche était censée gagner** : des accents, dont
+une recherche en français dépend. En perdre un sur six après en avoir récupéré la totalité est une
+régression silencieuse.
+
+### Ce qui reste à décider, et qui n'est pas fait
+
+D'où la langue devrait venir : la description de la bibliothèque la connaît-elle ? La recette ?
+Faut-il la deviner du texte lu ? Aucune de ces réponses n'est évidente, et aucune n'est tranchée.
+Ce qui est sûr, c'est qu'un défaut à `eng` dans un outil générique est une hypothèse de domaine
+déguisée (CLA-01) — au même titre que les zones d'élément obligatoires l'étaient ce matin.
