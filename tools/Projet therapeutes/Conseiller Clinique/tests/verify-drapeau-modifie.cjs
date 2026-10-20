@@ -55,6 +55,16 @@ const FICHE = {
 // Un CARROUSEL : le positionnement d'une carte (panneau « Position et taille ») est RÉSERVÉ au
 // carrousel — docCard.onmousedown refuse tout autre documentKind (garde-fou explicite du cœur).
 // Même structure de cartes qu'une présentation, seul documentKind change.
+// Une carte PORTANT une image de couverture : « Retirer l'image » n'existe que là (le panneau
+// d'une couverture ne propose que « Changer l'image » et « Retirer l'image »).
+const AVEC_IMAGE = Object.assign({}, PRESENTATION, {
+  documentId: 'image-drapeau', versionId: 'image-drapeau-v1',
+  title: 'Une diapositive avec image',
+  blocks: PRESENTATION.blocks.map((b, i) => i !== 0 ? b : Object.assign({}, b, {
+    content: Object.assign({}, b.content, { imageRef: 'un ciel calme', imageAlt: 'Un ciel calme' }),
+  })),
+});
+
 const CARROUSEL = Object.assign({}, PRESENTATION, {
   documentId: 'carrousel-drapeau', versionId: 'carrousel-drapeau-v1',
   documentKind: 'carrousel', title: 'Un carrousel pour l\u2019audit du drapeau',
@@ -317,6 +327,32 @@ const CARROUSEL = Object.assign({}, PRESENTATION, {
         });
         await page.waitForTimeout(600);
       } },
+    // adocReplaceSelectedImage appelle adocEditorMarkDirty PUIS `await adocWsSave()` : retirer
+    // une image ENREGISTRE sur-le-champ, comme la correction d'un passage. L'attente juste est
+    // donc « une version de plus, rien en attente ».
+    { nom: 'image de couverture : retrait', doc: 'AVEC_IMAGE', attendu: 'enregistre',
+      prealable: async () => {
+        await page.evaluate(async () => {
+          window._adocArtifacts.e._adocClinicalDocumentId = null;
+          await window.adocWsSave();
+        });
+        await page.waitForTimeout(700);
+        await page.evaluate(() => { window._adocArtifacts.e._ccEditorDirty = false; });
+      }, faire: async () => {
+        await page.evaluate(() => {
+          const img = document.querySelector('.adoc-sc-card-img');
+          if (!img) throw new Error('élément absent : image de couverture');
+          img.click();
+        });
+        await page.waitForTimeout(600);
+        await page.evaluate(async () => {
+          const b = [...document.querySelectorAll('button')]
+            .find((x) => (x.textContent || '').trim() === 'Retirer l’image');
+          if (!b) throw new Error('élément absent : bouton « Retirer l’image »');
+          b.click();
+        });
+        await page.waitForTimeout(1200);
+      } },
     { nom: 'insertion d’un bloc', faire: async () => {
         await choisirBloc(1); await page.waitForTimeout(350);
         await page.getByRole('button', { name: /^Insérer un bloc après$/ }).click();
@@ -412,19 +448,23 @@ const CARROUSEL = Object.assign({}, PRESENTATION, {
   // Gestes de la liste de Christophe qu'on NE JOUE PAS, avec la raison exacte. Aucun n'est
   // déclaré vert : ils sont déclarés non mesurés.
   const NON_JOUES = [
-    ['image : AJOUT et RETRAIT seulement',
-     'le seul chemin est la bibliothèque d’images (réseau) ou le glisser-déposer d’un vrai ' +
-     'fichier dans la page ; aucun des deux n’est disponible hors ligne dans ce banc. Les ' +
-     'CHANGEMENTS d’une image (opacité, taille, rotation, passage en bloc mixte) sont, eux, ' +
-     'jouables et mesurés ci-dessus.'],
+    ['image : AJOUT et CHANGEMENT',
+     '« Changer l’image » appelle adocChooseBlockInsertType(\'replace\',\'image\'), qui ouvre la ' +
+     'bibliothèque d’images (réseau) ; un ajout passe par là ou par le glisser-déposer d’un vrai ' +
+     'fichier. Le RETRAIT, lui, est jouable et mesuré ci-dessus, et les réglages d’un bloc image ' +
+     '(opacité, taille, rotation, bloc mixte) aussi.'],
     ['vidéo : ajout',
      'passe par la recherche de média (window.adocVideoSearch), un appel réseau.'],
     ['transformation du document',
-     'window.adocWsTransformConfirmed appelle le modèle ; le banc ne simule que la création ' +
-     'd’une page.'],
-    ['narration : application d’une rédaction',
-     'window.adocNarrationApply n’a AUCUN appelant dans le cœur publié (vérifié par recherche) : ' +
-     'le geste n’existe pas encore dans l’interface, il n’y a donc rien à mesurer.'],
+     'adocMagicSwitchTransform construit un plan de génération complet et appelle le modèle par ' +
+     'le pipeline entier — le banc ne simule qu’un seul tool_use, pas tout le protocole. Et la ' +
+     'question du drapeau y est mal posée : la transformation ne modifie pas le document source, ' +
+     'elle en CRÉE un nouveau, dérivé.'],
+    ['narration : application d’une rédaction par le panneau',
+     'MESURÉE DEPUIS, dans tests/verify-drapeau-narration-appliquee.cjs. Mon ancienne raison — ' +
+     '« adocNarrationApply n’a aucun appelant » — était vraie mais sans portée : le panneau ' +
+     'appelle adocNarrationWrite en boucle, et il vit dans narration-ia.js, un module que mon ' +
+     'audit n’avait pas ouvert. C’est là qu’était le défaut de production du 20 octobre.'],
   ];
 
   try {
@@ -437,8 +477,10 @@ const CARROUSEL = Object.assign({}, PRESENTATION, {
     const versions = () => [...etat.documents.values()].reduce((t, d) => t + d.versions.length, 0);
     let avant = 0;
     for (const g of GESTES) {
-      const doc = g.doc === 'FICHE' ? FICHE : g.doc === 'CARROUSEL' ? CARROUSEL : PRESENTATION;
-      const ou = g.doc === 'FICHE' ? 'fiche' : g.doc === 'CARROUSEL' ? 'carrousel' : 'présentation';
+      const doc = g.doc === 'FICHE' ? FICHE : g.doc === 'CARROUSEL' ? CARROUSEL
+        : g.doc === 'AVEC_IMAGE' ? AVEC_IMAGE : PRESENTATION;
+      const ou = g.doc === 'FICHE' ? 'fiche' : g.doc === 'CARROUSEL' ? 'carrousel'
+        : g.doc === 'AVEC_IMAGE' ? 'présentation + image' : 'présentation';
       assert.ok(await repartirPropre(doc), g.nom + ' : on repart d\'un document propre');
       try {
         if (g.prealable) await g.prealable();
@@ -475,7 +517,9 @@ const CARROUSEL = Object.assign({}, PRESENTATION, {
     pass('les ' + resultats.length + ' gestes mesurés lèvent le drapeau « modifié » ('
       + resultats.filter((r) => r.doc === 'présentation').length + ' sur une présentation, '
       + resultats.filter((r) => r.doc === 'fiche').length + ' sur une fiche, '
-      + resultats.filter((r) => r.doc === 'carrousel').length + ' sur un carrousel) ; '
+      + resultats.filter((r) => r.doc === 'carrousel').length + ' sur un carrousel, '
+      + resultats.filter((r) => r.doc === 'présentation + image').length
+      + ' sur une présentation à image) ; '
       + (NON_JOUES.length + injouables.length) + ' gestes déclarés non mesurés.');
     assert.deepEqual(erreurs, [], 'aucune erreur de page : ' + JSON.stringify(erreurs.slice(0, 2)));
   } finally {

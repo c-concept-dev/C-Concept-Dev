@@ -78,7 +78,7 @@ function creerFauxWorker(racine, options) {
           // un objet `version` qui porte `version_id`, `previous_version_id`, `created_at` et
           // `document`. C'est `version.created_at` qui date l'enregistrement.
           if (q.method === 'GET') {
-            const v = d.versions[d.versions.length - 1];
+            const v = d.versions[0];
             const i = d.versions.indexOf(v);
             return json(r, 200, {
               document_id: id, title: d.titre, document_kind: d.kind,
