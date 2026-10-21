@@ -11,7 +11,7 @@
 //
 //   NODE_PATH=<playwright> node tests/verify-sauvegarder-mes-creations.cjs
 const assert = require('node:assert/strict');
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
 const path = require('node:path');
 const { creerFauxWorker } = require('./faux-worker-documents.cjs');
 const { PRESENTATION } = require('./fixtures-page-generee.cjs');
@@ -28,7 +28,7 @@ const TITRE = 'Le document de travail de Christophe';
   const { serveur, etat } = creerFauxWorker(RACINE, { horloge: () => QUAND });
   await new Promise((ok) => serveur.listen(0, '127.0.0.1', ok));
   const base = 'http://127.0.0.1:' + serveur.address().port;
-  const nav = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+  const nav = await (process.env.STUDIO_TEST_BROWSER === 'webkit' ? webkit : chromium).launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
     ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {});
   const erreurs = [];
 
@@ -182,6 +182,21 @@ const TITRE = 'Le document de travail de Christophe';
     assert.ok(L.some((d) => d.titre === TITRE), 'l’original reste dans la liste');
     assert.ok(L.some((d) => d.titre === 'Une copie pour essayer autrement'), 'la copie y est aussi');
     assert.notEqual(L[0].id, L[1].id, 'et ce sont deux identifiants différents');
+    const copieId = L.find((d) => d.titre === 'Une copie pour essayer autrement').id;
+    assert.equal(await A.page.evaluate(() => window._adocArtifacts[window._adocWsState.storeKey]._adocClinicalDocumentId), copieId,
+      'la copie devient le document actif');
+    assert.equal(etat.documents.get(id).versions.length, 3, 'la version courante de l’original ne change pas');
+    const Copie = await ordinateur('Copie');
+    try {
+      assert.equal(await Copie.page.evaluate((i) => window.adocOpenSavedClinicalDocument(i), copieId), true,
+        'la copie s’ouvre sur un autre navigateur vierge');
+      const noms = await Copie.page.evaluate(() => ({
+        json: window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc.title,
+        barre: document.getElementById('cc-ws-title').textContent,
+      }));
+      assert.deepEqual(noms, { json: 'Une copie pour essayer autrement', barre: 'Une copie pour essayer autrement' },
+        'le JSON et l’en-tête rouverts portent le titre de la liste');
+    } finally { await Copie.ctx.close(); }
     pass('C — « Sauvegarder sous » crée une SECONDE entrée, sans toucher à la première.');
 
     // ── D. LE DOCUMENT SUPPRIMÉ ENTRE-TEMPS ───────────────────────────────────────────────

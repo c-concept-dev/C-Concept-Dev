@@ -72,7 +72,6 @@ Tout ce que l'éditeur écrit dans le document est sauvegardé et revient à la 
 y compris sur un autre ordinateur : le texte, les titres, la police, la taille, la couleur, le
 fond, l'alignement, l'interligne, la narration de chaque étape, la charte.
 
-**Le style d'un titre** (sa police, sa taille) ne revient pas : ce n'est pas la sauvegarde qui
-le perd — ce réglage n'est aujourd'hui écrit **nulle part** dans le document. C'est l'objet
-d'un lot à venir (Q1). En attendant, un titre remis en forme reprend l'apparence de la charte à
-la réouverture.
+**Le style d'un titre entier** (police, taille, couleur et autres réglages du panneau) est écrit
+dans le document et revient à la réouverture. La mise en forme d'une **portion** de titre ne se
+conserve pas encore ; le panneau l'indique lorsque cette portée est choisie.
