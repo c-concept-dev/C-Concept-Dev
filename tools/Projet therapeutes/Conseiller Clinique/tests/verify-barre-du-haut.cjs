@@ -1,5 +1,5 @@
 // Q6 : contrôle navigateur de la barre et des menus. Remplace le contrat « tous visibles ».
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
@@ -14,7 +14,7 @@ const root = path.join(__dirname, '..');
     fs.createReadStream(file).pipe(res);
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  const browser = await chromium.launch();
+  const browser = await (process.env.STUDIO_TEST_BROWSER === 'webkit' ? webkit : chromium).launch();
   let count = 0;
   try {
     for (const kind of ['presentation', 'carrousel', 'legacy']) for (const width of [1024, 1272, 1440]) for (const saved of [false, true]) {
@@ -51,10 +51,18 @@ const root = path.join(__dirname, '..');
       assert.ok(geo.overflow <= 1 && geo.left >= -1 && geo.right <= width + 1, `${kind} ${width} ${saved} overflow ${JSON.stringify(geo)}`);
       assert.ok(geo.rows <= (width >= 1200 ? 1 : 2), `${kind} ${width} ${saved} rows ${JSON.stringify(geo)}`);
       await page.locator('#cc-ws-file-menu-trigger').click();
+      for (const name of ['file']) {
+        const rect = await page.locator('#cc-ws-' + name + '-menu-items').boundingBox();
+        assert.ok(rect.x >= 7 && rect.x + rect.width <= width - 7,
+          `${kind} ${width} ${saved}: menu ${name} hors fenêtre ${JSON.stringify(rect)}`);
+      }
       assert.equal(await page.locator('#cc-ws-save-as-btn').isVisible(), true);
       assert.equal(await page.locator('#cc-ws-delete-btn').isVisible(), saved);
       assert.equal(await page.locator('#cc-ws-file-menu-trigger').getAttribute('aria-expanded'), 'true');
       await page.locator('#cc-ws-export-menu-trigger').click();
+      const exportRect = await page.locator('#cc-ws-export-menu-items').boundingBox();
+      assert.ok(exportRect.x >= 7 && exportRect.x + exportRect.width <= width - 7,
+        `${kind} ${width} ${saved}: menu Exporter hors fenêtre ${JSON.stringify(exportRect)}`);
       assert.equal(await page.locator('#cc-ws-file-menu-trigger').getAttribute('aria-expanded'), 'false', 'one menu open');
       for (const [id, expected] of Object.entries({
         'cc-ws-export-btn': true, 'cc-ws-export-jpeg-btn': kind === 'carrousel',
@@ -80,6 +88,34 @@ const root = path.join(__dirname, '..');
       await page.keyboard.press('Escape');
       assert.equal(await page.locator('#cc-workspace').evaluate(el => el.classList.contains('open')), false,
         'Escape from a closed menu retains the workspace shortcut');
+      await page.close(); count++;
+    }
+    for (const width of [1024, 1272, 1360]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 } });
+      await page.route('**/*', route => route.request().url().startsWith('http://127.0.0.1:') || route.request().url().startsWith('data:') ? route.continue() : route.abort());
+      await page.goto(`http://127.0.0.1:${server.address().port}/studio-clinique.html?atelier-local=1`);
+      assert.equal(await page.evaluate(doc => {
+        window._adocArtifacts = { windowed: {
+          name: 'TEST-CODEX-PDF-REPRISE-21-10-2026', _adocGenerationEngine: 'structured',
+          _adocBrandKitName: 'Charte graphique Institut Relation Couple v6',
+          _adocClinicalDocumentId: 'windowed-saved',
+          _adocStructuredDoc: { ...doc, title: 'TEST-CODEX-PDF-REPRISE-21-10-2026' },
+          _adocCapabilities: { workspace: true, persist: true, export: true, blockEditing: true }
+        } };
+        return window.adocOpenWorkspace('windowed');
+      }, PRESENTATION), true);
+      for (const name of ['file', 'export']) {
+        await page.locator('#cc-ws-' + name + '-menu-trigger').click();
+        const rect = await page.locator('#cc-ws-' + name + '-menu-items').boundingBox();
+        assert.ok(rect.x >= 7 && rect.x + rect.width <= width - 7,
+          `barre longue ${width}: menu ${name} hors fenêtre ${JSON.stringify(rect)}`);
+      }
+      if (width === 1360) {
+        await page.setViewportSize({ width: 640, height: 900 });
+        const resized = await page.locator('#cc-ws-export-menu-items').boundingBox();
+        assert.ok(resized.x >= 7 && resized.x + resized.width <= 633,
+          `menu ouvert après redimensionnement ${JSON.stringify(resized)}`);
+      }
       await page.close(); count++;
     }
     const mobile = await browser.newPage({ viewport: { width: 640, height: 900 } });

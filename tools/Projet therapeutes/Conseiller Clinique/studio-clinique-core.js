@@ -11319,14 +11319,19 @@ ${recent}`;
     adocRenderBrandKitFontWarnings(failures);
   }
 
+  // Une absence constatée localement ne doit plus réafficher le même avertissement pendant
+  // cette session. Au prochain chargement, la police sera vérifiable à nouveau (elle a pu être installée).
+  const _adocBrandKitFontsConfirmedAbsent = new Set();
+
   // Bandeau honnête — une ligne par police en échec, JAMAIS statique (reconstruit à chaque appel).
   // Masqué si aucune police en échec (charte entièrement disponible, ou aucune charte active).
   function adocRenderBrandKitFontWarnings(failures) {
     const banner = document.getElementById('cc-ws-font-warning-banner');
     if (!banner) return;
-    if (!failures || !failures.length) { banner.hidden = true; banner.innerHTML = ''; return; }
+    const unresolved = (failures || []).filter(function (f) { return !_adocBrandKitFontsConfirmedAbsent.has(f.name); });
+    if (!unresolved.length) { banner.hidden = true; banner.innerHTML = ''; return; }
     banner.hidden = false;
-    banner.innerHTML = failures.map(function (f) {
+    banner.innerHTML = unresolved.map(function (f) {
       return '<div class="cc-ws-font-warning-row" data-font-name="' + adocEsc(f.name) + '">' +
         '<svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-warning"></use></svg>' +
         '<div class="cc-ws-font-warning-body">' +
@@ -11378,12 +11383,20 @@ ${recent}`;
         // n'est donc nécessaire ici au-delà de cette confirmation visuelle.
         if (resultEl) resultEl.textContent = 'Police trouvée sur cet ordinateur — appliquée.';
         row.classList.add('resolved');
+      } else if (raced === 'timeout') {
+        // Une expiration ne prouve pas l'absence de la police : conserver la ligne et permettre
+        // à l'utilisatrice de refaire la vérification.
+        if (resultEl) resultEl.textContent = 'Vérification incomplète — réessayer.';
       } else {
-        // Message unique pour les 3 cas (non trouvée / timeout / rejet) — aucune distinction
-        // technique visible pour l'utilisatrice, mais mention honnête du risque de correspondance
-        // de nom (investigation : "Sinthya" vs "Sinthya Regular" ne matche jamais, faux négatif
-        // possible même si la police est réellement présente sous un nom légèrement différent).
-        if (resultEl) resultEl.textContent = 'Police non disponible sur cet appareil — le texte s’affichera dans la police de secours. Si cette police est installée sous un nom légèrement différent, elle pourrait ne pas être détectée.';
+        // Le nom exact n'a pas été trouvé localement. Masquer sa ligne sans masquer les autres
+        // polices encore à vérifier dans la même charte.
+        _adocBrandKitFontsConfirmedAbsent.add(fontName);
+        row.remove();
+        const banner = document.getElementById('cc-ws-font-warning-banner');
+        if (banner && !banner.querySelector('.cc-ws-font-warning-row')) {
+          banner.hidden = true;
+          banner.innerHTML = '';
+        }
       }
     } finally {
       probeStyle.remove();
@@ -16624,6 +16637,17 @@ ${recent}`;
       if (returnFocus) parts.trigger.focus();
     });
   }
+  function adocWsMenuPlace(parts) {
+    // Quand la barre passe sur deux lignes, un menu aligné systématiquement à droite de
+    // son bouton peut sortir à gauche de la fenêtre. Le caler dans le viewport réel.
+    const wrapRect = parts.wrap.getBoundingClientRect();
+    const menuWidth = parts.menu.getBoundingClientRect().width;
+    const leftIfRightAligned = wrapRect.width - menuWidth;
+    const minimum = 8 - wrapRect.left;
+    const maximum = window.innerWidth - 8 - menuWidth - wrapRect.left;
+    parts.menu.style.right = 'auto';
+    parts.menu.style.left = Math.max(minimum, Math.min(leftIfRightAligned, maximum)) + 'px';
+  }
   window.adocWsMenuToggle = function (name, last) {
     const parts = adocWsMenuParts(name);
     if (!parts) return;
@@ -16633,9 +16657,16 @@ ${recent}`;
     parts.wrap.hidden = !items.length;
     if (!opening || !items.length) return;
     parts.menu.hidden = false;
+    adocWsMenuPlace(parts);
     parts.trigger.setAttribute('aria-expanded', 'true');
     (last ? items[items.length - 1] : items[0]).focus();
   };
+  window.addEventListener('resize', function () {
+    ['file', 'export'].forEach(function (name) {
+      const parts = adocWsMenuParts(name);
+      if (parts && !parts.menu.hidden) adocWsMenuPlace(parts);
+    });
+  });
   document.addEventListener('click', function (event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
