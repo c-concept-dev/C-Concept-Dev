@@ -75,11 +75,34 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     await offline.close();
     await page.locator('#photo-1 img').click();
     assert.equal(await page.getByLabel('Cadrage').count(), 1, 'le bloc image expose le cadrage');
+    await page.locator('[data-image-size="widthPercent"]').fill('60');
+    assert.equal(await page.locator('#photo-1 .adoc-sc-image-cadre').evaluate(el => Math.round(el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width * 100)), 60, 'le curseur Taille redimensionne immédiatement le cadre visible');
+    const handle = page.locator('#photo-1 .cc-image-resize-handle');
+    assert.equal(await handle.isVisible(), true, 'la photo sélectionnée expose sa poignée');
+    await handle.scrollIntoViewIfNeeded();
+    const handleBox = await handle.boundingBox();
+    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handleBox.x + handleBox.width / 2 + 35, handleBox.y + handleBox.height / 2, { steps: 5 });
+    await page.mouse.up();
+    const resizedPercent = await page.locator('#photo-1 .adoc-sc-image-cadre').evaluate(el => Math.round(el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width * 100));
+    assert.ok(resizedPercent > 60, 'la poignée agrandit réellement la photo : ' + resizedPercent + '%');
+    assert.equal(await page.evaluate(() => window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc.blocks[0].content.blocks.find(b => b.id === 'photo-1').content.widthPercent), resizedPercent, 'la taille visible et le JSON coïncident');
     await page.getByLabel('Cadrage').selectOption('fill');
     assert.equal(await page.locator('#photo-1 img').evaluate(el => getComputedStyle(el).objectFit), 'fill');
     await page.evaluate(() => adocOpenWorkspace(window._adocWsState.storeKey));
     await page.waitForSelector('#photo-1 img');
     assert.equal(await page.locator('#photo-1 img').evaluate(el => getComputedStyle(el).objectFit), 'fill', 'bloc image conservé après rendu');
+    assert.equal(await page.locator('#photo-1 .adoc-sc-image-cadre').evaluate(el => Math.round(el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width * 100)), resizedPercent, 'taille identique après rendu');
+    await page.evaluate(() => adocWsSave());
+    await page.reload();
+    await page.evaluate(() => { document.getElementById('cc-login-screen')?.remove(); document.getElementById('assistdoc-screen')?.classList.add('active'); });
+    await page.evaluate(() => adocCreationsLoad('cc-home-creations'));
+    const resizedIdx = await page.evaluate(savedId => window._adocCreationsState['cc-home-creations'].filtered.findIndex(x => x.document_id === savedId), id);
+    await page.evaluate(i => adocCreationsOpen('cc-home-creations', i), resizedIdx);
+    await page.waitForSelector('#photo-1 img');
+    assert.equal(await page.locator('#photo-1 .adoc-sc-image-cadre').evaluate(el => Math.round(el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width * 100)), resizedPercent, 'taille identique après sauvegarde et relecture');
+    assert.equal(await page.locator('#photo-1 img').evaluate(el => getComputedStyle(el).objectFit), 'fill', 'cadrage conservé après sauvegarde et relecture');
 
     for (const kind of ['fiche', 'tableau', 'script', 'liens']) {
       const other = doc(kind);

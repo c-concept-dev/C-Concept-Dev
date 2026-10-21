@@ -32,7 +32,7 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
         });
         // Les croix de suppression du lot suivant sont également un contrôle de
         // l'espace de travail, absent du document persisté et de ses exports.
-        clone.querySelectorAll('.cc-block-delete').forEach(button => button.remove());
+        clone.querySelectorAll('.cc-block-delete, .cc-image-resize-handle').forEach(button => button.remove());
         return clone.outerHTML;
       });
       await page.close(); return html;

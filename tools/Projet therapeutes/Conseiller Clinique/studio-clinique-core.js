@@ -10314,19 +10314,16 @@ ${recent}`;
     adocEditorSync(); adocEditorMarkDirty();
   }
   window.adocApplyImageOpacity = adocApplyImageOpacity;
-  // Largeur en pourcentage appliquée à l'<img> lui-même (jamais au <figure> englobant) —
-  // investigation confirmée : seul l'élément width est fixé au rendu (height jamais imposée),
-  // donc changer uniquement `width` conserve le ratio intrinsèque de l'image sans déformation.
-  // Centrage (display:block;margin:0 auto) posé systématiquement, sans effet visible à 100%
-  // (rien à centrer), pour éviter qu'une image réduite reste collée à gauche. Réservé au bloc
-  // `image` autonome — aucun équivalent pour un fond en cover (cf. commentaire ci-dessus).
+  // Le rendu place widthPercent sur .adoc-sc-image-cadre, qui contient l'image et ses
+  // commandes superposées. L'aperçu doit modifier ce même cadre : changer seulement la
+  // largeur de l'<img> ne change plus la largeur visible depuis l'ajout de cette enveloppe.
   function adocApplyImageWidth(value, checkpointOnce) {
     const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block || ctx.block.type !== 'image') return;
     if (checkpointOnce) adocEditorCheckpoint();
     const clamped = Math.max(10, Math.min(100, Number(value)));
     ctx.block.content.widthPercent = clamped;
-    const img = ctx.el.querySelector('img');
-    if (img) { img.style.width = clamped + '%'; img.style.display = 'block'; img.style.margin = '0 auto'; }
+    const cadre = ctx.el.querySelector('.adoc-sc-image-cadre');
+    if (cadre) cadre.style.width = clamped + '%';
     adocEditorSync(); adocEditorMarkDirty();
   }
   window.adocApplyImageWidth = adocApplyImageWidth;
@@ -20842,8 +20839,20 @@ ${recent}`;
       button.contentEditable = 'false';
       blockEl.appendChild(button);
     });
+    // La taille de l'image est celle de son cadre, pas de l'élément <img>.
+    // La poignée est créée seulement dans l'espace de travail : aucun contrôle dans l'export.
+    docCard.querySelectorAll('.adoc-sc-image .adoc-sc-image-cadre').forEach(function (cadre) {
+      if (cadre.querySelector('.cc-image-resize-handle')) return;
+      const handle = document.createElement('button');
+      handle.type = 'button'; handle.className = 'cc-image-resize-handle';
+      handle.title = 'Étirer ou réduire la photo';
+      handle.setAttribute('aria-label', 'Étirer ou réduire la photo');
+      handle.contentEditable = 'false';
+      cadre.appendChild(handle);
+    });
     // 57f — each textual leaf is prepared after the delegated click handler.
     docCard.onclick = function (e) {
+      if (e.target.closest('.cc-image-resize-handle')) { e.preventDefault(); e.stopPropagation(); return; }
       const deleteButton = e.target.closest('.cc-block-delete');
       if (deleteButton) {
         e.preventDefault(); e.stopPropagation();
@@ -21037,6 +21046,37 @@ ${recent}`;
       if (hoverReorderBlockEl) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
     };
     docCard.onmousedown = function (e) {
+      const imageHandle = e.target.closest('.cc-image-resize-handle');
+      if (imageHandle) {
+        e.preventDefault(); e.stopPropagation();
+        const figure = imageHandle.closest('.adoc-sc-image[id]');
+        const cadre = imageHandle.closest('.adoc-sc-image-cadre');
+        const art = window._adocArtifacts && window._adocArtifacts[window._adocWsState.storeKey];
+        const block = figure && art && adocFindEditableBlock(art._adocStructuredDoc, figure.id);
+        if (!block || block.type !== 'image' || !cadre) return;
+        const startX = e.clientX;
+        const startWidth = cadre.getBoundingClientRect().width;
+        const parentWidth = figure.getBoundingClientRect().width;
+        let changed = false;
+        function suppressClick(ev) { ev.preventDefault(); ev.stopPropagation(); document.removeEventListener('click', suppressClick, true); }
+        function move(ev) {
+          if (!parentWidth || Math.abs(ev.clientX - startX) < 2 && !changed) return;
+          if (!changed) { adocEditorCheckpoint(); document.addEventListener('click', suppressClick, true); changed = true; }
+          // Le cadre est centré : déplacer son bord droit de 1 px ajoute 2 px à sa largeur.
+          const percent = Math.max(10, Math.min(100, Math.round((startWidth + 2 * (ev.clientX - startX)) / parentWidth * 100)));
+          adocApplyImageWidth(percent, false);
+          const slider = window._adocBlockEditState.panelEl && window._adocBlockEditState.panelEl.querySelector('[data-image-size]');
+          if (slider) slider.value = String(percent);
+        }
+        function up() {
+          document.removeEventListener('mousemove', move);
+          document.removeEventListener('mouseup', up);
+          setTimeout(function () { document.removeEventListener('click', suppressClick, true); }, 0);
+        }
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+        return;
+      }
       if (e.target.closest('.cc-block-delete')) return;
       if (e.target.closest('.adoc-sc-card-img, .cc-block-edit-panel')) return;
       // Fusion Phase 2 — verrou global partagé avec le glissement B→A (adocFusionSetupDragSource,
