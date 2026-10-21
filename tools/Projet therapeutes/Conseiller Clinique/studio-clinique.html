@@ -1990,6 +1990,10 @@
       box-shadow: 0 12px 30px rgba(0,0,0,.26);
     }
     .cc-ws-menu-items[hidden] { display: none; }
+    .cc-ws-export-group { display: flex; flex-direction: column; gap: 3px; }
+    .cc-ws-export-group + .cc-ws-export-group { border-top: 1px solid rgba(255,255,255,.25); padding-top: 5px; margin-top: 4px; }
+    .cc-ws-export-group:not(:has([role="menuitem"]:not([hidden]))) { display: none; }
+    .cc-ws-export-group-label { padding: 3px 10px 1px; color: #fff; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
     .cc-ws-menu-items .cc-ws-topbar-btn,
     #cc-ws-transform-btn:not([hidden]) ~ #cc-ws-export-btn {
       margin-left: 0;
@@ -2208,7 +2212,7 @@
     .adoc-sc-block-drag-wrap { position: relative; }
     .cc-ws-doc-card .cc-block-delete {
       position: absolute; top: -9px; right: -9px; z-index: 9;
-      width: 23px; height: 23px; padding: 0; border: 1px solid var(--stone-300);
+      width: 24px; height: 24px; padding: 0; border: 1px solid var(--stone-300);
       border-radius: 6px; background: var(--paper); color: var(--petrol-950);
       font: 18px/20px system-ui, sans-serif; text-align: center; cursor: pointer;
       box-shadow: 0 2px 6px rgba(16,47,49,.15);
@@ -2677,6 +2681,9 @@
 }
 .cc-media-insert-btn:hover:not(:disabled) { background: var(--petrol-800); }
 .cc-media-insert-btn:disabled { opacity: .6; cursor: default; }
+/* La règle générale #cc-landing button hérite d'un texte sombre : forcer le contraste
+   du bouton sombre « Ouvrir » dans Mes créations, comme dans le panneau latéral. */
+#cc-landing .cc-media-insert-btn { color: #fff; }
 /* "Effacer" — historique "Déjà utilisées" uniquement, jamais sur un résultat de recherche
    (pas encore persisté) : discret, jamais le même poids visuel qu'Insérer. */
 .cc-media-delete-btn {
@@ -3849,9 +3856,11 @@
         aria-haspopup="menu" aria-expanded="false" aria-controls="cc-ws-export-menu-items"
         onclick="window.adocWsMenuToggle('export')">Exporter <span aria-hidden="true">▾</span></button>
       <div class="cc-ws-menu-items" id="cc-ws-export-menu-items" role="menu" aria-label="Exporter" hidden>
-    <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-export-btn" role="menuitem" onclick="window.adocWsExport()" aria-label="Exporter le document">
+    <div class="cc-ws-export-group" role="group" aria-label="Document">
+      <span class="cc-ws-export-group-label" aria-hidden="true">Document</span>
+    <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-export-btn" role="menuitem" onclick="window.adocWsExport()" aria-label="Exporter document.html">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
-      <span>Exporter</span>
+      <span>Exporter document.html</span>
     </button>
     <!-- Item 58 — entrée d'export dédiée, à côté d'"Exporter" ci-dessus, jamais un remplacement.
          Visible UNIQUEMENT pour un Carrousel du moteur structuré (cf. adocOpenWorkspace) : le
@@ -3862,49 +3871,14 @@
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
       <span>Exporter en JPEG</span>
     </button>
-    <!-- Lot 2C (D7) — LA PLACE DU BOUTON « TEXTE DES DIAPOSITIVES » EST RÉSERVÉE ICI, dans le
-         groupe de SORTIE, à côté des autres exports : c'est une sortie du document, comme le PDF
-         ou le JPEG, et Christine l'emploiera dans le même geste. Il est `hidden` tant que D7
-         n'est pas livré — la barre compte donc déjà sa largeur dans ses contrôles, et le jour où
-         il paraîtra, rien ne se réorganisera sous les yeux de l'utilisatrice. Même patron de
-         visibilité que ses voisins : montré par adocOpenWorkspace selon le documentKind. -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-word-btn" role="menuitem" hidden
-      onclick="window.adocWsTexteDiapositivesWord()"
-      aria-label="Texte des diapositives au format Word">
-      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
-      <span>Texte en Word</span>
-    </button>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-diapositives-btn" role="menuitem" hidden
-      onclick="window.adocWsTexteDiapositives()"
-      aria-label="Texte des diapositives (copier ou télécharger)">
-      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
-      <span>Texte des diapositives</span>
-    </button>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-pdf-btn" role="menuitem" hidden
-      onclick="window.adocWsTexteDiapositivesPDF()" aria-label="PDF du texte des diapositives">
-      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
-      <span>PDF du texte des diapositives</span>
-    </button>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-narration-txt-btn" role="menuitem" hidden
-      onclick="window.adocWsNarrationTXT()" aria-label="Narration au format texte">
-      <span>Narration en texte</span>
-    </button>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-narration-word-btn" role="menuitem" hidden
-      onclick="window.adocWsNarrationWord()" aria-label="Narration au format Word">
-      <span>Narration en Word</span>
-    </button>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-narration-pdf-btn" role="menuitem" hidden
-      onclick="window.adocWsNarrationPDF()" aria-label="Narration au format PDF">
-      <span>Narration en PDF</span>
-    </button>
     <!-- ITEM 75 Phase 1 Lot 2 — même patron EXACT que le bouton JPEG ci-dessus (visibilité,
          placement, mécanisme) : bouton dédié plutôt qu'une option ajoutée au bouton "Exporter"
          générique — investigation confirmée, ce dernier sert TOUS les documentKind (Fiche/Script/
          Tableau/Liens inclus) qui n'ont jamais de PDF paginé par carte, jamais de bascule de
          format ajoutée à un mécanisme partagé pour un cas qui ne concerne qu'un seul type. -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-pdf-carrousel-btn" role="menuitem" onclick="window.adocWsExportCarrouselPDF()" aria-label="Exporter en PDF (une page par carte)" hidden>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-pdf-carrousel-btn" role="menuitem" onclick="window.adocWsExportCarrouselPDF()" aria-label="Exporter les diapositives en PDF (une page par carte)" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
-      <span>Exporter en PDF</span>
+      <span>Exporter en PDF (diapositives)</span>
     </button>
     <button type="button" class="cc-ws-topbar-btn" id="cc-ws-print-presentation-btn" role="menuitem" onclick="window.adocWsPrintPresentation()" aria-label="Imprimer la présentation complète" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
@@ -3927,6 +3901,48 @@
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-html"></use></svg>
       <span>Exporter — présentation interactive</span>
     </button>
+    </div>
+    <div class="cc-ws-export-group" role="group" aria-label="Texte des diapositives">
+      <span class="cc-ws-export-group-label" aria-hidden="true">Texte des diapositives</span>
+    <!-- Lot 2C (D7) — LA PLACE DU BOUTON « TEXTE DES DIAPOSITIVES » EST RÉSERVÉE ICI, dans le
+         groupe de SORTIE, à côté des autres exports : c'est une sortie du document, comme le PDF
+         ou le JPEG, et Christine l'emploiera dans le même geste. Il est `hidden` tant que D7
+         n'est pas livré — la barre compte donc déjà sa largeur dans ses contrôles, et le jour où
+         il paraîtra, rien ne se réorganisera sous les yeux de l'utilisatrice. Même patron de
+         visibilité que ses voisins : montré par adocOpenWorkspace selon le documentKind. -->
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-word-btn" role="menuitem" hidden
+      onclick="window.adocWsTexteDiapositivesWord()"
+      aria-label="Texte des diapositives au format Word">
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
+      <span>Texte en Word</span>
+    </button>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-diapositives-btn" role="menuitem" hidden
+      onclick="window.adocWsTexteDiapositives()"
+      aria-label="Texte des diapositives (copier ou télécharger)">
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
+      <span>Texte des diapositives</span>
+    </button>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-pdf-btn" role="menuitem" hidden
+      onclick="window.adocWsTexteDiapositivesPDF()" aria-label="Texte des diapositives (PDF)">
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
+      <span>Texte des diapositives (PDF)</span>
+    </button>
+    </div>
+    <div class="cc-ws-export-group" role="group" aria-label="Narration">
+      <span class="cc-ws-export-group-label" aria-hidden="true">Narration</span>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-narration-txt-btn" role="menuitem" hidden
+      onclick="window.adocWsNarrationTXT()" aria-label="Narration au format texte">
+      <span>Narration en texte</span>
+    </button>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-narration-word-btn" role="menuitem" hidden
+      onclick="window.adocWsNarrationWord()" aria-label="Narration au format Word">
+      <span>Narration en Word</span>
+    </button>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-narration-pdf-btn" role="menuitem" hidden
+      onclick="window.adocWsNarrationPDF()" aria-label="Narration au format PDF">
+      <span>Narration en PDF</span>
+    </button>
+    </div>
       </div>
     </div>
     <!-- LOT 1 Présentation : accès direct au mode de présentation. -->
