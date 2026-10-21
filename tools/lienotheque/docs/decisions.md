@@ -4363,3 +4363,42 @@ lance ; il faut rejouer `preparer-moteur-node.py`. La chaîne et le paquet sont 
 
 Les quatre documents invisibles sont revenus. Le trentième n'a pas assez de mots pour qu'on lui
 pose une question, ce qui n'est pas un échec de la recherche.
+
+
+## 21 octobre 2026 — dette : la vraie cause d'un moteur qui meurt
+
+Décision de Christophe : **dette séparée, pas urgente.** Notée pour ne pas l'oublier, pas traitée.
+
+### Ce qu'on sait
+
+Trois documents du corpus arrêtent le moteur net : *Manuel Clinique des Psychothérapies de Couple*,
+*Mémo 3*, *SAGA.pdf*. Depuis `causeLisible`, leur travail porte **« Program terminated with
+exit(1) »** — le message d'arrêt d'Emscripten. Le décodeur JPEG en WebAssembly ne lève pas une
+erreur : il **arrête le processus**. Ce qu'il lève est un `ExitStatus`, et son message dit la
+manière de mourir, pas la raison.
+
+La raison, elle, part sur la **sortie d'erreur** du moteur, une ligne plus tôt :
+
+    Unsupported color conversion request
+
+Un espace de couleur que le décodeur refuse, très probablement du CMJN — courant dans les scans
+d'imprimerie.
+
+### Ce qu'il faudrait pour aller plus loin
+
+Deux choses, et elles ne sont pas du même ordre.
+
+**Rattacher les dernières lignes du journal au travail qui meurt.** L'hôte laisse la sortie
+d'erreur du moteur filer vers la sienne ; quand un moteur s'arrête sans rendre de résultat, la
+cause enregistrée ne peut pas dire ce que ces lignes disaient. Garder un petit tampon des dernières
+lignes et le joindre à l'échec vaudrait pour **toutes** les morts de moteur, pas seulement
+celle-ci. C'est le geste utile.
+
+**Décoder l'espace de couleur en cause.** C'est une affaire de codec, bien plus lourde, et elle ne
+concerne que trois documents sur deux cent quarante-neuf.
+
+### Pourquoi cela attend
+
+Trois documents, une cause reconnaissable, aucun silence : on sait les nommer et on sait qu'ils
+échouent. Cette dette rejoint celle du raster `FlateDecode` — même famille, même urgence, c'est-à-
+dire aucune.
