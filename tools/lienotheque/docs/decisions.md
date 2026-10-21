@@ -3940,8 +3940,73 @@ lisent.
 vingt et un mille, et un refus **explicite qui nomme sa cause** : rien ne se perd en silence, et
 ces trois-là se reprennent après coup.
 
-**Ce qui reste à faire, et qui n'est pas fait :** savoir prendre un raster `FlateDecode` comme image
+**Petite dette technique, à traiter après le réimport — décidé le 21 octobre 2026.** 97 pages sur
+23 090, trois documents refusés en entier sur deux cent cinquante, et un refus qui nomme sa cause :
+aucune urgence, et rien qui se perde en silence. On la note pour ne pas l'oublier, on ne la traite
+pas avant.
+
+**Ce qu'elle demande :** savoir prendre un raster `FlateDecode` comme image
 de page. C'est le cas le plus simple qui soit — une trame non compressée dont la largeur, la hauteur
 et l'espace de couleur sont dans le dictionnaire — et `@lienotheque/images` sait déjà réduire et
 encoder. Les pages en `JPXDecode` (JPEG 2000) tombent sous la même limite : 23 pages d'un document
 de 594, qui se lit par ailleurs.
+
+
+## 21 octobre 2026 — la détection de la double page ne sert à rien : la porte ne la consulte pas
+
+Relevé en abordant le point 2. Le problème n'est pas celui qu'on croyait, et il est plus grave.
+
+### Le troisième mécanisme juste que la porte ne franchit pas
+
+`lireLeTexte` décide ainsi :
+
+    const doublePage = options.doublePage ?? (couche.length > 0 && deuxPagesParFeuille(couche));
+
+Et la chaîne appelle ainsi (`lot.ts`) :
+
+    const lu = await lireLeTexte(lot.pdf, { doublePage: recette.preparation.double_page, … });
+
+`preparation.double_page` est un **booléen obligatoire** au contrat. Il est donc toujours défini,
+le `??` ne tombe jamais, et **la détection automatique ne s'exécute jamais par le chemin du
+produit**. Elle ne tourne que là où `lireLeTexte` est appelée sans l'option : les bancs et les
+épreuves.
+
+C'est la troisième fois en deux jours qu'un mécanisme juste se révèle inatteignable depuis la porte
+réelle — après `enregistrerLeTraitement`, après le texte des documents natifs. **Le même défaut,
+un cran plus loin à chaque fois.**
+
+**Et il a faussé une vérification.** Les trois citations de *Théorie ACT* vérifiées à l'œil le
+20 octobre — « feuille 17, moitié droite, folio 33 » — sont sorties de `citations-a-verifier.ts`,
+qui appelle `lireLeTexte` **sans déclaration** : la coupe a donc eu lieu. Par la porte, le même
+document rend **66 passages pour 66 feuilles** : aucune coupe. Les citations étaient justes ; le
+chemin qui les a produites n'est pas celui du produit.
+
+### Ce que le corpus dit, et qui renverse la question de départ
+
+Relevé sur 257 PDF (`mesures/doubles-pages-du-corpus.ts`), deux signes par document : les **folios**
+— deux nombres consécutifs dans la bande de marge, ce que la chaîne regarde — et la **forme**, le
+rapport largeur sur hauteur de la feuille.
+
+| | |
+|---|---:|
+| Documents que les folios disent doubles | **82** |
+| Feuilles en paysage qu'aucun folio ne dénonce | 32 |
+| …dont la couche est trop maigre pour voir quoi que ce soit | **1** |
+
+**L'angle mort qu'on redoutait n'existe presque pas** : un seul document numérisé est muet au point
+que la détection n'ait rien à regarder. En revanche :
+
+- Les 32 feuilles en paysage non dénoncées sont des **diaporamas** — 1,78 (seize neuvièmes) et
+  1,33 (quatre tiers), « 1 diapo par page » jusque dans leurs noms. Les couper en deux serait une
+  faute, et le détecteur a raison de se taire. **La forme seule n'est donc pas un signe sûr.**
+- Mais parmi les 82 que les folios disent doubles, certains ont une forme de **0,71** — une feuille
+  **portrait**, plus haute que large. Une telle feuille ne peut pas porter deux pages portrait
+  côte à côte : ce sont des faux positifs, et ils sont faciles à nommer.
+
+### Ce qui est à trancher, et qui ne l'est pas ici
+
+Le détecteur gagnerait un garde-fou d'une ligne — une feuille qui n'est pas en paysage ne porte pas
+deux pages — mais cela ne changerait rien tant que la porte ne le consulte pas. Le fond est un choix
+de contrat : `preparation.double_page` est-il une **décision de l'administrateur** (et alors son
+absence doit être permise, pour laisser voir le document) ou un **réglage toujours présent** (et
+alors la détection n'a pas lieu d'être) ? Soumis avant d'écrire.
