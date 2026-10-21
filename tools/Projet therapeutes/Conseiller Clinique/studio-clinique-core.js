@@ -10976,8 +10976,15 @@ ${recent}`;
     lr.addEventListener('drop',function(e){if(e.target.closest('[data-cc-editor-leaf]')){e.preventDefault();adocEditorMessage('Utilisez le copier-coller pour insérer du texte dans ce passage.');}});
   }
 
-  function adocEditorExportFonts(doc) {
+  function adocEditorExportFonts(doc, tokens) {
     const names = new Set(), pairs = new Set();
+    if (tokens && tokens.typography) {
+      ['headingFontFamily', 'bodyFontFamily'].forEach(function(role) {
+        const stack = tokens.typography[role];
+        const first = typeof stack === 'string' && stack.match(/^\s*["']?([^"',]+)/);
+        if (first) names.add(first[1].trim());
+      });
+    }
     function walk(blocks) { (blocks || []).forEach(function(b) {
       if(b.style) { if(b.style.fontPairId)pairs.add(b.style.fontPairId); if(b.style.fontFamily)names.add(b.style.fontFamily); }
       if(b.editor && b.editor.html) Object.values(b.editor.html).forEach(function(html){ const el=document.createElement('div');el.innerHTML=adocEditorCleanHTML(html);el.querySelectorAll('[style]').forEach(function(n){if(n.style.fontFamily)names.add(n.style.fontFamily.replace(/^['"]|['"]$/g,''));}); });
@@ -13693,45 +13700,97 @@ ${recent}`;
       '</style></head><body>' + bodyHtml + annexe + '</body></html>';
   }
 
-  // ITEM 75 Phase 1 Lot 2 — enveloppe HTML DÉDIÉE pour l'export PDF Carrousel (une carte = une
-  // page). PAS une réutilisation d'adocClinicalDocumentWrapHTML ci-dessus (investigation
-  // confirmée) : son body{max-width:760px;margin:40px auto;...} et son
-  // .adoc-sc-carrousel{display:flex;overflow-x:auto;...} entreraient en conflit avec une page
-  // fixe 1024×768 (le canevas déjà borné par le Lot 1, réutilisé TEL QUEL, jamais une seconde
-  // dimension inventée). Réutilise adocRenderCardHTML TEL QUEL pour chaque carte (régression #6 —
-  // jamais un second mécanisme de rendu de carte) ; seule la coquille de page change. Les règles
-  // CSS non liées à la mise en page (tableaux/citations/citation-pied de page/quote/carte) sont
-  // copiées VERBATIM depuis adocClinicalDocumentWrapHTML ci-dessus (même rendu visuel qu'à
-  // l'écran, jamais une seconde définition divergente) ; seules body/.adoc-sc-carrousel sont
-  // remplacées par le gabarit de page fixe @page — confirmé par test Playwright local (Chromium,
-  // même moteur PDF que Cloudflare Browser Rendering) avant construction : @page{size:1024px
-  // 768px}+page-break-after:always+preferCSSPageSize:true (côté Worker, cf.
-  // handleGenerateCarrouselPDF) produit exactement une page par .adoc-pdf-page, dimensionnée
-  // correctement (cf. rapport de lot).
-  function adocBuildCarrouselPdfPagesHTML(doc, tokens) {
+  // Enveloppe PDF dédiée : le Carrousel conserve son ancien canevas 1024×768 et une carte
+  // par feuille. La Présentation utilise A4 paysage et un flux paginable ; une longue carte
+  // peut continuer sur plusieurs feuilles. Les deux réutilisent adocRenderCardHTML et le
+  // même endpoint Worker (preferCSSPageSize), sans dupliquer le rendu des blocs.
+  async function adocPdfBrandFontResource(art, name) {
+    const id = art && (art._adocBrandKitId || (art._adocRenderManifestOverride &&
+      art._adocRenderManifestOverride.brandKitRef && art._adocRenderManifestOverride.brandKitRef.id));
+    if (!id) return null;
+    let kit = (window._adocBrandKits || []).find(function(k) { return k.id === id; });
+    if (!kit) {
+      try {
+        const response = await fetch(adocGetWorkerUrl() + '/brand-kits/' + encodeURIComponent(id),
+          { headers: { 'X-API-Key': adocGetApiKey() } });
+        if (response.ok) kit = await response.json();
+      } catch (_) { return null; }
+    }
+    if (!kit || kit.sourceType !== 'font' || !kit.sourceAssetId) return null;
+    const declared = (kit.typography || {});
+    if (![declared.headingFont, declared.bodyFont, declared.accentFont].some(function(value) { return value && value.trim() === name; })) return null;
+    try {
+      const response = await fetch(adocGetWorkerUrl() + '/brand-assets/' + encodeURIComponent(kit.sourceAssetId),
+        { headers: { 'X-API-Key': adocGetApiKey() } });
+      if (!response.ok) return null;
+      const mime = (response.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+      if (!/^(font\/|application\/(?:octet-stream|x-font-ttf|vnd\.ms-opentype))/.test(mime)) return null;
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!bytes.length || bytes.length > 8 * 1024 * 1024) return null;
+      const chunks = [];
+      for (let i = 0; i < bytes.length; i += 32766) chunks.push(String.fromCharCode.apply(null, bytes.subarray(i, i + 32766)));
+      const safeName = name.replace(/[<>'"\\]/g, '').trim();
+      if (!safeName) return null;
+      return '<style>@font-face{font-family:"' + safeName + '";src:url(data:' + mime + ';base64,' + btoa(chunks.join('')) + ');font-display:block;}</style>';
+    } catch (_) { return null; }
+  }
+
+  async function adocPdfResolveCharterFonts(tokens, art) {
+    const typography = (tokens && tokens.typography) || {};
+    const next = Object.assign({}, tokens, { typography: Object.assign({}, typography) });
+    const extraLinks = [], warnings = [];
+    for (const role of ['headingFontFamily', 'bodyFontFamily']) {
+      const stack = typography[role] || '';
+      const match = String(stack).match(/^\s*["']?([^"',]+)/);
+      const name = match && match[1].trim();
+      if (!name || /^(serif|sans-serif|monospace|system-ui)$/i.test(name)) continue;
+      if (ADOC_LEGACY_FONT_PAIRS.some(function(p) { return p.googleFontsHref && (p.headingFont === name || p.bodyFont === name); })) continue;
+      const href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(name).replace(/%20/g, '+') + ':wght@400;500;600;700&display=swap';
+      let available = false;
+      try { const response = await fetch(href, { signal: AbortSignal.timeout(5000) }); available = response.ok; }
+      catch (_) { available = false; }
+      if (available) extraLinks.push('<link href="' + adocEsc(href) + '" rel="stylesheet">');
+      else {
+        const embedded = await adocPdfBrandFontResource(art, name);
+        if (embedded) { extraLinks.push(embedded); continue; }
+        const replacement = role === 'headingFontFamily' ? 'Georgia, serif' : 'Arial, sans-serif';
+        next.typography[role] = replacement;
+        warnings.push('« ' + name + ' » remplacée par ' + replacement.split(',')[0]);
+      }
+    }
+    return { tokens: next, extraLinks: [...new Set(extraLinks)].join(''), warnings };
+  }
+
+  async function adocBuildCarrouselPdfPagesHTML(doc, tokens, extraFontLinks) {
+    const isPresentation = doc.documentKind === 'presentation';
     const cssVars = adocTokensToCSSVars(tokens);
     // Même principe que pour l'enveloppe HTML ci-dessus : aucun octet ajouté sans annexe réelle.
     const annexe = adocDeepDiveAppendixHTML(doc);
     const pages = (doc.blocks || []).map(function (card, i) {
       return '<div class="adoc-pdf-page">' + adocRenderCardHTML(card, i, doc.blocks.length) + '</div>';
     }).join('\n');
-    return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
-      adocEditorExportFonts(doc) + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
+    const html = '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
+      adocEditorExportFonts(doc, isPresentation ? tokens : null) + (extraFontLinks || '') + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
       '<style>:root{' + cssVars + '}' +
-      '@page{size:1024px 768px;margin:0;}' +
+      (isPresentation ? '@page{size:A4 landscape;margin:0;}' : '@page{size:1024px 768px;margin:0;}') +
       '*{box-sizing:border-box;}' +
       'html,body{margin:0;padding:0;background:#fff;}' +
       '[data-cc-editor-leaf]{white-space:pre-wrap}.adoc-sc-table-el{font:inherit;color:inherit}.adoc-sc-table[style*="color:"] th{color:inherit}' +
       '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
       '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
-      // Une page par carte — mêmes dimensions que le canevas de positionnement (Lot 1),
-      // jamais une valeur distincte qui désynchroniserait positionnement et export.
-      '.adoc-pdf-page{position:relative;width:1024px;height:768px;overflow:hidden;padding:24px;page-break-after:always;break-after:page;}' +
+      // Le Carrousel reste sur son canevas historique ; la Présentation laisse sa hauteur
+      // grandir pour que Chromium répartisse les blocs sur des feuilles A4 successives.
+      (isPresentation
+        ? '.adoc-pdf-page{position:relative;width:1024px;min-height:768px;margin:0 auto;padding:24px;font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;page-break-after:always;break-after:page;}'
+        : '.adoc-pdf-page{position:relative;width:1024px;height:768px;overflow:hidden;padding:24px;page-break-after:always;break-after:page;}') +
       '.adoc-pdf-page:last-child{page-break-after:auto;break-after:auto;}' +
       // position:relative — même principe que la feuille de style de l'espace de travail (Lot UI) :
       // ancre tout élément absolument positionné éventuellement imbriqué (ex. poignée de
       // redimensionnement, invisible ici faute de règle CSS dédiée) à LA CARTE, jamais à la page.
       '.adoc-sc-card{position:relative;border:1px solid var(--adoc-sc-card-border,#c9c3b8);background:var(--adoc-sc-card-bg,#fff);border-radius:12px;padding:18px;}' +
+      (isPresentation ? '.adoc-pdf-page .adoc-sc-card-title{font-family:var(--adoc-sc-heading-font,Georgia,serif);color:var(--adoc-sc-heading-color,#102f31);}' +
+        '.adoc-pdf-page .adoc-sc-block{break-inside:avoid;page-break-inside:avoid;}' +
+        '.adoc-pdf-page .adoc-sc-card-img{max-height:324px;object-fit:cover;break-inside:avoid;page-break-inside:avoid;}' : '') +
       '.adoc-sc-table-el{border-collapse:collapse;width:100%;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;}' +
       '.adoc-sc-table-el th{background:var(--adoc-sc-table-header-bg,#dce8e6);color:var(--adoc-sc-table-header-color,#102f31);}' +
       '.adoc-sc-cite{color:var(--adoc-sc-cite-color,#8a3f29);font-size:0.7em;}' +
@@ -13748,13 +13807,44 @@ ${recent}`;
       // celui-ci pour des raisons de mise en page @page, cf. commentaire de cette fonction).
       ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_CARD_IMG_CSS +
       (annexe ? ADOC_DEEPDIVE_APPENDIX_CSS +
-      // L'annexe NE PEUT PAS vivre dans un .adoc-pdf-page : ce gabarit fait 768 px de haut avec
-      // overflow:hidden, donc tout ce qui dépasse serait purement PERDU — et une page
-      // d'approfondissement dépasse très vite. Elle reçoit donc un conteneur à hauteur LIBRE, qui
-      // commence sur une nouvelle feuille et se répartit ensuite naturellement sur autant de
-      // feuilles qu'il en faut. C'est la seule façon qu'un texte long y survive en entier.
+      // L'annexe reçoit un conteneur à hauteur libre et commence sur une nouvelle feuille ;
+      // son texte peut se répartir ensuite sur autant de feuilles qu'il en faut.
       '.adoc-dd-annexe{page-break-before:always;break-before:page;padding:48px 64px;border-top:none;margin-top:0;}' : '') +
       '</style></head><body>' + pages + annexe + '</body></html>';
+    if (!isPresentation) return html;
+    // Résoudre les couvertures AVANT la mesure : sinon leur hauteur réelle n'entre pas dans
+    // le calcul de réduction. Les assets privés sont embarqués pour le Worker PDF.
+    let preparedHtml = html;
+    if (preparedHtml.indexOf('data-pexels=') !== -1 || preparedHtml.indexOf('data-gen=') !== -1)
+      preparedHtml = await adocResolveImages(preparedHtml);
+    preparedHtml = await adocEmbedAssetImagesHTML(preparedHtml);
+    // La mesure se fait dans un document isolé portant exactement les styles envoyés au Worker.
+    // Une carte qui déborde est réduite jusqu'à 70 % ; si elle reste haute, les blocs continuent
+    // en flux sur la feuille suivante, sans overflow:hidden.
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;left:-100000px;top:0;width:1123px;height:794px;visibility:hidden;border:0;';
+    try {
+      document.body.appendChild(frame);
+      await Promise.race([
+        new Promise(function(resolve) { frame.onload = resolve; frame.srcdoc = preparedHtml; }),
+        new Promise(function(resolve) { setTimeout(resolve, 5000); }),
+      ]);
+      const inner = frame.contentDocument;
+      if (!inner || !inner.querySelector('.adoc-pdf-page')) return preparedHtml;
+      if (inner.fonts && inner.fonts.ready) {
+        await Promise.race([inner.fonts.ready, new Promise(function(resolve) { setTimeout(resolve, 3000); })]);
+      }
+      inner.querySelectorAll('.adoc-pdf-page .adoc-sc-card').forEach(function(card) {
+        const naturalHeight = card.getBoundingClientRect().height;
+        const availableHeight = 720;
+        if (naturalHeight <= availableHeight) return;
+        const scale = Math.max(0.7, Math.min(1, availableHeight / naturalHeight));
+        card.style.zoom = String(scale);
+        card.style.margin = '0 auto';
+      });
+      return '<!DOCTYPE html>' + inner.documentElement.outerHTML;
+    } finally { frame.remove(); }
   }
 
   // ── Export HTML autonome — même moteur, même fragment que l'aperçu (principe UX-1 :
@@ -19850,6 +19940,10 @@ ${recent}`;
     const btn = document.getElementById('cc-ws-export-pdf-carrousel-btn');
     const btnLabel = btn?.querySelector('span');
     const originalLabel = btnLabel?.textContent;
+    if (btn && !btn.dataset.pdfBaseLabel && originalLabel) btn.dataset.pdfBaseLabel = originalLabel;
+    const baseLabel = btn?.dataset.pdfBaseLabel || originalLabel;
+    let fontWarningShown = false;
+    if (btn) btn.removeAttribute('title');
     if (btn) btn.disabled = true;
     if (btnLabel) btnLabel.textContent = 'Export en cours…';
     try {
@@ -19857,18 +19951,28 @@ ${recent}`;
       // uniquement pour obtenir les tokens de charte, jamais pour reconstruire doc.blocks.
       const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
       const workerUrl = adocGetWorkerUrl();
-      const pagesHtml = adocBuildCarrouselPdfPagesHTML(doc, rendered.tokens);
+      const pdfFonts = doc.documentKind === 'presentation'
+        ? await adocPdfResolveCharterFonts(rendered.tokens, art)
+        : { tokens: rendered.tokens, extraLinks: '', warnings: [] };
+      const pagesHtml = await adocBuildCarrouselPdfPagesHTML(doc, pdfFonts.tokens, pdfFonts.extraLinks);
       const r = await adocFetchCarrouselPdf(workerUrl, pagesHtml, function (waitS) {
         if (btnLabel) btnLabel.textContent = 'Export en cours… (limite Cloudflare, patience ' + waitS + 's)';
       });
       const blob = await r.blob();
       adocDownloadArtifact(blob, (art.name || doc.title || 'carrousel') + '.pdf');
+      if (pdfFonts.warnings.length) {
+        const warning = 'Polices du PDF : ' + pdfFonts.warnings.join(' ; ') + '. Aucun fichier de police lisible n’est associé à cette charte.';
+        fontWarningShown = true;
+        if (btn) btn.title = warning;
+        if (btnLabel) btnLabel.textContent = 'Exporter en PDF — police remplacée';
+        alert(warning);
+      } else if (btn) btn.removeAttribute('title');
     } catch (exportErr) {
       console.warn('[Export PDF Carrousel] échec:', exportErr && exportErr.message);
       alert('Impossible d\'exporter en PDF : ' + (exportErr && exportErr.message || 'erreur inconnue') + '.');
     } finally {
       if (btn) btn.disabled = false;
-      if (btnLabel && originalLabel) btnLabel.textContent = originalLabel;
+      if (btnLabel && baseLabel) btnLabel.textContent = fontWarningShown ? 'Exporter en PDF — police remplacée' : baseLabel;
     }
   };
 
