@@ -4209,3 +4209,86 @@ personne ne lui demande. Embarquer `@napi-rs/canvas` ajouterait un module natif 
 pour faire taire une phrase **exacte** : le rendu *serait* cassé si on le demandait. On préfère un
 avertissement vrai à un paquet plus lourd, et la mesure ci-dessus dit pourquoi il est sans
 conséquence.
+
+
+## 21 octobre 2026 — BAS-02 : le réimport des 250 a eu lieu
+
+Accord de Christophe, lancé à 13 h 58, terminé à 19 h 19. Bibliothèque d'essai sur volume externe —
+le disque interne n'avait que 13 Gio libres pour 12 à 15 attendus.
+
+| | |
+|---|---:|
+| Documents en file | **249** (292 fichiers lisibles, 43 doublons confondus par leur empreinte) |
+| Réussis | **243** |
+| Échecs | **6** |
+| Temps réel | **18 907 s — 5 h 15** |
+| Estimation en série | 10,04 h |
+| Passages déposés | **32 052** |
+| …avec un numéro imprimé | 17 071, soit 53,3 % |
+| …avec un chapitre (EPUB) | 4 697 |
+| Versions sans aucun texte | **0** |
+| Poids de la bibliothèque | 9,3 Go — 7,7 de sources, 1,4 de dérivés |
+
+**La file a tenu cinq heures sans surveillance.** Le facteur mesuré sur dix documents — un gain de
+20 % — valait pour un échantillon où un seul travail dominait ; sur 249, les deux places n'ont pas
+désempli et le gain est de **1,9**, c'est-à-dire la parallélisation complète.
+
+### La bibliothèque répond
+
+Vingt documents tirés au long de la table des actives, lus **par où l'écran les lit** — la table,
+l'instantané, puis `chercher` : **19 répondent, 19 citent juste**. Le vingtième n'a pas assez de
+mots pour qu'on lui pose une question, ce qui n'est pas un échec de la recherche.
+
+### Les six échecs, en deux familles
+
+**Trois refus francs**, déjà connus et consignés comme dette : *Protocole tabac*, *auto-hypnose
+tabac*, *Mémo 4*. Leurs pages ne portent qu'un raster `FlateDecode` à 8 bits et aucune police. La
+cause est écrite dans le travail, en toutes lettres.
+
+**Trois échecs qui ne disent rien** : *Manuel Clinique des Psychothérapies de Couple*, *Mémo 3*,
+*SAGA.pdf*. Leur cause enregistrée est `[object Object]`.
+
+La ligne du journal qui précède le premier dit ce que la cause aurait dû porter :
+`Unsupported color conversion request` — le décodeur JPEG refuse un espace de couleur, très
+probablement du CMJN. Il lève **un objet qui n'est pas une `Error`**, et `executant.ts` en fait
+`String(cause)` : tout le message se perd. **C'est une erreur avalée, ce que JOB-05 interdit.**
+Correction à écrire : inspecter ce qui n'est pas une `Error` au lieu de le convertir en chaîne.
+
+### Le défaut que seul un vrai corpus pouvait montrer
+
+**Quatre documents traités avec succès sont invisibles dans la bibliothèque.**
+
+243 versions écrites, **239 pointeurs d'activation**. Les quatre manquants — *Gérer nos propres
+Schémas et Stratégies*, *Practicum — protocoles des voix critiques*, *Reparentage*, *memo 2 V2* —
+ont un travail `termine`, un instantané complet sur le disque, et aucune entrée dans
+`base/actives.json`. Rien ne les désigne, donc aucun écran ne les montrera jamais.
+
+**La cause est une course à l'écriture.** `Depot::activer` lit la table entière, y insère son
+pointeur, puis la réécrit :
+
+    let mut table = self.actives()?;
+    table.insert(empreinte, Pointeur { … });
+    self.ecrire_actives(&table)
+
+L'écriture est atomique — `ecrire_atomique` s'en assure, et le commentaire du dépôt le dit — mais
+**la lecture-modification-écriture ne l'est pas**, et deux travaux lourds tournent de front. Deux
+qui finissent ensemble lisent la même table, chacun y ajoute son pointeur, et le second efface
+celui du premier. *Practicum* et *Reparentage* se sont conclus **dans la même seconde** du journal.
+
+**Écriture atomique n'est pas mise à jour atomique.** C'est la distinction que le code a manquée, et
+aucune épreuve ne pouvait la voir : il faut deux travaux qui finissent ensemble, donc un corpus.
+
+Correction à écrire : un verrou autour d'`activer` — le `Roulement` est un seul processus, un
+`Mutex` suffit —, et une épreuve qui lance deux activations concurrentes et vérifie que les deux
+pointeurs survivent. Les quatre documents se rattrapent en relançant le réimport : il se reprend,
+et une version déjà écrite se réactive sans rien retraiter.
+
+### Ce que cette bibliothèque est, et n'est pas
+
+Une **bibliothèque d'essai**, et Christophe la jettera si elle ne lui convient pas. Son classement
+est un leurre — un axe nommé « Un axe », une valeur nommée « Une valeur » — parce que le classement
+vient de l'administrateur et que personne ne l'a encore posé. Sa manière de lire n'a été regardée
+sur aucune page.
+
+**L'écran de dépôt n'a toujours pas été franchi sur une création complète.** C'est la dernière
+porte, et c'est celle que Christophe poussera lui-même.
