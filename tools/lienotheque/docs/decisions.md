@@ -3752,3 +3752,63 @@ reconnaissance a lues en ligne. La page est la bonne et le repère est le bon �
 donc tomber juste et rester illisible comme phrase. Rien n'est fait de ce constat pour l'instant :
 retirer le texte de figure changerait l'extrait exact que RCH-07 promet, et une légende de figure
 est parfois exactement ce qu'on cherche.
+
+
+## 21 octobre 2026 — un livre composé en texte n'avait rien à montrer, et ne le disait pas
+
+Relevé en passant un document du corpus par la porte réelle : sa vue sort avec **zéro page**. Ce
+n'est pas un accident de banc, c'est structurel, et cela vaut pour la moitié du corpus.
+
+### Pourquoi un livre natif n'a aucune page dans sa vue
+
+Les pages de la vue viennent **uniquement** de la chaîne d'images. `instantaneDeLot` le dit en
+toutes lettres : « une page existe parce qu'elle a été lue », et `pages` est tiré de
+`resultat.pages`, ce que la manière de lire a su lire **sur l'image de la feuille**. Or
+`exporterPages` extrait le JPEG que porte chaque feuille d'un document **numérisé** : un livre
+composé en texte n'en porte aucun, donc aucune image, donc aucun repère, donc aucune page.
+
+L'hôte demande pourtant toujours les images (`charge_de`) : ce n'est pas un oubli de configuration,
+il n'y a simplement rien à extraire. Aucun moteur de rendu n'existe dans la chaîne, et en ajouter un
+serait un chantier, pas un correctif.
+
+Le chemin du texte, lui, fonctionne parfaitement sur ces documents : 173 passages lus, citations
+justes, vérifiées contre le PDF.
+
+### Ce que l'écran montrait
+
+Rendu du Lecteur avec une telle vue, texte visible relevé :
+
+    Accueil · Un livre ordinaire · feuillet
+    Clause 0 sur 0
+    Note — Clause
+    Position dans le document : — sur 0
+    Réduire · 100 % · Agrandir · Ajuster à la fenêtre
+
+Colonne de vignettes vide, centre vide, aucune phrase. **Le défaut n'est pas l'absence de pages,
+qui est un fait ; c'est le silence.** Quelqu'un qui vient de déposer un livre et dont le traitement
+a réussi tombe sur une carcasse, sans savoir si son document est perdu — alors que son texte est là
+et se cherche.
+
+### Ce qui a été fait
+
+Le Lecteur dit maintenant ce qu'il en est, et retire les outils de page au lieu de les laisser
+inertes — un zoom sur rien et un compteur à zéro se lisent comme une panne. Les mots viennent du
+schéma (CLA-01).
+
+Il ne peut pas deviner seul si le texte a été lu : la vue porte les repères, les passages portent le
+texte, et les deux lui arrivent séparément. D'où `texteLu`, sans quoi l'écran promettrait une
+recherche qui ne rendrait rien sur un document que la chaîne n'a pas su lire.
+
+### Ce qui reste, et qui n'est pas fait
+
+- **Le Lecteur ne montre toujours pas le texte d'un livre natif.** Il sait dire où le chercher,
+  pas l'afficher. Montrer le texte d'un document sans image est un écran à concevoir, pas un
+  correctif de silence.
+- **Le banc divergeait de l'application** : il n'envoyait pas d'images de pages, là où l'hôte en
+  demande toujours. Corrigé — sans quoi il n'éprouvait pas ce qu'il prétendait éprouver. La
+  correction n'a rien changé au résultat (zéro image extraite d'un natif), mais c'est par chance.
+- **Le mode démonstration ne permet pas d'atteindre le Lecteur.** La vue chargée au démarrage est
+  effacée dès que la bibliothèque de démonstration arrive (`setVue(undefined)` au changement de
+  racine, qui est juste pour une vraie bibliothèque). Le Lecteur n'y est donc visible que dans la
+  fenêtre de course qui précède ce chargement. Constaté, non corrigé : cela ne touche que la
+  démonstration.

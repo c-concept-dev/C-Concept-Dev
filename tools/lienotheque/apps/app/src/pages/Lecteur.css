@@ -476,3 +476,26 @@ img.ln-vignettes__feuille {
   font-size: 13px;
   color: var(--ln-text-secondary);
 }
+
+/* Un document dont aucune page ne se montre (UX-01).
+   Deux rangées au lieu de trois : le fil d'Ariane, puis ce qu'on a à dire. Les outils de page
+   sont retirés, pas grisés — un zoom sur rien se lit comme une panne. */
+.ln-lecteur--sans-page {
+  grid-template-rows: auto 1fr;
+  align-content: start;
+}
+
+.ln-lecteur__rien {
+  max-width: calc(var(--ln-grid) * 60);
+  padding: calc(var(--ln-grid) * 3);
+}
+
+.ln-lecteur__rien-titre {
+  margin: 0 0 calc(var(--ln-grid) * 1.5) 0;
+  font-size: 20px;
+}
+
+.ln-lecteur__rien-quoi {
+  margin: 0 0 calc(var(--ln-grid)) 0;
+  color: var(--ln-text-secondary);
+}

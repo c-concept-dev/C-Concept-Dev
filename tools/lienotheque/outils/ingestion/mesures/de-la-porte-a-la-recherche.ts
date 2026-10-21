@@ -55,6 +55,10 @@ if (!existsSync(chemin)) {
 const dossier = mkdtempSync(join(tmpdir(), "lienotheque-porte-"));
 const medias = join(dossier, "medias");
 mkdirSync(medias);
+// Les images de pages, parce que **l'hôte en demande toujours** (`charge_de`). Les omettre
+// faisait diverger ce banc de l'application sur le point précis qu'il prétend éprouver.
+const images = join(dossier, "images");
+mkdirSync(images);
 
 const description = join(dossier, "bibliotheque.json");
 writeFileSync(
@@ -114,6 +118,7 @@ try {
       medias,
       recette,
       description,
+      images,
       cache: cache.dossier,
       ...(limite === undefined ? {} : { pages: Number(limite) }),
     }),

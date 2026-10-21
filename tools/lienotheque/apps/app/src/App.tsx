@@ -606,6 +606,9 @@ export function App(): JSX.Element {
           vue={vue}
           page={route.page}
           element={route.element ?? ""}
+          // La vue porte les repères, les passages portent le texte : sans ce témoin, un
+          // document sans page renverrait à une recherche qui ne rendrait rien.
+          texteLu={passages.length > 0}
           onPage={(page) => aller({ ecran: "lecteur", page })}
           onElement={(element) => aller({ ecran: "lecteur", page: route.page, element })}
         />
