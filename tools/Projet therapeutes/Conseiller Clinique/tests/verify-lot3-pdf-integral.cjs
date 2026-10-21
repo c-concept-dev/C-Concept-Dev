@@ -155,7 +155,9 @@ const allLines = ['Court contrôle des fissures', ...Array.from({ length: 10 }, 
       'aucun avertissement de substitution si le fichier de police est embarqué');
     const buttonAfterAvailableFont = await page.locator('#cc-ws-export-pdf-carrousel-btn').evaluate(el => ({
       label: el.querySelector('span')?.textContent, title: el.getAttribute('title') || '' }));
-    assert.equal(buttonAfterAvailableFont.label, 'Exporter en PDF', 'le libellé d’avertissement doit disparaître après un export sans remplacement');
+    // Lot A : le libellé normal précise désormais qu'il s'agit des diapositives.
+    // L'assertion garde le contrôle de restauration après disparition de l'avertissement.
+    assert.equal(buttonAfterAvailableFont.label, 'Exporter en PDF (diapositives)', 'le libellé d’avertissement doit disparaître après un export sans remplacement');
     assert.equal(buttonAfterAvailableFont.title, '', 'l’infobulle de remplacement doit disparaître après un export sans remplacement');
     console.log('PASS lot 3 : A4 paysage, ' + result.sizes.length + ' pages, ' + allLines.length + ' lignes conservées');
   } finally { await browser.close(); fs.rmSync(dir, { recursive: true, force: true }); }
