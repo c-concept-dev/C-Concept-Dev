@@ -11351,6 +11351,25 @@ ${recent}`;
 
   window._adocLegacyReThemeCandidate = null;
 
+  // Même seuil et même calcul que l'avertissement de l'import de charte. Ce diagnostic
+  // accompagne le choix et l'aperçu ; il ne modifie pas le contrat de qualité de l'export.
+  function adocBrandKitContrastWarningHTML(brandKit) {
+    if (!brandKit || adocIsDefaultBrandKitId(brandKit.id)) return '';
+    const colors = brandKit.colors || {};
+    const background = colors.background;
+    if (!/^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(background || '')) return '';
+    const warnings = ADOC_BRANDKIT_COLOR_ROLES
+      .filter(function (entry) { return entry.value !== 'background' && entry.value !== 'decorative' && /^#[\da-f]{3}(?:[\da-f]{3})?$/i.test(colors[entry.value] || ''); })
+      .map(function (entry) { return { label: entry.label, ratio: adocContrastRatio(colors[entry.value], background) }; })
+      .filter(function (entry) { return entry.ratio < 4.5; });
+    if (!warnings.length) return '';
+    return '<div class="cc-brandkit-wcag-warning" role="alert" style="margin:6px 0 10px;">'
+      + adocIconSvg('icon-warning') + ' Contraste ' + warnings.map(function (entry) {
+        return adocEsc(entry.label) + ' ' + entry.ratio.toFixed(1) + ':1';
+      }).join(', ') + ' contre le fond — sous le seuil AA (4.5:1) pour du texte normal. '
+      + 'Cette charte reste utilisable après votre confirmation.</div>';
+  }
+
   window.adocCloseLegacyReThemePanel = function () {
     const modal = document.getElementById('cc-legacy-retheme-modal');
     if (modal) { modal.classList.remove('open'); delete modal.dataset.storeKey; }
@@ -11389,9 +11408,10 @@ ${recent}`;
       '<select id="cc-legacy-retheme-density-select" class="cc-landing-brandkit-select" style="width:100%;margin-bottom:12px;">' +
       ADOC_DENSITY_PRESETS.map(function (d) { return '<option value="' + d.id + '">' + adocEsc(d.label) + '</option>'; }).join('') +
       '</select>' +
+      '<div style="font-size:11px;font-weight:600;color:var(--ink);margin-bottom:8px;">Chartes complètes</div>' +
       '<div style="display:flex;flex-direction:column;gap:6px;">' +
       kits.map(function (k) {
-        return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;" onclick="window.adocPreviewLegacyRetheme(\'' + k.id + '\')">' + adocEsc(k.name || 'Charte') + '</button>';
+        return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;" onclick="window.adocPreviewLegacyRetheme(\'' + k.id + '\')">' + adocEsc(k.name || 'Charte') + (adocIsDefaultBrandKitId(k.id) ? '' : ' · importée') + '</button>' + adocBrandKitContrastWarningHTML(k);
       }).join('') +
       '</div>' +
       '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseLegacyReThemePanel()">Annuler</button></div>';
@@ -11453,10 +11473,10 @@ ${recent}`;
         + ' — contenu, structure et scripts inchangés.';
       body.innerHTML =
         '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">' + previewNote + '</div>' +
-        fontNote + densityNote +
+        fontNote + densityNote + adocBrandKitContrastWarningHTML(brandKit) +
         '<iframe src="' + previewBlobUrl + '" style="width:100%;height:320px;border:1px solid var(--stone-200);border-radius:8px;" sandbox="allow-scripts"></iframe>' +
         '<div style="margin-top:10px;display:flex;gap:8px;">' +
-          '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocConfirmLegacyRetheme()">Confirmer</button>' +
+          '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocConfirmLegacyRetheme()">' + (adocBrandKitContrastWarningHTML(brandKit) ? 'Confirmer malgré le contraste' : 'Confirmer') + '</button>' +
           '<button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseLegacyReThemePanel()">Annuler</button>' +
         '</div>';
     } catch (e) {
@@ -11476,8 +11496,6 @@ ${recent}`;
     art._adocBrandKitName = candidate.brandKitName;
     // Partie B (import charte) — même traçabilité que adocApplyBrandKitToLegacyArtifact ci-dessus.
     art._adocBrandKitId = candidate.brandKitId || null;
-    // Chargement dynamique des polices — même mécanisme, jamais un second système.
-    if (candidate.brandKit) adocEnsureBrandKitFontsLoaded(candidate.brandKit);
     // LOT 11 — traçabilité de la police appliquée, même patron que _adocBrandKitName ci-dessus.
     // Reste null si l'utilisatrice a choisi "keep" ou si le motif de police n'a pas été retrouvé.
     if (candidate.fontLabel) art._adocFontLabel = candidate.fontLabel;
@@ -11505,7 +11523,12 @@ ${recent}`;
     if (card) card.innerHTML = adocArtifactCardHtml(storeKey, (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' '), art.blobUrl);
     // L'ouverture recompose le rendu depuis art.html EN MÉMOIRE, sans relire la base.
     // La nouvelle version attend ensuite le clic explicite sur « Sauvegarder ».
-    if (await window.adocOpenWorkspace(storeKey)) adocEditorMarkDirty();
+    if (await window.adocOpenWorkspace(storeKey)) {
+      adocEditorMarkDirty();
+      // L'ouverture efface le bandeau de police précédent : le repeupler ensuite pour
+      // que la nouvelle charte importée signale réellement une police indisponible.
+      if (candidate.brandKit) adocEnsureBrandKitFontsLoaded(candidate.brandKit);
+    }
   };
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -11545,16 +11568,12 @@ ${recent}`;
     const zoneChartes = document.getElementById('cc-retheme-chartes');
     let kits = window._adocBrandKits;
     if (!kits || !kits.length) kits = await adocFetchBrandKits();
-    // Décision 2 de Christophe (item 61) — seules les chartes internes/auditées sont proposées
-    // ici, jamais une charte importée (PDF, source_type:'pdf' à la création — cf. adocBrandKitImportSave).
-    // adocIsDefaultBrandKitId(id) distingue déjà exactement ce cas (réutilisé tel quel, même
-    // fonction que celle qui masque le bouton "Retirer" sur ces deux mêmes chartes) : aucun
-    // nouveau champ à inventer. Neutralise le risque de contraste non audité identifié par
-    // l'investigation (QC hardcodé UX-8B assumant une charte par défaut déjà vérifiée AA).
-    const eligibleKits = (kits || []).filter(function (k) { return adocIsDefaultBrandKitId(k.id); });
-    if (!eligibleKits.length) {
+    // Les chartes importées sont disponibles au même titre que les chartes internes. Une
+    // insuffisance de contraste est annoncée ici et répétée avant confirmation.
+    const availableKits = kits || [];
+    if (!availableKits.length) {
       // Seule la zone des chartes est remplacée : les vignettes de thèmes restent utilisables.
-      zoneChartes.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Aucune charte interne disponible pour le moment.</div>'
+      zoneChartes.innerHTML = '<div style="padding:8px 0;color:var(--terracotta-700);font-size:12px;">Aucune charte disponible pour le moment.</div>'
         + '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Fermer</button></div>';
       return;
     }
@@ -11567,9 +11586,10 @@ ${recent}`;
       '<select id="cc-structured-retheme-density-select" class="cc-landing-brandkit-select" style="width:100%;margin-bottom:12px;">' +
       ADOC_DENSITY_PRESETS.map(function (d) { return '<option value="' + d.id + '">' + adocEsc(d.label) + '</option>'; }).join('') +
       '</select>' +
+      '<div style="font-size:11px;font-weight:600;color:var(--ink);margin-bottom:8px;">Chartes complètes</div>' +
       '<div style="display:flex;flex-direction:column;gap:6px;">' +
-      eligibleKits.map(function (k) {
-        return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;" onclick="window.adocPreviewStructuredRetheme(\'' + k.id + '\')">' + adocEsc(k.name || 'Charte') + '</button>';
+      availableKits.map(function (k) {
+        return '<button type="button" class="cc-clarity-reply-btn" style="justify-content:flex-start;text-align:left;width:100%;" onclick="window.adocPreviewStructuredRetheme(\'' + k.id + '\')">' + adocEsc(k.name || 'Charte') + (adocIsDefaultBrandKitId(k.id) ? '' : ' · importée') + '</button>' + adocBrandKitContrastWarningHTML(k);
       }).join('') +
       '</div>' +
       '<div style="margin-top:10px;"><button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Annuler</button></div>';
@@ -11600,7 +11620,7 @@ ${recent}`;
 
   // window.adocThemes() est la SOURCE UNIQUE : la table n'est jamais recopiée ici.
   function adocThemesTilesHTML() {
-    return '<div style="font-size:11px;font-weight:600;color:var(--ink);margin-bottom:4px;">Thèmes — police et couleurs en un clic</div>'
+    return '<div style="font-size:11px;font-weight:600;color:var(--ink);margin-bottom:4px;">Thèmes rapides — police et couleurs en un clic</div>'
       + '<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Un clic applique la paire de polices et la palette au document entier.</div>'
       + '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">'
       + window.adocThemes().map(function (t) {
@@ -11664,6 +11684,7 @@ ${recent}`;
       const densityApplied = densityPreset.id !== 'keep' && densityPreset.structuredLineHeight != null;
       window._adocStructuredReThemeCandidate = {
         storeKey: storeKey, renderManifestOverride: renderManifestOverride, brandKitName: brandKit.name || null,
+        brandKit: brandKit,
         densityLabel: densityApplied ? densityPreset.label : null,
       };
       const previewNote = 'Aperçu avec « ' + adocEsc(brandKit.name || 'cette charte') + ' »'
@@ -11671,9 +11692,10 @@ ${recent}`;
         + ' — contenu, structure et citations inchangés.';
       body.innerHTML =
         '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">' + previewNote + '</div>' +
+        adocBrandKitContrastWarningHTML(brandKit) +
         '<div style="border:1px solid var(--stone-200);border-radius:8px;max-height:320px;overflow:auto;padding:12px;">' + rendered.html + '</div>' +
         '<div style="margin-top:10px;display:flex;gap:8px;">' +
-          '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocConfirmStructuredRetheme()">Confirmer</button>' +
+          '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocConfirmStructuredRetheme()">' + (adocBrandKitContrastWarningHTML(brandKit) ? 'Confirmer malgré le contraste' : 'Confirmer') + '</button>' +
           '<button type="button" class="cc-clarity-other-btn" onclick="window.adocCloseStructuredReThemePanel()">Annuler</button>' +
         '</div>';
     } catch (e) {
@@ -11707,6 +11729,7 @@ ${recent}`;
       return;
     }
     adocEditorMarkDirty();
+    if (candidate.brandKit) adocEnsureBrandKitFontsLoaded(candidate.brandKit);
   };
 
   // Révèle le bouton "Charte" pour tout artefact fmt html éligible — vérifié en différé
