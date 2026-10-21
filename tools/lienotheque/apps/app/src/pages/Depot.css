@@ -174,3 +174,15 @@
   font-weight: 600;
   text-align: start;
 }
+
+/* Le retrait, dans l'en-tête et discret : atteignable sans dérouler deux cent cinquante lignes,
+   sans pour autant voisiner avec les gestes de tous les jours. */
+.ln-traitement__retirer {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+  margin-left: auto;
+  margin-right: calc(var(--ln-grid) * 2);
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}

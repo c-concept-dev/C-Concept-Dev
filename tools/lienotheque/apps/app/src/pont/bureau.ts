@@ -141,6 +141,7 @@ export async function agirSurTravail(racine: string, id: string, action: "pause"
  *  Avant toute recette : on ne peut pas montrer où regarder sur une page qu'on ne voit pas. */
 export async function apercuDePages(
   racine: string,
+  empreinte: string,
   nom: string,
   depuis: number,
   combien: number,
@@ -149,6 +150,7 @@ export async function apercuDePages(
   // page pour montrer huit vignettes serait payer très cher une commodité.
   const rendu = await invoke<{ pages?: { rang: number; image: string }[] }>("apercu_de_pages", {
     racine,
+    empreinte,
     nom,
     depuis,
     combien,

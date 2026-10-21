@@ -107,12 +107,15 @@ export function App(): JSX.Element {
   /** L'éditeur de manière de lire : le document regardé, ses pages, le brouillon, l'essai. */
   const [maniere, setManiere] = useState<{
     document: string;
+    /** L'empreinte du document montré : c'est par elle qu'on en demande d'autres pages, et c'est
+     *  elle qui le range dans la bibliothèque. */
+    empreinte: string;
     pages: readonly { rang: number; image: string }[];
     brouillon: Brouillon;
     essai?: Essai | undefined;
     occupe?: boolean | undefined;
     echec?: string | undefined;
-  }>({ document: "", pages: [], brouillon: BROUILLON_NEUF });
+  }>({ document: "", empreinte: "", pages: [], brouillon: BROUILLON_NEUF });
 
   // ⌘K ouvre la recherche depuis n'importe quel écran (UX-02). Ctrl+K pour les claviers qui
   // n'ont pas de touche Commande.
@@ -180,6 +183,19 @@ export function App(): JSX.Element {
   const deposer = (fichiers: readonly File[]): void => setDepots(fichiers.map((fichier) => fichier.name));
 
   const [retrait, setRetrait] = useState<{ readonly occupe: boolean; readonly echec?: string }>({ occupe: false });
+
+  /** Ouvrir une bibliothèque donnée, et non « la dernière de la liste ».
+   *
+   *  `derniere` est le dernier élément de `creees` : c'est ainsi que l'application désigne celle
+   *  où l'on est. Choisir une bibliothèque revient donc à la mettre en queue. Sans ce geste,
+   *  toutes les cartes menaient au même écran, qui montrait toujours la même — on se croyait dans
+   *  une bibliothèque en lisant les documents d'une autre. */
+  const choisirBibliotheque = (id: string): void => {
+    setCreees((anciennes) => {
+      const choisie = anciennes.find((autre) => autre.description.id === id);
+      return choisie === undefined ? anciennes : [...anciennes.filter((autre) => autre !== choisie), choisie];
+    });
+  };
 
   /** Retirer une bibliothèque, d'une des deux façons.
    *
@@ -365,7 +381,9 @@ export function App(): JSX.Element {
         return;
       }
       await administration.retenirBibliotheque(racine);
-      setCreees((anciennes) => [{ racine, description }, ...anciennes.filter((autre) => autre.racine !== racine)]);
+      // En queue, jamais en tête : `derniere` est le dernier élément, et une bibliothèque
+      // qu'on vient d'ouvrir est celle où l'on veut être.
+      setCreees((anciennes) => [...anciennes.filter((autre) => autre.racine !== racine), { racine, description }]);
       aller({ ecran: "organisation" });
     } catch (erreur) {
       setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur));
@@ -398,11 +416,11 @@ export function App(): JSX.Element {
   };
 
   /** Montre quelques pages d'un document : c'est la première chose dont l'éditeur a besoin. */
-  const montrerLesPages = async (racine: string, nom: string, depuis: number): Promise<void> => {
+  const montrerLesPages = async (racine: string, empreinte: string, nom: string, depuis: number): Promise<void> => {
     if (administration === undefined) return;
-    setManiere((avant) => ({ ...avant, document: nom, occupe: true, echec: undefined }));
+    setManiere((avant) => ({ ...avant, document: nom, empreinte, occupe: true, echec: undefined }));
     try {
-      const pages = await administration.apercuDePages(racine, nom, depuis, 8);
+      const pages = await administration.apercuDePages(racine, empreinte, nom, depuis, 8);
       const connue = await administration.lireManiere(racine);
       setManiere((avant) => ({
         ...avant,
@@ -521,7 +539,12 @@ export function App(): JSX.Element {
         echec={echecOuverture}
       />
     ) : (
-      <Accueil donnees={aLAccueil} onFichiers={deposer} onCreer={() => aller({ ecran: "creer" })} />
+      <Accueil
+        donnees={aLAccueil}
+        onFichiers={deposer}
+        onCreer={() => aller({ ecran: "creer" })}
+        onOuvrir={choisirBibliotheque}
+      />
     );
   };
 
@@ -555,7 +578,7 @@ export function App(): JSX.Element {
           onBrouillon={(brouillon) => setManiere((avant) => ({ ...avant, brouillon }))}
           onEssayer={() => void essayer(derniere.racine)}
           onEnregistrer={(brouillon) => void enregistrer(derniere.racine, brouillon)}
-          onAutresPages={(depuis) => void montrerLesPages(derniere.racine, maniere.document, depuis)}
+          onAutresPages={(depuis) => void montrerLesPages(derniere.racine, maniere.empreinte, maniere.document, depuis)}
           {...(maniere.essai === undefined ? {} : { essai: maniere.essai })}
           {...(maniere.occupe === undefined ? {} : { occupe: maniere.occupe })}
           {...(maniere.echec === undefined ? {} : { echec: maniere.echec })}
@@ -583,9 +606,9 @@ export function App(): JSX.Element {
           {...(administration === undefined ? {} : { onRetirer: () => aller({ ecran: "retirer" }) })}
           onManiere={
             administration !== undefined
-              ? (nom) => {
+              ? (empreinte, nom) => {
                   aller({ ecran: "maniere" });
-                  void montrerLesPages(derniere.racine, nom, 0);
+                  void montrerLesPages(derniere.racine, empreinte, nom, 0);
                 }
               : undefined
           }

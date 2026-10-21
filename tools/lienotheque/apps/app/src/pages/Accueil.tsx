@@ -18,11 +18,14 @@ type Props = {
    *  cliquait, et ne faisait rien — invisible tant qu'on n'avait pas de bibliothèque, puisque
    *  l'écran de premier lancement, lui, était câblé. */
   readonly onCreer?: (() => void) | undefined;
+  /** Ouvrir **cette** bibliothèque, désignée par son identifiant. Sans cela, toutes les cartes
+   *  menaient au même écran, qui montrait toujours la même bibliothèque. */
+  readonly onOuvrir?: ((id: string) => void) | undefined;
 };
 
 /** Accueil du CDC : cartes de bibliothèques, « reprendre où vous en étiez », cas à vérifier.
  *  Chaque section n'existe que si elle a du contenu : rien ne s'affiche à vide. */
-export function Accueil({ donnees, onFichiers, onCreer }: Props): JSX.Element {
+export function Accueil({ donnees, onFichiers, onCreer, onOuvrir }: Props): JSX.Element {
   const { bibliotheques, reprises, aVerifier, traitement } = donnees;
 
   return (
@@ -77,6 +80,7 @@ export function Accueil({ donnees, onFichiers, onCreer }: Props): JSX.Element {
             {bibliotheques.map((bibliotheque) => (
               <CarteBibliotheque
                 key={bibliotheque.id}
+                {...(onOuvrir === undefined ? {} : { onOuvrir: () => onOuvrir(bibliotheque.id) })}
                 nom={bibliotheque.nom}
                 href={bibliotheque.href}
                 collection={bibliotheque.collection}

@@ -25,6 +25,13 @@ type Props = {
   };
   readonly ouverte: string;
   readonly partages?: number | undefined;
+  /** Appelé quand on ouvre cette bibliothèque-ci.
+   *
+   *  **Toutes les cartes menaient à la même adresse**, `#depot`, et cet écran montre « la dernière
+   *  bibliothèque de la liste » : cliquer l'une ou l'autre donnait la même, et l'on se croyait
+   *  dans une bibliothèque en regardant les documents d'une autre. Le lien reste un lien — pour
+   *  le clavier et le menu contextuel — mais il dit d'abord **laquelle** on ouvre. */
+  readonly onOuvrir?: (() => void) | undefined;
 };
 
 export function CarteBibliotheque({
@@ -38,6 +45,7 @@ export function CarteBibliotheque({
   etat,
   ouverte,
   partages,
+  onOuvrir,
 }: Props): JSX.Element {
   const bandeau = { "--ln-collection": `var(--ln-collection-${collection})` } as CSSProperties;
   return (
@@ -49,7 +57,7 @@ export function CarteBibliotheque({
       </div>
       <div className="ln-carte__corps">
         <h3 className="ln-carte__titre">
-          <a href={href} aria-label={`Ouvrir la bibliothèque ${nom}`}>
+          <a href={href} aria-label={`Ouvrir la bibliothèque ${nom}`} onClick={onOuvrir}>
             {nom}
           </a>
         </h3>

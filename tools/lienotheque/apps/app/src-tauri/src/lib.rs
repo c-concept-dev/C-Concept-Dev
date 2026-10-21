@@ -202,9 +202,23 @@ fn moteur_embarque() -> Result<traitement::Emplacements, String> {
 /// On ne peut pas montrer où regarder sur une page qu'on ne voit pas : c'est la première chose
 /// dont l'éditeur de manière de lire a besoin, et elle vient avant toute recette.
 #[tauri::command]
-fn apercu_de_pages(racine: String, nom: String, depuis: u32, combien: u32) -> Result<serde_json::Value, String> {
+fn apercu_de_pages(racine: String, empreinte: String, nom: String, depuis: u32, combien: u32) -> Result<serde_json::Value, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
-    let document = depot.racine().join(depot::SOURCES).join(&nom);
+    // **Par l'empreinte, jamais par le nom.** Les sources sont rangées sous leur empreinte, en
+    // paliers — `sources/ab/abcdef….pdf` — parce que deux documents peuvent porter le même nom
+    // dans deux dossiers sans avoir rien à voir. Cet aperçu, lui, les cherchait sous
+    // `sources/<nom du fichier>`, un chemin qui n'existe jamais : il répondait donc « n'est plus
+    // dans la bibliothèque » pour **tous** les documents, de **toutes** les bibliothèques.
+    //
+    // Conséquence en chaîne, relevée le 21 octobre 2026 sur la première vraie bibliothèque :
+    // l'éditeur ne montrant aucune page, aucune manière de lire ne pouvait s'apprendre, donc
+    // aucun document ne pouvait être relié.
+    let extension = std::path::Path::new(&nom)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("bin")
+        .to_lowercase();
+    let document = depot.source(&empreinte, &extension);
     if !document.exists() {
         return Err(format!("Le fichier « {nom} » n’est plus dans la bibliothèque."));
     }

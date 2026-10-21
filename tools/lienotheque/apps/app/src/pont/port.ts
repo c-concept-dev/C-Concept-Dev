@@ -78,8 +78,12 @@ export type PortAdministration = {
   ) => Promise<Travail>;
 
   /** La manière de lire : l'essayer sans rien enregistrer, puis l'enregistrer (REC-07). */
+  /** Les pages d'un document déposé, désigné **par son empreinte** : c'est elle qui le range,
+   *  et deux documents peuvent porter le même nom sans avoir rien à voir. Le nom suit tout de
+   *  même, pour son extension et pour ce qu'on dit à l'écran. */
   readonly apercuDePages: (
     racine: string,
+    empreinte: string,
     nom: string,
     depuis: number,
     combien: number,

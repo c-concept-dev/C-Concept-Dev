@@ -75,7 +75,7 @@ type Props = {
   readonly onRetirer?: (() => void) | undefined;
   /** Ouvre la manière de lire pour ce document : c'est par lui qu'on y entre, parce que c'est
    *  lui qu'on regarde en la montrant. */
-  readonly onManiere?: ((nom: string) => void) | undefined;
+  readonly onManiere?: ((empreinte: string, nom: string) => void) | undefined;
 };
 
 export function Depot({
@@ -103,6 +103,14 @@ export function Depot({
             { libelle: "Ajouter des fichiers" },
           ]}
         />
+        {/* Dans l'en-tête, et non en pied : sous une liste de deux cent cinquante documents, un
+            lien de pied est à des milliers de pixels et n'existe pas. Discret, mais atteignable.  */}
+        {onRetirer === undefined ? null : (
+          <button type="button" className="ln-lien-action ln-traitement__retirer" onClick={onRetirer}>
+            <Icone nom="alerte" />
+            Retirer cette bibliothèque…
+          </button>
+        )}
         <p className="ln-traitement__compteur">
           <Icone nom="horloge" />
           {enCours} en cours
@@ -158,7 +166,7 @@ export function Depot({
                       <button
                         type="button"
                         className="ln-lien-action ln-ligne__ouvrir"
-                        onClick={() => onManiere(travail.sujet!.nom)}
+                        onClick={() => onManiere(travail.empreinteEntree ?? "", travail.sujet!.nom)}
                       >
                         {travail.sujet.nom}
                       </button>
@@ -180,7 +188,11 @@ export function Depot({
                         <button
                           type="button"
                           className="ln-lien-action"
-                          onClick={() => (onManiere !== undefined && travail.sujet !== undefined ? onManiere(travail.sujet.nom) : onVerifier())}
+                          onClick={() =>
+                            onManiere !== undefined && travail.sujet !== undefined
+                              ? onManiere(travail.empreinteEntree ?? "", travail.sujet.nom)
+                              : onVerifier()
+                          }
                         >
                           Ouvrir
                         </button>
@@ -250,17 +262,7 @@ export function Depot({
         </div>
       )}
 
-      <div className="ln-traitement__pied ln-panneau-titre">
-        <p>Vos originaux ne sont jamais modifiés.</p>
-        {/* En pied, et loin des gestes courants : retirer une bibliothèque n'est pas une action
-            de tous les jours, et elle ne doit pas se trouver sous une souris pressée. L'écran
-            qu'elle ouvre, lui, explique et demande confirmation. */}
-        {onRetirer === undefined ? null : (
-          <button type="button" className="ln-lien-action" onClick={onRetirer}>
-            Retirer cette bibliothèque…
-          </button>
-        )}
-      </div>
+      <p className="ln-traitement__pied ln-panneau-titre">Vos originaux ne sont jamais modifiés.</p>
     </main>
   );
 }

@@ -205,7 +205,8 @@ describe("sortir d'un travail arrêté (UX-01)", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Ouvrir" }));
-    expect(onManiere, "« Apprenez-en une » doit mener à l’éditeur").toHaveBeenCalledWith("document-1.pdf");
+    // Par l empreinte, puisque c est elle qui range le document ; le nom suit pour son extension.
+    expect(onManiere, "« Apprenez-en une » doit mener à l’éditeur").toHaveBeenCalledWith("", "document-1.pdf");
     expect(onVerifier, "la vérification n’a rien à montrer d’un travail qui n’a pas tourné").not.toHaveBeenCalled();
   });
 
