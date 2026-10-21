@@ -16520,6 +16520,7 @@ ${recent}`;
     const parts = adocWsMenuParts(name);
     if (!parts) return;
     if (event.key === 'Escape') {
+      if (parts.menu.hidden) return;
       event.preventDefault(); event.stopImmediatePropagation(); adocWsMenuClose(true); return;
     }
     if (event.key === 'Tab') { adocWsMenuClose(false); return; }

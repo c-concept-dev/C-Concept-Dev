@@ -76,6 +76,10 @@ const root = path.join(__dirname, '..');
       await page.locator('#cc-ws-file-menu-trigger').click();
       await page.locator('#cc-ws-title').click();
       assert.equal(await page.locator('#cc-ws-file-menu-trigger').getAttribute('aria-expanded'), 'false', 'outside click');
+      await page.locator('#cc-ws-file-menu-trigger').focus();
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('#cc-workspace').evaluate(el => el.classList.contains('open')), false,
+        'Escape from a closed menu retains the workspace shortcut');
       await page.close(); count++;
     }
     const mobile = await browser.newPage({ viewport: { width: 640, height: 900 } });

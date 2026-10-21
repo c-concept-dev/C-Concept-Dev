@@ -62,6 +62,13 @@ const MUTATIONS = [
     attendu: 'Échap doit fermer le menu et rendre le focus sans fermer le document',
   },
   {
+    nom: 'Échap sur un menu déjà fermé ne ferme plus le document',
+    fichier: 'coeur',
+    de: '      if (parts.menu.hidden) return;\n      event.preventDefault();',
+    vers: '      event.preventDefault();',
+    attendu: 'un menu fermé ne doit pas intercepter le raccourci global de fermeture',
+  },
+  {
     nom: 'Supprimer disparaît même pour un document sauvegardé',
     fichier: 'coeur',
     de: '    if (deleteBtn) deleteBtn.hidden = !saved;',
