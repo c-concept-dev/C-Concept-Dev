@@ -12,6 +12,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const RACINE = path.join(__dirname, '..');
 const ESSAI = path.join(RACINE, 'banc-chutier', 'entrees', 'presentation-essai-sans-citation.html');
 const TEMOIN = 'TEMOIN-NARRATION-20261008';
@@ -36,8 +37,11 @@ let n = 0;
 const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
 
 (async () => {
-  assert.ok(fs.existsSync(ESSAI), 'présentation d\'essai absente — lancez d\'abord '
-    + 'node tests/forger-presentation-essai.cjs');
+  // T1 : cette fixture est générée et ignorée par Git. La suite complète ne doit pas
+  // dépendre d'un forgeage manuel antérieur ni d'un fichier laissé par une autre passe.
+  execFileSync(process.execPath, [path.join(__dirname, 'forger-presentation-essai.cjs')],
+    { cwd: RACINE, env: process.env, stdio: 'pipe' });
+  assert.ok(fs.existsSync(ESSAI), 'le forgeage de la présentation d\'essai a échoué');
   const { serveur, port } = await servir();
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
     ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {});

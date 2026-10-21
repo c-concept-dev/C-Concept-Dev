@@ -12,6 +12,7 @@ const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const RACINE = path.join(__dirname, '..');
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -53,6 +54,10 @@ const REGARDER = () => {
 };
 
 (async () => {
+  // T1 : l'export d'essai est une fixture générée hors Git ; le reconstruire dans la
+  // passe rend ce contrôle indépendant de l'ordre des scripts et d'un ancien cache.
+  execFileSync(process.execPath, [path.join(__dirname, 'forger-presentation-essai.cjs')],
+    { cwd: RACINE, env: process.env, stdio: 'pipe' });
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
     ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {});
   try {

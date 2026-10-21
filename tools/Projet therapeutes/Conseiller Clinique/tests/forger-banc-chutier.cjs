@@ -677,11 +677,18 @@ function forger() {
   const source = fs.readFileSync(SOURCE, 'utf8');
 
   // Références relatives : la copie vit un dossier plus bas.
+  // T1 : le cœur porte désormais un suffixe de cache (`?v=…`). Garder ce suffixe dans la
+  // copie du banc et exiger une seule balise : l'ancienne ancre littérale ne reconnaissait
+  // plus le chargement réel, ce qui faisait échouer le forgeage avant tout contrôle produit.
+  const coreScript = /<script src="studio-clinique-core\.js(\?[^"<>]*)?"><\/script>/g;
+  if ((source.match(coreScript) || []).length !== 1) throw new Error('balise du cœur absente ou ambiguë');
   let page = source
-    .replace('<script src="studio-clinique-core.js"></script>', '<script src="../studio-clinique-core.js"></script>')
+    .replace(coreScript, '<script src="../studio-clinique-core.js$1"></script>')
     .replace('<script src="atelier-images.js"></script>', '<script src="../atelier-images.js"></script>')
     .replace('<script src="vendor/ajv2020.min.js"></script>', '<script src="../vendor/ajv2020.min.js"></script>');
-  ['../studio-clinique-core.js', '../atelier-images.js', '../vendor/ajv2020.min.js'].forEach((r) => {
+  if (!/<script src="\.\.\/studio-clinique-core\.js(\?[^"<>]*)?"><\/script>/.test(page))
+    throw new Error('référence du cœur non réécrite');
+  ['../atelier-images.js', '../vendor/ajv2020.min.js'].forEach((r) => {
     if (page.indexOf('src="' + r + '"') === -1) throw new Error('référence non réécrite : ' + r);
   });
 
