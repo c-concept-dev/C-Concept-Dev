@@ -284,8 +284,15 @@ function documentQuatreTailles() {
     const src = fs.readFileSync(path.join(ROOT, 'studio-clinique-core.js'), 'utf8');
     assert.equal(src.includes("'window.ADOC_EXPORT_DOC = ' + JSON.stringify(adocDocumentPourExport(doc)) + ';'"), true,
       'le seul embarquement du document doit passer par adocDocumentPourExport');
-    const embarquements = (src.match(/JSON\.stringify\(doc\)/g) || []).length;
-    assert.equal(embarquements, 1, 'un seul JSON.stringify(doc) doit subsister, et c\'est l\'instantané d\'annulation : ' + embarquements);
+    // T1 : la suppression d'un bloc prend aussi un instantané JSON pour l'annulation.
+    // Compter les sérialisations dans TOUT le fichier confond cet instantané privé avec
+    // l'embarquement partageable. Contrôler la fonction d'export elle-même à la place.
+    const debutExport = src.indexOf('async function adocBuildStandalonePresentationHTML(');
+    const finExport = src.indexOf('// Exposé pour les tests', debutExport);
+    assert.ok(debutExport >= 0 && finExport > debutExport, 'bornes de l\'export retrouvées');
+    const sourceExport = src.slice(debutExport, finExport);
+    assert.equal((sourceExport.match(/JSON\.stringify\(doc\)/g) || []).length, 0,
+      'le document brut ne doit pas être sérialisé dans l\'export partageable');
     assert.equal(/const oldDoc = JSON\.parse\(JSON\.stringify\(doc\)\)/.test(src), true,
       'et c\'est bien celui-là');
     pass('un seul point d\'embarquement du document, et il retire la narration.');

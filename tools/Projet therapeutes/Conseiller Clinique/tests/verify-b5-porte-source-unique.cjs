@@ -63,7 +63,11 @@ const normaliser = h => h.replace(/\s+/g, ' ').replace(/=""/g, '').trim();
     console.log('PASS 2/7  injectée exactement une fois, au bon endroit, avec ses trois éléments, masquée.');
 
     // ── 3. ORDRE DE DÉMARRAGE — le script est chargé AVANT que l'overlay soit analysé ───────────
-    const posScript = source.indexOf('src="studio-clinique-core.js"');
+    // T1 : accepter le suffixe de version du chargement, tout en exigeant exactement une
+    // balise de cœur avant l'overlay. L'ancien indexOf donnait -1 après le cache-busting.
+    const coreTags = [...source.matchAll(/<script src="studio-clinique-core\.js(?:\?[^"<>]*)?"><\/script>/g)];
+    assert.equal(coreTags.length, 1, 'une seule balise charge le cœur');
+    const posScript = coreTags[0].index;
     const posOverlay = source.indexOf('id="cc-ws-present-overlay"');
     assert.ok(posScript !== -1 && posOverlay !== -1 && posScript < posOverlay,
       'ce test ne vaut que si le script précède réellement l\'overlay dans le document');
