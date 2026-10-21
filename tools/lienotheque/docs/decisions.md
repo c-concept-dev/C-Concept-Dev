@@ -3679,11 +3679,10 @@ Trois raisons, et chacune suffirait :
 - `@lienotheque/depot-sqlite` est une dépendance de **développement** d'ingestion ; l'y faire
   entrer en production pour nourrir un magasin que rien ne lit n'a pas d'usage.
 
-**Ce qui reste une question ouverte, et qui appartient à Christophe :** le dépôt SQLite, ses sept
-migrations et son index plein texte FTS5 sont **lus par rien dans l'application**. Ils ont été
-bâtis pour l'hébergement du lot E, où D1 reprendra le même schéma. Soit c'est leur raison d'être et
-ils attendent leur tour ; soit le produit local doit s'appuyer sur eux plutôt que sur l'instantané,
-et c'est un chantier en soi — pas un appel de fonction.
+**Réserve nommée, tranchée le 21 octobre 2026 :** le dépôt SQLite, ses sept migrations et son index
+plein texte FTS5 sont **lus par rien dans l'application**. Ils ont été bâtis pour l'hébergement du
+lot E, où D1 reprendra le même schéma. **Décision : aucune action maintenant** — c'est pour E3 et
+D1, pas pour le bureau local. On le laisse en réserve nommée plutôt qu'en chantier ouvert.
 
 ### Le défaut que le passage par la vraie porte a trouvé
 
@@ -3712,3 +3711,44 @@ fenêtre. C'est le genre de défaut qu'aucune épreuve unitaire bien écrite ne 
 document trouve en une minute. D'où la nouvelle épreuve `de-la-porte-a-la-recherche.test.ts`, qui
 emprunte le chemin entier — porte, aller-retour JSON de l'hôte, contrats de relecture, `chercher` —
 sur une fixture qui dit elle-même quelle page porte quoi.
+
+
+## 21 octobre 2026 — les trois bloquants de BAS-02 sont clos, avec leurs réserves
+
+Décision de Christophe. Le réimport des deux cent cinquante peut être envisagé : les trois
+conditions qu'on s'était données sont tenues.
+
+| Bloquant | Ce qui le clôt |
+|---|---|
+| 1. Qualité de la couche texte | 50 couples adjugés à l'œil sur le vrai corpus, borne 41–70 %, OCR préféré à la couche, fixture qui le prouve, F1/F3/F4/F5 inchangés |
+| 2. Dégradation de F4 | Cause trouvée — le vote d'orientation qui bascule à la 9ᵉ feuille ; 15 s/page actées comme le coût d'une lecture juste ; la découpe du 17 octobre invalidée |
+| 3. Le vrai corpus de bout en bout | Trois formats traversent la chaîne (PDF natif, PDF numérisé, EPUB), et un document réel traverse la **porte réelle** jusqu'à la recherche, cité sur la page où le texte est imprimé |
+
+### Les réserves, consignées plutôt que tues
+
+**L'épreuve Rust est séparée du reste.** L'épreuve de bout en bout reproduit l'aller-retour JSON de
+l'hôte, elle ne lance pas l'hôte. `ecrire_version`, `activer` et `charge_active` sont couverts par
+les épreuves Rust, qui ne sont pas dans `pnpm check` (voir la décision sur les deux intégrations
+continues). `passages_de_document`, une extraction d'une ligne, n'a pas d'épreuve.
+
+**Le dépôt SQLite reste lu par rien.** Réserve nommée, tranchée ci-dessus : rien à faire avant E3
+et D1.
+
+### Les trois citations du document numérisé, vérifiées à l'œil
+
+*Theorie ACT Que sais-je.pdf*, document numérisé en double page, texte venu de la reconnaissance —
+donc la couche ne peut pas servir de preuve, c'est elle qu'on valide. Trois citations confrontées à
+l'image de la feuille :
+
+| Feuille | Moitié | Folio annoncé | Vu sur l'image |
+|---|---|---|---|
+| 17 | droite | 33 | le texte y est, folio 33 à droite, 32 à gauche |
+| 34 | gauche | 66 | le texte y est, folio 66 ; la moitié droite finit le chapitre, sans folio |
+| 50 | gauche | 98 | l'emplacement est juste, folio 98 |
+
+**Ce que la troisième apprend, et qu'aucune des deux autres ne disait :** « présent | Acceptation |
+Défusion » n'est pas une phrase imprimée. Ce sont les **étiquettes d'une figure** que la
+reconnaissance a lues en ligne. La page est la bonne et le repère est le bon — une citation peut
+donc tomber juste et rester illisible comme phrase. Rien n'est fait de ce constat pour l'instant :
+retirer le texte de figure changerait l'extrait exact que RCH-07 promet, et une légende de figure
+est parfois exactement ce qu'on cherche.
