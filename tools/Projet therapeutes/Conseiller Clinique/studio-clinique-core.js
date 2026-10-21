@@ -16503,6 +16503,17 @@ ${recent}`;
       if (returnFocus) parts.trigger.focus();
     });
   }
+  function adocWsMenuPlace(parts) {
+    // Quand la barre passe sur deux lignes, un menu aligné systématiquement à droite de
+    // son bouton peut sortir à gauche de la fenêtre. Le caler dans le viewport réel.
+    const wrapRect = parts.wrap.getBoundingClientRect();
+    const menuWidth = parts.menu.getBoundingClientRect().width;
+    const leftIfRightAligned = wrapRect.width - menuWidth;
+    const minimum = 8 - wrapRect.left;
+    const maximum = window.innerWidth - 8 - menuWidth - wrapRect.left;
+    parts.menu.style.right = 'auto';
+    parts.menu.style.left = Math.max(minimum, Math.min(leftIfRightAligned, maximum)) + 'px';
+  }
   window.adocWsMenuToggle = function (name, last) {
     const parts = adocWsMenuParts(name);
     if (!parts) return;
@@ -16512,9 +16523,16 @@ ${recent}`;
     parts.wrap.hidden = !items.length;
     if (!opening || !items.length) return;
     parts.menu.hidden = false;
+    adocWsMenuPlace(parts);
     parts.trigger.setAttribute('aria-expanded', 'true');
     (last ? items[items.length - 1] : items[0]).focus();
   };
+  window.addEventListener('resize', function () {
+    ['file', 'export'].forEach(function (name) {
+      const parts = adocWsMenuParts(name);
+      if (parts && !parts.menu.hidden) adocWsMenuPlace(parts);
+    });
+  });
   document.addEventListener('click', function (event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
