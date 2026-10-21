@@ -5,6 +5,13 @@ description = "Prototype bureau Liénothèque (lot 0) : PDF, sidecar, reprise, l
 edition = "2021"
 rust-version = "1.82"
 publish = false
+# L'application, et elle seule, quand personne ne précise quoi lancer.
+#
+# `src/bin/reimport.rs` a ajouté un second binaire au paquet, et `cargo run` a cessé de savoir
+# lequel servir : « could not determine which binary to run ». `tauri dev` appelle `cargo run`
+# sans `--bin`, donc l'application de bureau ne démarrait plus — un outil d'appoint avait pris en
+# otage la commande de développement. L'outil reste disponible par `cargo run --bin reimport`.
+default-run = "lienotheque-bureau"
 
 [lib]
 name = "lienotheque_bureau"
