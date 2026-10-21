@@ -96,6 +96,18 @@ async function fixture(browser) {
       await popup.waitForFunction(() => document.querySelectorAll('.adoc-pdf-page').length === 3);
       await popup.waitForFunction(() => window.__adocPrintInvoked === true);
       const printHtml = await popup.content();
+      assert.ok(printHtml.includes('adoc-native-print-pagination'), name + ' : adaptation native de pagination absente');
+      const printCss = await popup.evaluate(() => Array.from(document.styleSheets).some(sheet =>
+        sheet.ownerNode?.id === 'adoc-native-print-pagination' && sheet.media.mediaText.includes('print')));
+      assert.equal(printCss, true, name + ' : règle Safari limitée au support imprimé');
+      await popup.emulateMedia({ media: 'print' });
+      const printPageStyle = await popup.locator('.adoc-pdf-page').first().evaluate(el => ({
+        minHeight: getComputedStyle(el).minHeight,
+        width: getComputedStyle(el).width,
+        parentWidth: getComputedStyle(el.parentElement).width,
+      }));
+      assert.equal(printPageStyle.minHeight, '0px', name + ' : hauteur fixe réintroduite');
+      assert.equal(printPageStyle.width, printPageStyle.parentWidth, name + ' : largeur non fluide');
       for (const text of ['Diapositive courte repère 001', 'Diapositive longue repère 120'])
         assert.ok(printHtml.includes(text), name + ' : contenu absent du tirage : ' + text);
       assert.ok(printHtml.includes('src="data:image/png;base64,'), name + ' : image privée absente du tirage');
@@ -130,13 +142,15 @@ async function fixture(browser) {
           workerPath, printedPath], { encoding: 'utf8' });
         assert.equal(geometry.status, 0, geometry.stderr);
         const [workerSizes, printedSizes] = JSON.parse(geometry.stdout);
-        assert.deepEqual(printedSizes, workerSizes, 'pagination ou dimensions différentes entre PDF Worker et impression');
+        assert.ok(printedSizes.length >= 3 && printedSizes.length <= workerSizes.length,
+          'pagination de l’impression disproportionnée par rapport au PDF Worker');
         assert.ok(printedSizes.every(([w, h]) => Math.abs(w - 841.9) < 3 && Math.abs(h - 595.3) < 3), 'tirage hors A4 paysage');
         const workerText = pdfText(workerPath), printedText = pdfText(printedPath);
         const pieces = await pdfPage.evaluate(extractHtmlPieces);
         assert.deepEqual(comparePieces(printedText, pieces).failures, [], 'impression : bloc perdu ou hors ordre');
         assert.equal(normalizeText(printedText), normalizeText(workerText), 'texte du tirage différent du PDF Worker');
-        assert.equal(workerText.split('\f').length, printedText.split('\f').length, 'pagination du tirage différente du PDF Worker');
+        assert.ok(printedText.split('\f').length <= workerText.split('\f').length,
+          'l’impression ne doit pas ajouter de feuilles vides');
       }
       await popup.close();
       console.log('PASS lot 4 ' + name + ' : même gabarit et contenu intégral');

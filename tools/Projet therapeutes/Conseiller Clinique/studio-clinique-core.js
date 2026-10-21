@@ -20006,12 +20006,21 @@ ${recent}`;
     if (btn) btn.disabled = true;
     try {
       const prepared = await adocWsPreparePagedPresentation(art, doc);
+      // Safari imprime avec les marges physiques de l'imprimante même si @page demande
+      // margin:0. La carte 4:3 et la hauteur minimale du PDF dépassaient alors une feuille
+      // A4 paysage : le saut explicite ajoutait une page vide après chaque diapositive.
+      // Le PDF Worker garde son gabarit ; seule l'impression native est fluide.
+      const nativePrintCSS = '<style id="adoc-native-print-pagination" media="print">' +
+        '.adoc-pdf-page{width:100%!important;min-height:0!important;height:auto!important;padding:12px!important;}' +
+        '.adoc-sc-presentation-slide .adoc-sc-card{aspect-ratio:auto!important;overflow:visible!important;}' +
+        '.adoc-pdf-page .adoc-sc-card-img{max-height:180px!important;}' +
+        '</style>';
       const loaded = new Promise(function(resolve) {
         printWindow.addEventListener('load', resolve, { once: true });
         setTimeout(resolve, 10000);
       });
       printWindow.document.open();
-      printWindow.document.write(prepared.html);
+      printWindow.document.write(prepared.html.replace('</head>', nativePrintCSS + '</head>'));
       printWindow.document.close();
       await loaded;
       if (printWindow.closed) return;
