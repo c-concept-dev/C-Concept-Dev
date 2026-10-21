@@ -419,6 +419,7 @@ export function App(): JSX.Element {
   const montrerLesPages = async (racine: string, empreinte: string, nom: string, depuis: number): Promise<void> => {
     if (administration === undefined) return;
     setManiere((avant) => ({ ...avant, document: nom, empreinte, occupe: true, echec: undefined }));
+    journaliser(`aperçu demandé · racine « ${racine} » · empreinte « ${empreinte} » · nom « ${nom} »`);
     try {
       const pages = await administration.apercuDePages(racine, empreinte, nom, depuis, 8);
       const connue = await administration.lireManiere(racine);
@@ -432,6 +433,7 @@ export function App(): JSX.Element {
         occupe: false,
       }));
     } catch (erreur) {
+      journaliser(`aperçu refusé · ${erreur instanceof Error ? erreur.message : String(erreur)}`);
       setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
     }
   };
@@ -445,6 +447,7 @@ export function App(): JSX.Element {
       // à lire, et un essai qui ne lit rien ne dit rien.
       const vue = await administration.essayerManiere(
         racine,
+        maniere.empreinte,
         maniere.document,
         enRecette(maniere.brouillon),
         maniere.pages[0]?.rang ?? 0,

@@ -90,6 +90,7 @@ export type PortAdministration = {
   ) => Promise<readonly { rang: number; image: string }[]>;
   readonly essayerManiere: (
     racine: string,
+    empreinte: string,
     nom: string,
     recette: unknown,
     depuis: number,

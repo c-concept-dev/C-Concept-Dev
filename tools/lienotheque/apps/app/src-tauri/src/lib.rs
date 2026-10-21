@@ -265,9 +265,26 @@ fn apercu_de_pages(racine: String, empreinte: String, nom: String, depuis: u32, 
 /// Rien n'est activé : l'essai rend ce qui a été lu, et l'écran le montre. Une version du dépôt
 /// ne s'écrit que pour un vrai traitement (JOB-06).
 #[tauri::command]
-fn essayer_maniere(racine: String, nom: String, recette: String, depuis: u32, pages: u32) -> Result<serde_json::Value, String> {
+fn essayer_maniere(
+    racine: String,
+    empreinte: String,
+    nom: String,
+    recette: String,
+    depuis: u32,
+    pages: u32,
+) -> Result<serde_json::Value, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
-    let document = depot.racine().join(depot::SOURCES).join(&nom);
+    // Par l'empreinte, comme l'aperçu et comme la file : `sources/ab/abcdef….pdf`. Cette
+    // commande-ci cherchait encore sous `sources/<nom du fichier>`, un chemin qui n'existe
+    // jamais — l'essai refusait donc tous les documents, et le bandeau restait affiché pendant
+    // que les pages, elles, s'affichaient très bien. Deux commandes, une seule faute, et elle
+    // vivait deux fois.
+    let extension = std::path::Path::new(&nom)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("bin")
+        .to_lowercase();
+    let document = depot.source(&empreinte, &extension);
     if !document.exists() {
         return Err(format!("Le fichier « {nom} » n’est plus dans la bibliothèque."));
     }

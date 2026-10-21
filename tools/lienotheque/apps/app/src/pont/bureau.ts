@@ -161,6 +161,7 @@ export async function apercuDePages(
 /** Essaie une manière de lire sur quelques pages, sans rien enregistrer (REC-07). */
 export async function essayerManiere(
   racine: string,
+  empreinte: string,
   nom: string,
   recette: unknown,
   depuis: number,
@@ -168,6 +169,7 @@ export async function essayerManiere(
 ): Promise<VueBibliotheque> {
   const rendu = await invoke<{ vue: unknown }>("essayer_maniere", {
     racine,
+    empreinte,
     nom,
     recette: JSON.stringify(recette),
     depuis,
