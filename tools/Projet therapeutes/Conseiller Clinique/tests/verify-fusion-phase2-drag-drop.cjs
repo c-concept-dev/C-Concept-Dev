@@ -23,6 +23,7 @@ function baseDoc(id, title, documentKind, blocks) {
 function heading(id, text) { return { id: id, type: 'heading', content: { text: text, level: 2 }, citationIds: [], validation: {} }; }
 function para(id, text) { return { id: id, type: 'paragraph', content: { text: text }, citationIds: [], validation: {} }; }
 function tableBlock(id) { return { id: id, type: 'table', content: { headers: ['A', 'B'], rows: [['1', '2']] }, citationIds: [], validation: {} }; }
+function imageBlock(id) { return { id: id, type: 'image', content: { query: 'portrait', alt: 'Portrait', assetId: 'asset-fusion-photo', imageDisplay: { fit: 'contain' } }, citationIds: [], validation: {} }; }
 function card(id, title, nestedBlocks) { return { id: id, type: 'card', content: { title: title, imageRef: null, imageAlt: null, blocks: nestedBlocks }, citationIds: [], validation: {} }; }
 
 async function dragHandleTo(page, blockId, targetPoint) {
@@ -54,6 +55,9 @@ async function dragHandleTo(page, blockId, targetPoint) {
     if (url.endsWith('/brand-kits')) {
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ brand_kits: [] }) });
     }
+    if (url.includes('/brand-assets/asset-fusion-photo')) {
+      return route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64') });
+    }
     return route.continue();
   });
 
@@ -64,7 +68,7 @@ async function dragHandleTo(page, blockId, targetPoint) {
   const docA = baseDoc('doc-fusion2-a', 'Document A (Fiche)', 'fiche', [heading('a-h1', 'Titre A'), para('a-p1', 'Paragraphe A1'), para('a-p2', 'Paragraphe A2')]);
   const docA2 = baseDoc('doc-fusion2-a2', 'Document A2 (Carrousel)', 'carrousel', [card('card-a2', 'Carte A2', [para('a2-nested-p1', 'Paragraphe imbriqué A2')])]);
   const docB1 = baseDoc('doc-fusion2-b1', 'Document B1 (Carrousel)', 'carrousel', [card('card-b1', 'Carte B1', [para('b1-nested-p1', 'Paragraphe imbriqué B1, source de glissement.')])]);
-  const docB2 = baseDoc('doc-fusion2-b2', 'Document B2 (Fiche)', 'fiche', [heading('b2-h1', 'Titre B2'), para('b2-p1', 'Paragraphe B2, glissé au milieu.'), tableBlock('b2-table1')]);
+  const docB2 = baseDoc('doc-fusion2-b2', 'Document B2 (Fiche)', 'fiche', [heading('b2-h1', 'Titre B2'), para('b2-p1', 'Paragraphe B2, glissé au milieu.'), tableBlock('b2-table1'), imageBlock('b2-image')]);
 
   const storeKeyA = 'adocArt_fusion2_a', storeKeyA2 = 'adocArt_fusion2_a2';
   await page.evaluate(({ keyA, docA, keyA2, docA2 }) => {
@@ -264,6 +268,29 @@ async function dragHandleTo(page, blockId, targetPoint) {
   await page.fill('#cc-ws-creations-filter-title', '');
   await page.waitForFunction(() => document.querySelectorAll('#cc-ws-creations-results .cc-media-item').length === 2);
   console.log('PASS 10/11 — non-régression : le panneau "Mes créations" (filtre par titre) reste pleinement fonctionnel');
+
+  // Une photo de B doit entrer dans une carte de A avec son asset et ses réglages d'affichage.
+  assert.equal(await page.evaluate(key => window.adocOpenWorkspace(key), storeKeyA2), true);
+  await page.waitForSelector('#cc-preview-doc-card #b2-image');
+  const imageBox = await page.locator('#cc-preview-doc-card #b2-image').boundingBox();
+  await page.mouse.move(imageBox.x + 4, imageBox.y + imageBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(imageBox.x + 14, imageBox.y + imageBox.height / 2 + 10);
+  const a2Box = await page.locator('#cc-ws-doc-card').boundingBox();
+  await page.mouse.move(a2Box.x + 20, a2Box.y + 20, { steps: 6 });
+  await page.waitForSelector('#cc-ws-doc-card .cc-fusion-drop-target');
+  const imageTarget = page.locator('#cc-ws-doc-card .cc-fusion-drop-target[data-fusion-anchor="a2-nested-p1"][data-fusion-position="after"]');
+  const imageTargetBox = await imageTarget.boundingBox();
+  await page.mouse.move(imageTargetBox.x + imageTargetBox.width / 2, imageTargetBox.y + imageTargetBox.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForFunction(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks.length === 2, storeKeyA2);
+  const copiedImage = await page.evaluate(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks[1], storeKeyA2);
+  assert.equal(copiedImage.type, 'image');
+  assert.equal(copiedImage.content.assetId, 'asset-fusion-photo');
+  assert.deepEqual(copiedImage.content.imageDisplay, { fit: 'contain' });
+  assert.notEqual(copiedImage.id, 'b2-image');
+  assert.equal(await page.locator('#cc-preview-doc-card #b2-image').count(), 1, 'l’image source reste intacte');
+  console.log('PASS photo — bloc image glissé de l’aperçu vers la carte, asset et cadrage conservés');
 
   // ── Zéro erreur JS sur l’ensemble du scénario ──
   assert.deepEqual(pageErrors, [], 'aucune erreur JS / dialogue non géré ne doit survenir sur l’ensemble du scénario : ' + JSON.stringify(pageErrors));

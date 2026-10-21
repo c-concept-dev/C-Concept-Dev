@@ -9,7 +9,7 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
   const browser = await (process.env.STUDIO_TEST_BROWSER === 'webkit' ? webkit : chromium).launch();
   try {
     const page = await browser.newPage();
-    let pptxCalls = 0;
+    let pptxCalls = 0, pdfHtml = '', jpegHtml = '';
     await page.addInitScript(() => localStorage.setItem('workerApiKey', 'local-test-only'));
     await page.route('https://**/*', async route => {
       const req = route.request(), u = new URL(req.url());
@@ -19,6 +19,14 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
         return route.fulfill({ status: rep.status, body: await rep.text(), contentType: 'application/json' });
       }
       if (u.pathname.includes('generate-carrousel-pptx')) pptxCalls++;
+      if (u.pathname.endsWith('/browser-rendering/generate-carrousel-pdf')) {
+        pdfHtml = JSON.parse(req.postData()).html;
+        return route.fulfill({ body: '%PDF-1.4\n%%EOF', contentType: 'application/pdf' });
+      }
+      if (u.pathname.endsWith('/browser-rendering/screenshot-slide')) {
+        jpegHtml = JSON.parse(req.postData()).html;
+        return route.fulfill({ body: png, contentType: 'image/jpeg' });
+      }
       if (u.pathname.startsWith('/brand-assets/')) return route.fulfill({ body: png, contentType: 'image/png' });
       return route.fulfill({ json: { results: [], items: [], total: 0 } });
     });
@@ -118,6 +126,25 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     await page.evaluate(() => adocWsExportCarrouselPPTX());
     assert.ok(warning.includes('ne reprend pas les cadrages'), 'limite PPTX annoncée dans l’interface');
     assert.equal(pptxCalls, 0, 'aucun export après refus');
+    const exportCard = doc('carrousel');
+    exportCard.blocks[0].content.imageRef = null;
+    exportCard.blocks[0].content.imageAssetId = 'asset-cover';
+    exportCard.blocks[0].content.imageAlt = 'Couverture';
+    exportCard.blocks[0].content.imageDisplay = { fit: 'contain', brightness: 118 };
+    exportCard.blocks[0].content.blocks.push({ id: 'image-export', type: 'image', content: {
+      query: 'photo', alt: 'Photo', assetId: 'asset-inline', imageDisplay: { fit: 'fill', contrast: 120 }
+    }, citationIds: [], validation: {} });
+    assert.equal(await open(page, exportCard, 'export-card'), true);
+    await page.evaluate(() => adocWsExportCarrouselPDF());
+    assert.match(pdfHtml, /object-fit:contain/, 'le PDF reprend le cadrage de couverture');
+    assert.match(pdfHtml, /brightness\(118%\)/, 'le PDF reprend la correction de couverture');
+    assert.match(pdfHtml, /object-fit:fill/, 'le PDF reprend le cadrage du bloc image');
+    jpegHtml = '';
+    await page.evaluate(() => { window.JSZip = class { file() {} async generateAsync() { return new Blob(['zip']); } }; });
+    await page.evaluate(() => adocWsExportJPEG());
+    assert.ok(jpegHtml, 'l’export JPEG a appelé la capture');
+    assert.match(jpegHtml, /object-fit:contain/, 'le JPEG reprend le cadrage de couverture');
+    assert.match(jpegHtml, /contrast\(120%\)/, 'le JPEG reprend la correction du bloc image');
     console.log('PASS lot 7 : couverture des six types, bloc image, cadrage et correction visibles');
   } finally { await browser.close(); backend.db.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
