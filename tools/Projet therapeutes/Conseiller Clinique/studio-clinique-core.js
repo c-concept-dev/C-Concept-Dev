@@ -16690,9 +16690,25 @@ ${recent}`;
     parts.menu.style.right = 'auto';
     parts.menu.style.left = Math.max(minimum, Math.min(leftIfRightAligned, maximum)) + 'px';
   }
+  function adocWsRefreshExportLabel() {
+    const art = window._adocArtifacts && window._adocWsState && window._adocArtifacts[window._adocWsState.storeKey];
+    const realFormats = ['xlsx', 'pptx', 'docx'];
+    let extension = 'html';
+    if (art && art._adocGenerationEngine === 'legacy-html') {
+      if (!art._adocEverEdited && realFormats.includes(art.fmt) && art.url) extension = art.fmt;
+      else if (art.fmt === 'xlsx' && art._adocEverEdited && art.xlsxData && Array.isArray(art.xlsxData.headers) && art.xlsxData.headers.length) extension = 'xlsx';
+    }
+    const label = 'Exporter ' + (art && art.name || 'document') + '.' + extension;
+    const button = document.getElementById('cc-ws-export-btn');
+    if (!button) return;
+    const text = button.querySelector('span');
+    if (text) text.textContent = label;
+    button.setAttribute('aria-label', label);
+  }
   window.adocWsMenuToggle = function (name, last) {
     const parts = adocWsMenuParts(name);
     if (!parts) return;
+    if (name === 'export') adocWsRefreshExportLabel();
     const opening = parts.menu.hidden;
     adocWsMenuClose(false);
     const items = parts.items();
@@ -21008,6 +21024,10 @@ ${recent}`;
     window.addEventListener('mousemove', move, true);
     window.addEventListener('mouseup', up, true);
   }
+  function adocDeleteControlLabel(kind, index, text) {
+    const excerpt = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    return 'Supprimer ' + kind + ' ' + (index + 1) + (excerpt ? ' : ' + excerpt : '');
+  }
   function adocWsSetupBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
     if (!docCard) return;
@@ -21020,20 +21040,23 @@ ${recent}`;
       el.setAttribute('role', 'button');
       el.setAttribute('aria-label', el.classList.contains('adoc-sc-cover') ? 'Options de la couverture' : 'Options de la photo : ' + (el.getAttribute('alt') || 'image'));
     });
-    docCard.querySelectorAll('.adoc-sc-block[id]').forEach(function (blockEl) {
+    docCard.querySelectorAll('.adoc-sc-block[id]').forEach(function (blockEl, index) {
       if (blockEl.querySelector(':scope > .cc-block-delete')) return;
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'cc-block-delete'; button.textContent = '×';
-      button.title = 'Supprimer ce bloc'; button.setAttribute('aria-label', 'Supprimer ce bloc');
+      button.title = 'Supprimer ce bloc';
+      button.setAttribute('aria-label', adocDeleteControlLabel('le bloc', index, blockEl.textContent));
       button.contentEditable = 'false';
       blockEl.appendChild(button);
     });
-    docCard.querySelectorAll('.adoc-sc-card[id]').forEach(function (cardEl) {
+    docCard.querySelectorAll('.adoc-sc-card[id]').forEach(function (cardEl, index) {
       if (cardEl.querySelector(':scope > .cc-card-delete')) return;
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'cc-block-delete cc-card-delete'; button.textContent = '×';
       button.title = 'Supprimer cette diapositive ou carte';
-      button.setAttribute('aria-label', button.title); button.contentEditable = 'false';
+      const kind = art._adocStructuredDoc && art._adocStructuredDoc.documentKind === 'presentation' ? 'la diapositive' : 'la carte';
+      button.setAttribute('aria-label', adocDeleteControlLabel(kind, index, cardEl.querySelector('.adoc-sc-card-title')?.textContent));
+      button.contentEditable = 'false';
       cardEl.appendChild(button);
     });
     if (art._adocStructuredDoc && art._adocStructuredDoc.documentKind !== 'carrousel') {
@@ -24670,12 +24693,13 @@ ${recent}`;
       wrap.appendChild(el);
       wrap.insertAdjacentHTML('afterbegin', '<span class="adoc-sc-block-drag-handle" aria-hidden="true" title="Glisser pour réordonner"></span>');
     });
-    docCard.querySelectorAll('.adoc-sc-block-drag-wrap').forEach(function (wrap) {
+    docCard.querySelectorAll('.adoc-sc-block-drag-wrap').forEach(function (wrap, index) {
       if (wrap.querySelector(':scope > .cc-block-delete')) return;
       if (wrap.querySelector('table[data-cc-xlsx-grid]')) return;
       const button = document.createElement('button');
       button.type = 'button'; button.className = 'cc-block-delete'; button.textContent = '×';
-      button.title = 'Supprimer ce bloc'; button.setAttribute('aria-label', 'Supprimer ce bloc');
+      button.title = 'Supprimer ce bloc';
+      button.setAttribute('aria-label', adocDeleteControlLabel('le bloc', index, wrap.textContent));
       button.contentEditable = 'false';
       wrap.appendChild(button);
     });

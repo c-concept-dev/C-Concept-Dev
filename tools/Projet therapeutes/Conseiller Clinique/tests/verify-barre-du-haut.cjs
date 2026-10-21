@@ -77,9 +77,13 @@ const root = path.join(__dirname, '..');
       await page.keyboard.press('ArrowDown');
       assert.equal(await page.evaluate(() => document.activeElement.getAttribute('role')), 'menuitem', 'arrow opens');
       await page.keyboard.press('End');
-      assert.equal(await page.evaluate(() => document.activeElement.id), kind === 'presentation'
-        ? 'cc-ws-export-standalone-presentation-btn' : kind === 'carrousel'
-          ? 'cc-ws-export-pptx-carrousel-btn' : 'cc-ws-export-btn', 'End moves to last item');
+      // Lot A : les trois groupes réordonnent les sorties. Vérifier le dernier geste
+      // réellement visible préserve le contrat clavier sans figer l'ancien ordre du DOM.
+      assert.equal(await page.evaluate(() => document.activeElement.id), await page.evaluate(() => {
+        const items = Array.from(document.querySelectorAll('#cc-ws-export-menu-items [role="menuitem"]'))
+          .filter(item => !item.hidden && getComputedStyle(item).display !== 'none');
+        return items.at(-1)?.id;
+      }), 'End moves to last visible item');
       await page.keyboard.press('Escape');
       await page.locator('#cc-ws-file-menu-trigger').click();
       await page.locator('#cc-ws-title').click();
