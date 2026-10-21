@@ -214,6 +214,52 @@ impl Depot {
         self.ecrire_actives(&table)
     }
 
+    /// Met le dossier de la bibliothèque **à la corbeille**, et rend où il a atterri.
+    ///
+    /// ## Pourquoi la corbeille et non l'effacement
+    ///
+    /// Une action destructrice qui se défait vaut mieux que toutes les confirmations du monde.
+    /// Une bibliothèque porte les documents de quelqu'un ; se tromper de bouton ne doit pas
+    /// coûter une collection. Le dossier reste donc entier, là où macOS laisse ce qu'on jette, et
+    /// se ressort d'un glisser.
+    ///
+    /// ## Elle refuse ce qui n'est pas une bibliothèque
+    ///
+    /// Un chemin devenu faux — un disque remonté ailleurs, un dossier renommé — ne doit emporter
+    /// ni les photos ni le bureau de personne. On vérifie donc que le dossier porte bien une
+    /// description avant d'y toucher, et on refuse franchement sinon.
+    ///
+    /// ## Un nom libre dans la corbeille
+    ///
+    /// Deux bibliothèques du même nom jetées le même jour ne doivent pas s'écraser l'une
+    /// l'autre : on cherche un nom disponible plutôt que d'écrire par-dessus.
+    pub fn a_la_corbeille(&self) -> io::Result<PathBuf> {
+        if !self.deja_une_bibliotheque() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Ce dossier ne porte pas de bibliothèque : rien n'a été touché.",
+            ));
+        }
+
+        let corbeille = dossier_personnel()?.join(".Trash");
+        fs::create_dir_all(&corbeille)?;
+        let nom = self
+            .racine
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "Bibliothèque".to_owned());
+
+        let mut vise = corbeille.join(&nom);
+        let mut rang = 2;
+        while vise.exists() {
+            vise = corbeille.join(format!("{nom} {rang}"));
+            rang += 1;
+        }
+
+        fs::rename(&self.racine, &vise)?;
+        Ok(vise)
+    }
+
     /// La table entière, en une lecture.
     ///
     /// Une table plutôt qu'un fichier par document : la vue d'ensemble la consulte d'un coup, là
@@ -354,6 +400,13 @@ impl Depot {
 /// De quoi donner un nom différent à chaque temporaire, sans se soucier de qui écrit.
 static COMPTEUR_TEMPORAIRE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+/// Le dossier personnel, d'où l'on atteint la corbeille de l'utilisateur.
+fn dossier_personnel() -> io::Result<PathBuf> {
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Dossier personnel introuvable."))
+}
+
 fn ecrire_atomique(chemin: &Path, contenu: &[u8]) -> io::Result<()> {
     if let Some(parent) = chemin.parent() {
         fs::create_dir_all(parent)?;
@@ -385,6 +438,32 @@ mod tests {
         let racine = std::env::temp_dir().join(format!("lienotheque-depot-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
         (Depot::ouvrir(&racine).expect("dépôt ouvert"), racine)
+    }
+
+    /// Une bibliothèque jetée part à la corbeille, entière.
+    #[test]
+    fn une_bibliotheque_jetee_se_retrouve_dans_la_corbeille() {
+        let (depot, racine) = depot_neuf("corbeille");
+        depot.ecrire_description(r#"{"nom":"Essai"}"#).expect("description");
+        fs::write(depot.racine().join(SOURCES).join("un-document.pdf"), b"x").expect("document");
+
+        let jetee = depot.a_la_corbeille().expect("jetée");
+        assert!(!racine.exists(), "le dossier d'origine devrait avoir bougé");
+        assert!(jetee.join(BASE).join(DESCRIPTION).exists(), "la description devrait avoir suivi");
+        assert!(jetee.join(SOURCES).join("un-document.pdf").exists(), "les documents aussi");
+        fs::remove_dir_all(&jetee).ok();
+    }
+
+    /// Et elle refuse un dossier qui n'en porte pas : un chemin devenu faux n'emporte rien.
+    #[test]
+    fn un_dossier_sans_bibliotheque_ne_part_pas_a_la_corbeille() {
+        let (depot, racine) = depot_neuf("corbeille-refus");
+        fs::write(racine.join("une-photo.jpg"), b"x").expect("photo");
+
+        let refus = depot.a_la_corbeille().expect_err("doit refuser");
+        assert!(refus.to_string().contains("ne porte pas de bibliothèque"), "{refus}");
+        assert!(racine.join("une-photo.jpg").exists(), "rien ne devait être touché");
+        fs::remove_dir_all(&racine).ok();
     }
 
     #[test]

@@ -179,3 +179,43 @@ describe("ce qui est déposé mais ne se lit pas seul", () => {
     expect(within(liste).getByText(/ne sait pas encore lire/)).toBeInTheDocument();
   });
 });
+
+
+/** « Ouvrir », à côté d'un travail arrêté, mène là où l'on peut agir (UX-01)
+ *
+ *  Une bibliothèque neuve n'a pas de manière de lire : le premier document déposé s'arrête, et le
+ *  message le dit — « Apprenez-en une, puis reprenez ce travail ». Le lien qui suit menait à
+ *  l'écran de **vérification**, qui n'a rien à montrer tant que rien n'a été traité, et qui
+ *  renvoie donc à l'accueil. Le premier geste d'une bibliothèque neuve tournait en rond.
+ *
+ *  Relevé le 21 octobre 2026 sur la première vraie création, par le traceur : un clic sur
+ *  « Ouvrir », puis `écran verifier`, puis l'accueil.
+ */
+describe("sortir d'un travail arrêté (UX-01)", () => {
+  const ARRETE = travail(1, {
+    etat: "en_echec_definitif",
+    erreur: { cause: "Cette bibliothèque n’a pas encore de manière de lire.", elements: [], reprisePossible: false },
+  });
+
+  it("ouvre la manière de lire du document, et non la vérification", async () => {
+    const onManiere = vi.fn();
+    const onVerifier = vi.fn();
+    render(
+      <Depot description={DESCRIPTION} travaux={[ARRETE]} onFichiers={vi.fn()} onAction={vi.fn()} onVerifier={onVerifier} onManiere={onManiere} />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Ouvrir" }));
+    expect(onManiere, "« Apprenez-en une » doit mener à l’éditeur").toHaveBeenCalledWith("document-1.pdf");
+    expect(onVerifier, "la vérification n’a rien à montrer d’un travail qui n’a pas tourné").not.toHaveBeenCalled();
+  });
+
+  it("se rabat sur la vérification quand l’éditeur n’est pas joignable", async () => {
+    // En ligne, il n'y a pas d'éditeur de manière de lire : le lien doit tout de même mener
+    // quelque part plutôt que disparaître.
+    const onVerifier = vi.fn();
+    render(<Depot description={DESCRIPTION} travaux={[ARRETE]} onFichiers={vi.fn()} onAction={vi.fn()} onVerifier={onVerifier} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Ouvrir" }));
+    expect(onVerifier).toHaveBeenCalledTimes(1);
+  });
+});

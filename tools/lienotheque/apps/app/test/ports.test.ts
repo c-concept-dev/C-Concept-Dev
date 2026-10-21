@@ -47,11 +47,19 @@ describe("deux ports, et une frontière qui tient", () => {
     expect(communes, "une fonction des deux côtés n'a plus de frontière").toEqual([]);
   });
 
-  it("les deux fonctions sans appelant n'entrent dans aucun port", () => {
-    // Les inscrire obligerait la version en ligne à implémenter ce que personne ne demande.
-    for (const morte of ["reglages", "oublierBibliotheque"]) {
-      expect(NOMS_DE_LECTURE as readonly string[]).not.toContain(morte);
-      expect(NOMS_D_ADMINISTRATION as readonly string[]).not.toContain(morte);
+  it("ce qu'aucun écran n'appelle n'entre dans aucun port", () => {
+    // L'inscrire obligerait la version en ligne à implémenter ce que personne ne demande.
+    expect(NOMS_DE_LECTURE as readonly string[]).not.toContain("reglages");
+    expect(NOMS_D_ADMINISTRATION as readonly string[]).not.toContain("reglages");
+  });
+
+  it("retirer une bibliothèque appartient à l'administration, et à elle seule", () => {
+    // `oublierBibliotheque` a dormi longtemps hors des ports, faute d'appelant : l'hôte savait le
+    // faire et aucun écran ne le proposait. L'écran de retrait l'a réveillée le 21 octobre 2026,
+    // avec sa sœur destructrice. Les deux sont du bureau : on ne retire rien en ligne.
+    for (const geste of ["oublierBibliotheque", "supprimerBibliotheque"]) {
+      expect(NOMS_D_ADMINISTRATION as readonly string[]).toContain(geste);
+      expect(NOMS_DE_LECTURE as readonly string[]).not.toContain(geste);
     }
   });
 

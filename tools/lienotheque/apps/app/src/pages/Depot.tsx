@@ -70,6 +70,9 @@ type Props = {
   readonly onFichiers: (fichiers: readonly File[]) => void;
   readonly onAction: (id: string, action: ActionTravail) => void;
   readonly onVerifier: () => void;
+  /** Ouvrir l'écran qui retire cette bibliothèque — l'oublier, ou la mettre à la corbeille.
+   *  Absent là où l'on ne peut pas administrer : en ligne, on ne retire rien. */
+  readonly onRetirer?: (() => void) | undefined;
   /** Ouvre la manière de lire pour ce document : c'est par lui qu'on y entre, parce que c'est
    *  lui qu'on regarde en la montrant. */
   readonly onManiere?: ((nom: string) => void) | undefined;
@@ -84,6 +87,7 @@ export function Depot({
   onFichiers,
   onAction,
   onVerifier,
+  onRetirer,
   onManiere,
 }: Props): JSX.Element {
   const enCours = travaux.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length;
@@ -168,7 +172,16 @@ export function Depot({
                     {enPanne ? (
                       <>
                         {" "}
-                        <button type="button" className="ln-lien-action" onClick={onVerifier}>
+                        {/* Vers l'éditeur de manière de lire, et non vers la vérification : un
+                            travail arrêté faute de manière de lire ne se répare qu'en lui en
+                            apprenant une. La vérification, elle, n'a rien à montrer tant que rien
+                            n'a tourné — et renvoyait donc à l'accueil, ce qui faisait tourner en
+                            rond le premier geste d'une bibliothèque neuve. */}
+                        <button
+                          type="button"
+                          className="ln-lien-action"
+                          onClick={() => (onManiere !== undefined && travail.sujet !== undefined ? onManiere(travail.sujet.nom) : onVerifier())}
+                        >
                           Ouvrir
                         </button>
                       </>
@@ -237,7 +250,17 @@ export function Depot({
         </div>
       )}
 
-      <p className="ln-traitement__pied ln-panneau-titre">Vos originaux ne sont jamais modifiés.</p>
+      <div className="ln-traitement__pied ln-panneau-titre">
+        <p>Vos originaux ne sont jamais modifiés.</p>
+        {/* En pied, et loin des gestes courants : retirer une bibliothèque n'est pas une action
+            de tous les jours, et elle ne doit pas se trouver sous une souris pressée. L'écran
+            qu'elle ouvre, lui, explique et demande confirmation. */}
+        {onRetirer === undefined ? null : (
+          <button type="button" className="ln-lien-action" onClick={onRetirer}>
+            Retirer cette bibliothèque…
+          </button>
+        )}
+      </div>
     </main>
   );
 }

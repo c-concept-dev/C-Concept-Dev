@@ -1,0 +1,68 @@
+/* Retirer une bibliothèque : deux gestes qui ne se valent pas, et qui ne doivent pas se ressembler.
+   Aucune couleur ni aucun rayon écrits ici : uniquement les variables --ln-*. */
+
+.ln-retirer {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+  max-width: calc(var(--ln-grid) * 80);
+}
+
+.ln-retirer__titre {
+  margin: 0;
+  font-size: 28px;
+}
+
+.ln-retirer__geste {
+  display: grid;
+  gap: calc(var(--ln-grid));
+  justify-items: start;
+  padding: calc(var(--ln-grid) * 2);
+}
+
+/* Le geste grave se distingue par un liseré, jamais par une couleur de fond alarmante : on
+   renseigne, on n'effraie pas — et le bouton reste lisible. */
+.ln-retirer__geste--grave {
+  border-left: 3px solid var(--ln-avertissement, var(--ln-accent));
+}
+
+.ln-retirer__sous-titre {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0;
+  font-size: 17px;
+}
+
+.ln-retirer__quoi {
+  margin: 0;
+  color: var(--ln-text-secondary);
+}
+
+.ln-retirer__ou {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+.ln-retirer__demande {
+  margin: calc(var(--ln-grid)) 0 0 0;
+  font-size: 14px;
+}
+
+.ln-retirer__champ {
+  width: 100%;
+  max-width: calc(var(--ln-grid) * 40);
+}
+
+.ln-retirer__echec {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0;
+  color: var(--ln-text-secondary);
+}

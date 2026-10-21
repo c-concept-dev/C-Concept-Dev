@@ -27,6 +27,7 @@ import { RienAMontrer } from "./pages/RienAMontrer.js";
 import { Reglages } from "./pages/Reglages.js";
 import { Verifier, type Decision } from "./pages/Verifier.js";
 import { Creer } from "./pages/Creer.js";
+import { Retirer } from "./pages/Retirer.js";
 import { Organisation } from "./pages/Organisation.js";
 import { Depot, type ActionTravail } from "./pages/Depot.js";
 import { Recherche } from "./pages/Recherche.js";
@@ -177,6 +178,27 @@ export function App(): JSX.Element {
   }, []);
 
   const deposer = (fichiers: readonly File[]): void => setDepots(fichiers.map((fichier) => fichier.name));
+
+  const [retrait, setRetrait] = useState<{ readonly occupe: boolean; readonly echec?: string }>({ occupe: false });
+
+  /** Retirer une bibliothèque, d'une des deux façons.
+   *
+   *  L'oubli ne touche à rien ; la suppression met le dossier à la corbeille, d'où il se ressort.
+   *  Dans les deux cas la bibliothèque sort de la liste, et l'on revient à l'accueil : rester sur
+   *  l'écran d'une bibliothèque qu'on vient de retirer n'aurait aucun sens. */
+  const retirer = async (racine: string, comment: "oublier" | "supprimer"): Promise<void> => {
+    if (administration === undefined) return;
+    setRetrait({ occupe: true });
+    try {
+      if (comment === "supprimer") await administration.supprimerBibliotheque(racine);
+      else await administration.oublierBibliotheque(racine);
+      setCreees((anciennes) => anciennes.filter((autre) => autre.racine !== racine));
+      setRetrait({ occupe: false });
+      aller(ACCUEIL);
+    } catch (souci) {
+      setRetrait({ occupe: false, echec: souci instanceof Error ? souci.message : String(souci) });
+    }
+  };
 
   /** Les cas restants : ceux sur lesquels aucune décision n'a encore été prise. */
   const restants = useMemo(() => {
@@ -558,6 +580,7 @@ export function App(): JSX.Element {
           onFichiers={deposer}
           onAction={(id, action) => void agir(derniere.racine, id, action)}
           onVerifier={() => aller({ ecran: "verifier" })}
+          {...(administration === undefined ? {} : { onRetirer: () => aller({ ecran: "retirer" }) })}
           onManiere={
             administration !== undefined
               ? (nom) => {
@@ -583,6 +606,20 @@ export function App(): JSX.Element {
           onSchema={organiser}
           onValider={() => aller({ ecran: "depot" })}
           exemples={exemples}
+        />
+      );
+    if (route.ecran === "retirer")
+      return derniere === undefined ? (
+        sansRienAMontrer()
+      ) : (
+        <Retirer
+          nom={derniere.description.nom}
+          racine={derniere.racine}
+          onOublier={() => void retirer(derniere.racine, "oublier")}
+          onSupprimer={() => void retirer(derniere.racine, "supprimer")}
+          onAnnuler={() => aller({ ecran: "depot" })}
+          {...(retrait.echec === undefined ? {} : { echec: retrait.echec })}
+          occupe={retrait.occupe}
         />
       );
     if (route.ecran === "creer")

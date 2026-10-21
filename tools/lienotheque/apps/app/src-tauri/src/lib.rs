@@ -484,6 +484,29 @@ fn oublier_bibliotheque(app: tauri::AppHandle, racine: String) -> Result<reglage
     Ok(lus)
 }
 
+/// Met une bibliothèque à la corbeille, et l'oublie.
+///
+/// **Deux gestes, et le second ne se fait que si le premier a réussi** : une bibliothèque oubliée
+/// dont le dossier serait resté réapparaîtrait à la prochaine ouverture, et une bibliothèque jetée
+/// dont le chemin serait resté retenu afficherait une entrée vers rien.
+///
+/// Le dossier part à la corbeille, jamais en effacement direct : se tromper de bouton ne doit pas
+/// coûter une collection. Et le dépôt refuse de jeter un dossier qui ne porte pas de bibliothèque.
+#[tauri::command]
+fn supprimer_bibliotheque(app: tauri::AppHandle, racine: String) -> Result<String, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let jetee = depot
+        .a_la_corbeille()
+        .map_err(|e| format!("Impossible de mettre cette bibliothèque à la corbeille : {e}"))?;
+
+    let dossier = dossier_des_reglages(&app)?;
+    let mut lus = reglages::Reglages::lire(&dossier);
+    lus.oublier(&racine);
+    lus.ecrire(&dossier).map_err(|e| format!("Réglages impossibles à écrire : {e}"))?;
+
+    Ok(jetee.to_string_lossy().into_owned())
+}
+
 fn dossier_des_reglages(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_config_dir()
@@ -593,6 +616,7 @@ fn lancer(captures: bool) {
             reglages,
             retenir_bibliotheque,
             oublier_bibliotheque,
+            supprimer_bibliotheque,
             deposer,
             apercu_de_pages,
             essayer_maniere,

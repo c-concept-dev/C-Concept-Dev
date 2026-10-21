@@ -76,6 +76,15 @@ export async function retenirBibliotheque(racine: string): Promise<ReglagesHote>
 }
 
 /** Retire une bibliothèque de la liste des récentes. Le dossier n'est pas touché. */
+/** Met une bibliothèque à la corbeille, et l'oublie. Rend l'endroit où elle a atterri.
+ *
+ *  À la corbeille, jamais en effacement direct : se tromper de bouton ne doit pas coûter une
+ *  collection, et le dossier se ressort d'un glisser. L'hôte refuse d'ailleurs de jeter un
+ *  dossier qui ne porte pas de bibliothèque. */
+export async function supprimerBibliotheque(racine: string): Promise<string> {
+  return invoke<string>("supprimer_bibliotheque", { racine });
+}
+
 export async function oublierBibliotheque(racine: string): Promise<ReglagesHote> {
   return ReglagesHote.parse(await invoke("oublier_bibliotheque", { racine }));
 }
@@ -259,6 +268,8 @@ export const administrationDuBureau: PortAdministration = {
   lireBibliotheque,
   ecrireBibliotheque,
   retenirBibliotheque,
+  oublierBibliotheque,
+  supprimerBibliotheque,
   bibliothequesRetenues,
   choisirDossier,
   choisirFichiers,

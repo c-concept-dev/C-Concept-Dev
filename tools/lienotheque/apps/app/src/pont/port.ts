@@ -25,8 +25,10 @@ import type {
  *  **la version en ligne est une petite chose**, à condition de ne pas lui demander d'être le
  *  bureau.
  *
- *  Deux fonctions du pont n'entrent dans aucun des deux — `reglages` et `oublierBibliotheque`,
- *  qu'aucun écran n'appelle. Les inscrire obligerait la version en ligne à implémenter du vide.
+ *  `reglages` n'entre dans aucun des deux : aucun écran ne l'appelle, et l'inscrire obligerait la
+ *  version en ligne à implémenter du vide. `oublierBibliotheque` y est entrée le 21 octobre 2026,
+ *  avec l'écran qui retire une bibliothèque — une capacité que l'hôte avait depuis longtemps et
+ *  que rien ne proposait.
  *  Et `estBureau` non plus : elle **choisit** entre les deux ports, elle n'en est pas membre.
  */
 
@@ -55,6 +57,10 @@ export type PortAdministration = {
   readonly lireBibliotheque: (racine: string) => Promise<DescriptionBibliotheque | undefined>;
   readonly ecrireBibliotheque: (racine: string, description: DescriptionBibliotheque) => Promise<void>;
   readonly retenirBibliotheque: (racine: string) => Promise<ReglagesHote>;
+  /** Retirer de la liste sans toucher au dossier. **Oublier n'est pas supprimer.** */
+  readonly oublierBibliotheque: (racine: string) => Promise<ReglagesHote>;
+  /** Mettre le dossier à la corbeille, et l'oublier. Rend où il a atterri. */
+  readonly supprimerBibliotheque: (racine: string) => Promise<string>;
   readonly bibliothequesRetenues: () => Promise<readonly { racine: string; description: DescriptionBibliotheque }[]>;
 
   /** Désigner sur la machine : ce que la version en ligne ne peut pas faire, et n'a pas à feindre. */
@@ -109,6 +115,8 @@ export const NOMS_D_ADMINISTRATION = [
   "lireBibliotheque",
   "ecrireBibliotheque",
   "retenirBibliotheque",
+  "oublierBibliotheque",
+  "supprimerBibliotheque",
   "bibliothequesRetenues",
   "choisirDossier",
   "choisirFichiers",
