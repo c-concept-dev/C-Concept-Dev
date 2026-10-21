@@ -21,7 +21,11 @@ const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFg
   await page.locator('.adoc-sc-card-img').click();await page.getByRole('button',{name:'Changer l’image',exact:true}).click();
   await page.locator('.cc-block-edit-result input.cc-block-edit-freetext').fill('forest landscape');
   await page.getByRole('button',{name:'Créer',exact:true}).click();
-  await page.waitForFunction(()=>window._adocArtifacts['test-doc']._adocClinicalDocumentId);
+  // Q7 : remplacer une image ne crée aucune entrée avant le clic explicite sur Sauvegarder.
+  await page.waitForFunction(()=>window._adocArtifacts['test-doc']._ccEditorDirty===true);
+  assert.equal(await page.evaluate(()=>window._adocArtifacts['test-doc']._adocClinicalDocumentId||null),null);
+  assert.equal(await page.evaluate(()=>window._adocArtifacts['test-doc']._ccEditorDirty),true);
+  assert.equal(await page.locator('#cc-ws-save-status').textContent(),'Modifications non sauvegardées');
   assert.equal(await page.evaluate(()=>window._adocArtifacts['test-doc']._adocStructuredDoc.blocks[0].content.imageRef),'forest landscape');
   await page.locator('.adoc-sc-card-img').click();await page.getByRole('button',{name:'Changer l’image',exact:true}).click();
   await page.getByRole('button',{name:'Choisir dans Médias',exact:true}).click();

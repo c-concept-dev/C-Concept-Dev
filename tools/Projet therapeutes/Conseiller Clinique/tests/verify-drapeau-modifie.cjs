@@ -327,10 +327,8 @@ const CARROUSEL = Object.assign({}, PRESENTATION, {
         });
         await page.waitForTimeout(600);
       } },
-    // adocReplaceSelectedImage appelle adocEditorMarkDirty PUIS `await adocWsSave()` : retirer
-    // une image ENREGISTRE sur-le-champ, comme la correction d'un passage. L'attente juste est
-    // donc « une version de plus, rien en attente ».
-    { nom: 'image de couverture : retrait', doc: 'AVEC_IMAGE', attendu: 'enregistre',
+    // Q7 : le retrait reste en mémoire ; le serveur ne reçoit aucune version avant Sauvegarder.
+    { nom: 'image de couverture : retrait', doc: 'AVEC_IMAGE', attendu: 'differe',
       prealable: async () => {
         await page.evaluate(async () => {
           window._adocArtifacts.e._adocClinicalDocumentId = null;
@@ -364,12 +362,9 @@ const CARROUSEL = Object.assign({}, PRESENTATION, {
         });
         await page.waitForTimeout(500);
       } },
-    // adocConfirmBlockCorrection termine par `await window.adocWsSave()` : la correction est
-    // ENREGISTRÉE sur-le-champ. L'attente juste n'est donc pas « drapeau levé » mais « une
-    // version de plus chez le serveur, et rien en attente ». Mesurer l'inverse serait mesurer
-    // mon erreur. Le document doit exister côté serveur avant, sinon c'est le banc qui échoue :
-    // on l'y crée d'abord par un vrai enregistrement, non mesuré.
-    { nom: 'correction d’un passage (modèle simulé)', attendu: 'enregistre', prealable: async () => {
+    // Q7 : la correction confirmée marque le document modifié, sans version automatique.
+    // Le document existe déjà côté faux Worker pour mesurer la stabilité de sa version.
+    { nom: 'correction d’un passage (modèle simulé)', attendu: 'differe', prealable: async () => {
         await page.evaluate(async () => {
           window._adocArtifacts.e._adocClinicalDocumentId = null;
           await window.adocWsSave();
@@ -497,12 +492,16 @@ const CARROUSEL = Object.assign({}, PRESENTATION, {
       }
       const leve = await sale();
       const apres = versions();
-      const ok = g.attendu === 'enregistre' ? (!leve && apres === avant + 1) : leve;
+      const ok = g.attendu === 'enregistre' ? (!leve && apres === avant + 1)
+        : g.attendu === 'differe' ? (leve && apres === avant) : leve;
       const dit = g.attendu === 'enregistre'
         ? (ok ? 'une version de plus chez le serveur, rien en attente'
               : 'ATTENDU +1 version et rien en attente ; drapeau=' + leve
                 + ', versions ' + avant + '→' + apres)
-        : (ok ? 'drapeau levé' : 'drapeau PAS LEVÉ');
+        : g.attendu === 'differe'
+          ? (ok ? 'drapeau levé, aucune version automatique'
+                : 'ATTENDU drapeau levé et 0 version ; drapeau=' + leve + ', versions ' + avant + '→' + apres)
+          : (ok ? 'drapeau levé' : 'drapeau PAS LEVÉ');
       resultats.push({ nom: g.nom, ok: ok, doc: ou, attendu: g.attendu || 'drapeau' });
       console.log('      ' + (ok ? '✓' : '✗') + '  ' + g.nom + ' [' + ou + '] → ' + dit);
     }

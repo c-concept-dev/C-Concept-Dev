@@ -7557,7 +7557,7 @@ ${recent}`;
   window.adocBuildRenderManifestForTheme = adocBuildRenderManifestForTheme;
 
   // Application : MÊME séquence que adocApplyStructuredReTheme pour une charte — surcharge posée,
-  // ré-affichage par adocOpenWorkspace, retour arrière si le ré-affichage échoue, puis sauvegarde.
+  // ré-affichage par adocOpenWorkspace, retour arrière si le ré-affichage échoue, puis état modifié.
   // Jamais un second mécanisme d'application : la surcharge est déjà lue par le rendu direct (5
   // sites adocRenderClinicalDocument), par l'export (3 sites adocExportClinicalDocumentHTML) et par
   // la persistance — un seul point d'application, vivant et exporté.
@@ -7576,7 +7576,7 @@ ${recent}`;
       art._adocBrandKitName = precedentNom;
       return false;
     }
-    if (typeof window.adocWsSave === 'function') await window.adocWsSave();
+    adocEditorMarkDirty();
     return true;
   };
   // Exposée pour les tests et pour l'interface en vignettes (phase C), même patron que
@@ -10201,10 +10201,8 @@ ${recent}`;
       adocWsClearBlockSelection();
       if (!await window.adocOpenWorkspace(key)) throw new Error('Le rendu a refusé cette modification ; elle a été annulée.');
       adocEditorMarkDirty();
-      // La modification reste dans le document même si sa sauvegarde échoue : adocWsSave
-      // affiche l’erreur et permet de réessayer. Ne pas annuler une modification valide.
+      // L'image modifiée reste en mémoire jusqu'au clic explicite sur « Sauvegarder ».
       previous = null;
-      await window.adocWsSave();
       return true;
     } catch (e) {
       if (block && previous) block.content = previous;
@@ -11498,13 +11496,9 @@ ${recent}`;
     window.adocCloseLegacyReThemePanel();
     const card = document.getElementById('card-' + storeKey);
     if (card) card.innerHTML = adocArtifactCardHtml(storeKey, (art.name || 'Document').replace(/-\d+$/, '').replace(/-/g, ' '), art.blobUrl);
-    // Réutilise EXACTEMENT le mécanisme déjà existant (ouverture + adocWsSave), même patron que
-    // adocConfirmBlockCorrection : ouvre l'espace de travail sur CE document (garantit que
-    // window._adocWsState.storeKey pointe bien dessus, quel que soit le point d'entrée — carte
-    // ou espace de travail déjà ouvert) puis sauvegarde une nouvelle version — aucune logique de
-    // sauvegarde dupliquée.
-    await window.adocOpenWorkspace(storeKey);
-    await window.adocWsSave();
+    // L'ouverture recompose le rendu depuis art.html EN MÉMOIRE, sans relire la base.
+    // La nouvelle version attend ensuite le clic explicite sur « Sauvegarder ».
+    if (await window.adocOpenWorkspace(storeKey)) adocEditorMarkDirty();
   };
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -11694,13 +11688,8 @@ ${recent}`;
     if (candidate.densityLabel) art._adocDensityLabel = candidate.densityLabel;
     const storeKey = candidate.storeKey;
     window.adocCloseStructuredReThemePanel();
-    // Réutilise EXACTEMENT le mécanisme déjà existant (même patron que adocConfirmLegacyRetheme
-    // ci-dessus) : ouvre l'espace de travail sur CE document (re-rend RÉELLEMENT avec le nouvel
-    // override, via adocOpenWorkspace lui-même inchangé — cf. son test déjà en place sur
-    // art._adocRenderManifestOverride) puis sauvegarde une nouvelle version — aucune logique de
-    // rendu ni de sauvegarde dupliquée. adocWsSave() décide déjà, sans changement nécessaire ici,
-    // entre création (POST /clinical-documents) et nouvelle version (POST .../versions) selon
-    // art._adocClinicalDocumentId — cf. investigation point 1, vérifié par test dédié.
+    // L'ouverture re-rend depuis le document en mémoire avec le nouvel override.
+    // Une version ne sera créée que lors du clic explicite sur « Sauvegarder ».
     const opened = await window.adocOpenWorkspace(storeKey);
     if (!opened) {
       // adocOpenWorkspace a déjà informé l'utilisatrice de l'échec (son propre message) — ici,
@@ -11710,7 +11699,7 @@ ${recent}`;
       art._adocBrandKitName = previousBrandKitName;
       return;
     }
-    await window.adocWsSave();
+    adocEditorMarkDirty();
   };
 
   // Révèle le bouton "Charte" pour tout artefact fmt html éligible — vérifié en différé
@@ -16588,7 +16577,14 @@ ${recent}`;
       // (même esprit qu'adocResolveBrandKitForGeneration), jamais un rendu cassé ni un blocage.
       const persistedOverride = data.version.document.renderManifestOverride || null;
       const brandKitId = persistedOverride && persistedOverride.brandKitRef && persistedOverride.brandKitRef.id;
-      if (brandKitId) {
+      // Les thèmes rapides utilisent aussi brandKitRef (theme-<id>), mais ne sont pas des
+      // chartes du Worker. Reconstruire leurs snapshots locaux avec la même table que lors
+      // du clic évite de perdre la mise en forme après une sauvegarde explicite.
+      const savedTheme = ADOC_THEMES.find(function (t) { return 'theme-' + t.id === brandKitId; });
+      if (savedTheme) {
+        art._adocRenderManifestOverride = await adocBuildRenderManifestForTheme(art._adocStructuredDoc, savedTheme);
+        art._adocBrandKitName = savedTheme.label;
+      } else if (brandKitId) {
         try {
           const kit = await adocGetBrandKitById(brandKitId);
           if (kit && kit.id) {
@@ -20866,7 +20862,7 @@ ${recent}`;
     }
     if (!adocApplyImageAssetToDropTarget(dropEl, doc, assetId, label)) { alert('Cette zone n’accepte pas d’image.'); return; }
     if (!await window.adocOpenWorkspace(storeKey)) return;
-    await window.adocWsSave();
+    adocEditorMarkDirty();
   }
 
   // Compatibility entry point for the shared block style controls.
@@ -20958,8 +20954,8 @@ ${recent}`;
     if (!art || !art._adocStructuredDoc) return;
     const doc = art._adocStructuredDoc;
     // LOT D — titre de couverture/carte : champ racine (doc.title/card.content.title), jamais un
-    // élément de doc.blocks[] — même cycle rendu/annulation/sauvegarde que pour un bloc normal
-    // (adocOpenWorkspace + adocWsSave ci-dessous, réutilisés tels quels), juste un point d'écriture
+    // élément de doc.blocks[] — même cycle rendu/annulation/marquage modifié que pour un bloc normal,
+    // juste un point d'écriture
     // différent (régression #6 : un seul mécanisme de confirmation, une branche selon la cible).
     const rootRef = adocRootFieldRef(doc, st.blockId);
     if (rootRef) {
@@ -20969,7 +20965,7 @@ ${recent}`;
       adocWsClearBlockSelection();
       const renderOk = await window.adocOpenWorkspace(storeKey);
       if (!renderOk) { rootRef.set(originalValue); return; }
-      await window.adocWsSave();
+      adocEditorMarkDirty();
       return;
     }
     const siblings = adocEditorBlockContainer(doc, st.blockId) || [];
@@ -20994,9 +20990,8 @@ ${recent}`;
       siblings[idx] = originalBlock;
       return;
     }
-    // Réutilise EXACTEMENT le mécanisme de sauvegarde déjà existant et déjà testé (UX-10A) —
-    // nouvelle version créée, l'ancienne reste accessible via l'historique déjà existant.
-    await window.adocWsSave();
+    // La correction reste en mémoire jusqu'au clic explicite sur « Sauvegarder ».
+    adocEditorMarkDirty();
   };
 
   // ── Barre d'outils de personnalisation, premier chantier — insertion de blocs ──
@@ -22414,7 +22409,7 @@ ${recent}`;
     const storeKey = st.storeKey;
     adocWsClearBlockSelection();
     if (!await window.adocOpenWorkspace(storeKey)) return false;
-    await window.adocWsSave();
+    adocEditorMarkDirty();
     return true;
   }
 
@@ -23820,8 +23815,7 @@ ${recent}`;
     }
     const storeKey = st.storeKey;
     adocWsClearLegacyBlockSelection();
-    await window.adocOpenWorkspace(storeKey);
-    await window.adocWsSave();
+    if (await window.adocOpenWorkspace(storeKey)) adocEditorMarkDirty();
   };
 
   // ═══════════════════════════════════════════════════════════════════════
