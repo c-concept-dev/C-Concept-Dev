@@ -16858,6 +16858,10 @@ ${recent}`;
     if (texteWordBtn) texteWordBtn.hidden = !(!isLegacy && docKind === 'presentation');
     const textePdfBtn = document.getElementById('cc-ws-texte-pdf-btn');
     if (textePdfBtn) textePdfBtn.hidden = !(!isLegacy && docKind === 'presentation');
+    ['txt', 'word', 'pdf'].forEach(function (format) {
+      const bouton = document.getElementById('cc-ws-narration-' + format + '-btn');
+      if (bouton) bouton.hidden = !(!isLegacy && docKind === 'presentation');
+    });
     adocWsMenuClose(false);
     ['file', 'export'].forEach(function (name) {
       const parts = adocWsMenuParts(name);
@@ -22277,6 +22281,9 @@ ${recent}`;
             rangEtape = e.rang;
             p.push(adocDocxParagraphe('Heading2', adocDocxRun('Étape ' + d.numero + '-' + e.rang)));
             break;
+          case 'narration-meta':
+            p.push(adocDocxParagraphe('NarrationMeta', adocDocxRun(e.texte)));
+            break;
           case 'list':
             e.items.forEach(function (x) {
               p.push(adocDocxParagraphe('ListParagraph', adocDocxRun(x), e.ordonnee ? 3 : 2));
@@ -22366,6 +22373,8 @@ ${recent}`;
       + style('Encadre', 'Encadré',
               '<w:pBdr><w:left w:val="single" w:color="999999" w:sz="12" w:space="8"/></w:pBdr>'
               + '<w:spacing w:after="80" w:before="80"/><w:ind w:left="360"/>', null)
+      + style('NarrationMeta', 'Indication de narration', '<w:spacing w:after="80"/>',
+              '<w:color w:val="666666"/><w:sz w:val="18"/><w:szCs w:val="18"/>')
       + '<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/>'
       + '<w:tblPr><w:tblBorders>'
       + ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(function (c) {
@@ -22493,10 +22502,69 @@ ${recent}`;
   }
   window.adocTexteDesDiapositives = adocTexteDesDiapositives;
 
+  // Q8 — seule la narration appliquée à doc.narration est exportée. L'ordre et la définition
+  // d'une étape viennent du mode Présenter, et le compte est celui déjà montré dans l'éditeur.
+  function adocStructureNarration(doc) {
+    if (!doc || doc.documentKind !== 'presentation') return null;
+    const etapes = adocPresentStepList(doc);
+    const cartes = (doc.blocks || []).filter(function (b) { return b && b.type === 'card'; });
+    const struct = { titre: String(doc.title || '(sans titre)'), diapositives: [], totalMots: 0, totalSecondes: 0 };
+    cartes.forEach(function (carte, i) {
+      const d = { numero: i + 1, total: cartes.length,
+        titre: String(carte.content && carte.content.title || '(sans titre)'), elements: [] };
+      etapes.filter(function (e) { return e.cardId === carte.id; }).forEach(function (e) {
+        const narration = adocNarrationRead(doc, e.stepId);
+        const compte = adocNarrationCount(narration);
+        struct.totalMots += compte.mots;
+        d.elements.push({ genre: 'etape', rang: e.rang, surRang: e.surRang });
+        d.elements.push({ genre: 'narration', texte: narration || '(sans narration)' });
+        d.elements.push({ genre: 'narration-meta', texte: compte.mots + ' mot' + (compte.mots === 1 ? '' : 's')
+          + ' · ' + compte.secondes + ' s — estimation indicative' });
+      });
+      struct.diapositives.push(d);
+    });
+    struct.totalSecondes = Math.round(struct.totalMots / ADOC_NARRATION_MOTS_PAR_SECONDE);
+    return struct;
+  }
+  window.adocStructureNarration = adocStructureNarration;
+
+  function adocTexteNarration(doc) {
+    const struct = adocStructureNarration(doc);
+    if (!struct) return '';
+    const lignes = [struct.titre, ''];
+    struct.diapositives.forEach(function (d) {
+      lignes.push('Diapositive ' + d.numero + ' / ' + d.total + ' — ' + d.titre);
+      d.elements.forEach(function (e) {
+        if (e.genre === 'etape') lignes.push('  Étape ' + d.numero + '-' + e.rang);
+        else if (e.genre === 'narration-meta') lignes.push('    ' + e.texte);
+        else lignes.push('  ' + e.texte);
+      });
+      lignes.push('');
+    });
+    lignes.push('Total : ' + struct.totalMots + ' mots · ' + struct.totalSecondes
+      + ' s — estimation indicative');
+    return lignes.join('\n').trim() + '\n';
+  }
+  window.adocTexteNarration = adocTexteNarration;
+
+  function adocDocxNarration(doc) {
+    const struct = adocStructureNarration(doc);
+    if (!struct) throw new Error('document illisible');
+    const dernier = struct.diapositives[struct.diapositives.length - 1];
+    if (dernier) dernier.elements.push({ genre: 'narration-meta', texte: 'Total : ' + struct.totalMots
+      + ' mots · ' + struct.totalSecondes + ' s — estimation indicative' });
+    return adocZipStocke(adocDocxParties(struct));
+  }
+  window.adocDocxNarration = adocDocxNarration;
+  function adocPdfNarration(doc) {
+    return adocPdfTexteDiapositives(doc, adocTexteNarration(doc));
+  }
+  window.adocPdfNarration = adocPdfNarration;
+
   // PDF du TEXTE : source commune avec .txt et Word, A4 portrait, texte sélectionnable.
   // Les octets des chaînes de texte utilisent WinAnsiEncoding (Helvetica Type 1).
-  function adocPdfTexteDiapositives(doc) {
-    const texte = adocTexteDesDiapositives(doc);
+  function adocPdfTexteDiapositives(doc, texteOverride) {
+    const texte = texteOverride == null ? adocTexteDesDiapositives(doc) : texteOverride;
     if (!texte) throw new Error('document illisible');
     const map = { 0x20AC: 128, 0x201A: 130, 0x0192: 131, 0x201E: 132, 0x2026: 133,
       0x2020: 134, 0x2021: 135, 0x02C6: 136, 0x2030: 137, 0x0160: 138, 0x2039: 139,
@@ -22549,7 +22617,8 @@ ${recent}`;
       const streamParts = [];
       let streamLength = 0;
       lines.forEach(function (line, index) {
-        const parts = [ascii('BT /F1 10 Tf 50 ' + (790 - index * 14) + ' Td ('), latin(line), ascii(') Tj ET\n')];
+        const taille = texteOverride != null && line.includes('estimation indicative') ? 9 : 10;
+        const parts = [ascii('BT /F1 ' + taille + ' Tf 50 ' + (790 - index * 14) + ' Td ('), latin(line), ascii(') Tj ET\n')];
         parts.forEach(function (part) { streamParts.push(part); streamLength += part.length; });
       });
       object(streamId, [ascii('<< /Length ' + streamLength + ' >>\nstream\n'),
@@ -22565,6 +22634,56 @@ ${recent}`;
     return result;
   }
   window.adocPdfTexteDiapositives = adocPdfTexteDiapositives;
+
+  var _adocNarrationExportsDuJour = {};
+  function adocNomExportNarration(ext) {
+    const d = new Date();
+    const jour = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')
+      + '-' + String(d.getDate()).padStart(2, '0');
+    const cle = jour + '.' + ext;
+    _adocNarrationExportsDuJour[cle] = (_adocNarrationExportsDuJour[cle] || 0) + 1;
+    const rang = _adocNarrationExportsDuJour[cle];
+    return 'narration-' + jour + (rang > 1 ? '-' + rang : '') + '.' + ext;
+  }
+  function adocTelechargerNarration(donnees, type, ext) {
+    const lien = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([donnees], { type: type }));
+    lien.href = url; lien.download = adocNomExportNarration(ext);
+    document.body.appendChild(lien); lien.click();
+    setTimeout(function () { URL.revokeObjectURL(url); lien.remove(); }, 2000);
+  }
+  function adocDocumentNarrationCourant() {
+    const key = window._adocWsState && window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[key];
+    const doc = art && art._adocStructuredDoc;
+    return doc && doc.documentKind === 'presentation' ? doc : null;
+  }
+  window.adocWsNarrationTXT = function () {
+    const doc = adocDocumentNarrationCourant();
+    if (!doc) return null;
+    const texte = adocTexteNarration(doc);
+    adocTelechargerNarration(texte, 'text/plain;charset=utf-8', 'txt');
+    return texte;
+  };
+  window.adocWsNarrationWord = function () {
+    const doc = adocDocumentNarrationCourant();
+    if (!doc) return null;
+    try {
+      const octets = adocDocxNarration(doc);
+      adocTelechargerNarration(octets,
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx');
+      return octets.length;
+    } catch (e) { alert('Le fichier Word de la narration n’a pas pu être fabriqué. Rien n’a été téléchargé.'); return null; }
+  };
+  window.adocWsNarrationPDF = function () {
+    const doc = adocDocumentNarrationCourant();
+    if (!doc) return null;
+    try {
+      const octets = adocPdfNarration(doc);
+      adocTelechargerNarration(octets, 'application/pdf', 'pdf');
+      return octets.length;
+    } catch (e) { alert('Le PDF de la narration n’a pas pu être fabriqué. Rien n’a été téléchargé.'); return null; }
+  };
 
   window.adocWsTexteDiapositivesPDF = function () {
     const key = window._adocWsState && window._adocWsState.storeKey;
