@@ -88,6 +88,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
         + (await page.evaluate(() => (document.body.innerText || '').slice(0, 300))).replace(/\s+/g, ' '));
       throw new Error('le bouton n_est pas apparu');
     });
+    await page.click('#cc-ws-export-menu-trigger');
     const [tel] = await Promise.all([
       page.waitForEvent('download', { timeout: 60000 }),
       page.locator('#cc-ws-texte-diapositives-btn').click(),

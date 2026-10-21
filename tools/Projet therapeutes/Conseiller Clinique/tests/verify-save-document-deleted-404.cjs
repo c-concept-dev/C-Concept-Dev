@@ -205,6 +205,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   console.log('PASS 7/9 — non-régression : sauvegarde normale (création puis version) d’un document jamais supprimé, comportement strictement inchangé');
 
   // ── Non-régression — le bouton "Supprimer" déjà existant du bandeau continue de fonctionner ──
+  await page.click('#cc-ws-file-menu-trigger');
   await page.click('#cc-ws-delete-btn');
   await page.waitForSelector('#cc-ws-delete-confirm.open');
   await page.click('.cc-ws-delete-confirm-confirm');

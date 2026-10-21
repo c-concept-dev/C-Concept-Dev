@@ -136,6 +136,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     await page.evaluate(() => window.adocPresentClose && window.adocPresentClose());
     // Le mode présentation masque la barre : on attend que le bouton d'export redevienne
     // réellement cliquable, plutôt que de supposer un délai.
+    await page.click('#cc-ws-export-menu-trigger');
     await page.waitForFunction(() => {
       const b = document.getElementById('cc-ws-export-standalone-presentation-btn');
       if (!b || b.hidden) return false;

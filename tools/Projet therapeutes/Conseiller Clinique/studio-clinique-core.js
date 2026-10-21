@@ -16468,6 +16468,79 @@ ${recent}`;
   // signal fiable, aujourd'hui, pour distinguer un rendu réussi d'un rendu en échec — nécessaire
   // à adocConfirmBlockCorrection pour ne jamais sauvegarder une correction dont le rendu vient
   // d'échouer (cf. investigation du lot).
+  function adocWsMenuParts(name) {
+    const wrap = document.getElementById('cc-ws-' + name + '-menu');
+    return wrap && {
+      wrap: wrap,
+      trigger: wrap.querySelector('.cc-ws-menu-trigger'),
+      menu: wrap.querySelector('[role="menu"]'),
+      items: function () {
+        return Array.from(wrap.querySelectorAll('[role="menuitem"]')).filter(function (item) {
+          return !item.hidden && getComputedStyle(item).display !== 'none';
+        });
+      }
+    };
+  }
+  function adocWsMenuClose(returnFocus) {
+    ['file', 'export'].forEach(function (name) {
+      const parts = adocWsMenuParts(name);
+      if (!parts || parts.menu.hidden) return;
+      parts.menu.hidden = true;
+      parts.trigger.setAttribute('aria-expanded', 'false');
+      if (returnFocus) parts.trigger.focus();
+    });
+  }
+  window.adocWsMenuToggle = function (name, last) {
+    const parts = adocWsMenuParts(name);
+    if (!parts) return;
+    const opening = parts.menu.hidden;
+    adocWsMenuClose(false);
+    const items = parts.items();
+    parts.wrap.hidden = !items.length;
+    if (!opening || !items.length) return;
+    parts.menu.hidden = false;
+    parts.trigger.setAttribute('aria-expanded', 'true');
+    (last ? items[items.length - 1] : items[0]).focus();
+  };
+  document.addEventListener('click', function (event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('.cc-ws-menu [role="menuitem"]')) adocWsMenuClose(false);
+    else if (!target.closest('.cc-ws-menu')) adocWsMenuClose(false);
+  });
+  document.addEventListener('keydown', function (event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const wrap = target.closest('.cc-ws-menu');
+    if (!wrap) {
+      if (event.key === 'Escape') adocWsMenuClose(false);
+      return;
+    }
+    const name = wrap.id === 'cc-ws-file-menu' ? 'file' : 'export';
+    const parts = adocWsMenuParts(name);
+    if (!parts) return;
+    if (event.key === 'Escape') {
+      if (parts.menu.hidden) return;
+      event.preventDefault(); event.stopImmediatePropagation(); adocWsMenuClose(true); return;
+    }
+    if (event.key === 'Tab') { adocWsMenuClose(false); return; }
+    if (target === parts.trigger) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault(); window.adocWsMenuToggle(name, event.key === 'ArrowUp');
+      }
+      return;
+    }
+    const items = parts.items();
+    const index = items.indexOf(target);
+    if (index < 0) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+        : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[next].focus();
+    }
+  });
+
   window.adocOpenWorkspace = async function (storeKey, options) {
     const art = window._adocArtifacts?.[storeKey];
     // Audit correctif, Partie B point 10 — l'écran de travail s'ouvre pour TOUT artefact dont les
@@ -16576,6 +16649,11 @@ ${recent}`;
     if (texteDiapositivesBtn) texteDiapositivesBtn.hidden = !(!isLegacy && docKind === 'presentation');
     const texteWordBtn = document.getElementById('cc-ws-texte-word-btn');
     if (texteWordBtn) texteWordBtn.hidden = !(!isLegacy && docKind === 'presentation');
+    adocWsMenuClose(false);
+    ['file', 'export'].forEach(function (name) {
+      const parts = adocWsMenuParts(name);
+      if (parts) parts.wrap.hidden = !parts.items().length;
+    });
 
     // Statut calculé UNIQUEMENT à partir de ce que le pipeline existant sait déjà dire
     // (qc.blocking) — pas d'état "Brouillon" inventé : rien dans le pipeline actuel ne
@@ -16615,6 +16693,12 @@ ${recent}`;
     }
     adocWsMountMemory();
 
+    const sourcePanel = document.getElementById('cc-ws-panel');
+    const sourceToggle = document.getElementById('cc-ws-panel-toggle-btn');
+    sourcePanel.classList.remove('open', 'collapsed');
+    const sourcesVisible = !window.matchMedia('(max-width: 768px)').matches;
+    sourceToggle.setAttribute('aria-expanded', String(sourcesVisible));
+    sourceToggle.setAttribute('aria-label', sourcesVisible ? 'Masquer les sources' : 'Afficher les sources');
     document.getElementById('cc-workspace').classList.add('open');
     document.body.style.overflow = 'hidden';
     document.getElementById('cc-ws-close-btn').focus();
@@ -24950,8 +25034,10 @@ ${recent}`;
   window.adocWsTogglePanel = function () {
     const panel = document.getElementById('cc-ws-panel');
     const btn = document.getElementById('cc-ws-panel-toggle-btn');
-    const open = panel.classList.toggle('open');
+    const narrow = window.matchMedia('(max-width: 768px)').matches;
+    const open = narrow ? panel.classList.toggle('open') : !panel.classList.toggle('collapsed');
     btn.setAttribute('aria-expanded', String(open));
+    btn.setAttribute('aria-label', open ? 'Masquer les sources' : 'Afficher les sources');
   };
 
   // Exposés pour test/vérification (Playwright) et pour l'inspection en mode développeur.

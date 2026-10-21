@@ -104,7 +104,8 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
     return window.adocOpenWorkspace(key);
   }, { key: storeKey, doc: doc, docId: ORIG_ID });
   assert.equal(opened, true, 'le document doit s’ouvrir normalement, déjà enregistré (id existant)');
-  await page.waitForSelector('#cc-ws-save-as-btn');
+  // Q6 : le bouton existe dans « Fichier » fermé ; le clic ci-dessous ouvre d'abord ce menu.
+  await page.waitForSelector('#cc-ws-save-as-btn', { state: 'attached' });
   console.log('PASS 1/9 — document déjà enregistré ouvert, bouton "Enregistrer sous" présent dans le bandeau');
 
   // ── Personnalise le document ouvert (édition directe d'un bloc texte) ──
@@ -122,6 +123,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
 
   // ── Annulation explicite du prompt() → RIEN n’est créé, l’original reste actif ──
   page.once('dialog', async (d) => { assert.equal(d.type(), 'prompt', 'doit être un prompt() natif, jamais un second mécanisme de saisie'); await d.dismiss(); });
+  await page.click('#cc-ws-file-menu-trigger');
   await page.click('#cc-ws-save-as-btn');
   await page.waitForFunction(() => !document.getElementById('cc-ws-save-as-btn').disabled);
   assert.equal(createCalls, 0, 'une annulation du prompt() ne doit déclencher AUCUNE création');
@@ -132,6 +134,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   // ── "Enregistrer sous" avec un nouveau titre, pré-rempli avec le titre actuel ──
   let promptMessage = null, promptDefault = null;
   page.once('dialog', async (d) => { promptMessage = d.message(); promptDefault = d.defaultValue(); await d.accept('Ma copie personnalisée'); });
+  await page.click('#cc-ws-file-menu-trigger');
   await page.click('#cc-ws-save-as-btn');
   await page.waitForFunction(() => !document.getElementById('cc-ws-save-as-btn').disabled);
   assert.ok(promptMessage && promptMessage.toLowerCase().includes('titre'), 'le prompt() doit demander un titre : ' + promptMessage);
@@ -179,6 +182,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   // ── Un second "Enregistrer sous" depuis ce nouveau document crée encore un AUTRE document
   // distinct (jamais une réutilisation), lui aussi sans jamais affecter les deux précédents ──
   page.once('dialog', async (d) => { await d.accept('Encore une autre copie'); });
+  await page.click('#cc-ws-file-menu-trigger');
   await page.click('#cc-ws-save-as-btn');
   await page.waitForFunction(() => !document.getElementById('cc-ws-save-as-btn').disabled);
   const idAfterSecondSaveAs = await page.evaluate((key) => window._adocArtifacts[key]._adocClinicalDocumentId, storeKey);

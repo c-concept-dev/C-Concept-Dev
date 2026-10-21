@@ -1979,7 +1979,35 @@
     .cc-ws-topbar-btn[hidden] { display: none; }
     .cc-ws-topbar-btn.primary { background: var(--terracotta-600); border-color: var(--terracotta-600); }
     .cc-ws-topbar-btn.primary:hover, .cc-ws-topbar-btn.primary:focus-visible { background: var(--terracotta-700); }
-    .cc-ws-panel-toggle { display: none; }
+    .cc-ws-menu { position: relative; flex: none; }
+    .cc-ws-menu-items {
+      position: absolute; top: calc(100% + 7px); right: 0; z-index: 30;
+      min-width: 220px; max-width: min(320px, calc(100vw - 20px));
+      max-height: min(70vh, 520px); overflow-y: auto;
+      display: flex; flex-direction: column; gap: 3px; padding: 6px;
+      background: var(--petrol-950); color: #fff;
+      border: 1px solid rgba(255,255,255,.35); border-radius: 9px;
+      box-shadow: 0 12px 30px rgba(0,0,0,.26);
+    }
+    .cc-ws-menu-items[hidden] { display: none; }
+    .cc-ws-menu-items .cc-ws-topbar-btn,
+    #cc-ws-transform-btn:not([hidden]) ~ #cc-ws-export-btn {
+      margin-left: 0;
+    }
+    .cc-ws-menu-items .cc-ws-topbar-btn {
+      display: flex; width: 100%; min-height: 36px; text-align: left;
+      border: 0; border-radius: 5px; background: transparent;
+      white-space: normal; padding: 7px 10px;
+    }
+    .cc-ws-menu-items .cc-ws-topbar-btn[hidden] { display: none; }
+    .cc-ws-menu-items .cc-ws-topbar-btn:hover,
+    .cc-ws-menu-items .cc-ws-topbar-btn:focus-visible {
+      background: rgba(255,255,255,.22); outline: 2px solid var(--terracotta-600);
+      outline-offset: -2px;
+    }
+    .cc-ws-menu-trigger:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    .cc-ws-panel-toggle { display: inline-flex; }
+    @media (min-width: 769px) { .cc-ws-panel.collapsed { display: none; } }
     .cc-ws-close {
       background: none; border: none; color: #fff; opacity: .8; cursor: pointer; padding: 6px;
       border-radius: 6px; line-height: 0;
@@ -2287,10 +2315,10 @@
       .cc-ws-topbar > svg.cc-ws-icon { display: none; }
       .cc-ws-topbar-title { font-size: 12px; max-width: 30vw; }
       #cc-ws-export-btn { padding: 6px 9px; }
-      #cc-ws-export-btn span { display: none; }
+      #cc-ws-export-btn span { display: inline; }
       /* UX-10A Étape 2 — même traitement que Exporter ci-dessus, pour les mêmes raisons. */
-      #cc-ws-save-btn, #cc-ws-delete-btn { padding: 6px 9px; }
-      #cc-ws-save-btn span, #cc-ws-delete-btn span { display: none; }
+      #cc-ws-save-btn { padding: 6px 9px; }
+      #cc-ws-save-btn span { display: none; }
       .cc-ws-save-status { display: none; }
     }
 
@@ -3710,14 +3738,19 @@
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-cloud"></use></svg>
       <span>Sauvegarder</span>
     </button>
+    <div class="cc-ws-menu" id="cc-ws-file-menu">
+      <button type="button" class="cc-ws-topbar-btn cc-ws-menu-trigger" id="cc-ws-file-menu-trigger"
+        aria-haspopup="menu" aria-expanded="false" aria-controls="cc-ws-file-menu-items"
+        onclick="window.adocWsMenuToggle('file')">Fichier <span aria-hidden="true">▾</span></button>
+      <div class="cc-ws-menu-items" id="cc-ws-file-menu-items" role="menu" aria-label="Fichier" hidden>
     <!-- Sujet 2 — "Enregistrer sous" : crée toujours un NOUVEAU document (jamais la route de
          version), demande un titre via prompt(), l'original reste inchangé. Disponible dès qu'un
          enregistrement normal l'est (même garde de capacités, cf. window.adocWsSaveAs). -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-as-btn" onclick="window.adocWsSaveAs()" aria-label="Sauvegarder sous un nouveau titre">
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-as-btn" role="menuitem" onclick="window.adocWsSaveAs()" aria-label="Sauvegarder sous un nouveau titre">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-copy"></use></svg>
       <span>Sauvegarder sous</span>
     </button>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-delete-btn" onclick="window.adocWsDeleteRequest()" aria-label="Supprimer le document sauvegardé" hidden>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-delete-btn" role="menuitem" onclick="window.adocWsDeleteRequest()" aria-label="Supprimer le document sauvegardé" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-trash"></use></svg>
       <span>Supprimer</span>
     </button>
@@ -3727,11 +3760,18 @@
          par adocUpdateSaveStatusUI) : jamais pour un repli legacy-html (_adocCapabilities.transform
          reste false), jamais avant un premier enregistrement (derivedFrom doit référencer un
          documentId/versionId réels), jamais si le type source n'a aucune cible valide (ex. Carrousel). -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-transform-btn" onclick="window.adocWsTransformRequest()" aria-label="Transformer ce document vers un autre type" hidden>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-transform-btn" role="menuitem" onclick="window.adocWsTransformRequest()" aria-label="Transformer ce document vers un autre type" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-transform"></use></svg>
       <span>Transformer</span>
     </button>
-    <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-export-btn" onclick="window.adocWsExport()" aria-label="Exporter le document">
+      </div>
+    </div>
+    <div class="cc-ws-menu" id="cc-ws-export-menu">
+      <button type="button" class="cc-ws-topbar-btn cc-ws-menu-trigger" id="cc-ws-export-menu-trigger"
+        aria-haspopup="menu" aria-expanded="false" aria-controls="cc-ws-export-menu-items"
+        onclick="window.adocWsMenuToggle('export')">Exporter <span aria-hidden="true">▾</span></button>
+      <div class="cc-ws-menu-items" id="cc-ws-export-menu-items" role="menu" aria-label="Exporter" hidden>
+    <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-export-btn" role="menuitem" onclick="window.adocWsExport()" aria-label="Exporter le document">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-export"></use></svg>
       <span>Exporter</span>
     </button>
@@ -3740,7 +3780,7 @@
          découpage par diapositive n'a pas de sélecteur DOM fiable côté ancien moteur (HTML libre,
          aucune structure imposée) — investigation confirmée, hors périmètre tant que ce point
          n'est pas réglé côté génération. -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-jpeg-btn" onclick="window.adocWsExportJPEG()" aria-label="Exporter en JPEG (une image par diapositive)" hidden>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-jpeg-btn" role="menuitem" onclick="window.adocWsExportJPEG()" aria-label="Exporter en JPEG (une image par diapositive)" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
       <span>Exporter en JPEG</span>
     </button>
@@ -3750,13 +3790,13 @@
          n'est pas livré — la barre compte donc déjà sa largeur dans ses contrôles, et le jour où
          il paraîtra, rien ne se réorganisera sous les yeux de l'utilisatrice. Même patron de
          visibilité que ses voisins : montré par adocOpenWorkspace selon le documentKind. -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-word-btn" hidden
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-word-btn" role="menuitem" hidden
       onclick="window.adocWsTexteDiapositivesWord()"
       aria-label="Texte des diapositives au format Word">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
       <span>Texte en Word</span>
     </button>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-diapositives-btn" hidden
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-texte-diapositives-btn" role="menuitem" hidden
       onclick="window.adocWsTexteDiapositives()"
       aria-label="Texte des diapositives (copier ou télécharger)">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-download"></use></svg>
@@ -3767,27 +3807,20 @@
          générique — investigation confirmée, ce dernier sert TOUS les documentKind (Fiche/Script/
          Tableau/Liens inclus) qui n'ont jamais de PDF paginé par carte, jamais de bascule de
          format ajoutée à un mécanisme partagé pour un cas qui ne concerne qu'un seul type. -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-pdf-carrousel-btn" onclick="window.adocWsExportCarrouselPDF()" aria-label="Exporter en PDF (une page par carte)" hidden>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-pdf-carrousel-btn" role="menuitem" onclick="window.adocWsExportCarrouselPDF()" aria-label="Exporter en PDF (une page par carte)" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
       <span>Exporter en PDF</span>
     </button>
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-print-presentation-btn" onclick="window.adocWsPrintPresentation()" aria-label="Imprimer la présentation complète" hidden>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-print-presentation-btn" role="menuitem" onclick="window.adocWsPrintPresentation()" aria-label="Imprimer la présentation complète" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
       <span>Imprimer</span>
     </button>
     <!-- ITEM 75 — nettoyage de la dette (Sujet 2) — même patron EXACT que le bouton PDF ci-dessus
          (visibilité, placement, mécanisme), déficit comblé : une carte = une diapositive, comme le
          PDF déjà livré ; jamais un bouton pour tout autre documentKind. -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-pptx-carrousel-btn" onclick="window.adocWsExportCarrouselPPTX()" aria-label="Exporter en PPTX (une carte par diapositive)" hidden>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-pptx-carrousel-btn" role="menuitem" onclick="window.adocWsExportCarrouselPPTX()" aria-label="Exporter en PPTX (une carte par diapositive)" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-pdf"></use></svg>
       <span>Exporter en PPTX</span>
-    </button>
-    <!-- LOT 1 Présentation (6e documentKind) — mode plein écran de navigation, visible UNIQUEMENT
-         pour une Présentation du moteur structuré (cf. adocOpenWorkspace). Jamais pour les 5
-         autres documentKind, y compris Carrousel (hors périmètre de ce lot, non demandé). -->
-    <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-present-btn" onclick="window.adocPresentOpen()" aria-label="Présenter en plein écran" hidden>
-      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-slides"></use></svg>
-      <span>Présenter</span>
     </button>
     <!-- LOT A (export Présentation autonome) — même garde-fou EXACT que le bouton "Présenter"
          ci-dessus (visible UNIQUEMENT pour une Présentation du moteur structuré, jamais legacy,
@@ -3795,9 +3828,16 @@
          nécessite Studio Clinique pour un rendu fidèle) : ce fichier est autonome, ouvrable par
          file:// n'importe où, reproduisant le mode "Présenter" complet (plein écran, révélation
          progressive, quiz cliquable, sommaire). -->
-    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-standalone-presentation-btn" onclick="window.adocWsExportStandalonePresentation()" aria-label="Exporter la présentation interactive autonome" hidden>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-export-standalone-presentation-btn" role="menuitem" onclick="window.adocWsExportStandalonePresentation()" aria-label="Exporter la présentation interactive autonome" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-html"></use></svg>
       <span>Exporter — présentation interactive</span>
+    </button>
+      </div>
+    </div>
+    <!-- LOT 1 Présentation : accès direct au mode de présentation. -->
+    <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-present-btn" onclick="window.adocPresentOpen()" aria-label="Présenter en plein écran" hidden>
+      <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-slides"></use></svg>
+      <span>Présenter</span>
     </button>
     <button type="button" class="cc-ws-close" id="cc-ws-close-btn" onclick="window.adocCloseWorkspace()"
       aria-label="Fermer l'espace de travail et revenir à la conversation">
