@@ -191,16 +191,16 @@
           "type": "number",
           "minimum": 0,
           "maximum": 100
-    },
-    "flowWidthPercent": {
-      "type": "number",
-      "minimum": 25,
-      "maximum": 100
-    },
-    "flowMinHeightPx": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 1200
+        },
+        "flowWidthPercent": {
+          "type": "number",
+          "minimum": 25,
+          "maximum": 100
+        },
+        "flowMinHeightPx": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1200
         }
       }
     },
@@ -725,7 +725,7 @@
       }
     },
     "videoBlock": {
-      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — mêmes contraintes que imageBlock (id/type/content requis, additionalProperties false, aucun `style` : décision suivie ici pour rester cohérent, jamais réinventée). Contenu via videoContent (url+title), jamais assetId — aucun fichier réel derrière un lien local (cf. commentaire de videoContent).",
+      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — mêmes contraintes que imageBlock (id/type/content requis, additionalProperties false, style facultatif pour redimensionner le bloc dans l’atelier. Contenu via videoContent (url+title), jamais assetId — aucun fichier réel derrière un lien local (cf. commentaire de videoContent).",
       "type": "object",
       "required": [
         "id",
@@ -749,6 +749,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },
@@ -788,7 +791,7 @@
       }
     },
     "quizBlock": {
-      "$comment": "LOT 3 Présentation — mêmes contraintes que videoBlock/imageBlock (id/type/content requis, additionalProperties false, aucun `style` : décision suivie ici pour rester cohérent, jamais réinventée). Réservé à `nestedBlock` (diapositive de Présentation ou de Carrousel) — jamais à `editorialBlock` (Fiche/Script/Tableau/Liens, hors périmètre de ce lot) ni à `cardOnlyBlock` (une carte ne peut jamais être elle-même un quiz). Schéma volontairement permissif pour les deux documentKind qui partagent nestedBlock (même patron que videoBlock, jamais utilisé par Carrousel en pratique) : c'est l'outil de génération structurée (ADOC_STRUCTURED_PRESENTATION_TOOL uniquement) qui réserve la PRODUCTION du bloc à Présentation, jamais une seconde branche de schéma dupliquée pour cette même restriction.",
+      "$comment": "LOT 3 Présentation — mêmes contraintes que videoBlock/imageBlock (id/type/content requis, additionalProperties false, style facultatif pour redimensionner le bloc dans l’atelier. Réservé à `nestedBlock` (diapositive de Présentation ou de Carrousel) — jamais à `editorialBlock` (Fiche/Script/Tableau/Liens, hors périmètre de ce lot) ni à `cardOnlyBlock` (une carte ne peut jamais être elle-même un quiz). Schéma volontairement permissif pour les deux documentKind qui partagent nestedBlock (même patron que videoBlock, jamais utilisé par Carrousel en pratique) : c'est l'outil de génération structurée (ADOC_STRUCTURED_PRESENTATION_TOOL uniquement) qui réserve la PRODUCTION du bloc à Présentation, jamais une seconde branche de schéma dupliquée pour cette même restriction.",
       "type": "object",
       "required": [
         "id",
@@ -812,6 +815,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },
@@ -905,7 +911,7 @@
       }
     },
     "questionnaireBlock": {
-      "$comment": "LOT 5 Présentation — mêmes contraintes que quizBlock/videoBlock/imageBlock (id/type/content requis, additionalProperties false, aucun `style`). Réservé à `nestedBlock` (diapositive de Présentation), jamais à `editorialBlock` ni `cardOnlyBlock`, exactement la même restriction que quizBlock ci-dessus et pour la même raison (n'a de sens qu'à l'intérieur d'une diapositive). C'est l'outil de génération structurée (ADOC_STRUCTURED_PRESENTATION_TOOL uniquement) qui réserve la PRODUCTION du bloc à Présentation, jamais une seconde branche de schéma dupliquée pour cette même restriction (même patron que quizBlock).",
+      "$comment": "LOT 5 Présentation — mêmes contraintes que quizBlock/videoBlock/imageBlock (id/type/content requis, additionalProperties false, style facultatif pour redimensionner le bloc dans l’atelier. Réservé à `nestedBlock` (diapositive de Présentation), jamais à `editorialBlock` ni `cardOnlyBlock`, exactement la même restriction que quizBlock ci-dessus et pour la même raison (n'a de sens qu'à l'intérieur d'une diapositive). C'est l'outil de génération structurée (ADOC_STRUCTURED_PRESENTATION_TOOL uniquement) qui réserve la PRODUCTION du bloc à Présentation, jamais une seconde branche de schéma dupliquée pour cette même restriction (même patron que quizBlock).",
       "type": "object",
       "required": [
         "id",
@@ -929,6 +935,9 @@
         },
         "validation": {
           "$ref": "#/$defs/blockValidation"
+        },
+        "style": {
+          "$ref": "#/$defs/blockStyle"
         }
       }
     },
@@ -1166,6 +1175,11 @@
         },
         "mirrorY": {
           "type": "boolean"
+        },
+        "coverHeightPx": {
+          "type": "integer",
+          "minimum": 160,
+          "maximum": 800
         }
       }
     }

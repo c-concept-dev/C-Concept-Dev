@@ -10182,6 +10182,7 @@ ${recent}`;
     if (display.borderWidth) css.push('border:' + n('borderWidth', 0) + 'px solid ' + (/^#[0-9a-fA-F]{6}$/.test(display.borderColor || '') ? display.borderColor : '#286b7b'));
     if (display.shadow) css.push('box-shadow:0 4px ' + n('shadow', 0) + 'px rgba(0,0,0,.35)');
     if (surface === 'cover' && Number.isFinite(display.sizePercent)) css.push('width:' + Math.max(10, Math.min(100, display.sizePercent)) + '%;margin-inline:auto');
+    if (surface === 'cover' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
     if (surface === 'image' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
     else if (surface === 'image' && ['contain', 'cover', 'fill'].includes(display.fit)) css.push('aspect-ratio:16/9');
     return css.length ? css.join(';') + ';' : '';
@@ -10395,10 +10396,15 @@ ${recent}`;
       el.style.objectPosition = (d.focalX == null ? 50 : d.focalX) + '% ' + (d.focalY == null ? 50 : d.focalY) + '%';
       el.style.width = (d.sizePercent == null ? 100 : d.sizePercent) + '%';
       el.style.marginInline = 'auto';
+      ctx.target.style.minHeight = Number.isInteger(d.coverHeightPx) ? d.coverHeightPx + 'px' : '';
     } else {
       el.style.objectFit = d.fit || 'cover';
       el.style.objectPosition = (d.focalX == null ? 50 : d.focalX) + '% ' + (d.focalY == null ? (ctx.st.zone === 'cover' ? 15 : 50) : d.focalY) + '%';
-      if (ctx.st.zone === 'cover') { el.style.width = (d.sizePercent == null ? 100 : d.sizePercent) + '%'; el.style.marginInline = 'auto'; }
+      if (ctx.st.zone === 'cover') {
+        el.style.width = (d.sizePercent == null ? 100 : d.sizePercent) + '%'; el.style.marginInline = 'auto';
+        el.style.aspectRatio = Number.isFinite(d.aspectRatio) ? String(d.aspectRatio) : '';
+        requestAnimationFrame(function () { adocPositionCardCoverHandles(el.parentElement); });
+      }
       if (ctx.st.zone === 'image') el.style.aspectRatio = Number.isFinite(d.aspectRatio) ? String(d.aspectRatio) : (d.fit ? '16 / 9' : '');
     }
     const filter = [];
@@ -11217,6 +11223,13 @@ ${recent}`;
   // structuré) et l'application live (DOM, les deux moteurs) : jamais deux logiques de calcul
   // pouvant diverger entre l'aperçu et la sauvegarde.
   function adocBlockStyleToCSSText(style, blockKind) { return adocEditorStyleCSS(style, blockKind); }
+  function adocFlowResizeCSSText(style) {
+    if (!style) return '';
+    let css = '';
+    if (Number.isFinite(style.flowWidthPercent)) css += 'width:' + Math.max(25, Math.min(100, style.flowWidthPercent)) + '%;max-width:100%;box-sizing:border-box;';
+    if (Number.isFinite(style.flowMinHeightPx)) css += 'min-height:' + Math.max(0, Math.min(1200, style.flowMinHeightPx)) + 'px;';
+    return css;
+  }
 
   // Applique un style de bloc directement sur l'élément affiché (retour visuel immédiat, jamais
   // via un re-rendu complet qui effacerait une frappe en cours, même principe que le texte du
@@ -12956,7 +12969,9 @@ ${recent}`;
     // (.is-position-selected, distinct de .is-selected — jamais affichée pendant une simple
     // correction de texte sur ce même bloc).
     const nestedPosCSS = adocCardPositionCSSText(b.style);
-    const nestedResizeHandle = '<span class="adoc-sc-nested-resize-handle" aria-hidden="true"></span>';
+    const nestedResizeHandle = ['nw','n','ne','e','se','s','sw','w'].map(function (direction) {
+      return '<span class="adoc-sc-nested-resize-handle cc-pos-resize-' + direction + '" data-resize-direction="' + direction + '" aria-hidden="true"></span>';
+    }).join('');
     // ITEM 63f — poignée de glissement pour réordonner ce bloc, même principe que
     // nestedResizeHandle ci-dessus (toujours présente dans le balisage, visibilité gérée
     // entièrement en CSS, cf. studio-clinique.html) : jamais un état JS créé/détruit au survol.
@@ -13183,7 +13198,8 @@ ${recent}`;
         // le MÊME domaine que le reste de l'application, réellement joignable partout — y compris
         // par Browser Rendering) n'affiche plus jamais cet avertissement devenu faux pour ce cas —
         // absence de message plutôt qu'un texte neutre qui n'apporterait rien (cf. rapport).
-        const videoStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
+        const videoCSS = adocFlowResizeCSSText(b.style) + nestedPosCSS;
+        const videoStyleAttr = videoCSS ? ' style="' + adocEsc(videoCSS) + '"' : '';
         const videoUrl = adocEsc(b.content.url);
         const videoTitle = adocEsc(b.content.title);
         const videoWarning = adocIsLocalVideoUrl(b.content.url)
@@ -13212,7 +13228,8 @@ ${recent}`;
         const c = b.content;
         const options = c.options || [];
         const correctIndex = Math.min(Math.max(0, c.correctIndex || 0), options.length - 1);
-        const quizStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
+        const quizCSS = adocFlowResizeCSSText(b.style) + nestedPosCSS;
+        const quizStyleAttr = quizCSS ? ' style="' + adocEsc(quizCSS) + '"' : '';
         const optionsHtml = options.map(function (opt, i) {
           return '<button type="button" class="adoc-sc-quiz-option" onclick="window.adocQuizSelectOption(this,' + i + ')">' + adocEsc(opt) + '</button>';
         }).join('');
@@ -13241,7 +13258,8 @@ ${recent}`;
         const questions = c.questions || [];
         const profiles = c.profiles || [];
         const twoPartners = !!c.allowTwoPartners;
-        const qStyleAttr = nestedPosCSS ? ' style="' + adocEsc(nestedPosCSS) + '"' : '';
+        const qCSS = adocFlowResizeCSSText(b.style) + nestedPosCSS;
+        const qStyleAttr = qCSS ? ' style="' + adocEsc(qCSS) + '"' : '';
         function renderQuestionnairePanel(panelNum) {
           const qsHtml = questions.map(function (q, qi) {
             const optsHtml = (q.options || []).map(function (opt) {
@@ -13418,7 +13436,8 @@ ${recent}`;
     const display = coverBlock.content.imageDisplay;
     if (display && Object.keys(display).length && source) {
       const style = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;' + adocImageDisplayStyle(display, 'cover');
-      return { attrs: '', className: ' adoc-sc-cover-has-display',
+      const coverHeight = Number.isInteger(display.coverHeightPx) ? ' style="min-height:' + Math.max(160, Math.min(800, display.coverHeightPx)) + 'px"' : '';
+      return { attrs: coverHeight, className: ' adoc-sc-cover-has-display',
         layer: '<img class="adoc-sc-cover-image-layer" ' + source + ' alt="" style="' + adocEsc(style) + '">' };
     }
     return { attrs: coverBlock.content.assetId
@@ -13551,7 +13570,9 @@ ${recent}`;
     // (jamais un state fantôme à créer/détruire au clic) mais masquée en CSS sauf sur la carte
     // sélectionnée (.adoc-sc-card.is-selected), même principe que Lot E/widthPercent (champ posé,
     // visuellement inerte sans action explicite de l'utilisatrice).
-    const resizeHandle = '<div class="adoc-sc-card-resize-handle" aria-hidden="true"></div>';
+    const resizeHandle = ['nw','n','ne','e','se','s','sw','w'].map(function (direction) {
+      return '<span class="adoc-sc-card-resize-handle cc-pos-resize-' + direction + '" data-resize-direction="' + direction + '" aria-hidden="true"></span>';
+    }).join('');
     return '<section class="adoc-sc-card" id="' + adocEsc(card.id) + '"' + styleAttr + ' role="group" aria-label="Carte ' + (index + 1) + ' sur ' + total + ' : ' + adocEsc(card.content.title) + '">' +
       // Item 68 — même mécanisme d'édition directe que la bannière Fiche (data-cc-editor-leaf
       // générique, jamais .adoc-sc-block : un titre de carte reste une DÉCORATION de card.content,
@@ -17080,6 +17101,21 @@ ${recent}`;
     cardEl.querySelectorAll('.cc-preview-copy-btn').forEach(function (btn) {
       btn.addEventListener('click', function () { window.adocPreviewRequestCopy(btn.getAttribute('data-preview-copy-block')); });
     });
+    // La couverture d'une diapositive est un champ de card.content, pas un .adoc-sc-block.
+    // Elle doit pourtant pouvoir être copiée comme une image autonome dans le document A.
+    cardEl.querySelectorAll('.adoc-sc-card > .adoc-sc-card-img').forEach(function (img) {
+      const card = img.closest('.adoc-sc-card');
+      if (!card) return;
+      img.draggable = false; // le glissement HTML natif de l'image masquerait notre point de dépôt.
+      img.classList.add('cc-preview-cover-source');
+      img.title = 'Glisser cette photo vers le document';
+      const row = document.createElement('div');
+      row.className = 'cc-preview-copy-row';
+      const sourceId = 'preview-cover:' + card.id;
+      row.innerHTML = '<button type="button" class="cc-preview-copy-btn" data-preview-copy-block="' + adocEsc(sourceId) + '">Copier cette photo</button>';
+      img.insertAdjacentElement('afterend', row);
+      row.querySelector('button').addEventListener('click', function () { window.adocPreviewRequestCopy(sourceId); });
+    });
     // Fusion Phase 2 — glissement réel B→A, geste ALTERNATIF au clic "Copier" ci-dessus, jamais un
     // remplacement (les deux coexistent, décision actée).
     adocFusionSetupDragSource(cardEl);
@@ -17113,6 +17149,28 @@ ${recent}`;
     window._adocFusionPendingCopy = null;
   }
 
+  function adocFusionPreviewSource(preview, sourceId) {
+    if (!preview || !preview.art || preview.art._adocGenerationEngine !== 'structured') return null;
+    const docB = preview.art._adocStructuredDoc;
+    if (sourceId.indexOf('preview-cover:') === 0) {
+      const cardId = sourceId.slice('preview-cover:'.length);
+      const siblings = adocEditorBlockContainer(docB, cardId);
+      const card = siblings && siblings.find(function (b) { return b.id === cardId && b.type === 'card'; });
+      if (!card || !(card.content.imageAssetId || adocRequeteImageUtilisable(card.content.imageRef))) return null;
+      const alt = card.content.imageAlt || card.content.title || 'Image de couverture';
+      const content = {
+        query: adocRequeteImageUtilisable(card.content.imageRef) || alt,
+        alt: alt
+      };
+      if (card.content.imageAssetId) content.assetId = card.content.imageAssetId;
+      if (card.content.imageDisplay) content.imageDisplay = JSON.parse(JSON.stringify(card.content.imageDisplay));
+      return { docB: docB, blockB: { id: sourceId, type: 'image', content: content, citationIds: [], validation: {} } };
+    }
+    const siblings = adocEditorBlockContainer(docB, sourceId);
+    const blockB = siblings && siblings.find(function (b) { return b.id === sourceId; });
+    return blockB ? { docB: docB, blockB: blockB } : null;
+  }
+
   function adocFusionBuildDropLine(anchorBlockId, position) {
     const line = document.createElement('div');
     line.className = 'adoc-sc-drop-line cc-fusion-drop-target';
@@ -17135,7 +17193,15 @@ ${recent}`;
     Array.prototype.forEach.call(docCardEl.querySelectorAll('.adoc-sc-card'), function (c) { containers.push(c); });
     containers.forEach(function (container) {
       const blocks = Array.prototype.filter.call(container.children, function (el) { return el.classList.contains('adoc-sc-block'); });
-      if (!blocks.length) return;
+      if (!blocks.length) {
+        // Une diapositive peut ne contenir que son titre et sa couverture : elle reste une
+        // destination valide pour le premier bloc importé depuis l'aperçu.
+        if (container.classList.contains('adoc-sc-card')) {
+          const line = adocFusionBuildDropLine('empty-card:' + container.id, 'inside');
+          container.appendChild(line);
+        }
+        return;
+      }
       container.insertBefore(adocFusionBuildDropLine(blocks[0].id, 'before'), blocks[0]);
       blocks.forEach(function (b) {
         const line = adocFusionBuildDropLine(b.id, 'after');
@@ -17243,7 +17309,7 @@ ${recent}`;
     let hoverBlockEl = null;
     cardEl.onmousemove = function (e) {
       if (window._adocAnyDragActive) return;
-      const blockEl = e.target.closest('.adoc-sc-block');
+      const blockEl = e.target.closest('.adoc-sc-block, .cc-preview-cover-source');
       const inZone = blockEl && adocDragInEdgeZone(blockEl, e.clientX);
       if (hoverBlockEl && hoverBlockEl !== (inZone ? blockEl : null)) { hoverBlockEl.classList.remove('cc-drag-edge-hover'); hoverBlockEl = null; }
       if (inZone && hoverBlockEl !== blockEl) { blockEl.classList.add('cc-drag-edge-hover'); hoverBlockEl = blockEl; }
@@ -17253,16 +17319,14 @@ ${recent}`;
     };
     cardEl.onmousedown = function (e) {
       if (window._adocAnyDragActive) return;
-      const blockEl = e.target.closest('.adoc-sc-block');
+      const blockEl = e.target.closest('.adoc-sc-block, .cc-preview-cover-source');
       if (!blockEl || !adocDragInEdgeZone(blockEl, e.clientX)) return;
       const preview = window._adocPreviewState;
-      if (!preview || !preview.art || preview.art._adocGenerationEngine !== 'structured') return;
-      const docB = preview.art._adocStructuredDoc;
-      // Même résolution de conteneur SOURCE que le clic "Copier" (adocPreviewRequestCopy) —
-      // jamais une seconde lecture de blockB ici.
-      const siblingsB = adocEditorBlockContainer(docB, blockEl.id);
-      const blockB = siblingsB && siblingsB.find(function (b) { return b.id === blockEl.id; });
-      if (!blockB) return;
+      const sourceId = blockEl.classList.contains('cc-preview-cover-source')
+        ? 'preview-cover:' + blockEl.closest('.adoc-sc-card').id : blockEl.id;
+      const source = adocFusionPreviewSource(preview, sourceId);
+      if (!source) return;
+      const docB = source.docB, blockB = source.blockB;
       e.preventDefault();
       if (hoverBlockEl) { hoverBlockEl.classList.remove('cc-drag-edge-hover'); hoverBlockEl = null; }
       const pointerStartX = e.clientX, pointerStartY = e.clientY;
@@ -17309,7 +17373,7 @@ ${recent}`;
         // null ici, déjà toléré par adocFusionCommitDrop (aucun bouton n'a été cliqué).
         // Fusion Phase 3 — docB/snapshotB capturés au même instant que blockB (cf. commentaire
         // identique côté clic, adocPreviewRequestCopy).
-        window._adocFusionPendingCopy = { blockId: blockEl.id, blockB: blockB, btn: null, docB: docB, snapshotB: preview.art._adocStructuredSnapshot };
+        window._adocFusionPendingCopy = { blockId: sourceId, blockB: blockB, btn: null, docB: docB, snapshotB: preview.art._adocStructuredSnapshot };
         window.adocFusionCommitDrop(dropTarget.dataset.fusionAnchor, dropTarget.dataset.fusionPosition);
       }
       document.addEventListener('mousemove', onMove);
@@ -17321,14 +17385,9 @@ ${recent}`;
   // ouvre le choix du point de dépôt dans A (cf. adocFusionCommitDrop ci-dessous).
   window.adocPreviewRequestCopy = function (blockId) {
     const preview = window._adocPreviewState;
-    if (!preview || !preview.art || preview.art._adocGenerationEngine !== 'structured') return;
-    const docB = preview.art._adocStructuredDoc;
-    // adocEditorBlockContainer résout déjà, de façon générique et récursive, le tableau exact
-    // contenant ce bloc — racine de B OU card.content.blocks imbriqué — jamais une seconde
-    // résolution de conteneur ici (même fonction qu'Item 64/l'insertion de bloc par type).
-    const siblingsB = adocEditorBlockContainer(docB, blockId);
-    const blockB = siblingsB && siblingsB.find(function (b) { return b.id === blockId; });
-    if (!blockB) return;
+    const source = adocFusionPreviewSource(preview, blockId);
+    if (!source) return;
+    const docB = source.docB, blockB = source.blockB;
     const btn = document.querySelector('.cc-preview-copy-btn[data-preview-copy-block="' + blockId.replace(/"/g, '\\"') + '"]');
     const already = window._adocFusionPendingCopy;
     adocFusionCancelPending();
@@ -17352,11 +17411,11 @@ ${recent}`;
   // liste divergente.
   function adocFusionCanDropBlockType(targetDoc, targetSiblings, blockType) {
     if (targetSiblings === targetDoc.blocks) {
-      // Racine du document cible — un Carrousel n'y accepte QUE des cartes (cardOnlyBlock), jamais
+      // Racine du document cible — Carrousel et Présentation n'y acceptent QUE des cartes (cardOnlyBlock), jamais
       // un bloc éditorial ; les autres documentKind (editorialBlock) acceptent tous les types
       // copiables ici (jamais 'card', structurellement inatteignable en source : les cartes ne
       // portent jamais .adoc-sc-block, donc jamais de bouton "Copier").
-      return targetDoc.documentKind !== 'carrousel';
+      return targetDoc.documentKind !== 'carrousel' && targetDoc.documentKind !== 'presentation';
     }
     return ADOC_NESTED_POSITIONABLE_TYPES.indexOf(blockType) !== -1;
   }
@@ -17403,16 +17462,18 @@ ${recent}`;
     const artA = window._adocArtifacts && window._adocArtifacts[storeKeyA];
     if (!artA || !artA._adocStructuredDoc) { adocFusionCancelPending(); alert('Aucun document ouvert pour recevoir ce bloc — ouvrez ou générez d’abord un document.'); return; }
     const docA = artA._adocStructuredDoc;
-    const siblingsA = adocEditorBlockContainer(docA, anchorBlockId);
-    if (!siblingsA) { adocFusionCancelPending(); return; }
+    const emptyCardId = anchorBlockId.indexOf('empty-card:') === 0 ? anchorBlockId.slice('empty-card:'.length) : null;
+    const emptyCard = emptyCardId && docA.blocks.find(function (b) { return b.id === emptyCardId && b.type === 'card'; });
+    const siblingsA = emptyCard ? emptyCard.content.blocks : adocEditorBlockContainer(docA, anchorBlockId);
+    if (!siblingsA || (emptyCardId && (!emptyCard || siblingsA.length))) { adocFusionCancelPending(); alert('Cet emplacement n’est plus disponible. Sélectionnez à nouveau la diapositive.'); return; }
     if (!adocFusionCanDropBlockType(docA, siblingsA, pending.blockB.type)) {
       adocFusionCancelPending();
       alert('Impossible d’insérer ce bloc à cet emplacement : un bloc de type « ' + pending.blockB.type + ' » n’y est pas autorisé.');
       return;
     }
-    const anchorIdx = siblingsA.findIndex(function (b) { return b.id === anchorBlockId; });
+    const anchorIdx = emptyCard ? 0 : siblingsA.findIndex(function (b) { return b.id === anchorBlockId; });
     if (anchorIdx === -1) { adocFusionCancelPending(); return; }
-    const insertIdx = position === 'after' ? anchorIdx + 1 : anchorIdx;
+    const insertIdx = emptyCard ? 0 : position === 'after' ? anchorIdx + 1 : anchorIdx;
     try {
       const clone = JSON.parse(JSON.stringify(pending.blockB));
       clone.id = adocNextBlockId(docA, clone.type);
@@ -19381,7 +19442,8 @@ ${recent}`;
       adocPresentTocDeepDivesHTML: adocPresentTocDeepDivesHTML,
       adocEditorTableGrid: adocEditorTableGrid, adocEditorApplyRules: adocEditorApplyRules,
       adocEditorRenderList: adocEditorRenderList, adocEditorRenderTable: adocEditorRenderTable,
-      adocEditorExportFonts: adocEditorExportFonts, adocRenderBlockHTML: adocRenderBlockHTML,
+      adocEditorExportFonts: adocEditorExportFonts, adocFlowResizeCSSText: adocFlowResizeCSSText,
+      adocRenderBlockHTML: adocRenderBlockHTML,
       adocIsLocalVideoUrl: adocIsLocalVideoUrl,
       // LOT 5 Présentation — appelées par window.adocQuestionnaireCalculerResultat (windowFnNames
       // ci-dessous) : sans elles, l'export autonome planterait à l'ouverture dès qu'un
@@ -20799,7 +20861,7 @@ ${recent}`;
     if (!blockEl || !blockEl.closest('#cc-ws-doc-card')) return;
     if (!window.confirm('Supprimer ce bloc du document ?')) return;
     const current = window._adocBlockEditState || {};
-    if (current.blockId !== blockId) blockEl.click();
+    if (current.blockId !== blockId && !blockEl.classList.contains('adoc-sc-card')) blockEl.click();
     adocEditorSync();
     const doc = art._adocStructuredDoc;
     const siblings = adocEditorBlockContainer(doc, blockId);
@@ -20826,9 +20888,14 @@ ${recent}`;
     }
   };
 
+  const ADOC_RESIZE_DIRECTIONS = [
+    ['nw', 'coin supérieur gauche'], ['n', 'bord supérieur'], ['ne', 'coin supérieur droit'],
+    ['e', 'bord droit'], ['se', 'coin inférieur droit'], ['s', 'bord inférieur'],
+    ['sw', 'coin inférieur gauche'], ['w', 'bord gauche']
+  ];
   function adocAddFlowResizeHandles(host) {
     if (host.querySelector(':scope > .cc-flow-resize-handle')) return;
-    [['x', 'Largeur'], ['y', 'Hauteur minimale'], ['xy', 'Largeur et hauteur minimale']].forEach(function (entry) {
+    ADOC_RESIZE_DIRECTIONS.forEach(function (entry) {
       const handle = document.createElement('button');
       handle.type = 'button'; handle.className = 'cc-flow-resize-handle cc-flow-resize-' + entry[0];
       handle.dataset.flowResize = entry[0]; handle.title = 'Redimensionner : ' + entry[1].toLowerCase();
@@ -20836,50 +20903,79 @@ ${recent}`;
       host.appendChild(handle);
     });
   }
+  function adocPositionCardCoverHandles(cardEl) {
+    if (!cardEl) return;
+    const img = cardEl.querySelector(':scope > .adoc-sc-card-img');
+    if (!img) return;
+    const r = img.getBoundingClientRect(), parent = cardEl.getBoundingClientRect();
+    cardEl.querySelectorAll(':scope > .cc-card-cover-resize-handle').forEach(function (h) {
+      const dir = h.dataset.imageResize;
+      h.style.left = (r.left - parent.left + (dir.includes('w') ? 0 : dir.includes('e') ? r.width : r.width / 2)) + 'px';
+      h.style.top = (r.top - parent.top + (dir.includes('n') ? 0 : dir.includes('s') ? r.height : r.height / 2)) + 'px';
+    });
+  }
+  function adocAddCardCoverHandles(cardEl) {
+    if (cardEl.querySelector(':scope > .cc-card-cover-resize-handle')) return;
+    const img = cardEl.querySelector(':scope > .adoc-sc-card-img');
+    ADOC_RESIZE_DIRECTIONS.forEach(function (entry) {
+      const handle = document.createElement('button');
+      handle.type = 'button'; handle.className = 'cc-image-resize-handle cc-image-resize-' + entry[0] + ' cc-card-cover-resize-handle';
+      handle.dataset.imageResize = entry[0]; handle.title = 'Redimensionner la photo : ' + entry[1];
+      handle.setAttribute('aria-label', handle.title); handle.contentEditable = 'false';
+      cardEl.appendChild(handle);
+    });
+    adocPositionCardCoverHandles(cardEl);
+    img.addEventListener('load', function () { adocPositionCardCoverHandles(cardEl); }, { once: true });
+    requestAnimationFrame(function () { adocPositionCardCoverHandles(cardEl); });
+  }
   function adocPositionLegacyFlowHandles(wrap, blockEl) {
     if (!wrap || !blockEl) return;
     const r = blockEl.getBoundingClientRect(), w = wrap.getBoundingClientRect();
-    const x = r.right - w.left, y = r.bottom - w.top;
     wrap.querySelectorAll(':scope > .cc-flow-resize-handle').forEach(function (h) {
-      h.style.left = (h.dataset.flowResize === 'y' ? r.left - w.left + r.width / 2 : x) + 'px';
-      h.style.top = (h.dataset.flowResize === 'x' ? r.top - w.top + r.height / 2 : y) + 'px';
+      const dir = h.dataset.flowResize;
+      h.style.left = (r.left - w.left + (dir.includes('w') ? 0 : dir.includes('e') ? r.width : r.width / 2)) + 'px';
+      h.style.top = (r.top - w.top + (dir.includes('n') ? 0 : dir.includes('s') ? r.height : r.height / 2)) + 'px';
     });
   }
   function adocStartFlowResize(e, blockEl, art, block, legacy, wrap) {
-    const axis = e.target.dataset.flowResize;
-    if (!axis || !blockEl || !art) return;
+    const direction = e.target.dataset.flowResize;
+    if (!direction || !blockEl || !art) return;
     e.preventDefault(); e.stopPropagation();
     const parent = legacy ? wrap : blockEl.parentElement;
-    const parentWidth = parent.getBoundingClientRect().width;
+    const parentStyle = getComputedStyle(parent);
+    const parentWidth = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight);
     const rect = blockEl.getBoundingClientRect();
     const startX = e.clientX, startY = e.clientY;
     let changed = false;
     function suppressClick(ev) { ev.preventDefault(); ev.stopPropagation(); document.removeEventListener('click', suppressClick, true); }
     function move(ev) {
+      if (!(ev.buttons & 1)) { up(); return; }
       const dx = ev.clientX - startX, dy = ev.clientY - startY;
-      if (!changed && Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+      const horizontalDelta = direction.includes('e') ? dx : direction.includes('w') ? -dx : 0;
+      const verticalDelta = direction.includes('s') ? dy : direction.includes('n') ? -dy : 0;
+      if (!changed && Math.abs(horizontalDelta) < 2 && Math.abs(verticalDelta) < 2) return;
       if (!changed) { adocEditorCheckpoint(); document.addEventListener('click', suppressClick, true); changed = true; }
-      const width = Math.max(25, Math.min(100, Math.round((rect.width + dx) / parentWidth * 100)));
-      const height = Math.max(0, Math.min(1200, Math.round(rect.height + dy)));
+      const width = Math.max(25, Math.min(100, Math.round((rect.width + horizontalDelta) / parentWidth * 100)));
+      const height = Math.max(0, Math.min(1200, Math.round(rect.height + verticalDelta)));
       if (legacy) {
-        if (axis.includes('x')) { blockEl.style.width = width + '%'; blockEl.style.maxWidth = '100%'; blockEl.style.boxSizing = 'border-box'; }
-        if (axis.includes('y')) blockEl.style.minHeight = height + 'px';
+        if (horizontalDelta || direction.includes('e') || direction.includes('w')) { blockEl.style.width = width + '%'; blockEl.style.maxWidth = '100%'; blockEl.style.boxSizing = 'border-box'; }
+        if (direction.includes('n') || direction.includes('s')) blockEl.style.minHeight = height + 'px';
         adocPositionLegacyFlowHandles(wrap, blockEl);
       } else {
         const style = Object.assign({}, block.style);
-        if (axis.includes('x')) { style.flowWidthPercent = width; blockEl.style.width = width + '%'; blockEl.style.maxWidth = '100%'; blockEl.style.boxSizing = 'border-box'; }
-        if (axis.includes('y')) { style.flowMinHeightPx = height; blockEl.style.minHeight = height + 'px'; }
+        if (direction.includes('e') || direction.includes('w')) { style.flowWidthPercent = width; blockEl.style.width = width + '%'; blockEl.style.maxWidth = '100%'; blockEl.style.boxSizing = 'border-box'; }
+        if (direction.includes('n') || direction.includes('s')) { style.flowMinHeightPx = height; blockEl.style.minHeight = height + 'px'; }
         block.style = style;
       }
       adocEditorSync(); adocEditorMarkDirty();
     }
     function up() {
-      document.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseup', up);
+      window.removeEventListener('mousemove', move, true);
+      window.removeEventListener('mouseup', up, true);
       setTimeout(function () { document.removeEventListener('click', suppressClick, true); }, 0);
     }
-    document.addEventListener('mousemove', move);
-    document.addEventListener('mouseup', up);
+    window.addEventListener('mousemove', move, true);
+    window.addEventListener('mouseup', up, true);
   }
   function adocWsSetupBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
@@ -20901,17 +20997,25 @@ ${recent}`;
       button.contentEditable = 'false';
       blockEl.appendChild(button);
     });
+    docCard.querySelectorAll('.adoc-sc-card[id]').forEach(function (cardEl) {
+      if (cardEl.querySelector(':scope > .cc-card-delete')) return;
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'cc-block-delete cc-card-delete'; button.textContent = '×';
+      button.title = 'Supprimer cette diapositive ou carte';
+      button.setAttribute('aria-label', button.title); button.contentEditable = 'false';
+      cardEl.appendChild(button);
+    });
     if (art._adocStructuredDoc && art._adocStructuredDoc.documentKind !== 'carrousel') {
       docCard.querySelectorAll('.adoc-sc-block[id]').forEach(function (blockEl) {
         const block = adocFindEditableBlock(art._adocStructuredDoc, blockEl.id);
-        if (block && ADOC_DIRECT_TYPES.includes(block.type)) adocAddFlowResizeHandles(blockEl);
+        if (block && [...ADOC_DIRECT_TYPES, 'video', 'quiz', 'questionnaire'].includes(block.type)) adocAddFlowResizeHandles(blockEl);
       });
     }
     // La taille de l'image est celle de son cadre, pas de l'élément <img>.
     // La poignée est créée seulement dans l'espace de travail : aucun contrôle dans l'export.
     docCard.querySelectorAll('.adoc-sc-image .adoc-sc-image-cadre').forEach(function (cadre) {
       if (cadre.querySelector('.cc-image-resize-handle')) return;
-      [['x', 'largeur'], ['y', 'hauteur'], ['xy', 'largeur et hauteur']].forEach(function (entry) {
+      ADOC_RESIZE_DIRECTIONS.forEach(function (entry) {
         const handle = document.createElement('button');
         handle.type = 'button'; handle.className = 'cc-image-resize-handle cc-image-resize-' + entry[0];
         handle.dataset.imageResize = entry[0];
@@ -20921,6 +21025,17 @@ ${recent}`;
         cadre.appendChild(handle);
       });
     });
+    if (hasDocumentCover) {
+      const coverEl = docCard.querySelector('.adoc-sc-cover');
+      if (coverEl && !coverEl.querySelector('.cc-doc-cover-resize-handle')) ADOC_RESIZE_DIRECTIONS.forEach(function (entry) {
+        const handle = document.createElement('button');
+        handle.type = 'button'; handle.className = 'cc-image-resize-handle cc-image-resize-' + entry[0] + ' cc-doc-cover-resize-handle';
+        handle.dataset.imageResize = entry[0]; handle.title = 'Redimensionner la photo : ' + entry[1];
+        handle.setAttribute('aria-label', handle.title); handle.contentEditable = 'false';
+        coverEl.appendChild(handle);
+      });
+    }
+    docCard.querySelectorAll('.adoc-sc-card:has(> .adoc-sc-card-img)').forEach(adocAddCardCoverHandles);
     // 57f — each textual leaf is prepared after the delegated click handler.
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-flow-resize-handle')) { e.preventDefault(); e.stopPropagation(); return; }
@@ -20928,7 +21043,7 @@ ${recent}`;
       const deleteButton = e.target.closest('.cc-block-delete');
       if (deleteButton) {
         e.preventDefault(); e.stopPropagation();
-        const blockEl = deleteButton.closest('.adoc-sc-block[id]');
+        const blockEl = deleteButton.closest('.adoc-sc-block[id], .adoc-sc-card[id]');
         if (blockEl) window.adocDeleteStructuredBlock(blockEl.id);
         return;
       }
@@ -21034,7 +21149,19 @@ ${recent}`;
         adocEditorRefreshImageControls(false);
         return;
       }
-      if (ADOC_BLOCK_EDIT_TYPES.indexOf(block.type) === -1) return; // type non pris en charge dans ce lot — inerte
+      if (['video', 'quiz', 'questionnaire'].includes(block.type)) {
+        if (current.blockId === blockId && current.zone === 'resize') return;
+        adocWsClearBlockSelection(); blockEl.classList.add('is-selected');
+        const panel = document.createElement('div');
+        panel.className = 'cc-clarity-card cc-block-edit-panel';
+        panel.setAttribute('role', 'group'); panel.setAttribute('aria-label', 'Bloc sélectionné pour redimensionnement');
+        panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(adocBlockPreviewText(block) || block.type)) +
+          '<p>Glissez une des huit poignées pour redimensionner ce bloc.</p>';
+        adocMountContextualBlockEditPanel(panel, blockEl);
+        window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, originalBlock: block, zone: 'resize' };
+        return;
+      }
+      if (ADOC_BLOCK_EDIT_TYPES.indexOf(block.type) === -1) return; // type non éditorial hors parcours de correction
       const isDirectlyEditable = ADOC_DIRECT_TYPES.includes(block.type);
       if (current.blockId === blockId && current.zone === 'text') {
         // Item 57c Lot 1 — un bloc directement éditable reste sélectionné au reclic : repositionner
@@ -21123,39 +21250,71 @@ ${recent}`;
         const blockEl = flowHandle.closest('.adoc-sc-block[id]');
         const currentArt = window._adocArtifacts && window._adocArtifacts[window._adocWsState.storeKey];
         const block = blockEl && currentArt && adocFindEditableBlock(currentArt._adocStructuredDoc, blockEl.id);
-        if (block && ADOC_DIRECT_TYPES.includes(block.type)) adocStartFlowResize(e, blockEl, currentArt, block, false, null);
+        if (block && [...ADOC_DIRECT_TYPES, 'video', 'quiz', 'questionnaire'].includes(block.type)) adocStartFlowResize(e, blockEl, currentArt, block, false, null);
         return;
       }
       const imageHandle = e.target.closest('.cc-image-resize-handle');
       if (imageHandle) {
         e.preventDefault(); e.stopPropagation();
+        const documentCover = imageHandle.classList.contains('cc-doc-cover-resize-handle') ? imageHandle.closest('.adoc-sc-cover') : null;
+        const coverCard = imageHandle.classList.contains('cc-card-cover-resize-handle') ? imageHandle.closest('.adoc-sc-card') : null;
         const figure = imageHandle.closest('.adoc-sc-image[id]');
-        const cadre = imageHandle.closest('.adoc-sc-image-cadre');
+        const cadre = documentCover || (coverCard ? coverCard.querySelector(':scope > .adoc-sc-card-img') : imageHandle.closest('.adoc-sc-image-cadre'));
         const art = window._adocArtifacts && window._adocArtifacts[window._adocWsState.storeKey];
-        const block = figure && art && adocFindEditableBlock(art._adocStructuredDoc, figure.id);
-        if (!block || block.type !== 'image' || !cadre) return;
-        const axis = imageHandle.dataset.imageResize || 'x';
+        const block = documentCover ? art && art._adocStructuredDoc && art._adocStructuredDoc.blocks[0] : art && adocFindEditableBlock(art._adocStructuredDoc, coverCard ? coverCard.id : figure && figure.id);
+        if (!block || (coverCard ? block.type !== 'card' : block.type !== 'image') || !cadre) return;
+        if (documentCover && !documentCover.querySelector('.adoc-sc-cover-image-layer')) {
+          const ctx = adocImageDisplayContext();
+          if (ctx) adocPreviewImageDisplay(ctx);
+        }
+        const direction = imageHandle.dataset.imageResize;
         const startX = e.clientX, startY = e.clientY;
         const startRect = cadre.getBoundingClientRect();
-        const startWidth = startRect.width, startHeight = startRect.height;
-        const parentWidth = figure.getBoundingClientRect().width;
-        const img = cadre.querySelector('img');
+        const startWidth = documentCover ? (documentCover.querySelector('.adoc-sc-cover-image-layer')?.getBoundingClientRect().width || startRect.width) : startRect.width;
+        const startHeight = startRect.height;
+        const parentWidth = documentCover ? documentCover.getBoundingClientRect().width : coverCard ? coverCard.clientWidth - parseFloat(getComputedStyle(coverCard).paddingLeft) - parseFloat(getComputedStyle(coverCard).paddingRight) : figure.getBoundingClientRect().width;
+        const img = documentCover ? documentCover.querySelector('.adoc-sc-cover-image-layer') : coverCard ? cadre : cadre.querySelector('img');
         let changed = false;
         function suppressClick(ev) { ev.preventDefault(); ev.stopPropagation(); document.removeEventListener('click', suppressClick, true); }
         function move(ev) {
+          if (!(ev.buttons & 1)) { up(); return; }
           const dx = ev.clientX - startX, dy = ev.clientY - startY;
-          if (!parentWidth || (Math.abs(dx) < 2 && Math.abs(dy) < 2 && !changed)) return;
+          const horizontalDelta = direction.includes('e') ? dx : direction.includes('w') ? -dx : 0;
+          const verticalDelta = direction.includes('s') ? dy : direction.includes('n') ? -dy : 0;
+          if (!parentWidth || (!changed && Math.abs(horizontalDelta) < 2 && Math.abs(verticalDelta) < 2)) return;
           if (!changed) { adocEditorCheckpoint(); document.addEventListener('click', suppressClick, true); changed = true; }
-          if (axis.includes('x')) {
-            // Le cadre est centré : déplacer son bord droit de 1 px ajoute 2 px à sa largeur.
-            const percent = Math.max(10, Math.min(100, Math.round((startWidth + 2 * dx) / parentWidth * 100)));
-            adocApplyImageWidth(percent, false);
-            const slider = window._adocBlockEditState.panelEl && window._adocBlockEditState.panelEl.querySelector('[data-image-size]');
-            if (slider) { slider.value = String(percent); adocRefreshImageMainOutputs(window._adocBlockEditState.panelEl); }
+          if (direction.includes('e') || direction.includes('w')) {
+            // Le cadre est centré : déplacer un bord de 1 px change la largeur de 2 px.
+            const percent = Math.max(10, Math.min(100, Math.round((startWidth + 2 * horizontalDelta) / parentWidth * 100)));
+            if (documentCover) {
+              block.content.imageDisplay = block.content.imageDisplay || {};
+              block.content.imageDisplay.sizePercent = percent;
+              if (img) { img.style.width = percent + '%'; img.style.marginInline = 'auto'; }
+              const slider = window._adocBlockEditState.panelEl && window._adocBlockEditState.panelEl.querySelector('[data-image-display="sizePercent"]');
+              if (slider) { slider.value = String(percent); slider.closest('label')?.querySelector('output')?.replaceChildren(String(percent)); }
+              adocEditorSync(); adocEditorMarkDirty();
+            } else if (coverCard) {
+              block.content.imageDisplay = block.content.imageDisplay || {};
+              block.content.imageDisplay.sizePercent = percent;
+              img.style.width = percent + '%'; img.style.marginInline = 'auto';
+              const slider = window._adocBlockEditState.panelEl && window._adocBlockEditState.panelEl.querySelector('[data-image-display="sizePercent"]');
+              if (slider) { slider.value = String(percent); slider.closest('label')?.querySelector('output')?.replaceChildren(String(percent)); }
+              adocEditorSync(); adocEditorMarkDirty();
+            } else {
+              adocApplyImageWidth(percent, false);
+              const slider = window._adocBlockEditState.panelEl && window._adocBlockEditState.panelEl.querySelector('[data-image-size]');
+              if (slider) { slider.value = String(percent); adocRefreshImageMainOutputs(window._adocBlockEditState.panelEl); }
+            }
           }
-          if (axis.includes('y') && img) {
+          if (documentCover && (direction.includes('n') || direction.includes('s'))) {
+            const height = Math.max(160, Math.min(800, Math.round(startHeight + verticalDelta)));
+            block.content.imageDisplay = block.content.imageDisplay || {};
+            block.content.imageDisplay.coverHeightPx = height;
+            documentCover.style.minHeight = height + 'px';
+            adocEditorSync(); adocEditorMarkDirty();
+          } else if ((direction.includes('n') || direction.includes('s')) && img) {
             const width = cadre.getBoundingClientRect().width;
-            const height = Math.max(60, startHeight + dy);
+            const height = Math.max(60, startHeight + verticalDelta);
             const ratio = Math.max(0.25, Math.min(4, Math.round(width / height * 1000) / 1000));
             block.content.imageDisplay = block.content.imageDisplay || {};
             block.content.imageDisplay.aspectRatio = ratio;
@@ -21163,14 +21322,15 @@ ${recent}`;
             adocEditorSync();
             adocEditorMarkDirty();
           }
+          if (coverCard) adocPositionCardCoverHandles(coverCard);
         }
         function up() {
-          document.removeEventListener('mousemove', move);
-          document.removeEventListener('mouseup', up);
+          window.removeEventListener('mousemove', move, true);
+          window.removeEventListener('mouseup', up, true);
           setTimeout(function () { document.removeEventListener('click', suppressClick, true); }, 0);
         }
-        document.addEventListener('mousemove', move);
-        document.addEventListener('mouseup', up);
+        window.addEventListener('mousemove', move, true);
+        window.addEventListener('mouseup', up, true);
         return;
       }
       if (e.target.closest('.cc-block-delete')) return;
@@ -21331,10 +21491,11 @@ ${recent}`;
           adocSelectNestedBlockForPosition(nestedEl, block, storeKey);
           const newStyle = Object.assign({}, block.style);
           if (nestedHandle) {
-            newStyle.width = Math.max(24, startW + dx);
-            newStyle.height = Math.max(24, startH + dy);
-            if (newStyle.x == null) newStyle.x = startX;
-            if (newStyle.y == null) newStyle.y = startY;
+            const dir = nestedHandle.dataset.resizeDirection || 'se';
+            newStyle.width = Math.max(24, startW + (dir.includes('e') ? dx : dir.includes('w') ? -dx : 0));
+            newStyle.height = Math.max(24, startH + (dir.includes('s') ? dy : dir.includes('n') ? -dy : 0));
+            newStyle.x = startX + (dir.includes('w') ? dx : 0);
+            newStyle.y = startY + (dir.includes('n') ? dy : 0);
           } else {
             newStyle.x = startX + dx;
             newStyle.y = startY + dy;
@@ -21419,10 +21580,11 @@ ${recent}`;
         selectCard();
         const newStyle = Object.assign({}, block.style);
         if (handle) {
-          newStyle.width = Math.max(40, startW + dx);
-          newStyle.height = Math.max(40, startH + dy);
-          if (newStyle.x == null) newStyle.x = startX;
-          if (newStyle.y == null) newStyle.y = startY;
+          const dir = handle.dataset.resizeDirection || 'se';
+          newStyle.width = Math.max(40, startW + (dir.includes('e') ? dx : dir.includes('w') ? -dx : 0));
+          newStyle.height = Math.max(40, startH + (dir.includes('s') ? dy : dir.includes('n') ? -dy : 0));
+          newStyle.x = startX + (dir.includes('w') ? dx : 0);
+          newStyle.y = startY + (dir.includes('n') ? dy : 0);
         } else {
           newStyle.x = startX + dx;
           newStyle.y = startY + dy;

@@ -39,6 +39,22 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
         assert.equal(await page.evaluate(k => _adocArtifacts[k]._adocStructuredDoc.blocks[0].content.blocks.some(b => b.id === 'h1'), key), true, 'annulation clavier restaure le bloc structuré');
       }
     }
+    for (const kind of ['presentation', 'carrousel']) {
+      const cards = doc(kind);
+      cards.blocks.push({ id: 'card-2', type: 'card', content: { title: 'Deuxième carte', imageRef: null, imageAlt: null, blocks: [] }, citationIds: [], validation: {} });
+      const key = 'delete-card-' + kind;
+      assert.equal(await open(page, cards, key), true);
+      const firstCard = page.locator('#cc-ws-doc-card .adoc-sc-card').first();
+      assert.equal(await firstCard.locator(':scope > .cc-card-delete').count(), 1, kind + ' affiche une croix sur la carte entière');
+      page.once('dialog', d => d.accept());
+      await firstCard.locator(':scope > .cc-card-delete').click();
+      await page.waitForFunction(k => _adocArtifacts[k]._adocStructuredDoc.blocks.length === 1, key);
+      assert.equal(await page.locator('#cc-ws-doc-card .adoc-sc-card').count(), 1, kind + ' conserve la seconde carte');
+      assert.equal(await page.evaluate(k => adocValidateSchema('clinicalDocument', _adocArtifacts[k]._adocStructuredDoc).valid, key), true, kind + ' reste conforme');
+      page.once('dialog', d => d.accept());
+      await page.locator('#cc-ws-doc-card .cc-card-delete').click();
+      assert.equal(await page.locator('#cc-ws-doc-card .adoc-sc-card').count(), 1, kind + ' protège la dernière carte');
+    }
     const fiche = doc('fiche'); fiche.blocks = [fiche.blocks[0]];
     assert.equal(await open(page, fiche, 'last-fiche'), true);
     let message = '';

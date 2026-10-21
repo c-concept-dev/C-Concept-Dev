@@ -2,7 +2,7 @@
 // COMPLÉMENT du clic "Copier" (Phase 1), jamais un remplacement. Preuve réelle des scénarios
 // exigés par le CDC : glissement imbriqué→point précis, refus d'incompatibilité par glissement,
 // coexistence du clic "Copier", non-régression Item 63f, verrou global anti-collision.
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
@@ -40,7 +40,7 @@ async function dragHandleTo(page, blockId, targetPoint) {
 }
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await (process.env.STUDIO_TEST_BROWSER === 'webkit' ? webkit : chromium).launch();
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const pageErrors = [];
   page.on('pageerror', (e) => pageErrors.push(e.message));
@@ -58,6 +58,9 @@ async function dragHandleTo(page, blockId, targetPoint) {
     if (url.includes('/brand-assets/asset-fusion-photo')) {
       return route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==', 'base64') });
     }
+    if (url.includes('/library-facets') || url.includes('/library-stats') || url.includes('/fetch-image?')) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: [], items: [] }) });
+    }
     return route.continue();
   });
 
@@ -69,9 +72,14 @@ async function dragHandleTo(page, blockId, targetPoint) {
   const docA2 = baseDoc('doc-fusion2-a2', 'Document A2 (Carrousel)', 'carrousel', [card('card-a2', 'Carte A2', [para('a2-nested-p1', 'Paragraphe imbriqué A2')])]);
   const docB1 = baseDoc('doc-fusion2-b1', 'Document B1 (Carrousel)', 'carrousel', [card('card-b1', 'Carte B1', [para('b1-nested-p1', 'Paragraphe imbriqué B1, source de glissement.')])]);
   const docB2 = baseDoc('doc-fusion2-b2', 'Document B2 (Fiche)', 'fiche', [heading('b2-h1', 'Titre B2'), para('b2-p1', 'Paragraphe B2, glissé au milieu.'), tableBlock('b2-table1'), imageBlock('b2-image')]);
+  const docA3 = baseDoc('doc-fusion2-a3', 'Présentation A3', 'presentation', [card('card-a3', 'Diapositive A', [para('a3-p1', 'Contenu initial.')]), card('card-a3-empty', 'Diapositive vide', [])]);
+  const docB3 = baseDoc('doc-fusion2-b3', 'Présentation B3', 'presentation', [card('card-b3', 'Diapositive B', [para('b3-p1', 'Contenu transféré.')])]);
+  docB3.blocks[0].content.imageRef = 'thérapie de couple';
+  docB3.blocks[0].content.imageAlt = 'Couple en entretien';
+  docB3.blocks[0].content.imageDisplay = { fit: 'contain', focalX: 45, focalY: 35 };
 
-  const storeKeyA = 'adocArt_fusion2_a', storeKeyA2 = 'adocArt_fusion2_a2';
-  await page.evaluate(({ keyA, docA, keyA2, docA2 }) => {
+  const storeKeyA = 'adocArt_fusion2_a', storeKeyA2 = 'adocArt_fusion2_a2', storeKeyA3 = 'adocArt_fusion2_a3';
+  await page.evaluate(({ keyA, docA, keyA2, docA2, keyA3, docA3 }) => {
     window._adocArtifacts = window._adocArtifacts || {};
     function mk(doc) {
       return {
@@ -82,13 +90,15 @@ async function dragHandleTo(page, blockId, targetPoint) {
     }
     window._adocArtifacts[keyA] = mk(docA);
     window._adocArtifacts[keyA2] = mk(docA2);
-  }, { keyA: storeKeyA, docA: docA, keyA2: storeKeyA2, docA2: docA2 });
+    window._adocArtifacts[keyA3] = mk(docA3);
+  }, { keyA: storeKeyA, docA: docA, keyA2: storeKeyA2, docA2: docA2, keyA3: storeKeyA3, docA3: docA3 });
 
   await page.route('**/clinical-documents', async (route) => {
     if (route.request().method() !== 'GET') return route.continue();
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ documents: [
       { document_id: 'doc-fusion2-b1', title: docB1.title, document_kind: 'carrousel', created_at: '2026-09-28T09:05:00Z', thumbnail_asset_id: null },
       { document_id: 'doc-fusion2-b2', title: docB2.title, document_kind: 'fiche', created_at: '2026-09-28T09:06:00Z', thumbnail_asset_id: null },
+      { document_id: 'doc-fusion2-b3', title: docB3.title, document_kind: 'presentation', created_at: '2026-09-28T09:07:00Z', thumbnail_asset_id: null },
     ] }) });
   });
   function mockGetDoc(id, doc) {
@@ -104,6 +114,7 @@ async function dragHandleTo(page, blockId, targetPoint) {
   }
   await mockGetDoc('doc-fusion2-b1', docB1);
   await mockGetDoc('doc-fusion2-b2', docB2);
+  await mockGetDoc('doc-fusion2-b3', docB3);
 
   // ── Ouvre A, prévisualise B1 EN PARALLÈLE ──
   const openedA = await page.evaluate((key) => window.adocOpenWorkspace(key), storeKeyA);
@@ -266,7 +277,7 @@ async function dragHandleTo(page, blockId, targetPoint) {
 
   // ── Régression : le panneau "Mes créations" (filtre) reste pleinement fonctionnel ──
   await page.fill('#cc-ws-creations-filter-title', '');
-  await page.waitForFunction(() => document.querySelectorAll('#cc-ws-creations-results .cc-media-item').length === 2);
+  await page.waitForFunction(() => document.querySelectorAll('#cc-ws-creations-results .cc-media-item').length === 3);
   console.log('PASS 10/11 — non-régression : le panneau "Mes créations" (filtre par titre) reste pleinement fonctionnel');
 
   // Une photo de B doit entrer dans une carte de A avec son asset et ses réglages d'affichage.
@@ -291,6 +302,67 @@ async function dragHandleTo(page, blockId, targetPoint) {
   assert.notEqual(copiedImage.id, 'b2-image');
   assert.equal(await page.locator('#cc-preview-doc-card #b2-image').count(), 1, 'l’image source reste intacte');
   console.log('PASS photo — bloc image glissé de l’aperçu vers la carte, asset et cadrage conservés');
+
+  // Le cas utilisateur : deux Présentations côte à côte, y compris la photo de couverture de B.
+  await page.click('#cc-preview-close-btn');
+  assert.equal(await page.evaluate(key => window.adocOpenWorkspace(key), storeKeyA3), true);
+  await page.fill('#cc-ws-creations-filter-title', 'Présentation B3');
+  await page.waitForSelector('#cc-ws-creations-results .cc-media-item');
+  await page.click('[data-creations-preview="0"]');
+  await page.waitForSelector('#cc-preview-doc-card #b3-p1');
+  await page.locator('#cc-preview-doc-card #b3-p1').scrollIntoViewIfNeeded();
+  const nestedBox = await page.locator('#cc-preview-doc-card #b3-p1').boundingBox();
+  await page.mouse.move(nestedBox.x + 4, nestedBox.y + nestedBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(nestedBox.x + 14, nestedBox.y + nestedBox.height / 2 + 10);
+  const a3Box = await page.locator('#cc-ws-doc-card').boundingBox();
+  await page.mouse.move(a3Box.x + 20, a3Box.y + 20, { steps: 6 });
+  await page.waitForSelector('#cc-ws-doc-card .cc-fusion-drop-target');
+  let nestedTarget = page.locator('#cc-ws-doc-card .cc-fusion-drop-target[data-fusion-anchor="a3-p1"][data-fusion-position="after"]');
+  let nestedTargetBox = await nestedTarget.boundingBox();
+  await page.mouse.move(nestedTargetBox.x + nestedTargetBox.width / 2, nestedTargetBox.y + nestedTargetBox.height / 2);
+  await page.mouse.up();
+  await page.waitForFunction(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks.length === 2, storeKeyA3);
+  assert.equal((await page.evaluate(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks[1].content.text, storeKeyA3)), 'Contenu transféré.');
+  console.log('PASS Présentation — bloc texte transféré entre deux diapositives');
+
+  const cover = page.locator('#cc-preview-doc-card #card-b3 > .adoc-sc-card-img');
+  await cover.waitFor();
+  await cover.scrollIntoViewIfNeeded();
+  const coverBox = await cover.boundingBox();
+  await page.mouse.move(coverBox.x + 4, coverBox.y + coverBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(coverBox.x + 14, coverBox.y + coverBox.height / 2 + 10);
+  await page.mouse.move(a3Box.x + 20, a3Box.y + 20, { steps: 6 });
+  await page.waitForSelector('#cc-ws-doc-card .cc-fusion-drop-target');
+  nestedTarget = page.locator('#cc-ws-doc-card .cc-fusion-drop-target[data-fusion-anchor="a3-p1"][data-fusion-position="before"]');
+  nestedTargetBox = await nestedTarget.boundingBox();
+  await page.mouse.move(nestedTargetBox.x + nestedTargetBox.width / 2, nestedTargetBox.y + nestedTargetBox.height / 2);
+  await page.mouse.up();
+  await page.waitForFunction(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks.length === 3, storeKeyA3);
+  const copiedCover = await page.evaluate(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks[0], storeKeyA3);
+  assert.equal(copiedCover.type, 'image');
+  assert.equal(copiedCover.content.query, 'thérapie de couple');
+  assert.equal(copiedCover.content.alt, 'Couple en entretien');
+  assert.deepEqual(copiedCover.content.imageDisplay, { fit: 'contain', focalX: 45, focalY: 35 });
+  console.log('PASS Présentation — photo de couverture transférée en bloc image, source intacte');
+
+  // Une diapositive ne portant encore aucun bloc doit offrir un point d'insertion.
+  await page.locator('#cc-preview-doc-card #b3-p1').scrollIntoViewIfNeeded();
+  const sourceBox = await page.locator('#cc-preview-doc-card #b3-p1').boundingBox();
+  await page.mouse.move(sourceBox.x + 4, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sourceBox.x + 14, sourceBox.y + sourceBox.height / 2 + 10);
+  await page.mouse.move(a3Box.x + 20, a3Box.y + 20, { steps: 6 });
+  const emptyTarget = page.locator('#cc-ws-doc-card .cc-fusion-drop-target[data-fusion-anchor="empty-card:card-a3-empty"]');
+  await emptyTarget.waitFor();
+  await emptyTarget.scrollIntoViewIfNeeded();
+  const emptyBox = await emptyTarget.boundingBox();
+  await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2);
+  await page.mouse.up();
+  await page.waitForFunction(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[1].content.blocks.length === 1, storeKeyA3);
+  assert.equal(await page.evaluate(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[1].content.blocks[0].content.text, storeKeyA3), 'Contenu transféré.');
+  console.log('PASS Présentation — premier bloc inséré par glissement dans une diapositive vide');
 
   // ── Zéro erreur JS sur l’ensemble du scénario ──
   assert.deepEqual(pageErrors, [], 'aucune erreur JS / dialogue non géré ne doit survenir sur l’ensemble du scénario : ' + JSON.stringify(pageErrors));
