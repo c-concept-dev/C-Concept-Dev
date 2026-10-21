@@ -2207,6 +2207,18 @@
        diff minimal (0D) : aucune fonction JS ne dépend plus de cet élément désormais. */
     .adoc-sc-block-drag-handle { display: none; }
     .adoc-sc-block-drag-wrap { position: relative; }
+    .cc-ws-doc-card .cc-block-delete {
+      position: absolute; top: -9px; right: -9px; z-index: 9;
+      width: 23px; height: 23px; padding: 0; border: 1px solid var(--stone-300);
+      border-radius: 6px; background: var(--paper); color: var(--petrol-950);
+      font: 18px/20px system-ui, sans-serif; text-align: center; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(16,47,49,.15);
+    }
+    .cc-ws-doc-card .cc-block-delete:hover,
+    .cc-ws-doc-card .cc-block-delete:focus-visible {
+      background: var(--terracotta-100); color: var(--terracotta-700);
+      outline: 2px solid var(--terracotta-700); outline-offset: 1px;
+    }
     .cc-drag-edge-hover { cursor: grab; }
     /* CORRECTIF ERGONOMIE (mesure réelle : la zone de 10px, mécaniquement parfaite, restait
        injouable car totalement invisible tant qu'on ne l'avait pas trouvée par tâtonnement) — un
