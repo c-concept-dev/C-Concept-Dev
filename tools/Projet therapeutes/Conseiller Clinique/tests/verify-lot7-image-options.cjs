@@ -49,11 +49,14 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     const coverWest = page.locator('.adoc-sc-card > .cc-card-cover-resize-handle.cc-image-resize-w').first();
     assert.equal(await coverWest.isVisible(), true, 'la poignée gauche de la couverture est visible');
     const coverGrip = await coverWest.boundingBox();
+    const coverHeightAtStart = await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().height);
     await page.mouse.move(coverGrip.x + coverGrip.width / 2, coverGrip.y + coverGrip.height / 2);
     await page.mouse.down();
     await page.mouse.move(coverGrip.x + coverGrip.width / 2 + 45, coverGrip.y + coverGrip.height / 2, { steps: 5 });
     await page.mouse.up();
     assert.ok(await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width * 100) < 95, 'la poignée gauche réduit la couverture');
+    assert.ok(Math.abs(await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().height) - coverHeightAtStart) < 3, 'la poignée gauche conserve la hauteur');
+    const coverWidthAtStart = await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().width);
     const coverHeightBefore = await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().height);
     const coverNorth = page.locator('.adoc-sc-card > .cc-card-cover-resize-handle.cc-image-resize-n').first();
     await coverNorth.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
@@ -64,6 +67,15 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     await page.mouse.up();
     const coverHeightAfter = await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().height);
     assert.ok(coverHeightAfter < coverHeightBefore - 20, 'la poignée haute réduit la hauteur de la couverture : ' + JSON.stringify({ before: coverHeightBefore, after: coverHeightAfter, style: await page.locator('.adoc-sc-card-img').getAttribute('style'), target: await page.evaluate(({x,y}) => document.elementFromPoint(x,y)?.className, { x: northGrip.x + northGrip.width / 2, y: northGrip.y + northGrip.height / 2 }) }));
+    assert.ok(Math.abs(await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().width) - coverWidthAtStart) < 3, 'la poignée haute conserve la largeur');
+    const coverSouth = page.locator('.adoc-sc-card > .cc-card-cover-resize-handle.cc-image-resize-s').first();
+    await coverSouth.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    const southGrip = await coverSouth.boundingBox();
+    await page.mouse.move(southGrip.x + southGrip.width / 2, southGrip.y + southGrip.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(southGrip.x + southGrip.width / 2, southGrip.y + southGrip.height / 2 + 70, { steps: 6 });
+    await page.mouse.up();
+    assert.ok(await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().height) > coverHeightAfter + 10, 'la poignée basse étire réellement la photo');
     await page.getByLabel('Cadrage').selectOption('cover');
     await page.locator('[data-image-display="sizePercent"]').fill('70');
     assert.ok(Math.abs(await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width * 100) - 70) < 3, 'taille de la couverture appliquée immédiatement');
@@ -85,6 +97,7 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     await page.waitForSelector('.adoc-sc-card-img');
     assert.equal(await page.locator('.adoc-sc-card-img').evaluate(el => getComputedStyle(el).objectFit), 'contain', 'cadrage conservé après relecture');
     assert.ok(Math.abs(await page.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width * 100) - 70) < 3, 'taille couverture conservée après relecture');
+    assert.ok(Number.isInteger(await page.evaluate(() => window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc.blocks[0].content.imageDisplay.heightPx)), 'hauteur indépendante conservée après relecture');
     assert.equal(await page.locator('.adoc-sc-card-img').evaluate(el => getComputedStyle(el).filter.includes('brightness(1.18)')), true, 'correction conservée après relecture');
     const exported = await page.evaluate(() => adocBuildStandalonePresentationHTML(window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc, { delaiMs: 0 }));
     assert.ok(exported.includes('"brightness":118'), 'l’export autonome conserve le réglage de correction');
@@ -100,6 +113,9 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     assert.ok(Math.abs(await exportPage.locator('.adoc-sc-card-img').evaluate(el => el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width * 100) - 70) < 3, 'taille couverture conservée dans export hors ligne');
     await offline.close();
     await page.locator('#photo-1 img').click();
+    assert.equal(await page.locator('#photo-1 + .cc-block-edit-panel').count(), 1, 'le panneau image reste juste après la photo, dans sa carte');
+    const photoPanelDistance = await page.locator('#photo-1 + .cc-block-edit-panel').evaluate(el => Math.abs(el.getBoundingClientRect().top - el.previousElementSibling.getBoundingClientRect().bottom));
+    assert.ok(photoPanelDistance < 30, 'le panneau image est proche de la photo : ' + photoPanelDistance);
     assert.equal(await page.getByLabel('Cadrage').count(), 1, 'le bloc image expose le cadrage');
     assert.equal(await page.locator('.cc-image-display-controls [data-image-size]').count(), 1, 'taille dans les options de la photo');
     assert.equal(await page.locator('.cc-image-display-controls [data-image-opacity]').count(), 1, 'opacité dans les options de la photo');
@@ -204,7 +220,7 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     await classicPage.goto('http://studio.test/fiche.html');
     await classicOffline.setOffline(true);
     await classicPage.waitForSelector('.adoc-sc-cover-image-layer');
-    assert.equal(await classicPage.locator('.adoc-sc-cover-image-layer').evaluate(el => getComputedStyle(el).objectFit), 'contain');
+    assert.equal(await classicPage.locator('.adoc-sc-cover-image-layer').evaluate(el => getComputedStyle(el).objectFit), 'fill', 'une bannière étirée conserve la déformation dans l’export');
     assert.equal(await classicPage.locator('.adoc-sc-cover-image-layer').evaluate(el => el.src.startsWith('data:image/')), true, 'couverture Fiche embarquée hors connexion');
     await classicOffline.close();
     const carrousel = doc('carrousel');

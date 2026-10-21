@@ -328,16 +328,17 @@ async function dragHandleTo(page, blockId, targetPoint) {
 
   const cover = page.locator('#cc-preview-doc-card #card-b3 > .adoc-sc-card-img');
   await cover.waitFor();
+  await page.setViewportSize({ width: 1260, height: 900 });
   await cover.scrollIntoViewIfNeeded();
   const coverBox = await cover.boundingBox();
-  await page.mouse.move(coverBox.x + 4, coverBox.y + coverBox.height / 2);
+  await page.mouse.move(coverBox.x + coverBox.width / 2, coverBox.y + coverBox.height / 2);
   await page.mouse.down();
-  await page.mouse.move(coverBox.x + 14, coverBox.y + coverBox.height / 2 + 10);
-  await page.mouse.move(a3Box.x + 20, a3Box.y + 20, { steps: 6 });
+  await page.mouse.move(coverBox.x + coverBox.width / 2 - 10, coverBox.y + coverBox.height / 2 + 10);
+  const narrowedDocBox = await page.locator('#cc-ws-doc-card').boundingBox();
+  await page.mouse.move(narrowedDocBox.x + 20, narrowedDocBox.y + 20, { steps: 6 });
   await page.waitForSelector('#cc-ws-doc-card .cc-fusion-drop-target');
-  nestedTarget = page.locator('#cc-ws-doc-card .cc-fusion-drop-target[data-fusion-anchor="a3-p1"][data-fusion-position="before"]');
-  nestedTargetBox = await nestedTarget.boundingBox();
-  await page.mouse.move(nestedTargetBox.x + nestedTargetBox.width / 2, nestedTargetBox.y + nestedTargetBox.height / 2);
+  const destinationBlock = await page.locator('#cc-ws-doc-card #a3-p1').boundingBox();
+  await page.mouse.move(destinationBlock.x + destinationBlock.width / 2, destinationBlock.y + 3, { steps: 8 });
   await page.mouse.up();
   await page.waitForFunction(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks.length === 3, storeKeyA3);
   const copiedCover = await page.evaluate(key => window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks[0], storeKeyA3);

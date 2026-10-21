@@ -1101,6 +1101,11 @@
           "minimum": 0.25,
           "maximum": 4
         },
+        "heightPx": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 1200
+        },
         "sizePercent": {
           "type": "number",
           "minimum": 10,

@@ -10182,8 +10182,9 @@ ${recent}`;
     if (display.borderWidth) css.push('border:' + n('borderWidth', 0) + 'px solid ' + (/^#[0-9a-fA-F]{6}$/.test(display.borderColor || '') ? display.borderColor : '#286b7b'));
     if (display.shadow) css.push('box-shadow:0 4px ' + n('shadow', 0) + 'px rgba(0,0,0,.35)');
     if (surface === 'cover' && Number.isFinite(display.sizePercent)) css.push('width:' + Math.max(10, Math.min(100, display.sizePercent)) + '%;margin-inline:auto');
-    if (surface === 'cover' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
-    if (surface === 'image' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
+    if ((surface === 'cover' || surface === 'image') && Number.isInteger(display.heightPx)) css.push('height:' + Math.max(60, Math.min(1200, display.heightPx)) + 'px');
+    else if (surface === 'cover' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
+    else if (surface === 'image' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
     else if (surface === 'image' && ['contain', 'cover', 'fill'].includes(display.fit)) css.push('aspect-ratio:16/9');
     return css.length ? css.join(';') + ';' : '';
   }
@@ -17209,6 +17210,23 @@ ${recent}`;
       });
     });
   }
+  function adocFusionNearestDropTarget(docCardEl, clientX, clientY) {
+    if (!docCardEl) return null;
+    const underPointer = document.elementFromPoint(clientX, clientY);
+    if (!underPointer || !docCardEl.contains(underPointer)) return null;
+    const container = underPointer.closest('.adoc-sc-card') || underPointer.closest('.adoc-sc-doc');
+    if (!container) return null;
+    const lines = Array.prototype.filter.call(container.children, function (el) {
+      return el.classList.contains('cc-fusion-drop-target');
+    });
+    let nearest = null, distance = Infinity;
+    lines.forEach(function (line) {
+      const rect = line.getBoundingClientRect();
+      const delta = Math.abs(clientY - (rect.top + rect.height / 2));
+      if (delta < distance) { nearest = line; distance = delta; }
+    });
+    return nearest;
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   // Refonte du geste de glisser-déposer (Sujet 1) — remplace la poignée carrée visible en
@@ -17303,6 +17321,8 @@ ${recent}`;
   // position, une classe CSS purement cosmétique (cc-fusion-dragging-source) suffit comme retour
   // visuel pendant le geste.
   function adocFusionSetupDragSource(cardEl) {
+    // Safari peut lancer le glissement natif de <img> et voler mouseup à notre geste de copie.
+    cardEl.ondragstart = function (e) { if (e.target.closest('img')) e.preventDefault(); };
     // Sujet 1 — curseur "grab" au survol du bord gauche uniquement, jamais toute la surface (texte
     // sélectionnable partout ailleurs, y compris sur un bloc image où le bord reste la seule zone
     // de saisie par cohérence avec les autres types). Hors glissement actif uniquement.
@@ -17310,7 +17330,7 @@ ${recent}`;
     cardEl.onmousemove = function (e) {
       if (window._adocAnyDragActive) return;
       const blockEl = e.target.closest('.adoc-sc-block, .cc-preview-cover-source');
-      const inZone = blockEl && adocDragInEdgeZone(blockEl, e.clientX);
+      const inZone = blockEl && (e.target.closest('img') || adocDragInEdgeZone(blockEl, e.clientX));
       if (hoverBlockEl && hoverBlockEl !== (inZone ? blockEl : null)) { hoverBlockEl.classList.remove('cc-drag-edge-hover'); hoverBlockEl = null; }
       if (inZone && hoverBlockEl !== blockEl) { blockEl.classList.add('cc-drag-edge-hover'); hoverBlockEl = blockEl; }
     };
@@ -17320,7 +17340,7 @@ ${recent}`;
     cardEl.onmousedown = function (e) {
       if (window._adocAnyDragActive) return;
       const blockEl = e.target.closest('.adoc-sc-block, .cc-preview-cover-source');
-      if (!blockEl || !adocDragInEdgeZone(blockEl, e.clientX)) return;
+      if (!blockEl || !(e.target.closest('img') || adocDragInEdgeZone(blockEl, e.clientX))) return;
       const preview = window._adocPreviewState;
       const sourceId = blockEl.classList.contains('cc-preview-cover-source')
         ? 'preview-cover:' + blockEl.closest('.adoc-sc-card').id : blockEl.id;
@@ -17348,7 +17368,7 @@ ${recent}`;
         // garde aucune trace des lignes déjà posées, un second appel les dupliquerait — bug réel
         // identifié en investiguant avant de construire, jamais rencontré en pratique par Phase 1
         // (un seul appel par clic, jamais répété).
-        const nowOverA = !!(docCardEl && ev.target.closest && ev.target.closest('#cc-ws-doc-card'));
+        const nowOverA = !!(docCardEl && document.elementFromPoint(ev.clientX, ev.clientY)?.closest('#cc-ws-doc-card'));
         if (nowOverA && !overA) {
           overA = true;
           if (docCardEl) { adocFusionShowDropTargets(docCardEl); dropTargetsShown = true; }
@@ -17356,6 +17376,8 @@ ${recent}`;
           overA = false;
           if (dropTargetsShown) { adocFusionClearDropTargets(); dropTargetsShown = false; }
         }
+        docCardEl?.querySelectorAll('.cc-fusion-drop-active').forEach(function (line) { line.classList.remove('cc-fusion-drop-active'); });
+        if (dropTargetsShown) adocFusionNearestDropTarget(docCardEl, ev.clientX, ev.clientY)?.classList.add('cc-fusion-drop-active');
       }
       function onUp(ev) {
         document.removeEventListener('mousemove', onMove);
@@ -17364,7 +17386,7 @@ ${recent}`;
         blockEl.classList.remove('cc-fusion-dragging-source');
         adocDragGhostRemove(ghost);
         if (!moved) return;
-        const dropTarget = dropTargetsShown ? ev.target.closest('.cc-fusion-drop-target') : null;
+        const dropTarget = dropTargetsShown ? adocFusionNearestDropTarget(docCardEl, ev.clientX, ev.clientY) : null;
         if (dropTargetsShown) adocFusionClearDropTargets();
         if (!dropTarget) return; // relâché hors zone valide — rien inséré, B inchangé, aucun message nécessaire (même précédent que le drop sur soi-même en Item 63f)
         // Réutilise EXACTEMENT la même logique de compatibilité/clone/insertion que le clic
@@ -20700,7 +20722,10 @@ ${recent}`;
     // montré qu'une condition plus large capturait AUSSI le titre de carte, décalant les index
     // `:nth-child` des cartes suivantes dans `.adoc-sc-carrousel` — jamais reproduit ici.
     const cardAncestor = anchorEl.closest('.adoc-sc-card');
-    if (cardAncestor && cardAncestor !== anchorEl && anchorEl.classList.contains('adoc-sc-block')) { cardAncestor.insertAdjacentElement('afterend', panel); return; }
+    // Le panneau d'une photo doit rester immédiatement sous elle : la carte peut contenir
+    // plusieurs paragraphes et mesurer plusieurs écrans. Les clics du panneau sont exclus
+    // des gestes de carte dans docCard.onmousedown/onclick.
+    if (cardAncestor && cardAncestor !== anchorEl && anchorEl.classList.contains('adoc-sc-block') && !anchorEl.classList.contains('adoc-sc-image')) { cardAncestor.insertAdjacentElement('afterend', panel); return; }
     (anchorEl.matches('td,th') ? anchorEl.closest('table') : anchorEl).insertAdjacentElement('afterend', panel);
   }
   function adocUnmountBlockEditPanel(panel) {
@@ -21245,6 +21270,7 @@ ${recent}`;
       if (hoverReorderBlockEl) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
     };
     docCard.onmousedown = function (e) {
+      if (e.target.closest('.cc-block-edit-panel')) return;
       const flowHandle = e.target.closest('.cc-flow-resize-handle');
       if (flowHandle) {
         const blockEl = flowHandle.closest('.adoc-sc-block[id]');
@@ -21271,9 +21297,9 @@ ${recent}`;
         const startX = e.clientX, startY = e.clientY;
         const startRect = cadre.getBoundingClientRect();
         const startWidth = documentCover ? (documentCover.querySelector('.adoc-sc-cover-image-layer')?.getBoundingClientRect().width || startRect.width) : startRect.width;
-        const startHeight = startRect.height;
         const parentWidth = documentCover ? documentCover.getBoundingClientRect().width : coverCard ? coverCard.clientWidth - parseFloat(getComputedStyle(coverCard).paddingLeft) - parseFloat(getComputedStyle(coverCard).paddingRight) : figure.getBoundingClientRect().width;
         const img = documentCover ? documentCover.querySelector('.adoc-sc-cover-image-layer') : coverCard ? cadre : cadre.querySelector('img');
+        const startHeight = img && !documentCover ? img.getBoundingClientRect().height : startRect.height;
         let changed = false;
         function suppressClick(ev) { ev.preventDefault(); ev.stopPropagation(); document.removeEventListener('click', suppressClick, true); }
         function move(ev) {
@@ -21283,6 +21309,16 @@ ${recent}`;
           const verticalDelta = direction.includes('s') ? dy : direction.includes('n') ? -dy : 0;
           if (!parentWidth || (!changed && Math.abs(horizontalDelta) < 2 && Math.abs(verticalDelta) < 2)) return;
           if (!changed) { adocEditorCheckpoint(); document.addEventListener('click', suppressClick, true); changed = true; }
+          block.content.imageDisplay = block.content.imageDisplay || {};
+          // Les huit prises pilotent deux dimensions indépendantes. Une photo redimensionnée
+          // remplit son cadre, sans conserver son ratio intrinsèque ni recadrer l'autre axe.
+          block.content.imageDisplay.fit = 'fill';
+          if (img) img.style.objectFit = 'fill';
+          if (!documentCover && !Number.isInteger(block.content.imageDisplay.heightPx)) {
+            block.content.imageDisplay.heightPx = Math.max(60, Math.min(1200, Math.round(startHeight)));
+            delete block.content.imageDisplay.aspectRatio;
+            if (img) { img.style.aspectRatio = 'auto'; img.style.height = block.content.imageDisplay.heightPx + 'px'; }
+          }
           if (direction.includes('e') || direction.includes('w')) {
             // Le cadre est centré : déplacer un bord de 1 px change la largeur de 2 px.
             const percent = Math.max(10, Math.min(100, Math.round((startWidth + 2 * horizontalDelta) / parentWidth * 100)));
@@ -21313,12 +21349,9 @@ ${recent}`;
             documentCover.style.minHeight = height + 'px';
             adocEditorSync(); adocEditorMarkDirty();
           } else if ((direction.includes('n') || direction.includes('s')) && img) {
-            const width = cadre.getBoundingClientRect().width;
-            const height = Math.max(60, startHeight + verticalDelta);
-            const ratio = Math.max(0.25, Math.min(4, Math.round(width / height * 1000) / 1000));
-            block.content.imageDisplay = block.content.imageDisplay || {};
-            block.content.imageDisplay.aspectRatio = ratio;
-            img.style.aspectRatio = String(ratio);
+            const height = Math.max(60, Math.min(1200, Math.round(startHeight + verticalDelta)));
+            block.content.imageDisplay.heightPx = height;
+            img.style.height = height + 'px';
             adocEditorSync();
             adocEditorMarkDirty();
           }
