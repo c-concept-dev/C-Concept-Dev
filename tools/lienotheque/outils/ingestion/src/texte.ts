@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PageLue } from "@lienotheque/contrats";
-import { formatParSignature, objetsPdf, octetsImage, pagesPdf, TAILLE_ENTETE } from "@lienotheque/formats";
+import { estUnEpub, formatParSignature, objetsPdf, octetsImage, pagesPdf, TAILLE_ENTETE } from "@lienotheque/formats";
 import { decalageDominant } from "@lienotheque/recettes";
 import { decoderJpeg, enGris, versPgm } from "@lienotheque/images";
 import {
@@ -126,6 +126,9 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
   // qui accuse le document au lieu de dire ce qui se passe.
   const format = formatParSignature(donnees.subarray(0, TAILLE_ENTETE));
   if (format?.typeMime === "application/epub+zip") return lireUnEpub(pdf);
+  // L'en-tête n'a vu qu'une archive : on consulte sa table avant de renoncer. Un EPUB qui ne
+  // range pas son `mimetype` en premier ne se reconnaît qu'ainsi, et le corpus en porte un.
+  if (format?.typeMime === "application/zip" && estUnEpub(donnees)) return lireUnEpub(pdf);
   if (format?.typeMime !== "application/pdf") throw new FormatNonLu(pdf, format?.nom ?? "format inconnu");
   const couche = options.forcerOcr === true ? [] : (await lireCoucheTexte(pdf)).pages;
 

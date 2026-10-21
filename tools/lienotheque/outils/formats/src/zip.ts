@@ -89,3 +89,32 @@ export function entreesZip(donnees: Buffer): ReadonlyMap<string, Buffer> {
 
   return entrees;
 }
+
+/** Le chemin que la convention impose au conteneur d'un EPUB, et d'où part toute lecture. */
+const CONTENEUR_EPUB = "META-INF/container.xml";
+const DECLARATION_EPUB = "application/epub+zip";
+
+/** Cette archive est-elle un EPUB ? Vu de sa **table**, et non de l'ordre de ses entrées (FMT-01).
+ *
+ *  La reconnaissance par signature lit les premiers octets : un EPUB y range `mimetype` en
+ *  premier, non compressé, et « mimetypeapplication/epub+zip » se lit d'un coup. C'est une
+ *  convention du format, pas une obligation du conteneur — et un livre du corpus range son
+ *  `mimetype` en dix-huitième position. Il était alors refusé comme simple archive ZIP, alors
+ *  qu'il porte sa déclaration, son conteneur et ses vingt-sept fichiers de contenu.
+ *
+ *  Deux signes, et l'un suffit : la **déclaration** quand elle est là, le **conteneur** sinon.
+ *  Aucun des deux n'appartient à un autre format de la famille — un document bureautique déclare
+ *  son propre type et range son inventaire ailleurs.
+ *
+ *  Elle répond, elle ne lève pas : appelée sur ce qui n'est pas une archive, elle dit non. C'est
+ *  une question, pas une lecture. */
+export function estUnEpub(donnees: Buffer): boolean {
+  try {
+    const entrees = entreesZip(donnees);
+    const declare = entrees.get("mimetype");
+    if (declare !== undefined) return declare.toString("latin1").trim() === DECLARATION_EPUB;
+    return entrees.has(CONTENEUR_EPUB);
+  } catch {
+    return false;
+  }
+}

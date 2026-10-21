@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { deflateRawSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { entreesZip } from "../src/zip.js";
+import { entreesZip, estUnEpub } from "../src/zip.js";
 
 /** Lire une archive ZIP, parce qu'un EPUB en est une (FMT-01).
  *
@@ -114,5 +114,57 @@ describe("une archive ZIP se lit par sa table centrale", () => {
       { nom: "OEBPS/ch01.xhtml", contenu: Buffer.from("x") },
     ]);
     expect([...entreesZip(zip).keys()]).toEqual(["OEBPS/ch01.xhtml"]);
+  });
+});
+
+/** Un EPUB qui ne se présente pas dans l'ordre attendu (FMT-01)
+ *
+ *  La reconnaissance par signature lit les premiers octets, et la convention veut qu'un EPUB y
+ *  range `mimetype` **en premier**, non compressé : « mimetypeapplication/epub+zip » se lit alors
+ *  d'un coup. C'est une convention, pas une obligation du format de conteneur.
+ *
+ *  Relevé le 21 octobre 2026 sur le corpus : un EPUB range son `mimetype` **en dix-huitième
+ *  position**. Tout le reste est conforme — la déclaration, le `META-INF/container.xml`,
+ *  vingt-sept fichiers de contenu — mais l'en-tête ne montre qu'une archive ZIP, et la chaîne
+ *  refusait de le lire en nommant correctement ce qu'elle voyait.
+ *
+ *  La table centrale, elle, dit toujours ce que l'archive contient, où que les entrées soient
+ *  rangées. On la consulte quand l'en-tête n'a rien dit. */
+describe("reconnaître un EPUB à sa table, pas à l'ordre de ses entrées", () => {
+  const PAGE = Buffer.from("<html><body><p>du texte</p></body></html>", "utf8");
+  const CONTENEUR = Buffer.from('<container><rootfiles><rootfile full-path="c.opf"/></rootfiles></container>', "utf8");
+
+  it("reconnaît un EPUB dont le mimetype arrive après les autres", () => {
+    const archive = zipDe([
+      { nom: "c.opf", contenu: Buffer.from("<package/>", "utf8") },
+      { nom: "Text/un.xhtml", contenu: PAGE, degonfle: true },
+      { nom: "META-INF/container.xml", contenu: CONTENEUR },
+      { nom: "mimetype", contenu: Buffer.from("application/epub+zip", "utf8") },
+    ]);
+    expect(estUnEpub(archive)).toBe(true);
+  });
+
+  it("le reconnaît aussi à son seul conteneur, sans déclaration du tout", () => {
+    // Un EPUB sans `mimetype` est hors convention, mais son conteneur suffit à dire ce qu'il est
+    // — et c'est de lui que la lecture part.
+    const archive = zipDe([
+      { nom: "META-INF/container.xml", contenu: CONTENEUR },
+      { nom: "Text/un.xhtml", contenu: PAGE },
+    ]);
+    expect(estUnEpub(archive)).toBe(true);
+  });
+
+  it("ne prend pas une autre archive pour un EPUB", () => {
+    // Un document bureautique est une archive ZIP lui aussi, et il déclare son propre type.
+    const archive = zipDe([
+      { nom: "mimetype", contenu: Buffer.from("application/vnd.oasis.opendocument.text", "utf8") },
+      { nom: "content.xml", contenu: Buffer.from("<office/>", "utf8") },
+    ]);
+    expect(estUnEpub(archive)).toBe(false);
+  });
+
+  it("ne lève pas sur ce qui n'est pas une archive : il répond non", () => {
+    // Appelée sur n'importe quoi, cette fonction doit trancher sans faire tomber la chaîne.
+    expect(estUnEpub(Buffer.from("ceci n'est pas une archive", "utf8"))).toBe(false);
   });
 });

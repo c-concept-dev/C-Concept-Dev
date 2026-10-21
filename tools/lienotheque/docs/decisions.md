@@ -4082,3 +4082,130 @@ dessus.
   déclarée fausse, non déclarée.
 - **Le garde-fou ne couvre que la lecture du texte.** Le chemin des images a ses propres réglages,
   et rien n'exige encore qu'ils passent par la porte.
+
+
+## 21 octobre 2026 — les deux conditions réglées avant l'essai de la file
+
+### 1. L'EPUB mal rangé se lit
+
+La reconnaissance par signature lit les premiers octets, et la convention veut qu'un EPUB y range
+`mimetype` **en premier**, non compressé. Un livre du corpus le range **en dix-huitième position** :
+l'en-tête ne montrait qu'une archive ZIP, et la chaîne refusait — correctement, d'après ce qu'elle
+voyait.
+
+`estUnEpub` consulte désormais la **table centrale**, qui dit toujours ce qu'une archive contient,
+où que ses entrées soient rangées. Deux signes, et l'un suffit : la **déclaration** `mimetype` quand
+elle est là, le **conteneur** `META-INF/container.xml` sinon. Aucun des deux n'appartient à un autre
+format de la famille — un document bureautique déclare son propre type et range son inventaire
+ailleurs. Elle répond, elle ne lève pas : appelée sur ce qui n'est pas une archive, elle dit non.
+
+Vérifié sur le corpus entier : **18 EPUB sur 18 lus, 18 citations sur 18 vérifiées** contre les
+chapitres relus depuis l'archive. Le dix-huitième rend 122 feuillets, tous porteurs de leur chapitre.
+
+### 2. Le document que le détecteur coupait à tort
+
+*Sexualité positive.pdf* — forme **1,76**, soit un seize neuvièmes, une mise en page de diaporama —
+était dit double par ses folios. Vérifié par la porte : **75 passages pour 38 feuilles**, la coupe a
+bien lieu, et le passage qui porte la citation est rangé **au rang 38 alors que le texte est sur la
+feuille 19**.
+
+Ce qui emporte la décision n'est pas la forme seule, mais un désaccord interne : les passages
+déposés **ne portent aucun numéro imprimé**. Les deux nombres consécutifs que le détecteur a vus
+dans les marges n'ont donc pas survécu au vote de folio à l'échelle du document. Il a coupé sur des
+nombres que la chaîne elle-même refuse de tenir pour des folios.
+
+**La déclaration à appliquer**, le jour où la bibliothèque du réimport sera créée — rien ne peut
+être installé avant, puisqu'il n'y a pas encore de bibliothèque :
+
+| | |
+|---|---|
+| empreinte | `4045b033dbb3257d75cf9993060a3eb7a82a2ba435b23300e3bf47b3d0f8fad1` |
+| `base/manieres.json` | `{ "4045b033…fad1": "sans-double-page" }` |
+| `base/recettes/sans-double-page.json` | la manière de lire de la bibliothèque, avec `"double_page": false` dans sa `preparation` |
+
+Un `false` déclaré fait autorité contre le détecteur : c'est exactement ce que l'option A du matin
+rend possible.
+
+**Une piste générale, relevée et non suivie :** un verdict « double page » tiré de nombres en marge
+que le vote de folio rejette ensuite est un verdict douteux. Croiser les deux rendrait l'exception
+inutile. Ce n'est pas fait, et cela demanderait de voir le résultat du vote avant de décider de la
+coupe — soit l'inverse de l'ordre actuel.
+
+
+## 21 octobre 2026 — l'essai de la file : elle tient, et elle fait gagner du temps
+
+Dix documents, les **mêmes** que la mesure de coût, par le **vrai `Roulement`** — son fil, ses
+baux, ses reprises — avec le moteur rassemblé comme le paquet le rassemble.
+
+### Ce que la file a fait
+
+| Arrivée | État | Document |
+|---:|---|---|
+| 8,0 s | terminé | DSM-5 |
+| 296,7 s | terminé | Biologie du couple |
+| 296,7 s | terminé | L'Intelligence du cœur (EPUB) |
+| 298,7 s | terminé | Je jouis comme je suis (EPUB) |
+| 298,7 s | terminé | L'hypnose en situation d'urgence (EPUB) |
+| 300,7 s | terminé | Schémas 2021 — Introduction |
+| 451,1 s | terminé | La thérapie d'acceptation et d'engagement |
+| 633,6 s | terminé | Théorie ACT Que sais-je |
+| 1811,5 s | terminé | Thérapeutique manuelle |
+| — | **en_echec_definitif** | Protocole tabac, « aucune des 6 pages n'a pu être lue » |
+
+**Neuf terminés, un échec définitif attendu, aucun blocage, une seule tentative chacun.** L'échec
+porte sa cause dans le travail, comme JOB-05 l'exige.
+
+Les heures sont des **arrivées**, pas des durées : deux travaux lourds tournent de front
+(`travauxLourdsSimultanes = 2`), et *Biologie du couple* — sept dixièmes de seconde de lecture —
+affiche 296,7 s parce qu'elle a attendu son tour.
+
+### Le facteur : un gain, pas un surcoût
+
+| | |
+|---|---:|
+| La chaîne seule, en série | 2 172,3 s |
+| La file, du premier travail au dernier | **1 811,5 s** |
+| Rapport | **0,83 — un gain de 20 %** |
+
+La file ne coûte donc rien : les processus lancés, les instantanés écrits et les pointeurs posés
+sont payés, et au-delà, par le fait que deux travaux avancent ensemble.
+
+**Ce que ce chiffre ne dit pas.** Le gain est ici **borné par le plus long travail** : 1 811 s,
+c'est *Thérapeutique manuelle* toute seule, et la seconde place a traité tout le reste en 325 s
+avant d'attendre. Sur deux cent cinquante documents, les deux places auront de quoi travailler en
+permanence et le gain devrait être plus franc — mais la reconnaissance est liée au processeur, et
+deux lectures de front se disputent les mêmes cœurs. **Je ne sais pas extrapoler ce facteur**, et
+je ne le ferai pas : ce que l'essai prouve est que la file ne perd rien, pas qu'elle divise par deux.
+
+### Le défaut était dans l'épreuve, pas dans la file
+
+L'essai a tourné une demi-heure de plus que nécessaire en croyant attendre un travail que la file
+avait conclu en une seconde : il cherchait un état nommé « echoue », qui n'existe pas. `appliquer`
+écrit `en_echec_definitif` et `en_echec_recuperable`. J'avais **deviné** le nom d'un état au lieu de
+le lire chez celui qui l'écrit — le même geste qui a produit trois défauts cette semaine, à l'envers.
+
+Corrigé, et l'essai garde désormais son bac quand quelque chose a cloché : un essai qui efface ses
+preuves fait payer trente minutes deux fois.
+
+### Le moteur empaqueté lit comme la chaîne, vérifié sur les deux chemins
+
+Le journal de la file portait un avertissement qui n'apparaît jamais depuis les sources :
+
+    Cannot load "@napi-rs/canvas" package
+    Cannot polyfill `ImageData`, rendering may be broken.
+
+`mesures/moteur-empaquete.ts` fait parler le vrai `moteur.js` comme l'hôte lui parle — une demande
+par l'entrée standard, les messages par la sortie standard — et compare **passage par passage**,
+texte, page et numéro imprimé compris.
+
+| Document | Chemin éprouvé | Résultat |
+|---|---|---|
+| *Biologie du couple* | couche texte, 173 passages | identique |
+| *Théorie ACT Que sais-je* | reconnaissance, double page, 130 passages | identique |
+
+**Décision : ne rien embarquer, et le documenter.** La chaîne ne rastérise jamais avec pdf.js — elle
+extrait les images que le PDF porte déjà. `ImageData` et `Path2D` servent à dessiner une page, ce que
+personne ne lui demande. Embarquer `@napi-rs/canvas` ajouterait un module natif par architecture
+pour faire taire une phrase **exacte** : le rendu *serait* cassé si on le demandait. On préfère un
+avertissement vrai à un paquet plus lourd, et la mesure ci-dessus dit pourquoi il est sans
+conséquence.
