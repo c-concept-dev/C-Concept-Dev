@@ -111,6 +111,7 @@ const texteDe = (xml) => xml.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').rep
     await page.waitForFunction(() => {
       const b = document.getElementById('cc-ws-texte-word-btn'); return !!b && !b.hidden;
     }, { timeout: 20000 });
+    await page.click('#cc-ws-export-menu-trigger');
     const [tel] = await Promise.all([
       page.waitForEvent('download', { timeout: 60000 }),
       page.locator('#cc-ws-texte-word-btn').click(),

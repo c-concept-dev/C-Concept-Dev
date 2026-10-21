@@ -161,6 +161,7 @@ function heading(id, text) { return { id: id, type: 'heading', content: { text: 
   // ── Test 8 : non-régression — le bouton "Supprimer" déjà existant du bandeau de travail (une fois
   // un document ouvert) continue de fonctionner à l’identique (écran de confirmation dédié, jamais
   // le confirm() natif de "Mes créations" — deux mécanismes distincts, jamais mélangés) ──
+  await page.click('#cc-ws-file-menu-trigger');
   await page.click('#cc-ws-delete-btn');
   await page.waitForSelector('#cc-ws-delete-confirm.open');
   await page.click('.cc-ws-delete-confirm-confirm');

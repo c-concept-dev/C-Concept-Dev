@@ -85,10 +85,14 @@ async function fixture(browser) {
       const { page, getPdfHtml } = await fixture(browser);
       const printBtn = page.locator('#cc-ws-print-presentation-btn');
       assert.equal(await printBtn.count(), 1, name + ' : bouton Imprimer manquant');
+      await page.locator('#cc-ws-export-menu-trigger').click();
       assert.equal(await printBtn.isVisible(), true, name + ' : bouton Imprimer masqué');
       await page.evaluate(() => window.adocWsExportCarrouselPDF());
       const pdfHtml = getPdfHtml();
       assert.ok(pdfHtml, name + ' : gabarit PDF absent');
+      // L'export précédent peut fermer le menu : reprendre le vrai chemin utilisateur.
+      if (await page.locator('#cc-ws-export-menu-trigger').getAttribute('aria-expanded') !== 'true')
+        await page.locator('#cc-ws-export-menu-trigger').click();
       const popupPromise = page.waitForEvent('popup');
       await printBtn.click();
       const popup = await popupPromise;

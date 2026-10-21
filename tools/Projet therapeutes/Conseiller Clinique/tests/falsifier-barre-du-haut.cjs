@@ -1,6 +1,4 @@
-// FALSIFICATION DU CONTRÔLE DE LA BARRE DU HAUT (lot 2C, 2.2 bis).
-//
-// Deux mutations, chacune remettant un des deux défauts constatés sur la capture de Christophe.
+// FALSIFICATION DU CONTRAT Q6 : géométrie, menu, clavier et visibilité conditionnelle.
 // Journal de reprise écrit AVANT la première mutation : un gestionnaire de signal ne s'exécute
 // pas pendant un `execFileSync`, et jamais sur SIGKILL.
 //
@@ -36,30 +34,46 @@ if (process.argv.includes('--reprendre')) {
 
 const MUTATIONS = [
   {
-    nom: 'la barre déborde de nouveau : le retour à la ligne est retiré',
+    nom: 'l\'espacement force plusieurs rangées à 1 272 px',
     fichier: 'page',
-    de: '      flex-wrap: wrap; row-gap: 6px;',
-    vers: '      void: 0;',
-    attendu: 'c\'est le défaut même : le dernier bouton était coupé à droite sur la capture',
+    de: '      display: flex; align-items: center; gap: 14px;',
+    vers: '      display: flex; align-items: center; gap: 300px;',
+    attendu: 'le contrôle mesure le débordement et le nombre de rangées',
   },
   {
-    nom: 'les espacements desserrés : la barre repasse au-dessus de 80 px',
+    nom: 'le menu fermé expose ses actions',
     fichier: 'page',
-    de: '      flex-shrink: 0; background: var(--petrol-950); color: #fff; padding: 8px 20px;',
-    vers: '      flex-shrink: 0; background: var(--petrol-950); color: #fff; padding: 12px 20px;',
-    attendu: '8 + 28 + 6 + 28 + 8 = 78 px ; avec 12 px de marge, 86 px, au-delà de la cible',
+    de: '    .cc-ws-menu-items[hidden] { display: none; }',
+    vers: '    .cc-ws-menu-items[hidden] { display: flex; }',
+    attendu: 'une action d\'export ne doit pas être visible avant ouverture',
   },
   {
-    // Celle-ci n'attaque pas la barre : elle attaque la COUVERTURE du contrôle. Le contrôle
-    // a longtemps cru mesurer l'état enregistré alors qu'il n'avait fait que réécrire un
-    // libellé, et « Supprimer » restait caché — la barre la plus chargée n'était jamais vue.
-    // Si l'on peut empêcher « Supprimer » de paraître sans que le contrôle bronche, c'est que
-    // sa précondition ne tient rien et que le trou est revenu.
-    nom: 'la barre la plus chargée redevient invisible : « Supprimer » ne paraît plus',
+    nom: 'l\'ouverture du menu ne révèle plus les gestes',
+    fichier: 'coeur',
+    de: '    parts.menu.hidden = false;',
+    vers: '    parts.menu.hidden = true;',
+    attendu: 'le clic sur Exporter doit révéler son action d\'export',
+  },
+  {
+    nom: 'Échap ne protège plus la fenêtre de travail',
+    fichier: 'coeur',
+    de: 'event.preventDefault(); event.stopImmediatePropagation(); adocWsMenuClose(true);',
+    vers: 'event.preventDefault(); adocWsMenuClose(true);',
+    attendu: 'Échap doit fermer le menu et rendre le focus sans fermer le document',
+  },
+  {
+    nom: 'Supprimer disparaît même pour un document sauvegardé',
     fichier: 'coeur',
     de: '    if (deleteBtn) deleteBtn.hidden = !saved;',
     vers: '    if (deleteBtn) deleteBtn.hidden = true;',
-    attendu: 'la précondition de l\'état enregistré tombe : le contrôle refuse de mesurer un état qui n\'est pas celui qu\'il annonce',
+    attendu: 'la visibilité conditionnelle doit être mesurée dans le menu Fichier',
+  },
+  {
+    nom: 'l’icône des sources disparaît sur grand écran',
+    fichier: 'page',
+    de: '    @media (min-width: 769px) { .cc-ws-panel.collapsed { display: none; } }',
+    vers: '    @media (min-width: 769px) { .cc-ws-panel-toggle { display: none; } }',
+    attendu: 'le contrôle garde visible le panneau et son bouton sur grand écran',
   },
 ];
 
