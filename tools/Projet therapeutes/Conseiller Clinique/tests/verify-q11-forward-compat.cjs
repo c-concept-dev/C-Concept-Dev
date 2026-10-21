@@ -32,6 +32,21 @@ function enriched() {
   card.content.blocks.push({ id: 'image-q11', type: 'image',
     content: { query: 'photo', alt: 'Photo', imageDisplay: structuredClone(imageDisplay) },
     citationIds: [], validation: {} });
+  card.content.blocks.push({ id: 'video-q11', type: 'video',
+    content: { url: 'https://example.com/video', title: 'Vidéo clinique' },
+    style: { flowWidthPercent: 62, flowMinHeightPx: 180 }, citationIds: [], validation: {} });
+  card.content.blocks.push({ id: 'quiz-q11', type: 'quiz',
+    content: { question: 'Question ?', options: ['Oui', 'Non'], correctIndex: 0, explanation: 'Oui.' },
+    style: { flowWidthPercent: 63, flowMinHeightPx: 181 }, citationIds: [], validation: {} });
+  card.content.blocks.push({ id: 'questionnaire-q11', type: 'questionnaire',
+    content: { questions: [
+      { text: 'Première question ?', options: [{ text: 'Jamais', points: 0 }, { text: 'Souvent', points: 1 }] },
+      { text: 'Deuxième question ?', options: [{ text: 'Jamais', points: 0 }, { text: 'Souvent', points: 1 }] }
+    ], profiles: [
+      { label: 'Bas', minScore: 0, maxScore: 1, interpretation: 'Peu fréquent.' },
+      { label: 'Haut', minScore: 2, maxScore: 2, interpretation: 'Fréquent.' }
+    ], allowTwoPartners: false },
+    style: { flowWidthPercent: 64, flowMinHeightPx: 182 }, citationIds: [], validation: {} });
   return d;
 }
 
@@ -64,6 +79,8 @@ async function browserCompatibility() {
       assert.equal(saved.blocks[0].content.blocks[2].style.backgroundColor, 'transparent', label + ' garde fond encadré');
       assert.equal(saved.blocks[0].content.blocks[0].style.flowWidthPercent, 65, label + ' garde largeur');
       assert.equal(saved.blocks[0].content.blocks[2].style.flowMinHeightPx, 120, label + ' garde hauteur');
+      for (const [i, width] of [[4, 62], [5, 63], [6, 64]])
+        assert.equal(saved.blocks[0].content.blocks[i].style.flowWidthPercent, width, label + ' garde style du bloc ' + i);
       let posted = null;
       await page.route('**/clinical-documents', route => {
         posted = route.request().postDataJSON();
@@ -76,6 +93,8 @@ async function browserCompatibility() {
       assert.deepEqual(persisted.blocks[0].content.blocks[3].content.imageDisplay, imageDisplay, label + ' sauve image');
       assert.equal(persisted.blocks[0].content.blocks[2].style.backgroundColor, 'transparent', label + ' sauve encadré');
       assert.equal(persisted.blocks[0].content.blocks[0].style.flowWidthPercent, 65, label + ' sauve largeur');
+      for (const [i, width] of [[4, 62], [5, 63], [6, 64]])
+        assert.equal(persisted.blocks[0].content.blocks[i].style.flowWidthPercent, width, label + ' sauve style du bloc ' + i);
       assert.equal(await open(page, persisted, 'reopened-doc'), true, label + ' rouvre la charge sauvegardée');
       const reopened = await page.evaluate(() => window._adocArtifacts['reopened-doc']._adocStructuredDoc);
       assert.deepEqual(reopened.blocks[0].content.imageDisplay, imageDisplay, label + ' conserve le champ après réouverture');
