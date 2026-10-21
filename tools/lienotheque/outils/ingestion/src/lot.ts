@@ -220,8 +220,15 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
       `langue « ${description.schema.langue} » inconnue de la reconnaissance : elle lira avec son modèle par défaut`,
     );
 
+  // La double page **seulement si la manière de lire l'a déclarée**.
+  //
+  // Elle était transmise toujours, et `double_page` étant obligatoire au contrat, la valeur était
+  // toujours définie : le `??` de `lireLeTexte` ne tombait jamais et la détection automatique ne
+  // s'exécutait **jamais par ce chemin** — celui que l'application emprunte. Elle ne tournait que
+  // dans les bancs, qui appellent `lireLeTexte` sans option. Troisième mécanisme juste rendu
+  // inatteignable depuis la porte réelle en deux jours ; voir `docs/decisions.md`.
   const lu = await lireLeTexte(lot.pdf, {
-    doublePage: recette.preparation.double_page,
+    ...(recette.preparation.double_page === undefined ? {} : { doublePage: recette.preparation.double_page }),
     ...(langue === undefined ? {} : { langue }),
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),
   });

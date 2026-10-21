@@ -100,7 +100,9 @@ writeFileSync(
     id: "livre-ordinaire",
     version: 1,
     derivee_de: null,
-    preparation: { redressement: "aucun", double_page: false },
+    // Rien sur la double page : c'est au document de répondre, comme pour une manière de lire
+    // qu'un administrateur n'a pas réglée. La déclarer ici ferait diverger le banc de l'application.
+    preparation: { redressement: "aucun" },
     lectures: [{ ancre: "page_imprimee", zone: { type: "rectangle_rel", x: 0.05, y: 0.86, l: 0.9, h: 0.12 }, alphabet: "chiffres" }],
     regles: { elements: { ordre: "strictement_croissant", saut_max: 12 }, plusieurs_elements_par_piste: false },
     validation: { seuil_confiance: 0.6 },

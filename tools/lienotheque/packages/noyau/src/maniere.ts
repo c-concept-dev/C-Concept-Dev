@@ -49,7 +49,10 @@ export type Brouillon = {
   readonly piste?: RepereDePiste;
   /** La part de la hauteur de page qu'occupe un numéro d'élément, du plus petit au plus grand. */
   readonly hauteurElement: { readonly min: number; readonly max: number };
-  readonly pageDouble: boolean;
+  /** Deux pages par feuille. **Absent veut dire « je n'ai pas tranché »**, et la chaîne
+   *  regardera la feuille ; présent, c'est une décision et elle l'emporte. Voir
+   *  `Recette.preparation.double_page`. */
+  readonly pageDouble?: boolean | undefined;
   readonly redressement: "auto" | "aucun";
   readonly ordreElements: "strictement_croissant" | "croissant";
   readonly sautMax: number;
@@ -69,7 +72,8 @@ export const BROUILLON_NEUF: Brouillon = {
   version: 1,
   zones: [],
   hauteurElement: { min: 0.012, max: 0.04 },
-  pageDouble: false,
+  // Rien sur la double page : aucun écran ne la demande, et un défaut écrit serait pris pour une
+  // décision. Le brouillon neuf se tait, la chaîne regarde.
   // Aucun redressement par défaut, et c'est l'éditeur qui l'impose : on trace les zones sur la
   // page **telle qu'elle est montrée**. Redresser la tourne sous le tracé, et la zone ne
   // désigne plus rien — on cherche alors au bon endroit d'une page qui a bougé. L'épreuve F5
@@ -200,7 +204,10 @@ export function enRecette(brouillon: Brouillon): RecetteLue {
     id: brouillon.id,
     version: brouillon.version,
     derivee_de: brouillon.derivee === undefined ? null : { id: brouillon.derivee.id, version: brouillon.derivee.version },
-    preparation: { redressement: brouillon.redressement, double_page: brouillon.pageDouble },
+    preparation: {
+      redressement: brouillon.redressement,
+      ...(brouillon.pageDouble === undefined ? {} : { double_page: brouillon.pageDouble }),
+    },
     lectures,
     regles: {
       elements: { ordre: brouillon.ordreElements, saut_max: brouillon.sautMax },
@@ -247,7 +254,7 @@ export function depuisRecette(recette: RecetteLue): Brouillon {
     ...(piste === undefined ? {} : { piste }),
     hauteurElement,
     ...(exempleDeNumero === undefined ? {} : { exempleDeNumero }),
-    pageDouble: recette.preparation.double_page,
+    ...(recette.preparation.double_page === undefined ? {} : { pageDouble: recette.preparation.double_page }),
     redressement: recette.preparation.redressement,
     ordreElements: recette.regles.elements.ordre,
     sautMax: recette.regles.elements.saut_max,

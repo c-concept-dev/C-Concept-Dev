@@ -200,6 +200,20 @@ function deuxFoliosQuiSeSuivent(page: PageLue): boolean {
  *  l'erreur inverse** — un document rangé « deux pages » qui n'en porte qu'une —, et c'est
  *  volontaire : c'est la double page non détectée qui abîme les citations, l'inverse se voit à
  *  l'écran. */
+/** La feuille est-elle plus large que haute, d'assez pour porter deux pages côte à côte ?
+ *
+ *  Une marge d'un dixième plutôt qu'une comparaison nue : une feuille presque carrée ne porte pas
+ *  deux pages, et un document dont les dimensions varient d'une feuille à l'autre ne doit pas
+ *  basculer sur un écart de rien. C'est la médiane qui tranche, non la première feuille venue. */
+const PAYSAGE_MINIMUM = 1.1;
+
+function enPaysage(pages: readonly PageLue[]): boolean {
+  const formes = pages.filter((page) => page.hauteur > 0).map((page) => page.largeur / page.hauteur);
+  if (formes.length === 0) return false;
+  const triees = [...formes].sort((un, autre) => un - autre);
+  return triees[Math.floor(triees.length / 2)]! >= PAYSAGE_MINIMUM;
+}
+
 export function deuxPagesParFeuille(pages: readonly PageLue[]): boolean {
   if (pages.length < FEUILLES_REGARDEES / 2) return false;
 
@@ -208,6 +222,13 @@ export function deuxPagesParFeuille(pages: readonly PageLue[]): boolean {
   // porte deux. Mesuré sur un document réel dont les quatre premières feuilles sont muettes.
   const debut = Math.floor(pages.length * 0.4);
   const regardees = pages.slice(debut, debut + FEUILLES_REGARDEES);
+
+  // Une feuille qui porte deux pages portrait est **plus large que haute**. Sans cette
+  // vérification, deux nombres consécutifs dans une bande de marge suffisaient à conclure — et
+  // un pied de page numéroté avec un appel de note en fait autant. Relevé sur le corpus : des
+  // documents dont les feuilles sont plus hautes que larges étaient dits doubles. Les couper
+  // mêle deux moitiés de page dans chaque passage et fait pointer toutes leurs citations à côté.
+  if (!enPaysage(regardees)) return false;
 
   let aDeuxFolios = 0;
   for (const page of regardees) if (deuxFoliosQuiSeSuivent(page)) aDeuxFolios += 1;

@@ -4010,3 +4010,75 @@ deux pages — mais cela ne changerait rien tant que la porte ne le consulte pas
 de contrat : `preparation.double_page` est-il une **décision de l'administrateur** (et alors son
 absence doit être permise, pour laisser voir le document) ou un **réglage toujours présent** (et
 alors la détection n'a pas lieu d'être) ? Soumis avant d'écrire.
+
+
+## 21 octobre 2026 — la double page se déclare ou se laisse voir, et un garde-fou pour la porte
+
+Décision de Christophe : **option A**, la déclaration devient facultative, **avec le garde-fou de
+forme**. Implémentée, épreuves avant code.
+
+### Ce qui change
+
+| | |
+|---|---|
+| `Recette.preparation.double_page` | **facultatif**. Absent : personne n'a tranché, la chaîne regarde la feuille. Présent : c'est une décision, et elle l'emporte — y compris un `false` |
+| `Brouillon.pageDouble` | facultatif lui aussi, et `BROUILLON_NEUF` **se tait** : aucun écran ne demande ce réglage, un défaut écrit serait pris pour une décision |
+| `enRecette` / `depuisRecette` | le silence traverse l'aller-retour sans devenir un `false` |
+| `lot.ts` | ne transmet `doublePage` que si la manière de lire l'a déclaré |
+| `deuxPagesParFeuille` | **refuse de conclure sur une feuille qui n'est pas en paysage** |
+
+Le garde-fou de forme n'est pas un détail : le relevé du corpus montrait des documents **portrait**
+déclarés doubles par leurs folios — deux nombres consécutifs dans une bande de marge, ce qu'un pied
+de page numéroté et un appel de note produisent très bien. Les couper mêlerait deux moitiés de page
+dans chaque passage et ferait pointer toutes leurs citations à côté.
+
+Au passage, trois épreuves anciennes de la détection décrivaient leurs feuilles **en portrait** —
+une forme qu'aucune feuille à deux pages ne peut avoir. L'oubli ne se voyait pas tant que la forme
+n'entrait pas dans la décision ; les fixtures ont été redressées, sans quoi les épreuves négatives
+auraient réussi pour la mauvaise raison.
+
+### La vérification qui compte, refaite par la bonne porte
+
+Les trois citations de *Théorie ACT* validées à l'œil le 20 octobre venaient d'un banc qui appelait
+`lireLeTexte` directement. `citations-a-verifier.ts` franchit désormais `executerTravail`, fait subir
+au résultat l'aller-retour JSON de l'hôte, et cherche avec `chercher` — la fonction même de l'écran.
+
+Par ce chemin, avec une manière de lire qui ne déclare rien : **66 feuilles, 130 passages** — la
+coupe a lieu, parce que le document a été consulté. Et les trois citations sont **identiques**,
+phrase pour phrase :
+
+| | La recherche dit | Phrase |
+|---|---|---|
+| 1 | page 34, folio 33, feuille 17, moitié droite | « appellation sont interchangeables). C'est l'impli- cation » |
+| 2 | page 67, folio 66, feuille 34, moitié gauche | « permettrait de poursuivre le trajet, de » |
+| 3 | page 99, folio 98, feuille 50, moitié gauche | « présent \| Acceptation \| Défusion _ » |
+
+La vérification à l'œil de Christophe porte donc maintenant sur ce que l'application produit
+réellement, et non plus sur ce qu'un banc produisait.
+
+### Le garde-fou structurel : une épreuve par la porte, ou rien
+
+Trois fois en deux jours, un mécanisme juste s'est révélé inatteignable depuis `executerTravail` :
+le dépôt des passages, le texte des documents sans image, la détection de la double page. **Le point
+commun : des épreuves vertes au-dessus du défaut, et rien qui passe par là où l'application passe.**
+
+Règle, dans `packages/banc` : **toute option que `lot.ts` transmet à `lireLeTexte` doit être nommée
+dans au moins une épreuve qui appelle `executerTravail`** — et dans un fichier qui n'appelle **pas**
+`lireLeTexte` lui-même.
+
+Cette seconde condition a été ajoutée après coup, et elle est le cœur du garde-fou. Sans elle, il
+passait au vert : `aucune-page-lue.test.ts` nomme `doublePage` et franchit la porte **ailleurs dans
+le même fichier**. Un garde-fou satisfait par un voisinage ne garde rien — vérifié par mutation, il
+échoue maintenant quand on retire le réglage de l'épreuve qui le couvre.
+
+Ce n'est pas une preuve de justesse : une épreuve peut nommer un réglage sans rien en dire de
+sérieux. C'est une preuve de **passage**. Les trois défauts de ces deux jours seraient tous tombés
+dessus.
+
+### Ce qui reste, et qui n'est pas fait
+
+- **Aucun écran ne propose la double page.** Le brouillon la tait, et c'est voulu tant que l'éditeur
+  ne la montre pas ; le jour où il la montrera, il faudra trois états et non deux — déclarée vraie,
+  déclarée fausse, non déclarée.
+- **Le garde-fou ne couvre que la lecture du texte.** Le chemin des images a ses propres réglages,
+  et rien n'exige encore qu'ils passent par la porte.

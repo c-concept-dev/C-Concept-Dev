@@ -319,3 +319,34 @@ describe("on trace sur la page telle qu'elle est montrée", () => {
     expect(depuisRecette(avec).redressement).toBe("auto");
   });
 });
+
+
+/** Ne rien dire de la double page traverse l'aller-retour (REC-01, REC-06)
+ *
+ *  Rien dans l'éditeur ne touche ce réglage : un brouillon neuf qui écrirait `double_page: false`
+ *  figerait une réponse que personne n'a donnée, et la chaîne lui obéirait. Le brouillon neuf ne
+ *  dit donc rien, et ce silence doit survivre à `enRecette` comme à `depuisRecette` — sans quoi
+ *  la première sauvegarde le remplacerait par une décision. */
+describe("ne rien dire de la double page traverse l'aller-retour", () => {
+  it("un brouillon neuf ne tranche pas", () => {
+    expect(BROUILLON_NEUF.pageDouble, "un défaut n'est pas une décision").toBeUndefined();
+  });
+
+  it("une recette montée depuis un brouillon muet ne porte pas la clef", () => {
+    const recette = enRecette(COMPLET);
+    expect(recette.preparation.double_page).toBeUndefined();
+  });
+
+  it("et le silence revient tel quel", () => {
+    const recette = enRecette(COMPLET);
+    expect(depuisRecette(recette).pageDouble).toBeUndefined();
+  });
+
+  it("une déclaration, elle, fait l'aller et le retour sans bouger", () => {
+    for (const declare of [true, false]) {
+      const recette = enRecette({ ...COMPLET, pageDouble: declare });
+      expect(recette.preparation.double_page).toBe(declare);
+      expect(depuisRecette(recette).pageDouble).toBe(declare);
+    }
+  });
+});

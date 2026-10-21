@@ -121,13 +121,13 @@ async function voterOrientation(chemin: string, options: OptionsBanc): Promise<R
  *  vient n'est plus retenue par personne. */
 export async function* preparerLot(chemin: string, recette: Recette, options: OptionsBanc = {}): AsyncGenerator<PageAlire> {
   const preparation = recette.preparation;
-  const telle = !preparation.double_page && preparation.redressement === "aucun";
+  const telle = preparation.double_page !== true && preparation.redressement === "aucun";
 
   const reglages = telle
     ? undefined
     : ReglagesRedressement.parse({
         rotation: preparation.redressement,
-        doublePage: preparation.double_page,
+        doublePage: preparation.double_page === true,
         ...(preparation.page_gauche === undefined ? {} : { pageGauche: preparation.page_gauche }),
         effacerVerso: true,
         binarisation: options.sansBinarisation === true ? "aucune" : "adaptative",
@@ -170,7 +170,7 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
           ...(produite.grise === undefined ? {} : { grise: produite.grise }),
           index,
           total,
-          rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
+          rang: preparation.double_page === true ? index * 2 + (cote === "droite" ? 1 : 0) : index,
           ...(cote === undefined ? {} : { cote }),
         };
       }

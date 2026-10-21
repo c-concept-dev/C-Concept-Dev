@@ -33,16 +33,15 @@
  *  (règle 5). Rien n'est publié.
  */
 
+import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { VersionDocument, type SchemaBibliotheque } from "@lienotheque/contrats";
-import { ouvrirDepot } from "@lienotheque/depot-sqlite";
+import { Passage, VueBibliotheque } from "@lienotheque/contrats";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
-import { enPassages, langueOcr } from "@lienotheque/lecteur-texte";
-import { enregistrerLeTraitement } from "../src/index.js";
-import { lireLeTexte } from "../src/texte.js";
+import { chercher } from "@lienotheque/noyau";
+import { chargeOuEchec, demandeDeTraitement, executerTravail } from "../src/index.js";
 
 const [chemin, sortie, combien = "3", langue = "fr"] = process.argv.slice(2);
 if (chemin === undefined || sortie === undefined) {
@@ -55,66 +54,84 @@ if (!existsSync(chemin)) {
 }
 const COMBIEN = Number.parseInt(combien, 10);
 
-const id = (n: number): string => `0190f0a0-0000-7000-8000-${String(n).padStart(12, "0")}`;
-const sha = (c: string): string => c.repeat(64).slice(0, 64);
-const LE = new Date().toISOString();
-
-const SCHEMA: SchemaBibliotheque = {
-  cle: "essai",
-  nom: "Essai",
-  langue,
-  version: 1,
-  axes: [
-    {
-      cle: "axe_un",
-      nom: "Un axe",
-      nature: "referentiel",
-      cardinalite: "une",
-      structure: "plat",
-      obligatoire: false,
-      alias: [],
-      valeurs: [{ cle: "une", nom: "Une valeur", alias: [], synonymes: [], retiree: false }],
-    },
-  ],
-};
-
 const base = mkdtempSync(join(tmpdir(), "lienotheque-citations-"));
 mkdirSync(join(sortie, "pages"), { recursive: true });
 
 try {
-  const modele = langueOcr(langue);
-  process.stderr.write(`lecture (${modele ?? "langue inconnue"})…\n`);
-  const lu = await lireLeTexte(chemin, { ...(modele === undefined ? {} : { langue: modele }) });
-  const passages = enPassages(lu.pages);
-  process.stderr.write(`  ${lu.pages.length} pages, ${passages.length} passages\n`);
+  // **Par la porte, et rien qu'elle.**
+  //
+  // Ce banc lisait par `lireLeTexte` et cherchait dans un dépôt monté à la main : deux chemins
+  // que l'application n'emprunte pas. Il a ainsi produit, le 20 octobre 2026, trois citations
+  // vérifiées à l'œil **sur une coupe en deux que le produit ne faisait pas** — la manière de
+  // lire déclarait « une page par feuille » et la chaîne lui obéissait. Les citations étaient
+  // justes ; elles ne disaient rien de ce que l'application rend.
+  //
+  // Désormais : `executerTravail`, l'aller-retour JSON que l'hôte fait subir au résultat, et
+  // `chercher`, la fonction même de l'écran de recherche.
+  const medias = join(base, "medias");
+  const images = join(base, "images");
+  mkdirSync(medias);
+  mkdirSync(images);
 
-  const depot = await ouvrirDepot(base);
-  await enregistrerLeTraitement(
-    depot,
-    {
-      document: { id: id(10), bibliothequeId: id(1), titre: basename(chemin), alias: [], creeLe: LE },
-      version: VersionDocument.parse({
-        id: id(20),
-        documentId: id(10),
-        numero: 1,
-        etat: "pret_a_lire",
-        active: false,
-        fichiers: [sha("a")],
-        recette: { id: "livre-numerise", version: 1 },
-        outils: [{ nom: "lecteur-texte", version: "1.0.0" }],
-        manques: [],
-        creeLe: LE,
-      }),
-      schema: SCHEMA,
-      fichiers: [
-        { empreinte: sha("a"), taille: 1, typeMime: "application/pdf", nomOrigine: basename(chemin), ajouteLe: LE, appareilId: id(99) },
-      ],
-      lignes: [],
-      association: { appariements: [], orphelins: [], manquants: [] },
-      medias: [],
-    },
-    passages,
+  const description = join(base, "bibliotheque.json");
+  writeFileSync(
+    description,
+    JSON.stringify({
+      id: "essai-des-citations",
+      nom: "Essai",
+      mots: {
+        element: { un: "élément", plusieurs: "éléments" },
+        piste: { un: "piste", plusieurs: "pistes" },
+        page: { un: "page", plusieurs: "pages" },
+      },
+      schema: {
+        cle: "essai",
+        nom: "Essai",
+        langue,
+        version: 1,
+        axes: [
+          {
+            cle: "un-axe",
+            nom: "Un axe",
+            nature: "referentiel",
+            cardinalite: "une",
+            structure: "plat",
+            obligatoire: false,
+            alias: [],
+            valeurs: [{ cle: "une", nom: "Une valeur", alias: [], synonymes: [], retiree: false }],
+          },
+        ],
+      },
+    }),
   );
+
+  // **Aucune déclaration de double page** : c'est au document de répondre, et c'est précisément
+  // ce qu'on vient vérifier.
+  const recette = join(base, "maniere.json");
+  writeFileSync(
+    recette,
+    JSON.stringify({
+      id: "livre-ordinaire",
+      version: 1,
+      derivee_de: null,
+      preparation: { redressement: "aucun" },
+      lectures: [{ ancre: "page_imprimee", zone: { type: "rectangle_rel", x: 0.05, y: 0.86, l: 0.9, h: 0.12 }, alphabet: "chiffres" }],
+      regles: { elements: { ordre: "strictement_croissant", saut_max: 12 }, plusieurs_elements_par_piste: false },
+      validation: { seuil_confiance: 0.6 },
+    }),
+  );
+
+  process.stderr.write(`lecture par la porte (langue de la bibliothèque : « ${langue} »)…\n`);
+  const charge = chargeOuEchec(
+    await executerTravail(
+      demandeDeTraitement(randomUUID(), randomUUID(), { document: chemin, medias, recette, description, images }),
+      { emettre: (message) => (message.type === "journal" ? process.stderr.write(`  journal · ${message.texte}\n`) : undefined) },
+    ),
+  );
+  const relu = JSON.parse(JSON.stringify(charge)) as { vue: unknown; passages: unknown[] };
+  const vue = VueBibliotheque.parse(relu.vue);
+  const passages = relu.passages.map((un) => Passage.parse(un));
+  process.stderr.write(`  ${passages.length} passages\n`);
 
   // Les feuilles du document, pour en tirer l'image de celle qu'une citation désigne.
   const donnees = Buffer.from(await readFile(chemin));
@@ -128,7 +145,7 @@ try {
   // Une feuille porte-t-elle deux pages ? On le déduit du compte : deux fois plus de pages lues
   // que de feuilles dans le document signifie que la chaîne a coupé.
   const feuilles = pagesPdf(objets).length;
-  const coupe = lu.pages.length > feuilles * 1.5;
+  const coupe = passages.length > feuilles * 1.5;
 
   type Fiche = { numero: number; phrase: string; page: number; folio?: number; feuille: number; moitie: string; image: string };
   const fiches: Fiche[] = [];
@@ -143,14 +160,18 @@ try {
     if (depuis < 0) continue;
     const phrase = mots.slice(depuis, depuis + 6).join(" ");
 
-    const trouves = await depot.chercherPassages(`"${phrase}"`);
-    const premier = trouves[0];
-    if (premier === undefined) {
+    // La recherche de l'écran, sur ce que l'hôte lui sert.
+    const groupes = chercher(vue, phrase, { passages });
+    const rendu = groupes.find((groupe) => groupe.genre === "page")?.resultats[0];
+    // Le passage qui porte réellement la phrase : c'est lui qui donne le rang, dont se déduisent
+    // la feuille et sa moitié. La recherche, elle, cite par le numéro imprimé.
+    const porteur = passages.find((candidat) => candidat.texte.includes(phrase));
+    if (rendu === undefined || porteur === undefined) {
       process.stderr.write(`  « ${phrase} » : introuvable, écartée\n`);
       continue;
     }
 
-    const page = premier.passage.page;
+    const page = porteur.page;
     const feuille = coupe ? Math.ceil(page / 2) : page;
     const numero = imagesParFeuille.get(feuille);
     if (numero === undefined) continue;
@@ -163,7 +184,7 @@ try {
       numero: fiches.length + 1,
       phrase,
       page,
-      ...(premier.passage.pageImprimee === undefined ? {} : { folio: premier.passage.pageImprimee }),
+      ...(porteur.pageImprimee === undefined ? {} : { folio: porteur.pageImprimee }),
       feuille,
       moitie: coupe ? (page % 2 === 1 ? "gauche" : "droite") : "la feuille entière",
       image: `pages/${nomImage}`,

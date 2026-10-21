@@ -35,12 +35,12 @@ const NATIF = join(RACINE, "fixtures/fichiers/500-pages.pdf");
 const siNatif = existsSync(NATIF) ? it : it.skip;
 
 /** Une page fabriquée, pour éprouver une règle sans dépendre d'un fichier. */
-const page = (mots: { texte: string; y: number }[], hauteur = 1000): PageLue =>
+const page = (mots: { texte: string; y: number }[], hauteur = 1000, largeur = 600): PageLue =>
   PageLue.parse({
     index: 1,
     source: "couche_texte",
     unite: "point",
-    largeur: 600,
+    largeur,
     hauteur,
     mots: mots.map((m) => ({ texte: m.texte, x: 72, y: m.y, l: 20, h: 11 })),
   });
@@ -360,12 +360,21 @@ describe("sur la fixture native de cinq cents pages (OUT-05, RCH-07)", () => {
  *  moins deux feuilles** parmi celles qu'on regarde.
  */
 describe("une feuille qui porte deux pages se reconnaît à ses deux folios", () => {
-  /** Une feuille de livre : du texte au milieu, et ses folios dans la marge basse. */
+  /** Une feuille de livre : du texte au milieu, et ses folios dans la marge basse.
+   *
+   *  **En paysage**, et c'est une correction : ces feuilles étaient plus hautes que larges, ce
+   *  qu'aucune feuille portant deux pages portrait ne peut être. L'oubli ne se voyait pas tant
+   *  que la forme n'entrait pas dans la décision — et les épreuves négatives ci-dessous auraient
+   *  alors réussi pour la mauvaise raison. */
   const feuille = (folios: readonly number[], texte = "le texte courant de cette page"): PageLue =>
-    page([
-      ...texte.split(" ").map((mot) => ({ texte: mot, y: 500 })),
-      ...folios.map((numero) => ({ texte: String(numero), y: 960 })),
-    ]);
+    page(
+      [
+        ...texte.split(" ").map((mot) => ({ texte: mot, y: 500 })),
+        ...folios.map((numero) => ({ texte: String(numero), y: 960 })),
+      ],
+      1000,
+      1400,
+    );
 
   /** Vingt feuilles, soit la longueur d'un vrai ouvrage : la fonction refuse de trancher sur un
    *  document trop court, et c'est une épreuve à part. `folios` reçoit le rang de la feuille. */
@@ -395,13 +404,19 @@ describe("une feuille qui porte deux pages se reconnaît à ses deux folios", ()
   it("ne lit que les marges, jamais le corps du texte", () => {
     // Un texte qui cite « 64 » et « 65 » au fil des lignes n'est pas une double page. La bande de
     // marge est la même que celle de `numeroImprime`, et pour la même raison.
+    // En paysage, comme les autres feuilles de ce bloc : une feuille portrait serait refusée sur
+    // sa forme, et l'épreuve réussirait sans jamais regarder les marges.
     const pages = Array.from({ length: 20 }, () =>
-      page([
-        { texte: "voir", y: 500 },
-        { texte: "64", y: 500 },
-        { texte: "et", y: 500 },
-        { texte: "65", y: 500 },
-      ]),
+      page(
+        [
+          { texte: "voir", y: 500 },
+          { texte: "64", y: 500 },
+          { texte: "et", y: 500 },
+          { texte: "65", y: 500 },
+        ],
+        1000,
+        1400,
+      ),
     );
     expect(deuxPagesParFeuille(pages)).toBe(false);
   });
@@ -482,5 +497,46 @@ describe("l'emplacement traverse la mise en passages", () => {
   it("n'en invente pas quand la page n'en déclare aucun", () => {
     // Une page de PDF n'a rien de plus à dire que son numéro.
     expect(enPassages([dUnePage()])[0]?.emplacement).toBeUndefined();
+  });
+});
+
+
+/** Une feuille portrait ne porte pas deux pages portrait (étape 8)
+ *
+ *  Relevé sur le corpus : `deuxPagesParFeuille` dit « double » sur des documents dont les feuilles
+ *  sont **plus hautes que larges**. Deux nombres consécutifs dans une bande de marge suffisent à
+ *  la convaincre — un pied de page numéroté et un appel de note en font autant —, et elle ne
+ *  regardait pas la seule chose qui rend la chose possible : la forme de la feuille.
+ *
+ *  Couper en deux un livre ordinaire mêle deux moitiés de page dans chaque passage et fait pointer
+ *  toutes ses citations à côté. Le garde-fou coûte une comparaison. */
+describe("une feuille qui n'est pas en paysage ne porte pas deux pages", () => {
+  const feuille = (rang: number, largeur: number, hauteur: number): PageLue =>
+    PageLue.parse({
+      index: rang,
+      source: "couche_texte",
+      unite: "point",
+      largeur,
+      hauteur,
+      mots: [
+        { texte: String(rang * 2), x: largeur * 0.1, y: hauteur * 0.95, l: 10, h: 8 },
+        { texte: String(rang * 2 + 1), x: largeur * 0.8, y: hauteur * 0.95, l: 10, h: 8 },
+      ],
+    });
+
+  const dix = (largeur: number, hauteur: number): PageLue[] =>
+    Array.from({ length: 20 }, (_, rang) => feuille(rang + 1, largeur, hauteur));
+
+  it("voit la double page sur une feuille plus large que haute", () => {
+    expect(deuxPagesParFeuille(dix(1200, 850))).toBe(true);
+  });
+
+  it("refuse de la voir sur une feuille portrait, quoi que disent les marges", () => {
+    // Les mêmes marges, la même paire de nombres : seule la forme change.
+    expect(deuxPagesParFeuille(dix(850, 1200))).toBe(false);
+  });
+
+  it("refuse aussi sur une feuille carrée : il faut de la place pour deux", () => {
+    expect(deuxPagesParFeuille(dix(1000, 1000))).toBe(false);
   });
 });
