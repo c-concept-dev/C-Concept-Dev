@@ -9906,6 +9906,12 @@ ${recent}`;
     // ajouter sinon) : même patron que data-image-add-text (adocEditorRefreshImageControls).
     const addImageBtn = panel.querySelector('[data-block-add-image]');
     if (addImageBtn) addImageBtn.hidden = !!(ctx.block && ctx.block.style && ctx.block.style.backgroundAssetId);
+    const backgroundToggle = panel.querySelector('[data-block-background-toggle]');
+    if (backgroundToggle) {
+      const withoutBackground = style.backgroundColor === 'transparent';
+      backgroundToggle.textContent = withoutBackground ? 'Rétablir le fond de la charte' : 'Retirer le fond coloré';
+      backgroundToggle.setAttribute('aria-pressed', String(withoutBackground));
+    }
     // LOT 1a — narration : visible UNIQUEMENT dans une Présentation du moteur structuré, et
     // seulement quand la sélection désigne une étape. adocPresentStepList rend déjà [] pour tout
     // autre documentKind, donc la condition de type de document n'est pas répétée ici.
@@ -10075,6 +10081,16 @@ ${recent}`;
       ? 'La mise en forme d’une partie du titre n’est pas conservée.'
       : 'Modification appliquée.');
   }
+  window.adocToggleBlockBackground = function () {
+    const ctx = adocEditorContext();
+    if (!ctx) return;
+    const kind = ctx.legacy ? adocLegacyBlockKind(ctx.el) : ctx.block && ctx.block.type;
+    if (kind !== 'callout') return;
+    const scope = ctx.st.panelEl && ctx.st.panelEl.querySelector('[data-editor-scope]');
+    if (scope) scope.value = 'block';
+    const style = ctx.block ? ctx.block.style || {} : adocEditorReadStyle(ctx.el);
+    adocEditorApplyStyle('backgroundColor', style.backgroundColor === 'transparent' ? '' : 'transparent');
+  };
 
   // LOT E — curseur d'opacité universel (backgroundOpacity/textOpacity, bloc structuré
   // uniquement — les 6 types heading/paragraph/callout/list/table/quote, cf. investigation :
@@ -20706,6 +20722,7 @@ ${recent}`;
             + pageBtn('end', 'Ajouter une page à la fin')
           : '') +
         ((blockId || '').startsWith('root:card-title:') ? adocImageReplacementButtonsHTML(true) : '') +
+        (blockType === 'callout' ? '<button type="button" class="cc-clarity-reply-btn" data-block-background-toggle aria-pressed="false" onclick="event.stopPropagation();window.adocToggleBlockBackground()">Retirer le fond coloré</button>' : '') +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
@@ -20770,6 +20787,41 @@ ${recent}`;
     }
   }
 
+  window.adocDeleteStructuredBlock = async function (blockId) {
+    const storeKey = window._adocWsState && window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    if (!art || !art._adocStructuredDoc) return;
+    const blockEl = document.getElementById(blockId);
+    if (!blockEl || !blockEl.closest('#cc-ws-doc-card')) return;
+    if (!window.confirm('Supprimer ce bloc du document ?')) return;
+    const current = window._adocBlockEditState || {};
+    if (current.blockId !== blockId) blockEl.click();
+    adocEditorSync();
+    const doc = art._adocStructuredDoc;
+    const siblings = adocEditorBlockContainer(doc, blockId);
+    const index = siblings && siblings.findIndex(function (b) { return b.id === blockId; });
+    if (index == null || index < 0) { alert('Impossible de supprimer ce bloc : il est introuvable dans le document.'); return; }
+    if (siblings === doc.blocks && siblings.length <= 1 && ['fiche', 'carrousel', 'presentation'].includes(doc.documentKind)) {
+      alert('Impossible de supprimer le dernier bloc : ce document doit en conserver au moins un.'); return;
+    }
+    const before = JSON.stringify(doc);
+    const parentCardId = blockEl.closest('.adoc-sc-card')?.id;
+    adocEditorCheckpoint();
+    siblings.splice(index, 1);
+    try {
+      adocWsClearBlockSelection();
+      if (!await window.adocOpenWorkspace(storeKey)) throw new Error('le rendu du document a échoué');
+      const nextId = siblings[Math.min(index, siblings.length - 1)]?.id;
+      const nextEl = nextId && document.getElementById(nextId);
+      const fallbackTitle = parentCardId && document.getElementById('root:card-title:' + parentCardId);
+      (nextEl || fallbackTitle || document.getElementById('root:doc-title'))?.click();
+    } catch (error) {
+      art._adocStructuredDoc = JSON.parse(before);
+      await window.adocOpenWorkspace(storeKey);
+      alert('Impossible de supprimer ce bloc : ' + (error && error.message || 'erreur inconnue') + '.');
+    }
+  };
+
   function adocWsSetupBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
     if (!docCard) return;
@@ -20782,8 +20834,23 @@ ${recent}`;
       el.setAttribute('role', 'button');
       el.setAttribute('aria-label', el.classList.contains('adoc-sc-cover') ? 'Options de la couverture' : 'Options de la photo : ' + (el.getAttribute('alt') || 'image'));
     });
+    docCard.querySelectorAll('.adoc-sc-block[id]').forEach(function (blockEl) {
+      if (blockEl.querySelector(':scope > .cc-block-delete')) return;
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'cc-block-delete'; button.textContent = '×';
+      button.title = 'Supprimer ce bloc'; button.setAttribute('aria-label', 'Supprimer ce bloc');
+      button.contentEditable = 'false';
+      blockEl.appendChild(button);
+    });
     // 57f — each textual leaf is prepared after the delegated click handler.
     docCard.onclick = function (e) {
+      const deleteButton = e.target.closest('.cc-block-delete');
+      if (deleteButton) {
+        e.preventDefault(); e.stopPropagation();
+        const blockEl = deleteButton.closest('.adoc-sc-block[id]');
+        if (blockEl) window.adocDeleteStructuredBlock(blockEl.id);
+        return;
+      }
       if (e.target.closest('.cc-block-edit-panel')) return; // clic dans le panneau — jamais réinterprété comme une (dé)sélection
       if (e.target.closest('.adoc-sc-cite')) return;
       const documentCover = e.target.closest('.adoc-sc-cover');
@@ -20970,6 +21037,7 @@ ${recent}`;
       if (hoverReorderBlockEl) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
     };
     docCard.onmousedown = function (e) {
+      if (e.target.closest('.cc-block-delete')) return;
       if (e.target.closest('.adoc-sc-card-img, .cc-block-edit-panel')) return;
       // Fusion Phase 2 — verrou global partagé avec le glissement B→A (adocFusionSetupDragSource,
       // cf. plus bas) : bloque le DÉMARRAGE d'un des trois glissements ci-dessous (réordonnancement,
@@ -23923,6 +23991,7 @@ ${recent}`;
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') + insertHTML +
+        (kind === 'callout' ? '<button type="button" class="cc-clarity-reply-btn" data-block-background-toggle aria-pressed="false" onclick="event.stopPropagation();window.adocToggleBlockBackground()">Retirer le fond coloré</button>' : '') +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
@@ -23941,6 +24010,40 @@ ${recent}`;
   // (point 2), sur les éléments retenus par adocWsCollectLegacyBlocks (point 1).
   // 57f — copy edited blocks to canonical HTML using their pre-edit positional keys.
   function adocSyncEditedLegacyBlocksToHtml(art) { adocEditorSyncLegacy(art); }
+
+  window.adocDeleteLegacyBlock = async function (blockKey) {
+    const storeKey = window._adocWsState && window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    const root = document.getElementById('cc-ws-doc-card');
+    const blockEl = root && root.querySelector('[data-cc-legacy-block-id="' + blockKey + '"]');
+    if (!art || art._adocGenerationEngine !== 'legacy-html' || !blockEl) return;
+    if (adocLegacyBlockKind(blockEl) === 'xlsx-grid') {
+      alert('La grille du tableur ne peut pas être supprimée comme un bloc ; utilisez Supprimer pour retirer le document entier.');
+      return;
+    }
+    if (!window.confirm('Supprimer ce bloc du document ?')) return;
+    const current = window._adocLegacyBlockEditState || {};
+    if (current.blockKey !== blockKey) blockEl.click();
+    adocEditorSync();
+    const before = art.html;
+    const index = parseInt(blockKey.slice(3), 10);
+    try {
+      const parsed = new DOMParser().parseFromString(before || '', 'text/html');
+      const target = adocWsCollectLegacyBlocks(parsed.body)[index];
+      if (!target) throw new Error('passage introuvable dans le document');
+      adocEditorCheckpoint();
+      target.remove();
+      art.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
+      adocWsClearLegacyBlockSelection();
+      if (!await window.adocOpenWorkspace(storeKey)) throw new Error('le rendu du document a échoué');
+      document.querySelector('#cc-ws-doc-card [data-cc-legacy-block-id]')?.click();
+      adocEditorMarkDirty();
+    } catch (error) {
+      art.html = before;
+      await window.adocOpenWorkspace(storeKey);
+      alert('Impossible de supprimer ce bloc : ' + (error && error.message || 'erreur inconnue') + '.');
+    }
+  };
 
   function adocWsSetupLegacyBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
@@ -23973,6 +24076,15 @@ ${recent}`;
       wrap.appendChild(el);
       wrap.insertAdjacentHTML('afterbegin', '<span class="adoc-sc-block-drag-handle" aria-hidden="true" title="Glisser pour réordonner"></span>');
     });
+    docCard.querySelectorAll('.adoc-sc-block-drag-wrap').forEach(function (wrap) {
+      if (wrap.querySelector(':scope > .cc-block-delete')) return;
+      if (wrap.querySelector('table[data-cc-xlsx-grid]')) return;
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'cc-block-delete'; button.textContent = '×';
+      button.title = 'Supprimer ce bloc'; button.setAttribute('aria-label', 'Supprimer ce bloc');
+      button.contentEditable = 'false';
+      wrap.appendChild(button);
+    });
     // ITEM 63f — glisser-déposer réel pour réordonner un bloc legacy. Réutilise le PATRON déjà
     // établi côté structuré juste au-dessus (seuil 3px, suppressNextClick, checkpoint unique) —
     // fonction ENTIÈREMENT SÉPARÉE (jamais partagée), la persistance diffère radicalement : ici un
@@ -23998,6 +24110,7 @@ ${recent}`;
       if (hoverReorderWrapEl) { hoverReorderWrapEl.classList.remove('cc-drag-edge-hover'); hoverReorderWrapEl = null; }
     };
     docCard.onmousedown = function (e) {
+      if (e.target.closest('.cc-block-delete')) return;
       if (window._adocAnyDragActive) return;
       const wrap = e.target.closest('.adoc-sc-block-drag-wrap');
       if (!wrap || !adocDragInEdgeZone(wrap, e.clientX)) return;
@@ -24082,6 +24195,13 @@ ${recent}`;
       document.addEventListener('mouseup', onUp);
     };
     docCard.onclick = function (e) {
+      const deleteButton = e.target.closest('.cc-block-delete');
+      if (deleteButton) {
+        e.preventDefault(); e.stopPropagation();
+        const blockEl = deleteButton.closest('.adoc-sc-block-drag-wrap')?.querySelector('[data-cc-legacy-block-id]');
+        if (blockEl) window.adocDeleteLegacyBlock(blockEl.getAttribute('data-cc-legacy-block-id'));
+        return;
+      }
       if (e.target.closest('.cc-block-edit-panel')) return;
       if (e.target.closest('sup')) return; // note de bas de page — laisse naviguer normalement, jamais réinterprétée comme une sélection
       const blockEl = e.target.closest('[data-cc-legacy-block-id]');
