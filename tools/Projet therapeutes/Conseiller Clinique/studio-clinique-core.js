@@ -8062,6 +8062,12 @@ ${recent}`;
       if (/url\s*\(|[{}<>;]/i.test(value)) return;
       el.style.setProperty(ADOC_DIRECT_STYLE_FIELDS[key], value);
     });
+    if (Number.isFinite(style.flowWidthPercent)) {
+      el.style.width = Math.max(25, Math.min(100, style.flowWidthPercent)) + '%';
+      el.style.maxWidth = '100%';
+      el.style.boxSizing = 'border-box';
+    }
+    if (Number.isFinite(style.flowMinHeightPx)) el.style.minHeight = Math.max(0, Math.min(1200, style.flowMinHeightPx)) + 'px';
     if (style.borderWidth) el.style.borderStyle = 'solid';
     return el.style.cssText;
   }
@@ -10175,19 +10181,26 @@ ${recent}`;
     if (transforms.length) css.push('transform:' + transforms.join(' '));
     if (display.borderWidth) css.push('border:' + n('borderWidth', 0) + 'px solid ' + (/^#[0-9a-fA-F]{6}$/.test(display.borderColor || '') ? display.borderColor : '#286b7b'));
     if (display.shadow) css.push('box-shadow:0 4px ' + n('shadow', 0) + 'px rgba(0,0,0,.35)');
-    if (surface === 'image' && ['contain', 'cover', 'fill'].includes(display.fit)) css.push('aspect-ratio:16/9');
+    if (surface === 'cover' && Number.isFinite(display.sizePercent)) css.push('width:' + Math.max(10, Math.min(100, display.sizePercent)) + '%;margin-inline:auto');
+    if (surface === 'image' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
+    else if (surface === 'image' && ['contain', 'cover', 'fill'].includes(display.fit)) css.push('aspect-ratio:16/9');
     return css.length ? css.join(';') + ';' : '';
   }
   function adocImageDisplayControlsHTML(isImageBlock) {
     const range = (label, key, min, max, value) => '<label>' + label + ' <output data-image-output="' + key + '">' + value + '</output><input type="range" min="' + min + '" max="' + max + '" step="1" value="' + value + '" data-image-display="' + key + '"></label>';
+    const mainControls = isImageBlock
+      ? '<div class="cc-editor-row"><label>Taille de la photo <output data-image-main-output="size">100 %</output><input type="range" min="10" max="100" step="1" value="100" data-image-size="widthPercent"></label>' +
+        '<label>Opacité de la photo <output data-image-main-output="opacity">100 %</output><input type="range" min="0" max="100" step="1" value="100" data-image-opacity="opacity"></label>' +
+        '<label>Rotation de la photo <output data-image-main-output="rotation">0°</output><input type="range" min="0" max="360" step="1" value="0" data-image-rotation="rotation"></label></div>'
+      : '<div class="cc-editor-row">' + range('Taille de la photo', 'sizePercent', 10, 100, 100) +
+        range('Opacité de la photo', 'opacity', 0, 100, 100) + range('Rotation de la photo', 'rotation', 0, 360, 0) + '</div>';
     return '<fieldset class="cc-image-display-controls"><legend>Options de la photo</legend>' +
-      '<p>L’original reste conservé ; seul son affichage change.</p>' +
+      '<p>L’original reste conservé ; seul son affichage change.</p>' + mainControls +
       '<label>Cadrage<select data-image-display="fit" aria-label="Cadrage"><option value="">Cadrage actuel</option><option value="contain">Ajuster · image entière</option><option value="cover">Remplir · recadrage possible</option><option value="fill">Étirer · déformation possible</option></select></label>' +
       '<div class="cc-editor-row">' + range('Point focal horizontal', 'focalX', 0, 100, 50) + range('Point focal vertical', 'focalY', 0, 100, 50) + '</div>' +
       '<details><summary>Corrections de la photo</summary><div class="cc-editor-row">' +
       range('Luminosité', 'brightness', 0, 200, 100) + range('Contraste', 'contrast', 0, 200, 100) + range('Saturation', 'saturation', 0, 200, 100) +
       range('Chaleur / froideur', 'temperature', -100, 100, 0) + range('Noir et blanc', 'grayscale', 0, 100, 0) + range('Flou', 'blur', 0, 20, 0) +
-      (isImageBlock ? '' : range('Opacité de la photo', 'opacity', 0, 100, 100) + range('Rotation de la photo', 'rotation', 0, 360, 0)) +
       range('Bordure', 'borderWidth', 0, 20, 0) + range('Ombre', 'shadow', 0, 30, 0) + '</div>' +
       '<label>Couleur de bordure<input type="color" value="#286b7b" data-image-display="borderColor"></label>' +
       '<label><input type="checkbox" data-image-display="mirrorX"> Miroir horizontal</label>' +
@@ -10195,32 +10208,12 @@ ${recent}`;
       '<button type="button" class="cc-clarity-other-btn" data-image-reset>Remise à zéro des réglages</button></fieldset>';
   }
   function adocBuildImageEditPanelHTML(isPureImage) {
-    const opacityAttr = isPureImage ? 'data-image-opacity="opacity"' : 'data-editor-opacity="backgroundOpacity"';
-    const sizeRow = isPureImage
-      ? '<div class="cc-editor-row"><label>Taille<input type="range" min="10" max="100" step="1" value="100" data-image-size="widthPercent"></label></div>'
-      : '';
-    // LOT ROTATION (Phase 1 bis) — investigation courte confirmée : réservée au bloc autonome,
-    // même absence-du-DOM que Taille sur un fond de bloc mixte (jamais un masquage CSS, aucun
-    // état fantôme). Un fond couvre son cadre via background-size:cover (Lot E) — le pivoter
-    // laisserait des coins visibles non couverts par le rectangle pivoté à l'intérieur d'un cadre
-    // qui, lui, ne pivote pas : pire que le simple écrêtage déjà documenté pour widthPercent,
-    // jamais construit ici.
-    const rotationRow = isPureImage
-      ? '<div class="cc-editor-row"><label>Rotation<input type="range" min="0" max="360" step="1" value="0" data-image-rotation="rotation"></label></div>'
-      : '';
-    // "Ajouter du texte" n'a de sens que sur un bloc image autonome — disponible que la source
-    // soit un fichier importé (content.assetId) OU une image encore résolue via Pexels
-    // (content.query) : adocConvertImageBlockToText localise l'image à la volée dans ce second
-    // cas (téléchargement de l'URL déjà résolue + adocUploadImageAsset), jamais une perte
-    // silencieuse. Masqué uniquement si le bloc ne porte aucune image exploitable (cas dégénéré,
-    // le schéma garantit query non vide).
     const addTextBtn = isPureImage
       ? '<div class="cc-editor-row"><button type="button" class="cc-clarity-reply-btn" data-image-add-text onclick="window.adocConvertImageBlockToText()" hidden>Ajouter du texte</button></div>'
       : '';
     return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Réglages de l’image">' +
-      '<div class="cc-editor-row"><label>Opacité<input type="range" min="0" max="100" step="1" value="100" ' + opacityAttr + '></label></div>' +
-      sizeRow + rotationRow + (isPureImage ? adocImageDisplayControlsHTML(true) : '') + addTextBtn +
-      (isPureImage ? adocImageReplacementButtonsHTML(false) : '') +
+      (isPureImage ? adocImageDisplayControlsHTML(true) : '<div class="cc-editor-row"><label>Opacité du fond<input type="range" min="0" max="100" step="1" value="100" data-editor-opacity="backgroundOpacity"></label></div>') +
+      addTextBtn + (isPureImage ? adocImageReplacementButtonsHTML(false) : '') +
     '</div>' + (isPureImage ? '<div class="cc-block-edit-result" hidden></div>' : '');
   }
   function adocImageReplacementButtonsHTML(isCover) {
@@ -10276,6 +10269,14 @@ ${recent}`;
   // la taille, à tort pour une image jamais réglée). Ne réutilise PAS
   // adocEditorRefreshControls (LOT E) : cette fonction suppose la structure complète du
   // panneau texte (.cc-editor-list-tools etc., absents ici) et lèverait une erreur.
+  function adocRefreshImageMainOutputs(panel) {
+    if (!panel) return;
+    [['size', '[data-image-size]', ' %'], ['opacity', '[data-image-opacity]', ' %'], ['rotation', '[data-image-rotation]', '°']].forEach(function (entry) {
+      const output = panel.querySelector('[data-image-main-output="' + entry[0] + '"]');
+      const input = panel.querySelector(entry[1]);
+      if (output && input) output.textContent = input.value + entry[2];
+    });
+  }
   function adocEditorRefreshImageControls(isPureImage) {
     const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block) return;
     const panel = ctx.st.panelEl; if (!panel) return;
@@ -10286,6 +10287,7 @@ ${recent}`;
       if (sizeInput) sizeInput.value = ctx.block.content.widthPercent == null ? '100' : ctx.block.content.widthPercent;
       const rotationInput = panel.querySelector('[data-image-rotation]');
       if (rotationInput) rotationInput.value = (ctx.block.content.imageDisplay && ctx.block.content.imageDisplay.rotation) == null ? (ctx.block.content.rotation == null ? '0' : ctx.block.content.rotation) : ctx.block.content.imageDisplay.rotation;
+      adocRefreshImageMainOutputs(panel);
       // CORRECTIF — "Ajouter du texte" ne dépendait QUE de content.assetId (image importée),
       // excluant systématiquement une image encore résolue via Pexels (content.query, jamais
       // localisée) — asymétrie confirmée et corrigée : adocConvertImageBlockToText sait
@@ -10366,7 +10368,7 @@ ${recent}`;
       const fallback = field === 'fit' ? '' : field === 'borderColor' ? '#286b7b' :
         ['mirrorX', 'mirrorY'].includes(field) ? false :
         ['focalX', 'focalY'].includes(field) ? 50 :
-        ['brightness', 'contrast', 'saturation', 'opacity'].includes(field) ? 100 : 0;
+        ['brightness', 'contrast', 'saturation', 'opacity', 'sizePercent'].includes(field) ? 100 : 0;
       const value = display[field] == null ? (field === 'opacity' && ctx.block.type === 'image' && ctx.block.content.opacity != null ? ctx.block.content.opacity :
         field === 'rotation' && ctx.block.type === 'image' && ctx.block.content.rotation != null ? ctx.block.content.rotation : fallback) : display[field];
       if (input.type === 'checkbox') input.checked = !!value; else input.value = value;
@@ -10391,10 +10393,13 @@ ${recent}`;
       }
       el.style.objectFit = d.fit || 'cover';
       el.style.objectPosition = (d.focalX == null ? 50 : d.focalX) + '% ' + (d.focalY == null ? 50 : d.focalY) + '%';
+      el.style.width = (d.sizePercent == null ? 100 : d.sizePercent) + '%';
+      el.style.marginInline = 'auto';
     } else {
       el.style.objectFit = d.fit || 'cover';
       el.style.objectPosition = (d.focalX == null ? 50 : d.focalX) + '% ' + (d.focalY == null ? (ctx.st.zone === 'cover' ? 15 : 50) : d.focalY) + '%';
-      if (ctx.st.zone === 'image') el.style.aspectRatio = d.fit ? '16 / 9' : '';
+      if (ctx.st.zone === 'cover') { el.style.width = (d.sizePercent == null ? 100 : d.sizePercent) + '%'; el.style.marginInline = 'auto'; }
+      if (ctx.st.zone === 'image') el.style.aspectRatio = Number.isFinite(d.aspectRatio) ? String(d.aspectRatio) : (d.fit ? '16 / 9' : '');
     }
     const filter = [];
     if (d.brightness != null) filter.push('brightness(' + d.brightness + '%)');
@@ -10430,7 +10435,7 @@ ${recent}`;
     const ctx = adocImageDisplayContext(); if (!ctx) return;
     adocEditorCheckpoint();
     delete ctx.block.content.imageDisplay;
-    if (ctx.block.type === 'image') { delete ctx.block.content.opacity; delete ctx.block.content.rotation; }
+    if (ctx.block.type === 'image') { delete ctx.block.content.opacity; delete ctx.block.content.rotation; delete ctx.block.content.widthPercent; }
     // Recréer le rendu historique restaure aussi le 15 % vertical des couvertures de carte.
     const key = ctx.st.storeKey;
     adocWsClearBlockSelection();
@@ -11039,6 +11044,7 @@ ${recent}`;
       if(e.target.matches('[data-image-opacity]'))adocApplyImageOpacity(e.target.value,false);
       if(e.target.matches('[data-image-size]'))adocApplyImageWidth(e.target.value,false);
       if(e.target.matches('[data-image-rotation]'))adocApplyImageRotation(e.target.value,false);
+      if(e.target.matches('[data-image-opacity], [data-image-size], [data-image-rotation]'))adocRefreshImageMainOutputs(e.target.closest('.cc-block-edit-panel'));
       if(e.target.matches('[data-image-display][type="range"]'))adocApplyImageDisplay(e.target.dataset.imageDisplay,e.target.value,false);
     });
     lr.addEventListener('change',function(e){if(e.target.matches('[data-editor-scope]'))adocEditorRefreshControls();
@@ -11220,6 +11226,7 @@ ${recent}`;
   function adocApplyBlockStyleToElement(el, style, blockKind) {
     if (!el) return;
     Object.values(ADOC_DIRECT_STYLE_FIELDS).forEach(function (p) { el.style.removeProperty(p); });
+    ['width', 'max-width', 'min-height', 'box-sizing'].forEach(function (p) { el.style.removeProperty(p); });
     el.style.removeProperty('border-style');
     const parsed = document.createElement('span'); parsed.style.cssText = adocEditorStyleCSS(style, blockKind);
     Array.from(parsed.style).forEach(function (p) { el.style.setProperty(p, parsed.style.getPropertyValue(p)); });
@@ -20819,6 +20826,61 @@ ${recent}`;
     }
   };
 
+  function adocAddFlowResizeHandles(host) {
+    if (host.querySelector(':scope > .cc-flow-resize-handle')) return;
+    [['x', 'Largeur'], ['y', 'Hauteur minimale'], ['xy', 'Largeur et hauteur minimale']].forEach(function (entry) {
+      const handle = document.createElement('button');
+      handle.type = 'button'; handle.className = 'cc-flow-resize-handle cc-flow-resize-' + entry[0];
+      handle.dataset.flowResize = entry[0]; handle.title = 'Redimensionner : ' + entry[1].toLowerCase();
+      handle.setAttribute('aria-label', handle.title); handle.contentEditable = 'false';
+      host.appendChild(handle);
+    });
+  }
+  function adocPositionLegacyFlowHandles(wrap, blockEl) {
+    if (!wrap || !blockEl) return;
+    const r = blockEl.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+    const x = r.right - w.left, y = r.bottom - w.top;
+    wrap.querySelectorAll(':scope > .cc-flow-resize-handle').forEach(function (h) {
+      h.style.left = (h.dataset.flowResize === 'y' ? r.left - w.left + r.width / 2 : x) + 'px';
+      h.style.top = (h.dataset.flowResize === 'x' ? r.top - w.top + r.height / 2 : y) + 'px';
+    });
+  }
+  function adocStartFlowResize(e, blockEl, art, block, legacy, wrap) {
+    const axis = e.target.dataset.flowResize;
+    if (!axis || !blockEl || !art) return;
+    e.preventDefault(); e.stopPropagation();
+    const parent = legacy ? wrap : blockEl.parentElement;
+    const parentWidth = parent.getBoundingClientRect().width;
+    const rect = blockEl.getBoundingClientRect();
+    const startX = e.clientX, startY = e.clientY;
+    let changed = false;
+    function suppressClick(ev) { ev.preventDefault(); ev.stopPropagation(); document.removeEventListener('click', suppressClick, true); }
+    function move(ev) {
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (!changed && Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+      if (!changed) { adocEditorCheckpoint(); document.addEventListener('click', suppressClick, true); changed = true; }
+      const width = Math.max(25, Math.min(100, Math.round((rect.width + dx) / parentWidth * 100)));
+      const height = Math.max(0, Math.min(1200, Math.round(rect.height + dy)));
+      if (legacy) {
+        if (axis.includes('x')) { blockEl.style.width = width + '%'; blockEl.style.maxWidth = '100%'; blockEl.style.boxSizing = 'border-box'; }
+        if (axis.includes('y')) blockEl.style.minHeight = height + 'px';
+        adocPositionLegacyFlowHandles(wrap, blockEl);
+      } else {
+        const style = Object.assign({}, block.style);
+        if (axis.includes('x')) { style.flowWidthPercent = width; blockEl.style.width = width + '%'; blockEl.style.maxWidth = '100%'; blockEl.style.boxSizing = 'border-box'; }
+        if (axis.includes('y')) { style.flowMinHeightPx = height; blockEl.style.minHeight = height + 'px'; }
+        block.style = style;
+      }
+      adocEditorSync(); adocEditorMarkDirty();
+    }
+    function up() {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+      setTimeout(function () { document.removeEventListener('click', suppressClick, true); }, 0);
+    }
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', up);
+  }
   function adocWsSetupBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
     if (!docCard) return;
@@ -20839,19 +20901,29 @@ ${recent}`;
       button.contentEditable = 'false';
       blockEl.appendChild(button);
     });
+    if (art._adocStructuredDoc && art._adocStructuredDoc.documentKind !== 'carrousel') {
+      docCard.querySelectorAll('.adoc-sc-block[id]').forEach(function (blockEl) {
+        const block = adocFindEditableBlock(art._adocStructuredDoc, blockEl.id);
+        if (block && ADOC_DIRECT_TYPES.includes(block.type)) adocAddFlowResizeHandles(blockEl);
+      });
+    }
     // La taille de l'image est celle de son cadre, pas de l'élément <img>.
     // La poignée est créée seulement dans l'espace de travail : aucun contrôle dans l'export.
     docCard.querySelectorAll('.adoc-sc-image .adoc-sc-image-cadre').forEach(function (cadre) {
       if (cadre.querySelector('.cc-image-resize-handle')) return;
-      const handle = document.createElement('button');
-      handle.type = 'button'; handle.className = 'cc-image-resize-handle';
-      handle.title = 'Étirer ou réduire la photo';
-      handle.setAttribute('aria-label', 'Étirer ou réduire la photo');
-      handle.contentEditable = 'false';
-      cadre.appendChild(handle);
+      [['x', 'largeur'], ['y', 'hauteur'], ['xy', 'largeur et hauteur']].forEach(function (entry) {
+        const handle = document.createElement('button');
+        handle.type = 'button'; handle.className = 'cc-image-resize-handle cc-image-resize-' + entry[0];
+        handle.dataset.imageResize = entry[0];
+        handle.title = 'Redimensionner la photo : ' + entry[1];
+        handle.setAttribute('aria-label', 'Redimensionner la photo : ' + entry[1]);
+        handle.contentEditable = 'false';
+        cadre.appendChild(handle);
+      });
     });
     // 57f — each textual leaf is prepared after the delegated click handler.
     docCard.onclick = function (e) {
+      if (e.target.closest('.cc-flow-resize-handle')) { e.preventDefault(); e.stopPropagation(); return; }
       if (e.target.closest('.cc-image-resize-handle')) { e.preventDefault(); e.stopPropagation(); return; }
       const deleteButton = e.target.closest('.cc-block-delete');
       if (deleteButton) {
@@ -21046,6 +21118,14 @@ ${recent}`;
       if (hoverReorderBlockEl) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
     };
     docCard.onmousedown = function (e) {
+      const flowHandle = e.target.closest('.cc-flow-resize-handle');
+      if (flowHandle) {
+        const blockEl = flowHandle.closest('.adoc-sc-block[id]');
+        const currentArt = window._adocArtifacts && window._adocArtifacts[window._adocWsState.storeKey];
+        const block = blockEl && currentArt && adocFindEditableBlock(currentArt._adocStructuredDoc, blockEl.id);
+        if (block && ADOC_DIRECT_TYPES.includes(block.type)) adocStartFlowResize(e, blockEl, currentArt, block, false, null);
+        return;
+      }
       const imageHandle = e.target.closest('.cc-image-resize-handle');
       if (imageHandle) {
         e.preventDefault(); e.stopPropagation();
@@ -21054,19 +21134,35 @@ ${recent}`;
         const art = window._adocArtifacts && window._adocArtifacts[window._adocWsState.storeKey];
         const block = figure && art && adocFindEditableBlock(art._adocStructuredDoc, figure.id);
         if (!block || block.type !== 'image' || !cadre) return;
-        const startX = e.clientX;
-        const startWidth = cadre.getBoundingClientRect().width;
+        const axis = imageHandle.dataset.imageResize || 'x';
+        const startX = e.clientX, startY = e.clientY;
+        const startRect = cadre.getBoundingClientRect();
+        const startWidth = startRect.width, startHeight = startRect.height;
         const parentWidth = figure.getBoundingClientRect().width;
+        const img = cadre.querySelector('img');
         let changed = false;
         function suppressClick(ev) { ev.preventDefault(); ev.stopPropagation(); document.removeEventListener('click', suppressClick, true); }
         function move(ev) {
-          if (!parentWidth || Math.abs(ev.clientX - startX) < 2 && !changed) return;
+          const dx = ev.clientX - startX, dy = ev.clientY - startY;
+          if (!parentWidth || (Math.abs(dx) < 2 && Math.abs(dy) < 2 && !changed)) return;
           if (!changed) { adocEditorCheckpoint(); document.addEventListener('click', suppressClick, true); changed = true; }
-          // Le cadre est centré : déplacer son bord droit de 1 px ajoute 2 px à sa largeur.
-          const percent = Math.max(10, Math.min(100, Math.round((startWidth + 2 * (ev.clientX - startX)) / parentWidth * 100)));
-          adocApplyImageWidth(percent, false);
-          const slider = window._adocBlockEditState.panelEl && window._adocBlockEditState.panelEl.querySelector('[data-image-size]');
-          if (slider) slider.value = String(percent);
+          if (axis.includes('x')) {
+            // Le cadre est centré : déplacer son bord droit de 1 px ajoute 2 px à sa largeur.
+            const percent = Math.max(10, Math.min(100, Math.round((startWidth + 2 * dx) / parentWidth * 100)));
+            adocApplyImageWidth(percent, false);
+            const slider = window._adocBlockEditState.panelEl && window._adocBlockEditState.panelEl.querySelector('[data-image-size]');
+            if (slider) { slider.value = String(percent); adocRefreshImageMainOutputs(window._adocBlockEditState.panelEl); }
+          }
+          if (axis.includes('y') && img) {
+            const width = cadre.getBoundingClientRect().width;
+            const height = Math.max(60, startHeight + dy);
+            const ratio = Math.max(0.25, Math.min(4, Math.round(width / height * 1000) / 1000));
+            block.content.imageDisplay = block.content.imageDisplay || {};
+            block.content.imageDisplay.aspectRatio = ratio;
+            img.style.aspectRatio = String(ratio);
+            adocEditorSync();
+            adocEditorMarkDirty();
+          }
         }
         function up() {
           document.removeEventListener('mousemove', move);
@@ -24125,6 +24221,10 @@ ${recent}`;
       button.contentEditable = 'false';
       wrap.appendChild(button);
     });
+    docCard.querySelectorAll('.adoc-sc-block-drag-wrap').forEach(function (wrap) {
+      if (wrap.querySelector('table[data-cc-xlsx-grid]')) return;
+      adocAddFlowResizeHandles(wrap);
+    });
     // ITEM 63f — glisser-déposer réel pour réordonner un bloc legacy. Réutilise le PATRON déjà
     // établi côté structuré juste au-dessus (seuil 3px, suppressNextClick, checkpoint unique) —
     // fonction ENTIÈREMENT SÉPARÉE (jamais partagée), la persistance diffère radicalement : ici un
@@ -24150,6 +24250,14 @@ ${recent}`;
       if (hoverReorderWrapEl) { hoverReorderWrapEl.classList.remove('cc-drag-edge-hover'); hoverReorderWrapEl = null; }
     };
     docCard.onmousedown = function (e) {
+      const flowHandle = e.target.closest('.cc-flow-resize-handle');
+      if (flowHandle) {
+        const wrap = flowHandle.closest('.adoc-sc-block-drag-wrap');
+        const blockEl = wrap && wrap.querySelector('[data-cc-legacy-block-id]');
+        const currentArt = window._adocArtifacts && window._adocArtifacts[window._adocWsState.storeKey];
+        if (currentArt && currentArt._adocGenerationEngine === 'legacy-html') adocStartFlowResize(e, blockEl, currentArt, null, true, wrap);
+        return;
+      }
       if (e.target.closest('.cc-block-delete')) return;
       if (window._adocAnyDragActive) return;
       const wrap = e.target.closest('.adoc-sc-block-drag-wrap');
@@ -24235,6 +24343,7 @@ ${recent}`;
       document.addEventListener('mouseup', onUp);
     };
     docCard.onclick = function (e) {
+      if (e.target.closest('.cc-flow-resize-handle')) { e.preventDefault(); e.stopPropagation(); return; }
       const deleteButton = e.target.closest('.cc-block-delete');
       if (deleteButton) {
         e.preventDefault(); e.stopPropagation();
@@ -24262,6 +24371,7 @@ ${recent}`;
       }
       adocWsClearLegacyBlockSelection();
       blockEl.classList.add('is-selected');
+      adocPositionLegacyFlowHandles(blockEl.closest('.adoc-sc-block-drag-wrap'), blockEl);
       const panel = document.createElement('div');
       panel.className = 'cc-clarity-card cc-block-edit-panel';
       panel.setAttribute('role', 'group');

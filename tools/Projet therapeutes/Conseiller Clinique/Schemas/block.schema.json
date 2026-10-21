@@ -191,6 +191,16 @@
           "type": "number",
           "minimum": 0,
           "maximum": 100
+    },
+    "flowWidthPercent": {
+      "type": "number",
+      "minimum": 25,
+      "maximum": 100
+    },
+    "flowMinHeightPx": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1200
         }
       }
     },
@@ -1076,6 +1086,16 @@
             "cover",
             "fill"
           ]
+        },
+        "aspectRatio": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 4
+        },
+        "sizePercent": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 100
         },
         "focalX": {
           "type": "number",
