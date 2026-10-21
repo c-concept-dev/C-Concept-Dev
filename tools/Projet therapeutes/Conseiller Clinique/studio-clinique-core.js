@@ -13774,7 +13774,7 @@ ${recent}`;
       '<style>:root{' + cssVars + '}' +
       (isPresentation ? '@page{size:A4 landscape;margin:0;}' : '@page{size:1024px 768px;margin:0;}') +
       '*{box-sizing:border-box;}' +
-      'html,body{margin:0;padding:0;background:#fff;}' +
+      'html,body{margin:0;padding:0;background:#fff;' + (isPresentation ? 'print-color-adjust:exact;-webkit-print-color-adjust:exact;' : '') + '}' +
       '[data-cc-editor-leaf]{white-space:pre-wrap}.adoc-sc-table-el{font:inherit;color:inherit}.adoc-sc-table[style*="color:"] th{color:inherit}' +
       '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
       '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
@@ -13835,6 +13835,16 @@ ${recent}`;
       if (inner.fonts && inner.fonts.ready) {
         await Promise.race([inner.fonts.ready, new Promise(function(resolve) { setTimeout(resolve, 3000); })]);
       }
+      // Le PDF et l'impression sont des supports statiques : seules les questions et les
+      // réponses possibles demeurent, pas les commandes de calcul ni les profils de score.
+      inner.querySelectorAll('.adoc-sc-questionnaire-submit,.adoc-sc-questionnaire-partners,.adoc-sc-questionnaire-result,.adoc-sc-questionnaire-scale,.adoc-sc-questionnaire-partner-panel[hidden]')
+        .forEach(function(el) { el.remove(); });
+      inner.querySelectorAll('.adoc-sc-questionnaire-option,.adoc-sc-quiz-option').forEach(function(button) {
+        const choice = inner.createElement('div');
+        choice.className = button.className;
+        choice.innerHTML = button.innerHTML;
+        button.replaceWith(choice);
+      });
       inner.querySelectorAll('.adoc-pdf-page .adoc-sc-card').forEach(function(card) {
         const naturalHeight = card.getBoundingClientRect().height;
         const availableHeight = 720;
@@ -16521,6 +16531,8 @@ ${recent}`;
     // sont pas requis par la Décision 9, qui ne cite que le PDF).
     const exportPdfCarrouselBtn = document.getElementById('cc-ws-export-pdf-carrousel-btn');
     if (exportPdfCarrouselBtn) exportPdfCarrouselBtn.hidden = !(!isLegacy && (docKind === 'carrousel' || docKind === 'presentation'));
+    const printPresentationBtn = document.getElementById('cc-ws-print-presentation-btn');
+    if (printPresentationBtn) printPresentationBtn.hidden = !(!isLegacy && docKind === 'presentation');
     // ITEM 75 — nettoyage de la dette (Sujet 2) — même condition de visibilité EXACTE que le
     // bouton PDF ci-dessus (même patron, jamais une seconde règle divergente).
     const exportPptxCarrouselBtn = document.getElementById('cc-ws-export-pptx-carrousel-btn');
@@ -19921,6 +19933,15 @@ ${recent}`;
     return r;
   }
 
+  // Même préparation et même gabarit paginé pour le PDF Worker et l'impression locale.
+  async function adocWsPreparePagedPresentation(art, doc) {
+    const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
+    const pdfFonts = doc.documentKind === 'presentation'
+      ? await adocPdfResolveCharterFonts(rendered.tokens, art)
+      : { tokens: rendered.tokens, extraLinks: '', warnings: [] };
+    return { html: await adocBuildCarrouselPdfPagesHTML(doc, pdfFonts.tokens, pdfFonts.extraLinks), warnings: pdfFonts.warnings };
+  }
+
   // Item 75 Phase 1 Lot 2 — export PDF Carrousel structuré, une carte = une page (Carrousel
   // structuré uniquement — même garde qu'export JPEG ci-dessus : le découpage legacy n'a pas de
   // sélecteur DOM fiable). Investigation confirmée (rapport de lot) : aucun export PDF n'existait
@@ -19949,19 +19970,15 @@ ${recent}`;
     try {
       // Même charte que l'aperçu/export HTML (cohérence déjà exigée par UX-1) — re-rendu
       // uniquement pour obtenir les tokens de charte, jamais pour reconstruire doc.blocks.
-      const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
       const workerUrl = adocGetWorkerUrl();
-      const pdfFonts = doc.documentKind === 'presentation'
-        ? await adocPdfResolveCharterFonts(rendered.tokens, art)
-        : { tokens: rendered.tokens, extraLinks: '', warnings: [] };
-      const pagesHtml = await adocBuildCarrouselPdfPagesHTML(doc, pdfFonts.tokens, pdfFonts.extraLinks);
-      const r = await adocFetchCarrouselPdf(workerUrl, pagesHtml, function (waitS) {
+      const prepared = await adocWsPreparePagedPresentation(art, doc);
+      const r = await adocFetchCarrouselPdf(workerUrl, prepared.html, function (waitS) {
         if (btnLabel) btnLabel.textContent = 'Export en cours… (limite Cloudflare, patience ' + waitS + 's)';
       });
       const blob = await r.blob();
       adocDownloadArtifact(blob, (art.name || doc.title || 'carrousel') + '.pdf');
-      if (pdfFonts.warnings.length) {
-        const warning = 'Polices du PDF : ' + pdfFonts.warnings.join(' ; ') + '. Aucun fichier de police lisible n’est associé à cette charte.';
+      if (prepared.warnings.length) {
+        const warning = 'Polices du PDF : ' + prepared.warnings.join(' ; ') + '. Aucun fichier de police lisible n’est associé à cette charte.';
         fontWarningShown = true;
         if (btn) btn.title = warning;
         if (btnLabel) btnLabel.textContent = 'Exporter en PDF — police remplacée';
@@ -19974,6 +19991,46 @@ ${recent}`;
       if (btn) btn.disabled = false;
       if (btnLabel && baseLabel) btnLabel.textContent = fontWarningShown ? 'Exporter en PDF — police remplacée' : baseLabel;
     }
+  };
+
+  // Ouvre le même HTML paginé que l'export PDF dans un onglet temporaire puis affiche
+  // l'impression native. Aucune requête Browser Rendering et aucun tirage physique automatique.
+  window.adocWsPrintPresentation = async function () {
+    adocEditorSync();
+    const art = window._adocArtifacts?.[window._adocWsState.storeKey];
+    const doc = art?._adocStructuredDoc;
+    if (!art || art._adocGenerationEngine === 'legacy-html' || doc?.documentKind !== 'presentation' || !doc.blocks?.length) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) { alert('Autorisez l’ouverture de l’onglet d’impression pour imprimer la présentation.'); return; }
+    const btn = document.getElementById('cc-ws-print-presentation-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const prepared = await adocWsPreparePagedPresentation(art, doc);
+      const loaded = new Promise(function(resolve) {
+        printWindow.addEventListener('load', resolve, { once: true });
+        setTimeout(resolve, 10000);
+      });
+      printWindow.document.open();
+      printWindow.document.write(prepared.html);
+      printWindow.document.close();
+      await loaded;
+      if (printWindow.closed) return;
+      if (printWindow.document.fonts?.ready)
+        await Promise.race([printWindow.document.fonts.ready, new Promise(function(resolve) { setTimeout(resolve, 5000); })]);
+      await Promise.race([
+        Promise.all(Array.from(printWindow.document.images).map(function(img) {
+          return img.complete ? Promise.resolve() : new Promise(function(resolve) { img.addEventListener('load', resolve, { once:true }); img.addEventListener('error', resolve, { once:true }); });
+        })),
+        new Promise(function(resolve) { setTimeout(resolve, 5000); }),
+      ]);
+      printWindow.focus();
+      printWindow.print();
+      if (prepared.warnings.length)
+        alert('Polices de l’impression : ' + prepared.warnings.join(' ; ') + '.');
+    } catch (error) {
+      if (!printWindow.closed) printWindow.close();
+      alert('Impossible d’imprimer la présentation : ' + (error?.message || 'erreur inconnue') + '.');
+    } finally { if (btn) btn.disabled = false; }
   };
 
   // ITEM 75 — nettoyage de la dette (Sujet 2) — export PPTX pour Carrousel positionné. Aucune
