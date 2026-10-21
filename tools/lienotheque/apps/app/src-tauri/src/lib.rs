@@ -174,6 +174,22 @@ fn agir_sur_travail(racine: String, id: String, action: String) -> Result<serde_
     Ok(apres.vu())
 }
 
+/// Ce que la page dit d'elle-même, porté au journal de l'hôte.
+///
+/// Un paquet n'a pas de console, et son défaut ne se voit nulle part ailleurs. Plutôt que de
+/// faire chercher un inspecteur à quelqu'un, la page raconte ce qu'elle affiche et l'hôte l'écrit
+/// là où on peut le lire.
+#[tauri::command]
+fn journal_page(texte: String) {
+    // Silencieux dans un paquet livré : la trace sert à chercher, pas à accompagner. Le coût
+    // côté page est d'un appel par clic, c'est-à-dire rien, et le fil reste en place pour le
+    // jour où il faudra de nouveau regarder ce qu'une fenêtre sans console est en train de faire.
+    #[cfg(debug_assertions)]
+    eprintln!("page : {texte}");
+    #[cfg(not(debug_assertions))]
+    let _ = texte;
+}
+
 /// Les emplacements du moteur embarqué, pour les commandes qui l'interrogent directement.
 fn moteur_embarque() -> Result<traitement::Emplacements, String> {
     let executable = std::env::current_exe().map_err(|e| format!("Exécutable introuvable : {e}"))?;
@@ -584,6 +600,7 @@ fn lancer(captures: bool) {
             lire_maniere,
             vue_de_document,
             passages_de_document,
+            journal_page,
             classer_document,
             classements_de_bibliotheque,
             apercu_de_bibliotheque,

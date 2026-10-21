@@ -15,6 +15,7 @@ import { EnTete } from "./EnTete.js";
 import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } from "./donnees/chargement.js";
 import { chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
+import { journaliser } from "./pont/bureau.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
 import { pourLAccueil } from "./donnees/accueil.js";
 import { Accueil } from "./pages/Accueil.js";
@@ -124,6 +125,12 @@ export function App(): JSX.Element {
     globalThis.addEventListener?.("keydown", auClavier);
     return () => globalThis.removeEventListener?.("keydown", auClavier);
   }, []);
+
+  // Ce que l'application montre, porté au journal de l'hôte à chaque changement d'écran. Sans
+  // cela, un écran qui ne s'affiche pas dans le paquet ne laisse aucune trace.
+  useEffect(() => {
+    journaliser(`écran ${route.ecran} · adresse ${globalThis.location?.hash ?? "(aucune)"}`);
+  }, [route]);
 
   useEffect(() => {
     const suivre = (): void => setRoute(lireRoute(globalThis.location?.hash ?? ""));
@@ -492,7 +499,7 @@ export function App(): JSX.Element {
         echec={echecOuverture}
       />
     ) : (
-      <Accueil donnees={aLAccueil} onFichiers={deposer} />
+      <Accueil donnees={aLAccueil} onFichiers={deposer} onCreer={() => aller({ ecran: "creer" })} />
     );
   };
 

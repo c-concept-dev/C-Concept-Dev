@@ -4402,3 +4402,53 @@ concerne que trois documents sur deux cent quarante-neuf.
 Trois documents, une cause reconnaissable, aucun silence : on sait les nommer et on sait qu'ils
 échouent. Cette dette rejoint celle du raster `FlateDecode` — même famille, même urgence, c'est-à-
 dire aucune.
+
+
+## 21 octobre 2026 — une porte peinte sur le mur, et le traceur qui l'a montrée
+
+### Le défaut
+
+Le bouton **« Nouvelle bibliothèque »** de l'accueil n'avait **aucun gestionnaire de clic**.
+L'écran n'acceptait même pas de prop pour cela. Il s'affichait, il se cliquait, et rien derrière.
+
+**Il est invisible tant qu'on n'a pas de bibliothèque.** Sans bibliothèque, l'application montre
+le premier lancement, dont le bouton est câblé — et c'est cet écran-là que toutes les épreuves
+regardaient, et celui que j'atteignais dans un navigateur en répétant « chez moi cela
+fonctionne ». Il a fallu une vraie bibliothèque, sur une vraie machine, pour tomber dessus.
+
+Huitième défaut de la même famille en deux jours, et le plus simple de tous : non pas un mécanisme
+juste derrière une porte que personne n'a franchie, mais **une porte peinte sur le mur**.
+
+### Ce qui l'a trouvé, après une heure perdue
+
+J'ai cherché dans le mauvais écran. L'application affichait « 1 bibliothèque » — c'était écrit sur
+la première capture — et j'ai quand même supposé l'écran de premier lancement, puis mis en cause
+tour à tour la politique de sécurité du paquet, le moteur de rendu, la construction de production.
+Trois hypothèses, trois mesures, trois réfutations, et le défaut était ailleurs.
+
+Ce qui a tranché en une minute : **un traceur dans la page**, qui porte au journal de l'hôte chaque
+clic — en phase de capture, donc avant que quoi que ce soit puisse l'arrêter —, chaque changement
+d'adresse et chaque erreur. Le journal a montré douze `clic sur button « Nouvelle bibliothèque »`
+sans un seul changement d'adresse derrière. Il n'y avait plus rien à supposer.
+
+**Un paquet n'a pas de console.** Ce qu'on ne peut pas observer, on le suppose — et supposer coûte
+plus cher que tracer. Le traceur reste : `apps/app/src/traceur.ts`, silencieux hors du bureau, et
+muet dans un paquet livré (`journal_page` n'écrit que sous `debug_assertions`).
+
+### Ce qui reste en place, et pourquoi
+
+| | |
+|---|---|
+| `traceur.ts` | clics, adresses, erreurs, promesses rompues — la seule fenêtre sur un paquet qui n'en a pas |
+| `journal_page` | la commande d'hôte qui l'écrit, silencieuse en production |
+| `?bureau` en développement | fait prendre aux écrans la branche de l'hôte **sans hôte derrière**, pour atteindre dans un navigateur un chemin que le navigateur ne prend jamais |
+
+Un essai d'inspecteur ouvert au démarrage a été retiré : il ne montrait rien, et du code qui ne
+fait pas ce qu'il annonce vaut moins que pas de code du tout.
+
+### Ce que le garde-fou de ce matin ne voit pas
+
+Il exige qu'une option transmise à la lecture soit éprouvée par la porte. **Il ne regarde pas si un
+bouton mène quelque part.** Les deux seules sorties de l'accueil — le bouton et la carte d'une
+bibliothèque — n'étaient éprouvées ni l'une ni l'autre ; elles le sont maintenant, mais rien
+n'empêche le prochain bouton muet. C'est un garde-fou à écrire.

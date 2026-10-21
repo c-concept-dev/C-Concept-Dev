@@ -24,7 +24,21 @@ import {
 
 /** Vrai seulement dans l'application de bureau : la page web n'a pas d'hôte derrière elle. */
 export function estBureau(): boolean {
-  return typeof globalThis !== "undefined" && "__TAURI_INTERNALS__" in globalThis;
+  if (typeof globalThis !== "undefined" && "__TAURI_INTERNALS__" in globalThis) return true;
+  // En développement seulement : « ?bureau » fait prendre aux écrans la branche de l'hôte sans
+  // hôte derrière. Un défaut qui ne se voit que dans le paquet ne se cherche pas autrement — le
+  // navigateur ne prend jamais ce chemin, et le paquet n'a pas de console.
+  return import.meta.env?.DEV === true && new URLSearchParams(globalThis.location?.search ?? "").has("bureau");
+}
+
+/** Dit à l'hôte ce que la page affiche, pour qu'il l'écrive à son journal.
+ *
+ *  Un paquet n'a pas de console : sans ce fil, un écran qui ne s'affiche pas ne laisse aucune
+ *  trace, et il faut le deviner. Elle ne lève jamais — un journal qui fait tomber ce qu'il
+ *  observe ne sert à rien. */
+export function journaliser(texte: string): void {
+  if (!estBureau()) return;
+  void invoke("journal_page", { texte }).catch(() => undefined);
 }
 
 /** Crée la bibliothèque dans son dossier portable, et rend le chemin de sa description.
