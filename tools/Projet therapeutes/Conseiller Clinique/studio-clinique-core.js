@@ -16856,6 +16856,8 @@ ${recent}`;
     if (texteDiapositivesBtn) texteDiapositivesBtn.hidden = !(!isLegacy && docKind === 'presentation');
     const texteWordBtn = document.getElementById('cc-ws-texte-word-btn');
     if (texteWordBtn) texteWordBtn.hidden = !(!isLegacy && docKind === 'presentation');
+    const textePdfBtn = document.getElementById('cc-ws-texte-pdf-btn');
+    if (textePdfBtn) textePdfBtn.hidden = !(!isLegacy && docKind === 'presentation');
     adocWsMenuClose(false);
     ['file', 'export'].forEach(function (name) {
       const parts = adocWsMenuParts(name);
@@ -22086,9 +22088,9 @@ ${recent}`;
   //   — les renvois de citation ne sont PAS repris : ils vivent dans `citationIds` et dans la
   //     section « Sources », et n'ont rien à faire dans un texte qu'on lit à voix haute.
   //
-  // Ce contrat est tenu par adocStructureDesDiapositives (ce qu'il y a) et par les deux rendus
-  // ci-dessous (comment on l'écrit) — ces trois fonctions sont les SEULES du périmètre D7.
-  // ── UNE SEULE EXTRACTION, DEUX RENDUS (Q2) ──────────────────────────────────────────────
+  // Ce contrat est tenu par adocStructureDesDiapositives (ce qu'il y a), puis par les rendus
+  // texte, Word et PDF ci-dessous (comment on l'écrit).
+  // ── UNE SEULE EXTRACTION, TROIS RENDUS (Q2) ─────────────────────────────────────────────
   // D7 produisait directement une chaîne. Le Word a besoin de la MÊME lecture des diapositives,
   // mais rendue autrement : la structure est donc séparée du rendu. Le .txt de D7 est
   // reconstruit à partir d'elle et doit rester IDENTIQUE À L'OCTET — un contrôle le compare
@@ -22107,9 +22109,18 @@ ${recent}`;
       const blocs = carte.content.blocks || [];
       const d = { numero: i + 1, total: total,
                   titre: String(carte.content.title || '(sans titre)'), elements: [] };
+      if (carte.content.imageRef || carte.content.imageAssetId) {
+        d.elements.push({ genre: 'image', texte: '[Image : '
+          + String(carte.content.imageAlt || carte.content.imageRef || 'couverture sans description') + ']' });
+      }
+      if (!blocs.length) {
+        d.elements.push({ genre: 'etape', rang: 1, surRang: 1 });
+        d.elements.push({ genre: 'empty', texte: '(aucun contenu)' });
+      }
       blocs.forEach(function (b) {
         const etape = desEtapes.find(function (e) { return e.stepId === b.id; });
         if (etape) d.elements.push({ genre: 'etape', rang: etape.rang, surRang: etape.surRang });
+        const contenuAvant = d.elements.length;
         const c = b && b.content || {};
         switch (b && b.type) {
           case 'heading': case 'paragraph': case 'callout': case 'quote': {
@@ -22130,8 +22141,28 @@ ${recent}`;
             if (entetes.length || lignes.length) d.elements.push({ genre: 'table', entetes: entetes, lignes: lignes });
             break;
           }
-          default: break;
+          case 'image':
+            d.elements.push({ genre: 'image', texte: '[Image : ' + String(c.alt || c.query || 'sans description') + ']' });
+            break;
+          case 'video':
+            d.elements.push({ genre: 'video', texte: '[Vidéo : ' + String(c.title || 'sans titre') + ']' });
+            break;
+          case 'quiz':
+            d.elements.push({ genre: 'quiz', texte: String(c.question || '(question vide)'),
+              items: (c.options || []).map(function (o) { return String(typeof o === 'string' ? o : o.text || ''); }),
+              explanation: String(c.explanation || '') });
+            break;
+          case 'questionnaire':
+            d.elements.push({ genre: 'questionnaire', questions: (c.questions || []).map(function (q) {
+              return { texte: String(q.text || '(question vide)'),
+                items: (q.options || []).map(function (o) { return String(typeof o === 'string' ? o : o.text || ''); }) };
+            }) });
+            break;
+          default:
+            d.elements.push({ genre: 'unknown', texte: '[Bloc ' + String(b && b.type || 'inconnu') + ']' });
+            break;
         }
+        if (d.elements.length === contenuAvant) d.elements.push({ genre: 'empty', texte: '(aucun contenu)' });
       });
       struct.diapositives.push(d);
     });
@@ -22279,6 +22310,17 @@ ${recent}`;
             p.push(t + '</w:tbl>' + adocDocxParagraphe(null, ''));
             break;
           }
+          case 'quiz':
+            p.push(adocDocxParagraphe(null, adocDocxRun('Question : ' + e.texte)));
+            e.items.forEach(function (x) { p.push(adocDocxParagraphe('ListParagraph', adocDocxRun(x), 2)); });
+            if (e.explanation) p.push(adocDocxParagraphe(null, adocDocxRun('Explication : ' + e.explanation)));
+            break;
+          case 'questionnaire':
+            e.questions.forEach(function (q, i) {
+              p.push(adocDocxParagraphe(null, adocDocxRun('Question ' + (i + 1) + ' : ' + q.texte)));
+              q.items.forEach(function (x) { p.push(adocDocxParagraphe('ListParagraph', adocDocxRun(x), 2)); });
+            });
+            break;
           default:
             p.push(adocDocxParagraphe(e.genre === 'heading' ? 'Heading3' : null, adocDocxRun(e.texte)));
             break;
@@ -22428,6 +22470,19 @@ ${recent}`;
         } else if (e.genre === 'table') {
           if (e.entetes.length) out.push('  ' + e.entetes.join(' | '));
           e.lignes.forEach(function (r) { out.push('  ' + r.join(' | ')); });
+        } else if (e.genre === 'callout') {
+          out.push('  Encadré : ' + e.texte);
+        } else if (e.genre === 'quote') {
+          out.push('  Citation : ' + e.texte);
+        } else if (e.genre === 'quiz') {
+          out.push('  Question : ' + e.texte);
+          e.items.forEach(function (x) { out.push('  — ' + x); });
+          if (e.explanation) out.push('  Explication : ' + e.explanation);
+        } else if (e.genre === 'questionnaire') {
+          e.questions.forEach(function (q, i) {
+            out.push('  Question ' + (i + 1) + ' : ' + q.texte);
+            q.items.forEach(function (x) { out.push('  — ' + x); });
+          });
         } else {
           out.push('  ' + e.texte);
         }
@@ -22437,6 +22492,95 @@ ${recent}`;
     return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
   }
   window.adocTexteDesDiapositives = adocTexteDesDiapositives;
+
+  // PDF du TEXTE : source commune avec .txt et Word, A4 portrait, texte sélectionnable.
+  // Les octets des chaînes de texte utilisent WinAnsiEncoding (Helvetica Type 1).
+  function adocPdfTexteDiapositives(doc) {
+    const texte = adocTexteDesDiapositives(doc);
+    if (!texte) throw new Error('document illisible');
+    const map = { 0x20AC: 128, 0x201A: 130, 0x0192: 131, 0x201E: 132, 0x2026: 133,
+      0x2020: 134, 0x2021: 135, 0x02C6: 136, 0x2030: 137, 0x0160: 138, 0x2039: 139,
+      0x0152: 140, 0x017D: 142, 0x2018: 145, 0x2019: 146, 0x201C: 147,
+      0x201D: 148, 0x2022: 149, 0x2013: 150, 0x2014: 151, 0x02DC: 152,
+      0x2122: 153, 0x0161: 154, 0x203A: 155, 0x0153: 156, 0x017E: 158, 0x0178: 159 };
+    const latin = function (s) {
+      const out = [];
+      for (const ch of s) {
+        const cp = ch.codePointAt(0);
+        const b = cp <= 255 ? cp : map[cp];
+        const value = b == null || b < 32 ? 63 : b;
+        if (value === 40 || value === 41 || value === 92) out.push(92);
+        out.push(value);
+      }
+      return new Uint8Array(out);
+    };
+    const ascii = s => new TextEncoder().encode(s);
+    const wrapped = [];
+    texte.split('\n').forEach(function (line) {
+      if (!line) { wrapped.push(''); return; }
+      let rest = line;
+      while (rest.length > 88) {
+        let at = rest.lastIndexOf(' ', 88);
+        if (at < 20) at = 88;
+        wrapped.push(rest.slice(0, at));
+        rest = rest.slice(at).trimStart();
+      }
+      wrapped.push(rest);
+    });
+    const pages = [];
+    for (let i = 0; i < wrapped.length; i += 52) pages.push(wrapped.slice(i, i + 52));
+    const chunks = [], offsets = [0];
+    let length = 0;
+    const push = b => { chunks.push(b); length += b.length; };
+    const object = (id, body) => {
+      offsets[id] = length;
+      push(ascii(id + ' 0 obj\n'));
+      if (Array.isArray(body)) body.forEach(push); else push(ascii(body));
+      push(ascii('\nendobj\n'));
+    };
+    push(ascii('%PDF-1.4\n'));
+    object(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    const kids = pages.map((_, i) => (4 + i * 2) + ' 0 R').join(' ');
+    object(2, '<< /Type /Pages /Kids [' + kids + '] /Count ' + pages.length + ' >>');
+    object(3, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+    pages.forEach(function (lines, i) {
+      const pageId = 4 + i * 2, streamId = pageId + 1;
+      object(pageId, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R >> >> /Contents ' + streamId + ' 0 R >>');
+      const streamParts = [];
+      let streamLength = 0;
+      lines.forEach(function (line, index) {
+        const parts = [ascii('BT /F1 10 Tf 50 ' + (790 - index * 14) + ' Td ('), latin(line), ascii(') Tj ET\n')];
+        parts.forEach(function (part) { streamParts.push(part); streamLength += part.length; });
+      });
+      object(streamId, [ascii('<< /Length ' + streamLength + ' >>\nstream\n'),
+        ...streamParts, ascii('endstream')]);
+    });
+    const xref = length;
+    push(ascii('xref\n0 ' + offsets.length + '\n0000000000 65535 f \n'));
+    for (let i = 1; i < offsets.length; i++) push(ascii(String(offsets[i]).padStart(10, '0') + ' 00000 n \n'));
+    push(ascii('trailer\n<< /Size ' + offsets.length + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n'));
+    const result = new Uint8Array(length);
+    let pos = 0;
+    chunks.forEach(function (chunk) { result.set(chunk, pos); pos += chunk.length; });
+    return result;
+  }
+  window.adocPdfTexteDiapositives = adocPdfTexteDiapositives;
+
+  window.adocWsTexteDiapositivesPDF = function () {
+    const key = window._adocWsState && window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[key];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc || doc.documentKind !== 'presentation') return null;
+    let pdf;
+    try { pdf = adocPdfTexteDiapositives(doc); }
+    catch (e) { alert('Le PDF du texte n’a pas pu être fabriqué. Rien n’a été téléchargé.'); return null; }
+    const lien = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
+    lien.href = url; lien.download = adocNomTexteDiapositives('pdf');
+    document.body.appendChild(lien); lien.click();
+    setTimeout(function () { URL.revokeObjectURL(url); lien.remove(); }, 2000);
+    return pdf.length;
+  };
 
   // X5 — nom stable, sans espace ni accent, daté du jour. Deux exports de suite ne s'écrasent
   // pas : un numéro d'ordre est ajouté dès le second de la même journée.
