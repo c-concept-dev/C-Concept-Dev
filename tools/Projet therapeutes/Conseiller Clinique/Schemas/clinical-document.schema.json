@@ -164,7 +164,7 @@
     },
     "blocks": {
       "type": "array",
-      "$comment": "Type d'élément affiné par documentKind via les règles allOf/if/then ci-dessous : editorialBlock pour 'fiche', cardOnlyBlock (uniquement des `card`) pour 'carrousel' ET 'presentation' (LOT 1 — une diapositive de Présentation réutilise telle quelle la structure `card` du Carrousel). tableau/script/liens ne sont pas encore migrés (UX-8M) — leurs blocs restent un union générique non contrainte à ce stade, aucun modèle de bloc n'étant encore défini pour eux."
+      "$comment": "Type d'élément affiné par documentKind via les règles allOf/if/then ci-dessous : editorialBlock pour 'fiche', cardOnlyBlock (uniquement des `card`) pour 'carrousel' ET 'presentation' (LOT 1 — une diapositive de Présentation réutilise telle quelle la structure `card` du Carrousel). tableau/script/liens ne sont pas encore migrés (UX-8M) — leurs blocs restent un union générique non contrainte à ce stade, aucun modèle de bloc n'étant encore défini pour eux. Q5 — les réglages imageDisplay facultatifs des couvertures et blocs image sont validés dans block.schema.json, sans champ racine supplémentaire."
     },
     "citations": {
       "type": "array",

@@ -8035,7 +8035,7 @@ ${recent}`;
     if (!art) return null;
     const legacy = art._adocGenerationEngine === 'legacy-html';
     const st = legacy ? window._adocLegacyBlockEditState : window._adocBlockEditState;
-    const el = legacy ? st.el : document.getElementById(st.blockId);
+    const el = legacy ? st.el : (st.zone === 'doc-cover' ? document.querySelector('.adoc-sc-cover') : document.getElementById(st.blockId));
     if (!el || !el.isConnected) return null;
     return {art: art, legacy: legacy, st: st, el: el, block: legacy ? null : adocFindEditableBlock(art._adocStructuredDoc, st.blockId)};
   }
@@ -10135,6 +10135,49 @@ ${recent}`;
   //    en CSS — aucun état fantôme). Réutilise TEL QUEL le curseur universel du Lot E
   //    (data-editor-opacity="backgroundOpacity", adocApplyBlockOpacity déjà existant, jamais
   //    une seconde implémentation pour le même champ).
+  // Q5 — même réglage sur l'image d'un bloc, la couverture d'une carte et la bannière
+  // de Fiche/Script/Tableau/Liens. Un objet absent ne produit aucun style nouveau.
+  function adocImageDisplayStyle(display, surface) {
+    if (!display || !Object.keys(display).length) return '';
+    const n = (key, fallback) => Number.isFinite(Number(display[key])) ? Number(display[key]) : fallback;
+    const css = [];
+    if (['contain', 'cover', 'fill'].includes(display.fit)) css.push((surface === 'background' ? 'background-size:' : 'object-fit:') + display.fit);
+    if (display.focalX != null || display.focalY != null) css.push((surface === 'background' ? 'background-position:' : 'object-position:') + n('focalX', 50) + '% ' + n('focalY', 50) + '%');
+    const filter = [];
+    if (display.brightness != null) filter.push('brightness(' + n('brightness', 100) + '%)');
+    if (display.contrast != null) filter.push('contrast(' + n('contrast', 100) + '%)');
+    if (display.saturation != null) filter.push('saturate(' + n('saturation', 100) + '%)');
+    if (display.temperature) filter.push('sepia(' + Math.abs(n('temperature', 0)) / 400 + ') hue-rotate(' + (-n('temperature', 0) * 0.12) + 'deg)');
+    if (display.grayscale != null) filter.push('grayscale(' + n('grayscale', 0) + '%)');
+    if (display.blur != null) filter.push('blur(' + n('blur', 0) + 'px)');
+    if (filter.length) css.push('filter:' + filter.join(' '));
+    if (display.opacity != null) css.push('opacity:' + n('opacity', 100) / 100);
+    const transforms = [];
+    if (display.rotation) transforms.push('rotate(' + n('rotation', 0) + 'deg)');
+    if (display.mirrorX) transforms.push('scaleX(-1)');
+    if (display.mirrorY) transforms.push('scaleY(-1)');
+    if (transforms.length) css.push('transform:' + transforms.join(' '));
+    if (display.borderWidth) css.push('border:' + n('borderWidth', 0) + 'px solid ' + (/^#[0-9a-fA-F]{6}$/.test(display.borderColor || '') ? display.borderColor : '#286b7b'));
+    if (display.shadow) css.push('box-shadow:0 4px ' + n('shadow', 0) + 'px rgba(0,0,0,.35)');
+    if (surface === 'image' && ['contain', 'cover', 'fill'].includes(display.fit)) css.push('aspect-ratio:16/9');
+    return css.length ? css.join(';') + ';' : '';
+  }
+  function adocImageDisplayControlsHTML(isImageBlock) {
+    const range = (label, key, min, max, value) => '<label>' + label + ' <output data-image-output="' + key + '">' + value + '</output><input type="range" min="' + min + '" max="' + max + '" step="1" value="' + value + '" data-image-display="' + key + '"></label>';
+    return '<fieldset class="cc-image-display-controls"><legend>Options de la photo</legend>' +
+      '<p>L’original reste conservé ; seul son affichage change.</p>' +
+      '<label>Cadrage<select data-image-display="fit" aria-label="Cadrage"><option value="">Cadrage actuel</option><option value="contain">Ajuster · image entière</option><option value="cover">Remplir · recadrage possible</option><option value="fill">Étirer · déformation possible</option></select></label>' +
+      '<div class="cc-editor-row">' + range('Point focal horizontal', 'focalX', 0, 100, 50) + range('Point focal vertical', 'focalY', 0, 100, 50) + '</div>' +
+      '<details><summary>Corrections de la photo</summary><div class="cc-editor-row">' +
+      range('Luminosité', 'brightness', 0, 200, 100) + range('Contraste', 'contrast', 0, 200, 100) + range('Saturation', 'saturation', 0, 200, 100) +
+      range('Chaleur / froideur', 'temperature', -100, 100, 0) + range('Noir et blanc', 'grayscale', 0, 100, 0) + range('Flou', 'blur', 0, 20, 0) +
+      (isImageBlock ? '' : range('Opacité de la photo', 'opacity', 0, 100, 100) + range('Rotation de la photo', 'rotation', 0, 360, 0)) +
+      range('Bordure', 'borderWidth', 0, 20, 0) + range('Ombre', 'shadow', 0, 30, 0) + '</div>' +
+      '<label>Couleur de bordure<input type="color" value="#286b7b" data-image-display="borderColor"></label>' +
+      '<label><input type="checkbox" data-image-display="mirrorX"> Miroir horizontal</label>' +
+      '<label><input type="checkbox" data-image-display="mirrorY"> Miroir vertical</label></details>' +
+      '<button type="button" class="cc-clarity-other-btn" data-image-reset>Remise à zéro des réglages</button></fieldset>';
+  }
   function adocBuildImageEditPanelHTML(isPureImage) {
     const opacityAttr = isPureImage ? 'data-image-opacity="opacity"' : 'data-editor-opacity="backgroundOpacity"';
     const sizeRow = isPureImage
@@ -10160,7 +10203,7 @@ ${recent}`;
       : '';
     return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Réglages de l’image">' +
       '<div class="cc-editor-row"><label>Opacité<input type="range" min="0" max="100" step="1" value="100" ' + opacityAttr + '></label></div>' +
-      sizeRow + rotationRow + addTextBtn +
+      sizeRow + rotationRow + (isPureImage ? adocImageDisplayControlsHTML(true) : '') + addTextBtn +
       (isPureImage ? adocImageReplacementButtonsHTML(false) : '') +
     '</div>' + (isPureImage ? '<div class="cc-block-edit-result" hidden></div>' : '');
   }
@@ -10222,11 +10265,11 @@ ${recent}`;
     const panel = ctx.st.panelEl; if (!panel) return;
     if (isPureImage) {
       const opacityInput = panel.querySelector('[data-image-opacity]');
-      if (opacityInput) opacityInput.value = ctx.block.content.opacity == null ? '100' : ctx.block.content.opacity;
+      if (opacityInput) opacityInput.value = (ctx.block.content.imageDisplay && ctx.block.content.imageDisplay.opacity) == null ? (ctx.block.content.opacity == null ? '100' : ctx.block.content.opacity) : ctx.block.content.imageDisplay.opacity;
       const sizeInput = panel.querySelector('[data-image-size]');
       if (sizeInput) sizeInput.value = ctx.block.content.widthPercent == null ? '100' : ctx.block.content.widthPercent;
       const rotationInput = panel.querySelector('[data-image-rotation]');
-      if (rotationInput) rotationInput.value = ctx.block.content.rotation == null ? '0' : ctx.block.content.rotation;
+      if (rotationInput) rotationInput.value = (ctx.block.content.imageDisplay && ctx.block.content.imageDisplay.rotation) == null ? (ctx.block.content.rotation == null ? '0' : ctx.block.content.rotation) : ctx.block.content.imageDisplay.rotation;
       // CORRECTIF — "Ajouter du texte" ne dépendait QUE de content.assetId (image importée),
       // excluant systématiquement une image encore résolue via Pexels (content.query, jamais
       // localisée) — asymétrie confirmée et corrigée : adocConvertImageBlockToText sait
@@ -10249,6 +10292,7 @@ ${recent}`;
     if (checkpointOnce) adocEditorCheckpoint();
     const clamped = Math.max(0, Math.min(100, Number(value)));
     ctx.block.content.opacity = clamped;
+    if (ctx.block.content.imageDisplay && ctx.block.content.imageDisplay.opacity != null) ctx.block.content.imageDisplay.opacity = clamped;
     const img = ctx.el.querySelector('img');
     if (img) img.style.opacity = String(clamped / 100);
     adocEditorSync(); adocEditorMarkDirty();
@@ -10283,11 +10327,103 @@ ${recent}`;
     if (checkpointOnce) adocEditorCheckpoint();
     const clamped = ((Math.round(Number(value)) % 360) + 360) % 360;
     ctx.block.content.rotation = clamped;
+    if (ctx.block.content.imageDisplay && ctx.block.content.imageDisplay.rotation != null) ctx.block.content.imageDisplay.rotation = clamped;
     const img = ctx.el.querySelector('img');
     if (img) img.style.transform = clamped ? 'rotate(' + clamped + 'deg)' : '';
     adocEditorSync(); adocEditorMarkDirty();
   }
   window.adocApplyImageRotation = adocApplyImageRotation;
+
+  function adocImageDisplayContext() {
+    const st = window._adocBlockEditState || {};
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    if (!art || !art._adocStructuredDoc || !st.blockId || !st.panelEl) return null;
+    const block = adocFindEditableBlock(art._adocStructuredDoc, st.blockId);
+    if (!block || !['image', 'card'].includes(block.type)) return null;
+    const target = st.zone === 'doc-cover' ? document.querySelector('.adoc-sc-cover') :
+      st.zone === 'cover' ? document.querySelector('#' + CSS.escape(block.id) + ' > .adoc-sc-card-img') :
+      document.querySelector('#' + CSS.escape(block.id) + ' .adoc-sc-image-cadre > img');
+    return target ? { st, art, block, target } : null;
+  }
+  function adocRefreshImageDisplayControls() {
+    const ctx = adocImageDisplayContext(); if (!ctx) return;
+    const display = ctx.block.content.imageDisplay || {};
+    ctx.st.panelEl.querySelectorAll('[data-image-display]').forEach(function (input) {
+      const field = input.dataset.imageDisplay;
+      const fallback = field === 'fit' ? '' : field === 'borderColor' ? '#286b7b' :
+        ['mirrorX', 'mirrorY'].includes(field) ? false :
+        ['focalX', 'focalY'].includes(field) ? 50 :
+        ['brightness', 'contrast', 'saturation', 'opacity'].includes(field) ? 100 : 0;
+      const value = display[field] == null ? (field === 'opacity' && ctx.block.type === 'image' && ctx.block.content.opacity != null ? ctx.block.content.opacity :
+        field === 'rotation' && ctx.block.type === 'image' && ctx.block.content.rotation != null ? ctx.block.content.rotation : fallback) : display[field];
+      if (input.type === 'checkbox') input.checked = !!value; else input.value = value;
+      const out = ctx.st.panelEl.querySelector('[data-image-output="' + field + '"]');
+      if (out) out.textContent = String(value);
+      if (field === 'focalX' || field === 'focalY') input.disabled = display.fit === 'contain';
+    });
+  }
+  function adocPreviewImageDisplay(ctx) {
+    const d = ctx.block.content.imageDisplay || {};
+    let el = ctx.target;
+    if (ctx.st.zone === 'doc-cover') {
+      el = ctx.target.querySelector('.adoc-sc-cover-image-layer');
+      if (!el) {
+        el = document.createElement('img'); el.className = 'adoc-sc-cover-image-layer'; el.alt = '';
+        const bg = getComputedStyle(ctx.target).backgroundImage;
+        const match = /^url\(["']?(.*?)["']?\)$/.exec(bg);
+        if (match) el.src = match[1];
+        ctx.target.prepend(el);
+        ctx.target.style.backgroundImage = 'none';
+        ctx.target.classList.add('adoc-sc-cover-has-display');
+      }
+      el.style.objectFit = d.fit || 'cover';
+      el.style.objectPosition = (d.focalX == null ? 50 : d.focalX) + '% ' + (d.focalY == null ? 50 : d.focalY) + '%';
+    } else {
+      el.style.objectFit = d.fit || 'cover';
+      el.style.objectPosition = (d.focalX == null ? 50 : d.focalX) + '% ' + (d.focalY == null ? (ctx.st.zone === 'cover' ? 15 : 50) : d.focalY) + '%';
+      if (ctx.st.zone === 'image') el.style.aspectRatio = d.fit ? '16 / 9' : '';
+    }
+    const filter = [];
+    if (d.brightness != null) filter.push('brightness(' + d.brightness + '%)');
+    if (d.contrast != null) filter.push('contrast(' + d.contrast + '%)');
+    if (d.saturation != null) filter.push('saturate(' + d.saturation + '%)');
+    if (d.temperature) filter.push('sepia(' + Math.abs(d.temperature) / 400 + ') hue-rotate(' + (-d.temperature * 0.12) + 'deg)');
+    if (d.grayscale != null) filter.push('grayscale(' + d.grayscale + '%)');
+    if (d.blur != null) filter.push('blur(' + d.blur + 'px)');
+    el.style.filter = filter.join(' ');
+    el.style.opacity = String((d.opacity == null ? (ctx.block.type === 'image' ? (ctx.block.content.opacity == null ? 100 : ctx.block.content.opacity) : 100) : d.opacity) / 100);
+    const rotation = d.rotation == null ? (ctx.block.type === 'image' ? ctx.block.content.rotation || 0 : 0) : d.rotation;
+    el.style.transform = [rotation ? 'rotate(' + rotation + 'deg)' : '', d.mirrorX ? 'scaleX(-1)' : '', d.mirrorY ? 'scaleY(-1)' : ''].filter(Boolean).join(' ');
+    el.style.border = d.borderWidth ? d.borderWidth + 'px solid ' + (d.borderColor || '#286b7b') : '';
+    el.style.boxShadow = d.shadow ? '0 4px ' + d.shadow + 'px rgba(0,0,0,.35)' : '';
+  }
+  function adocApplyImageDisplay(field, raw, checkpointOnce) {
+    const ctx = adocImageDisplayContext(); if (!ctx) return;
+    if (checkpointOnce) adocEditorCheckpoint();
+    const display = ctx.block.content.imageDisplay || (ctx.block.content.imageDisplay = {});
+    if (field === 'fit') { if (['contain', 'cover', 'fill'].includes(raw)) display.fit = raw; else delete display.fit; }
+    else if (field === 'borderColor') { if (/^#[0-9a-fA-F]{6}$/.test(raw)) display.borderColor = raw; }
+    else if (field === 'mirrorX' || field === 'mirrorY') display[field] = !!raw;
+    else {
+      const input = ctx.st.panelEl.querySelector('[data-image-display="' + field + '"]');
+      const min = input ? Number(input.min) : 0, max = input ? Number(input.max) : 100;
+      display[field] = Math.max(min, Math.min(max, Number(raw)));
+    }
+    adocPreviewImageDisplay(ctx);
+    adocRefreshImageDisplayControls();
+    adocEditorMarkDirty();
+  }
+  function adocResetImageDisplay() {
+    const ctx = adocImageDisplayContext(); if (!ctx) return;
+    adocEditorCheckpoint();
+    delete ctx.block.content.imageDisplay;
+    if (ctx.block.type === 'image') { delete ctx.block.content.opacity; delete ctx.block.content.rotation; }
+    // Recréer le rendu historique restaure aussi le 15 % vertical des couvertures de carte.
+    const key = ctx.st.storeKey;
+    adocWsClearBlockSelection();
+    window.adocOpenWorkspace(key);
+    adocEditorMarkDirty();
+  }
 
   // ITEM 75 Phase 1 UI — troisième panneau dédié (texte / image / position), ouvert uniquement
   // sur une carte Carrousel (documentKind:'carrousel', garde-fou de schéma déjà réservé à ce
@@ -10874,11 +11010,13 @@ ${recent}`;
       if(e.target.matches('[data-image-opacity]'))adocApplyImageOpacity(e.target.value,true);
       if(e.target.matches('[data-image-size]'))adocApplyImageWidth(e.target.value,true);
       if(e.target.matches('[data-image-rotation]'))adocApplyImageRotation(e.target.value,true);
+      if(e.target.matches('[data-image-display][type="range"]'))adocApplyImageDisplay(e.target.dataset.imageDisplay,e.target.value,true);
     });
     lr.addEventListener('pointerup',function(){setTimeout(function(){lr._ccPointerSelecting=false;},0);});
     lr.addEventListener('click',function(e){
       const action=e.target.closest('[data-editor-action]'),color=e.target.closest('[data-editor-color]');
       if(action)adocEditorAction(action.dataset.editorAction);if(color)adocEditorApplyStyle('color',color.dataset.editorColor);
+      if(e.target.closest('[data-image-reset]'))adocResetImageDisplay();
     });
     // LOT E — 'input' (jamais 'change') pour un aperçu réellement continu pendant le
     // glissement : 'change' ne se déclenche qu'au relâchement d'un <input type=range>, trop
@@ -10888,8 +11026,10 @@ ${recent}`;
       if(e.target.matches('[data-image-opacity]'))adocApplyImageOpacity(e.target.value,false);
       if(e.target.matches('[data-image-size]'))adocApplyImageWidth(e.target.value,false);
       if(e.target.matches('[data-image-rotation]'))adocApplyImageRotation(e.target.value,false);
+      if(e.target.matches('[data-image-display][type="range"]'))adocApplyImageDisplay(e.target.dataset.imageDisplay,e.target.value,false);
     });
     lr.addEventListener('change',function(e){if(e.target.matches('[data-editor-scope]'))adocEditorRefreshControls();
+      if(e.target.matches('[data-image-display]:not([type="range"])'))adocApplyImageDisplay(e.target.dataset.imageDisplay,e.target.type==='checkbox'?e.target.checked:e.target.value,true);
       if(e.target.matches('[data-card-position]'))adocApplyCardPosition(e.target.dataset.cardPosition,e.target.value,true);
       if(e.target.matches('[data-editor-style]')){
       if(e.target.type==='number'&&!e.target.checkValidity()){adocEditorMessage('Valeur hors limites.');return;}
@@ -12948,7 +13088,7 @@ ${recent}`;
         const imgDoorA11y = !_adocRenderingForPresentDoor ? ''
           : ' tabindex="0" role="button" aria-label="' + adocEsc(imgA11yLabel) + '"'
             + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"';
-        const imgStyle = 'width:100%;border-radius:8px;object-fit:cover;display:block;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
+        const imgStyle = 'width:100%;border-radius:8px;object-fit:cover;display:block;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '') + adocImageDisplayStyle(b.content.imageDisplay, 'image');
         // PASTILLE « AGRANDIR » — le seul indice qu'une image zoomable est cliquable était jusqu'ici
         // le curseur (cursor:zoom-in), invisible au tactile et facile à manquer à la souris.
         // UNIQUEMENT sur l'image SANS lien : celle qui porte un renvoi affiche déjà sa puce
@@ -13236,6 +13376,25 @@ ${recent}`;
     return css ? ' style="' + adocEsc(css) + '"' : '';
   }
 
+  function adocDocumentCoverVisual(coverBlock) {
+    if (!coverBlock) return { attrs: '', layer: '', className: '' };
+    const source = coverBlock.content.assetId
+      ? 'data-asset-id="' + adocEsc(coverBlock.content.assetId) + '" src="' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + '"'
+      : (adocRequeteImageUtilisable(coverBlock.content.query)
+          ? 'data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"' : '');
+    const display = coverBlock.content.imageDisplay;
+    if (display && Object.keys(display).length && source) {
+      const style = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center;' + adocImageDisplayStyle(display, 'cover');
+      return { attrs: '', className: ' adoc-sc-cover-has-display',
+        layer: '<img class="adoc-sc-cover-image-layer" ' + source + ' alt="" style="' + adocEsc(style) + '">' };
+    }
+    return { attrs: coverBlock.content.assetId
+      ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
+      : (adocRequeteImageUtilisable(coverBlock.content.query)
+          ? ' data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"' : ''),
+      layer: '', className: '' };
+  }
+
   function adocRenderFicheHTML(doc, tokens) {
     const blocks = doc.blocks || [];
     let coverBlock = null;
@@ -13257,15 +13416,8 @@ ${recent}`;
     // LOT C (cas 2, fond) — même bloc image que le cas 1 (imageBlock/imageContent, jamais un
     // second schéma) : assetId prioritaire sur query, exactement la même règle que le bloc image
     // autonome ci-dessus, réutilisée telle quelle (régression #6).
-    const coverAttrs = coverBlock
-      ? (coverBlock.content.assetId
-          ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
-          // Le ternaire externe ne teste que l'EXISTENCE du bloc de couverture, jamais sa requête.
-          : (adocRequeteImageUtilisable(coverBlock.content.query)
-              ? ' data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"'
-              : ''))
-      : '';
-    const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
+    const coverVisual = adocDocumentCoverVisual(coverBlock);
+    const cover = '<div class="adoc-sc-cover' + coverVisual.className + '"' + coverVisual.attrs + '>' + coverVisual.layer +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
       '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title"' + adocTitleStyleAttr(doc.titleStyle) + '>' + adocEsc(doc.title) + '</h1>' +
@@ -13327,10 +13479,12 @@ ${recent}`;
       ? ' onclick="window.adocPresentOpenImageDoor(this)" tabindex="0" role="button"'
         + ' aria-label="' + adocEsc("Agrandir l'image" + (card.content.imageAlt ? ' : ' + card.content.imageAlt : '')) + '"'
         + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"'
-        + ' style="cursor:zoom-in;"'
+        + ' style="cursor:zoom-in;' + adocEsc(adocImageDisplayStyle(card.content.imageDisplay, 'cover')) + '"'
       : '';
+    const couvDisplayAttrs = (!_adocRenderingForPresentDoor && card.content.imageDisplay && Object.keys(card.content.imageDisplay).length)
+      ? ' style="' + adocEsc(adocImageDisplayStyle(card.content.imageDisplay, 'cover')) + '"' : '';
     const img = _hasCouv
-      ? '<img class="adoc-sc-card-img" ' + (_assetCouv ? 'data-asset-id="' + adocEsc(_assetCouv) + '" src="' + adocEsc(adocImageAssetUrl(_assetCouv)) + '"' : 'data-pexels="' + adocEsc(_qCouv) + '"') + ' alt="' + adocEsc(card.content.imageAlt || '') + '"' + couvDoorAttrs + '>'
+      ? '<img class="adoc-sc-card-img" ' + (_assetCouv ? 'data-asset-id="' + adocEsc(_assetCouv) + '" src="' + adocEsc(adocImageAssetUrl(_assetCouv)) + '"' : 'data-pexels="' + adocEsc(_qCouv) + '"') + ' alt="' + adocEsc(card.content.imageAlt || '') + '"' + couvDoorAttrs + couvDisplayAttrs + '>'
       : '';
     // Pastille « agrandir », même icône et même palette que celle du bloc en ligne
     // (adocIconeLoupeHTML, source unique). Ancrée sur .adoc-sc-card, déjà en position:relative, et
@@ -13442,15 +13596,8 @@ ${recent}`;
     // LOT C (cas 2, fond) — même bloc image que le cas 1 (imageBlock/imageContent, jamais un
     // second schéma) : assetId prioritaire sur query, exactement la même règle que le bloc image
     // autonome ci-dessus, réutilisée telle quelle (régression #6).
-    const coverAttrs = coverBlock
-      ? (coverBlock.content.assetId
-          ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
-          // Le ternaire externe ne teste que l'EXISTENCE du bloc de couverture, jamais sa requête.
-          : (adocRequeteImageUtilisable(coverBlock.content.query)
-              ? ' data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"'
-              : ''))
-      : '';
-    const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
+    const coverVisual = adocDocumentCoverVisual(coverBlock);
+    const cover = '<div class="adoc-sc-cover' + coverVisual.className + '"' + coverVisual.attrs + '>' + coverVisual.layer +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
       '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title"' + adocTitleStyleAttr(doc.titleStyle) + '>' + adocEsc(doc.title) + '</h1>' +
@@ -13480,15 +13627,8 @@ ${recent}`;
     // LOT C (cas 2, fond) — même bloc image que le cas 1 (imageBlock/imageContent, jamais un
     // second schéma) : assetId prioritaire sur query, exactement la même règle que le bloc image
     // autonome ci-dessus, réutilisée telle quelle (régression #6).
-    const coverAttrs = coverBlock
-      ? (coverBlock.content.assetId
-          ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
-          // Le ternaire externe ne teste que l'EXISTENCE du bloc de couverture, jamais sa requête.
-          : (adocRequeteImageUtilisable(coverBlock.content.query)
-              ? ' data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"'
-              : ''))
-      : '';
-    const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
+    const coverVisual = adocDocumentCoverVisual(coverBlock);
+    const cover = '<div class="adoc-sc-cover' + coverVisual.className + '"' + coverVisual.attrs + '>' + coverVisual.layer +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
       '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title"' + adocTitleStyleAttr(doc.titleStyle) + '>' + adocEsc(doc.title) + '</h1>' +
@@ -13518,15 +13658,8 @@ ${recent}`;
     // LOT C (cas 2, fond) — même bloc image que le cas 1 (imageBlock/imageContent, jamais un
     // second schéma) : assetId prioritaire sur query, exactement la même règle que le bloc image
     // autonome ci-dessus, réutilisée telle quelle (régression #6).
-    const coverAttrs = coverBlock
-      ? (coverBlock.content.assetId
-          ? ' style="background-image:url(' + adocEsc(adocImageAssetUrl(coverBlock.content.assetId)) + ')"'
-          // Le ternaire externe ne teste que l'EXISTENCE du bloc de couverture, jamais sa requête.
-          : (adocRequeteImageUtilisable(coverBlock.content.query)
-              ? ' data-pexels="' + adocEsc(adocRequeteImageUtilisable(coverBlock.content.query)) + '"'
-              : ''))
-      : '';
-    const cover = '<div class="adoc-sc-cover"' + coverAttrs + '>' +
+    const coverVisual = adocDocumentCoverVisual(coverBlock);
+    const cover = '<div class="adoc-sc-cover' + coverVisual.className + '"' + coverVisual.attrs + '>' + coverVisual.layer +
       '<div class="adoc-sc-cover-content">' +
       '<p class="adoc-sc-cover-category" data-cc-editor-leaf="doc-purpose">' + category + '</p>' +
       '<h1 class="adoc-sc-cover-title" id="root:doc-title" data-cc-editor-leaf="doc-title"' + adocTitleStyleAttr(doc.titleStyle) + '>' + adocEsc(doc.title) + '</h1>' +
@@ -13638,6 +13771,7 @@ ${recent}`;
     '.adoc-sc-quote{border-left:3px solid var(--adoc-sc-quote-border,#8a3f29);color:var(--adoc-sc-quote-color,#173f42);padding-left:12px;font-style:italic;}' +
     '.adoc-sc-cover{position:relative;margin:-1px -1px 1.4em;border-radius:10px 10px 0 0;overflow:hidden;min-height:220px;display:flex;align-items:flex-end;background-size:cover;background-position:center;color:#fff;}' +
     '.adoc-sc-cover::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,47,49,0.35),rgba(16,47,49,0.88));}' +
+    '.adoc-sc-cover-has-display::before{z-index:1;pointer-events:none;}.adoc-sc-cover-has-display .adoc-sc-cover-content{z-index:2;}.adoc-sc-cover-image-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}' +
     '.adoc-sc-cover-content{position:relative;padding:28px 26px 22px;}' +
     '.adoc-sc-cover-category{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;opacity:0.85;margin:0 0 8px;}' +
     '.adoc-sc-cover-title{font-family:var(--adoc-sc-heading-font,Georgia,serif);font-size:26px;line-height:1.15;margin:0 0 8px;color:#fff;}' +
@@ -19134,6 +19268,7 @@ ${recent}`;
       // un seul par lecture. Ses deux dépendances, adocBlockStyleToCSSText et adocEditorStyleCSS,
       // figuraient DÉJÀ dans cette liste : vérifié, rien à y ajouter de plus.
       adocTitleStyleAttr: adocTitleStyleAttr,
+      adocImageDisplayStyle: adocImageDisplayStyle, adocDocumentCoverVisual: adocDocumentCoverVisual,
       // Appelées par adocPresentOpenWithDoc, qui s'exécute au démarrage de tout export : sans elles
       // ici, aucune présentation exportée ne s'ouvrirait — ReferenceError dès la première ligne.
       adocPresentCalculerEchelle: adocPresentCalculerEchelle,
@@ -20175,6 +20310,13 @@ ${recent}`;
     if (!art || art._adocGenerationEngine === 'legacy-html') return;
     const doc = art._adocStructuredDoc;
     if (!doc || doc.documentKind !== 'carrousel' || !Array.isArray(doc.blocks) || !doc.blocks.length) return;
+    // Cette route Worker dessine le PPTX depuis les coordonnées JSON et ignore les corrections
+    // d'image (elle ne rend même pas la couverture de carte). Dire la perte avant de télécharger.
+    const photosReglees = doc.blocks.some(function (card) {
+      return !!(card.content && ((card.content.imageDisplay && Object.keys(card.content.imageDisplay).length) ||
+        (card.content.blocks || []).some(function (block) { return block.type === 'image' && block.content && block.content.imageDisplay && Object.keys(block.content.imageDisplay).length; })));
+    });
+    if (photosReglees && !confirm('Le PowerPoint actuel ne reprend pas les cadrages et corrections des photos, ni les couvertures des cartes. Continuer cet export sans ces réglages ?')) return;
     const btn = document.getElementById('cc-ws-export-pptx-carrousel-btn');
     const btnLabel = btn?.querySelector('span');
     const originalLabel = btnLabel?.textContent;
@@ -20480,7 +20622,7 @@ ${recent}`;
     adocUnmountBlockEditPanel(st.panelEl);
     const docCard = document.getElementById('cc-ws-doc-card');
     if (docCard) {
-      const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected, .adoc-sc-card.is-selected, .adoc-sc-card-img.is-selected');
+      const sel = docCard.querySelector('.adoc-sc-block.is-selected, .adoc-sc-cover.is-selected, .adoc-sc-cover-title.is-selected, .adoc-sc-card-title.is-selected, .adoc-sc-card.is-selected, .adoc-sc-card-img.is-selected');
       // ITEM 75 Phase 2 — is-position-selected (poignée de redimensionnement d'un élément
       // imbriqué, cf. adocSelectNestedBlockForPosition) toujours retirée ICI aussi, même point
       // unique de nettoyage (régression #6) — jamais une poignée qui reste visible après
@@ -20603,10 +20745,33 @@ ${recent}`;
     const enabled = !!(art._adocCapabilities && art._adocCapabilities.blockEditing);
     docCard.classList.toggle('cc-ws-block-editable', enabled);
     if (!enabled) { docCard.onclick = null; docCard.onmousedown = null; docCard.onmousemove = null; docCard.onmouseleave = null; return; } // ex. legacy-html — aucune interaction de sélection, comportement inchangé
+    const hasDocumentCover = art._adocStructuredDoc && art._adocStructuredDoc.blocks && art._adocStructuredDoc.blocks[0] && art._adocStructuredDoc.blocks[0].type === 'image';
+    docCard.querySelectorAll((hasDocumentCover ? '.adoc-sc-cover, ' : '') + '.adoc-sc-card-img, .adoc-sc-image-cadre > img').forEach(function (el) {
+      el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', el.classList.contains('adoc-sc-cover') ? 'Options de la couverture' : 'Options de la photo : ' + (el.getAttribute('alt') || 'image'));
+    });
     // 57f — each textual leaf is prepared after the delegated click handler.
     docCard.onclick = function (e) {
       if (e.target.closest('.cc-block-edit-panel')) return; // clic dans le panneau — jamais réinterprété comme une (dé)sélection
       if (e.target.closest('.adoc-sc-cite')) return;
+      const documentCover = e.target.closest('.adoc-sc-cover');
+      if (documentCover && (e.target === documentCover || e.target.closest('.adoc-sc-cover-image-layer'))) {
+        const key = window._adocWsState.storeKey;
+        const currentArt = window._adocArtifacts && window._adocArtifacts[key];
+        const imageBlock = currentArt && currentArt._adocStructuredDoc && currentArt._adocStructuredDoc.blocks[0];
+        if (imageBlock && imageBlock.type === 'image') {
+          adocWsClearBlockSelection(); documentCover.classList.add('is-selected');
+          const panel = document.createElement('div');
+          panel.className = 'cc-clarity-card cc-block-edit-panel';
+          panel.setAttribute('role', 'group'); panel.setAttribute('aria-label', 'Image de couverture du document sélectionnée');
+          panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(imageBlock.content.alt || 'Couverture')) +
+            adocImageDisplayControlsHTML() + adocImageReplacementButtonsHTML(false) + '<div class="cc-block-edit-result" hidden></div>';
+          adocMountContextualBlockEditPanel(panel, documentCover);
+          window._adocBlockEditState = { storeKey: key, blockId: imageBlock.id, panelEl: panel, originalBlock: imageBlock, zone: 'doc-cover' };
+          adocRefreshImageDisplayControls(); return;
+        }
+      }
       const cover = e.target.closest('.adoc-sc-card-img');
       if (cover) {
         const key = window._adocWsState.storeKey;
@@ -20620,9 +20785,10 @@ ${recent}`;
         panel.setAttribute('role', 'group');
         panel.setAttribute('aria-label', 'Image de couverture sélectionnée');
         panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(card.content.imageAlt || card.content.title)) +
-          adocImageReplacementButtonsHTML(true) + '<div class="cc-block-edit-result" hidden></div>';
+          adocImageDisplayControlsHTML() + adocImageReplacementButtonsHTML(true) + '<div class="cc-block-edit-result" hidden></div>';
         adocMountContextualBlockEditPanel(panel, cover);
         window._adocBlockEditState = { storeKey: key, blockId: card.id, panelEl: panel, originalBlock: card, zone: 'cover' };
+        adocRefreshImageDisplayControls();
         return;
       } // note de bas de page — laisse naviguer normalement
       // ITEM 75 Phase 1 UI — un clic sur la SURFACE PROPRE d'une carte Carrousel (jamais son
@@ -20665,6 +20831,7 @@ ${recent}`;
         adocMountContextualBlockEditPanel(imgPanel, blockEl);
         window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: imgPanel, pendingBlock: null, originalBlock: block, zone: 'image' };
         adocEditorRefreshImageControls(true);
+        adocRefreshImageDisplayControls();
         return;
       }
       // NOUVEAU CHANTIER (bloc mixte) — clic HORS de la zone de texte (.adoc-sc-fg-content) sur
@@ -20721,7 +20888,11 @@ ${recent}`;
       const ta = panel.querySelector('.cc-block-edit-freetext');
       if (ta && !isDirectlyEditable) ta.focus();
     };
-    docCard.onkeydown = null;
+    docCard.onkeydown = function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.adoc-sc-cover, .adoc-sc-card-img, .adoc-sc-image-cadre > img')) {
+        e.preventDefault(); e.target.click();
+      }
+    };
     // LOT C (cas 1 + 2, glisser-déposer) — UNE seule zone de dépôt déléguée, partagée entre le
     // bloc image autonome (.adoc-sc-image, remplacement) et la bannière de couverture
     // (.adoc-sc-cover, fond) — régression #6, jamais deux mécanismes séparés. Le cas 4
