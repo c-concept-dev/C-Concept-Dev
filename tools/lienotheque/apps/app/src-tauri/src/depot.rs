@@ -38,6 +38,12 @@ pub const BASE: &str = "base";
 const VERSIONS: &str = "versions";
 /// L'ancien pointeur unique, gardé pour la migration et pour elle seule.
 const ACTIVE: &str = "active.json";
+
+/// Ce qui rend indivisible la **mise à jour** de la table des actives, et non sa seule écriture.
+///
+/// Un seul verrou pour toutes les bibliothèques du processus : il n'y en a qu'une d'ouverte à la
+/// fois, et un verrou par racine coûterait une table de verrous pour un gain nul.
+static VERROU_ACTIVES: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// La table des versions actives, une entrée par document.
 const ACTIVES: &str = "actives.json";
 /// Le classement des documents, par empreinte. Même forme et mêmes raisons que la table
@@ -187,6 +193,16 @@ impl Depot {
     /// rendrait le document illisible, et c'est exactement le genre de panne qu'une vérification
     /// d'une ligne évite.
     pub fn activer(&self, empreinte: &str, version: &str, maintenant: u64) -> io::Result<()> {
+        // **Écriture atomique n'est pas mise à jour atomique.** Lire la table, y insérer, la
+        // réécrire : entre la lecture et l'écriture, un autre travail peut avoir inscrit la
+        // sienne, et elle disparaît. Le réimport du 21 octobre 2026 a ainsi écrit 243 versions et
+        // posé 239 pointeurs — quatre documents traités avec succès, invisibles, sans un mot.
+        //
+        // Un verrou de processus suffit ici : la file est un seul processus, et c'est elle qui
+        // mène deux travaux de front. Deux **processus** qui activeraient dans la même
+        // bibliothèque se marcheraient encore dessus ; cela ne se produit pas aujourd'hui, et le
+        // jour où cela se produirait, il faudrait un verrou sur le disque.
+        let _tenu = VERROU_ACTIVES.lock().unwrap_or_else(|empoisonne| empoisonne.into_inner());
         if self.lire_version(version)?.is_none() {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
@@ -272,6 +288,8 @@ impl Depot {
     ///
     /// Rend le nombre d'entrées inscrites.
     pub fn migrer_les_actives(&self) -> io::Result<usize> {
+        // La même table, la même lecture-modification-écriture, donc le même verrou.
+        let _tenu = VERROU_ACTIVES.lock().unwrap_or_else(|empoisonne| empoisonne.into_inner());
         let dossier = self.racine.join(BASE).join(TRAVAUX);
         let entrees = match fs::read_dir(&dossier) {
             Ok(entrees) => entrees,
@@ -333,11 +351,24 @@ impl Depot {
 ///
 /// Le renommage est l'opération que le système garantit indivisible. Sans lui, un arrêt au mauvais
 /// moment laisse un fichier à moitié écrit — et un pointeur à moitié écrit ne désigne rien.
+/// De quoi donner un nom différent à chaque temporaire, sans se soucier de qui écrit.
+static COMPTEUR_TEMPORAIRE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn ecrire_atomique(chemin: &Path, contenu: &[u8]) -> io::Result<()> {
     if let Some(parent) = chemin.parent() {
         fs::create_dir_all(parent)?;
     }
-    let temporaire = chemin.with_extension("tmp");
+    // Un temporaire **propre à cet appel**. Il portait l'extension `.tmp` du fichier visé, donc
+    // le même nom pour tout le monde : deux fils qui écrivent le même fichier écrivaient dans le
+    // même temporaire, et le second `rename` ne trouvait plus rien — ou pire, renommait un
+    // fichier à moitié écrit par l'un et à moitié par l'autre. Une table d'actives abîmée se lit
+    // comme une table vide, par choix assumé ailleurs dans ce fichier : toute la bibliothèque
+    // aurait disparu d'un coup, sans un mot.
+    let temporaire = chemin.with_extension(format!(
+        "{}.{}.tmp",
+        std::process::id(),
+        COMPTEUR_TEMPORAIRE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
     {
         let mut fichier = fs::File::create(&temporaire)?;
         fichier.write_all(contenu)?;
@@ -485,6 +516,52 @@ mod actives {
     /// « une seule version active par document ». L'hôte, lui, tenait un pointeur unique pour
     /// toute la bibliothèque : une bibliothèque de deux cent cinquante livres n'en montrait
     /// qu'un, et les deux dépôts censés porter le même schéma n'en portaient pas le même.
+    /// Deux documents activés **en même temps** gardent tous les deux leur pointeur.
+    ///
+    /// Le réimport des deux cent cinquante, le 21 octobre 2026, a écrit 243 versions et n'a posé
+    /// que **239 pointeurs**. Quatre documents traités avec succès, leur instantané complet sur le
+    /// disque, et rien pour les désigner : invisibles, sans un mot.
+    ///
+    /// `activer` lit la table entière, y insère son pointeur, puis la réécrit. L'écriture est
+    /// atomique — `ecrire_atomique` s'en assure — mais **la lecture-modification-écriture ne l'est
+    /// pas**, et deux travaux lourds tournent de front. Deux qui finissent ensemble lisent la même
+    /// table, chacun y ajoute son pointeur, et le second efface celui du premier. Deux des quatre
+    /// perdus se sont conclus dans la même seconde du journal.
+    ///
+    /// **Écriture atomique n'est pas mise à jour atomique.** Aucune épreuve ne pouvait le voir
+    /// tant qu'aucune n'activait deux documents à la fois ; celle-ci le fait, vingt fois, et
+    /// échoue sans le verrou.
+    #[test]
+    fn deux_activations_simultanees_gardent_leurs_deux_pointeurs() {
+        let (depot, racine) = depot_neuf("course");
+        const COMBIEN: usize = 20;
+
+        let depot = std::sync::Arc::new(depot);
+        for rang in 0..COMBIEN {
+            depot.ecrire_version(&format!("v-{rang}"), r#"{"doc":"x"}"#).expect("écrite");
+        }
+
+        let mut fils = Vec::new();
+        for rang in 0..COMBIEN {
+            let sien = std::sync::Arc::clone(&depot);
+            fils.push(std::thread::spawn(move || {
+                sien.activer(&format!("{rang:064}"), &format!("v-{rang}"), 1_000 + rang as u64)
+            }));
+        }
+        for fil in fils {
+            fil.join().expect("fil").expect("activation");
+        }
+
+        let table = depot.actives().expect("table");
+        let manquants: Vec<usize> = (0..COMBIEN).filter(|rang| !table.contains_key(&format!("{rang:064}"))).collect();
+        assert!(
+            manquants.is_empty(),
+            "{} pointeur(s) perdu(s) sur {COMBIEN} : un document traité qu'aucun pointeur ne désigne est invisible",
+            manquants.len()
+        );
+        fs::remove_dir_all(&racine).ok();
+    }
+
     #[test]
     fn chaque_document_a_sa_version_active() {
         let (depot, racine) = depot_neuf("deux-documents");

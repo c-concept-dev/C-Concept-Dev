@@ -4292,3 +4292,74 @@ sur aucune page.
 
 **L'écran de dépôt n'a toujours pas été franchi sur une création complète.** C'est la dernière
 porte, et c'est celle que Christophe poussera lui-même.
+
+
+## 21 octobre 2026 — les deux défauts du réimport, corrigés
+
+### La course à l'activation, et une seconde course dessous
+
+`VERROU_ACTIVES`, un verrou de processus, rend **indivisible la mise à jour** de la table des
+actives et non plus seulement son écriture. `activer` et `migrer_les_actives` le prennent.
+
+L'épreuve qui le garde lance **vingt activations de front** et vérifie que les vingt pointeurs
+survivent. Elle échouait avant le verrou — mais pas comme attendu : elle tombait sur un
+`No such file or directory`, et c'est **une seconde course, plus grave**, qu'elle a mise au jour.
+
+`ecrire_atomique` nommait son fichier temporaire d'après sa cible : `actives.json` → `actives.tmp`,
+**le même nom pour tout le monde**. Deux fils qui écrivent le même fichier écrivaient dans le même
+temporaire ; le second `rename` ne trouvait plus rien — ou pire, renommait un fichier écrit à
+moitié par l'un et à moitié par l'autre. Or une table d'actives abîmée **se lit comme une table
+vide**, par un choix assumé ailleurs dans ce fichier : toute la bibliothèque aurait disparu d'un
+coup, sans un mot. Le temporaire porte maintenant le numéro du processus et un compteur.
+
+Le réimport n'a perdu que des pointeurs, jamais la table entière. C'est une chance, pas une
+garantie.
+
+**Ce que le verrou ne couvre pas, et qui est dit :** deux *processus* qui activeraient dans la même
+bibliothèque se marcheraient encore dessus. Cela ne se produit pas aujourd'hui ; le jour où cela se
+produirait, il faudrait un verrou sur le disque.
+
+### La cause qui ne disait rien
+
+`causeLisible` rend quelque chose d'utile de tout ce qu'un `throw` peut porter : le message d'une
+`Error`, celui d'un objet qui en porte un, le contenu d'un objet qui n'en porte pas, et un mot sur
+ce qui ne porte rien. Elle ne lève jamais — une fonction qui sert à dire une panne et qui tombe
+dedans emporte la seule trace qui restait — et elle borne ce qu'elle rend : une cause traverse un
+tuyau entre deux processus et finit écrite dans un travail.
+
+Employée là où une cause atteint quelqu'un : les deux sorties d'`executerTravail`, et `publier`.
+
+**Ce qu'elle a révélé.** Les trois échecs qui disaient `[object Object]` disent maintenant
+**« Program terminated with exit(1) »**. C'est le message d'arrêt d'Emscripten : le décodeur JPEG
+en WebAssembly ne lève pas une erreur, **il arrête le processus**. L'objet levé était son
+`ExitStatus`, dont le message existait et se perdait au premier `String`.
+
+La cause est donc désormais reconnaissable, sans être encore la bonne : la vraie raison —
+« Unsupported color conversion request » — ne part que sur la sortie d'erreur du moteur. La
+rattacher au travail demanderait que l'hôte garde les dernières lignes du journal d'un moteur qui
+meurt, et c'est un autre chantier.
+
+### La réparation, et ce qu'elle a appris
+
+L'outil de réimport répare au démarrage — `migrer_les_actives` relit les travaux terminés et
+inscrit les pointeurs manquants, sans rien retraiter — et reprend les échecs définitifs sur demande
+(`--reprendre`), **en remettant leur compteur de tentatives à un**. Sans cela, un travail qui les a
+toutes consommées revient en file et n'en sort jamais : la file le juge hors d'atteinte et l'ignore,
+silencieusement. Deux des six échecs étaient dans ce cas.
+
+Au passage, une leçon de méthode : la première reprise n'a rien changé parce que **le moteur
+empaqueté n'avait pas été reconstruit**. Corriger le TypeScript ne corrige pas ce que la file
+lance ; il faut rejouer `preparer-moteur-node.py`. La chaîne et le paquet sont deux objets.
+
+### L'état de la bibliothèque d'essai
+
+| | |
+|---|---:|
+| Versions écrites | 243 |
+| Pointeurs actifs | **243** |
+| Versions sans pointeur | **0** |
+| Échecs | 6, tous avec une cause lisible |
+| Trente documents tirés au long de la table | **29 répondent, 29 citent juste** |
+
+Les quatre documents invisibles sont revenus. Le trentième n'a pas assez de mots pour qu'on lui
+pose une question, ce qui n'est pas un échec de la recherche.

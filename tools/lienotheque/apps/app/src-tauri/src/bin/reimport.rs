@@ -116,8 +116,12 @@ fn which_node() -> Option<PathBuf> {
 
 fn main() -> Result<(), String> {
     let mut arguments = std::env::args().skip(1);
-    let corpus = PathBuf::from(arguments.next().ok_or("Attendu : <corpus> <bibliothèque>")?);
-    let racine = PathBuf::from(arguments.next().ok_or("Attendu : <corpus> <bibliothèque>")?);
+    let corpus = PathBuf::from(arguments.next().ok_or("Attendu : <corpus> <bibliothèque> [--reprendre]")?);
+    let racine = PathBuf::from(arguments.next().ok_or("Attendu : <corpus> <bibliothèque> [--reprendre]")?);
+    // Remettre en file ce qui a échoué définitivement. À la demande, jamais d'office : un
+    // document qu'aucune manière de lire ne sert échouerait de nouveau, et une reprise
+    // automatique en ferait une boucle.
+    let reprendre = arguments.any(|un| un == "--reprendre");
 
     let chaine = Path::new(env!("CARGO_MANIFEST_DIR")).join("moteurs/chaine/moteur.js");
     if !chaine.exists() {
@@ -140,6 +144,13 @@ fn main() -> Result<(), String> {
         serde_json::to_vec_pretty(&affectations).map_err(|e| format!("affectations : {e}"))?,
     )
     .map_err(|e| format!("affectations : {e}"))?;
+    // Réparer avant de travailler : une version écrite qu'aucun pointeur ne désigne est un
+    // document invisible, et c'est arrivé quatre fois au réimport du 21 octobre 2026. La
+    // migration relit les travaux terminés et inscrit ce qui manque, sans rien retraiter.
+    let reparees = depot.migrer_les_actives().map_err(|e| format!("réparation des actives : {e}"))?;
+    if reparees > 0 {
+        println!("Réparées     : {reparees} version(s) écrite(s) qu'aucun pointeur ne désignait");
+    }
     println!("Bibliothèque : {}", racine.display());
     println!("Exceptions   : {} manière(s) nommée(s) affectée(s)", affectations.len());
 
@@ -149,6 +160,25 @@ fn main() -> Result<(), String> {
     trouves.sort();
     println!("Corpus       : {} fichier(s) lisibles", trouves.len());
 
+    let en_file = file::charger_tout(&depot.travaux(), &mut |t| eprintln!("file : {t}")).map_err(|e| format!("file : {e}"))?;
+    if reprendre {
+        let mut repris = 0;
+        for t in &en_file {
+            if t.etat != "en_echec_definitif" {
+                continue;
+            }
+            let Some(mut remis) = file::appliquer(t, "reprendre", travail::maintenant()) else { continue };
+            // Les tentatives repartent de un. Sans cela, un travail qui les a toutes consommées
+            // revient en file et n'en sort jamais : la file le juge hors d'atteinte et l'ignore,
+            // silencieusement. Une reprise demandée à la main est une décision, pas une
+            // quatrième tentative automatique.
+            remis.tentative = 1;
+            remis.cause = None;
+            file::enregistrer(&depot.travaux(), &remis).map_err(|e| format!("reprise : {e}"))?;
+            repris += 1;
+        }
+        println!("Repris       : {repris} travail(aux) remis en file");
+    }
     let deja: HashSet<String> = file::charger_tout(&depot.travaux(), &mut |t| eprintln!("file : {t}"))
         .map_err(|e| format!("file : {e}"))?
         .into_iter()

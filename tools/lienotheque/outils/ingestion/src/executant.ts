@@ -9,6 +9,7 @@ import {
 } from "@lienotheque/contrats";
 import { jetonDacces, relectureCiblee, transportVersWorker } from "@lienotheque/vision";
 import { sousDossier } from "@lienotheque/cache";
+import { causeLisible } from "@lienotheque/noyau";
 import { instantaneDeLot, type LotTraite } from "./lot.js";
 
 /** La porte de la chaîne : une demande entre, un message sort (JOB-01 à JOB-09, PLT-02).
@@ -210,7 +211,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
     return Resultat.parse({ type: "resultat", protocole: VERSION_PROTOCOLE, travailId: demande.travailId, charge: traite });
   } catch (cause) {
     // Reprenable : ce qui a déjà été lu l'est pour de bon, et une relance repartira de là.
-    const texte = cause instanceof Error ? cause.message : String(cause);
+    const texte = causeLisible(cause);
     dire(texte, "erreur");
     return echec(demande.travailId, texte, true);
   }
@@ -254,7 +255,7 @@ async function apercuDePages(demande: Demande, emettre?: Emission): Promise<Mess
       },
     });
   } catch (cause) {
-    const texte = cause instanceof Error ? cause.message : String(cause);
+    const texte = causeLisible(cause);
     return echec(demande.travailId, texte, true);
   }
 }
