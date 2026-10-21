@@ -3870,3 +3870,78 @@ lieu d'être la première, et la reconnaissance par signature, qui lit les premi
 qu'une archive ZIP. Le message le dit correctement — « la chaîne ne sait pas encore lire ce format
 (Archive ZIP) » — il n'accuse rien à tort. Le correctif est une condition : devant une archive ZIP,
 chercher `mimetype` ou `META-INF/container.xml` dans le catalogue central avant de renoncer.
+
+
+## 21 octobre 2026 — ce que coûte un réimport, et le document que la chaîne refuse
+
+### Le chiffre : une nuit, pas un après-midi
+
+Dix documents pris en travers des familles, chronométrés par la **porte réelle**, cache neuf.
+
+| Document | Pages | Temps | Couche | Reconnaissance |
+|---|---:|---:|---:|---:|
+| DSM-5 | 1275 | 6,7 s | 1275 | 0 |
+| Thérapeutique manuelle (390 Mo) | 480 | **1846,8 s** | 0 | 480 |
+| Biologie du couple | 173 | 0,7 s | 173 | 0 |
+| Trois EPUB | 1023 | 0,3 s | 1023 | 0 |
+| Protocole tabac | 6 | — | **refusé** | **refusé** |
+| Schémas 2021 — Introduction | 28 | 0,2 s | 26 | 0 |
+| La thérapie d'acceptation et d'engagement | 66 | 143,1 s | 0 | 66 |
+| Théorie ACT Que sais-je | 66 | 174,6 s | 1 | 65 |
+
+**Deux cadences :** la couche sert **0,003 s/page**, la reconnaissance **3,54 s/page**. Un facteur
+mille deux cents. Rapporté au corpus — de l'ordre de dix mille pages lourdes sur 21 515 — le
+réimport demande **environ dix heures**, stable entre 9,1 h et 10,0 h selon où l'on place la
+frontière. À lancer le soir.
+
+**Les quinze secondes par page de F4 ne s'appliquaient pas.** C'était le coût du chemin des images
+avec son vote d'orientation ; le chemin du texte coûte quatre fois moins. L'estimation d'hier était
+pessimiste d'un facteur quatre.
+
+**On ne sait pas d'avance de quelle famille un document relève.** *Thérapeutique manuelle* porte des
+polices et part à 100 % en reconnaissance — l'inversion a jugé sa couche mauvaise. *Schémas 2021*
+n'en déclare aucune et se lit à 26/28 par sa couche, ses polices étant héritées du nœud parent. Le
+détecteur se trompe dans les deux sens : d'où une fourchette, et non un nombre.
+
+### Le document refusé : une famille de trois, pas un dixième du corpus
+
+Dans l'échantillon, un document sur dix était refusé en entier. La proportion a inquiété — à ce
+taux, vingt-cinq documents à reprendre à la main. **Elle était fausse** : l'échantillon contenait
+par hasard un des trois.
+
+Recensement de la composition des pages sur tout le corpus (`mesures/images-du-corpus.ts`) : une
+page se lit si elle déclare une **police**, ou si elle porte une **image exploitable** — un
+`DCTDecode` qu'`octetsImage` rend en JPEG, ou des bandes à 1 bit que `rasterBilevel` empile.
+
+| | |
+|---|---:|
+| PDF sondés | 253 |
+| Pages vues | 23 090 |
+| Pages sans police ni image exploitable | **97**, soit 0,42 % |
+| Documents dont une page au moins est muette | 20 |
+| **Documents refusés en entier, vérifiés un par un** | **3** |
+
+Les trois : *Protocole tabac* (6 pages), *auto-hypnose tabac* (2 pages), *Mémo 4 — Analyse
+fonctionnelle* (1 page). **Neuf pages sur 21 515.**
+
+**La cause est une seule, et elle est nette.** Leurs pages ne portent qu'un raster `FlateDecode` à
+8 bits et aucune police. `octetsImage` le rend sous l'étiquette `raw` ; `exporterPages` ne prend que
+`jpg`, et `rasterBilevel` ne prend que des bandes à 1 bit. Ni l'un ni l'autre ne sait en faire une
+image, et la reconnaissance n'a donc rien à lire.
+
+Les documents écartés du recensement ne sont pas un angle mort : les plus lourds portent tous un
+`DCTDecode` par page — 255 pour 255 pages, 307 pour 307 —, donc une image JPEG chacune. Et les
+quatre que ce lecteur ne sait pas ouvrir ont été passés par la porte réelle le matin même, et se
+lisent.
+
+### Ce qui est décidé, et ce qui ne l'est pas
+
+**Cela ne bloque pas le réimport.** Trois documents sur deux cent cinquante, neuf pages sur
+vingt et un mille, et un refus **explicite qui nomme sa cause** : rien ne se perd en silence, et
+ces trois-là se reprennent après coup.
+
+**Ce qui reste à faire, et qui n'est pas fait :** savoir prendre un raster `FlateDecode` comme image
+de page. C'est le cas le plus simple qui soit — une trame non compressée dont la largeur, la hauteur
+et l'espace de couleur sont dans le dictionnaire — et `@lienotheque/images` sait déjà réduire et
+encoder. Les pages en `JPXDecode` (JPEG 2000) tombent sous la même limite : 23 pages d'un document
+de 594, qui se lit par ailleurs.
