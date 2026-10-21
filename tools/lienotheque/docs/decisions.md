@@ -3803,7 +3803,10 @@ recherche qui ne rendrait rien sur un document que la chaîne n'a pas su lire.
 
 - **Le Lecteur ne montre toujours pas le texte d'un livre natif.** Il sait dire où le chercher,
   pas l'afficher. Montrer le texte d'un document sans image est un écran à concevoir, pas un
-  correctif de silence.
+  correctif de silence. **Ouvert comme chantier à part entière le 21 octobre 2026**, pour qu'il ne
+  devienne pas une dette tue : `docs/chantier-lire-un-livre-natif.md` — le fait, son ampleur, trois
+  routes et ce qu'il faudra décider avant d'écrire. Il sera nécessaire avant que le Lecteur soit
+  complet sur la moitié du corpus.
 - **Le banc divergeait de l'application** : il n'envoyait pas d'images de pages, là où l'hôte en
   demande toujours. Corrigé — sans quoi il n'éprouvait pas ce qu'il prétendait éprouver. La
   correction n'a rien changé au résultat (zéro image extraite d'un natif), mais c'est par chance.
@@ -3812,3 +3815,58 @@ recherche qui ne rendrait rien sur un document que la chaîne n'a pas su lire.
   racine, qui est juste pour une vraie bibliothèque). Le Lecteur n'y est donc visible que dans la
   fenêtre de course qui précède ce chargement. Constaté, non corrigé : cela ne touche que la
   démonstration.
+
+
+## 21 octobre 2026 — l'état du corpus, mesuré plutôt que supposé
+
+Trois inconnues de l'état des lieux ont été mesurées avant d'en faire une recommandation. Deux se
+dissolvent, une se réduit à un document.
+
+### L'inventaire : 250 documents, 21 515 pages au moins
+
+| | |
+|---|---:|
+| Fichiers lus | 293, 12,87 Go |
+| Doublons exacts | 43 fichiers, 4,57 Go |
+| **Documents distincts** | **250**, 8,30 Go |
+| Pages comptées | 21 515 |
+| Portant une couche texte | 220 sur 250 |
+| Formats | 231 PDF, 18 EPUB, 1 .docx |
+
+**21 515 est un plancher, pas un total** : l'inventaire ne sait pas compter les pages de 23
+documents (les 18 EPUB, le .docx, et quatre PDF).
+
+### Les « quatre documents illisibles » n'existent pas
+
+Ils étaient illisibles **par le compteur de pages de l'inventaire**, pas par la chaîne. Les quatre
+passés par la porte réelle, en entier :
+
+| Document | Ce qui en sort |
+|---|---|
+| *Relier les états du moi* | 6 feuillets lus par la couche, citation juste |
+| *Livre mais tu ne m'avais jamais dit ça* | 171 passages, rang 86 → numéro imprimé 91, citation juste |
+| *Manuel N1 ICV2020* | rang 29 → numéro imprimé 29, citation juste |
+| *Métaphores et suggestions hypnotiques* | 562 passages, aucun numéro imprimé — cité par son rang, et il le dit |
+
+Au passage, une confirmation de la décision du 17 octobre sur la découpe : le même document lu sur
+**quatre pages** donnait « page 2000 » — une année de bibliographie prise pour un folio, le vote
+n'ayant pas assez d'appuis pour la rejeter. Lu en entier, il donne 91. **Une tranche ne vaut pas un
+document**, et la faute qu'elle produit a l'air d'un résultat.
+
+### Les dix-huit EPUB : dix-sept sur dix-huit, vérifiés
+
+Un seul EPUB avait été traversé de bout en bout, pour une moitié annoncée du corpus. Les dix-huit
+sont passés par `mesures/tous-les-epub.ts` : chacun lu, puis une phrase prise au milieu cherchée
+une seconde fois dans les chapitres relus depuis l'archive.
+
+**17 lus, 17 citations vérifiées, en un dixième de seconde chacun.** Tous les feuillets portent leur
+chapitre. Les langues déclarées par les archives sont variées — `fr`, `fr-FR`, `en`, `en-US`,
+`EN-US` — et c'est bien celle de l'archive qui est retenue.
+
+**Le dix-huitième est un vrai EPUB que la chaîne refuse.** *Hypnose Conversationnelle*
+(Allan Trevor) porte son `mimetype` à `application/epub+zip`, son `META-INF/container.xml` et ses
+27 fichiers XHTML — tout ce qu'il faut. Mais l'entrée `mimetype` y est rangée **dix-huitième** au
+lieu d'être la première, et la reconnaissance par signature, qui lit les premiers octets, ne voit
+qu'une archive ZIP. Le message le dit correctement — « la chaîne ne sait pas encore lire ce format
+(Archive ZIP) » — il n'accuse rien à tort. Le correctif est une condition : devant une archive ZIP,
+chercher `mimetype` ou `META-INF/container.xml` dans le catalogue central avant de renoncer.
