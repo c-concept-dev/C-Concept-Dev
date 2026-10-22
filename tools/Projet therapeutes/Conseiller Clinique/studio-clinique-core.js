@@ -25731,16 +25731,16 @@ ${recent}`;
     return (r.book_title || '') + '|' + (r.page_number || '') + '|' + (r.content || '').slice(0, 60);
   }
 
-  // Le champ de recherche promet aussi un ouvrage : si les mots tapés désignent un titre
-  // UNIQUE du catalogue D1 déjà chargé, une recherche par titre (sans terme FTS ni auteur)
-  // restitue ses vrais passages. Aucun appel supplémentaire pour une recherche ordinaire.
-  function adocUniqueLibraryTitleForQuery(raw) {
+  // Le champ de recherche promet aussi un ouvrage. Plusieurs livres peuvent porter
+  // le même mot (ex. ADHD) : interroger chacun des titres correspondants, avec une
+  // borne stricte pour ne pas multiplier les requêtes sur un mot générique.
+  function adocLibraryTitlesForQuery(raw) {
     const fold = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const words = fold(raw).split(/\s+/).filter(w => w.length >= 2);
-    if (fold(raw).length < 4 || !words.length || !adocLibStats?.booksByApproach) return '';
+    if (fold(raw).length < 4 || !words.length || !adocLibStats?.booksByApproach) return [];
     const titles = new Set(Object.values(adocLibStats.booksByApproach).flat().map(b => b.title).filter(Boolean));
     const matches = [...titles].filter(title => words.every(word => fold(title).includes(word)));
-    return matches.length === 1 ? matches[0] : '';
+    return matches.length <= 4 ? matches : [];
   }
 
   // ── Phase 1+ Passerelle — composant de recherche bibliothèque partagé ─────────────────
@@ -25917,6 +25917,29 @@ ${recent}`;
     return adocEsc(text.slice(0, pos)) + '<mark>' + adocEsc(text.slice(pos, pos + matched.length)) + '</mark>' + adocEsc(text.slice(pos + matched.length));
   }
 
+  function adocShowLibraryResults(mountId, resultsEl, mySeq, words, isPhrase, allowInsert, merged, partial) {
+    _adocLibCards.forEach(function (card, uid) { if (card.mountId === mountId) _adocLibCards.delete(uid); });
+    const cards = merged.slice(0, 8).map(function (c, i) {
+      const uid = mountId + '-' + mySeq + '-' + i;
+      const card = { uid, mountId, data: c, words, isPhrase, allowInsert, original: c.content || '',
+        translated: c.is_machine_translated ? c.translated_content || '' : '', showingOriginal: false };
+      _adocLibCards.set(uid, card);
+      return card;
+    });
+    if (!allowInsert) {
+      const groups = new Map();
+      cards.forEach(function (card) {
+        const approach = card.data.approach || 'Autres références';
+        if (!groups.has(approach)) groups.set(approach, []);
+        groups.get(approach).push(card);
+      });
+      resultsEl.innerHTML = Array.from(groups, function ([approach, items]) {
+        return '<section class="cc-lib-approach-group"><h4>' + adocEsc(approach) + '</h4>' + items.map(adocRenderLibraryCard).join('') + '</section>';
+      }).join('');
+    } else resultsEl.innerHTML = cards.map(adocRenderLibraryCard).join('');
+    if (partial) resultsEl.insertAdjacentHTML('beforeend', '<div class="cc-ws-search-result" style="color:var(--muted);">' + adocEsc(partial) + '</div>');
+  }
+
   async function adocRunLibrarySearch(mountId, state, allowInsert) {
     clearTimeout(state.timer);
     if (state.controller) state.controller.abort();
@@ -25963,11 +25986,25 @@ ${recent}`;
     if (approach && approach !== 'all') authorIntent.approaches = [approach];
     if (language) authorIntent.language = language;
     if (bookTitle) authorIntent.book_title = bookTitle;
-    const matchedTitle = adocUniqueLibraryTitleForQuery(raw);
-    const titleIntent = matchedTitle && (!bookTitle || matchedTitle.toLowerCase().startsWith(bookTitle.toLowerCase()))
-      ? { book_title: matchedTitle, limit: 3 } : null;
-    if (titleIntent && approach && approach !== 'all') titleIntent.approaches = [approach];
-    if (titleIntent && language) titleIntent.language = language;
+    const titleIntents = adocLibraryTitlesForQuery(raw)
+      .filter(title => !bookTitle || title.toLowerCase().startsWith(bookTitle.toLowerCase()))
+      .map(title => {
+        const intent = { book_title: title, limit: 3 };
+        if (approach && approach !== 'all') intent.approaches = [approach];
+        if (language) intent.language = language;
+        return intent;
+      });
+    const titleResultsPromise = Promise.all(titleIntents.map(intent =>
+      adocD1Search(intent).catch(function () { return null; })
+    )).then(groups => groups.flatMap(rows => rows || []));
+    // Les passages trouvés par titre sont utiles sans attendre la traduction et la
+    // recherche sémantique, qui peuvent parfois dépasser le délai réseau.
+    titleResultsPromise.then(rows => {
+      if (mySeq === state.seq && rows.length) {
+        adocShowLibraryResults(mountId, resultsEl, mySeq, words, isPhrase, allowInsert,
+          rows.map(r => Object.assign({}, r, { sources: ['title'] })), 'Recherche approfondie en cours…');
+      }
+    });
 
     const ctrl = state.controller = new AbortController();
     // Délai porté à 12s (au lieu de 6s) — la recherche interlingue automatique (lancée le
@@ -25981,11 +26018,11 @@ ${recent}`;
       fetch(workerUrl + '/rag-search', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify(body), signal: ctrl.signal,
-      }).then(function (r) { return r.json(); }).catch(function (e) {
+      }).then(function (r) { return r.ok ? r.json() : { error: 'http', status: r.status }; }).catch(function (e) {
         return { error: e.name === 'AbortError' ? 'timeout' : 'network' };
       }),
       adocD1Search(authorIntent).catch(function () { return null; }),
-      titleIntent ? adocD1Search(titleIntent).catch(function () { return null; }) : Promise.resolve([]),
+      titleResultsPromise,
     ]);
     clearTimeout(tid);
     if (mySeq !== state.seq) return;
@@ -26015,32 +26052,31 @@ ${recent}`;
       merged.push(Object.assign({}, r, { sources: ['author'] }));
     });
 
+    // Si la recherche IA échoue, D1 peut encore rendre les passages lexicaux
+    // disponibles. Ce repli n'est lancé qu'en cas d'erreur, pas à chaque frappe.
+    if (!merged.length && ragResp && ragResp.error && ragResp.status !== 401 && ragResp.status !== 403) {
+      const lexicalIntent = { terms: words.slice(0, 6), limit: 8 };
+      if (approach && approach !== 'all') lexicalIntent.approaches = [approach];
+      if (language) lexicalIntent.language = language;
+      if (bookTitle) lexicalIntent.book_title = bookTitle;
+      const lexicalResults = await adocD1Search(lexicalIntent);
+      if (mySeq !== state.seq) return;
+      (lexicalResults || []).forEach(r => merged.push(Object.assign({}, r, { sources: ['lexical_fallback'] })));
+    }
+
+    const partial = ragResp && ragResp.error
+      ? ragResp.status === 401 || ragResp.status === 403 ? 'Accès refusé : reconnectez-vous au Worker.'
+        : ragResp.error === 'timeout' ? 'Recherche approfondie trop lente ; passages D1 affichés uniquement.'
+          : 'Recherche approfondie indisponible ; passages D1 affichés uniquement.' : '';
+
     if (!merged.length) {
       resultsEl.innerHTML = (ragResp && ragResp.error)
-        ? '<div class="cc-ws-search-result" style="color:var(--muted);">Recherche indisponible pour le moment.</div>'
+        ? '<div class="cc-ws-search-result" style="color:var(--muted);">' + adocEsc(partial) + '</div>'
         : '<div class="cc-ws-search-result" style="color:var(--muted);">Aucun résultat pour « ' + adocEsc(raw) + ' ».</div>';
       if (!(ragResp && ragResp.error)) adocLibraryRecovery(mountId, resultsEl);
       return;
     }
-
-    const cards = merged.slice(0, 8).map(function (c, i) {
-      const uid = mountId + '-' + mySeq + '-' + i;
-      const card = { uid, mountId, data: c, words, isPhrase, allowInsert, original: c.content || '',
-        translated: c.is_machine_translated ? c.translated_content || '' : '', showingOriginal: false };
-      _adocLibCards.set(uid, card);
-      return card;
-    });
-    if (!allowInsert) {
-      const groups = new Map();
-      cards.forEach(function (card) {
-        const approach = card.data.approach || 'Autres références';
-        if (!groups.has(approach)) groups.set(approach, []);
-        groups.get(approach).push(card);
-      });
-      resultsEl.innerHTML = Array.from(groups, function ([approach, items]) {
-        return '<section class="cc-lib-approach-group"><h4>' + adocEsc(approach) + '</h4>' + items.map(adocRenderLibraryCard).join('') + '</section>';
-      }).join('');
-    } else resultsEl.innerHTML = cards.map(adocRenderLibraryCard).join('');
+    adocShowLibraryResults(mountId, resultsEl, mySeq, words, isPhrase, allowInsert, merged, partial);
   }
 
   window.adocHomeLibrarySearch = function () {
@@ -26076,7 +26112,8 @@ ${recent}`;
     const lexical = card.isPhrase ? 'correspondance de phrase exacte' : 'correspondance lexicale par mots-clés';
     const provenance = sources.includes('fts5') && sources.includes('vector') ? lexical + ' + de sens'
       : sources.includes('fts5') ? lexical : sources.includes('vector') ? 'correspondance de sens'
-      : sources.includes('author') ? 'par auteur' : sources.includes('title') ? 'par titre' : '';
+      : sources.includes('author') ? 'par auteur' : sources.includes('title') ? 'par titre'
+      : sources.includes('lexical_fallback') ? 'correspondance lexicale (repli D1)' : '';
     const translated = !!card.translated;
     const text = translated
       ? '<div class="cc-lib-translation-badge">🌐 Traduction automatique</div>'

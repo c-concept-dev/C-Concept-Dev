@@ -15,9 +15,18 @@ const IFS_CHUNK_TRANSLATED = {
   is_machine_translated: true, sources: ['fts5', 'vector'],
 };
 const ADHD_TITLE = 'The ADHD Effect on Marriage Understand and Rebuild Your Relationship in Six Steps';
+const ADHD_SECOND_TITLE = 'The Couples Guide to Thriving with ADHD';
 const ADHD_CHUNK = {
   id: 'adhd-en-1', book_title: ADHD_TITLE, author: 'Melissa Orlov', page_number: 7,
   approach: 'couple', language: 'en', content: 'The ADHD effect on marriage can be discussed together.',
+};
+const ADHD_SECOND_CHUNK = {
+  id: 'adhd-en-2', book_title: ADHD_SECOND_TITLE, author: 'Melissa Orlov', page_number: 8,
+  approach: 'couple', language: 'en', content: 'Couples can thrive while discussing ADHD.',
+};
+const RARE_CHUNK = {
+  id: 'rare-fr-1', book_title: 'Clinical Reference', author: 'Test', page_number: 9,
+  approach: 'general', language: 'fr', content: 'Le mot rareterm figure dans ce passage.',
 };
 
 (async () => {
@@ -33,7 +42,9 @@ const ADHD_CHUNK = {
   const d1Bodies = [];
   let catalogBooks = [];
   let catalogVersion = 0;
-  await page.route('**/*', (route) => {
+  let ragMode = 'normal';
+  let releaseRag = null;
+  await page.route('**/*', async (route) => {
     const req = route.request();
     const url = req.url();
     if (url.includes('library-stats')) { route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ total_books: 3 + catalogVersion, total_chunks: 3, by_approach: [], books: catalogBooks }) }); return; }
@@ -41,13 +52,15 @@ const ADHD_CHUNK = {
     if (url.endsWith('/d1-query') && req.method() === 'POST') {
       let body = {}; try { body = JSON.parse(req.postData() || '{}'); } catch (e) {}
       d1Bodies.push(body);
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: body.book_title === ADHD_TITLE ? [ADHD_CHUNK] : [] }) });
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: body.book_title === ADHD_TITLE ? [ADHD_CHUNK] : body.book_title === ADHD_SECOND_TITLE ? [ADHD_SECOND_CHUNK] : body.terms?.includes('rareterm') ? [RARE_CHUNK] : [] }) });
       return;
     }
     if (url.endsWith('/rag-search') && req.method() === 'POST') {
       ragCallCount++;
       let body = {}; try { body = JSON.parse(req.postData() || '{}'); } catch (e) {}
       ragBodies.push(body);
+      if (body.query === 'ADHD' && ragMode === 'hold') await new Promise(resolve => { releaseRag = resolve; });
+      if ((body.query === 'ADHD' || body.query === 'rareterm') && ragMode === 'error') { route.abort('failed'); return; }
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ query: body.query, target_lang: body.target_lang || 'fr', chunks: body.query?.includes('ADHD') ? [] : [IFS_CHUNK_TRANSLATED] }) });
       return;
     }
@@ -169,6 +182,33 @@ const ADHD_CHUNK = {
   log('3d. Le compteur reflète le catalogue actualisé', await page.evaluate(() => document.getElementById('adoc-stat-books').textContent) === '4');
   log('3e. Le titre complet est retrouvé malgré une recherche RAG vide', html.includes(ADHD_TITLE) && html.includes('par titre'));
   log('3f. Une requête D1 ciblée sur le vrai titre est envoyée', d1Bodies.some(body => body.book_title === ADHD_TITLE && !body.authors));
+
+  catalogBooks.push({ book_id: 'adhd-2', book_title: ADHD_SECOND_TITLE, author: 'Melissa Orlov', language: 'en', approach: 'couple' });
+  catalogVersion = 2;
+  await page.clock.fastForward(61000);
+  ragMode = 'hold';
+  d1Bodies.length = 0;
+  await page.fill('#cc-home-search-input', 'ADHD');
+  await page.press('#cc-home-search-input', 'Enter');
+  await page.waitForFunction(() => document.getElementById('cc-home-search-results').textContent.includes('The Couples Guide to Thriving with ADHD'));
+  html = await page.evaluate(() => document.getElementById('cc-home-search-results').innerHTML);
+  log('3g. Deux livres au même mot sont affichés avant la réponse IA', html.includes(ADHD_TITLE) && html.includes(ADHD_SECOND_TITLE) && html.includes('en cours'));
+  log('3h. D1 interroge les deux vrais titres, pas une identité inventée', [ADHD_TITLE, ADHD_SECOND_TITLE].every(title => d1Bodies.some(body => body.book_title === title && !body.authors)));
+  releaseRag();
+  await page.waitForFunction(() => !document.getElementById('cc-home-search-results').textContent.includes('en cours'));
+
+  ragMode = 'error';
+  await page.press('#cc-home-search-input', 'Enter');
+  await page.waitForFunction(() => document.getElementById('cc-home-search-results').textContent.includes('Recherche approfondie indisponible'));
+  html = await page.evaluate(() => document.getElementById('cc-home-search-results').innerHTML);
+  log('3i. Échec IA : les deux livres D1 restent visibles avec avertissement de résultat partiel', html.includes(ADHD_TITLE) && html.includes(ADHD_SECOND_TITLE) && !html.includes('Recherche indisponible pour le moment'));
+
+  await page.fill('#cc-home-search-input', 'rareterm');
+  await page.press('#cc-home-search-input', 'Enter');
+  await page.waitForFunction(() => document.getElementById('cc-home-search-results').textContent.includes('repli D1'));
+  html = await page.evaluate(() => document.getElementById('cc-home-search-results').innerHTML);
+  log('3j. Sans titre correspondant, un échec IA déclenche un repli lexical D1 explicite', html.includes('Clinical Reference') && html.includes('passages D1 affichés uniquement'));
+  ragMode = 'normal';
   await page.clock.resume();
 
   // ═══════════════════ 4. BARRE LATÉRALE DE L'ESPACE DE TRAVAIL ═══════════════════
