@@ -10,6 +10,7 @@
          navigateur — même CDN que pdf.js ci-dessus, licence MIT, aucune dépendance, aucun parseur
          ZIP maison écrit pour ce lot (cf. investigation EPUB). -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="vendor/book-franc-min-6.2.0.js"></script>
     <style>
         /* ── Rafraîchissement du 22/10/2026 ── additif seulement : aucune règle existante
            renommée ni retirée, pour ne casser aucun sélecteur dont le reste du fichier
@@ -298,6 +299,10 @@
                 <button class="dup-scan-btn" onclick="scanDuplicates()" style="flex:1;">🔍 Scanner les doublons</button>
                 <button class="btn-refresh" onclick="refreshLibrary()">🔄</button>
             </div>
+            <label for="libraryBookSearch" style="display:block;font-size:12px;color:#52676a;margin-bottom:10px;">Rechercher un livre
+                <input id="libraryBookSearch" type="search" placeholder="Titre, mot du titre ou auteur" oninput="filterLibraryByLanguage()"
+                    style="display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:9px 11px;border:1px solid #8FAFB1;border-radius:6px;font:inherit;">
+            </label>
             <label for="libraryLangFilter" style="display:block;font-size:12px;color:#52676a;margin-bottom:10px;">Afficher :
                 <select id="libraryLangFilter" onchange="filterLibraryByLanguage()" style="padding:6px;border:1px solid #8FAFB1;border-radius:6px;">
                     <option value="all">Tous les livres</option>
@@ -306,6 +311,7 @@
                     <option value="unknown">Langue inconnue</option>
                 </select>
             </label>
+            <div id="libraryFilterStatus" role="status" aria-live="polite" style="font-size:12px;color:#52676a;margin-bottom:10px;"></div>
             <div id="dupResults"></div>
             <div id="bookTranslationPanel" aria-live="polite"></div>
             <div id="libraryContent">
@@ -641,6 +647,127 @@ const ADMIN_APPROACHES = [
     { value: 'personal_development', label: 'Développement Personnel' },
 ];
 
+// Même catalogue pour l'ajout, l'édition et les badges de la bibliothèque.
+// Les codes sont conservés tels quels dans D1 ; le Worker n'a pas de liste FR/EN imposée.
+const ADMIN_BOOK_LANGUAGES = [
+    { value: 'fr', label: 'Français' }, { value: 'en', label: 'Anglais' },
+    { value: 'es', label: 'Espagnol' }, { value: 'de', label: 'Allemand' },
+    { value: 'it', label: 'Italien' }, { value: 'pt', label: 'Portugais' },
+    { value: 'nl', label: 'Néerlandais' }, { value: 'ar', label: 'Arabe' },
+    { value: 'ru', label: 'Russe' }, { value: 'zh', label: 'Chinois' },
+    { value: 'ja', label: 'Japonais' }, { value: 'ko', label: 'Coréen' },
+    { value: 'pl', label: 'Polonais' }, { value: 'tr', label: 'Turc' },
+    { value: 'sv', label: 'Suédois' }, { value: 'da', label: 'Danois' },
+    { value: 'no', label: 'Norvégien' }, { value: 'fi', label: 'Finnois' },
+    { value: 'el', label: 'Grec' }, { value: 'he', label: 'Hébreu' },
+    { value: 'hi', label: 'Hindi' }, { value: 'uk', label: 'Ukrainien' },
+    { value: 'ro', label: 'Roumain' }, { value: 'cs', label: 'Tchèque' },
+    { value: 'hu', label: 'Hongrois' }
+];
+const ADMIN_BOOK_LANGUAGE_ALIASES = {
+    fra: 'fr', fre: 'fr', eng: 'en', spa: 'es', deu: 'de', ger: 'de', ita: 'it', por: 'pt',
+    nld: 'nl', ara: 'ar', rus: 'ru', zho: 'zh', jpn: 'ja', kor: 'ko', pol: 'pl', tur: 'tr',
+    swe: 'sv', dan: 'da', nor: 'no', fin: 'fi', ell: 'el', gre: 'el', heb: 'he', hin: 'hi',
+    ukr: 'uk', ron: 'ro', ces: 'cs', hun: 'hu', nob: 'no', nno: 'no'
+};
+function normalizeAdminBookLanguage(value) {
+    const raw = String(value || '').trim().toLowerCase().replace(/_/g, '-').split('-')[0];
+    const code = ADMIN_BOOK_LANGUAGE_ALIASES[raw] || raw;
+    return ADMIN_BOOK_LANGUAGES.some(lang => lang.value === code) ? code : '';
+}
+// franc-min est exécuté localement : aucune donnée du livre ne quitte le navigateur.
+// Sur du texte court, mixte ou sans couche texte, on ne classe jamais par défaut en français.
+function detectBookLanguageFromText(text) {
+    const clean = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 15000);
+    if (clean.length < 600 || typeof BookFranc === 'undefined' || typeof BookFranc.francAll !== 'function') return '';
+    // franc-min n'a pas de profil japonais : la présence abondante de kana est ici
+    // discriminante ; le seul jeu de sinogrammes n'est retenu que sans kana/hangul.
+    const kana = (clean.match(/[\u3040-\u30ff]/g) || []).length;
+    const hangul = (clean.match(/[\uac00-\ud7af]/g) || []).length;
+    const han = (clean.match(/[\u4e00-\u9fff]/g) || []).length;
+    const letters = (clean.match(/\p{L}/gu) || []).length || 1;
+    if (kana >= 50 && (kana + han) / letters >= 0.4 && kana > hangul) return 'ja';
+    if (hangul >= 100 && hangul / letters >= 0.5) return 'ko';
+    if (han >= 300 && han / letters >= 0.5 && kana < 10 && hangul < 10) return 'zh';
+    const span = Math.min(2500, Math.floor(clean.length / 3));
+    const slices = clean.length < 3000 ? [clean] : [
+        clean.slice(0, span),
+        clean.slice(Math.floor((clean.length - span) / 2), Math.floor((clean.length - span) / 2) + span),
+        clean.slice(-span)
+    ];
+    const decisions = slices.map(slice => {
+        const ranks = BookFranc.francAll(slice, { minLength: 600 });
+        const top = ranks[0], second = ranks[1];
+        // franc normalise souvent le meilleur à 1 et concentre les suivants tout près ;
+        // un écart de 0,08 rejetterait même des textes évidents (EN/FR/ES/DE).
+        if (!top || top[0] === 'und' || (second && top[1] - second[1] < 0.003)) return '';
+        return normalizeAdminBookLanguage(top[0]);
+    });
+    const counts = new Map();
+    decisions.filter(Boolean).forEach(code => counts.set(code, (counts.get(code) || 0) + 1));
+    const [best, count] = [...counts].sort((a, b) => b[1] - a[1])[0] || [];
+    return count >= Math.ceil(slices.length * 2 / 3) ? best : '';
+}
+async function samplePDFLanguageText(file) {
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const parts = [];
+    try {
+        // Prélecture limitée et sans OCR : une image scannée doit rester « à préciser ».
+        for (let i = 1; i <= Math.min(pdf.numPages, 8); i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const text = content.items.map(item => item.str).join(' ');
+            if (text.trim().length > 80) parts.push(text);
+            if (parts.join(' ').length >= 9000) break;
+        }
+        return parts.join(' ').slice(0, 15000);
+    } finally {
+        if (typeof pdf.destroy === 'function') await pdf.destroy();
+    }
+}
+async function detectBookLanguage(q) {
+    q._languageHint = 'Détection de la langue en cours…';
+    try {
+        let language = '', source = '';
+        if (q.fileType === 'epub') {
+            const result = await extractEPUBText(q.file, null);
+            q._epubExtraction = result;
+            const fromText = detectBookLanguageFromText(result.fullText);
+            const fromMeta = normalizeAdminBookLanguage(result.detectedLanguage);
+            language = fromMeta && fromText && fromMeta !== fromText ? '' : (fromMeta || fromText);
+            source = fromMeta ? 'métadonnée EPUB' : 'texte EPUB';
+        } else if (q.fileType === 'html') {
+            const doc = new DOMParser().parseFromString(await q.file.text(), 'text/html');
+            doc.querySelectorAll('script, style, noscript, [hidden]').forEach(el => el.remove());
+            const fromText = detectBookLanguageFromText(doc.body?.textContent || '');
+            const fromMeta = normalizeAdminBookLanguage(doc.documentElement?.getAttribute('lang'));
+            language = fromMeta && fromText && fromMeta !== fromText ? '' : (fromText || fromMeta);
+            source = fromText ? 'texte HTML' : 'métadonnée HTML';
+        } else {
+            language = detectBookLanguageFromText(await samplePDFLanguageText(q.file));
+            source = 'texte PDF';
+        }
+        if (!queue.includes(q)) return;
+        if (!q._languageManual) q.meta.language = language;
+        q._languageHint = q._languageManual ? 'Langue choisie manuellement' : language
+            ? `Langue proposée automatiquement (${source}) — modifiable` : 'Langue incertaine ou texte insuffisant — choisissez-la avant l’indexation';
+    } catch (e) {
+        if (!queue.includes(q)) return;
+        q._languageHint = q._languageManual ? 'Langue choisie manuellement' : 'Détection indisponible — choisissez la langue avant l’indexation';
+    }
+    renderQueue();
+}
+function adminBookLanguageOptions(current) {
+    const raw = String(current || '').trim().toLowerCase().replace(/_/g, '-');
+    const selected = normalizeLibraryLanguage(current);
+    const known = ADMIN_BOOK_LANGUAGES.some(lang => lang.value === selected);
+    const preserved = selected && !known
+        ? `<option value="${escHtml(selected)}" selected>${escHtml(libraryLanguageLabel(selected))} · valeur actuelle</option>` : '';
+    const unknown = !selected ? `<option value="${escHtml(raw)}" selected>Langue inconnue — à préciser</option>` : '';
+    return unknown + preserved + ADMIN_BOOK_LANGUAGES.map(lang =>
+        `<option value="${lang.value}"${selected === lang.value ? ' selected' : ''}>${lang.value.toUpperCase()} · ${escHtml(lang.label)}</option>`).join('');
+}
+
 function escHtml(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;')
@@ -687,44 +814,20 @@ function addFiles(files) {
                 book_id: bookId,
                 title: f.name.replace(/\.(pdf|html?|epub)$/i, ''),
                 author: '',
-                language: 'fr',
+                language: '',
                 approach: isHTML ? 'outils_couple' : 'general',
                 tags: isHTML ? ['outil', 'couple', 'exercice'] : []
             },
             status: 'pending', chunks: [], error: null
         };
         queue.push(q);
-        // Pré-détection EPUB asynchrone (langue + extraction complète mise en cache) — DOIT se
-        // faire ici, à l'ajout, pas pendant l'extraction de startIngestion : le formulaire
-        // éditable (renderMetaForm) ne s'affiche QUE tant que status === 'pending' (cf.
-        // renderQueue) — une fois l'ingestion lancée, le champ langue disparaît de l'écran pour
-        // TOUS les types de fichiers, donc toute détection faite après ce point ne serait plus
-        // jamais visible/modifiable avant l'import, contrairement à l'exigence explicite.
-        // Échec de cette détection précoce : silencieux ici (pas de statut d'erreur affiché) —
-        // le même appel réel à extractEPUBText sera de toute façon retenté pendant l'ingestion,
-        // où son échec est déjà géré et affiché normalement (jamais un message dupliqué avant
-        // même que l'utilisateur ait cliqué sur "Indexer").
-        if (isEPUB) detectAndCacheEPUB(q);
+        // Détecter dès l'ajout, tant que le choix manuel reste visible. L'ingestion attend
+        // ce résultat et n'écrit jamais une langue vide dans D1 (où elle deviendrait « fr »).
+        q._languageDetectionPromise = detectBookLanguage(q);
     }
     renderQueue();
     document.getElementById('actionBar').style.display = 'flex';
     log(`${accepted.length} fichier(s) ajouté(s) (${accepted.filter(f=>f.name.endsWith('.pdf')).length} PDF, ${accepted.filter(f=>f.name.match(/\.html?$/i)).length} HTML, ${accepted.filter(f=>f.name.toLowerCase().endsWith('.epub')).length} EPUB)`);
-}
-
-async function detectAndCacheEPUB(q) {
-    try {
-        const result = await extractEPUBText(q.file, null);
-        q._epubExtraction = result;
-        // 'fr' est la valeur par défaut jamais vérifiée pour PDF/HTML (cf. CDC Passerelle) —
-        // une détection positive et fiable (dc:language de l'OPF, normalisée) la remplace, mais
-        // reste un champ éditable au même titre qu'avant, jamais un remplacement définitif.
-        if (result.detectedLanguage && q.meta.language === 'fr') {
-            q.meta.language = result.detectedLanguage;
-        }
-        renderQueue();
-    } catch (e) {
-        // Best-effort : voir commentaire au site d'appel.
-    }
 }
 
 // ── Queue Render ──
@@ -898,9 +1001,9 @@ function renderMetaForm(q) {
             ${ADMIN_APPROACHES.map(a => `<option value="${a.value}" ${q.meta.approach===a.value?'selected':''}>${escHtml(a.label)}</option>`).join('')}
         </select>
         <select onchange="updateMeta('${q.id}','language',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
-            <option value="fr" ${q.meta.language==='fr'?'selected':''}>FR</option>
-            <option value="en" ${q.meta.language==='en'?'selected':''}>EN</option>
+            ${adminBookLanguageOptions(q.meta.language)}
         </select>
+        <span style="font-size:11px;color:#667;">${escHtml(q._languageHint || 'Détection de la langue en cours…')}</span>
         <input type="text" placeholder="Auteur" value="${escHtml(q.meta.author)}"
             onchange="updateMeta('${q.id}','author',this.value)"
             style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;width:120px;">
@@ -909,7 +1012,14 @@ function renderMetaForm(q) {
 
 function updateMeta(id, field, value) {
     const q = queue.find(x => x.id === id);
-    if (q) q.meta[field] = value;
+    if (q) {
+        q.meta[field] = value;
+        if (field === 'language') {
+            q._languageManual = true;
+            q._languageHint = 'Langue choisie manuellement';
+            renderQueue();
+        }
+    }
 }
 
 function removeFromQueue(id) {
@@ -1254,15 +1364,10 @@ async function extractEPUBText(file, progressCb) {
         }
     });
 
-    // Métadonnée de langue (opportunité identifiée à l'investigation) — normalisée au sous-tag
-    // primaire ISO 639-1 (fr-FR → fr, en-US → en). Jamais imposée si elle ne correspond pas à
-    // l'une des deux seules valeurs actuellement proposées dans le formulaire (fr/en, cf.
-    // renderMetaForm) : préremplir un champ avec une valeur que son propre sélecteur ne propose
-    // pas créerait un état affiché/réel divergent — jamais un remplacement silencieux non
-    // vérifiable par l'utilisateur.
+    // Métadonnée OPF : conserver la valeur annoncée, y compris hors FR/EN ; sa validité et
+    // son éventuelle contradiction avec le texte sont vérifiées avant préremplissage.
     const languageRaw = firstTextByLocalName(opfDoc, 'language').toLowerCase();
-    const languagePrimary = languageRaw.split(/[-_]/)[0];
-    const detectedLanguage = ['fr', 'en'].includes(languagePrimary) ? languagePrimary : null;
+    const detectedLanguage = languageRaw || null;
 
     // Ordre de lecture RÉEL : le <spine>, jamais l'ordre des noms de fichiers.
     const spineIdrefs = Array.from(opfDoc.querySelectorAll('spine > itemref')).map(el => el.getAttribute('idref'));
@@ -1504,6 +1609,15 @@ async function startIngestion() {
 
     for (const q of toProcess) {
         try {
+            if (q._languageDetectionPromise) await q._languageDetectionPromise;
+            if (!normalizeAdminBookLanguage(q.meta.language)) {
+                q.status = 'pending';
+                q._languageHint = 'Langue à préciser avant l’indexation — aucune donnée envoyée';
+                renderQueue();
+                log(`⚠️ ${q.meta.title} : choisissez une langue avant l’indexation`);
+                errors++;
+                continue;
+            }
             // Phase 0: Vérification doublons — /d1-query n'accepte plus de SQL brut (Worker
             // durci, {terms/authors/book_title/limit} seulement, aucune clé book_id exacte
             // exposée) : /library-stats reste la seule méthode, un contrôle "existe déjà"
@@ -1878,6 +1992,7 @@ async function purgeDuplicates(bookId, bookTitle) {
 async function refreshLibrary() {
     const el = document.getElementById('libraryContent');
     el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Chargement...</div>';
+    document.getElementById('libraryFilterStatus').textContent = '';
 
     try {
         const res = await fetch(getWorkerUrl() + '/library-stats');
@@ -1907,7 +2022,7 @@ async function refreshLibrary() {
             const lang = normalizeLibraryLanguage(b.language);
             const langLabel = libraryLanguageLabel(lang);
             const needsTranslation = !!lang && !isFrenchLibraryLanguage(lang);
-            html += '<div class="book-card" data-language="' + escHtml(lang) + '">'
+            html += '<div class="book-card" data-language="' + escHtml(lang) + '" data-book-index="' + idx + '">'
                 + '<div class="bc-info">'
                 + '<div class="bc-title">' + escHtml(b.book_title) + '</div>'
                 + '<div class="bc-meta">' + escHtml(b.author) + ' · <span class="bc-approach">' + escHtml(b.approach) + '</span> · '
@@ -1939,33 +2054,34 @@ function isFrenchLibraryLanguage(lang) {
 function libraryLanguageLabel(lang) {
     if (!lang) return 'Langue inconnue';
     const base = lang.split('-')[0];
-    const names = { fr: 'Français', fra: 'Français', fre: 'Français',
-        en: 'Anglais', eng: 'Anglais', es: 'Espagnol', spa: 'Espagnol',
-        de: 'Allemand', deu: 'Allemand', ger: 'Allemand', it: 'Italien', ita: 'Italien',
-        pt: 'Portugais', por: 'Portugais', nl: 'Néerlandais', nld: 'Néerlandais',
-        ar: 'Arabe', ara: 'Arabe', ru: 'Russe', rus: 'Russe',
-        zh: 'Chinois', zho: 'Chinois', ja: 'Japonais', jpn: 'Japonais',
-        ko: 'Coréen', kor: 'Coréen', pl: 'Polonais', pol: 'Polonais',
-        tr: 'Turc', tur: 'Turc', sv: 'Suédois', swe: 'Suédois',
-        da: 'Danois', dan: 'Danois', no: 'Norvégien', nor: 'Norvégien',
-        fi: 'Finnois', fin: 'Finnois', el: 'Grec', ell: 'Grec', gre: 'Grec',
-        he: 'Hébreu', heb: 'Hébreu', hi: 'Hindi', hin: 'Hindi',
-        uk: 'Ukrainien', ukr: 'Ukrainien', ro: 'Roumain', ron: 'Roumain',
-        cs: 'Tchèque', ces: 'Tchèque', hu: 'Hongrois', hun: 'Hongrois' };
-    let name = names[base];
+    const canonical = ADMIN_BOOK_LANGUAGE_ALIASES[base] || base;
+    let name = ADMIN_BOOK_LANGUAGES.find(item => item.value === canonical)?.label;
     if (!name && typeof Intl.DisplayNames === 'function') {
         try { name = new Intl.DisplayNames(['fr'], { type: 'language' }).of(lang); } catch { /* code non reconnu */ }
     }
     return lang.toUpperCase() + (name && name.toLowerCase() !== lang ? ' · ' + name : '');
 }
+function normalizeBookSearch(value) {
+    return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
 function filterLibraryByLanguage() {
     const choice = document.getElementById('libraryLangFilter')?.value || 'all';
-    document.querySelectorAll('#libraryContent .book-card').forEach(card => {
+    const terms = normalizeBookSearch(document.getElementById('libraryBookSearch')?.value).trim().split(/\s+/).filter(Boolean);
+    const cards = document.querySelectorAll('#libraryContent .book-card');
+    let visible = 0;
+    cards.forEach(card => {
         const lang = card.dataset.language || '';
-        card.hidden = choice === 'other' ? !lang || isFrenchLibraryLanguage(lang)
+        const languageExcluded = choice === 'other' ? !lang || isFrenchLibraryLanguage(lang)
             : choice === 'fr' ? !isFrenchLibraryLanguage(lang)
             : choice === 'unknown' ? !!lang : false;
+        const book = window._libBooks?.[Number(card.dataset.bookIndex)] || {};
+        const searchable = normalizeBookSearch([book.book_title, book.author, book.book_id].join(' '));
+        card.hidden = languageExcluded || !terms.every(term => searchable.includes(term));
+        if (!card.hidden) visible++;
     });
+    document.getElementById('libraryFilterStatus').textContent = cards.length
+        ? `${visible} livre${visible > 1 ? 's' : ''} affiché${visible > 1 ? 's' : ''} sur ${cards.length}`
+            + (visible ? '' : ' — aucun livre ne correspond à cette recherche.') : '';
 }
 
 function editBookByIndex(idx) {
@@ -2175,8 +2291,7 @@ async function editBookMeta(bookId, title, currentApproach, currentAuthor, curre
         + '<input id="edit-author" type="text" value="' + escHtml(currentAuthor || '') + '" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;"></div>'
         + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Langue</label>'
         + '<select id="edit-lang" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">'
-        + '<option value="fr"' + (currentLang === 'fr' ? ' selected' : '') + '>FR</option>'
-        + '<option value="en"' + (currentLang === 'en' ? ' selected' : '') + '>EN</option>'
+        + adminBookLanguageOptions(currentLang)
         + '</select></div></div>';
 
     const btnBar = document.createElement('div');
