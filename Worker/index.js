@@ -55731,6 +55731,11 @@ var Worker_default = {
         return new Response(JSON.stringify({ error: "Too many requests — réessayez dans une minute." }), { status: 429, headers: { ...CORS, "Content-Type": "application/json" } });
       return handleLibraryStats(env2);
     }
+    // Contrôle après ingestion, protégé par la garde X-API-Key commune ci-dessus.
+    // Lecture seule : vérifie les lignes D1 et la disponibilité de vecteurs précis,
+    // sans relancer d'embedding ni interroger un classement approximatif.
+    if (p === "/verify-book-index" && request2.method === "POST")
+      return handleVerifyBookIndex(request2, env2);
     if (p === "/ingest" && request2.method === "POST")
       return handleIngest(request2, env2);
     // Voie 2 — route de test temporaire /test-embedding-limit RETIRÉE : son rôle est terminé (5
@@ -57347,6 +57352,40 @@ async function handleLibraryStats(env2) {
   }
 }
 __name(handleLibraryStats, "handleLibraryStats");
+async function handleVerifyBookIndex(request2, env2) {
+  if (!env2.DB || !env2.VECTOR_INDEX)
+    return jsonErr("D1 or Vectorize not configured", 500);
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  const bookId = body?.book_id;
+  const expected = body?.expected_chunks;
+  const sampleIds = body?.sample_ids;
+  if (typeof bookId !== "string" || !bookId.trim() || bookId.length > 256 ||
+      !Number.isSafeInteger(expected) || expected < 1 || expected > 1e5 ||
+      !Array.isArray(sampleIds) || sampleIds.length < 1 || sampleIds.length > 5 ||
+      sampleIds.some(id => typeof id !== "string" || !id || id.length > 128) ||
+      new Set(sampleIds).size !== sampleIds.length)
+    return jsonErr("Invalid book index verification request", 400);
+  try {
+    const row = await env2.DB.prepare("SELECT COUNT(*) AS n FROM chunks WHERE book_id = ?")
+      .bind(bookId).first();
+    const d1Count = Number(row?.n || 0);
+    // Un écart D1 est un vrai échec ; inutile d'attendre Vectorize dans ce cas.
+    if (d1Count !== expected)
+      return json({ status: "partial", expected_chunks: expected, d1_chunks: d1Count,
+        vector_sample_found: 0, vector_sample_total: sampleIds.length });
+    const vectors = await env2.VECTOR_INDEX.getByIds(sampleIds);
+    const found = new Set((Array.isArray(vectors) ? vectors : []).map(v => v?.id).filter(Boolean));
+    const vectorFound = sampleIds.filter(id => found.has(id)).length;
+    return json({ status: vectorFound === sampleIds.length ? "ready" : "pending",
+      expected_chunks: expected, d1_chunks: d1Count,
+      vector_sample_found: vectorFound, vector_sample_total: sampleIds.length });
+  } catch (err2) {
+    console.error("[VERIFY_BOOK_INDEX]", err2?.message || err2);
+    return jsonErr("Index verification unavailable", 503);
+  }
+}
+__name(handleVerifyBookIndex, "handleVerifyBookIndex");
 async function handleIngest(request2, env2) {
   let body;
   try {

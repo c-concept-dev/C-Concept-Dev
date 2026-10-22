@@ -20,6 +20,7 @@ const ADHD_CHUNK = {
   id: 'adhd-en-1', book_title: ADHD_TITLE, author: 'Melissa Orlov', page_number: 7,
   approach: 'couple', language: 'en', content: 'The ADHD effect on marriage can be discussed together.',
 };
+const ADHD_FRONTMATTER = { ...ADHD_CHUNK, id: 'adhd-front-1', content: 'Copyright. All rights reserved.' };
 const ADHD_SECOND_CHUNK = {
   id: 'adhd-en-2', book_title: ADHD_SECOND_TITLE, author: 'Melissa Orlov', page_number: 8,
   approach: 'couple', language: 'en', content: 'Couples can thrive while discussing ADHD.',
@@ -52,7 +53,7 @@ const RARE_CHUNK = {
     if (url.endsWith('/d1-query') && req.method() === 'POST') {
       let body = {}; try { body = JSON.parse(req.postData() || '{}'); } catch (e) {}
       d1Bodies.push(body);
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: body.book_title === ADHD_TITLE ? [ADHD_CHUNK] : body.book_title === ADHD_SECOND_TITLE ? [ADHD_SECOND_CHUNK] : body.terms?.includes('rareterm') ? [RARE_CHUNK] : [] }) });
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: body.book_title === ADHD_TITLE ? (body.terms?.includes('ADHD') ? [ADHD_CHUNK] : [ADHD_FRONTMATTER]) : body.book_title === ADHD_SECOND_TITLE ? [ADHD_SECOND_CHUNK] : body.terms?.includes('rareterm') ? [RARE_CHUNK] : [] }) });
       return;
     }
     if (url.endsWith('/rag-search') && req.method() === 'POST') {
@@ -194,6 +195,10 @@ const RARE_CHUNK = {
   html = await page.evaluate(() => document.getElementById('cc-home-search-results').innerHTML);
   log('3g. Deux livres au même mot sont affichés avant la réponse IA', html.includes(ADHD_TITLE) && html.includes(ADHD_SECOND_TITLE) && html.includes('en cours'));
   log('3h. D1 interroge les deux vrais titres, pas une identité inventée', [ADHD_TITLE, ADHD_SECOND_TITLE].every(title => d1Bodies.some(body => body.book_title === title && !body.authors)));
+  const relevantSnippet = html.includes('effect on marriage can be discussed together');
+  const copyrightSnippet = html.includes('Copyright. All rights reserved.');
+  const relevantIntent = d1Bodies.some(body => body.book_title === ADHD_TITLE && body.terms?.includes('ADHD'));
+  log('3h bis. Le passage affiché est classé par le mot ADHD dans le livre, pas la page copyright', relevantSnippet && !copyrightSnippet && relevantIntent);
   releaseRag();
   await page.waitForFunction(() => !document.getElementById('cc-home-search-results').textContent.includes('en cours'));
 

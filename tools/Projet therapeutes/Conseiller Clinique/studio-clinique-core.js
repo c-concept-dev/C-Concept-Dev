@@ -25986,6 +25986,7 @@ ${recent}`;
     if (approach && approach !== 'all') authorIntent.approaches = [approach];
     if (language) authorIntent.language = language;
     if (bookTitle) authorIntent.book_title = bookTitle;
+    const titleTerms = words.filter(word => word.length >= 4 && !/^(?:avec|dans|pour|from|into|that|this|with|your|their|about|these|those|plus|more)$/i.test(word)).slice(0, 6);
     const titleIntents = adocLibraryTitlesForQuery(raw)
       .filter(title => !bookTitle || title.toLowerCase().startsWith(bookTitle.toLowerCase()))
       .map(title => {
@@ -25994,9 +25995,16 @@ ${recent}`;
         if (language) intent.language = language;
         return intent;
       });
-    const titleResultsPromise = Promise.all(titleIntents.map(intent =>
-      adocD1Search(intent).catch(function () { return null; })
-    )).then(groups => groups.flatMap(rows => rows || []));
+    const titleResultsPromise = Promise.all(titleIntents.map(async intent => {
+      // Chercher d'abord des passages qui parlent de la demande DANS le livre trouvé,
+      // plutôt que ses premières pages (souvent copyright, table des matières, etc.).
+      // Si le titre seul contient ces mots, conserver le repli historique par titre.
+      if (titleTerms.length) {
+        const relevant = await adocD1Search({ ...intent, terms: titleTerms, term_match: 'any' }).catch(() => null);
+        if (relevant?.length) return relevant;
+      }
+      return adocD1Search(intent).catch(() => null);
+    })).then(groups => groups.flatMap(rows => rows || []));
     // Les passages trouvés par titre sont utiles sans attendre la traduction et la
     // recherche sémantique, qui peuvent parfois dépasser le délai réseau.
     titleResultsPromise.then(rows => {

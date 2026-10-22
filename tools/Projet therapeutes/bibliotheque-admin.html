@@ -834,10 +834,10 @@ function addFiles(files) {
 function renderQueue() {
     const el = document.getElementById('queue');
     el.innerHTML = queue.map(q => {
-        const icon = q.status === 'done' ? '✅' : q.status === 'partial' ? '⚠️' : q.status === 'error' ? '❌' :
-                     q.status === 'extracting' ? '📄' : q.status === 'uploading' ? '☁️' : '📄';
-        const statusCls = q.status === 'done' ? 'done' : q.status === 'partial' ? 'partial' : q.status === 'error' ? 'error' :
-                          (q.status === 'extracting' || q.status === 'uploading') ? 'processing' : '';
+        const icon = q.status === 'done' ? '✅' : q.status === 'partial' || q.status === 'verify_pending' ? '⚠️' : q.status === 'error' ? '❌' :
+                     q.status === 'extracting' ? '📄' : q.status === 'uploading' ? '☁️' : q.status === 'verifying' ? '🔎' : '📄';
+        const statusCls = q.status === 'done' ? 'done' : q.status === 'partial' || q.status === 'verify_pending' ? 'partial' : q.status === 'error' ? 'error' :
+                          (q.status === 'extracting' || q.status === 'uploading' || q.status === 'verifying') ? 'processing' : '';
 
         // Correctif SQL→structuré : _existingChunks n'est plus jamais un compte exact
         // (/library-stats donne seulement "existe/n'existe pas") — jamais afficher un nombre
@@ -849,10 +849,14 @@ function renderQueue() {
         else if (q.status === 'duplicate') statusText = `<span class="err">⚠️ Doublon${dupChunkText}</span>`;
         else if (q.status === 'extracting') statusText = 'Extraction du texte...';
         else if (q.status === 'uploading') statusText = `Indexation ${q.chunks.length} chunks...`;
-        else if (q.status === 'done') statusText = `<span class="ok">✓ ${q.chunks.length} chunks indexés</span>`;
+        else if (q.status === 'verifying') statusText = 'Écritures reçues — vérification D1 et Vectorize en cours…';
+        else if (q.status === 'done') statusText = `<span class="ok">✓ ${q.chunks.length} passages D1 ; ${q._verifyInfo?.vector_sample_found || 0}/${q._verifyInfo?.vector_sample_total || 0} vecteurs témoins disponibles — recherche confirmée sur échantillon</span>`;
         // Correctif urgent — ingestion partielle désormais détectée (cf. startIngestion) et
         // affichée explicitement, jamais confondue avec un succès complet ('done' ci-dessus).
-        else if (q.status === 'partial') statusText = `<span class="err">⚠️ PARTIEL — RÉPARATION REQUISE (D1: ${q._partialInfo.d1}/${q._partialInfo.total}, Vectorize: ${q._partialInfo.vec}/${q._partialInfo.total})</span>`;
+        else if (q.status === 'partial') statusText = q._partialInfo?.postRead
+            ? `<span class="err">⚠️ PARTIEL — RÉPARATION REQUISE (D1 relu: ${q._partialInfo.d1}/${q._partialInfo.total}, écritures Vectorize acceptées: ${q._partialInfo.vec}/${q._partialInfo.total})</span>`
+            : `<span class="err">⚠️ PARTIEL — RÉPARATION REQUISE (D1: ${q._partialInfo.d1}/${q._partialInfo.total}, Vectorize: ${q._partialInfo.vec}/${q._partialInfo.total})</span>`;
+        else if (q.status === 'verify_pending') statusText = `<span class="err">⚠️ Disponibilité non confirmée (D1: ${q._verifyInfo?.d1_chunks ?? '?'}/${q.chunks.length}, vecteurs témoins: ${q._verifyInfo?.vector_sample_found ?? '?'}/${q._verifyInfo?.vector_sample_total ?? '?'}) — revérifiez dans quelques instants.</span>`;
         else if (q.status === 'error') statusText = `<span class="err">✗ ${escHtml(q.error)}</span>`;
 
         return `<div class="queue-item ${statusCls}" id="qi-${q.id}">
@@ -867,10 +871,55 @@ function renderQueue() {
             <div class="qi-action">
                 ${q.status === 'pending' ? `<button class="btn-sm" onclick="previewExtraction('${q.id}')" title="Extrait et affiche le texte sans rien écrire dans la bibliothèque">👁️ Aperçu</button>` : ''}
                 ${q.status === 'pending' ? `<button class="btn-sm danger" onclick="removeFromQueue('${q.id}')">✕</button>` : ''}
+                ${q.status === 'verify_pending' ? `<button class="btn-sm" onclick="verifyQueuedBookIndex('${q.id}')">🔎 Revérifier</button>` : ''}
             </div>
             <div class="qi-preview" id="qpv-${q.id}"></div>
         </div>`;
     }).join('');
+}
+
+// Vérification en lecture seule après l'ingestion : le reçu d'upsert Vectorize ne
+// garantit pas encore que les vecteurs soient consultables. Cinq témoins répartis
+// dans le livre sont vérifiés par identifiant exact, sans appel Workers AI.
+async function verifyBookIndexWithRetries(q, attempts = 5) {
+    const total = q.chunks.length;
+    const positions = [...new Set([0, Math.floor(total / 4), Math.floor(total / 2), Math.floor(3 * total / 4), total - 1])];
+    const sampleIds = positions.map(i => `${q.meta.book_id}-${i}`);
+    const body = { book_id: q.meta.book_id, expected_chunks: total, sample_ids: sampleIds };
+    let last = null;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+        try {
+            const res = await fetch(getWorkerUrl() + '/verify-book-index', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            last = await res.json();
+            if (last.status === 'ready' || last.status === 'partial') return last;
+            if (last.status !== 'pending') throw new Error('Réponse de vérification invalide');
+        } catch (err) {
+            log(`  ⚠️ Vérification indisponible (${err.message}) — aucun succès présumé`, 'error');
+            return last || { status: 'pending', d1_chunks: null, vector_sample_found: null, vector_sample_total: sampleIds.length };
+        }
+        if (attempt + 1 < attempts) await new Promise(resolve => setTimeout(resolve, 2500));
+    }
+    return last;
+}
+
+async function verifyQueuedBookIndex(id) {
+    const q = queue.find(item => item.id === id);
+    if (!q || q.status !== 'verify_pending') return;
+    q.status = 'verifying';
+    renderQueue();
+    const result = await verifyBookIndexWithRetries(q);
+    q._verifyInfo = result;
+    if (result?.status === 'ready') q.status = 'done';
+    else if (result?.status === 'partial') {
+        q.status = 'partial';
+        q._partialInfo = { d1: result.d1_chunks, vec: q._acceptedVectorChunks ?? 0, total: q.chunks.length, postRead: true };
+    } else q.status = 'verify_pending';
+    renderQueue();
 }
 
 // ── Remplacer un livre — carte dédiée du 22/10/2026 ──
@@ -1826,9 +1875,25 @@ async function startIngestion() {
                 log(`  ⚠️ ${q.meta.title} — PARTIEL, RÉPARATION REQUISE (D1: ${d1Written}/${q.chunks.length}, Vectorize: ${vecWritten}/${q.chunks.length})`, 'error');
                 partial++;
             } else {
-                q.status = 'done';
-                success++;
-                log(`  ✅ ${q.meta.title} — ${q.chunks.length} chunks indexés`, 'success');
+                q._acceptedVectorChunks = vecWritten;
+                q.status = 'verifying';
+                renderQueue();
+                const result = await verifyBookIndexWithRetries(q);
+                q._verifyInfo = result;
+                if (result?.status === 'ready') {
+                    q.status = 'done';
+                    success++;
+                    log(`  ✅ ${q.meta.title} — D1 ${result.d1_chunks}/${q.chunks.length}, vecteurs témoins ${result.vector_sample_found}/${result.vector_sample_total} consultables`, 'success');
+                } else if (result?.status === 'partial') {
+                    q.status = 'partial';
+                    q._partialInfo = { d1: result.d1_chunks, vec: vecWritten, total: q.chunks.length, postRead: true };
+                    partial++;
+                    log(`  ⚠️ ${q.meta.title} — écart D1 après ingestion : ${result.d1_chunks}/${q.chunks.length}`, 'error');
+                } else {
+                    q.status = 'verify_pending';
+                    partial++;
+                    log(`  ⚠️ ${q.meta.title} — écritures acceptées, disponibilité non confirmée ; utilisez « Revérifier »`, 'error');
+                }
             }
 
         } catch (err) {
