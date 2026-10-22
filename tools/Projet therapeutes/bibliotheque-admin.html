@@ -259,6 +259,7 @@
             <option value="https://clone-proxy.11drumboy11.workers.dev">https://clone-proxy.11drumboy11.workers.dev (production)</option>
         </select>
         <button class="btn-refresh" onclick="refreshStats()">🔄 Actualiser</button>
+        <button class="btn-refresh" onclick="forgetAdminApiKey()" title="Effacer la clé enregistrée sur cet appareil">Oublier la clé</button>
     </div>
 
     <!-- MAIN -->
@@ -543,17 +544,34 @@ function getWorkerUrl() {
     return document.getElementById('workerUrl').value.replace(/\/+$/, '');
 }
 
-// Clé Worker : saisie masquée, mémoire de cette page uniquement.
+// Clé Worker : jamais intégrée au HTML publié. Conservation locale sur cet appareil,
+// pour retrouver la session après fermeture ; le bouton « Oublier » la supprime.
+const ADMIN_KEY_STORAGE_KEY = 'bibliotheque-admin:clone-proxy-api-key:v1';
 let adminApiKey = '';
 let adminKeyRequest = null;
+function storedAdminApiKey() {
+    try { return localStorage.getItem(ADMIN_KEY_STORAGE_KEY) || ''; } catch { return ''; }
+}
+function rememberAdminApiKey(value) {
+    adminApiKey = value;
+    try { localStorage.setItem(ADMIN_KEY_STORAGE_KEY, value); } catch { /* stockage indisponible : mémoire seule */ }
+}
+function forgetAdminApiKey() {
+    adminApiKey = '';
+    try { localStorage.removeItem(ADMIN_KEY_STORAGE_KEY); } catch { /* stockage indisponible */ }
+    const input = document.getElementById('admin-key-input');
+    if (input) { input.value = ''; input.closest('dialog').close('cancel'); }
+}
 async function getAdminApiKey() {
+    if (adminApiKey) return adminApiKey;
+    adminApiKey = storedAdminApiKey();
     if (adminApiKey) return adminApiKey;
     if (adminKeyRequest) return adminKeyRequest;
     const dialog = document.createElement('dialog');
     dialog.setAttribute('aria-labelledby', 'admin-key-title');
     dialog.innerHTML = `<form method="dialog" autocomplete="off">
         <h2 id="admin-key-title">Accès au Worker</h2>
-        <p>La clé reste uniquement en mémoire jusqu’à la fermeture ou au rechargement.</p>
+        <p>La clé sera conservée dans ce navigateur sur cet appareil. Elle ne sera pas inscrite dans le fichier HTML publié ; « Oublier la clé » l’efface.</p>
         <label for="admin-key-input">Clé d’accès</label>
         <input id="admin-key-input" type="password" autocomplete="off" required autofocus>
         <button type="submit" value="connect">Continuer</button>
@@ -567,7 +585,7 @@ async function getAdminApiKey() {
             dialog.remove();
             adminKeyRequest = null;
             if (!value) { reject(new Error('Saisie de la clé annulée.')); return; }
-            adminApiKey = value;
+            rememberAdminApiKey(value);
             resolve(value);
         }, { once: true });
     });
@@ -1976,7 +1994,7 @@ async function bookTranslationPost(path, payload, signal) {
         body: JSON.stringify(payload), signal
     });
     if (!res.ok) {
-        if (res.status === 401) adminApiKey = '';
+        if (res.status === 401) forgetAdminApiKey();
         const detail = await res.json().catch(() => ({}));
         throw new Error(res.status === 401 ? 'Accès refusé : ressaisissez la clé Worker.' :
             (detail.error || `HTTP ${res.status}`));
@@ -2365,7 +2383,7 @@ async function testSearch() {
         const ms = Date.now() - t0;
         const failures = [[vecRes, 'Vectoriel'], [ragRes, 'Hybride / lexical']].filter(([r]) => !r.ok);
         if (failures.length) {
-            if (failures.some(([r]) => r.status === 401)) adminApiKey = '';
+            if (failures.some(([r]) => r.status === 401)) forgetAdminApiKey();
             throw new Error(failures.map(([r, name]) => name + ' : ' +
                 (r.status === 401 || r.status === 403 ? 'accès refusé — vérifiez votre clé Worker'
                     : r.status === 429 ? 'limite de débit atteinte — réessayez plus tard'

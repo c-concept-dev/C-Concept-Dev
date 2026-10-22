@@ -16,6 +16,8 @@ let browser;
   await page.route('**/pdf.worker.min.js', route => route.fulfill({ body: '', contentType: 'application/javascript' }));
   await page.route('**/fonts.googleapis.com/**', route => route.fulfill({ body: '', contentType: 'text/css' }));
   await page.goto('file://' + FILE);
+  await page.locator('#admin-key-input').fill('test-only');
+  await page.locator('dialog button[value="connect"]').click();
 
   await page.evaluate(() => {
     window.fetch = (url) => {

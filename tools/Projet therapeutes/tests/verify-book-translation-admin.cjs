@@ -5,11 +5,16 @@ const { chromium } = require('playwright');
 (async () => {
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage({ acceptDownloads: true });
+    const context = await browser.newContext({ acceptDownloads: true });
+    const page = await context.newPage();
     await page.route('**/pdf.min.js', route => route.fulfill({ body: 'window.pdfjsLib={GlobalWorkerOptions:{}};', contentType: 'application/javascript' }));
     await page.route('**/pdf.worker.min.js', route => route.fulfill({ body: '', contentType: 'application/javascript' }));
     await page.route('**/fonts.googleapis.com/**', route => route.fulfill({ body: '', contentType: 'text/css' }));
-    await page.goto('file://' + path.join(__dirname, '..', 'bibliotheque-admin.html'));
+    await page.route('**/library-stats', route => route.fulfill({ body: JSON.stringify({ total_chunks: 0, books: [] }), contentType: 'application/json' }));
+    await page.route('https://library-admin.test/bibliotheque-admin.html', route => route.fulfill({
+      path: path.join(__dirname, '..', 'bibliotheque-admin.html'), contentType: 'text/html'
+    }));
+    await page.goto('https://library-admin.test/bibliotheque-admin.html');
     await page.evaluate(() => {
       window.__pdfCalls = 0;
       window.__segmentCalls = 0;
@@ -43,6 +48,8 @@ const { chromium } = require('playwright');
     });
     await page.locator('#admin-key-input').fill('test-only');
     await page.locator('dialog button[value="connect"]').click();
+    await page.waitForFunction(() => localStorage.getItem(ADMIN_KEY_STORAGE_KEY) === 'test-only');
+    assert.equal(await page.evaluate(() => localStorage.getItem(ADMIN_KEY_STORAGE_KEY)), 'test-only');
     await page.evaluate(() => refreshLibrary());
     await page.evaluate(() => switchTab('library'));
     const libraryText = await page.locator('#libraryContent').innerText();
@@ -79,6 +86,29 @@ const { chromium } = require('playwright');
     assert.match(download.suggestedFilename(), /A & B-traduction\.pdf/);
     assert.equal(await page.evaluate(() => window.__pdfCalls), 1);
     assert.equal(await page.locator('#bookTranslationPanel progress').getAttribute('value'), '2');
+    await page.reload();
+    assert.equal(await page.locator('#admin-key-input').count(), 0, 'Reload must reuse the locally stored key');
+    assert.equal(await page.evaluate(() => getAdminApiKey()), 'test-only');
+    await page.close();
+    const reopened = await context.newPage();
+    await reopened.route('**/pdf.min.js', route => route.fulfill({ body: 'window.pdfjsLib={GlobalWorkerOptions:{}};', contentType: 'application/javascript' }));
+    await reopened.route('**/library-stats', route => route.fulfill({ body: JSON.stringify({ total_chunks: 0, books: [] }), contentType: 'application/json' }));
+    await reopened.route('https://library-admin.test/bibliotheque-admin.html', route => route.fulfill({
+      path: path.join(__dirname, '..', 'bibliotheque-admin.html'), contentType: 'text/html'
+    }));
+    await reopened.goto('https://library-admin.test/bibliotheque-admin.html');
+    assert.equal(await reopened.locator('#admin-key-input').count(), 0, 'New tab must reuse the locally stored key');
+    assert.equal(await reopened.evaluate(() => getAdminApiKey()), 'test-only');
+    await reopened.getByRole('button', { name: 'Oublier la clé' }).click();
+    assert.equal(await reopened.evaluate(() => localStorage.getItem(ADMIN_KEY_STORAGE_KEY)), null);
+    assert.equal(await reopened.evaluate(() => adminApiKey), '');
+    await reopened.evaluate(async () => {
+      rememberAdminApiKey('test-only');
+      window.fetch = async () => new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+      try { await bookTranslationPost('/book-translation-manifest', { book_id: 'book' }); } catch {}
+    });
+    assert.equal(await reopened.evaluate(() => localStorage.getItem(ADMIN_KEY_STORAGE_KEY)), null,
+      'An HTTP 401 must clear the persisted key');
     console.log('PASS admin translation: book button, warning, real segment count, visible failure, retry, explicit second PDF click');
   } finally { await browser.close(); }
 })().catch(err => { console.error(err); process.exitCode = 1; });
