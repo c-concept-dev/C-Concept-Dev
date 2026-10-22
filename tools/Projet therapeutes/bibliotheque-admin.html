@@ -6,27 +6,7 @@
     <title>Bibliothèque Thérapeutique — Administration</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <!-- Support EPUB : JSZip lit l'archive ZIP (container.xml + OPF + chapitres XHTML) dans le
-         navigateur — même CDN que pdf.js ci-dessus, licence MIT, aucune dépendance, aucun parseur
-         ZIP maison écrit pour ce lot (cf. investigation EPUB). -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        /* ── Rafraîchissement du 22/10/2026 ── additif seulement : aucune règle existante
-           renommée ni retirée, pour ne casser aucun sélecteur dont le reste du fichier
-           dépend. Ombres plus douces, coins plus généreux, états au survol. */
-        :root {
-            --sc-shadow-soft: 0 1px 2px rgba(39,51,49,0.06), 0 4px 16px rgba(39,51,49,0.08);
-            --sc-shadow-lift: 0 2px 4px rgba(39,51,49,0.08), 0 12px 28px rgba(39,51,49,0.14);
-            --sc-radius: 14px;
-        }
-        .app { box-shadow: var(--sc-shadow-lift); border-radius: var(--sc-radius); overflow: hidden; }
-        .app-header, .main { border-radius: 0 !important; }
-        .app-header { box-shadow: inset 0 -1px 0 rgba(255,255,255,0.12); }
-        button, .btn-refresh { transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease; }
-        button:hover, .btn-refresh:hover { filter: brightness(1.06); box-shadow: var(--sc-shadow-soft); }
-        button:active, .btn-refresh:active { transform: translateY(1px); }
-        input, select, textarea { transition: border-color 0.12s ease, box-shadow 0.12s ease; }
-        input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(143,175,177,0.25); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Montserrat', sans-serif;
@@ -124,7 +104,6 @@
         }
         .queue-item.processing { border-left-color: #8FAFB1; background: #f0f6f6; }
         .queue-item.done { border-left-color: #27ae60; }
-        .queue-item.partial { border-left-color: #FFA726; background: #FFF8E1; }
         .queue-item.error { border-left-color: #e74c3c; }
         .qi-icon { font-size: 20px; }
         .qi-info { flex: 1; }
@@ -240,14 +219,7 @@
     <!-- CONFIG -->
     <div class="config-bar">
         <label>Worker URL</label>
-        <!-- Correctif urgent (sécurité P0) — champ libre remplacé par une liste blanche : une
-             saisie libre envoyait la clé X-API-Key (cf. getAdminApiKey) à N'IMPORTE QUELLE URL
-             tapée ici. Seule l'URL de production réelle (clone-proxy, cf. wrangler.toml) est
-             listée — en ajouter une nouvelle exige une modification explicite de ce code, jamais
-             une simple saisie utilisateur. -->
-        <select id="workerUrl" style="flex:1;min-width:250px;padding:8px 12px;border:2px solid #D8CDBB;border-radius:8px;font-family:monospace;font-size:12px;">
-            <option value="https://clone-proxy.11drumboy11.workers.dev">https://clone-proxy.11drumboy11.workers.dev (production)</option>
-        </select>
+        <input type="text" id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev" placeholder="https://clone-proxy.xxx.workers.dev">
         <button class="btn-refresh" onclick="refreshStats()">🔄 Actualiser</button>
     </div>
 
@@ -260,7 +232,6 @@
             <button class="tab" onclick="switchTab('search')">🔍 Test recherche</button>
             <button class="tab" onclick="switchTab('glossary')">📖 Glossaire</button>
             <button class="tab" onclick="switchTab('log')">📋 Journal</button>
-            <button class="tab" onclick="switchTab('replace')">🔄 Remplacer un livre</button>
         </div>
 
         <!-- TAB: UPLOAD -->
@@ -303,11 +274,23 @@
                 <div style="display:flex;gap:8px;">
                     <input type="text" id="searchQuery" placeholder="Ex: schéma d'abandon en thérapie de couple"
                         style="flex:1;padding:10px 14px;border:2px solid #D8CDBB;border-radius:8px;font-family:inherit;font-size:13px;">
-                    <!-- Lot 2/2, correctif 6 — options peuplées dynamiquement depuis ADMIN_APPROACHES
-                         (source unique, voir le script plus bas) : cette liste était auparavant codée en
-                         dur ici, plus courte et déjà en désaccord avec les formulaires d'import/édition. -->
                     <select id="searchApproach" style="padding:8px;border:2px solid #D8CDBB;border-radius:8px;font-size:12px;font-family:inherit;">
                         <option value="">Toutes approches</option>
+                        <option value="schema_therapy">Schémas</option>
+                        <option value="act">ACT</option>
+                        <option value="ifs">IFS</option>
+                        <option value="couple">Couple</option>
+                        <option value="attachment">Attachement</option>
+                        <option value="mi">MI</option>
+                        <option value="cnv">CNV</option>
+                        <option value="cft">CFT</option>
+                        <option value="dbt">DBT</option>
+                        <option value="emdr">EMDR</option>
+                        <option value="hypnosis">Hypnose Ericksonienne</option>
+                        <option value="personal_development">Développement Personnel</option>
+                        <option value="icv">ICV</option>
+                        <option value="systemic">Systémique</option>
+                        <option value="coherence">Cohérence</option>
                     </select>
                     <button class="btn-refresh" onclick="testSearch()">🔍 Rechercher</button>
                 </div>
@@ -442,34 +425,6 @@
                 <span class="info">[SYSTÈME]</span> Prêt. Configurez l'URL du Worker et glissez vos PDF.
             </div>
         </div>
-
-        <!-- TAB: REMPLACER — carte dédiée du 22/10/2026. Jamais de suppression avant que la
-             nouvelle extraction soit confirmée bonne par vous : l'ancienne reste intacte tant
-             que vous n'avez pas cliqué vous-même sur « Supprimer l'ancienne version ». -->
-        <div class="tab-content" id="tab-replace">
-            <div style="background:#fafaf8;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:16px;font-size:13px;color:#555;">
-                <strong>Comment ça marche</strong> — trois étapes, jamais automatiques l'une sur l'autre :
-                <ol style="margin:8px 0 0 18px;">
-                    <li>Choisissez le livre à remplacer, puis déposez le nouveau fichier du même ouvrage.</li>
-                    <li>La nouvelle extraction est ingérée <em>à côté</em> de l'ancienne — rien n'est encore supprimé.</li>
-                    <li>Comparez les deux dans l'onglet Bibliothèque. Si c'est mieux, revenez ici et supprimez l'ancienne version, d'un clic distinct et confirmé.</li>
-                </ol>
-            </div>
-
-            <label style="font-size:12px;color:#888;font-weight:600;display:block;margin-bottom:6px;">Livre à remplacer</label>
-            <select id="replaceOldBook" style="width:100%;padding:10px 12px;border:2px solid #D8CDBB;border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:16px;" onchange="onReplaceOldBookChange()">
-                <option value="">— Choisissez dans la bibliothèque —</option>
-            </select>
-
-            <div class="dropzone" id="replaceDropzone" style="display:none;">
-                <span class="dropzone-icon">📄</span>
-                <div class="dropzone-text">Déposez ici la nouvelle version de ce livre</div>
-                <div class="dropzone-hint">PDF ou EPUB — même ouvrage, nouvelle extraction (repli OCR compris)</div>
-                <input type="file" id="replaceFileInput" accept=".pdf,.epub">
-            </div>
-
-            <div id="replaceStatus" style="margin-top:14px;"></div>
-        </div>
     </div>
 </div>
 
@@ -488,34 +443,19 @@ let isIngesting = false;
 // ── Tabs ──
 function switchTab(name) {
     document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', ['upload','library','search','glossary','log','replace'][i] === name);
+        t.classList.toggle('active', ['upload','library','search','glossary','log'][i] === name);
     });
     document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
     if (name === 'library') refreshLibrary();
-    if (name === 'replace') prepareReplaceTab();
 }
 
 // ── Log ──
-// Correctif urgent P0-3 — durci PAR CONSTRUCTION (jamais un escHtml() de plus au cas par cas
-// côté appelant) : `msg` était inséré via `innerHTML +=`, donc interprété comme HTML par
-// N'IMPORTE QUEL appelant qui oublierait de l'échapper (chaque site d'appel ajouté depuis restait
-// une dette potentielle). `msg` est désormais TOUJOURS un nœud texte (`appendChild` +
-// `document.createTextNode`, jamais `innerHTML`) — un appelant ne peut structurellement plus
-// injecter de balise interprétée, quel que soit son contenu. `cls`/`time` restent construits
-// par cette fonction elle-même (jamais depuis une donnée externe) : `createElement`+`className`+
-// `textContent` par prudence, sans changer le rendu visuel (mêmes classes, même timestamp, même
-// retour à la ligne avant chaque entrée).
 function log(msg, type = '') {
     const box = document.getElementById('logBox');
     const cls = type === 'error' ? 'err' : type === 'success' ? 'ok' : 'info';
     const time = new Date().toLocaleTimeString('fr-FR');
-    box.appendChild(document.createTextNode('\n'));
-    const timeSpan = document.createElement('span');
-    timeSpan.className = cls;
-    timeSpan.textContent = '[' + time + ']';
-    box.appendChild(timeSpan);
-    box.appendChild(document.createTextNode(' ' + msg));
+    box.innerHTML += `\n<span class="${cls}">[${time}]</span> ${msg}`;
     box.scrollTop = box.scrollHeight;
 }
 
@@ -529,72 +469,17 @@ function getWorkerUrl() {
 // désormais X-API-Key sur toute route non explicitement publique — /library-stats reste
 // publique (aucune clé nécessaire), mais /d1-query, /ingest, /update-book-meta, /delete-book et
 // /search-library l'exigent maintenant. Sans cet en-tête, ces routes renvoient
-// {"error":"Unauthorized"}.
-// Correctif urgent (sécurité P0) — la clé était codée en dur ici (même préalable déjà identifié
-// pour Studio Clinique côté client) : n'importe qui affichant le code source de cette page peut
-// la lire et appeler le Worker directement (dont /delete-book, /ingest — jamais un enjeu
-// mineur). Retirée sans repli en dur : demandée une seule fois via prompt(), puis mémorisée en
-// localStorage pour les appels suivants. Une clé absente/refusée fait simplement échouer les
-// appels protégés avec Unauthorized — comportement honnête plutôt qu'un accès ouvert par défaut.
+// {"error":"Unauthorized"} — c'est ce qui a cassé la recherche dans cet outil sans avertissement.
+// /d1-query exécute du SQL transmis tel quel par le client : la garder derrière une clé (même
+// minimale) reste nettement préférable à la rendre publique sans aucune protection.
+// Même clé que Studio Clinique — voir studio-clinique.html, adocGetApiKey(), même valeur en
+// dernier recours pendant la phase de test/construction active.
 function getAdminApiKey() {
-    let key = localStorage.getItem('adminApiKey');
-    if (!key) {
-        key = prompt('Clé API du Worker (X-API-Key) — nécessaire pour toutes les routes sauf /library-stats :');
-        if (key) localStorage.setItem('adminApiKey', key.trim());
-    }
-    return key ? key.trim() : null;
+    return '7005f3fe8b04dfde1299be47d75a6648f65c4f06c178b2c8';
 }
 
-// Correctif urgent (sécurité P0) — échappement HTML complet. `esc()` n'échappait que les
-// apostrophes (et n'était en réalité jamais appelé avant ce correctif — code mort) : tout
-// contenu variable inséré via innerHTML (titres, auteurs, approches, contenu de passages,
-// requête saisie, messages d'erreur) doit désormais passer par escHtml(), jamais par
-// concaténation brute — sans quoi un titre de livre contenant <script> s'exécuterait tel quel.
-// Lot 2/2, correctif 6 — taxonomie des approches centralisée. Avant ce correctif, la liste des
-// valeurs d'approche était dupliquée à plusieurs endroits (formulaire d'import, formulaire
-// d'édition, menu de test — celui-ci déjà en désaccord : plus court, labels absents des deux
-// autres) — une seule source désormais, chaque endroit qui en a besoin la lit ici.
-// `outils_couple` : assigné à l'import pour tout fichier HTML (cf. addFiles, isHTML ?
-// 'outils_couple' : 'general') mais absent de la liste canonique précédente — décision : ajouté
-// ici plutôt que retiré du code d'import. Cette session n'a pas accès au corpus D1 réel pour
-// vérifier son usage effectif sur des livres déjà ingérés (même limite que l'audit précédent) ;
-// l'ajouter est la modification non destructive (un livre déjà catégorisé 'outils_couple' reste
-// affichable/filtrable), le retrait du code d'import serait, lui, irréversible sans certitude
-// que la catégorie est réellement inutilisée. Vérification exacte à faire par vous :
-// `SELECT COUNT(*) FROM chunks WHERE approach = 'outils_couple';` (lecture seule).
-const ADMIN_APPROACHES = [
-    { value: 'general', label: 'Général' },
-    { value: 'schema_therapy', label: 'Schémas' },
-    { value: 'act', label: 'ACT' },
-    { value: 'ifs', label: 'IFS' },
-    { value: 'coherence', label: 'Cohérence' },
-    { value: 'emdr', label: 'EMDR' },
-    { value: 'hypnosis', label: 'Hypnose Ericksonienne' },
-    { value: 'couple', label: 'Couple' },
-    { value: 'outils_couple', label: 'Outils de couple' },
-    { value: 'attachment', label: 'Attachement' },
-    { value: 'cbt', label: 'CBT / TCC' },
-    { value: 'cft', label: 'CFT' },
-    { value: 'dbt', label: 'DBT' },
-    { value: 'mi', label: 'MI' },
-    { value: 'cnv', label: 'CNV' },
-    { value: 'mbct', label: 'MBCT' },
-    { value: 'pbt', label: 'PBT' },
-    { value: 'icv', label: 'ICV' },
-    { value: 'systemic', label: 'Systémique' },
-    { value: 'trauma', label: 'Trauma' },
-    { value: 'psychodynamic', label: 'Psychodynamique' },
-    { value: 'personal_development', label: 'Développement Personnel' },
-];
-
-function escHtml(s) {
-    return String(s == null ? '' : s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// Helper: échapper les apostrophes pour les attributs onclick
+function esc(s) { return (s || '').replace(/'/g, "\\'"); }
 
 
 // ── Drag & Drop ──
@@ -615,239 +500,79 @@ fileInput.addEventListener('change', () => {
 function addFiles(files) {
     const accepted = files.filter(f => {
         const name = f.name.toLowerCase();
-        return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.epub');
+        return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm');
     });
-    if (accepted.length === 0) { log('⚠️ Aucun fichier PDF, HTML ou EPUB détecté'); return; }
+    if (accepted.length === 0) { log('⚠️ Aucun fichier PDF ou HTML détecté'); return; }
 
     for (const f of accepted) {
         if (queue.find(q => q.file.name === f.name)) continue;
         const id = 'q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
         const ext = f.name.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
-        const bookId = f.name.replace(/\.(pdf|html?|epub)$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
+        const bookId = f.name.replace(/\.(pdf|html?)$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
         const isHTML = ext === '.html' || ext === '.htm';
-        const isEPUB = ext === '.epub';
-        const q = {
+        queue.push({
             id, file: f,
-            fileType: isHTML ? 'html' : (isEPUB ? 'epub' : 'pdf'),
+            fileType: isHTML ? 'html' : 'pdf',
             meta: {
                 book_id: bookId,
-                title: f.name.replace(/\.(pdf|html?|epub)$/i, ''),
+                title: f.name.replace(/\.(pdf|html?)$/i, ''),
                 author: '',
                 language: 'fr',
                 approach: isHTML ? 'outils_couple' : 'general',
                 tags: isHTML ? ['outil', 'couple', 'exercice'] : []
             },
             status: 'pending', chunks: [], error: null
-        };
-        queue.push(q);
-        // Pré-détection EPUB asynchrone (langue + extraction complète mise en cache) — DOIT se
-        // faire ici, à l'ajout, pas pendant l'extraction de startIngestion : le formulaire
-        // éditable (renderMetaForm) ne s'affiche QUE tant que status === 'pending' (cf.
-        // renderQueue) — une fois l'ingestion lancée, le champ langue disparaît de l'écran pour
-        // TOUS les types de fichiers, donc toute détection faite après ce point ne serait plus
-        // jamais visible/modifiable avant l'import, contrairement à l'exigence explicite.
-        // Échec de cette détection précoce : silencieux ici (pas de statut d'erreur affiché) —
-        // le même appel réel à extractEPUBText sera de toute façon retenté pendant l'ingestion,
-        // où son échec est déjà géré et affiché normalement (jamais un message dupliqué avant
-        // même que l'utilisateur ait cliqué sur "Indexer").
-        if (isEPUB) detectAndCacheEPUB(q);
+        });
     }
     renderQueue();
     document.getElementById('actionBar').style.display = 'flex';
-    log(`${accepted.length} fichier(s) ajouté(s) (${accepted.filter(f=>f.name.endsWith('.pdf')).length} PDF, ${accepted.filter(f=>f.name.match(/\.html?$/i)).length} HTML, ${accepted.filter(f=>f.name.toLowerCase().endsWith('.epub')).length} EPUB)`);
-}
-
-async function detectAndCacheEPUB(q) {
-    try {
-        const result = await extractEPUBText(q.file, null);
-        q._epubExtraction = result;
-        // 'fr' est la valeur par défaut jamais vérifiée pour PDF/HTML (cf. CDC Passerelle) —
-        // une détection positive et fiable (dc:language de l'OPF, normalisée) la remplace, mais
-        // reste un champ éditable au même titre qu'avant, jamais un remplacement définitif.
-        if (result.detectedLanguage && q.meta.language === 'fr') {
-            q.meta.language = result.detectedLanguage;
-        }
-        renderQueue();
-    } catch (e) {
-        // Best-effort : voir commentaire au site d'appel.
-    }
+    log(`${accepted.length} fichier(s) ajouté(s) (${accepted.filter(f=>f.name.endsWith('.pdf')).length} PDF, ${accepted.filter(f=>f.name.match(/\.html?$/i)).length} HTML)`);
 }
 
 // ── Queue Render ──
 function renderQueue() {
     const el = document.getElementById('queue');
     el.innerHTML = queue.map(q => {
-        const icon = q.status === 'done' ? '✅' : q.status === 'partial' ? '⚠️' : q.status === 'error' ? '❌' :
+        const icon = q.status === 'done' ? '✅' : q.status === 'error' ? '❌' :
                      q.status === 'extracting' ? '📄' : q.status === 'uploading' ? '☁️' : '📄';
-        const statusCls = q.status === 'done' ? 'done' : q.status === 'partial' ? 'partial' : q.status === 'error' ? 'error' :
+        const statusCls = q.status === 'done' ? 'done' : q.status === 'error' ? 'error' :
                           (q.status === 'extracting' || q.status === 'uploading') ? 'processing' : '';
 
-        // Correctif SQL→structuré : _existingChunks n'est plus jamais un compte exact
-        // (/library-stats donne seulement "existe/n'existe pas") — jamais afficher un nombre
-        // inventé quand seul le booléen est connu.
-        const dupChunkText = (typeof q._existingChunks === 'number' && q._existingChunks > 1)
-            ? ` (${q._existingChunks} chunks)` : '';
         let statusText = '';
         if (q.status === 'pending') statusText = `${(q.file.size/(1024*1024)).toFixed(1)} Mo — en attente`;
-        else if (q.status === 'duplicate') statusText = `<span class="err">⚠️ Doublon${dupChunkText}</span>`;
+        else if (q.status === 'duplicate') statusText = `<span class="err">⚠️ Doublon (${q._existingChunks} chunks)</span>`;
         else if (q.status === 'extracting') statusText = 'Extraction du texte...';
         else if (q.status === 'uploading') statusText = `Indexation ${q.chunks.length} chunks...`;
         else if (q.status === 'done') statusText = `<span class="ok">✓ ${q.chunks.length} chunks indexés</span>`;
-        // Correctif urgent — ingestion partielle désormais détectée (cf. startIngestion) et
-        // affichée explicitement, jamais confondue avec un succès complet ('done' ci-dessus).
-        else if (q.status === 'partial') statusText = `<span class="err">⚠️ PARTIEL — RÉPARATION REQUISE (D1: ${q._partialInfo.d1}/${q._partialInfo.total}, Vectorize: ${q._partialInfo.vec}/${q._partialInfo.total})</span>`;
-        else if (q.status === 'error') statusText = `<span class="err">✗ ${escHtml(q.error)}</span>`;
+        else if (q.status === 'error') statusText = `<span class="err">✗ ${q.error}</span>`;
 
         return `<div class="queue-item ${statusCls}" id="qi-${q.id}">
             <div class="qi-icon">${icon}</div>
             <div class="qi-info">
-                <div class="qi-name">${escHtml(q.meta.title)}</div>
+                <div class="qi-name">${q.meta.title}</div>
                 <div class="qi-status">${statusText}</div>
                 ${(q.status === 'extracting' || q.status === 'uploading') ?
                     `<div class="qi-progress"><div class="qi-progress-fill" id="qp-${q.id}"></div></div>` : ''}
                 ${q.status === 'pending' ? renderMetaForm(q) : ''}
             </div>
             <div class="qi-action">
-                ${q.status === 'pending' ? `<button class="btn-sm" onclick="previewExtraction('${q.id}')" title="Extrait et affiche le texte sans rien écrire dans la bibliothèque">👁️ Aperçu</button>` : ''}
                 ${q.status === 'pending' ? `<button class="btn-sm danger" onclick="removeFromQueue('${q.id}')">✕</button>` : ''}
             </div>
-            <div class="qi-preview" id="qpv-${q.id}"></div>
         </div>`;
     }).join('');
-}
-
-// ── Remplacer un livre — carte dédiée du 22/10/2026 ──
-//
-// Trouvaille en construisant cette carte : le circuit existant « ⚠️ Doublon → ♻️ Écraser »
-// (overwriteDuplicate/renderDupAlerts, utilisé jusqu'ici) SUPPRIME l'ancien livre AVANT
-// d'ingérer le nouveau (cf. startIngestion, branche `q._dupAction === 'overwrite'`). Si la
-// nouvelle extraction échoue après cette suppression, le livre disparaît purement et
-// simplement de la bibliothèque, sans ancienne ni nouvelle version. Ce n'est pas corrigé ici
-// — changer ce circuit toucherait un chemin déjà en production, décision à part — mais cette
-// carte ne l'emprunte JAMAIS : elle ingère d'abord sous un identifiant distinct, et ne
-// supprime l'ancienne version qu'après confirmation explicite que la nouvelle a réussi.
-let _replaceOld = null;
-let _replaceQueueId = null;
-
-function prepareReplaceTab() {
-    const sel = document.getElementById('replaceOldBook');
-    const books = window._libBooks || [];
-    sel.innerHTML = '<option value="">— Choisissez dans la bibliothèque —</option>' +
-        books.map((b, i) => `<option value="${i}">${escHtml(b.book_title || b.book_id)}</option>`).join('');
-    document.getElementById('replaceDropzone').style.display = 'none';
-    document.getElementById('replaceStatus').innerHTML = '';
-    _replaceOld = null;
-    _replaceQueueId = null;
-    if (!books.length) refreshLibrary();
-}
-
-function onReplaceOldBookChange() {
-    const idx = document.getElementById('replaceOldBook').value;
-    const books = window._libBooks || [];
-    _replaceOld = idx !== '' ? books[idx] : null;
-    document.getElementById('replaceDropzone').style.display = _replaceOld ? '' : 'none';
-    document.getElementById('replaceStatus').innerHTML = '';
-    _replaceQueueId = null;
-}
-
-document.getElementById('replaceFileInput').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file || !_replaceOld) return;
-
-    addFiles([file]);
-    const q = queue[queue.length - 1];
-    // Identifiant et titre volontairement distincts de l'ancien — c'est ce qui empêche le
-    // circuit de doublon/écrasement de se déclencher : cette ingestion-ci n'écrase rien.
-    q.meta.book_id = (_replaceOld.book_id || 'livre') + '-nouvelle-extraction';
-    q.meta.title = (_replaceOld.book_title || file.name) + ' — nouvelle extraction';
-    q.meta.author = _replaceOld.author || '';
-    q.meta.language = _replaceOld.language || 'fr';
-    q.meta.approach = _replaceOld.approach || 'general';
-    _replaceQueueId = q.id;
-
-    document.getElementById('replaceStatus').innerHTML = `
-        <div style="padding:12px;background:#fafaf8;border:1px solid #eee;border-radius:8px;font-size:13px;">
-            <strong>${escHtml(q.meta.title)}</strong><br>
-            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn-sm" onclick="previewExtraction('${q.id}')">👁️ Aperçu (rien n'est écrit)</button>
-                <button class="btn btn-primary" onclick="replaceIngestNew()">📥 Ingérer la nouvelle extraction, à côté de l'ancienne</button>
-            </div>
-            <div id="qpv-${q.id}"></div>
-        </div>`;
-});
-
-async function replaceIngestNew() {
-    if (!_replaceQueueId) return;
-    const statusEl = document.getElementById('replaceStatus');
-    await startIngestion(); // le circuit déjà éprouvé — même extraction, même repli OCR
-    const q = queue.find(x => x.id === _replaceQueueId);
-    if (!q) return;
-    if (q.status === 'done') {
-        statusEl.insertAdjacentHTML('beforeend', `
-            <div style="margin-top:12px;padding:12px;background:#f0f5f0;border:1px solid #cde0cd;border-radius:8px;font-size:13px;">
-                ✅ Nouvelle extraction ingérée (${q.chunks.length} chunks), <strong>à côté</strong> de l'ancienne.
-                Comparez les deux dans l'onglet « 📚 Bibliothèque ».<br><br>
-                Si c'est mieux :
-                <button class="btn-sm danger" onclick="deleteBook('${_replaceOld.book_id}', '${escHtml(_replaceOld.book_title || '').replace(/'/g, "\\'")}')">
-                    🗑 Supprimer l'ancienne version
-                </button>
-                <span style="color:#888;"> (confirmation demandée, comme d'habitude)</span>
-            </div>`);
-    } else {
-        statusEl.insertAdjacentHTML('beforeend', `
-            <div style="margin-top:12px;padding:12px;background:#fdf0ee;border:1px solid #f0cfc8;border-radius:8px;font-size:13px;color:#A32C2C;">
-                L'ingestion de la nouvelle extraction n'a pas réussi (${escHtml(q.error || 'statut : ' + q.status)}).
-                L'ancienne version n'a pas été touchée.
-            </div>`);
-    }
-}
-
-// ── Aperçu avant ingestion — le 22/10/2026 : extrait le texte avec exactement le même code
-// que l'ingestion réelle (extractPDFText/extractEPUBText/extractHTMLText, repli OCR compris)
-// mais n'appelle jamais /ingest. Ce que l'aperçu montre est donc garanti identique à ce que
-// l'ingestion produirait — pas une estimation séparée qui pourrait diverger. Zéro écriture
-// dans D1 tant que l'utilisateur n'a pas cliqué sur « Lancer l'ingestion » séparément.
-async function previewExtraction(id) {
-    const q = queue.find(x => x.id === id);
-    if (!q) return;
-    const box = document.getElementById('qpv-' + id);
-    box.innerHTML = '<div style="padding:10px;color:#888;font-size:12px;">Extraction en cours — aucune écriture dans la bibliothèque pendant l\'aperçu…</div>';
-    const previewLog = [];
-    try {
-        let result;
-        if (q.fileType === 'epub') {
-            result = await extractEPUBText(q.file, () => {});
-        } else if (q.fileType === 'html') {
-            result = await extractHTMLText(q.file, () => {});
-        } else {
-            result = await extractPDFText(q.file, () => {}, msg => previewLog.push(msg));
-        }
-        const sample = result.pages[0] ? result.pages[0].text.slice(0, 400) : '';
-        const ratio = (accentRatio(result.fullText) * 100).toFixed(2);
-        box.innerHTML = `
-            <div style="margin-top:8px;padding:12px;background:#fafaf8;border:1px solid #eee;border-radius:8px;font-size:12px;">
-                <strong>Aperçu — rien n'a été écrit dans la bibliothèque</strong><br>
-                ${result.numPages} page(s) dans le fichier · ${result.pages.length} page(s) avec du texte exploitable
-                ${typeof result.ocrPagesCount === 'number' && result.ocrPagesCount > 0 ? ` · 🔎 ${result.ocrPagesCount} page(s) lue(s) par repli OCR` : ''}
-                <br>Densité d'accents sur l'ensemble : ${ratio} %
-                ${previewLog.length ? '<br><br><em>Journal du repli OCR :</em><br>' + previewLog.map(escHtml).join('<br>') : ''}
-                ${sample ? `<br><br><em>Premiers caractères de la première page lue :</em><div style="margin-top:4px;padding:8px;background:white;border-radius:6px;white-space:pre-wrap;">${escHtml(sample)}${result.pages[0].text.length > 400 ? '…' : ''}</div>` : ''}
-            </div>`;
-    } catch (err) {
-        box.innerHTML = `<div style="margin-top:8px;padding:10px;color:#A32C2C;font-size:12px;">Aperçu impossible : ${escHtml(err.message)} — rien n'a été écrit dans la bibliothèque.</div>`;
-    }
 }
 
 function renderMetaForm(q) {
     return `<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <select onchange="updateMeta('${q.id}','approach',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;font-family:inherit;">
-            ${ADMIN_APPROACHES.map(a => `<option value="${a.value}" ${q.meta.approach===a.value?'selected':''}>${escHtml(a.label)}</option>`).join('')}
+            ${['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic','personal_development']
+                .map(a => `<option value="${a}" ${q.meta.approach===a?'selected':''}>${a}</option>`).join('')}
         </select>
         <select onchange="updateMeta('${q.id}','language',this.value)" style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
             <option value="fr" ${q.meta.language==='fr'?'selected':''}>FR</option>
             <option value="en" ${q.meta.language==='en'?'selected':''}>EN</option>
         </select>
-        <input type="text" placeholder="Auteur" value="${escHtml(q.meta.author)}"
+        <input type="text" placeholder="Auteur" value="${q.meta.author}"
             onchange="updateMeta('${q.id}','author',this.value)"
             style="padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;width:120px;">
     </div>`;
@@ -871,172 +596,25 @@ function clearQueue() {
 }
 
 // ── Extract PDF text with pdf.js ──
-// ── Signal d'accentuation — mesuré le 22/10/2026 sur un corpus réel : une couche française
-// sans accents se repère pour rien (0,00 % contre ~3 % attendu), avant même d'océriser quoi
-// que ce soit. Sert ici au diagnostic (liste des livres suspects), jamais comme déclencheur
-// de l'OCR lui-même — on ne connaît pas la langue d'un document avant de l'avoir lu.
-function accentRatio(text) {
-    if (!text || !text.length) return 0;
-    const accented = (text.match(/[àâäéèêëïîôöùûüÿçœæ]/gi) || []).length;
-    return accented / text.length;
-}
-
-// ── Similarité de titre — signal honnête, pas une certitude. Normalise (accents, ponctuation,
-// mentions d'édition entre parenthèses, casse) puis mesure un recouvrement de mots simple
-// (indice de Dice sur les tokens). Un seuil de 0,6 attrape « Funk Fusion Bass (Hal Leonard —
-// Bass Builders) [Book+CD] » contre « Funk Fusion Bass.pdf » sans confondre deux livres
-// différents qui partagent seulement un mot commun.
-function normalizeTitle(s) {
-    return (s || '')
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // retire les accents
-        .replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')              // retire (…) et […]
-        .replace(/\.(pdf|epub|html?)$/i, ' ')
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-function titleSimilarity(a, b) {
-    const ta = new Set(normalizeTitle(a).split(' ').filter(w => w.length > 2));
-    const tb = new Set(normalizeTitle(b).split(' ').filter(w => w.length > 2));
-    if (ta.size === 0 || tb.size === 0) return 0;
-    let common = 0;
-    for (const w of ta) if (tb.has(w)) common++;
-    return (2 * common) / (ta.size + tb.size); // indice de Dice
-}
-
-// ── Chargeur de script paresseux ── évite d'alourdir chaque chargement de page pour un
-// outil (Tesseract) dont la plupart des documents n'auront jamais besoin.
-const _loadedScripts = {};
-function loadScript(src) {
-    if (_loadedScripts[src]) return _loadedScripts[src];
-    _loadedScripts[src] = new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = src;
-        s.onload = resolve;
-        s.onerror = () => reject(new Error('Échec de chargement : ' + src));
-        document.head.appendChild(s);
-    });
-    return _loadedScripts[src];
-}
-
-// ── Rendu d'une page pdf.js vers un canevas — nécessaire pour les deux moteurs de repli,
-// qui lisent une image, pas une couche texte.
-async function renderPageToCanvas(page, scale = 2) {
-    const viewport = page.getViewport({ scale });
-    const canvas = document.createElement('canvas');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const ctx = canvas.getContext('2d');
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    return canvas;
-}
-
-// ── Repli 1 — Tesseract.js, local au navigateur, gratuit. Chargé à la demande.
-// Modèles français + anglais, comme la chaîne Liénothèque.
-let _tesseractWorker = null;
-async function ocrPageWithTesseract(canvas) {
-    if (!window.Tesseract) {
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js');
-    }
-    if (!_tesseractWorker) {
-        _tesseractWorker = await Tesseract.createWorker('fra+eng');
-    }
-    const { data } = await _tesseractWorker.recognize(canvas);
-    return (data.text || '').trim();
-}
-
-// ── Repli 2 — Claude Vision, via le proxy déjà en place (POST à la racine du Worker,
-// même convention que adocGenerateStructuredFiche). N'est appelé que si Tesseract a échoué
-// ou n'a presque rien lu — c'est le plus coûteux des deux, donc le dernier recours.
-async function ocrPageWithVision(canvas) {
-    const apiKey = getAdminApiKey();
-    if (!apiKey) throw new Error('Clé API manquante pour le repli Vision');
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    const base64 = dataUrl.split(',')[1];
-    const res = await fetch(getWorkerUrl() + '/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-        body: JSON.stringify({
-            payload: {
-                model: 'claude-sonnet-4-6',
-                max_tokens: 4000,
-                messages: [{
-                    role: 'user',
-                    content: [
-                        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
-                        { type: 'text', text: 'Transcris fidèlement tout le texte visible sur cette page de document. Rends uniquement le texte transcrit, dans l\'ordre de lecture, sans commentaire ni résumé.' }
-                    ]
-                }]
-            }
-        })
-    });
-    if (!res.ok) throw new Error('Repli Vision : réponse ' + res.status);
-    const json = await res.json();
-    const text = json?.content?.[0]?.text || '';
-    return text.trim();
-}
-
-// ── Chaîne de repli complète pour une page jugée pauvre par pdf.js : Tesseract d'abord,
-// Vision ensuite si Tesseract échoue ou n'a presque rien lu. Jamais les deux à la fois,
-// pour ne pas payer Vision quand le gratuit a suffi.
-async function ocrFallbackChain(page, pageNum, logFn) {
-    const canvas = await renderPageToCanvas(page);
-    try {
-        const tesseractText = await ocrPageWithTesseract(canvas);
-        if (tesseractText.length > 20) {
-            if (logFn) logFn(`Page ${pageNum} — lue par Tesseract (${tesseractText.length} caractères)`);
-            return { text: tesseractText, source: 'tesseract' };
-        }
-        if (logFn) logFn(`Page ${pageNum} — Tesseract insuffisant (${tesseractText.length} caractères), repli Vision`);
-    } catch (err) {
-        if (logFn) logFn(`Page ${pageNum} — Tesseract en échec (${err.message}), repli Vision`);
-    }
-    try {
-        const visionText = await ocrPageWithVision(canvas);
-        if (logFn) logFn(`Page ${pageNum} — lue par Claude Vision (${visionText.length} caractères)`);
-        return { text: visionText, source: 'vision' };
-    } catch (err) {
-        if (logFn) logFn(`Page ${pageNum} — Vision également en échec (${err.message}) ; page laissée vide, pas inventée`);
-        return { text: '', source: 'aucun' };
-    }
-}
-
-async function extractPDFText(file, progressCb, logFn) {
+async function extractPDFText(file, progressCb) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const numPages = pdf.numPages;
     let allText = '';
     const pages = [];
-    let ocrPagesCount = 0;
 
     for (let i = 1; i <= numPages; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
-        let pageText = content.items.map(item => item.str).join(' ');
-        let source = 'couche';
-
-        // Seuil déjà établi dans ce fichier (20 caractères) : en dessous, la page était
-        // auparavant silencieusement absente de `pages`, sans que rien ne le dise. C'est
-        // exactement la famille de défaut (un résultat vide pris pour un succès) que la
-        // chaîne Liénothèque a corrigée le 21 octobre — on ne la laisse pas filer ici non plus.
-        if (pageText.trim().length <= 20) {
-            const result = await ocrFallbackChain(page, i, logFn);
-            if (result.text.length > 20) {
-                pageText = result.text;
-                source = result.source;
-                ocrPagesCount++;
-            }
-        }
-
+        const pageText = content.items.map(item => item.str).join(' ');
         if (pageText.trim().length > 20) {
-            pages.push({ page: i, text: pageText.trim(), source });
+            pages.push({ page: i, text: pageText.trim() });
         }
         allText += pageText + '\n\n';
         if (progressCb) progressCb(Math.round((i / numPages) * 100));
     }
 
-    return { pages, fullText: allText, numPages, ocrPagesCount };
+    return { pages, fullText: allText, numPages };
 }
 
 // ── Extract HTML text (outils couple, exercices) ──
@@ -1103,230 +681,18 @@ async function extractHTMLText(file, progressCb) {
         }
     }
     
-    // Lot 2/2, correctif 7 — mesure réelle (échantillon de 12 fichiers HTML réels, catégorie
-    // 'outils_couple') : 34,2% du contenu extrait était exactement dupliqué (jusqu'à ~51% sur
-    // certains fichiers). Cause RÉELLE identifiée par inspection directe du HTML source (pas
-    // l'hypothèse initiale d'un bug de parcours DOM) : ces documents interactifs répètent
-    // eux-mêmes littéralement certains titres/labels dans leur propre structure (ex. un même
-    // <h4> "Métiers ou loisirs recherchés :" répété 6 fois pour 6 catégories, un <h2> de trait
-    // répété entre section questionnaire et section infobulle) — un changement de stratégie
-    // d'extraction ne résoudrait PAS ce cas précis (la répétition existe dans le contenu
-    // lui-même, pas dans la façon de le parcourir) et risquerait de perdre du contexte légitime.
-    // Correctif ciblé et sûr : une "page" dont le texte est EXACTEMENT identique à une page déjà
-    // vue est retirée avant chunking — un texte strictement identique (byte à byte) n'apporte
-    // aucune valeur RAG supplémentaire la 2e fois, aucun risque de perte d'information réelle
-    // (seul un doublon exact est retiré, jamais un texte simplement similaire ou apparenté).
-    const seenPageTexts = new Set();
-    const dedupedPages = pages.filter(p => {
-        if (seenPageTexts.has(p.text)) return false;
-        seenPageTexts.add(p.text);
-        return true;
-    });
-    const removedCount = pages.length - dedupedPages.length;
-
-    const fullText = dedupedPages.map(p => p.text).join('\n\n');
-    if (progressCb) progressCb(100);
-
-    log(`  📄 HTML: ${dedupedPages.length} sections extraites, ${fullText.split(/\s+/).length} mots` +
-        (removedCount > 0 ? ` (${removedCount} section(s) dupliquée(s) exactement retirée(s))` : ''));
-    return { pages: dedupedPages, fullText, numPages: dedupedPages.length };
-}
-
-// ── Extract EPUB text (JSZip : container.xml → OPF → spine, chapitres XHTML) ──
-// Investigation confirmée avant construction : un EPUB est une archive ZIP contenant
-// META-INF/container.xml (pointe vers le fichier OPF via <rootfile full-path="...">), un fichier
-// .opf (métadonnées + <manifest> id→href + <spine> = ORDRE DE LECTURE RÉEL, jamais l'ordre
-// alphabétique des noms de fichiers internes — chapter1.xhtml/chapter10.xhtml/chapter2.xhtml
-// serait trompeur), et des fichiers XHTML pour le contenu de chaque chapitre.
-
-// Évite les pièges de sélecteur CSS sur un préfixe d'espace de noms XML (dc:language, `:` invalide
-// en CSS) — cherche par nom local, insensible au préfixe réellement utilisé par l'éditeur EPUB
-// source (dc:language, opf:language, ou sans préfixe selon les outils de production).
-function firstTextByLocalName(doc, localName) {
-    const all = doc.getElementsByTagName('*');
-    for (const el of all) {
-        if ((el.localName || el.tagName).toLowerCase() === localName.toLowerCase()) {
-            return el.textContent?.trim() || '';
-        }
-    }
-    return '';
-}
-
-function parseStrictXml(str, label) {
-    const doc = new DOMParser().parseFromString(str, 'application/xml');
-    if (doc.querySelector('parsererror')) {
-        throw new Error(`EPUB invalide : ${label} n'est pas un XML valide.`);
-    }
-    return doc;
-}
-
-async function extractEPUBText(file, progressCb) {
-    // Détection par SIGNATURE, jamais par la seule extension : un .epub est une archive ZIP,
-    // qui commence toujours par les octets "PK" — un fichier mal renommé ou corrompu échoue ici
-    // avec un message explicite, avant toute tentative de décompression.
-    const header = new Uint8Array(await file.slice(0, 2).arrayBuffer());
-    if (header[0] !== 0x50 || header[1] !== 0x4B) {
-        throw new Error('Ce fichier .epub n\'est pas une archive ZIP valide (signature "PK" absente) — fichier corrompu ou mal renommé.');
-    }
-
-    const zip = await JSZip.loadAsync(await file.arrayBuffer());
-
-    const containerEntry = zip.file('META-INF/container.xml');
-    if (!containerEntry) throw new Error('EPUB invalide : META-INF/container.xml introuvable.');
-    const containerDoc = parseStrictXml(await containerEntry.async('string'), 'META-INF/container.xml');
-    const rootfilePath = containerDoc.querySelector('rootfile')?.getAttribute('full-path')?.replace(/^\/+/, '');
-    if (!rootfilePath) throw new Error('EPUB invalide : aucun <rootfile full-path> dans container.xml.');
-
-    const opfEntry = zip.file(rootfilePath);
-    if (!opfEntry) throw new Error(`EPUB invalide : fichier OPF introuvable (${rootfilePath}).`);
-    const opfDoc = parseStrictXml(await opfEntry.async('string'), 'le fichier OPF (' + rootfilePath + ')');
-
-    // Les hrefs du manifeste sont TOUJOURS relatifs à l'emplacement du fichier OPF (spec EPUB),
-    // jamais à la racine de l'archive : avec un OPF en "OEBPS/content.opf", un item
-    // href="Text/ch1.xhtml" désigne "OEBPS/Text/ch1.xhtml", pas "Text/ch1.xhtml". `URL` gère
-    // aussi correctement les "../" éventuels, plutôt qu'une concaténation naïve de chaînes.
-    const opfDir = rootfilePath.includes('/') ? rootfilePath.slice(0, rootfilePath.lastIndexOf('/') + 1) : '';
-    function resolveHref(href) {
-        const url = new URL(href, 'epub:///' + opfDir);
-        return decodeURIComponent(url.pathname.replace(/^\/+/, ''));
-    }
-
-    const manifest = new Map();
-    opfDoc.querySelectorAll('manifest > item').forEach(item => {
-        const id = item.getAttribute('id');
-        const href = item.getAttribute('href');
-        if (id && href) {
-            manifest.set(id, { href: resolveHref(href), mediaType: item.getAttribute('media-type') || '' });
-        }
-    });
-
-    // Métadonnée de langue (opportunité identifiée à l'investigation) — normalisée au sous-tag
-    // primaire ISO 639-1 (fr-FR → fr, en-US → en). Jamais imposée si elle ne correspond pas à
-    // l'une des deux seules valeurs actuellement proposées dans le formulaire (fr/en, cf.
-    // renderMetaForm) : préremplir un champ avec une valeur que son propre sélecteur ne propose
-    // pas créerait un état affiché/réel divergent — jamais un remplacement silencieux non
-    // vérifiable par l'utilisateur.
-    const languageRaw = firstTextByLocalName(opfDoc, 'language').toLowerCase();
-    const languagePrimary = languageRaw.split(/[-_]/)[0];
-    const detectedLanguage = ['fr', 'en'].includes(languagePrimary) ? languagePrimary : null;
-
-    // Ordre de lecture RÉEL : le <spine>, jamais l'ordre des noms de fichiers.
-    const spineIdrefs = Array.from(opfDoc.querySelectorAll('spine > itemref')).map(el => el.getAttribute('idref'));
-    if (spineIdrefs.length === 0) throw new Error('EPUB invalide : <spine> vide ou introuvable dans l\'OPF.');
-
-    const pages = [];
-    let chapterNum = 0;
-    for (const idref of spineIdrefs) {
-        const item = manifest.get(idref);
-        if (!item) continue; // idref sans entrée manifeste correspondante — ignoré, jamais deviné
-        if (item.mediaType && !/x?html/i.test(item.mediaType)) continue; // référence non textuelle dans le spine
-        const zipEntry = zip.file(item.href);
-        if (!zipEntry) continue;
-        chapterNum++;
-
-        const xhtml = await zipEntry.async('string');
-        // 'text/html' (pas 'application/xml') : plus tolérant aux XHTML légèrement malformés,
-        // même stratégie que extractHTMLText() ci-dessus pour un contenu qui n'a pas besoin
-        // d'être un XML strictement valide pour qu'on en extraie le texte.
-        const doc = new DOMParser().parseFromString(xhtml, 'text/html');
-        doc.querySelectorAll('script, style, noscript, [hidden]').forEach(el => el.remove());
-        const text = doc.body?.textContent?.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim() || '';
-        if (text.length > 20) pages.push({ page: chapterNum, text });
-
-        if (progressCb) progressCb(Math.round((chapterNum / spineIdrefs.length) * 100));
-    }
-
-    if (pages.length === 0) throw new Error('Aucun texte extrait de l\'EPUB (chapitres vides ou non résolus depuis le spine).');
-
     const fullText = pages.map(p => p.text).join('\n\n');
     if (progressCb) progressCb(100);
-
-    log(`  📖 EPUB: ${pages.length} chapitre(s) extrait(s) (ordre du spine), ${fullText.split(/\s+/).length} mots` +
-        (detectedLanguage ? `, langue détectée : ${detectedLanguage}` : ''));
-    // `numPages` et la forme {pages, fullText, numPages} sont IDENTIQUES à extractPDFText/
-    // extractHTMLText — chaque "page" correspond ici à un chapitre, dans l'ordre du spine, pour
-    // rester compatible avec chunkPages()/chunkTextWithPages() sans aucune modification de ces
-    // fonctions (page/page_end désignent alors des numéros de chapitre, pas des pages physiques —
-    // cohérent avec ce que le Worker/l'admin attendent déjà : un simple repère de position).
-    return { pages, fullText, numPages: pages.length, detectedLanguage };
+    
+    log(`  📄 HTML: ${pages.length} sections extraites, ${fullText.split(/\s+/).length} mots`);
+    return { pages, fullText, numPages: pages.length };
 }
 
 // ── Chunking intelligent (respecte les paragraphes) ──
-// Lot 2/2, correctif 1 — cause confirmée : chunkText() ne vérifiait la limite `maxSize` (700
-// mots) qu'ENTRE deux paragraphes (`currentChunk.length > 0 && ...`) — un paragraphe UNIQUE trop
-// long (fréquent après extractPDFText(), qui aplatit chaque page en une seule chaîne, effaçant
-// les retours structurants du PDF) passait intégralement dès qu'il atterrissait sur un
-// `currentChunk` vide, sans jamais être vérifié. Aucun découpeur de secours par limite de phrase
-// n'existait déjà ailleurs dans ce fichier (recherche négative) — seul un découpeur par limite de
-// MOTS existait (fallback plus bas, PDF sans aucun saut de paragraphe) : celui-ci l'étend avec une
-// préférence pour la fin de phrase la plus proche, jamais en plein milieu d'un mot en dernier
-// recours. Chaque paragraphe est désormais pré-découpé en segments ne dépassant JAMAIS
-// HARD_MAX_WORDS avant d'entrer dans la boucle d'accumulation — celle-ci reste inchangée, elle ne
-// reçoit simplement plus jamais un paragraphe surdimensionné en une seule pièce.
-function splitOversizedParagraph(text, hardMaxWords) {
-    const words = text.split(/\s+/);
-    if (words.length <= hardMaxWords) return [text];
-    const segments = [];
-    let start = 0;
-    while (start < words.length) {
-        let end = Math.min(start + hardMaxWords, words.length);
-        if (end < words.length) {
-            // Chercher la fin de phrase la plus proche de `end`, en remontant, sans produire un
-            // segment trop court (jamais avant 70% de hardMaxWords depuis `start`).
-            const minEnd = start + Math.floor(hardMaxWords * 0.7);
-            let cut = end;
-            for (let i = end; i > minEnd; i--) {
-                if (/[.!?]$/.test(words[i - 1])) { cut = i; break; }
-            }
-            end = cut;
-        }
-        segments.push(words.slice(start, end).join(' '));
-        start = end;
-    }
-    return segments;
-}
-
-// ── Correctif du 22/10/2026 — dérive de pagination ──
-// `chunkTextWithPages` construit `pageMap` sur le texte COMPLET de la page, mot par mot ; mais
-// `chunkText` écartait jusqu'ici tout paragraphe de ≤20 caractères (intertitre, légende, numéro
-// de page isolé) avant de chunker. Le curseur qui avance "de mots consommés" dans
-// `chunkTextWithPages` ne savait rien de ces mots disparus : la position qu'il croyait tenir
-// dans `pageMap` dérivait de leur nombre, et cette dérive s'accumulait sur tout le document —
-// un chunk en fin de livre pouvait citer une page antérieure à celle où le texte est imprimé.
-// Remède : ne plus jamais perdre de mots entre le texte brut et le texte chunké. Un paragraphe
-// court est fusionné avec le suivant (ou le précédent, en fin de liste) plutôt qu'écarté — le
-// compte de mots reste exact, le curseur reste synchrone avec `pageMap` jusqu'au bout.
-function mergeTinyParagraphs(paragraphs, minChars = 20) {
-    const merged = [];
-    let pending = '';
-    for (const p of paragraphs) {
-        const combined = pending ? pending + '\n\n' + p : p;
-        if (combined.trim().length > minChars) {
-            merged.push(combined);
-            pending = '';
-        } else {
-            pending = combined;
-        }
-    }
-    if (pending.trim().length > 0) {
-        // Reste en fin de liste, lui-même toujours court : rattaché au dernier plutôt que perdu.
-        if (merged.length > 0) merged[merged.length - 1] += '\n\n' + pending;
-        else merged.push(pending);
-    }
-    return merged;
-}
-
 function chunkText(text, targetSize = 500, maxSize = 700, overlap = 100) {
-    // Marge sur maxSize (700) : un paragraphe unique peut désormais atteindre jusqu'à ~900 mots
-    // avant d'être forcé à se scinder — jamais plus, même combiné à l'overlap (100 mots) ajouté
-    // par la boucle ci-dessous, restant sous la limite dure de ~1000 mots demandée.
-    const HARD_MAX_WORDS = 900;
-    // Découper par paragraphes d'abord (double saut de ligne ou point suivi de majuscule), puis
-    // fusionner les paragraphes courts au lieu de les écarter — aucun mot n'est perdu.
-    const splitParagraphs = text.split(/\n\s*\n|(?<=\.)\s{2,}/).filter(p => p.trim().length > 0);
-    const rawParagraphs = mergeTinyParagraphs(splitParagraphs, 20);
-    const paragraphs = rawParagraphs.flatMap(p => splitOversizedParagraph(p, HARD_MAX_WORDS));
-
+    // Découper par paragraphes d'abord (double saut de ligne ou point suivi de majuscule)
+    const paragraphs = text.split(/\n\s*\n|(?<=\.)\s{2,}/).filter(p => p.trim().length > 20);
+    
     const chunks = [];
     let currentChunk = '';
     let lastOverlap = '';
@@ -1377,61 +743,37 @@ function chunkText(text, targetSize = 500, maxSize = 700, overlap = 100) {
     return chunks;
 }
 
-// Lot 2/2, correctif 2 — cause confirmée : chunkPages() attribuait la MÊME plage
-// startPage→currentPage à TOUS les chunks produits à partir d'un même tampon (3-4 pages) — un
-// passage principalement situé en fin de tampon (ex. page 43) pouvait être enregistré page 41.
-// Corrigé par une carte mot→page du tampon (`bufferPageMap[i]` = page réelle du i-ème mot),
-// utilisée pour situer PROPORTIONNELLEMENT chaque chunk produit à sa position réelle dans le
-// tampon — jamais une exactitude au mot près garantie (l'overlap entre chunks rend cela
-// intrinsèquement approximatif), mais réellement propre à chaque chunk plutôt qu'une plage
-// globale recopiée identique sur tous.
-function chunkTextWithPages(text, pageMap, targetSize = 500, maxSize = 700, overlap = 100) {
-    const contents = chunkText(text, targetSize, maxSize, overlap);
-    const totalWords = pageMap.length;
-    if (totalWords === 0) return contents.map(content => ({ content, page: 1, page_end: 1 }));
-    let cursor = 0;
-    return contents.map(content => {
-        const wc = content.split(/\s+/).filter(Boolean).length;
-        const startIdx = Math.min(cursor, totalWords - 1);
-        const endIdx = Math.min(cursor + wc - 1, totalWords - 1);
-        const page = pageMap[Math.max(0, startIdx)];
-        const page_end = pageMap[Math.max(0, endIdx)];
-        // Recule le curseur de `overlap` mots : ils réapparaissent au début du chunk suivant
-        // (cf. chunkText), jamais comptés deux fois dans la progression à travers le tampon.
-        cursor += Math.max(1, wc - overlap);
-        return { content, page, page_end };
-    });
-}
-
 function chunkPages(pages) {
     // Stratégie : regrouper les pages proches puis chunker le texte continu
     // Cela évite de couper un concept qui s'étend sur 2 pages
     const allChunks = [];
     let buffer = '';
-    let bufferPageMap = [];
-
-    function flushBuffer() {
-        if (buffer.trim().length > 80) {
-            allChunks.push(...chunkTextWithPages(buffer, bufferPageMap));
-        }
-    }
-
+    let startPage = 1;
+    let currentPage = 1;
+    
     for (const p of pages) {
-        const pageWords = p.text.split(/\s+/).filter(Boolean);
-        buffer += (buffer ? ' ' : '') + p.text;
-        for (let i = 0; i < pageWords.length; i++) bufferPageMap.push(p.page);
-
+        buffer += ' ' + p.text;
+        currentPage = p.page;
+        
         // Chunker quand on a assez de texte (environ 3-4 pages)
         if (buffer.split(/\s+/).length > 1500) {
-            flushBuffer();
+            const textChunks = chunkText(buffer);
+            for (const content of textChunks) {
+                allChunks.push({ content, page: startPage, page_end: currentPage });
+            }
             buffer = '';
-            bufferPageMap = [];
+            startPage = currentPage + 1;
         }
     }
-
+    
     // Dernier buffer
-    flushBuffer();
-
+    if (buffer.trim().length > 80) {
+        const textChunks = chunkText(buffer);
+        for (const content of textChunks) {
+            allChunks.push({ content, page: startPage, page_end: currentPage });
+        }
+    }
+    
     return allChunks;
 }
 
@@ -1446,99 +788,53 @@ async function startIngestion() {
     const pending = queue.filter(q => q.status === 'pending' || q.status === 'error');
     // Filtrer ceux marqués 'skip' par l'utilisateur
     const toProcess = pending.filter(q => q._dupAction !== 'skip');
-    let success = 0, errors = 0, partial = 0;
+    let success = 0, errors = 0;
 
     for (const q of toProcess) {
         try {
-            // Phase 0: Vérification doublons — /d1-query n'accepte plus de SQL brut (Worker
-            // durci, {terms/authors/book_title/limit} seulement, aucune clé book_id exacte
-            // exposée) : /library-stats reste la seule méthode, un contrôle "existe déjà"
-            // (booléen) plutôt qu'un compte exact — jugé suffisant, la bannière ci-dessous
-            // n'affiche plus jamais de nombre de chunks inventé (cf. _existingChunks/renderDupAlerts).
-            // Correctif urgent P0-2 — fail-open corrigé : avant, un échec de vérification
-            // (réseau, HTTP non-ok, JSON invalide) se contentait d'un log et LAISSAIT
-            // l'ingestion continuer comme si l'absence de doublon était confirmée — jamais le
-            // cas. Contrat désormais explicite : réponse /library-stats valide (HTTP ok + JSON
-            // décodable) ET absent → autorisé ; valide ET présent → 'duplicate', arrêt ; tout
-            // échec de vérification (réseau/HTTP/JSON) → erreur levée, `/ingest` jamais appelée
-            // pour ce livre (capturée par le catch englobant, qui marque déjà le livre en
-            // erreur — jamais un faux succès ni un faux repli silencieux).
+            // Phase 0: Vérification doublons — essaie /d1-query, fallback /library-stats
             if (q._dupAction !== 'overwrite') {
                 log('  🔎 Vérification doublon : ' + q.meta.book_id + '...');
-                let statsRes;
                 try {
-                    statsRes = await fetch(getWorkerUrl() + '/library-stats');
-                } catch (dupErr) {
-                    throw new Error('Vérification doublon impossible (réseau : ' + dupErr.message + ') — ingestion bloquée par précaution');
-                }
-                if (!statsRes.ok) {
-                    throw new Error('Vérification doublon impossible (HTTP ' + statsRes.status + ') — ingestion bloquée par précaution');
-                }
-                let stats;
-                try {
-                    stats = await statsRes.json();
-                } catch (parseErr) {
-                    throw new Error('Vérification doublon impossible (réponse invalide) — ingestion bloquée par précaution');
-                }
-                const exists = (stats.books || []).some(b => b.book_id === q.meta.book_id);
-                if (exists) {
-                    q._existingChunks = null; // connu : existe déjà — jamais un compte exact via cette méthode
-                    q.status = 'duplicate';
-                    log('  ⚠️ DOUBLON : "' + q.meta.title + '" existe déjà', 'error');
-                    renderQueue();
-                    continue;
-                }
-                // ── Correctif du 22/10/2026 — le contrôle ci-dessus ne compare que book_id, dérivé
-                // du nom de fichier : deux éditions du même livre, nommées différemment, passaient
-                // inaperçues. /library-stats ne rend que book_id/book_title/author/language/approach
-                // — aucun contenu — donc une vraie empreinte de contenu n'est pas faisable ici sans
-                // toucher au Worker. Ce contrôle par titre+auteur normalisés est honnête sur sa
-                // limite : un signal, pas une certitude — d'où un AVERTISSEMENT qui bloque et
-                // demande une décision humaine, jamais un rejet silencieux ni un écrasement
-                // automatique (qui emprunterait le circuit « Écraser », déjà signalé à risque).
-                const similar = (stats.books || []).find(b =>
-                    b.book_id !== q.meta.book_id && titleSimilarity(b.book_title, q.meta.title) >= 0.6
-                );
-                if (similar) {
-                    q._similarTo = similar;
-                    q.status = 'duplicate';
-                    log('  ⚠️ RESSEMBLE À UN LIVRE EXISTANT : "' + q.meta.title + '" ≈ "' + similar.book_title + '" (' + similar.book_id + ')', 'error');
-                    renderQueue();
-                    continue;
-                }
-            } else {
-                // Correctif urgent P0-1 — fail-open corrigé : avant, le résultat de /delete-book
-                // n'était ni capturé ni vérifié, "✅ Ancien contenu supprimé" s'affichait
-                // INCONDITIONNELLEMENT juste après (y compris sur 401/429/4xx/5xx ou
-                // {success:false}) — l'ingestion du nouveau contenu se poursuivait alors par-dessus
-                // un ancien contenu potentiellement toujours présent. Contrat désormais explicite :
-                // HTTP ok ET JSON décodable ET data.success===true → confirmé, on continue ; tout
-                // le reste → erreur levée, extraction/indexation de ce livre jamais entamée (capturée
-                // par le catch englobant, jamais un faux succès affiché).
-                log('  🗑 Suppression de l\'ancien "' + q.meta.book_id + '"...');
-                let delRes;
-                try {
-                    delRes = await fetch(getWorkerUrl() + '/delete-book', {
+                    let existing = 0;
+                    // Méthode 1 : /d1-query (précis)
+                    const dupRes = await fetch(getWorkerUrl() + '/d1-query', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
-                        body: JSON.stringify({ book_id: q.meta.book_id })
+                        body: JSON.stringify({ sql: "SELECT COUNT(*) as cnt FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
                     });
-                } catch (delErr) {
-                    throw new Error('Suppression de l\'ancien contenu impossible (réseau : ' + delErr.message + ') — ingestion bloquée');
-                }
-                if (!delRes.ok) {
-                    throw new Error('Suppression de l\'ancien contenu non confirmée (HTTP ' + delRes.status + ') — ingestion bloquée');
-                }
-                let delData;
+                    if (dupRes.ok) {
+                        const dupData = await dupRes.json();
+                        existing = dupData?.results?.[0]?.cnt || 0;
+                    } else {
+                        // Fallback : /library-stats (toujours dispo)
+                        log('  ↪ Fallback /library-stats...');
+                        const statsRes = await fetch(getWorkerUrl() + '/library-stats');
+                        if (statsRes.ok) {
+                            const stats = await statsRes.json();
+                            const match = (stats.books || []).find(b => b.book_id === q.meta.book_id);
+                            if (match) existing = 1; // on sait juste qu'il existe
+                        }
+                    }
+                    if (existing > 0) {
+                        q._existingChunks = existing;
+                        q.status = 'duplicate';
+                        log('  ⚠️ DOUBLON : "' + q.meta.title + '" existe déjà' + (existing > 1 ? ' (' + existing + ' chunks)' : '') , 'error');
+                        renderQueue();
+                        continue;
+                    }
+                } catch(dupErr) { log('  ⚡ Vérification doublon impossible — on continue'); }
+            } else {
+                // L'utilisateur a choisi "écraser" — supprimer l'ancien avant de ré-indexer
+                log('  🗑 Suppression de l\'ancien "' + q.meta.book_id + '"...');
                 try {
-                    delData = await delRes.json();
-                } catch (parseErr) {
-                    throw new Error('Suppression de l\'ancien contenu non confirmée (réponse invalide) — ingestion bloquée');
-                }
-                if (delData.success !== true) {
-                    throw new Error('Suppression de l\'ancien contenu non confirmée (' + (delData.error || 'success absent de la réponse') + ') — ingestion bloquée');
-                }
-                log('  ✅ Ancien contenu supprimé (' + (delData.deleted_chunks != null ? delData.deleted_chunks : '?') + ' chunks)');
+                    await fetch(getWorkerUrl() + '/d1-query', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+                        body: JSON.stringify({ sql: "DELETE FROM chunks WHERE book_id = ?", params: [q.meta.book_id] })
+                    });
+                    log('  ✅ Ancien contenu supprimé');
+                } catch(e) { log('  ⚠️ Suppression partielle : ' + e.message); }
             }
 
             // Phase 1: Extract
@@ -1554,32 +850,16 @@ async function startIngestion() {
                 });
                 pages = result.pages;
                 numPages = result.numPages;
-            } else if (q.fileType === 'epub') {
-                // Réutilise l'extraction déjà faite (et sa langue déjà appliquée au formulaire)
-                // pendant addFiles()/detectAndCacheEPUB si elle a eu le temps de se terminer —
-                // sinon (ingestion lancée avant la fin de cette détection précoce, ou détection
-                // ayant échoué), relance l'extraction réelle ici avec la barre de progression
-                // visible ; jamais un double coût perçu par l'utilisateur, jamais une extraction
-                // manquée non plus.
-                const result = q._epubExtraction || await extractEPUBText(q.file, pct => {
+            } else {
+                const result = await extractPDFText(q.file, pct => {
                     const bar = document.getElementById('qp-' + q.id);
                     if (bar) bar.style.width = pct + '%';
                 });
                 pages = result.pages;
                 numPages = result.numPages;
-            } else {
-                const result = await extractPDFText(q.file, pct => {
-                    const bar = document.getElementById('qp-' + q.id);
-                    if (bar) bar.style.width = pct + '%';
-                }, msg => log('  ' + msg));
-                pages = result.pages;
-                numPages = result.numPages;
-                if (result.ocrPagesCount > 0) {
-                    log(`  🔎 ${result.ocrPagesCount} page(s) lue(s) par repli OCR (Tesseract/Vision), sans couche texte exploitable`);
-                }
             }
 
-            if (pages.length === 0) throw new Error(q.fileType === 'html' ? 'Aucun texte extrait du HTML' : q.fileType === 'epub' ? 'Aucun texte extrait de l\'EPUB' : 'Aucun texte extrait, même après repli OCR (Tesseract et Vision ont tous deux échoué)');
+            if (pages.length === 0) throw new Error(q.fileType === 'html' ? 'Aucun texte extrait du HTML' : 'Aucun texte extrait (PDF scanné ou protégé)');
 
             // Phase 1b: Auto-detect metadata
             if (!q.meta.author || q.meta.approach === 'general') {
@@ -1609,24 +889,10 @@ async function startIngestion() {
             // Send in batches of 20 chunks to avoid timeout
             const BATCH = 20;
             let totalSent = 0;
-            // Correctif urgent — le Worker avale déjà les erreurs D1/Vectorize par chunk
-            // (try/catch vide, cf. handleIngest) et renvoie chunks_d1/chunks_vectorize/
-            // total_chunks par lot — jamais lus jusqu'ici, seul le HTTP 200 comptait, donc une
-            // ingestion partielle (quelques chunks perdus en route) s'affichait comme un succès
-            // complet. Accumulés sur tous les lots du livre, comparés au total réellement
-            // envoyé une fois tous les lots traités.
-            let d1Written = 0, vecWritten = 0;
 
             for (let i = 0; i < q.chunks.length; i += BATCH) {
                 const batch = q.chunks.slice(i, i + BATCH).map((c, j) => ({
                     id: `${q.meta.book_id}-${i + j}`,
-                    // Correctif urgent — chunk_index global explicite (même valeur que le
-                    // suffixe de `id` ci-dessus). Avant : jamais transmis, le Worker le
-                    // recalculait localement sur CE lot de 20 (0..19 à chaque appel /ingest),
-                    // provoquant des doublons book_id+chunk_index dès qu'un livre dépasse 20
-                    // chunks — cassant le dédoublonnage FTS5. `i` est l'indice global de la
-                    // boucle externe (avant découpage en lots), jamais un indice local au lot.
-                    chunk_index: i + j,
                     content: c.content,
                     page: c.page,
                     page_end: c.page_end || c.page,
@@ -1643,25 +909,14 @@ async function startIngestion() {
                     throw new Error(`Worker error ${res.status}: ${err.substring(0, 100)}`);
                 }
 
-                const resData = await res.json();
-                d1Written += resData.chunks_d1 || 0;
-                vecWritten += resData.chunks_vectorize || 0;
-
                 totalSent += batch.length;
                 const bar = document.getElementById('qp-' + q.id);
                 if (bar) bar.style.width = Math.round((totalSent / q.chunks.length) * 100) + '%';
             }
 
-            if (d1Written < q.chunks.length || vecWritten < q.chunks.length) {
-                q.status = 'partial';
-                q._partialInfo = { d1: d1Written, vec: vecWritten, total: q.chunks.length };
-                log(`  ⚠️ ${q.meta.title} — PARTIEL, RÉPARATION REQUISE (D1: ${d1Written}/${q.chunks.length}, Vectorize: ${vecWritten}/${q.chunks.length})`, 'error');
-                partial++;
-            } else {
-                q.status = 'done';
-                success++;
-                log(`  ✅ ${q.meta.title} — ${q.chunks.length} chunks indexés`, 'success');
-            }
+            q.status = 'done';
+            success++;
+            log(`  ✅ ${q.meta.title} — ${q.chunks.length} chunks indexés`, 'success');
 
         } catch (err) {
             q.status = 'error';
@@ -1684,7 +939,7 @@ async function startIngestion() {
         return;
     }
 
-    log(`\n═══ Terminé: ${success} réussi(s), ${partial} partiel(s), ${errors} erreur(s) ═══`, success > 0 ? 'success' : 'error');
+    log(`\n═══ Terminé: ${success} réussi(s), ${errors} erreur(s) ═══`, success > 0 ? 'success' : 'error');
 
     btn.disabled = false;
     btn.textContent = '⚡ Indexer tout';
@@ -1708,26 +963,9 @@ function renderDupAlerts() {
     const dups = queue.filter(q => q.status === 'duplicate');
     if (dups.length === 0) { el.innerHTML = ''; return; }
     el.innerHTML = dups.map(q => {
-        // Correctif SQL→structuré : _existingChunks n'est plus jamais un compte exact
-        // (/library-stats donne seulement "existe/n'existe pas") — ne jamais afficher de
-        // nombre inventé, seulement le cas où il est réellement connu (repli /d1-query
-        // supprimé, mais _existingChunks>1 resterait géré si une source future le fournit).
-        const chunkCountText = (typeof q._existingChunks === 'number' && q._existingChunks > 1)
-            ? ' (' + q._existingChunks + ' chunks)' : '';
-        if (q._similarTo) {
-            // Signal de similarité, pas une certitude — et jamais orienté vers « Écraser »,
-            // qui supprime avant d'ingérer (cf. commentaire sur replaceIngestNew). On ignore
-            // ici, ou on passe par la carte « Remplacer un livre », qui ingère d'abord.
-            return '<div class="dup-banner">'
-                + '<div class="dup-icon">⚠️</div>'
-                + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> ressemble à <b>' + escHtml(q._similarTo.book_title) + '</b> déjà présent — peut-être la même œuvre, sous un autre nom de fichier. Pour la remplacer en sécurité, utilisez l\'onglet « 🔄 Remplacer un livre ».</div>'
-                + '<div class="dup-actions">'
-                + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer — ne pas déposer ce fichier</button>'
-                + '</div></div>';
-        }
         return '<div class="dup-banner">'
             + '<div class="dup-icon">⚠️</div>'
-            + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> existe déjà dans la base' + chunkCountText + '. Écraser ou ignorer ?</div>'
+            + '<div class="dup-text"><b>' + q.meta.title + '</b> existe déjà dans la base (' + q._existingChunks + ' chunks). Écraser ou ignorer ?</div>'
             + '<div class="dup-actions">'
             + '<button class="btn-overwrite" onclick="overwriteDuplicate(\''+q.id+'\')">♻️ Écraser</button>'
             + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer</button>'
@@ -1741,37 +979,75 @@ async function scanDuplicates() {
     el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🔍 Scan en cours...</div>';
 
     try {
-        // Correctif SQL→structuré : /d1-query n'accepte plus de SQL brut. Le scan (deux
-        // gabarits fixes : doublons de contenu, puis repli livres total>unique) est désormais
-        // exécuté côté Worker (handleFindDuplicates) — même résultat, transport structuré.
-        const res = await fetch(getWorkerUrl() + '/find-duplicates', {
-            headers: { 'X-API-Key': getAdminApiKey() }
+        // Chercher les book_id avec des chunks en double (même content dans le même livre)
+        const res = await fetch(getWorkerUrl() + '/d1-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+            body: JSON.stringify({
+                sql: "SELECT book_id, book_title, content, COUNT(*) as cnt FROM chunks GROUP BY book_id, content HAVING cnt > 1 ORDER BY cnt DESC LIMIT 100"
+            })
         });
 
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        const books = data?.books || [];
+        const results = data?.results || data?.[0]?.results || [];
 
-        if (books.length === 0) {
-            el.innerHTML = '<div class="dup-clean">✅ Aucun doublon détecté — la bibliothèque est propre !</div>';
+        if (results.length === 0) {
+            // Vérifier aussi les livres entièrement dupliqués (même book_id, même nombre de chunks)
+            const res2 = await fetch(getWorkerUrl() + '/d1-query', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+                body: JSON.stringify({
+                    sql: "SELECT book_id, book_title, COUNT(*) as total, COUNT(DISTINCT content) as unique_chunks FROM chunks GROUP BY book_id HAVING total > unique_chunks ORDER BY (total - unique_chunks) DESC"
+                })
+            });
+            const data2 = await res2.json();
+            const results2 = data2?.results || data2?.[0]?.results || [];
+
+            if (results2.length === 0) {
+                el.innerHTML = '<div class="dup-clean">✅ Aucun doublon détecté — la bibliothèque est propre !</div>';
+                return;
+            }
+
+            // Afficher les livres avec doublons internes
+            let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + results2.length + ' livre(s) avec des chunks dupliqués :</div>';
+            window._dupBooks = results2;
+            results2.forEach(function(r, idx) {
+                const surplus = r.total - r.unique_chunks;
+                html += '<div class="dup-group">'
+                    + '<div class="dup-group-header"><span>📘 ' + r.book_title + '</span><span>' + r.total + ' chunks (' + surplus + ' doublons)</span></div>'
+                    + '<div class="dup-group-items"><div><span>Total chunks</span><span>' + r.total + '</span></div>'
+                    + '<div><span>Chunks uniques</span><span>' + r.unique_chunks + '</span></div>'
+                    + '<div><span>À supprimer</span><span style="color:#E65100;font-weight:700;">' + surplus + '</span></div></div>'
+                    + '<button onclick="purgeDupByIndex('+idx+')">'
+                    + '🧹 Purger les doublons</button></div>';
+            });
+            el.innerHTML = html;
             return;
         }
 
-        let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + books.length + ' livre(s) avec des doublons :</div>';
-        window._dupBooks = books;
-        books.forEach(function(g, idx) {
+        // Regrouper par book_id
+        const groups = {};
+        results.forEach(function(r) {
+            if (!groups[r.book_id]) groups[r.book_id] = { title: r.book_title, duplicates: 0 };
+            groups[r.book_id].duplicates += (r.cnt - 1);
+        });
+
+        let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + Object.keys(groups).length + ' livre(s) avec des doublons :</div>';
+        window._dupBooks = Object.entries(groups).map(function(entry) { return { book_id: entry[0], book_title: entry[1].title, duplicates: entry[1].duplicates }; });
+        window._dupBooks.forEach(function(g, idx) {
             html += '<div class="dup-group">'
-                + '<div class="dup-group-header"><span>📘 ' + escHtml(g.book_title) + '</span><span>' + g.duplicates + ' chunks en double</span></div>'
+                + '<div class="dup-group-header"><span>📘 ' + g.book_title + '</span><span>' + g.duplicates + ' chunks en double</span></div>'
                 + '<button onclick="purgeDupByIndex('+idx+')">'
                 + '🧹 Purger les doublons</button></div>';
         });
         el.innerHTML = html;
 
     } catch(err) {
-        if (err.message.includes('404')) {
-            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ Le Worker ne supporte pas /find-duplicates. Déployez la nouvelle version du Worker pour activer le scan de doublons.</div>';
+        if (err.message.includes('400')) {
+            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ Le Worker ne supporte pas /d1-query. Déployez la nouvelle version du Worker (clone-proxy-v2.js) pour activer le scan de doublons.</div>';
         } else {
-            el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur scan : ' + escHtml(err.message) + '</div>';
+            el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur scan : ' + err.message + '</div>';
         }
     }
 }
@@ -1788,35 +1064,28 @@ async function purgeDuplicates(bookId, bookTitle) {
     el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🧹 Purge en cours...</div>';
 
     try {
-        // Correctif SQL→structuré : /purge-duplicates (Worker) garde le rowid le plus petit par
-        // contenu identique, ET nettoie Vectorize pour les IDs supprimés — le DELETE SQL brut
-        // précédent ne touchait jamais Vectorize (correctif explicitement demandé).
-        const res = await fetch(getWorkerUrl() + '/purge-duplicates', {
+        // Stratégie : pour chaque book_id, supprimer les doublons en gardant le rowid le plus petit
+        const res = await fetch(getWorkerUrl() + '/d1-query', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
-            body: JSON.stringify({ book_id: bookId })
+            body: JSON.stringify({
+                sql: "DELETE FROM chunks WHERE rowid NOT IN (SELECT MIN(rowid) FROM chunks WHERE book_id = ? GROUP BY content) AND book_id = ?",
+                params: [bookId, bookId]
+            })
         });
 
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
-        const deleted = data?.deleted_chunks || 0;
+        const deleted = data?.meta?.changes || data?.[0]?.meta?.changes || 0;
 
-        // Correctif urgent (cohérence D1/Vectorize) — jamais afficher "supprimé" sur un
-        // résultat partiel (D1 confirmé, Vectorize partiellement en échec) : distingué
-        // explicitement de la même façon que deleteBook() ci-dessus.
-        if (data.partial) {
-            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ PARTIEL : D1 nettoyé (' + data.deleted_d1 + '), Vectorize incomplet (' + data.deleted_vectorize + '/' + data.deleted_d1 + ', ' + data.failed_vector_ids.length + ' échec(s)) — "' + escHtml(bookTitle) + '"</div>';
-            log('🧹 Purge PARTIELLE de "' + bookTitle + '" : D1 ' + data.deleted_d1 + ', Vectorize ' + data.deleted_vectorize + '/' + data.deleted_d1, 'error');
-        } else {
-            el.innerHTML = '<div class="dup-clean">✅ ' + deleted + ' chunk(s) en double supprimé(s) de "' + escHtml(bookTitle) + '"</div>';
-            log('🧹 Purge doublons : ' + deleted + ' chunks supprimés de "' + bookTitle + '"', 'success');
-        }
+        el.innerHTML = '<div class="dup-clean">✅ ' + deleted + ' chunk(s) en double supprimé(s) de "' + bookTitle + '"</div>';
+        log('🧹 Purge doublons : ' + deleted + ' chunks supprimés de "' + bookTitle + '"', 'success');
 
         // Re-scanner après 2 secondes
         setTimeout(scanDuplicates, 2000);
 
     } catch(err) {
-        el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur purge : ' + escHtml(err.message) + '</div>';
+        el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur purge : ' + err.message + '</div>';
     }
 }
 
@@ -1841,19 +1110,16 @@ async function refreshLibrary() {
         // Stocker les livres globalement — les index numériques évitent les problèmes d'apostrophes
         window._libBooks = data.books;
 
-        // Correctif urgent (sécurité P0) — book_title/author/approach/language viennent tous du
-        // Worker (/library-stats), dérivés de métadonnées saisies à l'ingestion — jamais dignes
-        // de confiance, échappés avant insertion.
         let html = '<div style="margin-bottom:12px;font-size:12px;color:#888;">'
             + data.total_chunks + ' chunks · ' + data.books.length + ' livres · '
-            + data.by_approach.map(a => escHtml(a.approach) + ' (' + a.count + ')').join(', ')
+            + data.by_approach.map(a => a.approach + ' (' + a.count + ')').join(', ')
             + '</div><div class="book-grid">';
 
         data.books.forEach(function(b, idx) {
             html += '<div class="book-card">'
                 + '<div class="bc-info">'
-                + '<div class="bc-title">' + escHtml(b.book_title) + '</div>'
-                + '<div class="bc-meta">' + escHtml(b.author) + ' · <span class="bc-approach">' + escHtml(b.approach) + '</span> · ' + escHtml((b.language || '').toUpperCase()) + '</div>'
+                + '<div class="bc-title">' + b.book_title + '</div>'
+                + '<div class="bc-meta">' + b.author + ' · <span class="bc-approach">' + b.approach + '</span> · ' + b.language.toUpperCase() + '</div>'
                 + '</div>'
                 + '<div style="display:flex;gap:4px;">'
                 + '<button class="btn-delete" style="font-size:10px;padding:4px 8px;" onclick="editBookByIndex(' + idx + ')">✏️</button>'
@@ -1865,7 +1131,7 @@ async function refreshLibrary() {
         el.innerHTML = html;
 
     } catch (err) {
-        el.innerHTML = '<div style="color:#c00;padding:20px;">Erreur: ' + escHtml(err.message) + '</div>';
+        el.innerHTML = '<div style="color:#c00;padding:20px;">Erreur: ' + err.message + '</div>';
     }
 }
 
@@ -1882,6 +1148,8 @@ function deleteBookByIndex(idx) {
 
 // ── Modifier les métadonnées d'un livre ──
 async function editBookMeta(bookId, title, currentApproach, currentAuthor, currentLang) {
+    const approaches = ['general','schema_therapy','act','ifs','coherence','emdr','hypnosis','couple','attachment','cbt','cft','dbt','mi','cnv','mbct','pbt','icv','systemic','trauma','psychodynamic','personal_development'];
+    
     // Créer un mini-formulaire en overlay
     const overlay = document.createElement('div');
     overlay.id = 'edit-overlay';
@@ -1889,7 +1157,7 @@ async function editBookMeta(bookId, title, currentApproach, currentAuthor, curre
     // Stocker l'ID du livre en cours d'édition (évite les apostrophes dans onclick)
     window._editBookId = bookId;
 
-    const optionsHtml = ADMIN_APPROACHES.map(a => '<option value="' + a.value + '"' + (a.value === currentApproach ? ' selected' : '') + '>' + escHtml(a.label) + '</option>').join('');
+    const optionsHtml = approaches.map(a => '<option value="' + a + '"' + (a === currentApproach ? ' selected' : '') + '>' + a + '</option>').join('');
 
     const formDiv = document.createElement('div');
     formDiv.style.cssText = 'background:white;border-radius:16px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
@@ -1903,7 +1171,7 @@ async function editBookMeta(bookId, title, currentApproach, currentAuthor, curre
         + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Approche thérapeutique</label>'
         + '<select id="edit-approach" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">' + optionsHtml + '</select></div>'
         + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Auteur</label>'
-        + '<input id="edit-author" type="text" value="' + escHtml(currentAuthor || '') + '" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;"></div>'
+        + '<input id="edit-author" type="text" value="' + (currentAuthor || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;"></div>'
         + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Langue</label>'
         + '<select id="edit-lang" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">'
         + '<option value="fr"' + (currentLang === 'fr' ? ' selected' : '') + '>FR</option>'
@@ -1957,9 +1225,25 @@ async function submitEditMeta(bookId) {
             }
         }
         
-        // /update-book-meta est la seule voie principale (fonctionne déjà) — le repli via
-        // /d1-query n'était qu'un fallback, retiré : /d1-query n'accepte plus de SQL brut
-        // depuis le durcissement du Worker, donc cette tentative échouait de toute façon.
+        // Fallback : si l'endpoint n'existe pas (404/405), utiliser /d1-query direct
+        log('  ⚠️ /update-book-meta non disponible — tentative via /d1-query...');
+        res = await fetch(getWorkerUrl() + '/d1-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+            body: JSON.stringify({
+                sql: "UPDATE chunks SET approach = ?, author = ?, language = ? WHERE book_id = ?",
+                params: [approach, author, language, bookId]
+            })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            log('  ✅ Métadonnées mises à jour via D1 direct', 'success');
+            document.getElementById('edit-overlay')?.remove();
+            refreshLibrary();
+            return;
+        }
+
         // Dernier recours : instruction manuelle
         log('  ⚠️ Endpoints non disponibles. Ajoutez /update-book-meta à votre Worker.', 'error');
         log('  📋 SQL à exécuter dans D1 Dashboard :', 'info');
@@ -1995,13 +1279,8 @@ async function deleteBook(bookId, title) {
             body: JSON.stringify({ book_id: bookId })
         });
         const data = await res.json();
-        // Correctif urgent (cohérence D1/Vectorize) — data.success reste false sur un résultat
-        // 'partial' (D1 confirmé supprimé, Vectorize partiellement en échec) : jamais affiché
-        // comme "supprimé" dans ce cas, message dédié distinguant clairement l'état réel.
         if (data.success) {
             log(`  ✅ ${title} supprimé (${data.deleted_chunks} chunks)`, 'success');
-        } else if (data.partial) {
-            log(`  ⚠️ ${title} — PARTIEL : D1 supprimé (${data.deleted_d1}), Vectorize incomplet (${data.deleted_vectorize}/${data.deleted_d1}, ${data.failed_vector_ids.length} échec(s))`, 'error');
         } else {
             log(`  ❌ ${data.error}`, 'error');
         }
@@ -2013,137 +1292,41 @@ async function deleteBook(bookId, title) {
 }
 
 // ── Test Search ──
-// Lot 2/2, correctif 5 — l'onglet "Tester la recherche RAG" n'appelait que /search-library
-// (vectoriel pur, confirmé), jamais /d1-query, FTS5 ni /rag-search (l'hybride) : un opérateur
-// pensait tester "la recherche RAG" alors qu'il ne testait qu'UNE des voies réellement
-// disponibles, jamais les deux autres. Transformé en vrai diagnostic de corpus : les 3 voies
-// côte à côte (vectoriel via /search-library, lexical FTS5 et hybride via les deux faces de
-// /rag-search — celui-ci calcule déjà les deux en interne, cf. Worker), avec id, langue,
-// approche et provenance (`source`) visibles pour chaque résultat. Reste un outil
-// d'administration/diagnostic, jamais l'UI grand public de Passerelle.
-// Intégration traduction (CDC Passerelle §2.6/§4) — un résultat déjà traduit par /rag-search
-// (is_machine_translated:true) affiche le texte traduit PAR DÉFAUT, marqué visiblement comme
-// traduction automatique, avec un bouton de bascule vers le texte original (VO) — jamais une
-// traduction affichée sans ce marquage, jamais la VO cachée sans moyen facile d'y revenir. Sert
-// de premier lieu de vérification visuelle avant toute UI grand public de Passerelle.
-function toggleTranslationView(uid) {
-    const tEl = document.getElementById('tr-' + uid);
-    const oEl = document.getElementById('vo-' + uid);
-    const btn = document.getElementById('btn-' + uid);
-    if (!tEl || !oEl) return;
-    const showingTranslation = tEl.style.display !== 'none';
-    tEl.style.display = showingTranslation ? 'none' : '';
-    oEl.style.display = showingTranslation ? '' : 'none';
-    if (btn) btn.textContent = showingTranslation ? '🔤 Voir la traduction' : '📖 Voir le texte original (VO)';
-}
-
-function renderSearchColumn(title, results, ms, emptyLabel, columnKey, targetLang) {
-    if (!results.length) {
-        return `<div style="flex:1;min-width:0;"><h4 style="font-size:12px;color:#8FAFB1;margin-bottom:8px;">${escHtml(title)} (0, ${ms}ms)</h4>
-            <div style="font-size:11px;color:#aaa;padding:12px;text-align:center;">${escHtml(emptyLabel)}</div></div>`;
-    }
-    // Correctif micro-lot RRF-CLOSE — `r.sources` (tableau, quand fourni par /rag-search) reflète
-    // désormais TOUTES les provenances réelles d'un chunk (un chunk trouvé par les deux moteurs
-    // n'écrase plus jamais l'une par l'autre) ; repli sur `r.source` (singulier) pour les
-    // résultats de /search-library qui n'ont jamais porté ce champ pluriel. `rrf_score` affiché
-    // à côté du `score` brut existant (cosinus vectoriel ou 0.7 FTS5 arbitraire) — jamais ce
-    // dernier seul, qui ne détermine plus le classement réel depuis le correctif RRF.
-    return `<div style="flex:1;min-width:0;"><h4 style="font-size:12px;color:#8FAFB1;margin-bottom:8px;">${escHtml(title)} (${results.length}, ${ms}ms)</h4>` +
-        results.map((r, idx) => {
-            const srcList = Array.isArray(r.sources) ? r.sources : [r.source || '?'];
-            const isLexical = srcList.includes('fts5');
-            const uid = `${columnKey || 'col'}-${idx}`;
-            let bodyHtml;
-            if (r.is_machine_translated) {
-                // Traduit avec succès : traduction affichée par défaut, VO présente dans le DOM
-                // mais masquée (aucun second appel réseau nécessaire pour basculer).
-                bodyHtml = `
-                <div style="margin-bottom:4px;">
-                    <span style="background:#E3F2FD;color:#1565C0;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;">🌐 Traduction automatique (${escHtml(r.language || '?')} → ${escHtml(targetLang || 'fr')})</span>
-                    <button type="button" id="btn-${uid}" onclick="toggleTranslationView('${uid}')" style="margin-left:6px;font-size:10px;padding:1px 6px;border:1px solid #90CAF9;border-radius:3px;background:#fff;color:#1565C0;cursor:pointer;">📖 Voir le texte original (VO)</button>
-                </div>
-                <div id="tr-${uid}" style="color:#444;line-height:1.5;">${escHtml((r.translated_content || '').substring(0, 300))}${(r.translated_content || '').length > 300 ? '...' : ''}</div>
-                <div id="vo-${uid}" style="display:none;color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content || '').length > 300 ? '...' : ''}</div>`;
-            } else if (r.translation_failed) {
-                // Échec de traduction isolé à CE résultat (jamais toute la réponse en erreur) —
-                // texte original affiché avec un avertissement explicite, jamais un texte vide.
-                bodyHtml = `
-                <div style="margin-bottom:4px;"><span style="background:#FFEBEE;color:#C62828;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;">⚠️ Échec de traduction automatique — texte original (VO) affiché</span></div>
-                <div style="color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content || '').length > 300 ? '...' : ''}</div>`;
-            } else {
-                bodyHtml = `<div style="color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content || '').length > 300 ? '...' : ''}</div>`;
-            }
-            return `<div style="background:#fafaf8;padding:10px;border-radius:6px;margin-bottom:6px;border-left:3px solid ${isLexical ? '#FFB74D' : '#8FAFB1'};font-size:11px;">
-            <div style="font-weight:600;color:#7A9A9C;margin-bottom:4px;">📖 ${escHtml(r.book_title || '?')} — ${escHtml(r.author || '?')} ${r.page_number ? '(p.'+escHtml(r.page_number)+')' : ''}</div>
-            <div style="color:#999;margin-bottom:4px;">id: <code style="font-size:10px;">${escHtml(r.id || '?')}</code> · langue: ${escHtml(r.language || '?')} · approche: ${escHtml(r.approach || '?')} · source(s) : <b>${escHtml(srcList.join('+'))}</b> · score: ${(r.score || 0).toFixed(3)}${r.rrf_score != null ? ' · rrf: ' + r.rrf_score.toFixed(4) : ''}</div>
-            ${bodyHtml}
-        </div>`;
-        }).join('') + '</div>';
-}
-
 async function testSearch() {
     const query = document.getElementById('searchQuery').value.trim();
     if (!query) return;
     const approach = document.getElementById('searchApproach').value;
     const topK = parseInt(document.getElementById('searchTopK').value) || 5;
     const el = document.getElementById('searchResults');
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Recherche en cours (3 voies)...</div>';
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Recherche en cours...</div>';
 
     try {
-        const key = getAdminApiKey();
         const t0 = Date.now();
-        const [vecRes, ragRes] = await Promise.all([
-            fetch(getWorkerUrl() + '/search-library', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
-                body: JSON.stringify({ query, topK, approach: approach || undefined })
-            }),
-            fetch(getWorkerUrl() + '/rag-search', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
-                body: JSON.stringify({ query, topK, approach: approach || undefined })
-            }),
-        ]);
+        const res = await fetch(getWorkerUrl() + '/search-library', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+            body: JSON.stringify({ query, topK, approach: approach || undefined })
+        });
+        const data = await res.json();
         const ms = Date.now() - t0;
-        const vecData = vecRes.ok ? await vecRes.json() : { results: [], error: 'HTTP ' + vecRes.status };
-        const ragData = ragRes.ok ? await ragRes.json() : { chunks: [], error: 'HTTP ' + ragRes.status };
+        const results = data.results || [];
 
-        // /search-library (vectoriel pur) : forme {results:[...]}, champ `page` (pas
-        // page_number), pas de `source` (toujours vectoriel par construction de cette route).
-        const vectorResults = (vecData.results || []).map(r => ({ ...r, page_number: r.page, source: 'vector' }));
-        // /rag-search (hybride) : forme {chunks:[...]}, `source` déjà présent par résultat —
-        // 'lexical' = seulement les résultats FTS5 de CE MÊME appel, jamais un 3e appel réseau
-        // séparé (le Worker calcule déjà les deux voies en interne pour construire l'hybride).
-        // Correctif urgent — ce filtre était trompeur tant que /rag-search fusionnait par simple
-        // concaténation-puis-slice (biais vector-first : un résultat FTS5 authentiquement
-        // pertinent n'atteignait pratiquement jamais le topK final). Corrigé côté Worker (fusion
-        // par rang réciproque, RRF) plutôt que d'ajouter ici un 3e appel réseau en pansement —
-        // cette colonne reflète désormais honnêtement les résultats FTS5 qui survivent à un
-        // classement combiné réel, jamais un biais d'insertion.
-        // Correctif micro-lot RRF-CLOSE — `r.source === 'fts5'` ratait tout chunk trouvé par LES
-        // DEUX moteurs (la déduplication Worker ne gardait que la provenance vectorielle dans ce
-        // cas, cf. `_sources` côté Worker). Filtre désormais sur `sources` (tableau, provenances
-        // réelles cumulées) avec repli sur `source` pour compatibilité si absent.
-        const hybridResults = ragData.chunks || [];
-        const lexicalResults = hybridResults.filter(r => (Array.isArray(r.sources) ? r.sources : [r.source]).includes('fts5'));
-        // Intégration traduction — target_lang renvoyé par /rag-search (défaut 'fr' côté Worker
-        // si omis ici) sert uniquement à l'affichage du badge "langue source → langue cible" ;
-        // /search-library (colonne vectorielle) ne traduit rien (hors périmètre de ce lot, seul
-        // /rag-search intègre la traduction) — cette colonne n'affiche donc jamais de badge.
-        const targetLang = ragData.target_lang || 'fr';
+        if (results.length === 0) {
+            el.innerHTML = `<div class="empty-state"><div class="icon">😐</div><div>Aucun résultat pour "${query}" (${ms}ms)</div></div>`;
+            return;
+        }
 
-        if (vecData.error) log('  ⚠️ Voie vectorielle : ' + vecData.error, 'error');
-        if (ragData.error) log('  ⚠️ Voie hybride/lexicale : ' + ragData.error, 'error');
-
-        el.innerHTML = `<div style="margin-bottom:10px;font-size:11px;color:#888;">Requête : "${escHtml(query)}" — ${ms}ms (les 3 voies interrogées en parallèle)</div>
-            <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                ${renderSearchColumn('🎯 Vectoriel (/search-library)', vectorResults, ms, 'Aucun résultat vectoriel', 'vec', targetLang)}
-                ${renderSearchColumn('🔤 Lexical FTS5 (part de /rag-search)', lexicalResults, ms, 'Aucun résultat lexical (termes trop courts/absents ?)', 'lex', targetLang)}
-                ${renderSearchColumn('🔀 Hybride (/rag-search, fusionné)', hybridResults, ms, 'Aucun résultat hybride', 'hyb', targetLang)}
-            </div>`;
+        el.innerHTML = `<div style="margin-bottom:12px;font-size:11px;color:#888;">${results.length} résultats en ${ms}ms</div>` +
+            results.map((r, i) => `<div style="background:#fafaf8;padding:14px;border-radius:8px;margin-bottom:8px;border-left:4px solid ${i===0?'#8FAFB1':'#C8D0C3'};">
+                <div style="font-weight:600;font-size:12px;color:#7A9A9C;margin-bottom:6px;">
+                    📖 ${r.book_title || '?'} — ${r.author || '?'} ${r.page ? '(p.'+r.page+')' : ''}
+                    <span style="float:right;font-size:10px;color:#aaa;">score: ${(r.score || r.similarity || 0).toFixed(3)} · ${r.approach || '?'}</span>
+                </div>
+                <div style="font-size:12px;line-height:1.6;color:#444;">${(r.content || r.text || '').substring(0, 500)}${(r.content||r.text||'').length > 500 ? '...' : ''}</div>
+            </div>`).join('');
 
     } catch (err) {
-        el.innerHTML = `<div style="color:#c00;padding:20px;">Erreur: ${escHtml(err.message)}</div>`;
+        el.innerHTML = `<div style="color:#c00;padding:20px;">Erreur: ${err.message}</div>`;
     }
 }
 
@@ -2183,17 +1366,13 @@ function autoDetectMeta(pages, filename) {
         'mi': ['motivationnel', 'miller', 'rollnick', 'ambivalence', 'discours-changement'],
         'cnv': ['non violente', 'rosenberg', 'communication non', 'osbd', 'girafe', 'chacal'],
         'icv': ['intégration du cycle', 'lifespan integration', 'peggy pace', 'ligne du temps', 'timeline', 'icv'],
-        // Correctif urgent — deux clés littérales 'systemic' existaient dans ce même objet ;
-        // la seconde (mots-clés pauvres) écrasait silencieusement celle-ci (mots-clés riches,
-        // Watzlawick/Minuchin/Selvini/de Shazer/narratif/White/Epston) à l'évaluation de l'objet
-        // — fusionnées en une seule entrée, union des deux listes, rien perdu, doublons
-        // ('systémique', 'homéostasie') retirés.
-        'systemic': ['systémique', 'watzlawick', 'minuchin', 'selvini', 'palo alto', 'circularité', 'de shazer', 'question miracle', 'narratif', 'white', 'epston', 'externalisation', 'boucle', 'homéostasie', 'famille', 'neuburger', 'double lien'],
+        'systemic': ['systémique', 'watzlawick', 'minuchin', 'selvini', 'palo alto', 'circularité', 'de shazer', 'question miracle', 'narratif', 'white', 'epston', 'externalisation', 'boucle', 'homéostasie'],
         'coherence': ['cohérence', 'reconsolidation', 'ecker', 'hulley', 'juxtaposition', 'mémoire implicite', 'savoir émotionnel'],
         'mbct': ['pleine conscience', 'mbct', 'segal', 'mindfulness', 'méditation'],
         'cbt': ['cognitif', 'beck', 'cbt', 'tcc', 'restructuration cognitive'],
         'trauma': ['trauma', 'ptsd', 'van der kolk', 'herman', 'dissociation', 'traumatisme'],
         'psychodynamic': ['psychodynamique', 'transfert', 'inconscient', 'pulsion', 'freud'],
+        'systemic': ['systémique', 'famille', 'neuburger', 'homéostasie', 'double lien'],
         'hypnosis': ['hypnose', 'hypnotique', 'transe', 'erickson', 'roustang', 'bioy', 'megglé', 'induction', 'suggestion hypnotique', 'auto-hypnose', 'hypnothérapie', 'état modifié', 'saupoudrage', 'ancrage ressource', 'hypno-analgésie', 'benhaiem', 'état hypnotique'],
         'personal_development': ['développement personnel', 'confiance en soi', 'estime de soi', 'croissance personnelle', 'plein potentiel', 'coaching', 'habits', 'habitudes', 'productivité', 'objectifs', 'motivation', 'goleman', 'intelligence émotionnelle', 'covey', 'robbins', 'carnegie', 'gladwell', 'seligman', 'psychologie positive', 'flow', 'csikszentmihalyi', 'résilience', 'stoïcisme', 'tolle', 'présence', 'mindset', 'dweck', 'assertivité', 'gestion du stress', 'burn-out', 'bien-être', 'bonheur', 'sens de la vie', 'valeurs personnelles'],
     };
@@ -2230,9 +1409,6 @@ async function refreshStats() {
 }
 
 // ── Init ──
-// Lot 2/2, correctif 6 — peuple le menu de test depuis la source unique ADMIN_APPROACHES.
-document.getElementById('searchApproach').insertAdjacentHTML('beforeend',
-    ADMIN_APPROACHES.map(a => `<option value="${a.value}">${escHtml(a.label)}</option>`).join(''));
 refreshStats();
 </script>
 </body>
