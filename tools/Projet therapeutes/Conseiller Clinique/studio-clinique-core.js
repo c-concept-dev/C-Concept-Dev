@@ -11142,6 +11142,17 @@ ${recent}`;
     lr.addEventListener('drop',function(e){if(e.target.closest('[data-cc-editor-leaf]')){e.preventDefault();adocEditorMessage('Utilisez le copier-coller pour insérer du texte dans ce passage.');}});
   }
 
+  function adocTitleFontStyles(doc) {
+    const styles = [];
+    if (doc && doc.titleStyle) styles.push(doc.titleStyle);
+    function walk(blocks) { (blocks || []).forEach(function(block) {
+      if (block.content && block.content.titleStyle) styles.push(block.content.titleStyle);
+      if (block.content && block.content.blocks) walk(block.content.blocks);
+    }); }
+    walk(doc && doc.blocks);
+    return styles;
+  }
+
   function adocEditorExportFonts(doc, tokens) {
     const names = new Set(), pairs = new Set();
     if (tokens && tokens.typography) {
@@ -11157,6 +11168,19 @@ ${recent}`;
       if(b.content && b.content.blocks)walk(b.content.blocks);
     }); } walk(doc.blocks);
     return ADOC_LEGACY_FONT_PAIRS.filter(function(p){return p.googleFontsHref && (pairs.has(p.id)||names.has(p.bodyFont)||names.has(p.headingFont));}).map(adocGoogleFontLinkTag).join('');
+  }
+
+  function adocExportFontsWithTitles(doc, tokens, titleOnly) {
+    // titleStyle vit hors des blocs. Le présente comme un bloc.style virtuel au collecteur
+    // existant : une seule table de paires et une seule règle de liens, sans toucher au HTML.
+    // Sans style de titre, l'appel historique reste exact — jusque dans les exports interactifs
+    // qui sérialisent adocEditorExportFonts.toString() dans leur moteur embarqué.
+    const titleBlocks = adocTitleFontStyles(doc).filter(function(style) {
+      return style.fontFamily || style.fontPairId;
+    }).map(function(style) { return { style: style }; });
+    if (!titleBlocks.length) return titleOnly ? '' : adocEditorExportFonts(doc, tokens);
+    const blocks = titleOnly ? titleBlocks : (doc.blocks || []).concat(titleBlocks);
+    return adocEditorExportFonts({ blocks: blocks }, titleOnly ? null : tokens);
   }
 
   function adocEditorRules(table) {
@@ -13905,7 +13929,7 @@ ${recent}`;
     // avec couverture ou quiz. Reste APPENDU, jamais mélangé au bloc CSS existant ci-dessus,
     // strictement inchangé.
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
-      adocEditorExportFonts(doc) + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
+      adocExportFontsWithTitles(doc) + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
       '<style>:root{' + cssVars + '}' + ADOC_DOC_CONTENT_CSS +
       ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_CARD_IMG_CSS +
       (annexe ? ADOC_DEEPDIVE_APPENDIX_CSS : '') +
@@ -13947,7 +13971,7 @@ ${recent}`;
     } catch (_) { return null; }
   }
 
-  async function adocPdfResolveCharterFonts(tokens, art) {
+  async function adocPdfResolveCharterFonts(tokens, art, doc) {
     const typography = (tokens && tokens.typography) || {};
     const next = Object.assign({}, tokens, { typography: Object.assign({}, typography) });
     const extraLinks = [], warnings = [];
@@ -13970,6 +13994,26 @@ ${recent}`;
         warnings.push('« ' + name + ' » remplacée par ' + replacement.split(',')[0]);
       }
     }
+    // Les titres ont un style propre, hors typography et hors block.style. Une police du
+    // catalogue est déjà reliée par adocEditorExportFonts ; pour les autres, même résolution
+    // Google/asset que la charte, avec le même avertissement si elle échoue.
+    const titleNames = [...new Set(adocTitleFontStyles(doc).map(function(style) {
+      return typeof style.fontFamily === 'string' ? style.fontFamily.replace(/^['"]|['"]$/g, '').trim() : '';
+    }).filter(Boolean))];
+    for (const name of titleNames) {
+      if (/^(serif|sans-serif|monospace|system-ui)$/i.test(name)) continue;
+      if (ADOC_LEGACY_FONT_PAIRS.some(function(p) { return p.googleFontsHref && (p.headingFont === name || p.bodyFont === name); })) continue;
+      const href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(name).replace(/%20/g, '+') + ':wght@400;500;600;700&display=swap';
+      let available = false;
+      try { const response = await fetch(href, { signal: AbortSignal.timeout(5000) }); available = response.ok; }
+      catch (_) { available = false; }
+      if (available) extraLinks.push('<link href="' + adocEsc(href) + '" rel="stylesheet">');
+      else {
+        const embedded = await adocPdfBrandFontResource(art, name);
+        if (embedded) extraLinks.push(embedded);
+        else warnings.push('« ' + name + ' » remplacée par la police de secours');
+      }
+    }
     return { tokens: next, extraLinks: [...new Set(extraLinks)].join(''), warnings };
   }
 
@@ -13982,7 +14026,7 @@ ${recent}`;
       return '<div class="adoc-pdf-page">' + adocRenderCardHTML(card, i, doc.blocks.length) + '</div>';
     }).join('\n');
     const html = '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
-      adocEditorExportFonts(doc, isPresentation ? tokens : null) + (extraFontLinks || '') + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
+      adocExportFontsWithTitles(doc, isPresentation ? tokens : null) + (extraFontLinks || '') + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
       '<style>:root{' + cssVars + '}' +
       (isPresentation ? '@page{size:A4 landscape;margin:0;}' : '@page{size:1024px 768px;margin:0;}') +
       '*{box-sizing:border-box;}' +
@@ -19590,7 +19634,7 @@ ${recent}`;
     const accentCSS = accentExport ? ':root{--adoc-presentation-accent:' + String(accentExport).replace(/[^#\w(),.% -]/g, '') + ';}' : '';
     const css = ADOC_PRESENT_ROOT_VARS_CSS + accentCSS + ADOC_DOC_CONTENT_CSS + ADOC_PRESENT_ENGINE_CSS + 'body{margin:0;background:#14211f;}';
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
-      '<title>' + adocEsc(doc.title) + ' — Présentation</title>' +
+      adocExportFontsWithTitles(doc, null, true) + '<title>' + adocEsc(doc.title) + ' — Présentation</title>' +
       '<style>' + css + '</style></head><body>' +
       '<div id="cc-ws-present-overlay" hidden role="dialog" aria-modal="true" aria-label="Mode présentation plein écran">' +
         '<div class="cc-ws-present-slide-wrap">' +
@@ -20336,7 +20380,7 @@ ${recent}`;
   async function adocWsPreparePagedPresentation(art, doc) {
     const rendered = await window.adocRenderClinicalDocument(doc, art._adocStructuredSnapshot, art._adocRenderManifestOverride || null);
     const pdfFonts = doc.documentKind === 'presentation'
-      ? await adocPdfResolveCharterFonts(rendered.tokens, art)
+      ? await adocPdfResolveCharterFonts(rendered.tokens, art, doc)
       : { tokens: rendered.tokens, extraLinks: '', warnings: [] };
     return { html: await adocBuildCarrouselPdfPagesHTML(doc, pdfFonts.tokens, pdfFonts.extraLinks), warnings: pdfFonts.warnings };
   }
