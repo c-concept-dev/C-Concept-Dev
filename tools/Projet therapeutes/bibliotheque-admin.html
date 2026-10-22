@@ -6,6 +6,7 @@
     <title>Bibliothèque Thérapeutique — Administration</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -238,9 +239,9 @@
         <div class="tab-content active" id="tab-upload">
             <div class="dropzone" id="dropzone">
                 <span class="dropzone-icon">📄</span>
-                <div class="dropzone-text">Glissez vos PDF ou HTML ici</div>
-                <div class="dropzone-hint">PDF et HTML acceptés — extraction et indexation automatiques</div>
-                <input type="file" id="fileInput" accept=".pdf,.html,.htm" multiple>
+                <div class="dropzone-text">Glissez vos PDF, HTML ou EPUB ici</div>
+                <div class="dropzone-hint">PDF, HTML et EPUB acceptés — extraction et indexation automatiques</div>
+                <input type="file" id="fileInput" accept=".pdf,.html,.htm,.epub" multiple>
             </div>
 
             <div id="dupAlerts"></div>
@@ -500,22 +501,23 @@ fileInput.addEventListener('change', () => {
 function addFiles(files) {
     const accepted = files.filter(f => {
         const name = f.name.toLowerCase();
-        return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm');
+        return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.epub');
     });
-    if (accepted.length === 0) { log('⚠️ Aucun fichier PDF ou HTML détecté'); return; }
+    if (accepted.length === 0) { log('⚠️ Aucun fichier PDF, HTML ou EPUB détecté'); return; }
 
     for (const f of accepted) {
         if (queue.find(q => q.file.name === f.name)) continue;
         const id = 'q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
         const ext = f.name.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
-        const bookId = f.name.replace(/\.(pdf|html?)$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
+        const bookId = f.name.replace(/\.(pdf|html?|epub)$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
         const isHTML = ext === '.html' || ext === '.htm';
+        const isEPUB = ext === '.epub';
         queue.push({
             id, file: f,
-            fileType: isHTML ? 'html' : 'pdf',
+            fileType: isHTML ? 'html' : (isEPUB ? 'epub' : 'pdf'),
             meta: {
                 book_id: bookId,
-                title: f.name.replace(/\.(pdf|html?)$/i, ''),
+                title: f.name.replace(/\.(pdf|html?|epub)$/i, ''),
                 author: '',
                 language: 'fr',
                 approach: isHTML ? 'outils_couple' : 'general',
@@ -618,6 +620,65 @@ async function extractPDFText(file, progressCb) {
 }
 
 // ── Extract HTML text (outils couple, exercices) ──
+// ── EPUB ── un EPUB est une archive ZIP de fichiers (X)HTML, pas une suite de pages : il n'y a
+// pas de "page 47" à extraire. On lit la structure réelle du livre — container.xml pointe vers
+// le fichier .opf, qui liste le contenu (manifest) et son ORDRE DE LECTURE (spine, distinct de
+// l'ordre des fichiers dans l'archive). Un chapitre du spine = une "page" ici : c'est la même
+// convention qu'un feuillet dans Liénothèque — un rang stable, pas un vrai numéro imprimé.
+async function extractEPUBText(file, progressCb) {
+    const zip = await JSZip.loadAsync(file);
+
+    const containerXml = await zip.file('META-INF/container.xml')?.async('text');
+    if (!containerXml) throw new Error('EPUB invalide : META-INF/container.xml absent');
+    const containerDoc = new DOMParser().parseFromString(containerXml, 'application/xml');
+    const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
+    if (!opfPath) throw new Error('EPUB invalide : aucun fichier .opf référencé');
+
+    const opfDir = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/') + 1) : '';
+    const opfXml = await zip.file(opfPath)?.async('text');
+    if (!opfXml) throw new Error('EPUB invalide : ' + opfPath + ' introuvable dans l\'archive');
+    const opfDoc = new DOMParser().parseFromString(opfXml, 'application/xml');
+
+    // manifest : id -> chemin réel dans l'archive (relatif au dossier de l'OPF)
+    const manifest = {};
+    opfDoc.querySelectorAll('manifest > item').forEach(item => {
+        const id = item.getAttribute('id');
+        const href = item.getAttribute('href');
+        if (id && href) manifest[id] = opfDir + decodeURIComponent(href);
+    });
+
+    // spine : ordre de lecture réel — jamais l'ordre des fichiers dans le zip
+    const spineIds = Array.from(opfDoc.querySelectorAll('spine > itemref'))
+        .map(el => el.getAttribute('idref'))
+        .filter(Boolean);
+    if (spineIds.length === 0) throw new Error('EPUB invalide : spine vide, aucun ordre de lecture');
+
+    // Titre et auteur, si présents dans les métadonnées Dublin Core
+    const dcTitle = opfDoc.querySelector('metadata > *')?.ownerDocument
+        ?.querySelector('dc\\:title, title')?.textContent?.trim();
+    const dcCreator = opfDoc.querySelector('dc\\:creator, creator')?.textContent?.trim();
+
+    const pages = [];
+    let allText = '';
+    for (let i = 0; i < spineIds.length; i++) {
+        const path = manifest[spineIds[i]];
+        const entry = path ? zip.file(path) : null;
+        if (entry) {
+            const html = await entry.async('text');
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            doc.querySelectorAll('script, style, noscript, [hidden]').forEach(el => el.remove());
+            const text = (doc.body?.textContent || '').replace(/\s+/g, ' ').trim();
+            if (text.length > 20) {
+                pages.push({ page: i + 1, text });
+                allText += text + '\n\n';
+            }
+        }
+        if (progressCb) progressCb(Math.round(((i + 1) / spineIds.length) * 100));
+    }
+
+    return { pages, fullText: allText, numPages: spineIds.length, detectedTitle: dcTitle, detectedAuthor: dcCreator };
+}
+
 async function extractHTMLText(file, progressCb) {
     const text = await file.text();
     const parser = new DOMParser();
@@ -850,6 +911,20 @@ async function startIngestion() {
                 });
                 pages = result.pages;
                 numPages = result.numPages;
+            } else if (q.fileType === 'epub') {
+                const result = await extractEPUBText(q.file, pct => {
+                    const bar = document.getElementById('qp-' + q.id);
+                    if (bar) bar.style.width = pct + '%';
+                });
+                pages = result.pages;
+                numPages = result.numPages;
+                if (!q.meta.author && result.detectedAuthor) {
+                    q.meta.author = result.detectedAuthor;
+                    log('  🔍 Auteur détecté (métadonnées EPUB) : ' + result.detectedAuthor);
+                }
+                if (result.detectedTitle && result.detectedTitle !== q.meta.title) {
+                    log('  ℹ️ Titre déclaré par l\'EPUB : "' + result.detectedTitle + '" (nom de fichier conservé pour l\'identifiant)');
+                }
             } else {
                 const result = await extractPDFText(q.file, pct => {
                     const bar = document.getElementById('qp-' + q.id);
@@ -859,7 +934,11 @@ async function startIngestion() {
                 numPages = result.numPages;
             }
 
-            if (pages.length === 0) throw new Error(q.fileType === 'html' ? 'Aucun texte extrait du HTML' : 'Aucun texte extrait (PDF scanné ou protégé)');
+            if (pages.length === 0) throw new Error(
+                q.fileType === 'html' ? 'Aucun texte extrait du HTML' :
+                q.fileType === 'epub' ? 'Aucun texte extrait de l\'EPUB (archive invalide ou chapitres vides)' :
+                'Aucun texte extrait (PDF scanné ou protégé)'
+            );
 
             // Phase 1b: Auto-detect metadata
             if (!q.meta.author || q.meta.approach === 'general') {
