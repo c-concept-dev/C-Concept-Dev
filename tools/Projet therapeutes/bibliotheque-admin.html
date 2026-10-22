@@ -174,6 +174,7 @@
             padding: 14px 16px; background: #fafaf8;
             border-radius: 10px; border-left: 4px solid #8FAFB1;
         }
+        .book-card[hidden] { display: none; }
         .bc-info { flex: 1; }
         .bc-title { font-weight: 600; font-size: 13px; color: #333; }
         .bc-meta { font-size: 11px; color: #999; margin-top: 2px; }
@@ -182,6 +183,15 @@
             font-size: 10px; font-weight: 600; background: #E6D7C3; color: #7A9A9C;
         }
         .bc-chunks { font-size: 11px; color: #aaa; }
+        .bc-language { display:inline-block;padding:2px 8px;border-radius:10px;background:#e9efec;color:#52676a;font-size:10px;font-weight:700; }
+        .bc-language.translation-needed { background:#fff0d6;color:#8a5200;border:1px solid #e9b65d; }
+        .translation-panel { margin:14px 0;padding:18px;border:2px solid #8FAFB1;border-radius:12px;background:#f6faf9; }
+        .translation-panel h3 { color:#365f62;font-size:16px;margin-bottom:8px; }
+        .translation-panel p { font-size:12px;line-height:1.5;margin:8px 0; }
+        .translation-panel progress { width:100%;height:18px;accent-color:#7A9A9C; }
+        .translation-panel select { padding:7px;border:1px solid #8FAFB1;border-radius:6px;background:white; }
+        .translation-panel .warning { background:#fff6e6;border-left:4px solid #e9a942;padding:8px 10px; }
+        .translation-panel .error { background:#fff0ef;border-left:4px solid #d9534f;padding:8px 10px; }
         .dup-banner { background: #FFF3E0; border: 2px solid #FFB74D; border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
         .dup-banner .dup-icon { font-size: 24px; flex-shrink: 0; }
         .dup-banner .dup-text { font-size: 13px; color: #E65100; flex: 1; }
@@ -287,7 +297,16 @@
                 <button class="dup-scan-btn" onclick="scanDuplicates()" style="flex:1;">🔍 Scanner les doublons</button>
                 <button class="btn-refresh" onclick="refreshLibrary()">🔄</button>
             </div>
+            <label for="libraryLangFilter" style="display:block;font-size:12px;color:#52676a;margin-bottom:10px;">Afficher :
+                <select id="libraryLangFilter" onchange="filterLibraryByLanguage()" style="padding:6px;border:1px solid #8FAFB1;border-radius:6px;">
+                    <option value="all">Tous les livres</option>
+                    <option value="other">À traduire (langue autre que le français)</option>
+                    <option value="fr">En français</option>
+                    <option value="unknown">Langue inconnue</option>
+                </select>
+            </label>
             <div id="dupResults"></div>
+            <div id="bookTranslationPanel" aria-live="polite"></div>
             <div id="libraryContent">
                 <div class="empty-state">
                     <div class="icon">📚</div>
@@ -1867,12 +1886,18 @@ async function refreshLibrary() {
             + '</div><div class="book-grid">';
 
         data.books.forEach(function(b, idx) {
-            html += '<div class="book-card">'
+            const lang = normalizeLibraryLanguage(b.language);
+            const langLabel = libraryLanguageLabel(lang);
+            const needsTranslation = !!lang && !isFrenchLibraryLanguage(lang);
+            html += '<div class="book-card" data-language="' + escHtml(lang) + '">'
                 + '<div class="bc-info">'
                 + '<div class="bc-title">' + escHtml(b.book_title) + '</div>'
-                + '<div class="bc-meta">' + escHtml(b.author) + ' · <span class="bc-approach">' + escHtml(b.approach) + '</span> · ' + escHtml((b.language || '').toUpperCase()) + '</div>'
+                + '<div class="bc-meta">' + escHtml(b.author) + ' · <span class="bc-approach">' + escHtml(b.approach) + '</span> · '
+                + '<span class="bc-language' + (needsTranslation ? ' translation-needed' : '') + '">'
+                + escHtml(langLabel) + (needsTranslation ? ' · À traduire' : '') + '</span></div>'
                 + '</div>'
                 + '<div style="display:flex;gap:4px;">'
+                + '<button class="btn-sm" onclick="openBookTranslation(' + idx + ')">🌐 Traduire et exporter en PDF</button>'
                 + '<button class="btn-delete" style="font-size:10px;padding:4px 8px;" onclick="editBookByIndex(' + idx + ')">✏️</button>'
                 + '<button class="btn-delete" onclick="deleteBookByIndex(' + idx + ')">🗑</button>'
                 + '</div></div>';
@@ -1880,10 +1905,49 @@ async function refreshLibrary() {
 
         html += '</div>';
         el.innerHTML = html;
+        filterLibraryByLanguage();
 
     } catch (err) {
         el.innerHTML = '<div style="color:#c00;padding:20px;">Erreur: ' + escHtml(err.message) + '</div>';
     }
+}
+function normalizeLibraryLanguage(value) {
+    const lang = String(value || '').trim().toLowerCase().replace(/_/g, '-');
+    return ['und', 'unknown', 'inconnue', 'n/a'].includes(lang) ? '' : lang;
+}
+function isFrenchLibraryLanguage(lang) {
+    return lang === 'fr' || lang === 'fra' || lang === 'fre' || lang.startsWith('fr-');
+}
+function libraryLanguageLabel(lang) {
+    if (!lang) return 'Langue inconnue';
+    const base = lang.split('-')[0];
+    const names = { fr: 'Français', fra: 'Français', fre: 'Français',
+        en: 'Anglais', eng: 'Anglais', es: 'Espagnol', spa: 'Espagnol',
+        de: 'Allemand', deu: 'Allemand', ger: 'Allemand', it: 'Italien', ita: 'Italien',
+        pt: 'Portugais', por: 'Portugais', nl: 'Néerlandais', nld: 'Néerlandais',
+        ar: 'Arabe', ara: 'Arabe', ru: 'Russe', rus: 'Russe',
+        zh: 'Chinois', zho: 'Chinois', ja: 'Japonais', jpn: 'Japonais',
+        ko: 'Coréen', kor: 'Coréen', pl: 'Polonais', pol: 'Polonais',
+        tr: 'Turc', tur: 'Turc', sv: 'Suédois', swe: 'Suédois',
+        da: 'Danois', dan: 'Danois', no: 'Norvégien', nor: 'Norvégien',
+        fi: 'Finnois', fin: 'Finnois', el: 'Grec', ell: 'Grec', gre: 'Grec',
+        he: 'Hébreu', heb: 'Hébreu', hi: 'Hindi', hin: 'Hindi',
+        uk: 'Ukrainien', ukr: 'Ukrainien', ro: 'Roumain', ron: 'Roumain',
+        cs: 'Tchèque', ces: 'Tchèque', hu: 'Hongrois', hun: 'Hongrois' };
+    let name = names[base];
+    if (!name && typeof Intl.DisplayNames === 'function') {
+        try { name = new Intl.DisplayNames(['fr'], { type: 'language' }).of(lang); } catch { /* code non reconnu */ }
+    }
+    return lang.toUpperCase() + (name && name.toLowerCase() !== lang ? ' · ' + name : '');
+}
+function filterLibraryByLanguage() {
+    const choice = document.getElementById('libraryLangFilter')?.value || 'all';
+    document.querySelectorAll('#libraryContent .book-card').forEach(card => {
+        const lang = card.dataset.language || '';
+        card.hidden = choice === 'other' ? !lang || isFrenchLibraryLanguage(lang)
+            : choice === 'fr' ? !isFrenchLibraryLanguage(lang)
+            : choice === 'unknown' ? !!lang : false;
+    });
 }
 
 function editBookByIndex(idx) {
@@ -1894,6 +1958,176 @@ function editBookByIndex(idx) {
 function deleteBookByIndex(idx) {
     const b = window._libBooks[idx];
     if (b) deleteBook(b.book_id, b.book_title);
+}
+
+// Un seul export actif ; traduction et clé restent uniquement dans la mémoire de cet onglet.
+let bookTranslationJob = null;
+let bookTranslationAbort = null;
+window.addEventListener('beforeunload', event => {
+    if (bookTranslationJob && bookTranslationJob.phase !== 'complete' &&
+        (bookTranslationJob.done > 0 || ['running','rendering'].includes(bookTranslationJob.phase))) {
+        event.preventDefault();
+        event.returnValue = '';
+    }
+});
+async function bookTranslationPost(path, payload, signal) {
+    const res = await fetch(getWorkerUrl() + path, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
+        body: JSON.stringify(payload), signal
+    });
+    if (!res.ok) {
+        if (res.status === 401) adminApiKey = '';
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(res.status === 401 ? 'Accès refusé : ressaisissez la clé Worker.' :
+            (detail.error || `HTTP ${res.status}`));
+    }
+    return res;
+}
+function renderBookTranslation() {
+    const el = document.getElementById('bookTranslationPanel');
+    const job = bookTranslationJob;
+    if (!job) { el.innerHTML = ''; return; }
+    const ready = !!job.manifest;
+    const total = job.manifest?.total_segments || 0;
+    const done = job.done || 0;
+    const busy = job.phase === 'running' || job.phase === 'rendering' || job.phase === 'loading';
+    const elapsed = job.startedAt ? (Date.now() - job.startedAt) / 1000 : 0;
+    const remaining = done > 0 && done < total ? Math.ceil((elapsed / done) * (total - done) / 60) : null;
+    el.innerHTML = `<div class="translation-panel">
+        <h3>Traduire et exporter : ${escHtml(job.book.book_title)}</h3>
+        <p class="warning">Dans un EPUB, le repère de lecture n’est pas une page imprimée. Le PDF traduit présente uniquement l’ordre des passages, quelle que soit la source.</p>
+        <p class="warning">Traduction automatique, non professionnelle, réservée à un usage personnel. Cet avertissement figurera aussi dans le PDF.</p>
+        <p>Langue cible : <select id="bookTranslationLang" ${busy || done ? 'disabled' : ''}>
+            ${[['fr','Français'],['en','Anglais'],['es','Espagnol'],['de','Allemand'],['it','Italien'],['pt','Portugais']]
+              .map(([code,label]) => `<option value="${code}"${job.targetLang === code ? ' selected' : ''}>${label}</option>`).join('')}
+        </select></p>
+        ${ready ? `<p>${job.manifest.total_chunks} passages · ${total} segments à traiter. Gardez cet onglet ouvert : fermer la page interrompt la traduction et perd les segments déjà traités.</p>
+            <progress value="${done}" max="${total}"></progress>
+            <p>${done} / ${total} segments validés · ${Math.floor(done / total * 100)} %${remaining !== null ? ' · environ ' + remaining + ' min restantes' : ''}</p>`
+          : '<p>Lecture des passages et calcul du nombre de segments…</p>'}
+        ${job.error ? `<p class="error">${job.phase === 'pdf_failed' ? 'Échec de création du PDF' : job.phase === 'load_failed' ? 'Impossible de préparer le livre' : 'Échec au segment ' + Math.min(done + 1, total)} : ${escHtml(job.error)}. Aucun PDF incomplet ne sera produit. Les segments validés restent en mémoire tant que cet onglet reste ouvert.</p>` : ''}
+        ${job.phase === 'ready' ? '<button class="btn btn-primary" onclick="startBookTranslation()">Lancer la traduction</button>' : ''}
+        ${job.phase === 'load_failed' ? '<button class="btn btn-primary" onclick="retryBookTranslationManifest()">Réessayer la préparation</button>' : ''}
+        ${job.phase === 'failed' ? '<button class="btn btn-primary" onclick="startBookTranslation()">Réessayer le segment et poursuivre</button>' : ''}
+        ${job.phase === 'translated' ? '<p>✅ Traduction terminée. Le PDF n’est créé que lorsque vous choisissez de le télécharger.</p><button class="btn btn-primary" onclick="downloadBookTranslationPDF()">Télécharger le PDF</button>' : ''}
+        ${job.phase === 'pdf_failed' ? '<button class="btn btn-primary" onclick="downloadBookTranslationPDF()">Réessayer le PDF sans retraduire</button>' : ''}
+        ${job.phase === 'running' ? '<button class="btn btn-outline" onclick="cancelBookTranslation()">Annuler et effacer</button>' : ''}
+        ${job.phase === 'rendering' ? '<p>Création du PDF et téléchargement direct…</p>' : ''}
+        ${job.phase === 'complete' ? '<p>✅ Téléchargement lancé. Aucun PDF traduit n’a été enregistré dans KV.</p>' : ''}
+        ${!busy ? '<button class="btn btn-outline" onclick="closeBookTranslation()">' + (done ? 'Fermer et effacer la traduction' : 'Fermer') + '</button>' : ''}
+    </div>`;
+}
+async function openBookTranslation(idx) {
+    if (bookTranslationJob && ['running','rendering','failed','pdf_failed','translated'].includes(bookTranslationJob.phase)) {
+        document.getElementById('bookTranslationPanel').scrollIntoView({ behavior: 'smooth' });
+        return;
+    }
+    const book = window._libBooks?.[idx];
+    if (!book) return;
+    bookTranslationJob = { book, phase: 'loading', targetLang: 'fr', done: 0, translated: [] };
+    renderBookTranslation();
+    try {
+        const res = await bookTranslationPost('/book-translation-manifest', { book_id: book.book_id });
+        const manifest = await res.json();
+        if (!Array.isArray(manifest.chunks) || !manifest.total_segments) throw new Error('Manifeste incomplet');
+        if (bookTranslationJob?.book !== book) return;
+        bookTranslationJob.manifest = manifest;
+        bookTranslationJob.translated = manifest.chunks.map(c => Array(c.segment_count).fill(null));
+        bookTranslationJob.phase = 'ready';
+    } catch (err) {
+        if (bookTranslationJob?.book === book) { bookTranslationJob.phase = 'load_failed'; bookTranslationJob.error = err.message; }
+    }
+    renderBookTranslation();
+}
+function retryBookTranslationManifest() {
+    const idx = window._libBooks?.indexOf(bookTranslationJob?.book);
+    if (Number.isInteger(idx) && idx >= 0) openBookTranslation(idx);
+}
+function closeBookTranslation() {
+    if (bookTranslationJob && ['running','rendering'].includes(bookTranslationJob.phase)) return;
+    if (bookTranslationJob?.done && bookTranslationJob.phase !== 'complete' &&
+        !confirm('Fermer effacera les segments déjà traduits de cet onglet. Continuer ?')) return;
+    bookTranslationJob = null;
+    renderBookTranslation();
+}
+function cancelBookTranslation() {
+    if (!bookTranslationJob || bookTranslationJob.phase !== 'running') return;
+    bookTranslationJob.cancelled = true;
+    bookTranslationAbort?.abort();
+    bookTranslationJob = null;
+    bookTranslationAbort = null;
+    renderBookTranslation();
+}
+async function startBookTranslation() {
+    const job = bookTranslationJob;
+    if (!job?.manifest || !['ready','failed'].includes(job.phase)) return;
+    if (!job.done) job.targetLang = document.getElementById('bookTranslationLang').value;
+    job.phase = 'running'; job.error = ''; job.startedAt ||= Date.now();
+    renderBookTranslation();
+    try {
+        for (let i = 0; i < job.manifest.chunks.length; i++) {
+            const chunk = job.manifest.chunks[i];
+            for (let j = 0; j < chunk.segment_count; j++) {
+                if (job !== bookTranslationJob || job.cancelled) return;
+                if (job.translated[i][j] !== null) continue;
+                // La garde du Worker est à 60 requêtes/minute/IP. Rester sous 50/minute,
+                // y compris quand Workers AI répond très vite.
+                const wait = 1200 - (Date.now() - (job.lastRequestAt || 0));
+                if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+                if (job !== bookTranslationJob || job.cancelled) return;
+                bookTranslationAbort = new AbortController();
+                job.lastRequestAt = Date.now();
+                const res = await bookTranslationPost('/book-translate-segment', {
+                    book_id: job.book.book_id, id: chunk.id, segment_index: j,
+                    source_hash: chunk.source_hash, target_lang: job.targetLang
+                }, bookTranslationAbort.signal);
+                const data = await res.json();
+                if (data.id !== chunk.id || data.segment_index !== j || data.segment_count !== chunk.segment_count ||
+                    typeof data.translated_text !== 'string' || !data.translated_text.trim())
+                    throw new Error('Réponse de traduction incomplète ou incohérente');
+                job.translated[i][j] = data.translated_text;
+                job.done++;
+                renderBookTranslation();
+            }
+        }
+        if (job !== bookTranslationJob) return;
+        if (job.done !== job.manifest.total_segments) throw new Error('Des segments manquent : export refusé');
+        job.phase = 'translated';
+        renderBookTranslation();
+    } catch (err) {
+        if (job !== bookTranslationJob) return;
+        job.error = err.message;
+        job.phase = 'failed';
+        renderBookTranslation();
+    } finally { bookTranslationAbort = null; }
+}
+async function downloadBookTranslationPDF() {
+    const job = bookTranslationJob;
+    if (!job?.manifest || job.done !== job.manifest.total_segments ||
+        job.translated.some((segments, i) => segments.length !== job.manifest.chunks[i].segment_count ||
+            segments.some(s => typeof s !== 'string' || !s.trim()))) {
+        if (job) { job.phase = 'pdf_failed'; job.error = 'Traduction incomplète : export refusé'; renderBookTranslation(); }
+        return;
+    }
+    job.phase = 'rendering'; job.error = '';
+    renderBookTranslation();
+    try {
+        const chunks = job.manifest.chunks.map((c, i) => ({ id: c.id, source_hash: c.source_hash, segments: job.translated[i] }));
+        const res = await bookTranslationPost('/book-translation-pdf', {
+            book_id: job.book.book_id, target_lang: job.targetLang, chunks
+        });
+        if (!res.headers.get('Content-Type')?.includes('application/pdf')) throw new Error('Réponse PDF invalide');
+        const blob = await res.blob();
+        if (!blob.size) throw new Error('PDF vide');
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = (job.book.book_title || 'livre').replace(/[\\/?%*:|"<>]/g, '').slice(0, 80) + '-traduction.pdf';
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+        job.phase = 'complete';
+    } catch (err) { job.phase = 'pdf_failed'; job.error = err.message; }
+    renderBookTranslation();
 }
 
 

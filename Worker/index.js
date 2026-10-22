@@ -55816,6 +55816,13 @@ var Worker_default = {
       return handleLibraryFacets(request2, env2);
     if (p === "/passage-full" && request2.method === "POST")
       return handlePassageFull(request2, env2);
+    if (p === "/book-translation-manifest" && request2.method === "POST")
+      return handleBookTranslationManifest(request2, env2);
+    if (p === "/book-translate-segment" && request2.method === "POST")
+      return handleBookTranslateSegment(request2, env2);
+    // Route distincte de /generate-pdf : flux PDF authentifié, sans storeAndReturn ni KV.
+    if (p === "/book-translation-pdf" && request2.method === "POST")
+      return handleBookTranslationPDF(request2, env2);
     if (p === "/rag-search" && request2.method === "POST")
       return handleRagSearch(request2, env2);
     if (p === "/rag-stats" && request2.method === "GET")
@@ -59537,6 +59544,40 @@ async function handleLibraryFacets(request2, env2) {
 __name(handleLibraryFacets, "handleLibraryFacets");
 
 // Recherche documentaire : lookup au clic uniquement, sans embedding ni nouvelle recherche.
+function splitLibraryTranslationSegments(content) {
+  const segments = [];
+  let remaining = content;
+  while (remaining) {
+    let end = Math.min(500, remaining.length);
+    if (end < remaining.length) {
+      const prefix = remaining.slice(0, end);
+      const boundaries = [...prefix.matchAll(/[.!?][”"’']?\s+|\n+/g)];
+      const sentenceEnd = boundaries.length ? boundaries[boundaries.length - 1].index + boundaries[boundaries.length - 1][0].length : 0;
+      const spaceEnd = prefix.lastIndexOf(" ") + 1;
+      end = sentenceEnd > 200 ? sentenceEnd : spaceEnd > 200 ? spaceEnd : end;
+      if (/[\uD800-\uDBFF]/.test(remaining[end - 1])) end--;
+    }
+    segments.push(remaining.slice(0, end)); remaining = remaining.slice(end);
+  }
+  return segments;
+}
+__name(splitLibraryTranslationSegments, "splitLibraryTranslationSegments");
+async function translateLibrarySegment(env2, text, sourceLang, targetLang) {
+  if (!text.trim() || sourceLang.toLowerCase() === targetLang.toLowerCase()) return text;
+  if (!env2.AI) throw new Error("Workers AI indisponible");
+  const translated = await env2.AI.run("@cf/meta/m2m100-1.2b", { text, source_lang: sourceLang, target_lang: targetLang });
+  const result = translated?.translated_text;
+  if (typeof result !== "string" || !result.trim()) throw new Error("Empty translation");
+  const words = result.toLowerCase().split(/\s+/), repetitions = new Map();
+  for (let j = 0; j + 8 <= words.length; j++) {
+    const phrase = words.slice(j, j + 8).join(" ");
+    const count = (repetitions.get(phrase) || 0) + 1;
+    if (count >= 3) throw new Error("Degenerate translation");
+    repetitions.set(phrase, count);
+  }
+  return result;
+}
+__name(translateLibrarySegment, "translateLibrarySegment");
 async function handlePassageFull(request2, env2) {
   let body;
   try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
@@ -59556,37 +59597,13 @@ async function handlePassageFull(request2, env2) {
       try {
         // A long OCR passage can exhaust the seq2seq response and degenerate into
         // repetition. Translate bounded, contiguous segments; never crop the source.
-        const segments = [];
-        let remaining = out.full_content;
-        while (remaining) {
-          let end = Math.min(500, remaining.length);
-          if (end < remaining.length) {
-            const prefix = remaining.slice(0, end);
-            const boundaries = [...prefix.matchAll(/[.!?][”"’']?\s+|\n+/g)];
-            const sentenceEnd = boundaries.length ? boundaries[boundaries.length - 1].index + boundaries[boundaries.length - 1][0].length : 0;
-            const spaceEnd = prefix.lastIndexOf(" ") + 1;
-            end = sentenceEnd > 200 ? sentenceEnd : spaceEnd > 200 ? spaceEnd : end;
-            if (/[\uD800-\uDBFF]/.test(remaining[end - 1])) end--;
-          }
-          segments.push(remaining.slice(0, end)); remaining = remaining.slice(end);
-        }
+        const segments = splitLibraryTranslationSegments(out.full_content);
         const translatedSegments = new Array(segments.length);
         let next = 0;
         const translateNext = async () => {
           while (next < segments.length) {
             const i = next++, text = segments[i];
-            if (!text.trim()) { translatedSegments[i] = text; continue; }
-            const translated = await env2.AI.run("@cf/meta/m2m100-1.2b", {text, source_lang: row.language, target_lang: targetLang});
-            const result = translated?.translated_text;
-            if (typeof result !== "string" || !result.trim()) throw new Error("Empty translation");
-            const words = result.toLowerCase().split(/\s+/), repetitions = new Map();
-            for (let j = 0; j + 8 <= words.length; j++) {
-              const phrase = words.slice(j, j + 8).join(" ");
-              const count = (repetitions.get(phrase) || 0) + 1;
-              if (count >= 3) throw new Error("Degenerate translation");
-              repetitions.set(phrase, count);
-            }
-            translatedSegments[i] = result;
+            translatedSegments[i] = await translateLibrarySegment(env2, text, row.language, targetLang);
           }
         };
         const settled = await Promise.allSettled([translateNext(), translateNext()]);
@@ -59599,6 +59616,126 @@ async function handlePassageFull(request2, env2) {
   } catch { return jsonErr("Passage indisponible pour le moment", 502); }
 }
 __name(handlePassageFull, "handlePassageFull");
+function validBookTranslationInput(body) {
+  return body && typeof body.book_id === "string" && body.book_id.length > 0 && body.book_id.length <= 512;
+}
+__name(validBookTranslationInput, "validBookTranslationInput");
+async function bookTranslationRows(env2, bookId) {
+  const result = await env2.DB.prepare(
+    "SELECT id, book_id, book_title, author, language, chunk_index, content FROM chunks WHERE book_id = ? ORDER BY chunk_index ASC, id ASC"
+  ).bind(bookId).all();
+  return result.results || [];
+}
+__name(bookTranslationRows, "bookTranslationRows");
+async function bookTranslationSourceHash(content) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(content));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+__name(bookTranslationSourceHash, "bookTranslationSourceHash");
+function escapeBookPdfText(value) {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+__name(escapeBookPdfText, "escapeBookPdfText");
+async function handleBookTranslationManifest(request2, env2) {
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  if (!validBookTranslationInput(body)) return jsonErr("Valid book_id required", 400);
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const rows = await bookTranslationRows(env2, body.book_id);
+    if (!rows.length) return jsonErr("Livre introuvable", 404);
+    if (rows.length > 2000) return jsonErr("Livre trop volumineux pour cet export (plus de 2 000 passages)", 413);
+    const chunks = [];
+    let totalSegments = 0;
+    for (const row of rows) {
+      const segmentCount = splitLibraryTranslationSegments(row.content || "").length;
+      if (!segmentCount) return jsonErr("Passage source vide : export impossible", 409);
+      totalSegments += segmentCount;
+      chunks.push({ id: row.id, chunk_index: row.chunk_index, segment_count: segmentCount,
+        source_hash: await bookTranslationSourceHash(row.content), language: row.language });
+    }
+    return json({ book_id: body.book_id, book_title: rows[0].book_title, author: rows[0].author,
+      chunks, total_chunks: rows.length, total_segments: totalSegments,
+      locator_kind: "passage", locator_note: "Repère de lecture, pas une page imprimée" });
+  } catch { return jsonErr("Manifeste du livre indisponible", 502); }
+}
+__name(handleBookTranslationManifest, "handleBookTranslationManifest");
+async function handleBookTranslateSegment(request2, env2) {
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  if (!validBookTranslationInput(body) || typeof body.id !== "string" || body.id.length > 1024 ||
+      !Number.isInteger(body.segment_index) || body.segment_index < 0 ||
+      typeof body.source_hash !== "string" || !/^[a-f0-9]{64}$/.test(body.source_hash) ||
+      typeof body.target_lang !== "string" || !/^[a-z]{2,3}$/i.test(body.target_lang))
+    return jsonErr("Paramètres de segment invalides", 400);
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  try {
+    const row = await env2.DB.prepare("SELECT id, book_id, language, content FROM chunks WHERE id = ? AND book_id = ?")
+      .bind(body.id, body.book_id).first();
+    if (!row) return jsonErr("Passage introuvable", 404);
+    if (await bookTranslationSourceHash(row.content) !== body.source_hash)
+      return jsonErr("Le passage source a changé depuis le démarrage ; export interrompu", 409);
+    const segments = splitLibraryTranslationSegments(row.content);
+    const text = segments[body.segment_index];
+    if (text === undefined) return jsonErr("Segment introuvable", 400);
+    if (!row.language) return jsonErr("Langue source inconnue", 409);
+    const translatedText = await translateLibrarySegment(env2, text, row.language, body.target_lang);
+    return json({ id: row.id, segment_index: body.segment_index, segment_count: segments.length,
+      translated_text: translatedText });
+  } catch (err2) { console.warn("[BookTranslate] segment failed", err2?.message || "unknown"); return jsonErr("Traduction du segment échouée ; aucun passage incomplet n'est accepté", 502); }
+}
+__name(handleBookTranslateSegment, "handleBookTranslateSegment");
+async function handleBookTranslationPDF(request2, env2) {
+  if (!env2.CF_ACCOUNT_ID || !env2.CF_API_TOKEN || !env2.DB)
+    return jsonErr("Browser Rendering ou D1 indisponible", 500);
+  let body;
+  try { body = await request2.json(); } catch { return jsonErr("Invalid JSON", 400); }
+  if (!validBookTranslationInput(body) || typeof body.target_lang !== "string" ||
+      !/^[a-z]{2,3}$/i.test(body.target_lang) || !Array.isArray(body.chunks))
+    return jsonErr("Export incomplet ou invalide", 400);
+  try {
+    const rows = await bookTranslationRows(env2, body.book_id);
+    if (!rows.length) return jsonErr("Livre introuvable", 404);
+    if (rows.length > 2000 || body.chunks.length !== rows.length)
+      return jsonErr("Nombre de passages incomplet : PDF non généré", 409);
+    const sections = [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i], chunk = body.chunks[i];
+      if (!chunk || chunk.id !== row.id || chunk.source_hash !== await bookTranslationSourceHash(row.content))
+        return jsonErr("Ordre ou source des passages modifié : PDF non généré", 409);
+      const expectedCount = splitLibraryTranslationSegments(row.content).length;
+      if (!Array.isArray(chunk.segments) || chunk.segments.length !== expectedCount ||
+          chunk.segments.some((s) => typeof s !== "string" || !s.trim() || s.length > 5000))
+        return jsonErr("Traduction incomplète : PDF non généré", 409);
+      sections.push(`<section><h2>Passage ${i + 1}</h2><div class="passage">${escapeBookPdfText(chunk.segments.join("\n"))}</div></section>`);
+    }
+    const title = escapeBookPdfText(rows[0].book_title);
+    const author = escapeBookPdfText(rows[0].author || "");
+    const html = `<!doctype html><html lang="${escapeBookPdfText(body.target_lang)}"><head><meta charset="utf-8"><style>
+      @page{size:A4;margin:17mm 18mm}body{font-family:Arial,sans-serif;color:#183538;line-height:1.55;font-size:11pt}
+      h1{font-size:22pt;line-height:1.2}h2{font-size:13pt;color:#406b6e;break-after:avoid}
+      .notice{border:1px solid #7a9a9c;background:#edf5f4;padding:12px;margin:24px 0;font-weight:600}
+      section{margin:0 0 22px;break-inside:auto}.passage{white-space:pre-wrap;overflow-wrap:anywhere}
+      .cover{break-after:page}.meta{color:#52676a}
+      </style></head><body><div class="cover"><h1>${title}</h1><p class="meta">${author}</p>
+      <p class="notice">Traduction automatique, non professionnelle, réservée à un usage personnel.</p>
+      <p class="meta">Les numéros de passage sont des repères de lecture, pas des pages imprimées.</p></div>
+      ${sections.join("\n")}</body></html>`;
+    const pdfRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${env2.CF_ACCOUNT_ID}/browser-rendering/pdf?cacheTTL=0`, {
+      method: "POST", headers: { Authorization: `Bearer ${env2.CF_API_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ html, actionTimeout: 120000,
+        pdfOptions: { format: "a4", margin: { top: "17mm", bottom: "17mm", left: "18mm", right: "18mm" } } })
+    });
+    if (!pdfRes.ok || !pdfRes.body) {
+      if (pdfRes.body) await pdfRes.body.cancel();
+      return jsonErr("Rendu PDF indisponible ; la traduction reste dans cet onglet pour réessayer", 502);
+    }
+    return new Response(pdfRes.body, { status: 200, headers: { ...CORS,
+      "Content-Type": "application/pdf", "Content-Disposition": 'attachment; filename="livre-traduit.pdf"',
+      "Cache-Control": "private, no-store, max-age=0", "X-Content-Type-Options": "nosniff" } });
+  } catch { return jsonErr("Export PDF échoué ; la traduction reste dans cet onglet pour réessayer", 502); }
+}
+__name(handleBookTranslationPDF, "handleBookTranslationPDF");
 async function handleRagSearch(request2, env2) {
   let body;
   try {

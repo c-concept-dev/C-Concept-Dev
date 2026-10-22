@@ -5,7 +5,7 @@ const {DatabaseSync}=require('node:sqlite');
 const source=fs.readFileSync(path.join(__dirname,'../index.js'),'utf8');
 const vm=require('node:vm');
 const ctx=vm.createContext({Response,Request,URL,console,CORS:{},__name(){}});
-vm.runInContext(source.slice(source.indexOf('var ADOC_PUBLIC_ROUTES'),source.indexOf('var BRAND_ASSET_ROLES'))+source.slice(source.indexOf('async function handlePassageFull('),source.indexOf('async function handleRagSearch(')),ctx);
+vm.runInContext(source.slice(source.indexOf('var ADOC_PUBLIC_ROUTES'),source.indexOf('var BRAND_ASSET_ROLES'))+source.slice(source.indexOf('function splitLibraryTranslationSegments('),source.indexOf('async function handleRagSearch(')),ctx);
 const worker=ctx.Worker_default;
 const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE chunks(id TEXT PRIMARY KEY, book_id TEXT, book_title TEXT, author TEXT, approach TEXT, language TEXT, page_number INTEGER, page_end INTEGER, content TEXT)');
 const content=Array.from({length:180},(_,i)=>'Texte'+i+' exact'+i+' «é&<>».\n').join('');db.prepare('INSERT INTO chunks VALUES(?,?,?,?,?,?,?,?,?)').run('fr','b','Titre','Auteur','ifs','fr',3,5,content);db.prepare('INSERT INTO chunks VALUES(?,?,?,?,?,?,?,?,?)').run('en','b','Title','Author','ifs','en',6,8,content);
