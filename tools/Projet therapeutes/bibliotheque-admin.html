@@ -524,24 +524,43 @@ function getWorkerUrl() {
     return document.getElementById('workerUrl').value.replace(/\/+$/, '');
 }
 
-// ── Clé d'accès Worker ──
-// Ajoutée le 2026-09-08 : le durcissement de sécurité du même jour (audit systémique) exige
-// désormais X-API-Key sur toute route non explicitement publique — /library-stats reste
-// publique (aucune clé nécessaire), mais /d1-query, /ingest, /update-book-meta, /delete-book et
-// /search-library l'exigent maintenant. Sans cet en-tête, ces routes renvoient
-// {"error":"Unauthorized"}.
-// Correctif urgent (sécurité P0) — la clé était codée en dur ici (même préalable déjà identifié
-// pour Studio Clinique côté client) : n'importe qui affichant le code source de cette page peut
-// la lire et appeler le Worker directement (dont /delete-book, /ingest — jamais un enjeu
-// mineur). Retirée sans repli en dur : demandée une seule fois via prompt(), puis mémorisée en
-// localStorage pour les appels suivants. Une clé absente/refusée fait simplement échouer les
-// appels protégés avec Unauthorized — comportement honnête plutôt qu'un accès ouvert par défaut.
-// ── Sur décision explicite de Christophe : la clé est codée en dur, comme dans la version qui
-// fonctionne déjà. Remplacez PASTE_YOUR_WORKER_API_KEY_HERE par la vraie valeur de
-// WORKER_API_KEY, directement ici — jamais ailleurs, jamais collée dans une conversation.
-function getAdminApiKey() {
-    return 'PASTE_YOUR_WORKER_API_KEY_HERE';
+// Clé Worker : saisie masquée, mémoire de cette page uniquement.
+let adminApiKey = '';
+let adminKeyRequest = null;
+async function getAdminApiKey() {
+    if (adminApiKey) return adminApiKey;
+    if (adminKeyRequest) return adminKeyRequest;
+    const dialog = document.createElement('dialog');
+    dialog.setAttribute('aria-labelledby', 'admin-key-title');
+    dialog.innerHTML = `<form method="dialog" autocomplete="off">
+        <h2 id="admin-key-title">Accès au Worker</h2>
+        <p>La clé reste uniquement en mémoire jusqu’à la fermeture ou au rechargement.</p>
+        <label for="admin-key-input">Clé d’accès</label>
+        <input id="admin-key-input" type="password" autocomplete="off" required autofocus>
+        <button type="submit" value="connect">Continuer</button>
+        <button type="submit" value="cancel" formnovalidate>Annuler</button>
+    </form>`;
+    const input = dialog.querySelector('input');
+    adminKeyRequest = new Promise((resolve, reject) => {
+        dialog.addEventListener('close', () => {
+            const value = dialog.returnValue === 'connect' ? input.value.trim() : '';
+            input.value = '';
+            dialog.remove();
+            adminKeyRequest = null;
+            if (!value) { reject(new Error('Saisie de la clé annulée.')); return; }
+            adminApiKey = value;
+            resolve(value);
+        }, { once: true });
+    });
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    return adminKeyRequest;
 }
+window.addEventListener('pagehide', () => {
+    adminApiKey = '';
+    const input = document.getElementById('admin-key-input');
+    if (input) { input.value = ''; input.closest('dialog').close('cancel'); }
+});
 
 // Correctif urgent (sécurité P0) — échappement HTML complet. `esc()` n'échappait que les
 // apostrophes (et n'était en réalité jamais appelé avant ce correctif — code mort) : tout
@@ -948,7 +967,7 @@ async function ocrPageWithTesseract(canvas) {
 // même convention que adocGenerateStructuredFiche). N'est appelé que si Tesseract a échoué
 // ou n'a presque rien lu — c'est le plus coûteux des deux, donc le dernier recours.
 async function ocrPageWithVision(canvas) {
-    const apiKey = getAdminApiKey();
+    const apiKey = await getAdminApiKey();
     if (!apiKey) throw new Error('Clé API manquante pour le repli Vision');
     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
     const base64 = dataUrl.split(',')[1];
@@ -1518,7 +1537,7 @@ async function startIngestion() {
                 try {
                     delRes = await fetch(getWorkerUrl() + '/delete-book', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+                        headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
                         body: JSON.stringify({ book_id: q.meta.book_id })
                     });
                 } catch (delErr) {
@@ -1632,7 +1651,7 @@ async function startIngestion() {
 
                 const res = await fetch(getWorkerUrl() + '/ingest', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
                     body: JSON.stringify({ chunks: batch, book_meta: q.meta })
                 });
 
@@ -1743,7 +1762,7 @@ async function scanDuplicates() {
         // gabarits fixes : doublons de contenu, puis repli livres total>unique) est désormais
         // exécuté côté Worker (handleFindDuplicates) — même résultat, transport structuré.
         const res = await fetch(getWorkerUrl() + '/find-duplicates', {
-            headers: { 'X-API-Key': getAdminApiKey() }
+            headers: { 'X-API-Key': await getAdminApiKey() }
         });
 
         if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1791,7 +1810,7 @@ async function purgeDuplicates(bookId, bookTitle) {
         // précédent ne touchait jamais Vectorize (correctif explicitement demandé).
         const res = await fetch(getWorkerUrl() + '/purge-duplicates', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
             body: JSON.stringify({ book_id: bookId })
         });
 
@@ -1941,7 +1960,7 @@ async function submitEditMeta(bookId) {
         // Essayer d'abord /update-book-meta
         let res = await fetch(getWorkerUrl() + '/update-book-meta', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
             body: JSON.stringify({ book_id: bookId, approach, author, language })
         });
         
@@ -1989,7 +2008,7 @@ async function deleteBook(bookId, title) {
         log(`🗑 Suppression: ${title}...`);
         const res = await fetch(getWorkerUrl() + '/delete-book', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': getAdminApiKey() },
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
             body: JSON.stringify({ book_id: bookId })
         });
         const data = await res.json();
@@ -2088,7 +2107,7 @@ async function testSearch() {
     el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Recherche en cours (3 voies)...</div>';
 
     try {
-        const key = getAdminApiKey();
+        const key = await getAdminApiKey();
         const t0 = Date.now();
         const [vecRes, ragRes] = await Promise.all([
             fetch(getWorkerUrl() + '/search-library', {
@@ -2110,8 +2129,17 @@ async function testSearch() {
             }),
         ]);
         const ms = Date.now() - t0;
-        const vecData = vecRes.ok ? await vecRes.json() : { results: [], error: 'HTTP ' + vecRes.status };
-        const ragData = ragRes.ok ? await ragRes.json() : { chunks: [], error: 'HTTP ' + ragRes.status };
+        const failures = [[vecRes, 'Vectoriel'], [ragRes, 'Hybride / lexical']].filter(([r]) => !r.ok);
+        if (failures.length) {
+            if (failures.some(([r]) => r.status === 401)) adminApiKey = '';
+            throw new Error(failures.map(([r, name]) => name + ' : ' +
+                (r.status === 401 || r.status === 403 ? 'accès refusé — vérifiez votre clé Worker'
+                    : r.status === 429 ? 'limite de débit atteinte — réessayez plus tard'
+                    : 'requête échouée') + ' (HTTP ' + r.status + ')').join(' · '));
+        }
+        const vecData = await vecRes.json();
+        const ragData = await ragRes.json();
+        if (vecData.error || ragData.error) throw new Error('Le Worker a signalé une erreur de recherche.');
 
         // /search-library (vectoriel pur) : forme {results:[...]}, champ `page` (pas
         // page_number), pas de `source` (toujours vectoriel par construction de cette route).
@@ -2239,6 +2267,7 @@ async function refreshStats() {
 document.getElementById('searchApproach').insertAdjacentHTML('beforeend',
     ADMIN_APPROACHES.map(a => `<option value="${a.value}">${escHtml(a.label)}</option>`).join(''));
 refreshStats();
+getAdminApiKey().catch(() => {});
 </script>
 </body>
 </html>
