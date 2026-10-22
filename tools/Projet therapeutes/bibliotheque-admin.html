@@ -2054,6 +2054,13 @@ async function purgeDuplicates(bookId, bookTitle) {
 }
 
 // ── Library Tab ──
+function libraryBookCount(data) {
+    if (Number.isSafeInteger(data?.total_books) && data.total_books >= 0) return data.total_books;
+    const books = Array.isArray(data?.books) ? data.books : [];
+    const ids = books.map(b => b.book_id).filter(id => id !== null && id !== undefined && id !== '');
+    return ids.length ? new Set(ids).size : books.length;
+}
+
 async function refreshLibrary() {
     const el = document.getElementById('libraryContent');
     el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Chargement...</div>';
@@ -2079,7 +2086,7 @@ async function refreshLibrary() {
         // Worker (/library-stats), dérivés de métadonnées saisies à l'ingestion — jamais dignes
         // de confiance, échappés avant insertion.
         let html = '<div style="margin-bottom:12px;font-size:12px;color:#888;">'
-            + data.total_chunks + ' chunks · ' + data.books.length + ' livres · '
+            + data.total_chunks + ' chunks · ' + libraryBookCount(data) + ' livres · '
             + data.by_approach.map(a => escHtml(a.approach) + ' (' + a.count + ')').join(', ')
             + '</div><div class="book-grid">';
 
@@ -2686,9 +2693,10 @@ function autoDetectMeta(pages, filename) {
 async function refreshStats() {
     try {
         const res = await fetch(getWorkerUrl() + '/library-stats');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         document.getElementById('headerStats').textContent =
-            `${data.total_chunks || 0} chunks · ${data.books?.length || 0} livres`;
+            `${data.total_chunks || 0} chunks · ${libraryBookCount(data)} livres`;
     } catch {
         document.getElementById('headerStats').textContent = '⚠️ Worker inaccessible';
     }
