@@ -9759,6 +9759,32 @@ ${recent}`;
     }
     return Object.entries(colors).filter(function (p) { return typeof p[1] === 'string' && /^#[\da-f]{3,8}$/i.test(p[1]); });
   }
+  function adocBlockSurfaceControlsHTML() {
+    const palette = adocEditorPalette().filter(function(p) { return /^#[0-9a-f]{6}$/i.test(p[1]); });
+    const pick = function(pattern, fallback) {
+      const found = palette.find(function(p) { return pattern.test(p[0]); });
+      return found ? found[1] : fallback;
+    };
+    const background = pick(/petrol[-_]?100|terracotta[-_]?100|background/i, palette[0] ? palette[0][1] : '#e5f0f2');
+    const border = pick(/petrol[-_]?800|primary|terracotta[-_]?700/i, palette[1] ? palette[1][1] : palette[0] ? palette[0][1] : '#286b7b');
+    const swatches = function(field) { return palette.map(function(p) {
+      return '<button type="button" data-block-surface-swatch data-surface-field="' + field + '" data-surface-color="' + p[1] + '"'
+        + ' title="' + adocEsc(p[0] + ' ' + p[1]) + '" aria-label="' + adocEsc(field === 'backgroundColor' ? 'Fond ' : 'Cadre ') + adocEsc(p[0]) + '"'
+        + ' style="background:' + p[1] + '"></button>';
+    }).join(''); };
+    return '<div class="cc-block-surface-controls cc-editor-tools" role="group" aria-label="Fond et cadre du bloc">'
+      + '<div class="cc-editor-row">'
+      + '<button type="button" class="cc-clarity-reply-btn" data-block-surface-add-bg>Ajouter un fond coloré</button>'
+      + '<button type="button" class="cc-clarity-other-btn" data-block-background-toggle data-block-surface-remove-bg>Retirer le fond coloré</button>'
+      + '<button type="button" class="cc-clarity-reply-btn" data-block-surface-add-border>Ajouter un cadre</button>'
+      + '<button type="button" class="cc-clarity-other-btn" data-block-surface-remove-border>Retirer le cadre</button>'
+      + '</div><details><summary>Couleurs de la charte pour ce bloc</summary>'
+      + '<div class="cc-editor-row"><label>Fond<input type="color" data-block-surface-color="backgroundColor" value="' + background + '"></label>'
+      + '<div class="cc-editor-swatches" aria-label="Couleurs de fond de la charte active">' + swatches('backgroundColor') + '</div></div>'
+      + '<div class="cc-editor-row"><label>Cadre<input type="color" data-block-surface-color="borderColor" value="' + border + '"></label>'
+      + '<div class="cc-editor-swatches" aria-label="Couleurs de cadre de la charte active">' + swatches('borderColor') + '</div></div>'
+      + '</details></div>';
+  }
   var _adocEditorLocalFonts = [];
   window.adocEditorLoadLocalFonts = async function () {
     if (!window.queryLocalFonts) { adocEditorMessage('Ce navigateur ne peut pas lister les polices installées (Safari ne le permet pas). La liste des polices de cet ordinateur est déjà proposée : elle est relevée hors navigateur, par tests/LISTER-POLICES.sh.'); return; }
@@ -9802,6 +9828,7 @@ ${recent}`;
       '<label>Casse<select data-editor-style="textTransform"><option value="none">Originale</option><option value="uppercase">MAJUSCULES</option><option value="lowercase">minuscules</option><option value="capitalize">Initiales</option></select></label></div>' +
       '<div class="cc-editor-row"><label>Texte<input type="color" data-editor-style="color"></label><label>Surlignage / fond<input type="color" data-editor-style="backgroundColor"></label><div class="cc-editor-swatches" aria-label="Couleurs de la charte active"></div></div>' +
       '</details>' +
+      adocBlockSurfaceControlsHTML() +
       '<details><summary>Espacements et bordures</summary><div class="cc-editor-row">' + number('lineHeight','Interligne',0.5,4,0.1) + number('letterSpacing','Caractères (px)',-2,20,0.1) + number('marginTop','Avant (px)',0,160) + number('marginBottom','Après (px)',0,160) + number('textIndent','Retrait (px)',0,160) +
       '<label>Bordure<input type="color" data-editor-style="borderColor"></label>' + number('borderWidth','Épaisseur (px)',0,12) + '</div></details>' +
       // LOT E — curseur d'opacité universel : glissant continu (0-100), aperçu en temps réel
@@ -9912,12 +9939,7 @@ ${recent}`;
     // ajouter sinon) : même patron que data-image-add-text (adocEditorRefreshImageControls).
     const addImageBtn = panel.querySelector('[data-block-add-image]');
     if (addImageBtn) addImageBtn.hidden = !!(ctx.block && ctx.block.style && ctx.block.style.backgroundAssetId);
-    const backgroundToggle = panel.querySelector('[data-block-background-toggle]');
-    if (backgroundToggle) {
-      const withoutBackground = style.backgroundColor === 'transparent';
-      backgroundToggle.textContent = withoutBackground ? 'Rétablir le fond de la charte' : 'Retirer le fond coloré';
-      backgroundToggle.setAttribute('aria-pressed', String(withoutBackground));
-    }
+    adocRefreshBlockSurfaceControls();
     // LOT 1a — narration : visible UNIQUEMENT dans une Présentation du moteur structuré, et
     // seulement quand la sélection désigne une étape. adocPresentStepList rend déjà [] pour tout
     // autre documentKind, donc la condition de type de document n'est pas répétée ici.
@@ -10087,16 +10109,88 @@ ${recent}`;
       ? 'La mise en forme d’une partie du titre n’est pas conservée.'
       : 'Modification appliquée.');
   }
-  window.adocToggleBlockBackground = function () {
-    const ctx = adocEditorContext();
-    if (!ctx) return;
-    const kind = ctx.legacy ? adocLegacyBlockKind(ctx.el) : ctx.block && ctx.block.type;
-    if (kind !== 'callout') return;
-    const scope = ctx.st.panelEl && ctx.st.panelEl.querySelector('[data-editor-scope]');
-    if (scope) scope.value = 'block';
+  function adocRefreshBlockSurfaceControls() {
+    const ctx = adocEditorContext(); if (!ctx || !ctx.st.panelEl) return;
     const style = ctx.block ? ctx.block.style || {} : adocEditorReadStyle(ctx.el);
-    adocEditorApplyStyle('backgroundColor', style.backgroundColor === 'transparent' ? '' : 'transparent');
+    const photoBorder = !ctx.legacy && ['image', 'cover', 'doc-cover'].includes(ctx.st.zone)
+      && ctx.block && ['image', 'card'].includes(ctx.block.type);
+    const borderStyle = photoBorder ? (ctx.block.content.imageDisplay || {}) : style;
+    const toggle = ctx.st.panelEl.querySelector('[data-block-background-toggle]');
+    if (toggle) {
+      const removed = style.backgroundColor === 'transparent';
+      toggle.textContent = removed ? 'Rétablir le fond de la charte' : 'Retirer le fond coloré';
+      toggle.setAttribute('aria-pressed', String(removed));
+    }
+    ctx.st.panelEl.querySelectorAll('[data-block-surface-color]').forEach(function(input) {
+      const current = (input.dataset.blockSurfaceColor === 'borderColor' ? borderStyle : style)[input.dataset.blockSurfaceColor];
+      if (/^#[0-9a-f]{6}$/i.test(current || '') && document.activeElement !== input) input.value = current;
+    });
+  }
+  function adocSetBlockSurface(changes) {
+    const ctx = adocEditorContext(); if (!ctx || (!ctx.legacy && !ctx.block)) return;
+    const allowed = ['backgroundColor', 'borderColor', 'borderWidth'];
+    if (Object.keys(changes).some(function(k) { return !allowed.includes(k); })) return;
+    if (Object.entries(changes).some(function(entry) {
+      return entry[0] === 'borderWidth' ? !Number.isFinite(entry[1]) || entry[1] < 0 || entry[1] > 12
+        : entry[1] !== '' && entry[1] !== 'transparent' && !/^#[0-9a-f]{6}$/i.test(entry[1]);
+    })) return;
+    adocEditorCheckpoint();
+    const photoBorder = !ctx.legacy && ['image', 'cover', 'doc-cover'].includes(ctx.st.zone)
+      && ctx.block && ['image', 'card'].includes(ctx.block.type);
+    const surfaceChanges = {};
+    if (photoBorder) {
+      const imageCtx = adocImageDisplayContext();
+      if (!imageCtx) return;
+      const display = ctx.block.content.imageDisplay || (ctx.block.content.imageDisplay = {});
+      ['borderColor', 'borderWidth'].forEach(function(field) {
+        if (Object.prototype.hasOwnProperty.call(changes, field)) {
+          if (changes[field] === '') delete display[field]; else display[field] = changes[field];
+        }
+      });
+      adocPreviewImageDisplay(imageCtx);
+      adocRefreshImageDisplayControls();
+    }
+    Object.entries(changes).forEach(function(entry) {
+      if (!photoBorder || !['borderColor', 'borderWidth'].includes(entry[0])) surfaceChanges[entry[0]] = entry[1];
+    });
+    if (!ctx.legacy) {
+      const style = Object.assign({}, ctx.block.style);
+      Object.entries(surfaceChanges).forEach(function(entry) { if (entry[1] === '') delete style[entry[0]]; else style[entry[0]] = entry[1]; });
+      ctx.block.style = style;
+      const rules = adocBlockSurfaceCSSRules(ctx.art._adocStructuredDoc);
+      const root = document.getElementById('cc-ws-doc-card');
+      let liveRules = root && root.querySelector('style[data-adoc-block-surface]');
+      if (rules && root && !liveRules) {
+        liveRules = document.createElement('style'); liveRules.dataset.adocBlockSurface = '';
+        root.prepend(liveRules);
+      }
+      if (liveRules) { if (rules) liveRules.textContent = rules; else liveRules.remove(); }
+    }
+    Object.entries(surfaceChanges).forEach(function(entry) {
+      const css = ADOC_DIRECT_STYLE_FIELDS[entry[0]];
+      if (entry[1] === '') ctx.el.style.removeProperty(css);
+      else ctx.el.style.setProperty(css, entry[0] === 'borderWidth' ? entry[1] + 'px' : entry[1]);
+      if (entry[0] === 'borderWidth') ctx.el.style.borderStyle = entry[1] > 0 ? 'solid' : 'none';
+    });
+    adocEditorSync(); adocEditorMarkDirty(); adocRefreshBlockSurfaceControls();
+    adocEditorMessage('Fond et cadre du bloc mis à jour.');
+  }
+  window.adocAddBlockBackground = function () {
+    const ctx = adocEditorContext(); if (!ctx) return;
+    const input = ctx.st.panelEl.querySelector('[data-block-surface-color="backgroundColor"]');
+    adocSetBlockSurface({backgroundColor: input ? input.value : '#e5f0f2'});
   };
+  window.adocToggleBlockBackground = function () {
+    const ctx = adocEditorContext(); if (!ctx) return;
+    const style = ctx.block ? ctx.block.style || {} : adocEditorReadStyle(ctx.el);
+    adocSetBlockSurface({backgroundColor: style.backgroundColor === 'transparent' ? '' : 'transparent'});
+  };
+  window.adocAddBlockBorder = function () {
+    const ctx = adocEditorContext(); if (!ctx) return;
+    const input = ctx.st.panelEl.querySelector('[data-block-surface-color="borderColor"]');
+    adocSetBlockSurface({borderColor: input ? input.value : '#286b7b', borderWidth: 1});
+  };
+  window.adocRemoveBlockBorder = function () { adocSetBlockSurface({borderWidth: 0}); };
 
   // LOT E — curseur d'opacité universel (backgroundOpacity/textOpacity, bloc structuré
   // uniquement — les 6 types heading/paragraph/callout/list/table/quote, cf. investigation :
@@ -10215,7 +10309,7 @@ ${recent}`;
       : '';
     return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="Réglages de l’image">' +
       (isPureImage ? adocImageDisplayControlsHTML(true) : '<div class="cc-editor-row"><label>Opacité du fond<input type="range" min="0" max="100" step="1" value="100" data-editor-opacity="backgroundOpacity"></label></div>') +
-      addTextBtn + (isPureImage ? adocImageReplacementButtonsHTML(false) : '') +
+      addTextBtn + (isPureImage ? adocImageReplacementButtonsHTML(false) : '') + adocBlockSurfaceControlsHTML() +
     '</div>' + (isPureImage ? '<div class="cc-block-edit-result" hidden></div>' : '');
   }
   function adocImageReplacementButtonsHTML(isCover) {
@@ -10469,7 +10563,7 @@ ${recent}`;
     return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="' + adocEsc(ariaLabel || 'Position et taille de cette carte') + '">' +
       '<div class="cc-editor-row">' + number('x', 'X (px)') + number('y', 'Y (px)') + '</div>' +
       '<div class="cc-editor-row">' + number('width', 'Largeur (px)') + number('height', 'Hauteur (px)') + '</div>' +
-    '</div><p class="cc-editor-message" role="status" aria-live="polite"></p>';
+    '</div>' + adocBlockSurfaceControlsHTML() + '<p class="cc-editor-message" role="status" aria-live="polite"></p>';
   }
   // ITEM 75 Phase 2 (intra-carte) — périmètre EXACT de nestedBlock (block.schema.json), vérifié
   // par lecture directe du schéma avant construction, jamais supposé : 6 types (table EXCLUE,
@@ -11041,6 +11135,17 @@ ${recent}`;
     lr.addEventListener('click',function(e){
       const action=e.target.closest('[data-editor-action]'),color=e.target.closest('[data-editor-color]');
       if(action)adocEditorAction(action.dataset.editorAction);if(color)adocEditorApplyStyle('color',color.dataset.editorColor);
+      const swatch=e.target.closest('[data-block-surface-swatch]');
+      if(swatch){
+        const field=swatch.dataset.surfaceField, value=swatch.dataset.surfaceColor;
+        const input=swatch.closest('.cc-block-surface-controls').querySelector('[data-block-surface-color="'+field+'"]');
+        if(input)input.value=value;
+        adocSetBlockSurface(field==='borderColor'?{borderColor:value,borderWidth:1}:{backgroundColor:value});
+      }
+      if(e.target.closest('[data-block-surface-add-bg]'))window.adocAddBlockBackground();
+      if(e.target.closest('[data-block-surface-remove-bg]'))window.adocToggleBlockBackground();
+      if(e.target.closest('[data-block-surface-add-border]'))window.adocAddBlockBorder();
+      if(e.target.closest('[data-block-surface-remove-border]'))window.adocRemoveBlockBorder();
       if(e.target.closest('[data-image-reset]'))adocResetImageDisplay();
     });
     // LOT E — 'input' (jamais 'change') pour un aperçu réellement continu pendant le
@@ -11055,6 +11160,10 @@ ${recent}`;
       if(e.target.matches('[data-image-display][type="range"]'))adocApplyImageDisplay(e.target.dataset.imageDisplay,e.target.value,false);
     });
     lr.addEventListener('change',function(e){if(e.target.matches('[data-editor-scope]'))adocEditorRefreshControls();
+      if(e.target.matches('[data-block-surface-color]')){
+        const field=e.target.dataset.blockSurfaceColor, value=e.target.value;
+        adocSetBlockSurface(field==='borderColor'?{borderColor:value,borderWidth:1}:{backgroundColor:value});
+      }
       if(e.target.matches('[data-image-display]:not([type="range"])'))adocApplyImageDisplay(e.target.dataset.imageDisplay,e.target.type==='checkbox'?e.target.checked:e.target.value,true);
       if(e.target.matches('[data-card-position]'))adocApplyCardPosition(e.target.dataset.cardPosition,e.target.value,true);
       if(e.target.matches('[data-editor-style]')){
@@ -11254,6 +11363,31 @@ ${recent}`;
     if (Number.isFinite(style.flowWidthPercent)) css += 'width:' + Math.max(25, Math.min(100, style.flowWidthPercent)) + '%;max-width:100%;box-sizing:border-box;';
     if (Number.isFinite(style.flowMinHeightPx)) css += 'min-height:' + Math.max(0, Math.min(1200, style.flowMinHeightPx)) + 'px;';
     return css;
+  }
+  function adocBlockSurfaceCSSText(style) {
+    if (!style || !['backgroundColor', 'borderColor', 'borderWidth'].some(function(k) { return style[k] != null; })) return '';
+    const el = document.createElement('span');
+    if (style.backgroundColor === 'transparent' || /^#[0-9a-f]{6}$/i.test(style.backgroundColor || '')) el.style.backgroundColor = style.backgroundColor;
+    if (/^#[0-9a-f]{6}$/i.test(style.borderColor || '')) el.style.borderColor = style.borderColor;
+    if (Number.isFinite(style.borderWidth)) {
+      el.style.borderWidth = Math.max(0, Math.min(12, style.borderWidth)) + 'px';
+      el.style.borderStyle = style.borderWidth > 0 ? 'solid' : 'none';
+    }
+    return el.style.cssText;
+  }
+  function adocBlockSurfaceCSSRules(doc) {
+    const rules = [];
+    function visit(block) {
+      if (!block || typeof block !== 'object') return;
+      const css = adocBlockSurfaceCSSText(block.style);
+      if (css && block.id) {
+        const coverImage = doc.documentKind === 'fiche' && block === doc.blocks[0] && block.type === 'image';
+        rules.push((coverImage ? '.adoc-sc-fiche > .adoc-sc-cover' : '#' + CSS.escape(String(block.id))) + '{' + css + '}');
+      }
+      if (block.type === 'card' && block.content && Array.isArray(block.content.blocks)) block.content.blocks.forEach(visit);
+    }
+    (doc.blocks || []).forEach(visit);
+    return rules.join('');
   }
 
   // Applique un style de bloc directement sur l'élément affiché (retour visuel immédiat, jamais
@@ -13812,6 +13946,8 @@ ${recent}`;
       html = _m ? _m[1].trim() : html;
     }
 
+    const surfaceRules = adocBlockSurfaceCSSRules(validated.doc);
+    if (surfaceRules) html = '<style data-adoc-block-surface>' + surfaceRules + '</style>' + html;
     return { html: html, qc: qc, validatedDoc: validated.doc, renderManifest: renderManifest, tokens: tokens };
   };
   window.adocValidateClinicalDocument = adocValidateClinicalDocument;
@@ -13932,7 +14068,7 @@ ${recent}`;
       adocExportFontsWithTitles(doc) + '<title>' + adocEsc(doc.title) + ' — Studio Clinique</title>' +
       '<style>:root{' + cssVars + '}' + ADOC_DOC_CONTENT_CSS +
       ADOC_PRESENTATION_SLIDE_CSS + ADOC_QUIZ_STATIC_CSS + ADOC_QUESTIONNAIRE_STATIC_CSS + ADOC_CARD_IMG_CSS +
-      (annexe ? ADOC_DEEPDIVE_APPENDIX_CSS : '') +
+      (annexe ? ADOC_DEEPDIVE_APPENDIX_CSS : '') + adocBlockSurfaceCSSRules(doc) +
       '</style></head><body>' + bodyHtml + annexe + '</body></html>';
   }
 
@@ -14065,7 +14201,7 @@ ${recent}`;
       (annexe ? ADOC_DEEPDIVE_APPENDIX_CSS +
       // L'annexe reçoit un conteneur à hauteur libre et commence sur une nouvelle feuille ;
       // son texte peut se répartir ensuite sur autant de feuilles qu'il en faut.
-      '.adoc-dd-annexe{page-break-before:always;break-before:page;padding:48px 64px;border-top:none;margin-top:0;}' : '') +
+      '.adoc-dd-annexe{page-break-before:always;break-before:page;padding:48px 64px;border-top:none;margin-top:0;}' : '') + adocBlockSurfaceCSSRules(doc) +
       '</style></head><body>' + pages + annexe + '</body></html>';
     if (!isPresentation) return html;
     // Résoudre les couvertures AVANT la mesure : sinon leur hauteur réelle n'entre pas dans
@@ -19632,7 +19768,7 @@ ${recent}`;
     // quatre règles s'applique — comportement d'avant ce lot, strictement inchangé.
     const accentExport = (opts && opts.accentPresentation) || null;
     const accentCSS = accentExport ? ':root{--adoc-presentation-accent:' + String(accentExport).replace(/[^#\w(),.% -]/g, '') + ';}' : '';
-    const css = ADOC_PRESENT_ROOT_VARS_CSS + accentCSS + ADOC_DOC_CONTENT_CSS + ADOC_PRESENT_ENGINE_CSS + 'body{margin:0;background:#14211f;}';
+    const css = ADOC_PRESENT_ROOT_VARS_CSS + accentCSS + ADOC_DOC_CONTENT_CSS + ADOC_PRESENT_ENGINE_CSS + 'body{margin:0;background:#14211f;}' + adocBlockSurfaceCSSRules(doc);
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
       adocExportFontsWithTitles(doc, null, true) + '<title>' + adocEsc(doc.title) + ' — Présentation</title>' +
       '<style>' + css + '</style></head><body>' +
@@ -20879,7 +21015,6 @@ ${recent}`;
             + pageBtn('end', 'Ajouter une page à la fin')
           : '') +
         ((blockId || '').startsWith('root:card-title:') ? adocImageReplacementButtonsHTML(true) : '') +
-        (blockType === 'callout' ? '<button type="button" class="cc-clarity-reply-btn" data-block-background-toggle aria-pressed="false" onclick="event.stopPropagation();window.adocToggleBlockBackground()">Retirer le fond coloré</button>' : '') +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
@@ -21158,10 +21293,10 @@ ${recent}`;
           panel.className = 'cc-clarity-card cc-block-edit-panel';
           panel.setAttribute('role', 'group'); panel.setAttribute('aria-label', 'Image de couverture du document sélectionnée');
           panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(imageBlock.content.alt || 'Couverture')) +
-            adocImageDisplayControlsHTML() + adocImageReplacementButtonsHTML(false) + '<div class="cc-block-edit-result" hidden></div>';
+            adocImageDisplayControlsHTML() + adocImageReplacementButtonsHTML(false) + adocBlockSurfaceControlsHTML() + '<div class="cc-block-edit-result" hidden></div>';
           adocMountContextualBlockEditPanel(panel, documentCover);
           window._adocBlockEditState = { storeKey: key, blockId: imageBlock.id, panelEl: panel, originalBlock: imageBlock, zone: 'doc-cover' };
-          adocRefreshImageDisplayControls(); return;
+          adocRefreshImageDisplayControls(); adocRefreshBlockSurfaceControls(); return;
         }
       }
       const cover = e.target.closest('.adoc-sc-card-img');
@@ -21177,10 +21312,11 @@ ${recent}`;
         panel.setAttribute('role', 'group');
         panel.setAttribute('aria-label', 'Image de couverture sélectionnée');
         panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(card.content.imageAlt || card.content.title)) +
-          adocImageDisplayControlsHTML() + adocImageReplacementButtonsHTML(true) + '<div class="cc-block-edit-result" hidden></div>';
+          adocImageDisplayControlsHTML() + adocImageReplacementButtonsHTML(true) + adocBlockSurfaceControlsHTML() + '<div class="cc-block-edit-result" hidden></div>';
         adocMountContextualBlockEditPanel(panel, cover);
         window._adocBlockEditState = { storeKey: key, blockId: card.id, panelEl: panel, originalBlock: card, zone: 'cover' };
         adocRefreshImageDisplayControls();
+        adocRefreshBlockSurfaceControls();
         return;
       } // note de bas de page — laisse naviguer normalement
       // ITEM 75 Phase 1 UI — un clic sur la SURFACE PROPRE d'une carte Carrousel (jamais son
@@ -21224,6 +21360,7 @@ ${recent}`;
         window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: imgPanel, pendingBlock: null, originalBlock: block, zone: 'image' };
         adocEditorRefreshImageControls(true);
         adocRefreshImageDisplayControls();
+        adocRefreshBlockSurfaceControls();
         return;
       }
       // NOUVEAU CHANTIER (bloc mixte) — clic HORS de la zone de texte (.adoc-sc-fg-content) sur
@@ -21245,6 +21382,7 @@ ${recent}`;
         adocMountContextualBlockEditPanel(bgPanel, blockEl);
         window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: bgPanel, pendingBlock: null, originalBlock: block, zone: 'background' };
         adocEditorRefreshImageControls(false);
+        adocRefreshBlockSurfaceControls();
         return;
       }
       if (['video', 'quiz', 'questionnaire'].includes(block.type)) {
@@ -21254,9 +21392,10 @@ ${recent}`;
         panel.className = 'cc-clarity-card cc-block-edit-panel';
         panel.setAttribute('role', 'group'); panel.setAttribute('aria-label', 'Bloc sélectionné pour redimensionnement');
         panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(adocBlockPreviewText(block) || block.type)) +
-          '<p>Glissez une des huit poignées pour redimensionner ce bloc.</p>';
+          '<p>Glissez une des huit poignées pour redimensionner ce bloc.</p>' + adocBlockSurfaceControlsHTML();
         adocMountContextualBlockEditPanel(panel, blockEl);
         window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, originalBlock: block, zone: 'resize' };
+        adocRefreshBlockSurfaceControls();
         return;
       }
       if (ADOC_BLOCK_EDIT_TYPES.indexOf(block.type) === -1) return; // type non éditorial hors parcours de correction
@@ -21552,6 +21691,24 @@ ${recent}`;
       const nestedEl = e.target.closest('.adoc-sc-block');
       const cardEl = e.target.closest('.adoc-sc-card');
       if (!cardEl) return;
+      if (!cardHandle && !nestedEl && e.target === cardEl) {
+        const key = window._adocWsState.storeKey;
+        const art = window._adocArtifacts && window._adocArtifacts[key];
+        if (art && art._adocStructuredDoc && art._adocStructuredDoc.documentKind === 'presentation') {
+          const card = adocFindEditableBlock(art._adocStructuredDoc, cardEl.id);
+          if (card && card.type === 'card') {
+            adocWsClearBlockSelection(); cardEl.classList.add('is-selected');
+            const panel = document.createElement('div');
+            panel.className = 'cc-clarity-card cc-block-edit-panel';
+            panel.setAttribute('role', 'group'); panel.setAttribute('aria-label', 'Fond et cadre de cette diapositive');
+            panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(card.content.title) || '(diapositive)') + adocBlockSurfaceControlsHTML();
+            adocMountContextualBlockEditPanel(panel, cardEl);
+            window._adocBlockEditState = { storeKey: key, blockId: card.id, panelEl: panel, originalBlock: card, zone: 'surface' };
+            adocRefreshBlockSurfaceControls();
+            return;
+          }
+        }
+      }
 
       // ITEM 75 Phase 2 (intra-carte) — glisser/redimensionner un ÉLÉMENT IMBRIQUÉ, testé AVANT
       // la garde carte ci-dessous (Phase 1 y bloquait tout mousedown sur .adoc-sc-block — cette
@@ -21676,6 +21833,7 @@ ${recent}`;
         adocMountContextualBlockEditPanel(panel, cardEl);
         window._adocBlockEditState = { storeKey: storeKey, blockId: cardEl.id, panelEl: panel, pendingBlock: null, originalBlock: block, zone: 'position' };
         adocEditorRefreshCardPositionControls();
+        adocRefreshBlockSurfaceControls();
       }
       function onMove(ev) {
         const dx = ev.clientX - pointerStartX, dy = ev.clientY - pointerStartY;
@@ -24652,7 +24810,6 @@ ${recent}`;
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') + insertHTML +
-        (kind === 'callout' ? '<button type="button" class="cc-clarity-reply-btn" data-block-background-toggle aria-pressed="false" onclick="event.stopPropagation();window.adocToggleBlockBackground()">Retirer le fond coloré</button>' : '') +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
