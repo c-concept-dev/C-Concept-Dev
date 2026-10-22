@@ -14002,6 +14002,13 @@ ${recent}`;
       '.adoc-sc-card{position:relative;border:1px solid var(--adoc-sc-card-border,#c9c3b8);background:var(--adoc-sc-card-bg,#fff);border-radius:12px;padding:18px;}' +
       (isPresentation ? '.adoc-pdf-page .adoc-sc-card-title{font-family:var(--adoc-sc-heading-font,Georgia,serif);color:var(--adoc-sc-heading-color,#102f31);}' +
         '.adoc-pdf-page .adoc-sc-block{break-inside:avoid;page-break-inside:avoid;}' +
+        // Lot F : le questionnaire entier peut dépasser une feuille ; chaque question et
+        // ses choix, eux, doivent rester ensemble. Les paragraphes gardent au
+        // moins quatre lignes de part et d'autre, sans changer le rendu écran.
+        '.adoc-pdf-page .adoc-sc-questionnaire{break-inside:auto;page-break-inside:auto;}' +
+        '.adoc-pdf-page .adoc-sc-questionnaire-question{break-inside:avoid;page-break-inside:avoid;}' +
+        '.adoc-pdf-page .adoc-sc-paragraph{break-inside:auto;page-break-inside:auto;}' +
+        '.adoc-pdf-page p,.adoc-dd-annexe .adoc-dd-p{orphans:4;widows:7;}' +
         '.adoc-pdf-page .adoc-sc-card-img{max-height:324px;object-fit:cover;break-inside:avoid;page-break-inside:avoid;}' : '') +
       '.adoc-sc-table-el{border-collapse:collapse;width:100%;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;}' +
       '.adoc-sc-table-el th{background:var(--adoc-sc-table-header-bg,#dce8e6);color:var(--adoc-sc-table-header-color,#102f31);}' +
@@ -14065,6 +14072,51 @@ ${recent}`;
         card.style.zoom = String(scale);
         card.style.margin = '0 auto';
       });
+      // Une continuation de quelques lignes seulement est souvent la fin d'une longue
+      // carte déjà réduite à 70 %. Dans ce cas, commencer la dernière feuille plus tôt
+      // avec un bloc précédent. La mesure est faite sur le gabarit exact A4 envoyé au
+      // Worker ; le saut n'existe que dans ce HTML PDF (partagé par Imprimer).
+      const pdfPageHeight = 210 / 25.4 * 96;
+      inner.querySelectorAll('.adoc-pdf-page').forEach(function(page) {
+        const card = page.querySelector('.adoc-sc-card');
+        if (!card) return;
+        const pageTop = page.getBoundingClientRect().top;
+        const bottom = card.getBoundingClientRect().bottom - pageTop;
+        const lastPageStart = Math.floor((bottom - 1) / pdfPageHeight) * pdfPageHeight;
+        const thinTail = bottom - lastPageStart;
+        const minimumTail = pdfPageHeight * 0.15;
+        // Les marges entre blocs ne comptent pas dans la hauteur des lignes imprimées.
+        const targetTail = minimumTail + 40;
+        if (lastPageStart < pdfPageHeight || thinTail >= minimumTail) return;
+        const blocks = Array.from(card.querySelectorAll(':scope > .adoc-sc-block, :scope > .adoc-sc-card-body > .adoc-sc-block'));
+        for (let i = blocks.length - 1; i > 0; i--) {
+          const blockTop = blocks[i].getBoundingClientRect().top - pageTop;
+          if (blockTop >= lastPageStart || bottom - blockTop < targetTail) continue;
+          blocks[i].style.breakBefore = 'page';
+          blocks[i].style.pageBreakBefore = 'always';
+          break;
+        }
+      });
+      // L'annexe commence elle aussi sur une feuille neuve. Si sa dernière feuille
+      // ne porte qu'une chute, déplacer un paragraphe entier depuis la précédente.
+      // Ne jamais raccourcir ni supprimer le texte de l'annexe.
+      const appendix = inner.querySelector('.adoc-dd-annexe');
+      if (appendix) {
+        const appendixTop = appendix.getBoundingClientRect().top;
+        const appendixBottom = appendix.getBoundingClientRect().bottom - appendixTop;
+        const lastPageStart = Math.floor((appendixBottom - 1) / pdfPageHeight) * pdfPageHeight;
+        const minimumTail = pdfPageHeight * 0.15;
+        if (lastPageStart >= pdfPageHeight && appendixBottom - lastPageStart < minimumTail) {
+          const paragraphs = Array.from(appendix.querySelectorAll('.adoc-dd-p,.adoc-dd-voir'));
+          for (let i = paragraphs.length - 1; i > 0; i--) {
+            const paragraphTop = paragraphs[i].getBoundingClientRect().top - appendixTop;
+            if (paragraphTop >= lastPageStart || appendixBottom - paragraphTop < minimumTail + 40) continue;
+            paragraphs[i].style.breakBefore = 'page';
+            paragraphs[i].style.pageBreakBefore = 'always';
+            break;
+          }
+        }
+      }
       return '<!DOCTYPE html>' + inner.documentElement.outerHTML;
     } finally { frame.remove(); }
   }
