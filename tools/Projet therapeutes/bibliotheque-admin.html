@@ -11,6 +11,22 @@
          ZIP maison écrit pour ce lot (cf. investigation EPUB). -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
+        /* ── Rafraîchissement du 22/10/2026 ── additif seulement : aucune règle existante
+           renommée ni retirée, pour ne casser aucun sélecteur dont le reste du fichier
+           dépend. Ombres plus douces, coins plus généreux, états au survol. */
+        :root {
+            --sc-shadow-soft: 0 1px 2px rgba(39,51,49,0.06), 0 4px 16px rgba(39,51,49,0.08);
+            --sc-shadow-lift: 0 2px 4px rgba(39,51,49,0.08), 0 12px 28px rgba(39,51,49,0.14);
+            --sc-radius: 14px;
+        }
+        .app { box-shadow: var(--sc-shadow-lift); border-radius: var(--sc-radius); overflow: hidden; }
+        .app-header, .main { border-radius: 0 !important; }
+        .app-header { box-shadow: inset 0 -1px 0 rgba(255,255,255,0.12); }
+        button, .btn-refresh { transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease; }
+        button:hover, .btn-refresh:hover { filter: brightness(1.06); box-shadow: var(--sc-shadow-soft); }
+        button:active, .btn-refresh:active { transform: translateY(1px); }
+        input, select, textarea { transition: border-color 0.12s ease, box-shadow 0.12s ease; }
+        input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(143,175,177,0.25); }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Montserrat', sans-serif;
@@ -244,6 +260,7 @@
             <button class="tab" onclick="switchTab('search')">🔍 Test recherche</button>
             <button class="tab" onclick="switchTab('glossary')">📖 Glossaire</button>
             <button class="tab" onclick="switchTab('log')">📋 Journal</button>
+            <button class="tab" onclick="switchTab('replace')">🔄 Remplacer un livre</button>
         </div>
 
         <!-- TAB: UPLOAD -->
@@ -425,6 +442,34 @@
                 <span class="info">[SYSTÈME]</span> Prêt. Configurez l'URL du Worker et glissez vos PDF.
             </div>
         </div>
+
+        <!-- TAB: REMPLACER — carte dédiée du 22/10/2026. Jamais de suppression avant que la
+             nouvelle extraction soit confirmée bonne par vous : l'ancienne reste intacte tant
+             que vous n'avez pas cliqué vous-même sur « Supprimer l'ancienne version ». -->
+        <div class="tab-content" id="tab-replace">
+            <div style="background:#fafaf8;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:16px;font-size:13px;color:#555;">
+                <strong>Comment ça marche</strong> — trois étapes, jamais automatiques l'une sur l'autre :
+                <ol style="margin:8px 0 0 18px;">
+                    <li>Choisissez le livre à remplacer, puis déposez le nouveau fichier du même ouvrage.</li>
+                    <li>La nouvelle extraction est ingérée <em>à côté</em> de l'ancienne — rien n'est encore supprimé.</li>
+                    <li>Comparez les deux dans l'onglet Bibliothèque. Si c'est mieux, revenez ici et supprimez l'ancienne version, d'un clic distinct et confirmé.</li>
+                </ol>
+            </div>
+
+            <label style="font-size:12px;color:#888;font-weight:600;display:block;margin-bottom:6px;">Livre à remplacer</label>
+            <select id="replaceOldBook" style="width:100%;padding:10px 12px;border:2px solid #D8CDBB;border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:16px;" onchange="onReplaceOldBookChange()">
+                <option value="">— Choisissez dans la bibliothèque —</option>
+            </select>
+
+            <div class="dropzone" id="replaceDropzone" style="display:none;">
+                <span class="dropzone-icon">📄</span>
+                <div class="dropzone-text">Déposez ici la nouvelle version de ce livre</div>
+                <div class="dropzone-hint">PDF ou EPUB — même ouvrage, nouvelle extraction (repli OCR compris)</div>
+                <input type="file" id="replaceFileInput" accept=".pdf,.epub">
+            </div>
+
+            <div id="replaceStatus" style="margin-top:14px;"></div>
+        </div>
     </div>
 </div>
 
@@ -443,11 +488,12 @@ let isIngesting = false;
 // ── Tabs ──
 function switchTab(name) {
     document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', ['upload','library','search','glossary','log'][i] === name);
+        t.classList.toggle('active', ['upload','library','search','glossary','log','replace'][i] === name);
     });
     document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
     if (name === 'library') refreshLibrary();
+    if (name === 'replace') prepareReplaceTab();
 }
 
 // ── Log ──
@@ -662,10 +708,134 @@ function renderQueue() {
                 ${q.status === 'pending' ? renderMetaForm(q) : ''}
             </div>
             <div class="qi-action">
+                ${q.status === 'pending' ? `<button class="btn-sm" onclick="previewExtraction('${q.id}')" title="Extrait et affiche le texte sans rien écrire dans la bibliothèque">👁️ Aperçu</button>` : ''}
                 ${q.status === 'pending' ? `<button class="btn-sm danger" onclick="removeFromQueue('${q.id}')">✕</button>` : ''}
             </div>
+            <div class="qi-preview" id="qpv-${q.id}"></div>
         </div>`;
     }).join('');
+}
+
+// ── Remplacer un livre — carte dédiée du 22/10/2026 ──
+//
+// Trouvaille en construisant cette carte : le circuit existant « ⚠️ Doublon → ♻️ Écraser »
+// (overwriteDuplicate/renderDupAlerts, utilisé jusqu'ici) SUPPRIME l'ancien livre AVANT
+// d'ingérer le nouveau (cf. startIngestion, branche `q._dupAction === 'overwrite'`). Si la
+// nouvelle extraction échoue après cette suppression, le livre disparaît purement et
+// simplement de la bibliothèque, sans ancienne ni nouvelle version. Ce n'est pas corrigé ici
+// — changer ce circuit toucherait un chemin déjà en production, décision à part — mais cette
+// carte ne l'emprunte JAMAIS : elle ingère d'abord sous un identifiant distinct, et ne
+// supprime l'ancienne version qu'après confirmation explicite que la nouvelle a réussi.
+let _replaceOld = null;
+let _replaceQueueId = null;
+
+function prepareReplaceTab() {
+    const sel = document.getElementById('replaceOldBook');
+    const books = window._libBooks || [];
+    sel.innerHTML = '<option value="">— Choisissez dans la bibliothèque —</option>' +
+        books.map((b, i) => `<option value="${i}">${escHtml(b.book_title || b.book_id)}</option>`).join('');
+    document.getElementById('replaceDropzone').style.display = 'none';
+    document.getElementById('replaceStatus').innerHTML = '';
+    _replaceOld = null;
+    _replaceQueueId = null;
+    if (!books.length) refreshLibrary();
+}
+
+function onReplaceOldBookChange() {
+    const idx = document.getElementById('replaceOldBook').value;
+    const books = window._libBooks || [];
+    _replaceOld = idx !== '' ? books[idx] : null;
+    document.getElementById('replaceDropzone').style.display = _replaceOld ? '' : 'none';
+    document.getElementById('replaceStatus').innerHTML = '';
+    _replaceQueueId = null;
+}
+
+document.getElementById('replaceFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file || !_replaceOld) return;
+
+    addFiles([file]);
+    const q = queue[queue.length - 1];
+    // Identifiant et titre volontairement distincts de l'ancien — c'est ce qui empêche le
+    // circuit de doublon/écrasement de se déclencher : cette ingestion-ci n'écrase rien.
+    q.meta.book_id = (_replaceOld.book_id || 'livre') + '-nouvelle-extraction';
+    q.meta.title = (_replaceOld.book_title || file.name) + ' — nouvelle extraction';
+    q.meta.author = _replaceOld.author || '';
+    q.meta.language = _replaceOld.language || 'fr';
+    q.meta.approach = _replaceOld.approach || 'general';
+    _replaceQueueId = q.id;
+
+    document.getElementById('replaceStatus').innerHTML = `
+        <div style="padding:12px;background:#fafaf8;border:1px solid #eee;border-radius:8px;font-size:13px;">
+            <strong>${escHtml(q.meta.title)}</strong><br>
+            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-sm" onclick="previewExtraction('${q.id}')">👁️ Aperçu (rien n'est écrit)</button>
+                <button class="btn btn-primary" onclick="replaceIngestNew()">📥 Ingérer la nouvelle extraction, à côté de l'ancienne</button>
+            </div>
+            <div id="qpv-${q.id}"></div>
+        </div>`;
+});
+
+async function replaceIngestNew() {
+    if (!_replaceQueueId) return;
+    const statusEl = document.getElementById('replaceStatus');
+    await startIngestion(); // le circuit déjà éprouvé — même extraction, même repli OCR
+    const q = queue.find(x => x.id === _replaceQueueId);
+    if (!q) return;
+    if (q.status === 'done') {
+        statusEl.insertAdjacentHTML('beforeend', `
+            <div style="margin-top:12px;padding:12px;background:#f0f5f0;border:1px solid #cde0cd;border-radius:8px;font-size:13px;">
+                ✅ Nouvelle extraction ingérée (${q.chunks.length} chunks), <strong>à côté</strong> de l'ancienne.
+                Comparez les deux dans l'onglet « 📚 Bibliothèque ».<br><br>
+                Si c'est mieux :
+                <button class="btn-sm danger" onclick="deleteBook('${_replaceOld.book_id}', '${escHtml(_replaceOld.book_title || '').replace(/'/g, "\\'")}')">
+                    🗑 Supprimer l'ancienne version
+                </button>
+                <span style="color:#888;"> (confirmation demandée, comme d'habitude)</span>
+            </div>`);
+    } else {
+        statusEl.insertAdjacentHTML('beforeend', `
+            <div style="margin-top:12px;padding:12px;background:#fdf0ee;border:1px solid #f0cfc8;border-radius:8px;font-size:13px;color:#A32C2C;">
+                L'ingestion de la nouvelle extraction n'a pas réussi (${escHtml(q.error || 'statut : ' + q.status)}).
+                L'ancienne version n'a pas été touchée.
+            </div>`);
+    }
+}
+
+// ── Aperçu avant ingestion — le 22/10/2026 : extrait le texte avec exactement le même code
+// que l'ingestion réelle (extractPDFText/extractEPUBText/extractHTMLText, repli OCR compris)
+// mais n'appelle jamais /ingest. Ce que l'aperçu montre est donc garanti identique à ce que
+// l'ingestion produirait — pas une estimation séparée qui pourrait diverger. Zéro écriture
+// dans D1 tant que l'utilisateur n'a pas cliqué sur « Lancer l'ingestion » séparément.
+async function previewExtraction(id) {
+    const q = queue.find(x => x.id === id);
+    if (!q) return;
+    const box = document.getElementById('qpv-' + id);
+    box.innerHTML = '<div style="padding:10px;color:#888;font-size:12px;">Extraction en cours — aucune écriture dans la bibliothèque pendant l\'aperçu…</div>';
+    const previewLog = [];
+    try {
+        let result;
+        if (q.fileType === 'epub') {
+            result = await extractEPUBText(q.file, () => {});
+        } else if (q.fileType === 'html') {
+            result = await extractHTMLText(q.file, () => {});
+        } else {
+            result = await extractPDFText(q.file, () => {}, msg => previewLog.push(msg));
+        }
+        const sample = result.pages[0] ? result.pages[0].text.slice(0, 400) : '';
+        const ratio = (accentRatio(result.fullText) * 100).toFixed(2);
+        box.innerHTML = `
+            <div style="margin-top:8px;padding:12px;background:#fafaf8;border:1px solid #eee;border-radius:8px;font-size:12px;">
+                <strong>Aperçu — rien n'a été écrit dans la bibliothèque</strong><br>
+                ${result.numPages} page(s) dans le fichier · ${result.pages.length} page(s) avec du texte exploitable
+                ${typeof result.ocrPagesCount === 'number' && result.ocrPagesCount > 0 ? ` · 🔎 ${result.ocrPagesCount} page(s) lue(s) par repli OCR` : ''}
+                <br>Densité d'accents sur l'ensemble : ${ratio} %
+                ${previewLog.length ? '<br><br><em>Journal du repli OCR :</em><br>' + previewLog.map(escHtml).join('<br>') : ''}
+                ${sample ? `<br><br><em>Premiers caractères de la première page lue :</em><div style="margin-top:4px;padding:8px;background:white;border-radius:6px;white-space:pre-wrap;">${escHtml(sample)}${result.pages[0].text.length > 400 ? '…' : ''}</div>` : ''}
+            </div>`;
+    } catch (err) {
+        box.innerHTML = `<div style="margin-top:8px;padding:10px;color:#A32C2C;font-size:12px;">Aperçu impossible : ${escHtml(err.message)} — rien n'a été écrit dans la bibliothèque.</div>`;
+    }
 }
 
 function renderMetaForm(q) {
@@ -701,25 +871,172 @@ function clearQueue() {
 }
 
 // ── Extract PDF text with pdf.js ──
-async function extractPDFText(file, progressCb) {
+// ── Signal d'accentuation — mesuré le 22/10/2026 sur un corpus réel : une couche française
+// sans accents se repère pour rien (0,00 % contre ~3 % attendu), avant même d'océriser quoi
+// que ce soit. Sert ici au diagnostic (liste des livres suspects), jamais comme déclencheur
+// de l'OCR lui-même — on ne connaît pas la langue d'un document avant de l'avoir lu.
+function accentRatio(text) {
+    if (!text || !text.length) return 0;
+    const accented = (text.match(/[àâäéèêëïîôöùûüÿçœæ]/gi) || []).length;
+    return accented / text.length;
+}
+
+// ── Similarité de titre — signal honnête, pas une certitude. Normalise (accents, ponctuation,
+// mentions d'édition entre parenthèses, casse) puis mesure un recouvrement de mots simple
+// (indice de Dice sur les tokens). Un seuil de 0,6 attrape « Funk Fusion Bass (Hal Leonard —
+// Bass Builders) [Book+CD] » contre « Funk Fusion Bass.pdf » sans confondre deux livres
+// différents qui partagent seulement un mot commun.
+function normalizeTitle(s) {
+    return (s || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // retire les accents
+        .replace(/\([^)]*\)|\[[^\]]*\]/g, ' ')              // retire (…) et […]
+        .replace(/\.(pdf|epub|html?)$/i, ' ')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function titleSimilarity(a, b) {
+    const ta = new Set(normalizeTitle(a).split(' ').filter(w => w.length > 2));
+    const tb = new Set(normalizeTitle(b).split(' ').filter(w => w.length > 2));
+    if (ta.size === 0 || tb.size === 0) return 0;
+    let common = 0;
+    for (const w of ta) if (tb.has(w)) common++;
+    return (2 * common) / (ta.size + tb.size); // indice de Dice
+}
+
+// ── Chargeur de script paresseux ── évite d'alourdir chaque chargement de page pour un
+// outil (Tesseract) dont la plupart des documents n'auront jamais besoin.
+const _loadedScripts = {};
+function loadScript(src) {
+    if (_loadedScripts[src]) return _loadedScripts[src];
+    _loadedScripts[src] = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error('Échec de chargement : ' + src));
+        document.head.appendChild(s);
+    });
+    return _loadedScripts[src];
+}
+
+// ── Rendu d'une page pdf.js vers un canevas — nécessaire pour les deux moteurs de repli,
+// qui lisent une image, pas une couche texte.
+async function renderPageToCanvas(page, scale = 2) {
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas;
+}
+
+// ── Repli 1 — Tesseract.js, local au navigateur, gratuit. Chargé à la demande.
+// Modèles français + anglais, comme la chaîne Liénothèque.
+let _tesseractWorker = null;
+async function ocrPageWithTesseract(canvas) {
+    if (!window.Tesseract) {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js');
+    }
+    if (!_tesseractWorker) {
+        _tesseractWorker = await Tesseract.createWorker('fra+eng');
+    }
+    const { data } = await _tesseractWorker.recognize(canvas);
+    return (data.text || '').trim();
+}
+
+// ── Repli 2 — Claude Vision, via le proxy déjà en place (POST à la racine du Worker,
+// même convention que adocGenerateStructuredFiche). N'est appelé que si Tesseract a échoué
+// ou n'a presque rien lu — c'est le plus coûteux des deux, donc le dernier recours.
+async function ocrPageWithVision(canvas) {
+    const apiKey = getAdminApiKey();
+    if (!apiKey) throw new Error('Clé API manquante pour le repli Vision');
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const base64 = dataUrl.split(',')[1];
+    const res = await fetch(getWorkerUrl() + '/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+        body: JSON.stringify({
+            payload: {
+                model: 'claude-sonnet-4-6',
+                max_tokens: 4000,
+                messages: [{
+                    role: 'user',
+                    content: [
+                        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } },
+                        { type: 'text', text: 'Transcris fidèlement tout le texte visible sur cette page de document. Rends uniquement le texte transcrit, dans l\'ordre de lecture, sans commentaire ni résumé.' }
+                    ]
+                }]
+            }
+        })
+    });
+    if (!res.ok) throw new Error('Repli Vision : réponse ' + res.status);
+    const json = await res.json();
+    const text = json?.content?.[0]?.text || '';
+    return text.trim();
+}
+
+// ── Chaîne de repli complète pour une page jugée pauvre par pdf.js : Tesseract d'abord,
+// Vision ensuite si Tesseract échoue ou n'a presque rien lu. Jamais les deux à la fois,
+// pour ne pas payer Vision quand le gratuit a suffi.
+async function ocrFallbackChain(page, pageNum, logFn) {
+    const canvas = await renderPageToCanvas(page);
+    try {
+        const tesseractText = await ocrPageWithTesseract(canvas);
+        if (tesseractText.length > 20) {
+            if (logFn) logFn(`Page ${pageNum} — lue par Tesseract (${tesseractText.length} caractères)`);
+            return { text: tesseractText, source: 'tesseract' };
+        }
+        if (logFn) logFn(`Page ${pageNum} — Tesseract insuffisant (${tesseractText.length} caractères), repli Vision`);
+    } catch (err) {
+        if (logFn) logFn(`Page ${pageNum} — Tesseract en échec (${err.message}), repli Vision`);
+    }
+    try {
+        const visionText = await ocrPageWithVision(canvas);
+        if (logFn) logFn(`Page ${pageNum} — lue par Claude Vision (${visionText.length} caractères)`);
+        return { text: visionText, source: 'vision' };
+    } catch (err) {
+        if (logFn) logFn(`Page ${pageNum} — Vision également en échec (${err.message}) ; page laissée vide, pas inventée`);
+        return { text: '', source: 'aucun' };
+    }
+}
+
+async function extractPDFText(file, progressCb, logFn) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const numPages = pdf.numPages;
     let allText = '';
     const pages = [];
+    let ocrPagesCount = 0;
 
     for (let i = 1; i <= numPages; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
-        const pageText = content.items.map(item => item.str).join(' ');
+        let pageText = content.items.map(item => item.str).join(' ');
+        let source = 'couche';
+
+        // Seuil déjà établi dans ce fichier (20 caractères) : en dessous, la page était
+        // auparavant silencieusement absente de `pages`, sans que rien ne le dise. C'est
+        // exactement la famille de défaut (un résultat vide pris pour un succès) que la
+        // chaîne Liénothèque a corrigée le 21 octobre — on ne la laisse pas filer ici non plus.
+        if (pageText.trim().length <= 20) {
+            const result = await ocrFallbackChain(page, i, logFn);
+            if (result.text.length > 20) {
+                pageText = result.text;
+                source = result.source;
+                ocrPagesCount++;
+            }
+        }
+
         if (pageText.trim().length > 20) {
-            pages.push({ page: i, text: pageText.trim() });
+            pages.push({ page: i, text: pageText.trim(), source });
         }
         allText += pageText + '\n\n';
         if (progressCb) progressCb(Math.round((i / numPages) * 100));
     }
 
-    return { pages, fullText: allText, numPages };
+    return { pages, fullText: allText, numPages, ocrPagesCount };
 }
 
 // ── Extract HTML text (outils couple, exercices) ──
@@ -969,13 +1286,45 @@ function splitOversizedParagraph(text, hardMaxWords) {
     return segments;
 }
 
+// ── Correctif du 22/10/2026 — dérive de pagination ──
+// `chunkTextWithPages` construit `pageMap` sur le texte COMPLET de la page, mot par mot ; mais
+// `chunkText` écartait jusqu'ici tout paragraphe de ≤20 caractères (intertitre, légende, numéro
+// de page isolé) avant de chunker. Le curseur qui avance "de mots consommés" dans
+// `chunkTextWithPages` ne savait rien de ces mots disparus : la position qu'il croyait tenir
+// dans `pageMap` dérivait de leur nombre, et cette dérive s'accumulait sur tout le document —
+// un chunk en fin de livre pouvait citer une page antérieure à celle où le texte est imprimé.
+// Remède : ne plus jamais perdre de mots entre le texte brut et le texte chunké. Un paragraphe
+// court est fusionné avec le suivant (ou le précédent, en fin de liste) plutôt qu'écarté — le
+// compte de mots reste exact, le curseur reste synchrone avec `pageMap` jusqu'au bout.
+function mergeTinyParagraphs(paragraphs, minChars = 20) {
+    const merged = [];
+    let pending = '';
+    for (const p of paragraphs) {
+        const combined = pending ? pending + '\n\n' + p : p;
+        if (combined.trim().length > minChars) {
+            merged.push(combined);
+            pending = '';
+        } else {
+            pending = combined;
+        }
+    }
+    if (pending.trim().length > 0) {
+        // Reste en fin de liste, lui-même toujours court : rattaché au dernier plutôt que perdu.
+        if (merged.length > 0) merged[merged.length - 1] += '\n\n' + pending;
+        else merged.push(pending);
+    }
+    return merged;
+}
+
 function chunkText(text, targetSize = 500, maxSize = 700, overlap = 100) {
     // Marge sur maxSize (700) : un paragraphe unique peut désormais atteindre jusqu'à ~900 mots
     // avant d'être forcé à se scinder — jamais plus, même combiné à l'overlap (100 mots) ajouté
     // par la boucle ci-dessous, restant sous la limite dure de ~1000 mots demandée.
     const HARD_MAX_WORDS = 900;
-    // Découper par paragraphes d'abord (double saut de ligne ou point suivi de majuscule)
-    const rawParagraphs = text.split(/\n\s*\n|(?<=\.)\s{2,}/).filter(p => p.trim().length > 20);
+    // Découper par paragraphes d'abord (double saut de ligne ou point suivi de majuscule), puis
+    // fusionner les paragraphes courts au lieu de les écarter — aucun mot n'est perdu.
+    const splitParagraphs = text.split(/\n\s*\n|(?<=\.)\s{2,}/).filter(p => p.trim().length > 0);
+    const rawParagraphs = mergeTinyParagraphs(splitParagraphs, 20);
     const paragraphs = rawParagraphs.flatMap(p => splitOversizedParagraph(p, HARD_MAX_WORDS));
 
     const chunks = [];
@@ -1139,6 +1488,24 @@ async function startIngestion() {
                     renderQueue();
                     continue;
                 }
+                // ── Correctif du 22/10/2026 — le contrôle ci-dessus ne compare que book_id, dérivé
+                // du nom de fichier : deux éditions du même livre, nommées différemment, passaient
+                // inaperçues. /library-stats ne rend que book_id/book_title/author/language/approach
+                // — aucun contenu — donc une vraie empreinte de contenu n'est pas faisable ici sans
+                // toucher au Worker. Ce contrôle par titre+auteur normalisés est honnête sur sa
+                // limite : un signal, pas une certitude — d'où un AVERTISSEMENT qui bloque et
+                // demande une décision humaine, jamais un rejet silencieux ni un écrasement
+                // automatique (qui emprunterait le circuit « Écraser », déjà signalé à risque).
+                const similar = (stats.books || []).find(b =>
+                    b.book_id !== q.meta.book_id && titleSimilarity(b.book_title, q.meta.title) >= 0.6
+                );
+                if (similar) {
+                    q._similarTo = similar;
+                    q.status = 'duplicate';
+                    log('  ⚠️ RESSEMBLE À UN LIVRE EXISTANT : "' + q.meta.title + '" ≈ "' + similar.book_title + '" (' + similar.book_id + ')', 'error');
+                    renderQueue();
+                    continue;
+                }
             } else {
                 // Correctif urgent P0-1 — fail-open corrigé : avant, le résultat de /delete-book
                 // n'était ni capturé ni vérifié, "✅ Ancien contenu supprimé" s'affichait
@@ -1204,12 +1571,15 @@ async function startIngestion() {
                 const result = await extractPDFText(q.file, pct => {
                     const bar = document.getElementById('qp-' + q.id);
                     if (bar) bar.style.width = pct + '%';
-                });
+                }, msg => log('  ' + msg));
                 pages = result.pages;
                 numPages = result.numPages;
+                if (result.ocrPagesCount > 0) {
+                    log(`  🔎 ${result.ocrPagesCount} page(s) lue(s) par repli OCR (Tesseract/Vision), sans couche texte exploitable`);
+                }
             }
 
-            if (pages.length === 0) throw new Error(q.fileType === 'html' ? 'Aucun texte extrait du HTML' : q.fileType === 'epub' ? 'Aucun texte extrait de l\'EPUB' : 'Aucun texte extrait (PDF scanné ou protégé)');
+            if (pages.length === 0) throw new Error(q.fileType === 'html' ? 'Aucun texte extrait du HTML' : q.fileType === 'epub' ? 'Aucun texte extrait de l\'EPUB' : 'Aucun texte extrait, même après repli OCR (Tesseract et Vision ont tous deux échoué)');
 
             // Phase 1b: Auto-detect metadata
             if (!q.meta.author || q.meta.approach === 'general') {
@@ -1344,6 +1714,17 @@ function renderDupAlerts() {
         // supprimé, mais _existingChunks>1 resterait géré si une source future le fournit).
         const chunkCountText = (typeof q._existingChunks === 'number' && q._existingChunks > 1)
             ? ' (' + q._existingChunks + ' chunks)' : '';
+        if (q._similarTo) {
+            // Signal de similarité, pas une certitude — et jamais orienté vers « Écraser »,
+            // qui supprime avant d'ingérer (cf. commentaire sur replaceIngestNew). On ignore
+            // ici, ou on passe par la carte « Remplacer un livre », qui ingère d'abord.
+            return '<div class="dup-banner">'
+                + '<div class="dup-icon">⚠️</div>'
+                + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> ressemble à <b>' + escHtml(q._similarTo.book_title) + '</b> déjà présent — peut-être la même œuvre, sous un autre nom de fichier. Pour la remplacer en sécurité, utilisez l\'onglet « 🔄 Remplacer un livre ».</div>'
+                + '<div class="dup-actions">'
+                + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer — ne pas déposer ce fichier</button>'
+                + '</div></div>';
+        }
         return '<div class="dup-banner">'
             + '<div class="dup-icon">⚠️</div>'
             + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> existe déjà dans la base' + chunkCountText + '. Écraser ou ignorer ?</div>'
