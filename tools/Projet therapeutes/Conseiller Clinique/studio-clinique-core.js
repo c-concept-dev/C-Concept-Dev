@@ -544,27 +544,28 @@
     } catch(e) { /* pas de dossier patient — silencieux */ }
   }
 
-  // ── Phase B0 (suite) — un seul appel /library-stats pour tout l'écran ──────
+  // ── Phase B0 (suite) — une source /library-stats partagée par tout l'écran ──────
   // Avant : deux appels séparés (adocInit pour la sidebar/conversation,
   // loadLandingLibraryStats pour l'accueil), pouvant en théorie diverger et
   // interrogeant le Worker deux fois pour la même donnée. Désormais : un seul
-  // appel, déclenché une fois au chargement du script (pas seulement à
+  // appel initial, déclenché au chargement du script (pas seulement à
   // l'ouverture de la conversation, pour que l'accueil ait ses vrais chiffres
   // dès l'affichage), qui alimente adocLibStats ET tous les affichages —
   // accueil (via le point d'intégration déjà prévu par l'accueil,
   // setConseillerCliniqueLibraryStats), sidebar, message de bienvenue.
-  let adocStatsLoaded = false;
+  // Le cache est revalidé après 60 s à la recherche ou au retour sur l'onglet.
+  let adocStatsPromise = null;
+  let adocStatsAt = 0;
   function adocLoadLibraryStats() {
-    if (adocStatsLoaded) return; // déjà chargées — ne jamais refaire l'appel
+    if (adocStatsPromise) return adocStatsPromise;
+    if (adocLibStats && Date.now() - adocStatsAt < 60000) return Promise.resolve(adocLibStats);
     const workerUrl = adocGetWorkerUrl();
     if (!workerUrl || workerUrl === 'undefined') {
       document.getElementById('adoc-rag-status').textContent = 'Worker non configuré';
       return;
     }
-    adocStatsLoaded = true;
-
-    fetch(workerUrl.replace(/\/$/, '') + '/library-stats')
-      .then(r => r.json())
+    adocStatsPromise = fetch(workerUrl.replace(/\/$/, '') + '/library-stats', { cache: 'no-store' })
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(d => {
         const books  = d.total_books || (d.books?.length) || 0;
         const chunks = d.total_chunks || 0;
@@ -615,20 +616,27 @@
             return acc;
           }, {})
         };
+        adocStatsAt = Date.now();
+        return adocLibStats;
       })
       .catch(() => {
         // Échec réseau — état neutre explicite partout, jamais une valeur
         // qui pourrait laisser croire qu'elle est à jour (§0bis).
-        adocStatsLoaded = false; // permet un nouvel essai (ex. à l'ouverture de la conversation)
+        adocStatsAt = 0; // permet un nouvel essai (ex. à la recherche suivante)
         document.getElementById('adoc-rag-status').textContent = 'Bibliothèque non disponible';
         document.getElementById('adoc-stat-books').textContent = '—';
         document.getElementById('adoc-rag-badge').textContent  = 'Bibliothèque non disponible';
-      });
+      }).finally(() => { adocStatsPromise = null; });
+    return adocStatsPromise;
   }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) adocLoadLibraryStats();
+  });
 
   // ── Init : appelé à l'ouverture de la conversation ──
   function adocInit() {
-    adocLoadLibraryStats(); // no-op si déjà chargées au démarrage du script
+    adocLoadLibraryStats(); // réutilise la requête en cours ou le cache récent
 
     // Drag & drop
     const zone = document.getElementById('adoc-upload-zone');
@@ -25723,6 +25731,18 @@ ${recent}`;
     return (r.book_title || '') + '|' + (r.page_number || '') + '|' + (r.content || '').slice(0, 60);
   }
 
+  // Le champ de recherche promet aussi un ouvrage : si les mots tapés désignent un titre
+  // UNIQUE du catalogue D1 déjà chargé, une recherche par titre (sans terme FTS ni auteur)
+  // restitue ses vrais passages. Aucun appel supplémentaire pour une recherche ordinaire.
+  function adocUniqueLibraryTitleForQuery(raw) {
+    const fold = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const words = fold(raw).split(/\s+/).filter(w => w.length >= 2);
+    if (fold(raw).length < 4 || !words.length || !adocLibStats?.booksByApproach) return '';
+    const titles = new Set(Object.values(adocLibStats.booksByApproach).flat().map(b => b.title).filter(Boolean));
+    const matches = [...titles].filter(title => words.every(word => fold(title).includes(word)));
+    return matches.length === 1 ? matches[0] : '';
+  }
+
   // ── Phase 1+ Passerelle — composant de recherche bibliothèque partagé ─────────────────
   // Deux orchestrateurs indépendants partagent requête, normalisation et cartes.
   function adocLibSearchIds(mountId) {
@@ -25911,6 +25931,8 @@ ${recent}`;
     _adocLibCards.forEach(function (card, uid) { if (card.mountId === mountId) _adocLibCards.delete(uid); });
     if (!raw) { resultsEl.innerHTML = ''; return; }
     resultsEl.innerHTML = '<div class="cc-ws-search-result" style="color:var(--muted);">Recherche…</div>';
+    await adocLoadLibraryStats(); // prend en compte les livres ajoutés depuis l'ouverture de la page
+    if (mySeq !== state.seq) return;
 
     const approachEl = document.getElementById(ids.approach);
     const languageEl = document.getElementById(ids.language);
@@ -25941,6 +25963,11 @@ ${recent}`;
     if (approach && approach !== 'all') authorIntent.approaches = [approach];
     if (language) authorIntent.language = language;
     if (bookTitle) authorIntent.book_title = bookTitle;
+    const matchedTitle = adocUniqueLibraryTitleForQuery(raw);
+    const titleIntent = matchedTitle && (!bookTitle || matchedTitle.toLowerCase().startsWith(bookTitle.toLowerCase()))
+      ? { book_title: matchedTitle, limit: 3 } : null;
+    if (titleIntent && approach && approach !== 'all') titleIntent.approaches = [approach];
+    if (titleIntent && language) titleIntent.language = language;
 
     const ctrl = state.controller = new AbortController();
     // Délai porté à 12s (au lieu de 6s) — la recherche interlingue automatique (lancée le
@@ -25950,7 +25977,7 @@ ${recent}`;
     // d'origine. 12s laisse une vraie marge plutôt qu'un ajustement minimal qui recréerait le
     // même problème dès qu'une requête un peu plus longue ou une langue de plus s'ajoutera.
     const tid = setTimeout(function () { ctrl.abort(); }, 12000);
-    const [ragResp, authorResults] = await Promise.all([
+    const [ragResp, authorResults, titleResults] = await Promise.all([
       fetch(workerUrl + '/rag-search', {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
         body: JSON.stringify(body), signal: ctrl.signal,
@@ -25958,13 +25985,23 @@ ${recent}`;
         return { error: e.name === 'AbortError' ? 'timeout' : 'network' };
       }),
       adocD1Search(authorIntent).catch(function () { return null; }),
+      titleIntent ? adocD1Search(titleIntent).catch(function () { return null; }) : Promise.resolve([]),
     ]);
     clearTimeout(tid);
     if (mySeq !== state.seq) return;
 
     const ragChunks = (ragResp && ragResp.chunks) || [];
+    const ragByKey = new Map(ragChunks.map(c => [adocLibrarySearchResultKey(c), c]));
     const seen = new Set();
     const merged = [];
+    (titleResults || []).forEach(function (r) {
+      const key = adocLibrarySearchResultKey(r);
+      if (seen.has(key)) return;
+      seen.add(key);
+      const rich = ragByKey.get(key);
+      merged.push(rich ? Object.assign({}, rich, { sources: [...new Set([...(rich.sources || [rich.source].filter(Boolean)), 'title'])] })
+        : Object.assign({}, r, { sources: ['title'] }));
+    });
     ragChunks.forEach(function (c) {
       const key = adocLibrarySearchResultKey(c);
       if (seen.has(key)) return;
@@ -26039,7 +26076,7 @@ ${recent}`;
     const lexical = card.isPhrase ? 'correspondance de phrase exacte' : 'correspondance lexicale par mots-clés';
     const provenance = sources.includes('fts5') && sources.includes('vector') ? lexical + ' + de sens'
       : sources.includes('fts5') ? lexical : sources.includes('vector') ? 'correspondance de sens'
-      : sources.includes('author') ? 'par auteur' : '';
+      : sources.includes('author') ? 'par auteur' : sources.includes('title') ? 'par titre' : '';
     const translated = !!card.translated;
     const text = translated
       ? '<div class="cc-lib-translation-badge">🌐 Traduction automatique</div>'

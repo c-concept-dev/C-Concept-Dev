@@ -14,6 +14,11 @@ const IFS_CHUNK_TRANSLATED = {
   translated_content: 'Contenu français traduit à propos du travail des parties en systèmes familiaux internes.',
   is_machine_translated: true, sources: ['fts5', 'vector'],
 };
+const ADHD_TITLE = 'The ADHD Effect on Marriage Understand and Rebuild Your Relationship in Six Steps';
+const ADHD_CHUNK = {
+  id: 'adhd-en-1', book_title: ADHD_TITLE, author: 'Melissa Orlov', page_number: 7,
+  approach: 'couple', language: 'en', content: 'The ADHD effect on marriage can be discussed together.',
+};
 
 (async () => {
   const browser = await chromium.launch(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH} : {});
@@ -25,20 +30,25 @@ const IFS_CHUNK_TRANSLATED = {
 
   let ragCallCount = 0;
   const ragBodies = [];
+  const d1Bodies = [];
+  let catalogBooks = [];
+  let catalogVersion = 0;
   await page.route('**/*', (route) => {
     const req = route.request();
     const url = req.url();
-    if (url.includes('library-stats')) { route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ total_books: 3, total_chunks: 3, by_approach: [] }) }); return; }
+    if (url.includes('library-stats')) { route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ total_books: 3 + catalogVersion, total_chunks: 3, by_approach: [], books: catalogBooks }) }); return; }
     if (url.endsWith('/brand-kits')) { route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ brand_kits: [] }) }); return; }
     if (url.endsWith('/d1-query') && req.method() === 'POST') {
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: [] }) });
+      let body = {}; try { body = JSON.parse(req.postData() || '{}'); } catch (e) {}
+      d1Bodies.push(body);
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: body.book_title === ADHD_TITLE ? [ADHD_CHUNK] : [] }) });
       return;
     }
     if (url.endsWith('/rag-search') && req.method() === 'POST') {
       ragCallCount++;
       let body = {}; try { body = JSON.parse(req.postData() || '{}'); } catch (e) {}
       ragBodies.push(body);
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ query: body.query, target_lang: body.target_lang || 'fr', chunks: [IFS_CHUNK_TRANSLATED] }) });
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ query: body.query, target_lang: body.target_lang || 'fr', chunks: body.query?.includes('ADHD') ? [] : [IFS_CHUNK_TRANSLATED] }) });
       return;
     }
     if (url.includes('clone-proxy') || url.includes('workers.dev')) {
@@ -138,6 +148,28 @@ const IFS_CHUNK_TRANSLATED = {
   await page.waitForTimeout(300);
   const noPhraseBody = ragBodies[0];
   log('3c. La MÊME requête SANS guillemets → aucun fts_terms transmis (comportement réellement différent, prouvé par la requête réseau, jamais supposé)', noPhraseBody.fts_terms === undefined);
+
+  // Le catalogue peut gagner un livre pendant que Studio reste ouvert. Au retour sur
+  // l'onglet, la recherche par titre doit utiliser le nouveau catalogue et D1.
+  console.log('\n=== 3 bis. Livre ajouté après ouverture de la page ===');
+  catalogBooks = [{ book_id: 'adhd', book_title: ADHD_TITLE, author: 'Melissa Orlov', language: 'en', approach: 'couple' }];
+  catalogVersion = 1;
+  await page.evaluate((title) => {
+    const input = document.getElementById('cc-home-search-input');
+    input.value = title;
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, ADHD_TITLE);
+  // Le cache expire aussi après 60 secondes si l'onglet ne change jamais de visibilité.
+  await page.clock.install();
+  await page.clock.fastForward(61000);
+  d1Bodies.length = 0;
+  await page.press('#cc-home-search-input', 'Enter');
+  await page.waitForTimeout(300);
+  html = await page.evaluate(() => document.getElementById('cc-home-search-results').innerHTML);
+  log('3d. Le compteur reflète le catalogue actualisé', await page.evaluate(() => document.getElementById('adoc-stat-books').textContent) === '4');
+  log('3e. Le titre complet est retrouvé malgré une recherche RAG vide', html.includes(ADHD_TITLE) && html.includes('par titre'));
+  log('3f. Une requête D1 ciblée sur le vrai titre est envoyée', d1Bodies.some(body => body.book_title === ADHD_TITLE && !body.authors));
+  await page.clock.resume();
 
   // ═══════════════════ 4. BARRE LATÉRALE DE L'ESPACE DE TRAVAIL ═══════════════════
   console.log('\n=== 4. Barre latérale de l\'espace de travail (second point de montage) ===');
