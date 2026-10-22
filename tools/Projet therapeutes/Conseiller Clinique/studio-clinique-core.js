@@ -373,29 +373,26 @@
   // ici) — un jeton statique visible dans le source suffit pour ce seul objectif. Même
   // schéma de surcharge que adocGetWorkerUrl() ci-dessus, pour permettre une rotation sans
   // republier ce fichier si besoin.
-  // SEC-HOTFIX-02 — plus aucun secret en dur ici : un fichier HTML statique servi publiquement
-  // (GitHub Pages) ne peut jamais garder une clé réellement secrète, une valeur littérale ici
-  // serait visible par quiconque affiche le source. Cette clé doit désormais être définie UNE
-  // FOIS, hors du fichier, via la console navigateur : localStorage.setItem('workerApiKey', '...')
-  // (ou par un futur écran de réglages, hors périmètre de ce lot). Sans elle, adocGetApiKey()
-  // renvoie null — jamais un échec silencieux, un message clair est affiché une fois (voir
-  // _adocWarnMissingApiKey ci-dessous).
+  // SEC-HOTFIX-02 — aucun secret en dur dans le HTML statique : /login remet la clé Worker
+  // après saisie du mot de passe Studio Clinique, une fois par navigateur. Sans clé,
+  // l'écran de connexion est affiché ; l'utilisatrice ne saisit jamais la clé technique.
   let _adocApiKeyWarningShown = false;
   function _adocWarnMissingApiKey() {
     if (_adocApiKeyWarningShown) return;
     _adocApiKeyWarningShown = true;
-    console.warn("[Sécurité] Clé d'accès Worker non configurée — définissez-la via localStorage.setItem('workerApiKey', '...') dans la console du navigateur.");
-    try { alert("Clé d'accès non configurée — voir réglages.\n\nDéfinissez-la une fois dans la console du navigateur :\nlocalStorage.setItem('workerApiKey', 'votre-clé')"); } catch (_) {}
+    console.warn('[Sécurité] Connexion Studio Clinique requise.');
+    if (!document.documentElement.hasAttribute('data-atelier-local')) {
+      const screen = document.getElementById('cc-login-screen');
+      if (screen) screen.classList.remove('cc-login-hidden');
+    }
   }
   // SEC-HOTFIX-03 — repli en dur définitivement retiré (introduit temporairement le
   // 2026-09-07 "pour la commodité pendant l'itération rapide", jamais anodin : n'importe qui
   // affichant le code source de cette page pouvait lire cette valeur et appeler le Worker
   // directement, hors de Studio Clinique — confirmé par investigation, cf. rapport dédié). Le
-  // mécanisme localStorage ci-dessous est INCHANGÉ (déjà consulté en priorité avant ce repli) :
-  // seul le contournement disparaît. La valeur qui était en dur ici doit être considérée comme
-  // compromise et n'est plus jamais réintroduite — la clé serveur (WORKER_API_KEY) doit être
-  // tournée séparément (wrangler secret put), puis la nouvelle valeur définie une fois par
-  // appareil via localStorage.setItem('workerApiKey', '...'), cf. _adocWarnMissingApiKey.
+  // mécanisme localStorage ci-dessous est INCHANGÉ ; le repli en dur a disparu. La valeur qui
+  // était en dur doit être considérée comme compromise. Après rotation de WORKER_API_KEY,
+  // /login fournit la nouvelle clé au navigateur authentifié par mot de passe.
   function adocGetApiKey() {
     const key = (
       window.conversationalSystem?.WORKER_API_KEY ||
@@ -406,6 +403,14 @@
     );
     if (!key) _adocWarnMissingApiKey();
     return key;
+  }
+
+  function adocHasConfiguredApiKey() {
+    try {
+      return !!(window.conversationalSystem?.WORKER_API_KEY ||
+        window._therapyWorkerApiKey || window.CONFIG?.WORKER_API_KEY ||
+        localStorage.getItem('workerApiKey'));
+    } catch (_) { return false; }
   }
 
   // Audit capacités dormantes, Item 3 — préférence de moteur pour le PLANIFICATEUR uniquement
@@ -445,10 +450,14 @@
       });
       if (r.status === 200) {
         const data = await r.json();
+        if (typeof data.apiKey !== 'string' || !data.apiKey.trim()) {
+          throw new Error('Réponse de connexion sans clé');
+        }
         localStorage.setItem('workerApiKey', data.apiKey);
         if (input) input.value = '';
         const screen = document.getElementById('cc-login-screen');
         if (screen) screen.classList.add('cc-login-hidden');
+        adocFetchBrandKits();
         return;
       }
       if (r.status === 429) { if (msg) msg.textContent = 'Trop de tentatives — réessayez dans quelques minutes.'; }
@@ -6712,7 +6721,7 @@ ${recent}`;
   // ═══ UX-8B Lot 2 — liste réelle des chartes graphiques pour #cc-landing (au chargement) ═══
   // Même patron que ci-dessus : un vrai GET /brand-kits, jamais une liste codée en dur, qui
   // alimente le point d'intégration window.setConseillerCliniqueBrandKits() prévu par l'accueil.
-  adocFetchBrandKits();
+  if (adocHasConfiguredApiKey()) adocFetchBrandKits();
 
   // ═══════════════════════════════════════════════════════════════════════
   // Phase UX-1 / UX-1ter — Popup document en taille réelle (aperçu avant
@@ -7653,7 +7662,12 @@ ${recent}`;
   function adocFetchBrandKits() {
     const workerUrl = adocGetWorkerUrl();
     return fetch(workerUrl + '/brand-kits', { headers: { 'X-API-Key': adocGetApiKey() } })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))))
+      .then((r) => {
+        if (r.ok) return r.json();
+        const error = new Error('HTTP ' + r.status);
+        error.status = r.status;
+        throw error;
+      })
       .then((data) => {
         const kits = Array.isArray(data.brand_kits) ? data.brand_kits : [];
         _adocBrandKitsCache = kits;
@@ -7668,6 +7682,13 @@ ${recent}`;
         return kits;
       })
       .catch((e) => {
+        if (e.status === 401) {
+          try { localStorage.removeItem('workerApiKey'); } catch (_) {}
+          const screen = document.getElementById('cc-login-screen');
+          if (screen) screen.classList.remove('cc-login-hidden');
+          const message = document.getElementById('cc-login-message');
+          if (message) message.textContent = 'Connexion expirée. Saisissez votre mot de passe Studio Clinique.';
+        }
         console.warn('[UX-8B] GET /brand-kits indisponible, charte par défaut utilisée au besoin.', e);
         return [];
       });

@@ -20,9 +20,15 @@ async function overlayVisible(page) {
   {
     const page = await browser.newPage();
     const pageErrors = [];
+    const workerCalls = [];
     page.on('pageerror', (e) => pageErrors.push(e.message));
-    await page.route('**/*', (route) => (route.request().url().startsWith('file:') ? route.continue() : route.abort()));
+    await page.route('**/*', (route) => {
+      if (route.request().url().startsWith('file:')) return route.continue();
+      if (route.request().url().includes('clone-proxy.11drumboy11.workers.dev')) workerCalls.push(new URL(route.request().url()).pathname);
+      return route.abort();
+    });
     await page.goto(PAGE_PATH);
+    await page.waitForTimeout(300);
     assert.equal(await overlayVisible(page), true, 'sans clé configurée, l\'overlay de connexion doit être visible par défaut');
     const landingCovered = await page.evaluate(() => {
       const overlay = document.getElementById('cc-login-screen');
@@ -31,6 +37,7 @@ async function overlayVisible(page) {
       return getComputedStyle(overlay).position === 'fixed' && or.width >= lr.width && or.height > 0;
     });
     assert.ok(landingCovered, 'l\'overlay doit structurellement couvrir #cc-landing (position:fixed, pleine largeur)');
+    assert.ok(!workerCalls.some((path) => path !== '/library-stats'), 'avant connexion, aucune route Worker protégée ne doit être appelée');
     console.log('PASS 1/8 — sans clé configurée : overlay de connexion visible, couvre structurellement le reste de l\'app');
     assert.deepEqual(pageErrors, []);
     await page.close();
@@ -53,12 +60,17 @@ async function overlayVisible(page) {
     const consoleTexts = [];
     page.on('console', (m) => consoleTexts.push(m.text()));
     let capturedRequestBody = null;
+    let brandKitsAfterLogin = false;
     await page.route('**/*', async (route) => {
       const url = route.request().url();
       if (url.startsWith('file:')) return route.continue();
       if (url.includes('/login')) {
         capturedRequestBody = route.request().postDataJSON();
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ apiKey: REAL_API_KEY }) });
+      }
+      if (url.includes('/brand-kits')) {
+        brandKitsAfterLogin = route.request().headers()['x-api-key'] === REAL_API_KEY;
+        return route.fulfill({ status: 200, contentType: 'application/json', body: '{"brand_kits":[]}' });
       }
       return route.abort();
     });
@@ -71,11 +83,31 @@ async function overlayVisible(page) {
     assert.equal(storedKey, REAL_API_KEY, 'la vraie clé technique reçue doit être posée dans localStorage automatiquement, jamais tapée par l\'utilisatrice');
     const passwordFieldEmptied = await page.evaluate(() => document.getElementById('cc-login-password').value === '');
     assert.ok(passwordFieldEmptied, 'le champ mot de passe doit être vidé après connexion réussie');
+    await page.waitForFunction(() => Array.isArray(window._adocBrandKits));
+    assert.equal(brandKitsAfterLogin, true, 'les chartes sont chargées seulement après connexion avec la clé reçue');
     // La clé technique ne doit jamais transiter par console.log ni apparaître dans le DOM restant.
     assert.ok(!consoleTexts.some((t) => t.includes(REAL_API_KEY)), 'la clé technique ne doit jamais apparaître dans la console');
     const domHtml = await page.content();
     assert.ok(!domHtml.includes(REAL_API_KEY), 'la clé technique ne doit jamais apparaître dans le DOM/HTML de la page');
     console.log('PASS 3/8 — mot de passe correct : clé posée automatiquement, overlay masqué, jamais visible dans le DOM ni la console');
+  }
+
+  // ═══ Test 9 — une clé locale devenue invalide doit redemander le mot de passe, sans exposer la clé ═══
+  {
+    const page = await browser.newPage();
+    await page.addInitScript(() => localStorage.setItem('workerApiKey', 'cle-perimee'));
+    await page.route('**/*', async (route) => {
+      const url = route.request().url();
+      if (url.startsWith('file:')) return route.continue();
+      if (url.includes('/brand-kits')) return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+      return route.abort();
+    });
+    await page.goto(PAGE_PATH);
+    await page.waitForFunction(() => document.getElementById('cc-login-message').textContent.includes('expirée'));
+    assert.equal(await overlayVisible(page), true, 'une clé périmée doit rouvrir l’écran de connexion');
+    assert.equal(await page.evaluate(() => localStorage.getItem('workerApiKey')), null, 'la clé périmée doit être supprimée');
+    await page.close();
+    console.log('PASS 9/9 — clé périmée : retour au mot de passe sans saisie de clé technique');
   }
 
   // ═══ Test 4 — mot de passe incorrect : message clair, overlay reste affiché, rien en localStorage ═══
@@ -178,6 +210,6 @@ async function overlayVisible(page) {
     console.log('PASS 8/8 — non-régression : les appels existants (adocGetApiKey) fonctionnent identiquement avec une clé posée par l\'écran de connexion');
   }
 
-  console.log('\n=== TOUS LES TESTS ÉCRAN DE CONNEXION (8/8) PASSENT ===');
+  console.log('\n=== TOUS LES TESTS ÉCRAN DE CONNEXION (9/9) PASSENT ===');
   await browser.close();
 })().catch(async (err) => { console.error('ÉCHEC :', err); process.exit(1); });
