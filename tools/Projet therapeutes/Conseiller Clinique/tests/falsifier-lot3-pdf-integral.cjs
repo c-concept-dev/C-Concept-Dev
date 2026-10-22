@@ -10,11 +10,15 @@ const mutants = [
   ['A4 paysage retiré', "'@page{size:A4 landscape;margin:0;}'", "'@page{size:1024px 768px;margin:0;}'"],
   ['débordement masqué', 'min-height:768px;margin:0 auto;padding:24px;', 'height:768px;overflow:hidden;margin:0 auto;padding:24px;'],
   ['réduction désactivée', 'card.style.zoom = String(scale);', "card.style.zoom = '1';"],
-  ['polices de charte ignorées', 'adocEditorExportFonts(doc, isPresentation ? tokens : null) + (extraFontLinks || \'\')', "adocEditorExportFonts(doc) + (extraFontLinks || '')"],
+  // Lot G enveloppe le collecteur historique pour y présenter les titleStyle comme des styles
+  // de blocs virtuels ; la mutation retire toujours les jetons de charte au MÊME appel PDF.
+  ['polices de charte ignorées', 'adocExportFontsWithTitles(doc, isPresentation ? tokens : null) + (extraFontLinks || \'\')', "adocExportFontsWithTitles(doc) + (extraFontLinks || '')"],
   ['repli de police absent', 'next.typography[role] = replacement;', 'next.typography[role] = stack;'],
   ['image privée non embarquée', 'preparedHtml = await adocEmbedAssetImagesHTML(preparedHtml);', 'preparedHtml = preparedHtml;'],
   ['couverture sans plafond', 'max-height:324px;object-fit:cover;break-inside:avoid;', 'max-height:none;object-fit:cover;break-inside:avoid;'],
-  ['ressource de police ignorée', 'const embedded = await adocPdfBrandFontResource(art, name);', 'const embedded = null;'],
+  ['ressource de police ignorée',
+    'const embedded = await adocPdfBrandFontResource(art, name);\n        if (embedded) { extraLinks.push(embedded); continue; }',
+    'const embedded = null;\n        if (embedded) { extraLinks.push(embedded); continue; }'],
   ['avertissement jamais effacé', "fontWarningShown ? 'Exporter en PDF — police remplacée' : baseLabel", "fontWarningShown ? 'Exporter en PDF — police remplacée' : 'Exporter en PDF — police remplacée'"],
 ];
 try {
