@@ -307,6 +307,30 @@ export function App(): JSX.Element {
     return { ...vue, douteux: vue.douteux.filter((cas) => !decides.has(cas.id)) };
   }, [vue, decisions]);
 
+  const enregistrerDecision = (cas: CasDouteux, decision: Decision): void => {
+    if (administration === undefined || courante === undefined || regarde === undefined) {
+      setDecisions((avant) => [...avant, { cas, decision }]);
+      return;
+    }
+    void administration
+      .enregistrerDecision(courante.racine, regarde, cas.id, decision)
+      .then(() => setDecisions((avant) => [...avant, { cas, decision }]))
+      .catch((souci: unknown) => setEchecOuverture(souci instanceof Error ? souci.message : String(souci)));
+  };
+
+  const annulerDerniereDecision = (): void => {
+    const derniere = decisions[decisions.length - 1];
+    if (derniere === undefined) return;
+    if (administration === undefined || courante === undefined || regarde === undefined) {
+      setDecisions((avant) => avant.slice(0, -1));
+      return;
+    }
+    void administration
+      .annulerDecision(courante.racine, regarde, derniere.cas.id)
+      .then(() => setDecisions((avant) => avant.slice(0, -1)))
+      .catch((souci: unknown) => setEchecOuverture(souci instanceof Error ? souci.message : String(souci)));
+  };
+
   /** Créer une bibliothèque : l'hôte écrit, jamais la page. Sans hôte — sur le web — on le dit
    *  plutôt que de faire semblant d'avoir créé quelque chose. */
   const creer = async (description: DescriptionBibliotheque, dossier: string): Promise<void> => {
@@ -446,13 +470,27 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (courante === undefined || regarde === undefined || lecture === undefined) return undefined;
     let vivant = true;
+    setDecisions([]);
     // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent le
     // texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
-    void Promise.all([lecture.vueDeDocument(courante.racine, regarde), lecture.passagesDeDocument(courante.racine, regarde)])
-      .then(([lue, lus]) => {
+    const decisionsLues = administration?.lireDecisions(courante.racine, regarde) ?? Promise.resolve(new Map());
+    void Promise.all([
+      lecture.vueDeDocument(courante.racine, regarde),
+      lecture.passagesDeDocument(courante.racine, regarde),
+      decisionsLues,
+    ])
+      .then(([lue, lus, dejaPrises]) => {
         if (!vivant) return;
         setPassages(lus);
-        if (lue !== undefined) setVue(lue);
+        if (lue !== undefined) {
+          setVue(lue);
+          setDecisions(
+            lue.douteux.flatMap((cas) => {
+              const decision = dejaPrises.get(cas.id);
+              return decision === undefined ? [] : [{ cas, decision }];
+            }),
+          );
+        }
       })
       .catch(() => {
         // Un document sans version active n'a rien à montrer, et ce n'est pas une panne.
@@ -460,7 +498,7 @@ export function App(): JSX.Element {
     return () => {
       vivant = false;
     };
-  }, [courante, regarde]);
+  }, [courante, regarde, lecture, administration]);
 
   // La file est à l'hôte : on la relit, on ne la devine pas. Toutes les deux secondes suffisent —
   // un traitement se compte en minutes, et un écran qui se redessine sans cesse fatigue.
@@ -803,8 +841,8 @@ export function App(): JSX.Element {
       return (
         <Verifier
           vue={restants}
-          onDecision={(cas, decision) => setDecisions([...decisions, { cas, decision }])}
-          onAnnuler={() => setDecisions(decisions.slice(0, -1))}
+          onDecision={enregistrerDecision}
+          onAnnuler={annulerDerniereDecision}
           {...(decisions.length === 0 ? {} : { derniere: decisions[decisions.length - 1]! })}
         />
       );

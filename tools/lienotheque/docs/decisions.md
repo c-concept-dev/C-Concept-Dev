@@ -4708,3 +4708,74 @@ L'ajouter change le contenu du paquet et demande d'embarquer aussi son fichier d
 PRONOM. **Soumis le 22 octobre, laissé de côté sans être tranché**, à la demande de Christophe.
 La réserve reste ouverte, et elle est de la même nature que celle qu'on vient de fermer : un
 écart entre ce que mesurent les bancs et ce qu'exécute le paquet.
+
+---
+
+## 23 octobre 2026 — le nom du média voyage avec son empreinte, son adresse non
+
+### Mesuré avant
+
+Un média était bien copié sous `sources/<préfixe>/<empreinte>.mp3`, mais le dépôt ne gardait pas
+son nom d'origine. La recette cherchait alors un numéro dans le nom du fichier rangé et lisait
+les chiffres de l'empreinte. La version active ne portait par ailleurs aucune adresse que le
+Lecteur puisse ouvrir : le guide disait exactement « Média non disponible ici ».
+
+### Décision
+
+Le dépôt porte désormais `base/medias.json` : une table portable `empreinte, nom, contenu,
+extension`. Le moteur reçoit cet inventaire et interprète le **nom d'origine**. La version active
+reste indépendante de la machine : aucune adresse ni aucun port n'y est écrit. À la lecture,
+l'hôte résout les empreintes présentes dans la vue, ouvre un serveur sur la boucle locale avec
+un jeton imprévisible, puis greffe des adresses éphémères aux seuls médias réellement présents.
+
+### Mesuré après
+
+Sur le document réel de référence F3 et ses 99 MP3 : **99 noms distincts et 99 empreintes
+distinctes** ont été conservés ; le moteur a retrouvé les pistes 1 à 99, sans prendre un chiffre
+dans un nom de stockage. Le serveur répond en plages, et le paquet construit depuis cette branche
+a lu `Track 01.mp3` de **0:00 à 0:19** dans le vrai Lecteur. L'association page-piste de cette
+mesure a été posée mécaniquement dans une bibliothèque temporaire, hors dépôt : elle prouve le
+service du son, pas la qualité de l'association automatique.
+
+---
+
+## 23 octobre 2026 — une décision de vérification appartient à la bibliothèque
+
+### Mesuré avant
+
+`App.tsx` gardait les décisions dans un état React. Quitter le document ou l'application
+réinitialisait ce tableau ; vingt décisions prises valaient donc zéro au lancement suivant.
+
+### Décision
+
+Les décisions sont écrites atomiquement dans `base/decisions.json`, par empreinte de document et
+identifiant stable du cas. L'écran ne retire un cas qu'après confirmation de l'hôte. À la
+réouverture, il relit la table et masque les cas déjà tranchés. « Annuler la dernière décision »
+retire cette seule entrée du même fichier.
+
+### Mesuré après
+
+Une épreuve ferme puis rouvre réellement un dépôt : deux décisions y survivent, puis l'annulation
+n'en retire qu'une. Dans le paquet construit depuis la branche, le cas réel « Pistes 1 à 99 » a
+été marqué vu : l'écran est passé de 1 à 0, `base/decisions.json` a porté son identifiant et la
+valeur `vu`, puis une fermeture et une relance ont laissé l'écran à 0. Ce parcours a révélé que
+l'annulation disparaissait avec le dernier cas ; elle reste désormais accessible même quand la
+file vient d'être vidée. Cette preuve technique ne remplace pas l'usage demandé à Christophe par
+`LIV-07`.
+
+---
+
+## 23 octobre 2026 — le corpus démonté borne la correction du texte
+
+Le volume qui porte les 243 documents et les 32 052 passages n'est pas monté. La population des
+50 documents presque sans texte ne peut donc ni être relue ni être remesurée honnêtement.
+
+Le document F3 disponible a tout de même traversé le moteur embarqué : 29 pages, 29 images,
+**0 passage**, 0 page servie par la couche, 0 par reconnaissance, 29 sans texte. Ses pages sont
+principalement graphiques ; Tesseract n'a rien rendu sur les pages sondées séparément. Cette
+mesure ne remplace pas les 50 documents et ne justifie aucune correction générale.
+
+L'audit visuel du même paquet confirme la structure du Lecteur et le son servi. Il révèle un
+défaut distinct : la grande page est visible, mais les vignettes latérales montrent une image
+cassée. Organisation et Dépôt ont été ouverts sur cette bibliothèque temporaire ; ils n'ont pas
+été vérifiés sur le volume des 243 documents, puisqu'il reste absent.

@@ -101,6 +101,16 @@ export type PortAdministration = {
   readonly enregistrerManiere: (racine: string, recette: unknown) => Promise<string>;
   readonly lireManiere: (racine: string) => Promise<Recette | undefined>;
 
+  /** Les décisions de Vérifier vivent dans la bibliothèque, pas dans la page (UX-03, SYN-07). */
+  readonly lireDecisions: (racine: string, empreinte: string) => Promise<ReadonlyMap<string, DecisionVerification>>;
+  readonly enregistrerDecision: (
+    racine: string,
+    empreinte: string,
+    cas: string,
+    decision: DecisionVerification,
+  ) => Promise<void>;
+  readonly annulerDecision: (racine: string, empreinte: string, cas: string) => Promise<void>;
+
   /** Tenir la bibliothèque : repérer ce qui s'y trouve deux fois, retirer ce dont on ne veut plus.
    *
    *  **Deux fonctions, et non une.** Chercher décrit, retirer agit, et rien ne va de l'une à
@@ -109,6 +119,8 @@ export type PortAdministration = {
   readonly doublonsDeBibliotheque: (racine: string) => Promise<Doublons>;
   readonly retirerDocument: (racine: string, empreinte: string) => Promise<RetraitDeDocument>;
 };
+
+export type DecisionVerification = "confirme" | "corrige" | "ignore" | "vu";
 
 /** Les noms de chaque port, pour que le partage soit vérifiable à l'exécution.
  *
@@ -143,6 +155,9 @@ export const NOMS_D_ADMINISTRATION = [
   "essayerManiere",
   "enregistrerManiere",
   "lireManiere",
+  "lireDecisions",
+  "enregistrerDecision",
+  "annulerDecision",
   "doublonsDeBibliotheque",
   "retirerDocument",
 ] as const satisfies readonly (keyof PortAdministration)[];

@@ -338,6 +338,14 @@ fn essayer_maniere(
         "charge": {
             "document": document,
             "medias": depot.racine().join(depot::SOURCES),
+            "inventaireMedias": depot.medias().map_err(|e| format!("Inventaire des médias illisible : {e}"))?
+                .into_iter()
+                .filter(|media| media.contenu == "audio")
+                .map(|media| serde_json::json!({
+                    "nom": media.nom,
+                    "empreinte": media.empreinte,
+                }))
+                .collect::<Vec<_>>(),
             "recette": brouillon,
             "description": description,
             "depuis": depuis,
@@ -383,9 +391,11 @@ fn lire_maniere(racine: String) -> Result<Option<String>, String> {
 /// Le document est désigné par l'empreinte de sa source. Sans elle, on rendait « la » version
 /// active de la bibliothèque — ce qui n'avait de sens que tant qu'elle n'en portait qu'une.
 #[tauri::command]
-fn vue_de_document(racine: String, empreinte: String) -> Result<Option<serde_json::Value>, String> {
+fn vue_de_document(etat: State<'_, Etat>, racine: String, empreinte: String) -> Result<Option<serde_json::Value>, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
-    vue_active(&depot, &empreinte)
+    let Some(mut vue) = vue_active(&depot, &empreinte)? else { return Ok(None) };
+    brancher_sources_media(&etat, &depot, &mut vue)?;
+    Ok(Some(vue))
 }
 
 /// Ce que la commande ci-dessus rend, séparé d'elle pour qu'on puisse l'éprouver sur une vraie
@@ -401,6 +411,92 @@ pub fn vue_active(depot: &depot::Depot, empreinte: &str) -> Result<Option<serde_
     let mut vue = lu["vue"].clone();
     greffer_le_texte(&mut vue, &lu["passages"]);
     Ok(Some(vue))
+}
+
+fn empreintes_media_de(vue: &serde_json::Value) -> std::collections::BTreeSet<String> {
+    vue["pages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|page| page["elements"].as_array().into_iter().flatten())
+        .filter_map(|element| element["media"]["empreinte"].as_str().map(str::to_owned))
+        .collect()
+}
+
+fn type_audio(extension: &str) -> Option<&'static str> {
+    Some(match extension {
+        "mp3" => "audio/mpeg",
+        "m4a" => "audio/mp4",
+        "wav" => "audio/wav",
+        "flac" => "audio/flac",
+        "ogg" | "opus" => "audio/ogg",
+        "aac" => "audio/aac",
+        _ => return None,
+    })
+}
+
+/// Résout les empreintes de la vue au moment où elle est lue (ANC-05).
+///
+/// La version active reste portable : elle ne garde ni port, ni chemin de cette machine. Le
+/// serveur local est unique pour la bibliothèque ouverte et ne reçoit que les fichiers de son
+/// inventaire, jamais un chemin fourni par la page.
+fn brancher_sources_media(etat: &State<'_, Etat>, depot: &depot::Depot, vue: &mut serde_json::Value) -> Result<(), String> {
+    let demandees = empreintes_media_de(vue);
+    if demandees.is_empty() {
+        return Ok(());
+    }
+
+    let medias = depot.medias().map_err(|e| format!("Inventaire des médias illisible : {e}"))?;
+    let fichiers = medias
+        .into_iter()
+        .filter_map(|media| {
+            let mime = type_audio(&media.extension)?;
+            let chemin = depot.source(&media.empreinte, &media.extension);
+            chemin.is_file().then(|| (media.empreinte, (chemin, mime.to_owned())))
+        })
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let disponibles = fichiers.keys().cloned().collect::<std::collections::BTreeSet<_>>();
+    if demandees.is_disjoint(&disponibles) {
+        return Ok(());
+    }
+
+    let mut garde = etat.serveur.lock().map_err(|e| e.to_string())?;
+    let reutilisable = garde
+        .as_ref()
+        .is_some_and(|serveur| serveur.bibliotheque.as_deref() == Some(depot.racine()) && demandees.is_subset(&serveur.empreintes));
+    if !reutilisable {
+        *garde = Some(media::servir_bibliotheque(depot.racine().to_path_buf(), fichiers)?);
+    }
+    let base = garde.as_ref().expect("serveur posé").infos.url.clone();
+    let greffees = greffer_sources_media(vue, &base, &disponibles);
+    trace::ecrire(&format!(
+        "hôte · médias du document · {} demandés · {} disponibles · {} adresses résolues",
+        demandees.len(),
+        disponibles.len(),
+        greffees
+    ));
+    Ok(())
+}
+
+fn greffer_sources_media(
+    vue: &mut serde_json::Value,
+    base: &str,
+    disponibles: &std::collections::BTreeSet<String>,
+) -> usize {
+    let Some(pages) = vue["pages"].as_array_mut() else { return 0 };
+    let mut greffees = 0;
+    for page in pages {
+        let Some(elements) = page["elements"].as_array_mut() else { continue };
+        for element in elements {
+            let Some(media) = element.get_mut("media") else { continue };
+            let Some(empreinte) = media["empreinte"].as_str() else { continue };
+            if disponibles.contains(empreinte) {
+                media["source"] = serde_json::Value::String(format!("{base}/{empreinte}"));
+                greffees += 1;
+            }
+        }
+    }
+    greffees
 }
 
 /// Pose sur chaque page le texte qui en a été tiré.
@@ -484,6 +580,32 @@ fn classer_document(racine: String, empreinte: String, classement: serde_json::V
     depot
         .classer(&empreinte, &classement)
         .map_err(|e| format!("Classement non enregistré : {e}"))
+}
+
+#[tauri::command]
+fn lire_decisions(racine: String, empreinte: String) -> Result<std::collections::BTreeMap<String, String>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    depot.decisions(&empreinte).map_err(|e| format!("Décisions illisibles : {e}"))
+}
+
+#[tauri::command]
+fn enregistrer_decision(
+    racine: String,
+    empreinte: String,
+    cas: String,
+    decision: String,
+) -> Result<(), String> {
+    if !matches!(decision.as_str(), "confirme" | "corrige" | "ignore" | "vu") {
+        return Err("Décision inconnue".to_owned());
+    }
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    depot.decider(&empreinte, &cas, &decision).map_err(|e| format!("Décision non enregistrée : {e}"))
+}
+
+#[tauri::command]
+fn annuler_decision(racine: String, empreinte: String, cas: String) -> Result<(), String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    depot.annuler_decision(&empreinte, &cas).map_err(|e| format!("Décision non annulée : {e}"))
 }
 
 /// Les classements de toute la bibliothèque, en une lecture.
@@ -859,6 +981,9 @@ fn lancer(captures: bool) {
             journal_page,
             classer_document,
             classements_de_bibliotheque,
+            lire_decisions,
+            enregistrer_decision,
+            annuler_decision,
             apercu_de_bibliotheque,
             image_de_page,
             doublons_de_bibliotheque,
@@ -889,7 +1014,8 @@ fn lancer(captures: bool) {
 
 #[cfg(test)]
 mod greffe {
-    use super::greffer_le_texte;
+    use super::{greffer_le_texte, greffer_sources_media};
+    use std::collections::BTreeSet;
 
     /// Une vue de deux pages, telle que `construireVue` la rend : `texte` vide en dur.
     fn vue_de_deux_pages() -> serde_json::Value {
@@ -939,5 +1065,30 @@ mod greffe {
         let mut vue = vue_de_deux_pages();
         greffer_le_texte(&mut vue, &serde_json::json!([{ "page": 1, "texte": "Un.\n\n   \nDeux." }]));
         assert_eq!(vue["pages"][0]["texte"], serde_json::json!(["Un.", "Deux."]));
+    }
+
+    #[test]
+    fn une_empreinte_disponible_recoit_une_adresse_locale_anc_05() {
+        let empreinte = "a".repeat(64);
+        let mut vue = serde_json::json!({ "pages": [{ "elements": [{
+            "media": { "empreinte": empreinte, "nom": "01.mp3", "piste": 1, "position": { "segment": "inconnu" } }
+        }] }] });
+        let greffees =
+            greffer_sources_media(&mut vue, "http://127.0.0.1:4321/media/jeton", &BTreeSet::from([empreinte.clone()]));
+        assert_eq!(greffees, 1);
+        assert_eq!(
+            vue["pages"][0]["elements"][0]["media"]["source"],
+            format!("http://127.0.0.1:4321/media/jeton/{empreinte}")
+        );
+    }
+
+    #[test]
+    fn une_empreinte_absente_reste_indisponible_anc_05() {
+        let mut vue = serde_json::json!({ "pages": [{ "elements": [{
+            "media": { "empreinte": "b".repeat(64), "nom": "02.mp3", "piste": 2, "position": { "segment": "inconnu" } }
+        }] }] });
+        let greffees = greffer_sources_media(&mut vue, "http://127.0.0.1:4321/media/jeton", &BTreeSet::new());
+        assert_eq!(greffees, 0);
+        assert!(vue["pages"][0]["elements"][0]["media"].get("source").is_none());
     }
 }

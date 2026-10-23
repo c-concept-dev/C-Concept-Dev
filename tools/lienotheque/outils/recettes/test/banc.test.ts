@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { coin, ouvrirCache } from "@lienotheque/cache";
-import { chargerRecette, interpreter, lireLot, mediasDuDossier } from "../src/index.js";
+import { chargerRecette, interpreter, lireLot, mediasDeLInventaire, mediasDuDossier } from "../src/index.js";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
 
 /** Lire trois cents pages prend un quart d'heure : on garde les lectures entre deux exécutions.
@@ -65,5 +65,17 @@ describe("cache de lecture (décision 4)", () => {
     expect(clefDeLecture(F3, v2)).toBe(clefDeLecture(F3, v2));
     expect(clefDeLecture(F3, v1), "une autre version de recette, une autre lecture").not.toBe(clefDeLecture(F3, v2));
     expect(clefDeLecture(F3, v2, 4), "un lot tronqué n'est pas le lot entier").not.toBe(clefDeLecture(F3, v2));
+  });
+});
+
+describe("inventaire portable des médias (REC-05, ANC-05)", () => {
+  it("lit le rang dans le nom d'origine, jamais dans le nom de rangement", () => {
+    const medias = mediasDeLInventaire([
+      {
+        nom: "Piste 07.mp3",
+        empreinte: "f".repeat(64),
+      },
+    ]);
+    expect(medias).toEqual([{ piste: 7, nom: "Piste 07.mp3", empreinte: "f".repeat(64) }]);
   });
 });

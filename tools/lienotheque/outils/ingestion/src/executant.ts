@@ -34,6 +34,18 @@ export const ChargeTraitement = z
   .object({
     document: z.string().min(1),
     medias: z.string().min(1),
+    /** Inventaire établi au dépôt : le nom d'origine porte les indices et l'empreinte désigne la
+     *  copie rangée. Absent pour les anciens appelants qui donnent un dossier. */
+    inventaireMedias: z
+      .array(
+        z
+          .object({
+            nom: z.string().min(1),
+            empreinte: z.string().regex(/^[a-f0-9]{64}$/),
+          })
+          .strict(),
+      )
+      .optional(),
     recette: z.string().min(1),
     description: z.string().min(1),
     /** Racine du cache de travail. L'exécutant y prend ses coins ; l'hôte n'a qu'à dire où. */
@@ -132,6 +144,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
       surPhase: (phase) => dire(phase),
       pdf: charge.document,
       medias: charge.medias,
+      ...(charge.inventaireMedias === undefined ? {} : { inventaireMedias: charge.inventaireMedias }),
       recette: charge.recette,
       description: charge.description,
       ...(charge.cache === undefined ? {} : { cache: sousDossier(charge.cache, "lectures") }),

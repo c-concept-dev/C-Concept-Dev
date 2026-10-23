@@ -193,7 +193,16 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
                courant ne ramène rien, le dire ainsi laissait croire le travail fini alors que
                des cas attendaient sous un autre onglet. */
             vue.douteux.length === 0 ? (
-              <p className="ln-cas__fini">Rien à vérifier. Tout est relié.</p>
+              <>
+                <p className="ln-cas__fini">Rien à vérifier. Tout est relié.</p>
+                {derniere === undefined ? null : (
+                  <p className="ln-cas__annuler">
+                    <button type="button" className="ln-lien-action" onClick={onAnnuler}>
+                      Annuler la dernière décision
+                    </button>
+                  </p>
+                )}
+              </>
             ) : (
               <p className="ln-cas__fini">
                 Rien sous ce filtre. {accorder(vue.douteux.length, { un: "cas attend", plusieurs: "cas attendent" })} ailleurs

@@ -55,11 +55,28 @@ const ACTIVE: &str = "active.json";
 /// Un seul verrou pour toutes les bibliothèques du processus : il n'y en a qu'une d'ouverte à la
 /// fois, et un verrou par racine coûterait une table de verrous pour un gain nul.
 static VERROU_ACTIVES: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static VERROU_DECISIONS: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// La table des versions actives, une entrée par document.
 const ACTIVES: &str = "actives.json";
 /// Le classement des documents, par empreinte. Même forme et mêmes raisons que la table
 /// des actives : une table plutôt qu'un fichier par document, et une écriture indivisible.
 const CLASSEMENTS: &str = "classements.json";
+/// Décisions humaines prises sur les cas douteux, par document puis par identifiant de cas.
+const DECISIONS: &str = "decisions.json";
+/// Inventaire des fichiers qui accompagnent les documents.
+///
+/// Leur source est rangée par empreinte, comme tout original. Le nom d'origine reste toutefois
+/// indispensable pour interpréter ce que le fichier porte ; le perdre ferait lire les chiffres
+/// du SHA-256 comme des numéros. Cet inventaire relie les deux sans dupliquer le média.
+const MEDIAS: &str = "medias.json";
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct MediaDepose {
+    pub empreinte: String,
+    pub nom: String,
+    pub contenu: String,
+    pub extension: String,
+}
 
 /// Le nom du fichier de description, le même que celui du contrat.
 ///
@@ -141,6 +158,33 @@ impl Depot {
     /// Où se trouve une source, d'après son empreinte.
     pub fn source(&self, empreinte: &str, extension: &str) -> PathBuf {
         self.racine.join(SOURCES).join(&empreinte[..2]).join(format!("{empreinte}.{extension}"))
+    }
+
+    /// Retient le nom d'origine d'un média rangé par empreinte.
+    ///
+    /// Un même contenu redéposé sous un autre nom reste le même média (ID-01) : la première
+    /// désignation conservée gagne, comme le premier travail d'un document déjà connu.
+    pub fn enregistrer_media(&self, media: MediaDepose) -> io::Result<()> {
+        let chemin = self.racine.join(BASE).join(MEDIAS);
+        let mut inventaire = self.medias()?;
+        if inventaire.iter().any(|connu| connu.empreinte == media.empreinte) {
+            return Ok(());
+        }
+        inventaire.push(media);
+        inventaire.sort_by(|a, b| a.nom.cmp(&b.nom).then_with(|| a.empreinte.cmp(&b.empreinte)));
+        let brut = serde_json::to_vec_pretty(&inventaire).map_err(io::Error::other)?;
+        ecrire_atomique(&chemin, &brut)
+    }
+
+    /// Les médias déposés, avec leur nom d'origine. Une bibliothèque plus ancienne n'en porte
+    /// pas encore : elle rend simplement un inventaire vide.
+    pub fn medias(&self) -> io::Result<Vec<MediaDepose>> {
+        let chemin = self.racine.join(BASE).join(MEDIAS);
+        match fs::read(&chemin) {
+            Ok(brut) => serde_json::from_slice(&brut).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
+            Err(e) => Err(e),
+        }
     }
 
     /// Écrit la description de la bibliothèque : son identifiant, son nom, ses mots, son schéma.
@@ -436,6 +480,48 @@ impl Depot {
     /// n'est pas une panne, et c'est même ce qu'il faut pouvoir dire.
     pub fn classement(&self, empreinte: &str) -> io::Result<Option<serde_json::Value>> {
         Ok(self.classements()?.remove(empreinte))
+    }
+
+    /// Les décisions déjà prises sur un document (UX-03, SYN-07).
+    pub fn decisions(&self, empreinte: &str) -> io::Result<BTreeMap<String, String>> {
+        let table: BTreeMap<String, BTreeMap<String, String>> =
+            match fs::read_to_string(self.racine.join(BASE).join(DECISIONS)) {
+                Ok(texte) => serde_json::from_str(&texte).unwrap_or_default(),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => BTreeMap::new(),
+                Err(e) => return Err(e),
+            };
+        Ok(table.get(empreinte).cloned().unwrap_or_default())
+    }
+
+    /// Enregistre une décision sans perdre celles prises juste avant.
+    pub fn decider(&self, empreinte: &str, cas: &str, decision: &str) -> io::Result<()> {
+        let _garde = VERROU_DECISIONS.lock().map_err(|e| io::Error::other(e.to_string()))?;
+        let chemin = self.racine.join(BASE).join(DECISIONS);
+        let mut table: BTreeMap<String, BTreeMap<String, String>> = match fs::read_to_string(&chemin) {
+            Ok(texte) => serde_json::from_str(&texte).unwrap_or_default(),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => BTreeMap::new(),
+            Err(e) => return Err(e),
+        };
+        table.entry(empreinte.to_owned()).or_default().insert(cas.to_owned(), decision.to_owned());
+        ecrire_atomique(&chemin, serde_json::to_string_pretty(&table)?.as_bytes())
+    }
+
+    /// Défais exactement la dernière décision demandée par l'écran.
+    pub fn annuler_decision(&self, empreinte: &str, cas: &str) -> io::Result<()> {
+        let _garde = VERROU_DECISIONS.lock().map_err(|e| io::Error::other(e.to_string()))?;
+        let chemin = self.racine.join(BASE).join(DECISIONS);
+        let mut table: BTreeMap<String, BTreeMap<String, String>> = match fs::read_to_string(&chemin) {
+            Ok(texte) => serde_json::from_str(&texte).unwrap_or_default(),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(e),
+        };
+        if let Some(decisions) = table.get_mut(empreinte) {
+            decisions.remove(cas);
+            if decisions.is_empty() {
+                table.remove(empreinte);
+            }
+        }
+        ecrire_atomique(&chemin, serde_json::to_string_pretty(&table)?.as_bytes())
     }
 
     /// Inscrit dans la table ce qu'une bibliothèque déjà traitée porte dans ses travaux.
@@ -1157,6 +1243,20 @@ mod migration {
         let (depot, racine) = depot_neuf("neuve");
         assert_eq!(depot.migrer_les_actives().expect("migration"), 0);
         assert!(depot.actives().expect("lecture").is_empty());
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    #[test]
+    fn les_decisions_survivent_a_la_reouverture_et_s_annulent_ux_03_syn_07() {
+        let (depot, racine) = depot_neuf("decisions");
+        depot.decider(A, "cas-1", "confirme").expect("première décision");
+        depot.decider(A, "cas-2", "ignore").expect("seconde décision");
+
+        let rouvert = Depot::ouvrir(&racine).expect("bibliothèque rouverte");
+        assert_eq!(rouvert.decisions(A).expect("décisions").len(), 2);
+        rouvert.annuler_decision(A, "cas-2").expect("annulation");
+        assert_eq!(rouvert.decisions(A).expect("décisions").get("cas-1").map(String::as_str), Some("confirme"));
+        assert!(!rouvert.decisions(A).expect("décisions").contains_key("cas-2"));
         fs::remove_dir_all(&racine).ok();
     }
 }

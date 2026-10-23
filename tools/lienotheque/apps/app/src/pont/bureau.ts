@@ -1,5 +1,5 @@
 import { invoke as invoquerSansTrace } from "@tauri-apps/api/core";
-import type { PortAdministration, PortDeLecture } from "./port.js";
+import type { DecisionVerification, PortAdministration, PortDeLecture } from "./port.js";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   ApercuDocument,
@@ -241,6 +241,30 @@ export async function lireManiere(racine: string): Promise<Recette | undefined> 
   return brut === null ? undefined : Recette.parse(JSON.parse(brut));
 }
 
+export async function lireDecisions(racine: string, empreinte: string): Promise<ReadonlyMap<string, DecisionVerification>> {
+  const brut = await invoke<Record<string, unknown>>("lire_decisions", { racine, empreinte });
+  const decisions = new Map<string, DecisionVerification>();
+  for (const [cas, decision] of Object.entries(brut)) {
+    if (decision === "confirme" || decision === "corrige" || decision === "ignore" || decision === "vu") {
+      decisions.set(cas, decision);
+    }
+  }
+  return decisions;
+}
+
+export async function enregistrerDecision(
+  racine: string,
+  empreinte: string,
+  cas: string,
+  decision: DecisionVerification,
+): Promise<void> {
+  return invoke<void>("enregistrer_decision", { racine, empreinte, cas, decision });
+}
+
+export async function annulerDecision(racine: string, empreinte: string, cas: string): Promise<void> {
+  return invoke<void>("annuler_decision", { racine, empreinte, cas });
+}
+
 /** Ce que les écrans lisent d'une bibliothèque : sa version active (B5, JOB-06).
  *
  *  Rien si ce document n'a aucune version active — ce n'est pas une panne, c'est un document
@@ -352,6 +376,9 @@ export const administrationDuBureau: PortAdministration = {
   essayerManiere,
   enregistrerManiere,
   lireManiere,
+  lireDecisions,
+  enregistrerDecision,
+  annulerDecision,
   doublonsDeBibliotheque,
   retirerDocument,
 };

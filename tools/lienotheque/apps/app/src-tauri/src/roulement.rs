@@ -476,9 +476,24 @@ impl Roulement {
             return Err(Obstacle::Casse("Cette bibliothèque n’a pas de description.".to_owned()));
         }
 
+        let inventaire_medias = self
+            .depot
+            .medias()
+            .map_err(|e| Obstacle::Casse(format!("Inventaire des médias illisible : {e}")))?
+            .into_iter()
+            .filter(|media| media.contenu == "audio")
+            .map(|media| {
+                serde_json::json!({
+                    "nom": media.nom,
+                    "empreinte": media.empreinte,
+                })
+            })
+            .collect::<Vec<_>>();
+
         Ok(serde_json::json!({
             "document": document,
             "medias": racine.join(crate::depot::SOURCES),
+            "inventaireMedias": inventaire_medias,
             "recette": recette,
             "description": description,
             "cache": self.cache,
@@ -669,7 +684,7 @@ mod tests {
         fs::write(base.join("bibliotheque.json"), b"{}").expect("description");
 
         let charge = r.charge_de(&travail_de("un.pdf")).expect("charge");
-        for champ in ["document", "medias", "recette", "description", "cache", "images"] {
+        for champ in ["document", "medias", "inventaireMedias", "recette", "description", "cache", "images"] {
             assert!(charge.get(champ).is_some(), "{champ} manque");
         }
         fs::remove_dir_all(&racine).ok();

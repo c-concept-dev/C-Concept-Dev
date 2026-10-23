@@ -127,6 +127,16 @@ pub fn deposer(
         }
 
         if contenu != "documents" {
+            let extension = origine.extension().and_then(|e| e.to_str()).unwrap_or("bin").to_ascii_lowercase();
+            if let Err(e) = depot.enregistrer_media(crate::depot::MediaDepose {
+                empreinte: empreinte.clone(),
+                nom: nom.clone(),
+                contenu: contenu.to_owned(),
+                extension,
+            }) {
+                arrivee.refuses.push((nom, format!("Inventaire impossible à écrire : {e}")));
+                continue;
+            }
             arrivee.accompagnements.push((nom, contenu.to_owned()));
             continue;
         }
@@ -267,6 +277,16 @@ mod tests {
         // Copiée tout de même : elle attend le document qui la nommera.
         let empreinte_piste = crate::arrivee::empreinte_de(&source.join("une-piste.mp3")).expect("empreinte");
         assert!(depot.source(&empreinte_piste, "mp3").exists());
+        assert_eq!(
+            depot.medias().expect("inventaire"),
+            vec![crate::depot::MediaDepose {
+                empreinte: empreinte_piste,
+                nom: "une-piste.mp3".to_owned(),
+                contenu: "audio".to_owned(),
+                extension: "mp3".to_owned(),
+            }],
+            "le nom d'origine voyage avec la source rangée par empreinte (REC-05, ANC-05)"
+        );
 
         fs::remove_dir_all(&racine).ok();
         fs::remove_dir_all(&source).ok();

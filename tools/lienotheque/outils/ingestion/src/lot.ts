@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { exporterPages } from "./pages-images.js";
 import { DescriptionBibliotheque, type Passage, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
-import { chargerRecette, rejouer, type Association, type Media, type Relecture } from "@lienotheque/recettes";
+import { chargerRecette, rejouer, type Association, type Media, type MediaInventorie, type Relecture } from "@lienotheque/recettes";
 import { type AdresseRecurrente, adressesRecurrentes, enPassages, langueOcr } from "@lienotheque/lecteur-texte";
 import { construireVue } from "./instantane.js";
 import { lireLeTexte } from "./texte.js";
@@ -29,6 +29,8 @@ export type Lot = {
   readonly pdf: string;
   /** Dossier des médias, pris récursivement. */
   readonly medias: string;
+  /** Inventaire de l'hôte, quand les sources sont rangées par empreinte. */
+  readonly inventaireMedias?: readonly MediaInventorie[] | undefined;
   /** Recette qui dit comment lire ce document. */
   readonly recette: string;
   readonly description: string;
@@ -142,6 +144,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // la chaîne, n'arrivait jamais aux écrans. Un instantané doit venir du même traitement que la
   // mesure, sans quoi ce qu'on mesure n'est pas ce qu'on montre.
   const { resultat, association, medias } = await rejouer(lot.pdf, lot.medias, recette, {
+    ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
     ...(lot.cache === undefined ? {} : { cache: lot.cache }),
     ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
     ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
