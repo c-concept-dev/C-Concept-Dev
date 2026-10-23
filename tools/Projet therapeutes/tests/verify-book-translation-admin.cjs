@@ -161,8 +161,12 @@ const jszipBrowserPath = require.resolve('jszip/dist/jszip.min.js');
     assert.equal(await page.evaluate(() => window.__pdfCalls), 0, 'No PDF call or automatic download after translation');
     await page.locator('#libraryLangFilter').selectOption('all');
     await page.locator('#libraryContent .book-card').nth(1).getByRole('button', { name: /Traduire et exporter en PDF/ }).click();
-    assert.match(await page.locator('#bookTranslationPanel h3').innerText(), /A & B/,
-      'A completed translation must not be discarded when another book is opened');
+    assert.match(await page.locator('#bookTranslationPanel h3').innerText(), /Livre français/,
+      'An inactive book can be opened while the completed translation is checkpointed');
+    await page.locator('#libraryContent .book-card').first().getByRole('button', { name: /Traduire et exporter en PDF/ }).click();
+    await page.getByRole('button', { name: 'Télécharger le PDF', exact: true }).waitFor();
+    assert.equal(await page.locator('#bookTranslationPanel progress').getAttribute('value'), '2',
+      'Returning to a completed book must restore all locally saved segments');
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Télécharger le PDF', exact: true }).click();
     const download = await downloadPromise;

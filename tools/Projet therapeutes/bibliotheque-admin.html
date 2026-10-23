@@ -193,6 +193,10 @@
         .translation-panel select { padding:7px;border:1px solid #8FAFB1;border-radius:6px;background:white; }
         .translation-panel .warning { background:#fff6e6;border-left:4px solid #e9a942;padding:8px 10px; }
         .translation-panel .error { background:#fff0ef;border-left:4px solid #d9534f;padding:8px 10px; }
+        .translation-queue-list { margin:8px 0;padding-left:22px;font-size:12px;line-height:1.6; }
+        .translation-queue-list li { margin:5px 0; }
+        .translation-queue-actions { display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0; }
+        .book-translation-check { display:flex;align-items:center;gap:5px;font-size:11px;white-space:nowrap; }
         .dup-banner { background: #FFF3E0; border: 2px solid #FFB74D; border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
         .dup-banner .dup-icon { font-size: 24px; flex-shrink: 0; }
         .dup-banner .dup-text { font-size: 13px; color: #E65100; flex: 1; }
@@ -312,6 +316,18 @@
                 </select>
             </label>
             <div id="libraryFilterStatus" role="status" aria-live="polite" style="font-size:12px;color:#52676a;margin-bottom:10px;"></div>
+            <div class="translation-panel" id="bookTranslationQueueControls">
+                <h3>File de traduction</h3>
+                <p>Cochez les livres, puis ajoutez-les à la file. Les traductions sont conservées uniquement dans ce navigateur. Fermer l’onglet arrête le travail ; au retour, chiffrez puis relancez la file.</p>
+                <div class="translation-queue-actions">
+                    <button class="btn btn-outline" onclick="selectVisibleBooksForTranslation()">Sélectionner les livres non français affichés</button>
+                    <label for="bookTranslationQueueLang">Langue cible
+                        <select id="bookTranslationQueueLang"><option value="fr">Français</option><option value="en">Anglais</option><option value="es">Espagnol</option><option value="de">Allemand</option><option value="it">Italien</option><option value="pt">Portugais</option></select>
+                    </label>
+                    <button class="btn btn-primary" onclick="enqueueSelectedBookTranslations()">Ajouter à la file</button>
+                </div>
+                <div id="bookTranslationQueueStatus" role="status" aria-live="polite"></div>
+            </div>
             <div id="dupResults"></div>
             <div id="bookTranslationPanel" aria-live="polite"></div>
             <div id="libraryContent">
@@ -2101,7 +2117,8 @@ async function refreshLibrary() {
                 + '<span class="bc-language' + (needsTranslation ? ' translation-needed' : '') + '">'
                 + escHtml(langLabel) + (needsTranslation ? ' · À traduire' : '') + '</span></div>'
                 + '</div>'
-                + '<div style="display:flex;gap:4px;">'
+                + '<div style="display:flex;gap:4px;align-items:center;">'
+                + '<label class="book-translation-check"><input type="checkbox" data-translation-book-index="' + idx + '" onchange="toggleBookTranslationSelection(' + idx + ', this.checked)">File</label>'
                 + '<button class="btn-sm" onclick="openBookTranslation(' + idx + ')">🌐 Traduire et exporter en PDF</button>'
                 + '<button class="btn-delete" style="font-size:10px;padding:4px 8px;" onclick="editBookByIndex(' + idx + ')">✏️</button>'
                 + '<button class="btn-delete" onclick="deleteBookByIndex(' + idx + ')">🗑</button>'
@@ -2111,6 +2128,8 @@ async function refreshLibrary() {
         html += '</div>';
         el.innerHTML = html;
         filterLibraryByLanguage();
+        syncBookTranslationSelection();
+        renderBookTranslationQueue();
 
     } catch (err) {
         el.innerHTML = '<div style="color:#c00;padding:20px;">Erreur: ' + escHtml(err.message) + '</div>';
@@ -2166,12 +2185,193 @@ function deleteBookByIndex(idx) {
     if (b) deleteBook(b.book_id, b.book_title);
 }
 
-// Un seul export actif ; traduction et clé restent uniquement dans la mémoire de cet onglet.
+// Les textes traduits ne quittent le navigateur que pour l'export PDF explicite. Une écriture
+// IndexedDB est validée AVANT de compter un segment comme terminé, pour rendre la reprise réelle.
+const BOOK_TRANSLATION_DB_NAME = 'cc-book-translation-v1';
+const BOOK_TRANSLATION_QUEUE_KEY = 'cc-book-translation-queue-v1';
+const BOOK_TRANSLATION_TARGET_LANGS = ['fr', 'en', 'es', 'de', 'it', 'pt'];
+// Tarif public du modèle m2m100 : 0,342 USD / million de tokens en entrée ET en sortie.
+// Le manifeste ne fournit pas le nombre de tokens : 350 caractères/segment et 4 caractères/token
+// sont une hypothèse d'ordre de grandeur, encadrée par une fourchette ×0,5 à ×2.
+const BOOK_TRANSLATION_MODEL_USD_PER_M_TOKENS = 0.342;
+function bookTranslationRemainingAiSegments(job) {
+    if (!job?.manifest) return 0;
+    return job.manifest.chunks.reduce((sum, chunk, i) => sum +
+        (String(chunk.language || '').toLowerCase() === job.targetLang.toLowerCase() ? 0 :
+            job.translated[i].filter(text => text === null).length), 0);
+}
+function bookTranslationCostRange(aiSegments) {
+    const midpoint = aiSegments * (350 / 4) * 2 * BOOK_TRANSLATION_MODEL_USD_PER_M_TOKENS / 1e6;
+    return [midpoint * 0.5, midpoint * 2];
+}
+function formatBookTranslationUsd(value) {
+    const digits = value > 0 && value < 0.001 ? 5 : value < 0.1 ? 3 : 2;
+    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'USD',
+        minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+}
+let bookTranslationDbPromise = null;
+function bookTranslationJobKey(bookId, targetLang) { return JSON.stringify([bookId, targetLang]); }
+function openBookTranslationDb() {
+    if (!window.indexedDB) return Promise.reject(new Error('Stockage local indisponible : la reprise ne peut pas être garantie.'));
+    if (!bookTranslationDbPromise) bookTranslationDbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open(BOOK_TRANSLATION_DB_NAME, 1);
+        request.onupgradeneeded = () => {
+            const store = request.result.createObjectStore('segments', { keyPath: 'key' });
+            store.createIndex('jobKey', 'jobKey');
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(new Error('Impossible d’ouvrir le stockage local des traductions.'));
+        request.onblocked = () => reject(new Error('Stockage local bloqué par un autre onglet.'));
+    }).catch(err => { bookTranslationDbPromise = null; throw err; });
+    return bookTranslationDbPromise;
+}
+async function loadBookTranslationCheckpoint(job) {
+    const db = await openBookTranslationDb();
+    const jobKey = bookTranslationJobKey(job.book.book_id, job.targetLang);
+    const records = await new Promise((resolve, reject) => {
+        const request = db.transaction('segments').objectStore('segments').index('jobKey').getAll(IDBKeyRange.only(jobKey));
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(new Error('Lecture de la reprise locale impossible.'));
+    });
+    const chunksById = new Map(job.manifest.chunks.map((chunk, i) => [chunk.id, { chunk, i }]));
+    for (const record of records) {
+        const match = chunksById.get(record.chunkId);
+        if (!match || record.sourceHash !== match.chunk.source_hash ||
+            !Number.isInteger(record.segmentIndex) || record.segmentIndex < 0 ||
+            record.segmentIndex >= match.chunk.segment_count ||
+            typeof record.text !== 'string' || !record.text.trim()) continue;
+        if (job.translated[match.i][record.segmentIndex] === null) {
+            job.translated[match.i][record.segmentIndex] = record.text;
+            job.done++;
+        }
+    }
+}
+async function saveBookTranslationSegment(job, chunk, segmentIndex, text) {
+    const db = await openBookTranslationDb();
+    const jobKey = bookTranslationJobKey(job.book.book_id, job.targetLang);
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction('segments', 'readwrite');
+        tx.objectStore('segments').put({
+            key: JSON.stringify([job.book.book_id, job.targetLang, chunk.id, segmentIndex]),
+            jobKey, chunkId: chunk.id, segmentIndex, sourceHash: chunk.source_hash, text
+        });
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(new Error('Sauvegarde locale du segment impossible ; traduction arrêtée.'));
+        tx.onabort = () => reject(new Error('Sauvegarde locale du segment interrompue ; traduction arrêtée.'));
+    });
+}
+async function clearBookTranslationCheckpoint(job) {
+    const db = await openBookTranslationDb();
+    const jobKey = bookTranslationJobKey(job.book.book_id, job.targetLang);
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction('segments', 'readwrite');
+        const store = tx.objectStore('segments');
+        const request = store.index('jobKey').getAllKeys(IDBKeyRange.only(jobKey));
+        request.onsuccess = () => request.result.forEach(key => store.delete(key));
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(new Error('Effacement local impossible.'));
+        tx.onabort = () => reject(new Error('Effacement local interrompu.'));
+    });
+}
+function readBookTranslationQueue() {
+    try {
+        const items = JSON.parse(localStorage.getItem(BOOK_TRANSLATION_QUEUE_KEY) || '[]');
+        if (!Array.isArray(items)) return [];
+        const seen = new Set();
+        return items.filter(item => {
+            if (typeof item?.bookId !== 'string' || !item.bookId || !BOOK_TRANSLATION_TARGET_LANGS.includes(item.targetLang)) return false;
+            const key = bookTranslationJobKey(item.bookId, item.targetLang);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        }).slice(0, 100).map(item => ({ bookId: item.bookId, title: String(item.title || item.bookId),
+            targetLang: item.targetLang, phase: item.phase === 'translated' || item.phase === 'downloaded' ? item.phase : 'pending' }));
+    } catch { return []; }
+}
+let bookTranslationQueue = readBookTranslationQueue();
+let bookTranslationSelection = new Set();
+let bookTranslationQueueRunning = false;
+let bookTranslationQueueStopRequested = false;
+let bookTranslationQueueError = '';
+let bookTranslationQueueEstimate = null;
+let bookTranslationQueuePreparing = false;
 let bookTranslationJob = null;
 let bookTranslationAbort = null;
+function saveBookTranslationQueue() {
+    try { localStorage.setItem(BOOK_TRANSLATION_QUEUE_KEY, JSON.stringify(bookTranslationQueue)); }
+    catch { throw new Error('Impossible de conserver la file dans ce navigateur.'); }
+}
+function renderBookTranslationQueue() {
+    const el = document.getElementById('bookTranslationQueueStatus');
+    if (!el) return;
+    const labels = { pending: 'En attente', running: 'En cours', translated: 'Traduit — PDF à télécharger',
+        failed: 'En pause après erreur', downloaded: 'Téléchargement lancé' };
+    const rows = bookTranslationQueue.map((item, i) => `<li>${escHtml(item.title)} → ${escHtml(item.targetLang.toUpperCase())}
+        · ${labels[item.phase] || labels.pending}
+        <button class="btn-sm" onclick="openQueuedBookTranslation(${i})" ${bookTranslationQueueRunning ? 'disabled' : ''}>Ouvrir</button>
+        <button class="btn-sm" onclick="removeBookTranslationQueueItem(${i})" ${bookTranslationQueueRunning ? 'disabled' : ''}>Retirer</button></li>`).join('');
+    const estimate = bookTranslationQueueEstimate;
+    el.innerHTML = `<p>${bookTranslationSelection.size} livre(s) coché(s) · ${bookTranslationQueue.length} dans la file.</p>
+        ${bookTranslationQueueError ? '<p class="error">' + escHtml(bookTranslationQueueError) + '</p>' : ''}
+        ${estimate ? `<p><b>Avant lancement :</b> ${estimate.remaining} segments IA restants · coût modèle indicatif ${formatBookTranslationUsd(estimate.low)}–${formatBookTranslationUsd(estimate.high)} pour la file. Tokens réels, quota gratuit et coût de création des PDF non inclus.</p>` : ''}
+        ${rows ? '<ol class="translation-queue-list">' + rows + '</ol>' : '<p>File vide.</p>'}
+        ${bookTranslationQueue.length ? `<div class="translation-queue-actions">
+            ${bookTranslationQueueRunning
+                ? '<button class="btn btn-outline" onclick="pauseBookTranslationQueue()">Pause après ce segment</button>'
+                : '<button class="btn btn-primary" onclick="runBookTranslationQueue()" ' + (bookTranslationQueuePreparing ? 'disabled' : '') + '>'
+                    + (bookTranslationQueuePreparing ? 'Calcul en cours…' : estimate ? 'Lancer / reprendre la file' : 'Préparer et chiffrer la file') + '</button>'}
+            </div>` : ''}
+        <p>Après fermeture, la file revient en pause : aucun appel IA ne repart sans clic. Estimation : <a href="https://developers.cloudflare.com/workers-ai/models/m2m100-1.2b/" target="_blank" rel="noopener noreferrer">tarif public m2m100</a> de 0,342 USD/M tokens en entrée et sortie, hypothèse 350 caractères/segment et sortie comparable, fourchette ×0,5–×2. Les segments restent dans le stockage local de ce navigateur, jusqu’à effacement explicite ou suppression des données du site.</p>`;
+}
+function syncBookTranslationSelection() {
+    document.querySelectorAll('#libraryContent input[data-translation-book-index]').forEach(input => {
+        const book = window._libBooks?.[Number(input.dataset.translationBookIndex)];
+        input.checked = !!book && bookTranslationSelection.has(book.book_id);
+    });
+    renderBookTranslationQueue();
+}
+function toggleBookTranslationSelection(idx, checked) {
+    const book = window._libBooks?.[idx];
+    if (!book) return;
+    if (checked) bookTranslationSelection.add(book.book_id); else bookTranslationSelection.delete(book.book_id);
+    syncBookTranslationSelection();
+}
+function selectVisibleBooksForTranslation() {
+    document.querySelectorAll('#libraryContent .book-card:not([hidden])').forEach(card => {
+        const book = window._libBooks?.[Number(card.dataset.bookIndex)];
+        const lang = normalizeLibraryLanguage(book?.language);
+        if (book && lang && !isFrenchLibraryLanguage(lang)) bookTranslationSelection.add(book.book_id);
+    });
+    syncBookTranslationSelection();
+}
+function enqueueSelectedBookTranslations() {
+    if (bookTranslationQueueRunning || bookTranslationQueuePreparing) { bookTranslationQueueError = 'Attendez la fin du calcul ou mettez la file en pause avant d’ajouter des livres.'; renderBookTranslationQueue(); return; }
+    const targetLang = document.getElementById('bookTranslationQueueLang').value;
+    const additions = [...bookTranslationSelection].map(bookId => {
+        const book = window._libBooks?.find(item => item.book_id === bookId);
+        return book && { bookId, title: book.book_title || bookId, targetLang, phase: 'pending' };
+    }).filter(Boolean).filter(item => !bookTranslationQueue.some(queued =>
+        queued.bookId === item.bookId && queued.targetLang === item.targetLang));
+    if (!additions.length) { bookTranslationQueueError = 'Aucun nouveau livre coché à ajouter.'; renderBookTranslationQueue(); return; }
+    if (bookTranslationQueue.length + additions.length > 100) {
+        bookTranslationQueueError = 'La file est limitée à 100 livres : retirez des entrées avant d’en ajouter.';
+        renderBookTranslationQueue(); return;
+    }
+    const previous = bookTranslationQueue;
+    bookTranslationQueue = [...previous, ...additions];
+    try { saveBookTranslationQueue(); bookTranslationQueueEstimate = null; bookTranslationSelection.clear(); bookTranslationQueueError = ''; syncBookTranslationSelection(); }
+    catch (err) { bookTranslationQueue = previous; bookTranslationQueueError = err.message; renderBookTranslationQueue(); }
+}
+function removeBookTranslationQueueItem(index) {
+    if (bookTranslationQueueRunning || bookTranslationQueuePreparing || !bookTranslationQueue[index]) return;
+    const previous = bookTranslationQueue;
+    bookTranslationQueue = previous.filter((_, i) => i !== index);
+    try { saveBookTranslationQueue(); bookTranslationQueueEstimate = null; bookTranslationQueueError = ''; }
+    catch (err) { bookTranslationQueue = previous; bookTranslationQueueError = err.message; }
+    renderBookTranslationQueue();
+}
 window.addEventListener('beforeunload', event => {
-    if (bookTranslationJob && bookTranslationJob.phase !== 'complete' &&
-        (bookTranslationJob.done > 0 || ['running','rendering'].includes(bookTranslationJob.phase))) {
+    if (bookTranslationQueueRunning || ['running','rendering'].includes(bookTranslationJob?.phase)) {
         event.preventDefault();
         event.returnValue = '';
     }
@@ -2198,89 +2398,120 @@ function renderBookTranslation() {
     const done = job.done || 0;
     const busy = job.phase === 'running' || job.phase === 'rendering' || job.phase === 'loading';
     const elapsed = job.startedAt ? (Date.now() - job.startedAt) / 1000 : 0;
-    const remaining = done > 0 && done < total ? Math.ceil((elapsed / done) * (total - done) / 60) : null;
+    const runDone = done - (job.runStartDone || 0);
+    const remaining = runDone > 0 && done < total ? Math.ceil((elapsed / runDone) * (total - done) / 60) : null;
+    const pendingAi = ready ? bookTranslationRemainingAiSegments(job) : 0;
+    const [costLow, costHigh] = bookTranslationCostRange(pendingAi);
     el.innerHTML = `<div class="translation-panel">
         <h3>Traduire et exporter : ${escHtml(job.book.book_title)}</h3>
         <p class="warning">Dans un EPUB, le repère de lecture n’est pas une page imprimée. Le PDF traduit présente uniquement l’ordre des passages, quelle que soit la source.</p>
         <p class="warning">Traduction automatique, non professionnelle, réservée à un usage personnel. Cet avertissement figurera aussi dans le PDF.</p>
-        <p>Langue cible : <select id="bookTranslationLang" ${busy || done ? 'disabled' : ''}>
+        <p>Langue cible : <select id="bookTranslationLang" onchange="changeBookTranslationTarget(this.value)" ${busy ? 'disabled' : ''}>
             ${[['fr','Français'],['en','Anglais'],['es','Espagnol'],['de','Allemand'],['it','Italien'],['pt','Portugais']]
               .map(([code,label]) => `<option value="${code}"${job.targetLang === code ? ' selected' : ''}>${label}</option>`).join('')}
         </select></p>
-        ${ready ? `<p>${job.manifest.total_chunks} passages · ${total} segments à traiter. Gardez cet onglet ouvert : fermer la page interrompt la traduction et perd les segments déjà traités.</p>
+        ${ready ? `<p>${job.manifest.total_chunks} passages · ${total} segments à traiter. ${done} segment(s) repris depuis ce navigateur. Fermer la page interrompt l'appel en cours, mais les segments validés restent localement sauvegardés.</p>
+            <p><b>Avant lancement :</b> ${pendingAi} appels IA restants · coût modèle indicatif ${formatBookTranslationUsd(costLow)}–${formatBookTranslationUsd(costHigh)}. Calcul approximatif ; quota gratuit et génération du PDF non inclus.</p>
             <progress value="${done}" max="${total}"></progress>
             <p>${done} / ${total} segments validés · ${Math.floor(done / total * 100)} %${remaining !== null ? ' · environ ' + remaining + ' min restantes' : ''}</p>`
           : '<p>Lecture des passages et calcul du nombre de segments…</p>'}
-        ${job.error ? `<p class="error">${job.phase === 'pdf_failed' ? 'Échec de création du PDF' : job.phase === 'load_failed' ? 'Impossible de préparer le livre' : 'Échec au segment ' + Math.min(done + 1, total)} : ${escHtml(job.error)}. Aucun PDF incomplet ne sera produit. Les segments validés restent en mémoire tant que cet onglet reste ouvert.</p>` : ''}
-        ${job.phase === 'ready' ? '<button class="btn btn-primary" onclick="startBookTranslation()">Lancer la traduction</button>' : ''}
+        ${job.error ? `<p class="error">${job.phase === 'pdf_failed' ? 'Échec de création du PDF' : job.phase === 'load_failed' ? 'Impossible de préparer le livre' : 'Échec au segment ' + Math.min(done + 1, total)} : ${escHtml(job.error)}. Aucun PDF incomplet ne sera produit. Les segments déjà validés restent dans ce navigateur.</p>` : ''}
+        ${job.phase === 'ready' || job.phase === 'paused' ? '<button class="btn btn-primary" onclick="startBookTranslation()">' + (done ? 'Reprendre la traduction' : 'Lancer la traduction') + '</button>' : ''}
         ${job.phase === 'load_failed' ? '<button class="btn btn-primary" onclick="retryBookTranslationManifest()">Réessayer la préparation</button>' : ''}
         ${job.phase === 'failed' ? '<button class="btn btn-primary" onclick="startBookTranslation()">Réessayer le segment et poursuivre</button>' : ''}
         ${job.phase === 'translated' ? '<p>✅ Traduction terminée. Le PDF n’est créé que lorsque vous choisissez de le télécharger.</p><button class="btn btn-primary" onclick="downloadBookTranslationPDF()">Télécharger le PDF</button>' : ''}
         ${job.phase === 'pdf_failed' ? '<button class="btn btn-primary" onclick="downloadBookTranslationPDF()">Réessayer le PDF sans retraduire</button>' : ''}
-        ${job.phase === 'running' ? '<button class="btn btn-outline" onclick="cancelBookTranslation()">Annuler et effacer</button>' : ''}
+        ${job.phase === 'running' ? '<button class="btn btn-outline" onclick="cancelBookTranslation()">Pause après ce segment</button>' : ''}
         ${job.phase === 'rendering' ? '<p>Création du PDF et téléchargement direct…</p>' : ''}
         ${job.phase === 'complete' ? '<p>✅ Téléchargement lancé. Aucun PDF traduit n’a été enregistré dans KV.</p>' : ''}
-        ${!busy ? '<button class="btn btn-outline" onclick="closeBookTranslation()">' + (done ? 'Fermer et effacer la traduction' : 'Fermer') + '</button>' : ''}
+        ${!busy ? '<button class="btn btn-outline" onclick="closeBookTranslation()">Fermer le panneau</button>' : ''}
+        ${!busy && done ? '<button class="btn btn-outline" onclick="discardBookTranslationCheckpoint()">Effacer les segments locaux</button>' : ''}
     </div>`;
 }
 async function openBookTranslation(idx) {
-    if (bookTranslationJob && ['running','rendering','failed','pdf_failed','translated'].includes(bookTranslationJob.phase)) {
+    if (bookTranslationQueueRunning || ['running','rendering'].includes(bookTranslationJob?.phase)) {
         document.getElementById('bookTranslationPanel').scrollIntoView({ behavior: 'smooth' });
         return;
     }
     const book = window._libBooks?.[idx];
     if (!book) return;
-    bookTranslationJob = { book, phase: 'loading', targetLang: 'fr', done: 0, translated: [] };
+    const queued = bookTranslationQueue.find(item => item.bookId === book.book_id && item.phase !== 'downloaded');
+    await loadBookTranslation(book, queued?.targetLang || 'fr');
+}
+async function loadBookTranslation(book, targetLang) {
+    const job = { book, phase: 'loading', targetLang, done: 0, translated: [] };
+    bookTranslationJob = job;
     renderBookTranslation();
     try {
         const res = await bookTranslationPost('/book-translation-manifest', { book_id: book.book_id });
         const manifest = await res.json();
         if (!Array.isArray(manifest.chunks) || !manifest.total_segments) throw new Error('Manifeste incomplet');
-        if (bookTranslationJob?.book !== book) return;
-        bookTranslationJob.manifest = manifest;
-        bookTranslationJob.translated = manifest.chunks.map(c => Array(c.segment_count).fill(null));
-        bookTranslationJob.phase = 'ready';
+        if (bookTranslationJob !== job) return;
+        job.manifest = manifest;
+        job.translated = manifest.chunks.map(c => Array(c.segment_count).fill(null));
+        await loadBookTranslationCheckpoint(job);
+        if (bookTranslationJob !== job) return;
+        job.phase = job.done === manifest.total_segments ? 'translated' : 'ready';
     } catch (err) {
-        if (bookTranslationJob?.book === book) { bookTranslationJob.phase = 'load_failed'; bookTranslationJob.error = err.message; }
+        if (bookTranslationJob === job) { job.phase = 'load_failed'; job.error = err.message; }
     }
-    renderBookTranslation();
+    if (bookTranslationJob === job) renderBookTranslation();
+    return job;
 }
 function retryBookTranslationManifest() {
-    const idx = window._libBooks?.indexOf(bookTranslationJob?.book);
-    if (Number.isInteger(idx) && idx >= 0) openBookTranslation(idx);
+    if (bookTranslationJob?.book) loadBookTranslation(bookTranslationJob.book, bookTranslationJob.targetLang);
+}
+function changeBookTranslationTarget(targetLang) {
+    if (bookTranslationQueueRunning || !BOOK_TRANSLATION_TARGET_LANGS.includes(targetLang) || !bookTranslationJob?.book) return;
+    loadBookTranslation(bookTranslationJob.book, targetLang);
 }
 function closeBookTranslation() {
-    if (bookTranslationJob && ['running','rendering'].includes(bookTranslationJob.phase)) return;
-    if (bookTranslationJob?.done && bookTranslationJob.phase !== 'complete' &&
-        !confirm('Fermer effacera les segments déjà traduits de cet onglet. Continuer ?')) return;
+    if (bookTranslationQueueRunning || ['running','rendering'].includes(bookTranslationJob?.phase)) return;
     bookTranslationJob = null;
     renderBookTranslation();
 }
 function cancelBookTranslation() {
     if (!bookTranslationJob || bookTranslationJob.phase !== 'running') return;
-    bookTranslationJob.cancelled = true;
-    bookTranslationAbort?.abort();
-    bookTranslationJob = null;
-    bookTranslationAbort = null;
-    renderBookTranslation();
+    bookTranslationJob.pauseRequested = true;
+    if (bookTranslationQueueRunning) bookTranslationQueueStopRequested = true;
+    renderBookTranslationQueue();
+}
+async function discardBookTranslationCheckpoint() {
+    const job = bookTranslationJob;
+    if (!job || ['running','rendering'].includes(job.phase) ||
+        !confirm('Effacer définitivement les segments traduits de ce livre dans ce navigateur ?')) return;
+    try {
+        await clearBookTranslationCheckpoint(job);
+        bookTranslationQueue.filter(item => item.bookId === job.book.book_id && item.targetLang === job.targetLang)
+            .forEach(item => { item.phase = 'pending'; });
+        saveBookTranslationQueue();
+        renderBookTranslationQueue();
+        if (bookTranslationJob === job) await loadBookTranslation(job.book, job.targetLang);
+    } catch (err) { job.error = err.message; job.phase = 'failed'; renderBookTranslation(); }
 }
 async function startBookTranslation() {
     const job = bookTranslationJob;
-    if (!job?.manifest || !['ready','failed'].includes(job.phase)) return;
-    if (!job.done) job.targetLang = document.getElementById('bookTranslationLang').value;
-    job.phase = 'running'; job.error = ''; job.startedAt ||= Date.now();
+    if (!job?.manifest || !['ready','failed','paused'].includes(job.phase)) return;
+    job.pauseRequested = false;
+    job.phase = 'running'; job.error = ''; job.startedAt = Date.now(); job.runStartDone = job.done;
     renderBookTranslation();
     try {
         for (let i = 0; i < job.manifest.chunks.length; i++) {
             const chunk = job.manifest.chunks[i];
             for (let j = 0; j < chunk.segment_count; j++) {
-                if (job !== bookTranslationJob || job.cancelled) return;
+                if (job !== bookTranslationJob) return;
+                if (job.pauseRequested || bookTranslationQueueStopRequested) {
+                    job.phase = 'paused'; renderBookTranslation(); return;
+                }
                 if (job.translated[i][j] !== null) continue;
                 // La garde du Worker est à 60 requêtes/minute/IP. Rester sous 50/minute,
                 // y compris quand Workers AI répond très vite.
                 const wait = 1200 - (Date.now() - (job.lastRequestAt || 0));
                 if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
-                if (job !== bookTranslationJob || job.cancelled) return;
+                if (job !== bookTranslationJob) return;
+                if (job.pauseRequested || bookTranslationQueueStopRequested) {
+                    job.phase = 'paused'; renderBookTranslation(); return;
+                }
                 bookTranslationAbort = new AbortController();
                 job.lastRequestAt = Date.now();
                 const res = await bookTranslationPost('/book-translate-segment', {
@@ -2291,6 +2522,7 @@ async function startBookTranslation() {
                 if (data.id !== chunk.id || data.segment_index !== j || data.segment_count !== chunk.segment_count ||
                     typeof data.translated_text !== 'string' || !data.translated_text.trim())
                     throw new Error('Réponse de traduction incomplète ou incohérente');
+                await saveBookTranslationSegment(job, chunk, j, data.translated_text);
                 job.translated[i][j] = data.translated_text;
                 job.done++;
                 renderBookTranslation();
@@ -2306,6 +2538,89 @@ async function startBookTranslation() {
         job.phase = 'failed';
         renderBookTranslation();
     } finally { bookTranslationAbort = null; }
+}
+async function openQueuedBookTranslation(index) {
+    if (bookTranslationQueueRunning || !bookTranslationQueue[index]) return;
+    const entry = bookTranslationQueue[index];
+    const book = window._libBooks?.find(item => item.book_id === entry.bookId);
+    if (!book) { bookTranslationQueueError = `Livre introuvable : ${entry.title}. Actualisez la bibliothèque ou retirez-le de la file.`; renderBookTranslationQueue(); return; }
+    const job = await loadBookTranslation(book, entry.targetLang);
+    if (job?.phase === 'translated' && entry.phase !== 'downloaded') entry.phase = 'translated';
+    else if (job?.phase === 'ready' && entry.phase === 'translated') entry.phase = 'pending';
+    try { saveBookTranslationQueue(); } catch (err) { bookTranslationQueueError = err.message; }
+    renderBookTranslationQueue();
+    document.getElementById('bookTranslationPanel').scrollIntoView({ behavior: 'smooth' });
+}
+function pauseBookTranslationQueue() {
+    if (!bookTranslationQueueRunning) return;
+    bookTranslationQueueStopRequested = true;
+    if (bookTranslationJob?.phase === 'running') bookTranslationJob.pauseRequested = true;
+    renderBookTranslationQueue();
+}
+async function prepareBookTranslationQueue() {
+    if (bookTranslationQueuePreparing || bookTranslationQueueRunning) return;
+    bookTranslationQueuePreparing = true;
+    bookTranslationQueueError = '';
+    renderBookTranslationQueue();
+    try {
+        let remaining = 0;
+        for (const entry of bookTranslationQueue) {
+            if (entry.phase === 'downloaded') continue;
+            const book = window._libBooks?.find(item => item.book_id === entry.bookId);
+            if (!book) throw new Error(`Livre absent de la bibliothèque : ${entry.title}.`);
+            const response = await bookTranslationPost('/book-translation-manifest', { book_id: entry.bookId });
+            const manifest = await response.json();
+            if (!Array.isArray(manifest.chunks) || !manifest.total_segments) throw new Error(`Manifeste incomplet : ${entry.title}.`);
+            const preview = { book, targetLang: entry.targetLang, manifest, done: 0,
+                translated: manifest.chunks.map(chunk => Array(chunk.segment_count).fill(null)) };
+            await loadBookTranslationCheckpoint(preview);
+            remaining += bookTranslationRemainingAiSegments(preview);
+        }
+        const [low, high] = bookTranslationCostRange(remaining);
+        bookTranslationQueueEstimate = { remaining, low, high };
+    } catch (err) { bookTranslationQueueEstimate = null; bookTranslationQueueError = err.message; }
+    finally { bookTranslationQueuePreparing = false; renderBookTranslationQueue(); }
+}
+async function runBookTranslationQueue() {
+    if (bookTranslationQueueRunning || !bookTranslationQueue.length) return;
+    if (['running','rendering'].includes(bookTranslationJob?.phase)) {
+        bookTranslationQueueError = 'Une traduction ou un PDF est déjà en cours dans cet onglet. Attendez sa fin avant de lancer la file.';
+        renderBookTranslationQueue();
+        return;
+    }
+    if (!bookTranslationQueueEstimate) { await prepareBookTranslationQueue(); return; }
+    bookTranslationQueueRunning = true;
+    bookTranslationQueueStopRequested = false;
+    bookTranslationQueueError = '';
+    renderBookTranslationQueue();
+    try {
+        for (const entry of bookTranslationQueue) {
+            if (bookTranslationQueueStopRequested) break;
+            if (entry.phase === 'downloaded') continue;
+            const book = window._libBooks?.find(item => item.book_id === entry.bookId);
+            if (!book) throw new Error(`Livre absent de la bibliothèque : ${entry.title}.`);
+            entry.phase = 'running';
+            saveBookTranslationQueue(); renderBookTranslationQueue();
+            const job = await loadBookTranslation(book, entry.targetLang);
+            if (job?.phase === 'load_failed') throw new Error(`${entry.title} : ${job.error}`);
+            if (bookTranslationQueueStopRequested) { entry.phase = 'pending'; break; }
+            if (job?.phase !== 'translated') await startBookTranslation();
+            if (job?.phase === 'translated') entry.phase = 'translated';
+            else if (job?.phase === 'paused') { entry.phase = 'pending'; break; }
+            else throw new Error(`${entry.title} : ${job?.error || 'traduction interrompue'}`);
+            saveBookTranslationQueue(); renderBookTranslationQueue();
+        }
+    } catch (err) {
+        const current = bookTranslationQueue.find(item => item.phase === 'running');
+        if (current) current.phase = 'failed';
+        bookTranslationQueueError = err.message;
+        try { saveBookTranslationQueue(); } catch (storageErr) { bookTranslationQueueError += ' ' + storageErr.message; }
+    } finally {
+        bookTranslationQueueRunning = false;
+        bookTranslationQueueStopRequested = false;
+        bookTranslationQueueEstimate = null;
+        renderBookTranslationQueue();
+    }
 }
 async function downloadBookTranslationPDF() {
     const job = bookTranslationJob;
@@ -2332,6 +2647,12 @@ async function downloadBookTranslationPDF() {
         document.body.appendChild(link); link.click(); link.remove();
         setTimeout(() => URL.revokeObjectURL(url), 10000);
         job.phase = 'complete';
+        const entry = bookTranslationQueue.find(item => item.bookId === job.book.book_id && item.targetLang === job.targetLang);
+        if (entry) {
+            entry.phase = 'downloaded';
+            try { saveBookTranslationQueue(); } catch (err) { bookTranslationQueueError = err.message; }
+            renderBookTranslationQueue();
+        }
     } catch (err) { job.phase = 'pdf_failed'; job.error = err.message; }
     renderBookTranslation();
 }
