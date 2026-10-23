@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bibliothèque Thérapeutique — Administration</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Sourcelis — Bibliothèque et sources</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- Support EPUB : JSZip lit l'archive ZIP (container.xml + OPF + chapitres XHTML) dans le
          navigateur — même CDN que pdf.js ci-dessus, licence MIT, aucune dépendance, aucun parseur
@@ -239,6 +241,91 @@
         .log-box .err { color: #e74c3c; }
         .log-box .ok { color: #27ae60; }
         .log-box .info { color: #8FAFB1; }
+
+        /* Sourcelis — charte éditoriale. Les sélecteurs fonctionnels existants restent intacts. */
+        :root {
+            --so-forest: #173D35; --so-forest-hover: #0E2D28;
+            --so-ink: #20312D; --so-muted: #52615B;
+            --so-paper: #F7F3EA; --so-surface: #FFFDF8;
+            --so-sage: #789689; --so-pale-sage: #E4EDE7;
+            --so-brass: #B88A4A; --so-pale-brass: #F5E8D2;
+            --so-border: #D6DCD2; --so-separator: #E7E8E0;
+            --so-success: #286B52; --so-warning: #935E22; --so-error: #A13E3B;
+            --sc-radius: 16px;
+            --sc-shadow-soft: 0 4px 24px -6px rgba(23,61,53,.08);
+            --sc-shadow-lift: 0 12px 32px -8px rgba(23,61,53,.12);
+        }
+        body { font-family: 'Manrope', sans-serif; color: var(--so-ink); background: var(--so-paper); padding: 0 24px 56px; }
+        .app { max-width: 1280px; box-shadow: none; overflow: visible; }
+        .app-header {
+            min-height: 264px; padding: 30px 44px 34px; position: relative; isolation: isolate;
+            align-items: stretch; flex-direction: column; gap: 38px; overflow: hidden;
+            background: var(--so-forest); border-radius: 0 !important; box-shadow: none;
+        }
+        .app-header::before {
+            content: ''; position: absolute; inset: 0; z-index: -2;
+            background: url('assets/sourcelis/library-room-v1.png') center 38% / cover no-repeat;
+        }
+        .app-header::after {
+            content: ''; position: absolute; inset: 0; z-index: -1;
+            background: linear-gradient(90deg, rgba(14,45,40,.92), rgba(14,45,40,.66) 60%, rgba(14,45,40,.35));
+        }
+        .brand-lockup { display: flex; align-items: center; gap: 16px; }
+        .brand-mark { width: 64px; height: 64px; flex: none; object-fit: contain; background: var(--so-surface); border-radius: 12px; padding: 7px; }
+        .app-header h1 { font: 600 clamp(30px, 4vw, 46px)/1.1 'Fraunces', serif; letter-spacing: -.02em; }
+        .brand-tagline { font-size: 13px; margin-top: 6px; color: var(--so-pale-brass); letter-spacing: .02em; }
+        .app-header .stats { font-size: 14px; opacity: 1; font-weight: 600; color: white; }
+        .config-bar { background: var(--so-surface); padding: 18px 28px; border: 1px solid var(--so-border); border-top: 0; }
+        .config-bar label { color: var(--so-muted); }
+        .config-bar select { min-width: 260px; flex: 1; padding: 9px 12px; border: 1px solid var(--so-border); border-radius: 8px; background: white; color: var(--so-ink); }
+        .main { background: var(--so-surface); padding: 0 30px 32px; border: 1px solid var(--so-border); border-top: 0; box-shadow: var(--sc-shadow-soft); border-radius: 0 0 16px 16px !important; }
+        .tabs { gap: 0; overflow-x: auto; margin: 0 -30px 28px; padding: 0 18px; border-bottom: 1px solid var(--so-separator); }
+        .tab { background: transparent; color: var(--so-muted); border-radius: 0; border-bottom: 3px solid transparent; padding: 18px 15px; white-space: nowrap; }
+        .tab:hover { color: var(--so-forest); background: var(--so-paper); }
+        .tab.active { background: transparent; color: var(--so-forest); border-bottom-color: var(--so-forest); }
+        .btn, .btn-refresh, .dup-scan-btn { box-shadow: none; border-radius: 9px; }
+        .btn-primary, .btn-refresh { background: var(--so-forest); color: white; }
+        .btn-primary:hover, .btn-refresh:hover { background: var(--so-forest-hover); }
+        .btn-outline { background: white; color: var(--so-forest); border-color: var(--so-border); }
+        .dup-scan-btn { background: var(--so-pale-brass); color: var(--so-forest); border: 1px solid var(--so-brass); }
+        .dropzone { background: var(--so-paper); border: 2px dashed var(--so-sage); }
+        .dropzone:hover, .dropzone.dragover { background: var(--so-pale-sage); border-color: var(--so-forest); }
+        .dropzone-icon { font: 600 24px 'Fraunces', serif; color: var(--so-forest); }
+        .dropzone-text, .qi-name, .bc-title { color: var(--so-ink); }
+        .dropzone-hint, .qi-status, .bc-meta, .bc-chunks { color: var(--so-muted); }
+        .qi-icon { font-size: 11px; font-weight: 700; min-width: 58px; color: var(--so-forest); }
+        .dup-icon { font-size: 15px; font-weight: 700; color: var(--so-warning); }
+        .meta-form, .queue-item, .book-card { background: white; border: 1px solid var(--so-border); border-left: 4px solid var(--so-sage); }
+        .book-card { border-radius: 10px; padding: 16px; }
+        .book-card:hover { border-color: var(--so-sage); box-shadow: var(--sc-shadow-soft); }
+        .bc-approach { background: var(--so-pale-sage); color: var(--so-forest); }
+        .bc-language { background: var(--so-pale-sage); color: var(--so-forest); }
+        .bc-language.translation-needed { background: var(--so-pale-brass); color: var(--so-warning); border-color: var(--so-brass); }
+        .translation-panel { background: var(--so-paper); border: 1px solid var(--so-border); }
+        .translation-panel h3, .meta-form h3 { font: 600 20px 'Fraunces', serif; color: var(--so-forest); }
+        .translation-panel progress { accent-color: var(--so-forest); }
+        .translation-panel .warning { background: var(--so-pale-brass); border-left-color: var(--so-brass); }
+        .translation-panel .error { background: #F9ECEA; border-left-color: var(--so-error); }
+        .qi-progress-fill { background: var(--so-forest); }
+        input, select, textarea { color: var(--so-ink); }
+        input:focus, select:focus, textarea:focus { outline: 2px solid var(--so-sage); outline-offset: 1px; box-shadow: none; }
+        #libraryBookSearch, #libraryLangFilter { border-color: var(--so-border) !important; border-radius: 9px !important; background: white; }
+        #tab-library > label { color: var(--so-muted) !important; font-weight: 700; }
+        .empty-state { color: var(--so-muted); }
+        .empty-state .icon { font: 600 26px 'Fraunces', serif; color: var(--so-sage); }
+        .log-box { background: var(--so-forest-hover); color: var(--so-pale-sage); }
+        @media (max-width: 700px) {
+            body { padding: 0 0 28px; }
+            .app-header { min-height: 220px; padding: 24px 22px; }
+            .brand-mark { width: 52px; height: 52px; }
+            .config-bar { padding: 14px 18px; }
+            .config-bar select { min-width: 100%; }
+            .main { padding: 0 18px 22px; }
+            .tabs { margin: 0 -18px 20px; padding: 0 8px; }
+            .tab { padding: 15px 12px; font-size: 12px; }
+            .form-grid { grid-template-columns: 1fr; }
+            .book-card { flex-wrap: wrap; }
+        }
     </style>
 </head>
 <body>
@@ -246,8 +333,13 @@
     <!-- HEADER -->
     <div class="app-header">
         <div>
-            <h1>📚 Bibliothèque Thérapeutique</h1>
-            <div style="font-size:12px;opacity:0.8;margin-top:2px;">Administration — Indexation RAG</div>
+            <div class="brand-lockup">
+                <img class="brand-mark" src="assets/sourcelis/mark-v1.png" alt="Symbole Sourcelis" width="64" height="64">
+                <div>
+                    <h1>Sourcelis</h1>
+                    <div class="brand-tagline">Vos sources, reliées et accessibles</div>
+                </div>
+            </div>
         </div>
         <div class="stats" id="headerStats">Chargement...</div>
     </div>
@@ -263,7 +355,7 @@
         <select id="workerUrl" style="flex:1;min-width:250px;padding:8px 12px;border:2px solid #D8CDBB;border-radius:8px;font-family:monospace;font-size:12px;">
             <option value="https://clone-proxy.11drumboy11.workers.dev">https://clone-proxy.11drumboy11.workers.dev (production)</option>
         </select>
-        <button class="btn-refresh" onclick="refreshStats()">🔄 Actualiser</button>
+        <button class="btn-refresh" onclick="refreshStats()">Actualiser</button>
         <button class="btn-refresh" onclick="forgetAdminApiKey()" title="Effacer la clé enregistrée sur cet appareil">Oublier la clé</button>
     </div>
 
@@ -271,20 +363,20 @@
     <div class="main">
         <!-- TABS -->
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('upload')">📤 Ajouter des livres</button>
-            <button class="tab" onclick="switchTab('library')">📚 Bibliothèque</button>
-            <button class="tab" onclick="switchTab('search')">🔍 Test recherche</button>
-            <button class="tab" onclick="switchTab('glossary')">📖 Glossaire</button>
-            <button class="tab" onclick="switchTab('log')">📋 Journal</button>
-            <button class="tab" onclick="switchTab('replace')">🔄 Remplacer un livre</button>
+            <button class="tab active" onclick="switchTab('upload')">Ajouter des sources</button>
+            <button class="tab" onclick="switchTab('library')">Bibliothèque</button>
+            <button class="tab" onclick="switchTab('search')">Tester la recherche</button>
+            <button class="tab" onclick="switchTab('glossary')">Glossaire</button>
+            <button class="tab" onclick="switchTab('log')">Journal</button>
+            <button class="tab" onclick="switchTab('replace')">Remplacer un ouvrage</button>
         </div>
 
         <!-- TAB: UPLOAD -->
         <div class="tab-content active" id="tab-upload">
             <div class="dropzone" id="dropzone">
-                <span class="dropzone-icon">📄</span>
-                <div class="dropzone-text">Glissez vos PDF ou HTML ici</div>
-                <div class="dropzone-hint">PDF et HTML acceptés — extraction et indexation automatiques</div>
+                <span class="dropzone-icon" aria-hidden="true">Sources</span>
+                <div class="dropzone-text">Glissez vos PDF, HTML ou EPUB ici</div>
+                <div class="dropzone-hint">Extraction et indexation automatiques</div>
                 <input type="file" id="fileInput" accept=".pdf,.html,.htm,.epub" multiple>
             </div>
 
@@ -292,16 +384,16 @@
             <div class="queue" id="queue"></div>
 
             <div class="action-bar" id="actionBar" style="display:none;">
-                <button class="btn btn-primary" id="btnIngest" onclick="startIngestion()">⚡ Indexer tout</button>
-                <button class="btn btn-outline" onclick="clearQueue()">🗑 Vider la file</button>
+                <button class="btn btn-primary" id="btnIngest" onclick="startIngestion()">Indexer tout</button>
+                <button class="btn btn-outline" onclick="clearQueue()">Vider la file</button>
             </div>
         </div>
 
         <!-- TAB: LIBRARY -->
         <div class="tab-content" id="tab-library">
             <div style="display:flex;gap:8px;margin-bottom:12px;">
-                <button class="dup-scan-btn" onclick="scanDuplicates()" style="flex:1;">🔍 Scanner les doublons</button>
-                <button class="btn-refresh" onclick="refreshLibrary()">🔄</button>
+                <button class="dup-scan-btn" onclick="scanDuplicates()" style="flex:1;">Scanner les doublons</button>
+                <button class="btn-refresh" onclick="refreshLibrary()" aria-label="Actualiser la bibliothèque">Actualiser</button>
             </div>
             <label for="libraryBookSearch" style="display:block;font-size:12px;color:#52676a;margin-bottom:10px;">Rechercher un livre
                 <input id="libraryBookSearch" type="search" placeholder="Titre, mot du titre ou auteur" oninput="filterLibraryByLanguage()"
@@ -332,7 +424,7 @@
             <div id="bookTranslationPanel" aria-live="polite"></div>
             <div id="libraryContent">
                 <div class="empty-state">
-                    <div class="icon">📚</div>
+                    <div class="icon" aria-hidden="true">—</div>
                     <div>Cliquez sur Actualiser pour charger la bibliothèque</div>
                 </div>
             </div>
@@ -341,7 +433,7 @@
         <!-- TAB: SEARCH -->
         <div class="tab-content" id="tab-search">
             <div style="margin-bottom:16px;">
-                <h3 style="font-size:14px;color:#8FAFB1;margin-bottom:10px;">🔍 Tester la recherche RAG</h3>
+                <h3 style="font-size:14px;color:#8FAFB1;margin-bottom:10px;">Tester la recherche RAG</h3>
                 <div style="display:flex;gap:8px;">
                     <input type="text" id="searchQuery" placeholder="Ex: schéma d'abandon en thérapie de couple"
                         style="flex:1;padding:10px 14px;border:2px solid #D8CDBB;border-radius:8px;font-family:inherit;font-size:13px;">
@@ -351,7 +443,7 @@
                     <select id="searchApproach" style="padding:8px;border:2px solid #D8CDBB;border-radius:8px;font-size:12px;font-family:inherit;">
                         <option value="">Toutes approches</option>
                     </select>
-                    <button class="btn-refresh" onclick="testSearch()">🔍 Rechercher</button>
+                    <button class="btn-refresh" onclick="testSearch()">Rechercher</button>
                 </div>
                 <div style="margin-top:4px;font-size:11px;color:#aaa;">
                     topK: <input type="number" id="searchTopK" value="5" min="1" max="20" style="width:50px;padding:2px 6px;border:1px solid #ddd;border-radius:4px;font-size:11px;">
@@ -359,7 +451,7 @@
             </div>
             <div id="searchResults" style="font-size:13px;color:#555;">
                 <div class="empty-state">
-                    <div class="icon">🔍</div>
+                    <div class="icon" aria-hidden="true">—</div>
                     <div>Testez une requête pour vérifier la qualité de l'indexation</div>
                 </div>
             </div>
@@ -368,7 +460,7 @@
         <!-- TAB: GLOSSARY -->
         <div class="tab-content" id="tab-glossary">
             <div style="max-height:70vh;overflow-y:auto;padding-right:8px;">
-                <h3 style="font-size:16px;color:#7A9A9C;margin-bottom:16px;">📖 Glossaire des approches thérapeutiques</h3>
+                <h3 style="font-size:16px;color:#7A9A9C;margin-bottom:16px;">Glossaire des approches thérapeutiques</h3>
                 
                 <div style="display:grid;gap:10px;">
                     <div style="background:#fafaf8;padding:14px;border-radius:8px;border-left:4px solid #8FAFB1;">
@@ -447,7 +539,7 @@
                     </div>
                 </div>
                 
-                <h3 style="font-size:14px;color:#7A9A9C;margin:20px 0 12px;">📌 Autres termes fréquents</h3>
+                <h3 style="font-size:14px;color:#7A9A9C;margin:20px 0 12px;">Autres termes fréquents</h3>
                 <div style="display:grid;gap:8px;font-size:12px;">
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">AAQ-II</b> — Acceptance and Action Questionnaire. Mesure la flexibilité psychologique (Hayes).</div>
                     <div style="background:#fafaf8;padding:10px 14px;border-radius:6px;"><b style="color:#7A9A9C;">BLS</b> — Bilateral Stimulation. Stimulation bilatérale utilisée en EMDR (mouvements oculaires, tapping, sons alternés).</div>
@@ -504,7 +596,7 @@
             </select>
 
             <div class="dropzone" id="replaceDropzone" style="display:none;">
-                <span class="dropzone-icon">📄</span>
+                <span class="dropzone-icon" aria-hidden="true">Source</span>
                 <div class="dropzone-text">Déposez ici la nouvelle version de ce livre</div>
                 <div class="dropzone-hint">PDF ou EPUB — même ouvrage, nouvelle extraction (repli OCR compris)</div>
                 <input type="file" id="replaceFileInput" accept=".pdf,.epub">
@@ -814,7 +906,7 @@ function addFiles(files) {
         const name = f.name.toLowerCase();
         return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.epub');
     });
-    if (accepted.length === 0) { log('⚠️ Aucun fichier PDF, HTML ou EPUB détecté'); return; }
+    if (accepted.length === 0) { log('Aucun fichier PDF, HTML ou EPUB détecté'); return; }
 
     for (const f of accepted) {
         if (queue.find(q => q.file.name === f.name)) continue;
@@ -850,8 +942,8 @@ function addFiles(files) {
 function renderQueue() {
     const el = document.getElementById('queue');
     el.innerHTML = queue.map(q => {
-        const icon = q.status === 'done' ? '✅' : q.status === 'partial' || q.status === 'verify_pending' ? '⚠️' : q.status === 'error' ? '❌' :
-                     q.status === 'extracting' ? '📄' : q.status === 'uploading' ? '☁️' : q.status === 'verifying' ? '🔎' : '📄';
+        const icon = q.status === 'done' ? 'Terminé' : q.status === 'partial' || q.status === 'verify_pending' ? 'Attention' : q.status === 'error' ? 'Erreur' :
+                     q.status === 'extracting' ? 'Texte' : q.status === 'uploading' ? 'Envoi' : q.status === 'verifying' ? 'Contrôle' : 'Source';
         const statusCls = q.status === 'done' ? 'done' : q.status === 'partial' || q.status === 'verify_pending' ? 'partial' : q.status === 'error' ? 'error' :
                           (q.status === 'extracting' || q.status === 'uploading' || q.status === 'verifying') ? 'processing' : '';
 
@@ -862,7 +954,7 @@ function renderQueue() {
             ? ` (${q._existingChunks} chunks)` : '';
         let statusText = '';
         if (q.status === 'pending') statusText = `${(q.file.size/(1024*1024)).toFixed(1)} Mo — en attente`;
-        else if (q.status === 'duplicate') statusText = `<span class="err">⚠️ Doublon${dupChunkText}</span>`;
+        else if (q.status === 'duplicate') statusText = `<span class="err">Doublon${dupChunkText}</span>`;
         else if (q.status === 'extracting') statusText = 'Extraction du texte...';
         else if (q.status === 'uploading') statusText = `Indexation ${q.chunks.length} chunks...`;
         else if (q.status === 'verifying') statusText = 'Écritures reçues — vérification D1 et Vectorize en cours…';
@@ -870,9 +962,9 @@ function renderQueue() {
         // Correctif urgent — ingestion partielle désormais détectée (cf. startIngestion) et
         // affichée explicitement, jamais confondue avec un succès complet ('done' ci-dessus).
         else if (q.status === 'partial') statusText = q._partialInfo?.postRead
-            ? `<span class="err">⚠️ PARTIEL — RÉPARATION REQUISE (D1 relu: ${q._partialInfo.d1}/${q._partialInfo.total}, écritures Vectorize acceptées: ${q._partialInfo.vec}/${q._partialInfo.total})</span>`
-            : `<span class="err">⚠️ PARTIEL — RÉPARATION REQUISE (D1: ${q._partialInfo.d1}/${q._partialInfo.total}, Vectorize: ${q._partialInfo.vec}/${q._partialInfo.total})</span>`;
-        else if (q.status === 'verify_pending') statusText = `<span class="err">⚠️ Disponibilité non confirmée (D1: ${q._verifyInfo?.d1_chunks ?? '?'}/${q.chunks.length}, vecteurs témoins: ${q._verifyInfo?.vector_sample_found ?? '?'}/${q._verifyInfo?.vector_sample_total ?? '?'}) — revérifiez dans quelques instants.</span>`;
+            ? `<span class="err">PARTIEL — RÉPARATION REQUISE (D1 relu: ${q._partialInfo.d1}/${q._partialInfo.total}, écritures Vectorize acceptées: ${q._partialInfo.vec}/${q._partialInfo.total})</span>`
+            : `<span class="err">PARTIEL — RÉPARATION REQUISE (D1: ${q._partialInfo.d1}/${q._partialInfo.total}, Vectorize: ${q._partialInfo.vec}/${q._partialInfo.total})</span>`;
+        else if (q.status === 'verify_pending') statusText = `<span class="err">Disponibilité non confirmée (D1: ${q._verifyInfo?.d1_chunks ?? '?'}/${q.chunks.length}, vecteurs témoins: ${q._verifyInfo?.vector_sample_found ?? '?'}/${q._verifyInfo?.vector_sample_total ?? '?'}) — revérifiez dans quelques instants.</span>`;
         else if (q.status === 'error') statusText = `<span class="err">✗ ${escHtml(q.error)}</span>`;
 
         return `<div class="queue-item ${statusCls}" id="qi-${q.id}">
@@ -885,9 +977,9 @@ function renderQueue() {
                 ${q.status === 'pending' ? renderMetaForm(q) : ''}
             </div>
             <div class="qi-action">
-                ${q.status === 'pending' ? `<button class="btn-sm" onclick="previewExtraction('${q.id}')" title="Extrait et affiche le texte sans rien écrire dans la bibliothèque">👁️ Aperçu</button>` : ''}
+                ${q.status === 'pending' ? `<button class="btn-sm" onclick="previewExtraction('${q.id}')" title="Extrait et affiche le texte sans rien écrire dans la bibliothèque">Aperçu</button>` : ''}
                 ${q.status === 'pending' ? `<button class="btn-sm danger" onclick="removeFromQueue('${q.id}')">✕</button>` : ''}
-                ${q.status === 'verify_pending' ? `<button class="btn-sm" onclick="verifyQueuedBookIndex('${q.id}')">🔎 Revérifier</button>` : ''}
+                ${q.status === 'verify_pending' ? `<button class="btn-sm" onclick="verifyQueuedBookIndex('${q.id}')">Revérifier</button>` : ''}
             </div>
             <div class="qi-preview" id="qpv-${q.id}"></div>
         </div>`;
@@ -915,7 +1007,7 @@ async function verifyBookIndexWithRetries(q, attempts = 5) {
             if (last.status === 'ready' || last.status === 'partial') return last;
             if (last.status !== 'pending') throw new Error('Réponse de vérification invalide');
         } catch (err) {
-            log(`  ⚠️ Vérification indisponible (${err.message}) — aucun succès présumé`, 'error');
+            log(`  Vérification indisponible (${err.message}) — aucun succès présumé`, 'error');
             return last || { status: 'pending', d1_chunks: null, vector_sample_found: null, vector_sample_total: sampleIds.length };
         }
         if (attempt + 1 < attempts) await new Promise(resolve => setTimeout(resolve, 2500));
@@ -940,7 +1032,7 @@ async function verifyQueuedBookIndex(id) {
 
 // ── Remplacer un livre — carte dédiée du 22/10/2026 ──
 //
-// Trouvaille en construisant cette carte : le circuit existant « ⚠️ Doublon → ♻️ Écraser »
+// Trouvaille en construisant cette carte : le circuit existant « Doublon → Écraser »
 // (overwriteDuplicate/renderDupAlerts, utilisé jusqu'ici) SUPPRIME l'ancien livre AVANT
 // d'ingérer le nouveau (cf. startIngestion, branche `q._dupAction === 'overwrite'`). Si la
 // nouvelle extraction échoue après cette suppression, le livre disparaît purement et
@@ -991,8 +1083,8 @@ document.getElementById('replaceFileInput').addEventListener('change', (e) => {
         <div style="padding:12px;background:#fafaf8;border:1px solid #eee;border-radius:8px;font-size:13px;">
             <strong>${escHtml(q.meta.title)}</strong><br>
             <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn-sm" onclick="previewExtraction('${q.id}')">👁️ Aperçu (rien n'est écrit)</button>
-                <button class="btn btn-primary" onclick="replaceIngestNew()">📥 Ingérer la nouvelle extraction, à côté de l'ancienne</button>
+                <button class="btn-sm" onclick="previewExtraction('${q.id}')">Aperçu (rien n'est écrit)</button>
+                <button class="btn btn-primary" onclick="replaceIngestNew()">Ingérer la nouvelle extraction, à côté de l'ancienne</button>
             </div>
             <div id="qpv-${q.id}"></div>
         </div>`;
@@ -1007,11 +1099,11 @@ async function replaceIngestNew() {
     if (q.status === 'done') {
         statusEl.insertAdjacentHTML('beforeend', `
             <div style="margin-top:12px;padding:12px;background:#f0f5f0;border:1px solid #cde0cd;border-radius:8px;font-size:13px;">
-                ✅ Nouvelle extraction ingérée (${q.chunks.length} chunks), <strong>à côté</strong> de l'ancienne.
-                Comparez les deux dans l'onglet « 📚 Bibliothèque ».<br><br>
+                Nouvelle extraction ingérée (${q.chunks.length} chunks), <strong>à côté</strong> de l'ancienne.
+                Comparez les deux dans l'onglet « Bibliothèque ».<br><br>
                 Si c'est mieux :
                 <button class="btn-sm danger" onclick="deleteBook('${_replaceOld.book_id}', '${escHtml(_replaceOld.book_title || '').replace(/'/g, "\\'")}')">
-                    🗑 Supprimer l'ancienne version
+                    Supprimer l'ancienne version
                 </button>
                 <span style="color:#888;"> (confirmation demandée, comme d'habitude)</span>
             </div>`);
@@ -1050,7 +1142,7 @@ async function previewExtraction(id) {
             <div style="margin-top:8px;padding:12px;background:#fafaf8;border:1px solid #eee;border-radius:8px;font-size:12px;">
                 <strong>Aperçu — rien n'a été écrit dans la bibliothèque</strong><br>
                 ${result.numPages} page(s) dans le fichier · ${result.pages.length} page(s) avec du texte exploitable
-                ${typeof result.ocrPagesCount === 'number' && result.ocrPagesCount > 0 ? ` · 🔎 ${result.ocrPagesCount} page(s) lue(s) par repli OCR` : ''}
+                ${typeof result.ocrPagesCount === 'number' && result.ocrPagesCount > 0 ? ` · ${result.ocrPagesCount} page(s) lue(s) par repli OCR` : ''}
                 <br>Densité d'accents sur l'ensemble : ${ratio} %
                 ${previewLog.length ? '<br><br><em>Journal du repli OCR :</em><br>' + previewLog.map(escHtml).join('<br>') : ''}
                 ${sample ? `<br><br><em>Premiers caractères de la première page lue :</em><div style="margin-top:4px;padding:8px;background:white;border-radius:6px;white-space:pre-wrap;">${escHtml(sample)}${result.pages[0].text.length > 400 ? '…' : ''}</div>` : ''}
@@ -1356,7 +1448,7 @@ async function extractHTMLText(file, progressCb) {
     const fullText = dedupedPages.map(p => p.text).join('\n\n');
     if (progressCb) progressCb(100);
 
-    log(`  📄 HTML: ${dedupedPages.length} sections extraites, ${fullText.split(/\s+/).length} mots` +
+    log(`  HTML: ${dedupedPages.length} sections extraites, ${fullText.split(/\s+/).length} mots` +
         (removedCount > 0 ? ` (${removedCount} section(s) dupliquée(s) exactement retirée(s))` : ''));
     return { pages: dedupedPages, fullText, numPages: dedupedPages.length };
 }
@@ -1465,7 +1557,7 @@ async function extractEPUBText(file, progressCb) {
     const fullText = pages.map(p => p.text).join('\n\n');
     if (progressCb) progressCb(100);
 
-    log(`  📖 EPUB: ${pages.length} chapitre(s) extrait(s) (ordre du spine), ${fullText.split(/\s+/).length} mots` +
+    log(`  EPUB: ${pages.length} chapitre(s) extrait(s) (ordre du spine), ${fullText.split(/\s+/).length} mots` +
         (detectedLanguage ? `, langue détectée : ${detectedLanguage}` : ''));
     // `numPages` et la forme {pages, fullText, numPages} sont IDENTIQUES à extractPDFText/
     // extractHTMLText — chaque "page" correspond ici à un chapitre, dans l'ordre du spine, pour
@@ -1665,7 +1757,7 @@ async function startIngestion() {
     isIngesting = true;
     const btn = document.getElementById('btnIngest');
     btn.disabled = true;
-    btn.textContent = '⏳ Indexation en cours...';
+    btn.textContent = 'Indexation en cours...';
 
     const pending = queue.filter(q => q.status === 'pending' || q.status === 'error');
     // Filtrer ceux marqués 'skip' par l'utilisateur
@@ -1679,7 +1771,7 @@ async function startIngestion() {
                 q.status = 'pending';
                 q._languageHint = 'Langue à préciser avant l’indexation — aucune donnée envoyée';
                 renderQueue();
-                log(`⚠️ ${q.meta.title} : choisissez une langue avant l’indexation`);
+                log(`${q.meta.title} : choisissez une langue avant l’indexation`);
                 errors++;
                 continue;
             }
@@ -1697,7 +1789,7 @@ async function startIngestion() {
             // pour ce livre (capturée par le catch englobant, qui marque déjà le livre en
             // erreur — jamais un faux succès ni un faux repli silencieux).
             if (q._dupAction !== 'overwrite') {
-                log('  🔎 Vérification doublon : ' + q.meta.book_id + '...');
+                log('  Vérification doublon : ' + q.meta.book_id + '...');
                 let statsRes;
                 try {
                     statsRes = await fetch(getWorkerUrl() + '/library-stats');
@@ -1717,7 +1809,7 @@ async function startIngestion() {
                 if (exists) {
                     q._existingChunks = null; // connu : existe déjà — jamais un compte exact via cette méthode
                     q.status = 'duplicate';
-                    log('  ⚠️ DOUBLON : "' + q.meta.title + '" existe déjà', 'error');
+                    log('  DOUBLON : "' + q.meta.title + '" existe déjà', 'error');
                     renderQueue();
                     continue;
                 }
@@ -1735,20 +1827,20 @@ async function startIngestion() {
                 if (similar) {
                     q._similarTo = similar;
                     q.status = 'duplicate';
-                    log('  ⚠️ RESSEMBLE À UN LIVRE EXISTANT : "' + q.meta.title + '" ≈ "' + similar.book_title + '" (' + similar.book_id + ')', 'error');
+                    log('  RESSEMBLE À UN LIVRE EXISTANT : "' + q.meta.title + '" ≈ "' + similar.book_title + '" (' + similar.book_id + ')', 'error');
                     renderQueue();
                     continue;
                 }
             } else {
                 // Correctif urgent P0-1 — fail-open corrigé : avant, le résultat de /delete-book
-                // n'était ni capturé ni vérifié, "✅ Ancien contenu supprimé" s'affichait
+                // n'était ni capturé ni vérifié, "Ancien contenu supprimé" s'affichait
                 // INCONDITIONNELLEMENT juste après (y compris sur 401/429/4xx/5xx ou
                 // {success:false}) — l'ingestion du nouveau contenu se poursuivait alors par-dessus
                 // un ancien contenu potentiellement toujours présent. Contrat désormais explicite :
                 // HTTP ok ET JSON décodable ET data.success===true → confirmé, on continue ; tout
                 // le reste → erreur levée, extraction/indexation de ce livre jamais entamée (capturée
                 // par le catch englobant, jamais un faux succès affiché).
-                log('  🗑 Suppression de l\'ancien "' + q.meta.book_id + '"...');
+                log('  Suppression de l\'ancien "' + q.meta.book_id + '"...');
                 let delRes;
                 try {
                     delRes = await fetch(getWorkerUrl() + '/delete-book', {
@@ -1771,13 +1863,13 @@ async function startIngestion() {
                 if (delData.success !== true) {
                     throw new Error('Suppression de l\'ancien contenu non confirmée (' + (delData.error || 'success absent de la réponse') + ') — ingestion bloquée');
                 }
-                log('  ✅ Ancien contenu supprimé (' + (delData.deleted_chunks != null ? delData.deleted_chunks : '?') + ' chunks)');
+                log('  Ancien contenu supprimé (' + (delData.deleted_chunks != null ? delData.deleted_chunks : '?') + ' chunks)');
             }
 
             // Phase 1: Extract
             q.status = 'extracting';
             renderQueue();
-            log(`📄 Extraction: ${q.meta.title}...`);
+            log(`Extraction: ${q.meta.title}...`);
 
             let pages, numPages;
             if (q.fileType === 'html') {
@@ -1808,7 +1900,7 @@ async function startIngestion() {
                 pages = result.pages;
                 numPages = result.numPages;
                 if (result.ocrPagesCount > 0) {
-                    log(`  🔎 ${result.ocrPagesCount} page(s) lue(s) par repli OCR (Tesseract/Vision), sans couche texte exploitable`);
+                    log(`  ${result.ocrPagesCount} page(s) lue(s) par repli OCR (Tesseract/Vision), sans couche texte exploitable`);
                 }
             }
 
@@ -1819,25 +1911,25 @@ async function startIngestion() {
                 const detected = autoDetectMeta(pages, q.file.name);
                 if (!q.meta.author && detected.author) {
                     q.meta.author = detected.author;
-                    log('  🔍 Auteur détecté : ' + detected.author);
+                    log('  Auteur détecté : ' + detected.author);
                 }
                 if (q.meta.approach === 'general' && detected.approach !== 'general') {
                     q.meta.approach = detected.approach;
-                    log('  🔍 Approche détectée : ' + detected.approach);
+                    log('  Approche détectée : ' + detected.approach);
                 }
             }
 
             // Phase 2: Chunk
             q.chunks = chunkPages(pages);
             const avgWords = Math.round(q.chunks.reduce((s, c) => s + c.content.split(/\s+/).length, 0) / q.chunks.length);
-            log(`  📦 ${q.chunks.length} chunks (${numPages} pages, ~${avgWords} mots/chunk)`);
+            log(`  ${q.chunks.length} chunks (${numPages} pages, ~${avgWords} mots/chunk)`);
 
             if (q.chunks.length === 0) throw new Error('Aucun chunk généré');
 
             // Phase 3: Send to Worker
             q.status = 'uploading';
             renderQueue();
-            log(`  ☁️ Envoi au Worker...`);
+            log(`  Envoi au Worker...`);
 
             // Send in batches of 20 chunks to avoid timeout
             const BATCH = 20;
@@ -1888,7 +1980,7 @@ async function startIngestion() {
             if (d1Written < q.chunks.length || vecWritten < q.chunks.length) {
                 q.status = 'partial';
                 q._partialInfo = { d1: d1Written, vec: vecWritten, total: q.chunks.length };
-                log(`  ⚠️ ${q.meta.title} — PARTIEL, RÉPARATION REQUISE (D1: ${d1Written}/${q.chunks.length}, Vectorize: ${vecWritten}/${q.chunks.length})`, 'error');
+                log(`  ${q.meta.title} — PARTIEL, RÉPARATION REQUISE (D1: ${d1Written}/${q.chunks.length}, Vectorize: ${vecWritten}/${q.chunks.length})`, 'error');
                 partial++;
             } else {
                 q._acceptedVectorChunks = vecWritten;
@@ -1899,16 +1991,16 @@ async function startIngestion() {
                 if (result?.status === 'ready') {
                     q.status = 'done';
                     success++;
-                    log(`  ✅ ${q.meta.title} — D1 ${result.d1_chunks}/${q.chunks.length}, vecteurs témoins ${result.vector_sample_found}/${result.vector_sample_total} consultables`, 'success');
+                    log(`  ${q.meta.title} — D1 ${result.d1_chunks}/${q.chunks.length}, vecteurs témoins ${result.vector_sample_found}/${result.vector_sample_total} consultables`, 'success');
                 } else if (result?.status === 'partial') {
                     q.status = 'partial';
                     q._partialInfo = { d1: result.d1_chunks, vec: vecWritten, total: q.chunks.length, postRead: true };
                     partial++;
-                    log(`  ⚠️ ${q.meta.title} — écart D1 après ingestion : ${result.d1_chunks}/${q.chunks.length}`, 'error');
+                    log(`  ${q.meta.title} — écart D1 après ingestion : ${result.d1_chunks}/${q.chunks.length}`, 'error');
                 } else {
                     q.status = 'verify_pending';
                     partial++;
-                    log(`  ⚠️ ${q.meta.title} — écritures acceptées, disponibilité non confirmée ; utilisez « Revérifier »`, 'error');
+                    log(`  ${q.meta.title} — écritures acceptées, disponibilité non confirmée ; utilisez « Revérifier »`, 'error');
                 }
             }
 
@@ -1916,7 +2008,7 @@ async function startIngestion() {
             q.status = 'error';
             q.error = err.message;
             errors++;
-            log(`  ❌ ${q.meta.title}: ${err.message}`, 'error');
+            log(`  ${q.meta.title}: ${err.message}`, 'error');
         }
 
         renderQueue();
@@ -1928,15 +2020,15 @@ async function startIngestion() {
     if (pendingDups.length > 0) {
         isIngesting = false;
         btn.disabled = false;
-        btn.textContent = '⚡ Indexer tout';
-        log('\n⚠️ ' + pendingDups.length + ' livre(s) prêts à écraser — relancez l\'indexation');
+        btn.textContent = 'Indexer tout';
+        log('\n' + pendingDups.length + ' livre(s) prêts à écraser — relancez l\'indexation');
         return;
     }
 
     log(`\n═══ Terminé: ${success} réussi(s), ${partial} partiel(s), ${errors} erreur(s) ═══`, success > 0 ? 'success' : 'error');
 
     btn.disabled = false;
-    btn.textContent = '⚡ Indexer tout';
+    btn.textContent = 'Indexer tout';
     isIngesting = false;
     refreshStats();
 }
@@ -1968,17 +2060,17 @@ function renderDupAlerts() {
             // qui supprime avant d'ingérer (cf. commentaire sur replaceIngestNew). On ignore
             // ici, ou on passe par la carte « Remplacer un livre », qui ingère d'abord.
             return '<div class="dup-banner">'
-                + '<div class="dup-icon">⚠️</div>'
-                + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> ressemble à <b>' + escHtml(q._similarTo.book_title) + '</b> déjà présent — peut-être la même œuvre, sous un autre nom de fichier. Pour la remplacer en sécurité, utilisez l\'onglet « 🔄 Remplacer un livre ».</div>'
+                + '<div class="dup-icon" aria-hidden="true">!</div>'
+                + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> ressemble à <b>' + escHtml(q._similarTo.book_title) + '</b> déjà présent — peut-être la même œuvre, sous un autre nom de fichier. Pour la remplacer en sécurité, utilisez l\'onglet « Remplacer un ouvrage ».</div>'
                 + '<div class="dup-actions">'
                 + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer — ne pas déposer ce fichier</button>'
                 + '</div></div>';
         }
         return '<div class="dup-banner">'
-            + '<div class="dup-icon">⚠️</div>'
+            + '<div class="dup-icon" aria-hidden="true">!</div>'
             + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> existe déjà dans la base' + chunkCountText + '. Écraser ou ignorer ?</div>'
             + '<div class="dup-actions">'
-            + '<button class="btn-overwrite" onclick="overwriteDuplicate(\''+q.id+'\')">♻️ Écraser</button>'
+            + '<button class="btn-overwrite" onclick="overwriteDuplicate(\''+q.id+'\')">Écraser</button>'
             + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer</button>'
             + '</div></div>';
     }).join('');
@@ -1987,7 +2079,7 @@ function renderDupAlerts() {
 // ── Scanner doublons dans la bibliothèque ──
 async function scanDuplicates() {
     const el = document.getElementById('dupResults');
-    el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🔍 Scan en cours...</div>';
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">Scan en cours...</div>';
 
     try {
         // Correctif SQL→structuré : /d1-query n'accepte plus de SQL brut. Le scan (deux
@@ -2002,23 +2094,23 @@ async function scanDuplicates() {
         const books = data?.books || [];
 
         if (books.length === 0) {
-            el.innerHTML = '<div class="dup-clean">✅ Aucun doublon détecté — la bibliothèque est propre !</div>';
+            el.innerHTML = '<div class="dup-clean">Aucun doublon détecté — la bibliothèque est propre !</div>';
             return;
         }
 
-        let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">⚠️ ' + books.length + ' livre(s) avec des doublons :</div>';
+        let html = '<div style="margin-bottom:12px;font-size:13px;color:#E65100;font-weight:600;">' + books.length + ' livre(s) avec des doublons :</div>';
         window._dupBooks = books;
         books.forEach(function(g, idx) {
             html += '<div class="dup-group">'
-                + '<div class="dup-group-header"><span>📘 ' + escHtml(g.book_title) + '</span><span>' + g.duplicates + ' chunks en double</span></div>'
+                + '<div class="dup-group-header"><span>' + escHtml(g.book_title) + '</span><span>' + g.duplicates + ' chunks en double</span></div>'
                 + '<button onclick="purgeDupByIndex('+idx+')">'
-                + '🧹 Purger les doublons</button></div>';
+                + 'Purger les doublons</button></div>';
         });
         el.innerHTML = html;
 
     } catch(err) {
         if (err.message.includes('404')) {
-            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ Le Worker ne supporte pas /find-duplicates. Déployez la nouvelle version du Worker pour activer le scan de doublons.</div>';
+            el.innerHTML = '<div style="color:#c00;padding:16px;">Le Worker ne supporte pas /find-duplicates. Déployez la nouvelle version du Worker pour activer le scan de doublons.</div>';
         } else {
             el.innerHTML = '<div style="color:#c00;padding:16px;">Erreur scan : ' + escHtml(err.message) + '</div>';
         }
@@ -2034,7 +2126,7 @@ async function purgeDuplicates(bookId, bookTitle) {
     if (!confirm('Purger les chunks dupliqués de "' + bookTitle + '" ?\n\nCela supprimera les copies en double en gardant un seul exemplaire de chaque chunk.')) return;
 
     const el = document.getElementById('dupResults');
-    el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">🧹 Purge en cours...</div>';
+    el.innerHTML = '<div style="text-align:center;padding:16px;color:#aaa;">Purge en cours...</div>';
 
     try {
         // Correctif SQL→structuré : /purge-duplicates (Worker) garde le rowid le plus petit par
@@ -2054,11 +2146,11 @@ async function purgeDuplicates(bookId, bookTitle) {
         // résultat partiel (D1 confirmé, Vectorize partiellement en échec) : distingué
         // explicitement de la même façon que deleteBook() ci-dessus.
         if (data.partial) {
-            el.innerHTML = '<div style="color:#c00;padding:16px;">⚠️ PARTIEL : D1 nettoyé (' + data.deleted_d1 + '), Vectorize incomplet (' + data.deleted_vectorize + '/' + data.deleted_d1 + ', ' + data.failed_vector_ids.length + ' échec(s)) — "' + escHtml(bookTitle) + '"</div>';
-            log('🧹 Purge PARTIELLE de "' + bookTitle + '" : D1 ' + data.deleted_d1 + ', Vectorize ' + data.deleted_vectorize + '/' + data.deleted_d1, 'error');
+            el.innerHTML = '<div style="color:#c00;padding:16px;">PARTIEL : D1 nettoyé (' + data.deleted_d1 + '), Vectorize incomplet (' + data.deleted_vectorize + '/' + data.deleted_d1 + ', ' + data.failed_vector_ids.length + ' échec(s)) — "' + escHtml(bookTitle) + '"</div>';
+            log('Purge PARTIELLE de "' + bookTitle + '" : D1 ' + data.deleted_d1 + ', Vectorize ' + data.deleted_vectorize + '/' + data.deleted_d1, 'error');
         } else {
-            el.innerHTML = '<div class="dup-clean">✅ ' + deleted + ' chunk(s) en double supprimé(s) de "' + escHtml(bookTitle) + '"</div>';
-            log('🧹 Purge doublons : ' + deleted + ' chunks supprimés de "' + bookTitle + '"', 'success');
+            el.innerHTML = '<div class="dup-clean">' + deleted + ' chunk(s) en double supprimé(s) de "' + escHtml(bookTitle) + '"</div>';
+            log('Purge doublons : ' + deleted + ' chunks supprimés de "' + bookTitle + '"', 'success');
         }
 
         // Re-scanner après 2 secondes
@@ -2089,7 +2181,7 @@ async function refreshLibrary() {
 
         if (!data.books || data.books.length === 0) {
             el.innerHTML = `<div class="empty-state">
-                <div class="icon">📚</div>
+                <div class="icon" aria-hidden="true">—</div>
                 <div>Bibliothèque vide — ajoutez des PDF dans l'onglet "Ajouter"</div>
             </div>`;
             return;
@@ -2119,9 +2211,9 @@ async function refreshLibrary() {
                 + '</div>'
                 + '<div style="display:flex;gap:4px;align-items:center;">'
                 + '<label class="book-translation-check"><input type="checkbox" data-translation-book-index="' + idx + '" onchange="toggleBookTranslationSelection(' + idx + ', this.checked)">File</label>'
-                + '<button class="btn-sm" onclick="openBookTranslation(' + idx + ')">🌐 Traduire et exporter en PDF</button>'
-                + '<button class="btn-delete" style="font-size:10px;padding:4px 8px;" onclick="editBookByIndex(' + idx + ')">✏️</button>'
-                + '<button class="btn-delete" onclick="deleteBookByIndex(' + idx + ')">🗑</button>'
+                + '<button class="btn-sm" onclick="openBookTranslation(' + idx + ')">Traduire et exporter en PDF</button>'
+                + '<button class="btn-delete" style="font-size:10px;padding:4px 8px;" onclick="editBookByIndex(' + idx + ')">Modifier</button>'
+                + '<button class="btn-delete" onclick="deleteBookByIndex(' + idx + ')" aria-label="Supprimer cet ouvrage">Supprimer</button>'
                 + '</div></div>';
         });
 
@@ -2419,11 +2511,11 @@ function renderBookTranslation() {
         ${job.phase === 'ready' || job.phase === 'paused' ? '<button class="btn btn-primary" onclick="startBookTranslation()">' + (done ? 'Reprendre la traduction' : 'Lancer la traduction') + '</button>' : ''}
         ${job.phase === 'load_failed' ? '<button class="btn btn-primary" onclick="retryBookTranslationManifest()">Réessayer la préparation</button>' : ''}
         ${job.phase === 'failed' ? '<button class="btn btn-primary" onclick="startBookTranslation()">Réessayer le segment et poursuivre</button>' : ''}
-        ${job.phase === 'translated' ? '<p>✅ Traduction terminée. Le PDF n’est créé que lorsque vous choisissez de le télécharger.</p><button class="btn btn-primary" onclick="downloadBookTranslationPDF()">Télécharger le PDF</button>' : ''}
+        ${job.phase === 'translated' ? '<p>Traduction terminée. Le PDF n’est créé que lorsque vous choisissez de le télécharger.</p><button class="btn btn-primary" onclick="downloadBookTranslationPDF()">Télécharger le PDF</button>' : ''}
         ${job.phase === 'pdf_failed' ? '<button class="btn btn-primary" onclick="downloadBookTranslationPDF()">Réessayer le PDF sans retraduire</button>' : ''}
         ${job.phase === 'running' ? '<button class="btn btn-outline" onclick="cancelBookTranslation()">Pause après ce segment</button>' : ''}
         ${job.phase === 'rendering' ? '<p>Création du PDF et téléchargement direct…</p>' : ''}
-        ${job.phase === 'complete' ? '<p>✅ Téléchargement lancé. Aucun PDF traduit n’a été enregistré dans KV.</p>' : ''}
+        ${job.phase === 'complete' ? '<p>Téléchargement lancé. Aucun PDF traduit n’a été enregistré dans KV.</p>' : ''}
         ${!busy ? '<button class="btn btn-outline" onclick="closeBookTranslation()">Fermer le panneau</button>' : ''}
         ${!busy && done ? '<button class="btn btn-outline" onclick="discardBookTranslationCheckpoint()">Effacer les segments locaux</button>' : ''}
     </div>`;
@@ -2674,7 +2766,7 @@ async function editBookMeta(bookId, title, currentApproach, currentAuthor, curre
 
     const titleEl = document.createElement('h3');
     titleEl.style.cssText = 'font-size:16px;color:#7A9A9C;margin-bottom:16px;';
-    titleEl.textContent = '✏️ Modifier : ' + title;
+    titleEl.textContent = 'Modifier : ' + title;
     formDiv.appendChild(titleEl);
 
     formDiv.innerHTML += '<div style="display:flex;flex-direction:column;gap:12px;">'
@@ -2715,7 +2807,7 @@ async function submitEditMeta(bookId) {
     const language = document.getElementById('edit-lang').value;
     
     try {
-        log('✏️ Modification : ' + bookId + ' → ' + approach + ', ' + author);
+        log('Modification : ' + bookId + ' → ' + approach + ', ' + author);
         
         // Essayer d'abord /update-book-meta
         let res = await fetch(getWorkerUrl() + '/update-book-meta', {
@@ -2727,7 +2819,7 @@ async function submitEditMeta(bookId) {
         if (res.ok) {
             const data = await res.json();
             if (data.success) {
-                log('  ✅ Métadonnées mises à jour (' + (data.updated_chunks || '?') + ' chunks)', 'success');
+                log('  Métadonnées mises à jour (' + (data.updated_chunks || '?') + ' chunks)', 'success');
                 document.getElementById('edit-overlay')?.remove();
                 refreshLibrary();
                 return;
@@ -2738,23 +2830,23 @@ async function submitEditMeta(bookId) {
         // /d1-query n'était qu'un fallback, retiré : /d1-query n'accepte plus de SQL brut
         // depuis le durcissement du Worker, donc cette tentative échouait de toute façon.
         // Dernier recours : instruction manuelle
-        log('  ⚠️ Endpoints non disponibles. Ajoutez /update-book-meta à votre Worker.', 'error');
-        log('  📋 SQL à exécuter dans D1 Dashboard :', 'info');
+        log('  Endpoints non disponibles. Ajoutez /update-book-meta à votre Worker.', 'error');
+        log('  SQL à exécuter dans D1 Dashboard :', 'info');
         log('  UPDATE chunks SET approach = "' + approach + '", author = "' + author + '" WHERE book_id = "' + bookId + '";', 'info');
         
         // Copier dans le presse-papier
         const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
         try { 
             await navigator.clipboard.writeText(sql);
-            log('  📋 SQL copié dans le presse-papier !', 'success');
+            log('  SQL copié dans le presse-papier !', 'success');
         } catch(e) {}
         
     } catch (err) {
-        log('  ❌ ' + err.message, 'error');
+        log('  ' + err.message, 'error');
         // Donner le SQL en fallback
         const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
-        log('  📋 SQL fallback : ' + sql, 'info');
-        try { await navigator.clipboard.writeText(sql); log('  📋 SQL copié !', 'success'); } catch(e) {}
+        log('  SQL fallback : ' + sql, 'info');
+        try { await navigator.clipboard.writeText(sql); log('  SQL copié !', 'success'); } catch(e) {}
     }
     
     document.getElementById('edit-overlay')?.remove();
@@ -2765,7 +2857,7 @@ async function deleteBook(bookId, title) {
     if (!confirm(`Supprimer "${title}" de la bibliothèque ?`)) return;
 
     try {
-        log(`🗑 Suppression: ${title}...`);
+        log(`Suppression: ${title}...`);
         const res = await fetch(getWorkerUrl() + '/delete-book', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
@@ -2776,16 +2868,16 @@ async function deleteBook(bookId, title) {
         // 'partial' (D1 confirmé supprimé, Vectorize partiellement en échec) : jamais affiché
         // comme "supprimé" dans ce cas, message dédié distinguant clairement l'état réel.
         if (data.success) {
-            log(`  ✅ ${title} supprimé (${data.deleted_chunks} chunks)`, 'success');
+            log(`  ${title} supprimé (${data.deleted_chunks} chunks)`, 'success');
         } else if (data.partial) {
-            log(`  ⚠️ ${title} — PARTIEL : D1 supprimé (${data.deleted_d1}), Vectorize incomplet (${data.deleted_vectorize}/${data.deleted_d1}, ${data.failed_vector_ids.length} échec(s))`, 'error');
+            log(`  ${title} — PARTIEL : D1 supprimé (${data.deleted_d1}), Vectorize incomplet (${data.deleted_vectorize}/${data.deleted_d1}, ${data.failed_vector_ids.length} échec(s))`, 'error');
         } else {
-            log(`  ❌ ${data.error}`, 'error');
+            log(`  ${data.error}`, 'error');
         }
         refreshLibrary();
         refreshStats();
     } catch (err) {
-        log(`  ❌ ${err.message}`, 'error');
+        log(`  ${err.message}`, 'error');
     }
 }
 
@@ -2811,7 +2903,7 @@ function toggleTranslationView(uid) {
     const showingTranslation = tEl.style.display !== 'none';
     tEl.style.display = showingTranslation ? 'none' : '';
     oEl.style.display = showingTranslation ? '' : 'none';
-    if (btn) btn.textContent = showingTranslation ? '🔤 Voir la traduction' : '📖 Voir le texte original (VO)';
+    if (btn) btn.textContent = showingTranslation ? 'Voir la traduction' : 'Voir le texte original (VO)';
 }
 
 function renderSearchColumn(title, results, ms, emptyLabel, columnKey, targetLang) {
@@ -2836,8 +2928,8 @@ function renderSearchColumn(title, results, ms, emptyLabel, columnKey, targetLan
                 // mais masquée (aucun second appel réseau nécessaire pour basculer).
                 bodyHtml = `
                 <div style="margin-bottom:4px;">
-                    <span style="background:#E3F2FD;color:#1565C0;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;">🌐 Traduction automatique (${escHtml(r.language || '?')} → ${escHtml(targetLang || 'fr')})</span>
-                    <button type="button" id="btn-${uid}" onclick="toggleTranslationView('${uid}')" style="margin-left:6px;font-size:10px;padding:1px 6px;border:1px solid #90CAF9;border-radius:3px;background:#fff;color:#1565C0;cursor:pointer;">📖 Voir le texte original (VO)</button>
+                    <span style="background:#E4EDE7;color:#173D35;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;">Traduction automatique (${escHtml(r.language || '?')} → ${escHtml(targetLang || 'fr')})</span>
+                    <button type="button" id="btn-${uid}" onclick="toggleTranslationView('${uid}')" style="margin-left:6px;font-size:10px;padding:1px 6px;border:1px solid #D6DCD2;border-radius:3px;background:#fff;color:#173D35;cursor:pointer;">Voir le texte original (VO)</button>
                 </div>
                 <div id="tr-${uid}" style="color:#444;line-height:1.5;">${escHtml((r.translated_content || '').substring(0, 300))}${(r.translated_content || '').length > 300 ? '...' : ''}</div>
                 <div id="vo-${uid}" style="display:none;color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content || '').length > 300 ? '...' : ''}</div>`;
@@ -2845,13 +2937,13 @@ function renderSearchColumn(title, results, ms, emptyLabel, columnKey, targetLan
                 // Échec de traduction isolé à CE résultat (jamais toute la réponse en erreur) —
                 // texte original affiché avec un avertissement explicite, jamais un texte vide.
                 bodyHtml = `
-                <div style="margin-bottom:4px;"><span style="background:#FFEBEE;color:#C62828;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;">⚠️ Échec de traduction automatique — texte original (VO) affiché</span></div>
+                <div style="margin-bottom:4px;"><span style="background:#F9ECEA;color:#A13E3B;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;">Échec de traduction automatique — texte original (VO) affiché</span></div>
                 <div style="color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content || '').length > 300 ? '...' : ''}</div>`;
             } else {
                 bodyHtml = `<div style="color:#444;line-height:1.5;">${escHtml((r.content || '').substring(0, 300))}${(r.content || '').length > 300 ? '...' : ''}</div>`;
             }
             return `<div style="background:#fafaf8;padding:10px;border-radius:6px;margin-bottom:6px;border-left:3px solid ${isLexical ? '#FFB74D' : '#8FAFB1'};font-size:11px;">
-            <div style="font-weight:600;color:#7A9A9C;margin-bottom:4px;">📖 ${escHtml(r.book_title || '?')} — ${escHtml(r.author || '?')} ${r.page_number ? '(p.'+escHtml(r.page_number)+')' : ''}</div>
+            <div style="font-weight:600;color:#173D35;margin-bottom:4px;">${escHtml(r.book_title || '?')} — ${escHtml(r.author || '?')} ${r.page_number ? '(p.'+escHtml(r.page_number)+')' : ''}</div>
             <div style="color:#999;margin-bottom:4px;">id: <code style="font-size:10px;">${escHtml(r.id || '?')}</code> · langue: ${escHtml(r.language || '?')} · approche: ${escHtml(r.approach || '?')} · source(s) : <b>${escHtml(srcList.join('+'))}</b> · score: ${(r.score || 0).toFixed(3)}${r.rrf_score != null ? ' · rrf: ' + r.rrf_score.toFixed(4) : ''}</div>
             ${bodyHtml}
         </div>`;
@@ -2925,14 +3017,14 @@ async function testSearch() {
         // /rag-search intègre la traduction) — cette colonne n'affiche donc jamais de badge.
         const targetLang = ragData.target_lang || 'fr';
 
-        if (vecData.error) log('  ⚠️ Voie vectorielle : ' + vecData.error, 'error');
-        if (ragData.error) log('  ⚠️ Voie hybride/lexicale : ' + ragData.error, 'error');
+        if (vecData.error) log('  Voie vectorielle : ' + vecData.error, 'error');
+        if (ragData.error) log('  Voie hybride/lexicale : ' + ragData.error, 'error');
 
         el.innerHTML = `<div style="margin-bottom:10px;font-size:11px;color:#888;">Requête : "${escHtml(query)}" — ${ms}ms (les 3 voies interrogées en parallèle)</div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                ${renderSearchColumn('🎯 Vectoriel (/search-library)', vectorResults, ms, 'Aucun résultat vectoriel', 'vec', targetLang)}
-                ${renderSearchColumn('🔤 Lexical FTS5 (part de /rag-search)', lexicalResults, ms, 'Aucun résultat lexical (termes trop courts/absents ?)', 'lex', targetLang)}
-                ${renderSearchColumn('🔀 Hybride (/rag-search, fusionné)', hybridResults, ms, 'Aucun résultat hybride', 'hyb', targetLang)}
+                ${renderSearchColumn('Vectoriel (/search-library)', vectorResults, ms, 'Aucun résultat vectoriel', 'vec', targetLang)}
+                ${renderSearchColumn('Lexical FTS5 (part de /rag-search)', lexicalResults, ms, 'Aucun résultat lexical (termes trop courts/absents ?)', 'lex', targetLang)}
+                ${renderSearchColumn('Hybride (/rag-search, fusionné)', hybridResults, ms, 'Aucun résultat hybride', 'hyb', targetLang)}
             </div>`;
 
     } catch (err) {
@@ -3019,7 +3111,7 @@ async function refreshStats() {
         document.getElementById('headerStats').textContent =
             `${data.total_chunks || 0} chunks · ${libraryBookCount(data)} livres`;
     } catch {
-        document.getElementById('headerStats').textContent = '⚠️ Worker inaccessible';
+        document.getElementById('headerStats').textContent = 'Worker inaccessible';
     }
 }
 
