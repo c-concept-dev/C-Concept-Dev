@@ -183,9 +183,22 @@
 }
 
 .ln-pages--liste .ln-pages__carte {
+  /* Quatre enfants, quatre colonnes, toujours : la vignette, l'intitulé, les reliés, l'alerte.
+     L'alerte est facultative — sa colonne reste alors vide, ce qui ne déforme rien. */
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: calc(var(--ln-grid) * 2);
+}
+
+/* Le nom de la page et son titre, l'un sous l'autre en liste, l'un après l'autre en grille. */
+.ln-pages__intitule {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.25);
+  min-width: 0;
+}
+
+.ln-pages__intitule > * {
+  overflow-wrap: anywhere;
 }
 
 .ln-pages__carte--ouvert {
@@ -360,4 +373,13 @@ img.ln-pages__apercu,
      qui déclare sa propre couleur, et laissé le titre invisible — il héritait d'une couleur
      calculée plus haut dans l'arbre. */
   color: var(--ln-text-primary);
+}
+
+/* Le lien vers les doublons se tient dans la ligne des comptes : c'est un fait de la
+   bibliothèque parmi les autres, et non une action qui s'impose. */
+.ln-catalogue__doublons {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+  font-size: inherit;
 }

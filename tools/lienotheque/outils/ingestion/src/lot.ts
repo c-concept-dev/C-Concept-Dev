@@ -164,7 +164,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   const parRang = new Map<number, { image: string; largeur: number; hauteur: number; vignette?: string }>();
   if (lot.images !== undefined) {
     const adresse = lot.adresseImages ?? "/donnees/pages";
-    for (const page of await exporterPages(lot.pdf, lot.images))
+    for (const page of (await exporterPages(lot.pdf, lot.images)).pages)
       parRang.set(page.index + PREMIER_RANG, {
         image: `${adresse}/${page.fichier}`,
         largeur: page.largeur,

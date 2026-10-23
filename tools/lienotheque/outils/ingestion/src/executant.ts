@@ -231,7 +231,7 @@ async function apercuDePages(demande: Demande, emettre?: Emission): Promise<Mess
 
   try {
     const { exporterPages } = await import("./pages-images.js");
-    const pages = await exporterPages(charge.document, charge.images, {
+    const exporte = await exporterPages(charge.document, charge.images, {
       depuis: charge.depuis,
       pages: charge.combien,
       // Pas de vignettes : l'éditeur montre une page en grand, et produire trois cents vignettes
@@ -245,13 +245,17 @@ async function apercuDePages(demande: Demande, emettre?: Emission): Promise<Mess
       protocole: VERSION_PROTOCOLE,
       travailId: demande.travailId,
       charge: {
-        pages: pages.map((page) => ({
+        pages: exporte.pages.map((page) => ({
           rang: page.index,
           image: `${adresse}/${page.fichier}`,
           fichier: page.fichier,
           largeur: page.largeur,
           hauteur: page.hauteur,
         })),
+        // Les refus voyagent avec les pages : sans eux, un document dont rien ne sort est
+        // indiscernable d'un document qu'on n'a pas encore traité, et l'écran fait attendre
+        // pour rien quelqu'un qui n'a rien à attendre.
+        refusees: exporte.refusees.map((refus) => ({ rang: refus.index, cause: refus.cause })),
       },
     });
   } catch (cause) {

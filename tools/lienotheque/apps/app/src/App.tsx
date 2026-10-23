@@ -1,19 +1,21 @@
-import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import type {
   CasDouteux,
   ApercuDocument,
   ClassementLocal,
   DescriptionBibliotheque,
+  DocumentSuspect,
+  Doublons as DoublonsTrouves,
   Passage,
   SchemaBibliotheque,
   Travail,
   TypeDeContenu,
   VueBibliotheque,
 } from "@lienotheque/contrats";
-import { BROUILLON_NEUF, bilanDEssai, depuisRecette, enRecette, type Brouillon } from "@lienotheque/noyau";
+import { BROUILLON_NEUF, bilanDEssai, depuisRecette, enRecette, memeFile, type Brouillon } from "@lienotheque/noyau";
 import { EnTete } from "./EnTete.js";
 import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } from "./donnees/chargement.js";
-import { chargerVue } from "./donnees/vue.js";
+import { chargerPassages, chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
 import { journaliser } from "./pont/bureau.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
@@ -22,12 +24,15 @@ import { Accueil } from "./pages/Accueil.js";
 import { Catalogue } from "./pages/Catalogue.js";
 import { Entrer } from "./pages/Entrer.js";
 import { Lecteur } from "./pages/Lecteur.js";
+import { LectureDuTexte } from "./pages/LectureDuTexte.js";
+import { parOuLire, quelquesImagesSeulement } from "./lire-ou-montrer.js";
 import { PremierLancement } from "./pages/PremierLancement.js";
 import { RienAMontrer } from "./pages/RienAMontrer.js";
 import { Reglages } from "./pages/Reglages.js";
 import { Verifier, type Decision } from "./pages/Verifier.js";
 import { Creer } from "./pages/Creer.js";
 import { Retirer } from "./pages/Retirer.js";
+import { Doublons } from "./pages/Doublons.js";
 import { Organisation } from "./pages/Organisation.js";
 import { Depot, type ActionTravail } from "./pages/Depot.js";
 import { Recherche } from "./pages/Recherche.js";
@@ -156,6 +161,11 @@ export function App(): JSX.Element {
     void chargerVue().then((chargee) => {
       if (vivant) setVue(chargee);
     });
+    // Hors démonstration, ceci rend un tableau vide : les passages viennent alors du pont, avec
+    // le document qu'on ouvre.
+    void chargerPassages().then((charges) => {
+      if (vivant && charges.length > 0) setPassages(charges);
+    });
     // Les bibliothèques que l'hôte a retenues : sans elles, il faudrait repointer l'application
     // vers son dossier à chaque lancement.
     if (administration !== undefined)
@@ -197,6 +207,23 @@ export function App(): JSX.Element {
     });
   };
 
+  /** Ce que la recherche de doublons a trouvé, et où elle en est (HER-08).
+   *
+   *  `trouves` absent **n'est pas** « rien trouvé » : c'est « pas encore cherché ». L'écran dit
+   *  l'un et l'autre, et les confondre lui ferait annoncer une bibliothèque propre avant de
+   *  l'avoir lue. */
+  const [doublons, setDoublons] = useState<{
+    readonly trouves?: DoublonsTrouves;
+    readonly occupe: boolean;
+    readonly echec?: string;
+    readonly retire?: string;
+  }>({ occupe: false });
+
+  /** Combien de fois on a demandé à relire la bibliothèque pour une raison qui n'est pas un
+   *  traitement achevé — un retrait de document, par exemple. Un compteur, et non un drapeau :
+   *  deux retraits de suite doivent faire deux relectures. */
+  const [relectures, setRelectures] = useState(0);
+
   /** Retirer une bibliothèque, d'une des deux façons.
    *
    *  L'oubli ne touche à rien ; la suppression met le dossier à la corbeille, d'où il se ressort.
@@ -213,6 +240,63 @@ export function App(): JSX.Element {
       aller(ACCUEIL);
     } catch (souci) {
       setRetrait({ occupe: false, echec: souci instanceof Error ? souci.message : String(souci) });
+    }
+  };
+
+  /** Chercher les documents qui disent la même chose. Elle ne retire rien (HER-08).
+   *
+   *  Mesuré à dix secondes sur deux cent quarante-trois documents : c'est long, donc on le dit
+   *  pendant que ça dure, et le bouton ne se représente pas comme disponible. */
+  const chercherLesDoublons = async (): Promise<void> => {
+    if (administration === undefined || courante === undefined) return;
+    setDoublons({ occupe: true });
+    try {
+      const trouves = await administration.doublonsDeBibliotheque(courante.racine);
+      setDoublons({ occupe: false, trouves });
+    } catch (souci) {
+      setDoublons({ occupe: false, echec: souci instanceof Error ? souci.message : String(souci) });
+    }
+  };
+
+  /** Retirer un document de la bibliothèque (HER-07).
+   *
+   *  On retire **de la liste affichée** ce qui vient de partir, et l'on redemande la bibliothèque :
+   *  sans quoi l'écran garderait un document qui n'est plus là, et le catalogue aussi. */
+  const retirerUnDocument = async (empreinte: string): Promise<void> => {
+    if (administration === undefined || courante === undefined) return;
+    setDoublons((avant) => ({ ...avant, occupe: true }));
+    try {
+      const compte = await administration.retirerDocument(courante.racine, empreinte);
+      // Le contrat rend des tableaux mutables : les reconstruire en lecture seule les rendrait
+      // inassignables à ce qu'on vient d'en lire, pour aucun gain.
+      const sansLui = (documents: DocumentSuspect[]): DocumentSuspect[] =>
+        documents.filter((document) => document.empreinte !== empreinte);
+      setDoublons((avant) => ({
+        occupe: false,
+        retire:
+          compte.source === undefined
+            ? "Document retiré de la bibliothèque. Sa source n’y était plus."
+            : "Document retiré. Sa source est à la corbeille, d’où vous pouvez la ressortir.",
+        ...(avant.trouves === undefined
+          ? {}
+          : {
+              trouves: {
+                // Un groupe qui tombe à un seul membre n'est plus un groupe : il ne double plus rien.
+                groupes: avant.trouves.groupes
+                  .map((groupe) => ({ ...groupe, documents: sansLui(groupe.documents) }))
+                  .filter((groupe) => groupe.documents.length > 1),
+                tropPeuDeTexte: sansLui(avant.trouves.tropPeuDeTexte),
+              },
+            }),
+      }));
+      setRegarde((avant) => (avant === empreinte ? undefined : avant));
+      setRelectures((avant) => avant + 1);
+    } catch (souci) {
+      setDoublons((avant) => ({
+        ...avant,
+        occupe: false,
+        echec: souci instanceof Error ? souci.message : String(souci),
+      }));
     }
   };
 
@@ -282,6 +366,19 @@ export function App(): JSX.Element {
     };
   }, [courante, route, vue]);
 
+  /** Ce qui, dans la file, justifie de relire la bibliothèque.
+   *
+   *  **Un traitement qui s'achève, et lui seul** : c'est lui qui pose une nouvelle version active
+   *  (JOB-06). Une progression qui avance, un bail qui se renouvelle, un travail qui échoue ne
+   *  changent rien à ce que les écrans lisent.
+   *
+   *  Mesuré le 22 octobre 2026 sur la bibliothèque réimportée : l'effet dépendait de `file`
+   *  entière, que la veille réécrit toutes les deux secondes. Il relisait donc **70,2 Mo de
+   *  versions toutes les deux secondes**, soit 35 Mo/s en continu depuis un volume externe, pour
+   *  n'en tirer aucune différence. Un nombre stable à la place d'un tableau neuf suffit à
+   *  l'arrêter. */
+  const travauxAcheves = file.filter((travail) => travail.etat === "termine").length;
+
   // Ce que les écrans lisent vient de la bibliothèque ouverte, et non d'un instantané de
   // développement : sur le bureau, c'est le dépôt qui fait foi. On la relit après chaque
   // traitement, puisque c'est lui qui pose une nouvelle version active (JOB-06).
@@ -313,14 +410,33 @@ export function App(): JSX.Element {
     return () => {
       vivant = false;
     };
-  }, [courante, file]);
+  }, [courante, travauxAcheves, relectures]);
+
+  /** Ce qu'on regardait, le temps qu'on le regardait : lu sans le remettre dans les dépendances
+   *  de l'effet qui suit, sans quoi il se rejouerait à chaque document ouvert. */
+  const regardeAlors = useRef(regarde);
+  regardeAlors.current = regarde;
 
   // Changer de bibliothèque repart de zéro : garder le document d'une autre ferait lire une vue
   // qui n'appartient pas à celle qu'on vient d'ouvrir.
+  //
+  // **Mais seulement si l'on regardait un document.** Cet effet effaçait la vue en toutes
+  // circonstances, y compris au démarrage, quand `courante` passe d'absente à présente — et la
+  // vue chargée à ce moment-là est celle du jeu de démonstration, la seule qu'il y ait. Le
+  // Lecteur était donc inatteignable en démonstration : on y naviguait, et l'on retombait sur
+  // l'accueil, faute de vue. Sans document ouvert, il n'y a de toute façon rien à oublier.
+  //
+  // **Les passages suivent la vue, et pour la même raison.** Ils appartiennent au document
+  // regardé, pas à la bibliothèque : les effacer en toutes circonstances effaçait au démarrage
+  // ceux du jeu de démonstration, et l'écran de lecture du texte retombait sur « rien à
+  // montrer » alors que le texte était là. La vue avait exactement ce défaut la veille ; il
+  // vivait deux fois, à deux lignes d'écart.
   useEffect(() => {
     setRegarde(undefined);
-    setVue(undefined);
-    setPassages([]);
+    if (regardeAlors.current !== undefined) {
+      setVue(undefined);
+      setPassages([]);
+    }
     setDocuments([]);
     setClassements(new Map());
   }, [courante?.racine]);
@@ -356,7 +472,13 @@ export function App(): JSX.Element {
     });
     const relire = (): void => {
       void administration.travauxDe(courante.racine).then((travaux) => {
-        if (vivant) setFile(travaux);
+        if (!vivant) return;
+        // **Ne republier que ce qui a changé.** Relire est peu coûteux — 249 travaux font 137 Ko
+        // et se lisent en 6 ms —, mais republier un relevé identique rejoue tout ce qui en
+        // dépend, et l'un de ces dépendants relit la bibliothèque entière. En gardant la
+        // référence précédente quand rien n'a bougé, la cascade s'arrête à sa source, pour tous
+        // les dépendants d'aujourd'hui et ceux qu'on écrira.
+        setFile((avant) => (memeFile(avant, travaux) ? avant : travaux));
       });
     };
     relire();
@@ -607,6 +729,7 @@ export function App(): JSX.Element {
           onAction={(id, action) => void agir(derniere.racine, id, action)}
           onVerifier={() => aller({ ecran: "verifier" })}
           {...(administration === undefined ? {} : { onRetirer: () => aller({ ecran: "retirer" }) })}
+          {...(administration === undefined ? {} : { onDoublons: () => aller({ ecran: "doublons" }) })}
           onManiere={
             administration !== undefined
               ? (empreinte, nom) => {
@@ -648,6 +771,21 @@ export function App(): JSX.Element {
           occupe={retrait.occupe}
         />
       );
+    if (route.ecran === "doublons")
+      return derniere === undefined || administration === undefined ? (
+        sansRienAMontrer()
+      ) : (
+        <Doublons
+          nom={derniere.description.nom}
+          onChercher={() => void chercherLesDoublons()}
+          onRetirer={(empreinte) => void retirerUnDocument(empreinte)}
+          onRetour={() => aller({ ecran: "catalogue" })}
+          {...(doublons.trouves === undefined ? {} : { trouves: doublons.trouves })}
+          {...(doublons.echec === undefined ? {} : { echec: doublons.echec })}
+          {...(doublons.retire === undefined ? {} : { retire: doublons.retire })}
+          occupe={doublons.occupe}
+        />
+      );
     if (route.ecran === "creer")
       return (
         <Creer
@@ -668,6 +806,20 @@ export function App(): JSX.Element {
           onDecision={(cas, decision) => setDecisions([...decisions, { cas, decision }])}
           onAnnuler={() => setDecisions(decisions.slice(0, -1))}
           {...(decisions.length === 0 ? {} : { derniere: decisions[decisions.length - 1]! })}
+        />
+      );
+    // Un document composé en texte n'a aucune image, donc aucune page dans sa vue — mais son
+    // texte, lui, a été lu entièrement. Le Lecteur ne saurait qu'en dire « rien à montrer » ;
+    // cet écran-ci le montre. Le choix se fait sur ce qu'on a, jamais sur le format : c'est le
+    // même fait qui vaut pour un PDF composé en texte et pour un EPUB.
+    if (route.ecran === "lecteur" && parOuLire(vue.pages.length, passages.length) === "texte")
+      return (
+        <LectureDuTexte
+          vue={vue}
+          passages={passages}
+          page={route.page}
+          imagesPartielles={quelquesImagesSeulement(vue.pages.length, passages.length)}
+          onPage={(page) => aller({ ecran: "lecteur", page })}
         />
       );
     if (route.ecran === "lecteur")
@@ -699,6 +851,7 @@ export function App(): JSX.Element {
           {...(route.page === undefined ? {} : { page: route.page })}
           onPage={(page) => aller({ ecran: "catalogue", page })}
           onLecteur={(page, element) => aller({ ecran: "lecteur", page, element })}
+          {...(administration === undefined ? {} : { onDoublons: () => aller({ ecran: "doublons" }) })}
           onAjouter={() => aller(ACCUEIL)}
         />
       );
@@ -757,7 +910,11 @@ export function App(): JSX.Element {
           }}
         />
       ) : null}
-      {administration !== undefined ? (
+      {/* Les mesures du lot 0 n'apparaissent **que sur une bibliothèque d'essai**.
+          Ce bloc s'affichait dès qu'un hôte répondait, donc sous une vraie bibliothèque de 243
+          documents, où il n'a rien à faire : « quatre capacités à éprouver avant de décider du
+          socle » s'adresse à nous, pas à qui veut lire ses livres. */}
+      {administration !== undefined && courante === undefined ? (
         <div className="ln-layout">
           <Prototype />
         </div>

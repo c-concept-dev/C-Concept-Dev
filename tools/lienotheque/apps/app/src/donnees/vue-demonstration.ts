@@ -1,4 +1,4 @@
-import { VueBibliotheque } from "@lienotheque/contrats";
+import { Passage, VueBibliotheque } from "@lienotheque/contrats";
 
 /** Jeu de démonstration des écrans (B5).
  *
@@ -111,3 +111,57 @@ export const VUE_DEMONSTRATION = VueBibliotheque.parse({
   pages,
   douteux,
 });
+
+/** La même bibliothèque, vue depuis un document **composé en texte** : aucune image de page.
+ *
+ *  C'est le seul moyen d'atteindre l'écran de lecture du texte à la main. Une vue réelle vient
+ *  du dépôt, et ni elle ni ses passages ne se fabriquent depuis l'écran : sans ce jeu-ci,
+ *  l'écran n'aurait que ses tests pour preuve — exactement la situation qui a produit les neuf
+ *  défauts du 21 octobre, où un mécanisme juste n'était atteignable par aucune porte.
+ *
+ *  Les cinq passages couvrent ce que l'écran doit savoir dire : un numéro imprimé, une page sans
+ *  numéro, un emplacement de chapitre, un texte venu de la reconnaissance, et une page dont rien
+ *  n'était lisible. */
+export const VUE_SANS_IMAGE = VueBibliotheque.parse({
+  ...VUE_DEMONSTRATION,
+  pages: [],
+  douteux: [],
+  compteurs: [{ nombre: 5, mot: "pages" }],
+  aVerifier: 0,
+});
+
+export const PASSAGES_SANS_IMAGE: readonly Passage[] = [
+  {
+    rang: 0,
+    page: 1,
+    pageImprimee: 7,
+    texte:
+      "L’apprentissage d’un instrument ne se joue pas dans la vitesse, mais dans la régularité du geste.\nCe que l’on répète lentement et juste, on le jouera vite et juste ; ce que l’on répète vite et faux, on le jouera vite et faux.\nLes pages qui suivent proposent un ordre de travail, non une méthode exclusive.",
+    source: "couche_texte",
+  },
+  {
+    rang: 1,
+    page: 2,
+    pageImprimee: 8,
+    texte:
+      "La main gauche se place avant que la droite ne sonne. C’est l’inverse de ce que l’oreille suggère, et c’est pourtant l’ordre qui donne la netteté.\nOn travaillera donc d’abord le placement muet, sans produire aucun son, jusqu’à ce que la position vienne seule.",
+    source: "couche_texte",
+  },
+  {
+    rang: 2,
+    page: 3,
+    texte:
+      "Deuxième partie — Le travail du rythme.\nRien de ce qui suit ne demande de la force. Tout demande de la patience, et un métronome que l’on accepte de laisser lent.",
+    source: "couche_texte",
+    emplacement: "Chapitre 2 — Le travail du rythme",
+  },
+  {
+    rang: 3,
+    page: 4,
+    pageImprimee: 10,
+    texte:
+      "Les trois figures de la page précédente se combinent deux à deux. On les jouera d’abord séparément, puis enchaînées sans reprendre son souffle entre elles.",
+    source: "ocr",
+  },
+  { rang: 4, page: 5, pageImprimee: 11, texte: "···", source: "ocr", lisible: false },
+].map((brut) => Passage.parse(brut));

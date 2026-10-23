@@ -24,11 +24,22 @@
 
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     io::{self, Write},
     path::{Path, PathBuf},
 };
+
+/// Ce qu'un retrait de document a emporté — de quoi le dire, plutôt que de laisser deviner.
+#[derive(Debug, Serialize)]
+pub struct RetraitDeDocument {
+    pub versions: usize,
+    pub travaux: usize,
+    /// Où la source a atterri dans la corbeille. **Omise** si le document n'en avait plus :
+    /// un contrat qui attend une chaîne ou rien refuserait un nul, et il a raison de le faire.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<PathBuf>,
+}
 
 /// Agencement du dossier, le même que celui du noyau TypeScript.
 pub const SOURCES: &str = "sources";
@@ -212,6 +223,115 @@ impl Depot {
         let mut table = self.actives()?;
         table.insert(empreinte.to_owned(), Pointeur { version: version.to_owned(), activee_le: maintenant });
         self.ecrire_actives(&table)
+    }
+
+
+    /// Retire un document de la bibliothèque : sa source, ses versions, ses dérivés, ses travaux.
+    ///
+    /// ## Ce qu'un document possède, et qu'il faut tout emporter
+    ///
+    /// | | où |
+    /// |---|---|
+    /// | sa source | `sources/ab/abcdef….pdf` |
+    /// | son pointeur actif | une entrée de `base/actives.json` |
+    /// | ses versions | `base/versions/<version>.json`, une par traitement |
+    /// | ses dérivés | `derives/<version>/`, les images de page |
+    /// | ses travaux | `base/travaux/<id>.json`, un par dépôt ou reprise |
+    /// | son classement | une entrée de la table des classements |
+    ///
+    /// En oublier un laisse une bibliothèque qui se contredit : un pointeur vers une version
+    /// effacée, ou une source que plus rien ne nomme.
+    ///
+    /// ## L'ordre, et pourquoi celui-là
+    ///
+    /// Le **pointeur d'abord**. Tant qu'il existe, les écrans lisent ce document ; le retirer en
+    /// premier fait qu'ils cessent de le voir avant que quoi que ce soit ne disparaisse sous eux.
+    /// Puis les dérivés, les versions, les travaux, et la source en dernier — c'est elle qui,
+    /// seule, permettrait de tout refaire.
+    ///
+    /// ## À la corbeille, comme une bibliothèque
+    ///
+    /// La source part à la corbeille plutôt qu'au néant : c'est l'original de quelqu'un, et se
+    /// tromper de document ne doit pas coûter un livre. Les dérivés et les versions, eux, sont
+    /// effacés — ils se reconstruisent depuis la source, et les garder encombrerait la corbeille
+    /// de mégaoctets que personne ne ressortira.
+    pub fn retirer_document(&self, empreinte: &str) -> io::Result<RetraitDeDocument> {
+        if empreinte.len() < 2 {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Empreinte trop courte pour désigner un document."));
+        }
+        let _tenu = VERROU_ACTIVES.lock().unwrap_or_else(|empoisonne| empoisonne.into_inner());
+
+        // 1. Le pointeur, d'abord : les écrans cessent de voir ce document.
+        let mut table = self.actives()?;
+        let pointeur = table.remove(empreinte);
+        if pointeur.is_some() {
+            self.ecrire_actives(&table)?;
+        }
+
+        // 2. Ses versions, reconnues par les travaux qui les visaient — une version n'inscrit pas
+        //    l'empreinte de sa source, c'est le travail qui fait le lien.
+        let mut versions: BTreeSet<String> = BTreeSet::new();
+        if let Some(pointeur) = &pointeur {
+            versions.insert(pointeur.version.clone());
+        }
+        let mut travaux_retires = 0_usize;
+        if let Ok(entrees) = fs::read_dir(self.travaux()) {
+            for entree in entrees.flatten() {
+                let chemin = entree.path();
+                if chemin.extension().is_none_or(|e| e != "json") {
+                    continue;
+                }
+                let Ok(texte) = fs::read_to_string(&chemin) else { continue };
+                let Ok(lu) = serde_json::from_str::<serde_json::Value>(&texte) else { continue };
+                if lu["empreinte"].as_str() != Some(empreinte) {
+                    continue;
+                }
+                if let Some(cible) = lu["version_cible"].as_str() {
+                    versions.insert(cible.to_owned());
+                }
+                let _ = fs::remove_file(&chemin);
+                travaux_retires += 1;
+            }
+        }
+
+        for version in &versions {
+            let _ = fs::remove_dir_all(self.racine.join(DERIVES).join(version));
+            let _ = fs::remove_file(self.racine.join(BASE).join(VERSIONS).join(format!("{version}.json")));
+        }
+
+        // 3. Son classement, s'il en avait un.
+        let mut rangs = self.classements()?;
+        if rangs.remove(empreinte).is_some() {
+            ecrire_atomique(
+                &self.racine.join(BASE).join(CLASSEMENTS),
+                serde_json::to_string_pretty(&rangs)?.as_bytes(),
+            )?;
+        }
+
+        // 4. La source, en dernier, et à la corbeille.
+        let mut jetee = None;
+        let palier = self.racine.join(SOURCES).join(&empreinte[..2]);
+        if let Ok(entrees) = fs::read_dir(&palier) {
+            for entree in entrees.flatten() {
+                let chemin = entree.path();
+                if chemin.file_stem().and_then(|s| s.to_str()) != Some(empreinte) {
+                    continue;
+                }
+                let corbeille = dossier_personnel()?.join(".Trash");
+                fs::create_dir_all(&corbeille)?;
+                let nom = chemin.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| empreinte.to_owned());
+                let mut vise = corbeille.join(&nom);
+                let mut rang = 2;
+                while vise.exists() {
+                    vise = corbeille.join(format!("{rang} {nom}"));
+                    rang += 1;
+                }
+                fs::rename(&chemin, &vise)?;
+                jetee = Some(vise);
+            }
+        }
+
+        Ok(RetraitDeDocument { versions: versions.len(), travaux: travaux_retires, source: jetee })
     }
 
     /// Met le dossier de la bibliothèque **à la corbeille**, et rend où il a atterri.
@@ -438,6 +558,87 @@ mod tests {
         let racine = std::env::temp_dir().join(format!("lienotheque-depot-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
         (Depot::ouvrir(&racine).expect("dépôt ouvert"), racine)
+    }
+
+
+    /// Retirer un document n'en laisse rien derrière (HER-07).
+    ///
+    /// Un document possède six choses : sa source, son pointeur, ses versions, ses dérivés, ses
+    /// travaux et son classement. En oublier une laisse une bibliothèque qui se contredit — un
+    /// pointeur vers une version effacée, ou une source que plus rien ne nomme.
+    #[test]
+    fn retirer_un_document_emporte_tout_ce_qui_lui_appartient() {
+        let (depot, racine) = depot_neuf("retrait");
+        depot.ecrire_description(r#"{"nom":"Essai"}"#).expect("description");
+
+        let empreinte = "ab".to_owned() + &"c".repeat(62);
+        let autre = "de".to_owned() + &"f".repeat(62);
+
+        // Deux documents, pour vérifier que le second ne bouge pas.
+        for (emp, version) in [(&empreinte, "v-un"), (&autre, "v-deux")] {
+            let palier = depot.racine().join(SOURCES).join(&emp[..2]);
+            fs::create_dir_all(&palier).expect("palier");
+            fs::write(palier.join(format!("{emp}.pdf")), b"x").expect("source");
+            depot.ecrire_version(version, r#"{"vue":{"pages":[]}}"#).expect("version");
+            depot.activer(emp, version, 1).expect("activée");
+            fs::create_dir_all(depot.racine().join(DERIVES).join(version).join("pages")).expect("dérivés");
+            fs::write(depot.racine().join(DERIVES).join(version).join("pages").join("page-0000.webp"), b"i")
+                .expect("image");
+            depot.classer(emp, &serde_json::json!({ "axe": "une valeur" })).expect("classé");
+            fs::create_dir_all(depot.travaux()).expect("travaux");
+            fs::write(
+                depot.travaux().join(format!("{version}.json")),
+                format!(r#"{{"id":"{version}","empreinte":"{emp}","version_cible":"{version}"}}"#),
+            )
+            .expect("travail");
+        }
+
+        let retrait = depot.retirer_document(&empreinte).expect("retiré");
+
+        // Ce qui appartenait au document est parti.
+        assert!(!depot.actives().expect("actives").contains_key(&empreinte), "le pointeur devrait être retiré");
+        assert!(!depot.racine().join(DERIVES).join("v-un").exists(), "les dérivés devraient être effacés");
+        assert!(
+            !depot.racine().join(BASE).join(VERSIONS).join("v-un.json").exists(),
+            "la version devrait être effacée"
+        );
+        assert!(!depot.travaux().join("v-un.json").exists(), "le travail devrait être retiré");
+        assert!(
+            depot.classement(&empreinte).expect("classements").is_none(),
+            "le classement devrait être retiré"
+        );
+        assert!(
+            !depot.racine().join(SOURCES).join("ab").join(format!("{empreinte}.pdf")).exists(),
+            "la source devrait avoir quitté la bibliothèque"
+        );
+
+        // **Et la source est à la corbeille**, pas au néant : se tromper de document ne doit pas
+        // coûter un livre.
+        let jetee = retrait.source.expect("la source doit avoir atterri quelque part");
+        assert!(jetee.exists(), "la source devrait être dans la corbeille");
+        assert_eq!(retrait.travaux, 1);
+        assert_eq!(retrait.versions, 1);
+
+        // Le voisin n'a pas bougé d'un pouce.
+        assert!(depot.actives().expect("actives").contains_key(&autre), "l'autre document reste actif");
+        assert!(depot.racine().join(DERIVES).join("v-deux").exists(), "ses dérivés restent");
+        assert!(depot.racine().join(SOURCES).join("de").join(format!("{autre}.pdf")).exists(), "sa source reste");
+        assert!(depot.classement(&autre).expect("classements").is_some(), "son classement reste");
+
+        let _ = fs::remove_file(&jetee);
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Retirer un document qui n'existe pas ne casse rien et ne ment pas.
+    #[test]
+    fn retirer_un_document_absent_ne_fait_rien() {
+        let (depot, racine) = depot_neuf("retrait-absent");
+        depot.ecrire_description(r#"{"nom":"Essai"}"#).expect("description");
+        let retrait = depot.retirer_document(&("00".to_owned() + &"0".repeat(62))).expect("rien à retirer");
+        assert_eq!(retrait.versions, 0);
+        assert_eq!(retrait.travaux, 0);
+        assert!(retrait.source.is_none(), "rien n'avait à partir à la corbeille");
+        fs::remove_dir_all(&racine).ok();
     }
 
     /// Une bibliothèque jetée part à la corbeille, entière.

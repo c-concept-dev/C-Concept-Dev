@@ -1,4 +1,4 @@
-import { journaliser } from "./pont/bureau.js";
+import { estBureau, journaliser } from "./pont/bureau.js";
 
 /** Le traceur : ce que la page fait, porté au journal de l'hôte (JOB-05).
  *
@@ -41,11 +41,59 @@ function nommer(cible: EventTarget | null): string {
   return `${agissant.tagName.toLowerCase()}${desactive} « ${texte} »`;
 }
 
+/** Ce qui se trouve réellement sous le doigt, quand ce n'est pas ce qu'on visait.
+ *
+ *  Un calque transparent posé par-dessus un bouton reçoit le geste à sa place, et le bouton
+ *  « ne fait rien » sans qu'aucune erreur ne soit levée. Le navigateur sait répondre à cette
+ *  question-là ; encore faut-il la lui poser. Silencieux quand l'élément visé est bien celui du
+ *  dessus, pour que la trace ne porte que ce qui surprend. */
+function quiEstDessus(geste: PointerEvent): string {
+  try {
+    const dessus = document.elementFromPoint(geste.clientX, geste.clientY);
+    if (dessus === null || dessus === geste.target) return "";
+    return ` · MAIS LE DESSUS EST ${nommer(dessus)}`;
+  } catch {
+    return "";
+  }
+}
+
 export function brancherLeTraceur(): void {
   try {
-    journaliser(`démarrage · adresse « ${globalThis.location?.hash ?? ""} »`);
+    // La première ligne dit **quand**, en clair, et **qui répond**.
+    //
+    // L'heure lisible n'est pas un confort : le 22 octobre 2026, une trace a été rapportée comme
+    // étant celle d'un essai alors qu'elle datait d'un lancement antérieur de cinquante minutes.
+    // L'en-tête de l'hôte ne portait que des secondes depuis l'époque, que personne ne lit. Une
+    // date en français se compare d'un coup d'œil à sa propre montre.
+    //
+    // Et si l'hôte n'est pas vu, aucune autre ligne de la page n'arrivera au fichier : une trace
+    // qui ne contient que les lignes de l'hôte est déjà une réponse.
+    const quand = new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "medium" });
+    journaliser(
+      `démarrage · ${quand} · hôte ${estBureau() ? "vu" : "ABSENT"} · adresse « ${globalThis.location?.href ?? ""} »`,
+    );
 
-    // En capture : on veut savoir que le clic est arrivé, même si quelque chose l'arrête ensuite.
+    // **Deux témoins, et c'est délibéré.**
+    //
+    // `pointerdown` dit que le moteur de rendu a bien reçu le geste ; `click` dit qu'il est allé
+    // au bout. Les séparer tranche une question qu'une seule ligne laisserait ouverte :
+    //
+    // | ce qu'on voit | ce que c'est |
+    // |---|---|
+    // | ni l'un ni l'autre | le geste n'atteint pas la page — fenêtre inerte |
+    // | `pointerdown` seul | la page reçoit, mais quelque chose avale le clic : un calque par-dessus, un `pointer-events`, un gestionnaire qui arrête la propagation |
+    // | les deux | le geste est complet, et le défaut est après lui |
+    //
+    // En capture, pour voir le geste **avant** que quiconque puisse l'arrêter.
+    globalThis.addEventListener?.(
+      "pointerdown",
+      (evenement) => {
+        const geste = evenement as PointerEvent;
+        journaliser(`geste sur ${nommer(geste.target)}${quiEstDessus(geste)}`);
+      },
+      true,
+    );
+
     globalThis.addEventListener?.(
       "click",
       (evenement) => journaliser(`clic sur ${nommer((evenement as MouseEvent).target)}`),

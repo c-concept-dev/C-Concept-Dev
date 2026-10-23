@@ -1,0 +1,107 @@
+/* Lire un document sans image (B1, route A du chantier du 21 octobre).
+   Une seule colonne : il n'y a ni vignettes de pages ni panneau d'écoute à loger, et une
+   colonne de lecture étroite se lit mieux qu'une pleine largeur. */
+
+.ln-texte-lu {
+  /* La largeur de la colonne de lecture, posée une fois pour les trois blocs qui s'y alignent.
+     Elle a d'abord été écrite « 68ch » sur chacun : or `ch` se mesure sur la police du bloc, et
+     les trois n'ont pas la même taille — le titre et les avis se retrouvaient plus étroits que
+     le texte, donc visuellement centrés sur lui. Une longueur absolue ne se déforme pas.
+     Elle est **locale à cet écran** et n'est pas un jeton de la charte ; elle en porte le
+     préfixe parce que le garde-fou des feuilles n'admet aucun autre espace de noms. */
+  --ln-colonne-de-lecture: 34rem;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: calc(var(--ln-grid) * 2);
+  min-height: 0;
+  height: 100%;
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+  overflow: hidden;
+}
+
+.ln-texte-lu__entete,
+.ln-texte-lu__pied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 3);
+  padding: calc(var(--ln-grid) * 1.5) calc(var(--ln-grid) * 2);
+  border-radius: var(--ln-radius);
+}
+
+.ln-texte-lu__entete {
+  justify-content: space-between;
+}
+
+.ln-texte-lu__pied {
+  justify-content: center;
+}
+
+.ln-texte-lu__rang,
+.ln-texte-lu__legende {
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.ln-texte-lu__corps {
+  min-height: 0;
+  overflow-y: auto;
+  padding: calc(var(--ln-grid) * 4) calc(var(--ln-grid) * 4) calc(var(--ln-grid) * 6);
+}
+
+.ln-texte-lu__titre-bloc {
+  max-width: var(--ln-colonne-de-lecture);
+  margin: 0 auto calc(var(--ln-grid) * 3);
+  padding-bottom: calc(var(--ln-grid) * 2);
+  border-bottom: 1px solid var(--ln-border-decorative);
+}
+
+.ln-texte-lu__titre {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ln-text-primary);
+}
+
+.ln-texte-lu__emplacement {
+  margin: calc(var(--ln-grid) * 0.5) 0 0;
+  font-size: 14px;
+  color: var(--ln-text-secondary);
+}
+
+/* La colonne de lecture. Le texte d'un document se lit en mesure courte : au-delà d'environ
+   soixante-dix signes, l'œil perd sa ligne en revenant à la marge. */
+.ln-texte-lu__texte {
+  max-width: var(--ln-colonne-de-lecture);
+  margin: 0 auto;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ln-text-primary);
+}
+
+.ln-texte-lu__texte p {
+  margin: 0 0 calc(var(--ln-grid) * 2);
+}
+
+.ln-texte-lu__avis {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(var(--ln-grid) * 1.5);
+  max-width: var(--ln-colonne-de-lecture);
+  margin: calc(var(--ln-grid) * 3) auto 0;
+  padding: calc(var(--ln-grid) * 2);
+  border-radius: var(--ln-radius);
+  background: var(--ln-background);
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
+/* Ce qui n'a rien donné de lisible se dit avant le texte, pas après : on ne laisse pas quelqu'un
+   lire trois lignes de bruit avant d'apprendre que c'en est. */
+.ln-texte-lu__avis--reserve {
+  margin-top: 0;
+  margin-bottom: calc(var(--ln-grid) * 3);
+  background: var(--ln-warning-background);
+  color: var(--ln-warning-text);
+}

@@ -73,6 +73,9 @@ type Props = {
   /** Ouvrir l'écran qui retire cette bibliothèque — l'oublier, ou la mettre à la corbeille.
    *  Absent là où l'on ne peut pas administrer : en ligne, on ne retire rien. */
   readonly onRetirer?: (() => void) | undefined;
+  /** Vers ce qui se trouve deux fois. Auprès du retrait, parce que c'est la même intention :
+   *  tenir la bibliothèque, plutôt que l'alimenter. */
+  readonly onDoublons?: (() => void) | undefined;
   /** Ouvre la manière de lire pour ce document : c'est par lui qu'on y entre, parce que c'est
    *  lui qu'on regarde en la montrant. */
   readonly onManiere?: ((empreinte: string, nom: string) => void) | undefined;
@@ -88,6 +91,7 @@ export function Depot({
   onAction,
   onVerifier,
   onRetirer,
+  onDoublons,
   onManiere,
 }: Props): JSX.Element {
   const enCours = travaux.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length;
@@ -105,6 +109,12 @@ export function Depot({
         />
         {/* Dans l'en-tête, et non en pied : sous une liste de deux cent cinquante documents, un
             lien de pied est à des milliers de pixels et n'existe pas. Discret, mais atteignable.  */}
+        {onDoublons === undefined ? null : (
+          <button type="button" className="ln-lien-action ln-traitement__retirer" onClick={onDoublons}>
+            <Icone nom="recherche" />
+            Chercher les doublons…
+          </button>
+        )}
         {onRetirer === undefined ? null : (
           <button type="button" className="ln-lien-action ln-traitement__retirer" onClick={onRetirer}>
             <Icone nom="alerte" />

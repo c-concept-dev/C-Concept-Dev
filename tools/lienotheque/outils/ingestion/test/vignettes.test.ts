@@ -33,7 +33,7 @@ const dossierNeuf = (): string => {
 describe("OUT-04 : chaque page exportée porte sa vignette", () => {
   siF3("écrit une vignette à côté de chaque image de page", async () => {
     const dossier = dossierNeuf();
-    const pages = await exporterPages(F3, dossier, { pages: 3 });
+    const { pages } = await exporterPages(F3, dossier, { pages: 3 });
 
     expect(pages.length, "trois pages demandées, trois pages exportées").toBe(3);
     for (const page of pages) {
@@ -44,7 +44,7 @@ describe("OUT-04 : chaque page exportée porte sa vignette", () => {
 
   siF3("tient le plafond du dérivé « vignette », et pèse moins que la page", async () => {
     const dossier = dossierNeuf();
-    const [page] = await exporterPages(F3, dossier, { pages: 1 });
+    const [page] = (await exporterPages(F3, dossier, { pages: 1 })).pages;
     expect(page).toBeDefined();
 
     const vignette = statSync(join(dossier, page!.vignette!)).size;
@@ -57,7 +57,7 @@ describe("OUT-04 : chaque page exportée porte sa vignette", () => {
 
   siF3("ne produit rien de plus quand on les refuse", async () => {
     const dossier = dossierNeuf();
-    const pages = await exporterPages(F3, dossier, { pages: 2, vignettes: false });
+    const { pages } = await exporterPages(F3, dossier, { pages: 2, vignettes: false });
 
     expect(pages.every((page) => page.vignette === undefined), "aucune vignette annoncée").toBe(true);
     expect(

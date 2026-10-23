@@ -27,6 +27,9 @@ type Props = {
   readonly onPage: (numero: number) => void;
   readonly onLecteur: (page: number, ancreId: string) => void;
   readonly onAjouter: () => void;
+  /** Vers ce qui se trouve deux fois. **Dans le catalogue**, parce que c'est en regardant ses
+   *  documents qu'on se demande si l'un n'y est pas deux fois — pas en en déposant d'autres. */
+  readonly onDoublons?: (() => void) | undefined;
   /** Les axes de la bibliothèque. Sans eux, il n'y a rien sur quoi ranger. */
   readonly schema?: SchemaBibliotheque | undefined;
   /** Le document regardé, désigné par l'empreinte de sa source. */
@@ -70,6 +73,7 @@ export function Catalogue({
   onPage,
   onLecteur,
   onAjouter,
+  onDoublons,
   schema,
   empreinte,
   classement,
@@ -188,6 +192,12 @@ export function Catalogue({
                 {accorder(aTrancher, { un: "à vérifier", plusieurs: "à vérifier" })}
               </a>
             ) : null}
+            {onDoublons === undefined ? null : (
+              <button type="button" className="ln-lien-action ln-catalogue__doublons" onClick={onDoublons}>
+                <Icone nom="recherche" />
+                Chercher les doublons
+              </button>
+            )}
             {informations > 0 ? (
               <a className="ln-catalogue__informations" href="#verifier">
                 <Icone nom="info" />
@@ -419,10 +429,16 @@ export function Catalogue({
                   ) : (
                     <img className="ln-pages__apercu" src={p.vignette} alt="" loading="lazy" decoding="async" />
                   )}
-                  <span className="ln-pages__nom">
-                    {enTete(citerPage(vue.mots, p))}
+                  {/* Le nom et le titre dans **une seule cellule**, et non deux.
+                      En liste, la carte déclare quatre colonnes ; elle portait quatre ou cinq
+                      enfants selon qu'une page a un titre, si bien que la grille changeait de
+                      forme d'une ligne à l'autre et que les deux libellés se chevauchaient.
+                      Réunis, ils comptent pour un, et la carte a toujours le même nombre
+                      d'enfants. */}
+                  <span className="ln-pages__intitule">
+                    <span className="ln-pages__nom">{enTete(citerPage(vue.mots, p))}</span>
+                    {p.titre === undefined ? null : <span className="ln-pages__titre">{p.titre}</span>}
                   </span>
-                  {p.titre === undefined ? null : <span className="ln-pages__titre">{p.titre}</span>}
                   <span className="ln-pages__relies">
                     <Icone nom="lien" />
                     {enTete(vue.mots.element.plusieurs)} : {relies(p)}

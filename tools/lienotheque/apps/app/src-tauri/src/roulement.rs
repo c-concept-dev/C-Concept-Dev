@@ -193,7 +193,16 @@ impl Roulement {
 
         let charge = match self.charge_de(&depart) {
             Ok(charge) => charge,
-            Err(raison) => {
+            // **Ce qui manque n'est pas ce qui casse.** Une manière de lire absente est un
+            // réglage qu'on n'a pas encore donné, pas une panne du document : mettre le travail
+            // en échec définitif obligeait à redéposer cent fichiers après l'avoir apprise.
+            // Il attend, et il dit ce qu'il attend.
+            Err(Obstacle::PasPret(raison)) => {
+                noter("information", &raison);
+                self.conclure(&chemin, &depart, "pause", Some(raison));
+                return;
+            }
+            Err(Obstacle::Casse(raison)) => {
                 noter("erreur", &raison);
                 self.conclure(&chemin, &depart, "echouerDefinitif", Some(raison));
                 return;
@@ -401,7 +410,10 @@ impl Roulement {
             }
         }
         let Some(mut apres) = file::appliquer(courant, action, travail::maintenant()) else { return };
-        apres.reprise_possible = apres.etat == "en_echec_recuperable";
+        // **Une pause se reprend**, et c'était la moitié manquante du correctif : un travail mis
+        // en attente faute d'un réglage doit annoncer qu'on peut le relancer, sinon l'écran ne
+        // propose rien et l'on en est au même point qu'avec un échec définitif.
+        apres.reprise_possible = apres.etat == "en_echec_recuperable" || apres.etat == "en_pause";
         apres.cause = cause;
         let _ = travail::enregistrer(chemin, &apres);
     }
@@ -434,15 +446,15 @@ impl Roulement {
         defaut
     }
 
-    fn charge_de(&self, travail: &Travail) -> Result<serde_json::Value, String> {
-        let sujet = travail.sujet.as_ref().ok_or("Ce travail ne désigne aucun fichier.")?;
+    fn charge_de(&self, travail: &Travail) -> Result<serde_json::Value, Obstacle> {
+        let sujet = travail.sujet.as_ref().ok_or_else(|| Obstacle::Casse("Ce travail ne désigne aucun fichier.".to_owned()))?;
         let racine = self.depot.racine();
         // La source se retrouve par son **empreinte**, jamais par son nom.
         //
         // Deux documents peuvent porter le même nom dans deux dossiers et n'avoir rien à voir :
         // ce corpus en contient. Nommés par leur nom, le second écrasait le premier au dépôt, et
         // l'on traitait deux fois le même fichier en croyant en traiter deux.
-        let empreinte = travail.empreinte.as_deref().ok_or("Ce travail ne porte pas l’empreinte de son fichier.")?;
+        let empreinte = travail.empreinte.as_deref().ok_or_else(|| Obstacle::Casse("Ce travail ne porte pas l’empreinte de son fichier.".to_owned()))?;
         let extension = std::path::Path::new(&sujet.nom)
             .extension()
             .and_then(|e| e.to_str())
@@ -450,18 +462,18 @@ impl Roulement {
             .to_lowercase();
         let document = self.depot.source(empreinte, &extension);
         if !document.exists() {
-            return Err(format!("Le fichier « {} » n’est plus dans la bibliothèque.", sujet.nom));
+            return Err(Obstacle::Casse(format!("Le fichier « {} » n’est plus dans la bibliothèque.", sujet.nom)));
         }
         let recette = self.maniere_de(empreinte);
         if !recette.exists() {
-            return Err(
-                "Cette bibliothèque n’a pas encore de manière de lire. Apprenez-en une, puis reprenez ce travail."
+            return Err(Obstacle::PasPret(
+                "Cette bibliothèque n’a pas encore de manière de lire. Ouvrez ce document pour en apprendre une, puis reprenez ce travail."
                     .to_owned(),
-            );
+            ));
         }
         let description = racine.join("base").join("bibliotheque.json");
         if !description.exists() {
-            return Err("Cette bibliothèque n’a pas de description.".to_owned());
+            return Err(Obstacle::Casse("Cette bibliothèque n’a pas de description.".to_owned()));
         }
 
         Ok(serde_json::json!({
@@ -472,6 +484,32 @@ impl Roulement {
             "cache": self.cache,
             "images": racine.join(crate::depot::DERIVES).join(&travail.version_cible).join("pages"),
         }))
+    }
+}
+
+/// Ce qui empêche un travail de partir, et qui ne se répare pas de la même façon.
+///
+/// La distinction a été payée le 22 octobre 2026 : trois dépôts d'une méthode — un PDF et
+/// quatre-vingt-dix-neuf pistes — sont morts en échec **définitif** parce que la bibliothèque
+/// n'avait pas encore de manière de lire. Or c'est un réglage qu'on donne en trois gestes, et
+/// la seule issue offerte était de tout redéposer.
+///
+/// | | ce que le travail devient | ce qu'il faut faire |
+/// |---|---|---|
+/// | `PasPret` — un réglage manque | **en pause**, reprenable | donner le réglage, puis reprendre |
+/// | `Casse` — le fichier ou la base manque | en échec définitif | il n'y a rien à reprendre |
+#[derive(Debug)]
+enum Obstacle {
+    PasPret(String),
+    Casse(String),
+}
+
+impl std::fmt::Display for Obstacle {
+    /// Les deux se lisent pareil : ce qui change est ce qu'on en fait, pas ce qu'on en dit.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Obstacle::PasPret(raison) | Obstacle::Casse(raison) => f.write_str(raison),
+        }
     }
 }
 
@@ -595,7 +633,9 @@ mod tests {
         let racine = bac("absent");
         let r = roulement(racine.clone());
         let erreur = r.charge_de(&travail_de("parti.pdf")).expect_err("doit refuser");
-        assert!(erreur.contains("n’est plus dans la bibliothèque"), "{erreur}");
+        assert!(erreur.to_string().contains("n’est plus dans la bibliothèque"), "{erreur}");
+        // Un fichier absent **casse** : il n'y a rien à reprendre, et c'est un échec définitif.
+        assert!(matches!(erreur, Obstacle::Casse(_)), "un fichier disparu n'est pas un réglage manquant");
         fs::remove_dir_all(&racine).ok();
     }
 
@@ -607,7 +647,13 @@ mod tests {
         poser_source(&r, "pdf");
 
         let erreur = r.charge_de(&travail_de("un.pdf")).expect_err("doit refuser");
-        assert!(erreur.contains("manière de lire"), "{erreur}");
+        assert!(erreur.to_string().contains("manière de lire"), "{erreur}");
+        // **Et c'est tout l'enjeu** : le travail attend, il ne meurt pas. Le 22 octobre 2026,
+        // trois dépôts d'une méthode — un PDF et quatre-vingt-dix-neuf pistes — sont morts en
+        // échec définitif pour ce seul motif, et la seule issue offerte était de tout redéposer.
+        assert!(matches!(erreur, Obstacle::PasPret(_)), "une manière de lire absente est un réglage, pas une panne");
+        // Elle dit aussi où aller la chercher : constater sans orienter laisse sur place.
+        assert!(erreur.to_string().contains("Ouvrez ce document"), "{erreur}");
         fs::remove_dir_all(&racine).ok();
     }
 

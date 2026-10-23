@@ -4452,3 +4452,259 @@ Il exige qu'une option transmise à la lecture soit éprouvée par la porte. **I
 bouton mène quelque part.** Les deux seules sorties de l'accueil — le bouton et la carte d'une
 bibliothèque — n'étaient éprouvées ni l'une ni l'autre ; elles le sont maintenant, mais rien
 n'empêche le prochain bouton muet. C'est un garde-fou à écrire.
+
+---
+
+## 22 octobre 2026 — la version en ligne : trois décisions, et un ordre
+
+Demande : employer Cloudflare — Stream pour les vidéos, D1, R2 et du RAG — sur le modèle de
+`tools/Projet therapeutes/bibliotheque-admin.html` et du Worker `clone-proxy`, pour des
+bibliothèques consultables en ligne et non plus seulement sur l'ordinateur.
+
+**Relevé préalable.** Le Worker `lienotheque-api` répond déjà : `/sante` rend 200, la façade
+(`/search-library`, `/rag-search`, `/library-facets`) rend 401 — elle existe et elle est gardée —
+et `/entree/defi` rend 200. D1 `lienotheque-registre`, D1 `lienotheque-essai` (place `BIB_1`) et
+R2 `lienotheque-medias` existent, en WEUR. Le schéma d'une bibliothèque publiée porte déjà
+`passage`, `passage_texte` en FTS5, et `journal_indexation` (JOB-07). L'adresse « ne donne rien »
+parce que rien n'y a été publié et qu'aucune clé n'est enrôlée, non parce que rien n'est déployé.
+
+### 1. La vidéo passe par R2, pas par Stream
+
+Stream n'est **pas** compris dans l'abonnement Workers Paid : abonnement à part, 5 $ par
+1 000 minutes stockées et 1 $ par 1 000 minutes livrées, **aucun palier gratuit**, arrondi au
+millier supérieur, et une vidéo chargée sans être regardée est facturée en livraison.
+
+R2 a l'**égress gratuit**, et les laissez-passer signés (`/laissez`, `/fichier/:laissez`) servent
+déjà ses objets : une vidéo n'y ajoute aucune plomberie. Ce que Stream achète — transcodage en
+plusieurs débits, lecture adaptative, lecteur, vignettes, sous-titres — compte pour des vidéos
+longues sur une connexion médiocre, pas pour une bibliothèque où la vidéo est occasionnelle.
+
+`Segment` est en secondes et ne sait pas qui sert les octets : basculer plus tard est une colonne
+de plus, pas une reprise.
+
+### 2. Le RAG tient dans les passages, pas dans AutoRAG
+
+AutoRAG découpe lui-même les fichiers de R2 et rend des morceaux opaques. Or les 32 052 passages
+portent déjà leur document, leur version, leur ancre, leur rang et leur page imprimée : c'est
+précisément ce que le réimport a coûté 5 h 15 à produire, et ce que la promesse « toujours sur la
+vraie page » exige. **Les passages sont les morceaux.** On les plonge (`@cf/baai/bge-m3`), on
+range les vecteurs dans Vectorize sous l'identifiant du passage, et `/rag-search` fusionne le FTS5
+déjà bâti avec le vectoriel — le schéma hybride du fichier d'inspiration. `journal_indexation`
+fait la réconciliation, et c'est ce pour quoi il a été écrit.
+
+Coût mesuré sur le corpus réel : plongement initial ≈ 0,10 $ une fois (8 M jetons à 0,012 $/M),
+stockage Vectorize ≈ 0,01 $/mois (32,8 M dimensions, 10 M incluses), requêtes incluses
+(50 M dimensions ≈ 48 000 recherches/mois), D1 dans les paliers inclus, R2 ≈ 0,15 $/mois pour
+10 Go. **Le tout tient dans les 5 $.**
+
+### 3. L'ordre : le bureau d'abord
+
+« Une fois Liénothèque fonctionnelle, je mets ma première bibliothèque sur mon Mac ; si ça
+fonctionne, je la migre sur R2. » Le lot en ligne est donc **en réserve, prêt**, et la séquence de
+mise en marche (`lot-e5-etape4-plan.md` §13) n'est pas engagée. Rien n'est déployé, aucun réglage
+ni secret n'est posé.
+
+### Ce qui reste ouvert
+
+**L'accès.** « Ouvert à tous en lecture » a été retenu. Deux lectures en découlent, et elles ne
+donnent pas le même travail : *lire sans avoir à entrer depuis n'importe quel appareil* (routes
+publiques en lecture, mise en cache, limitation de débit) ou *diffuser publiquement*. La seconde
+porte sur des ouvrages sous droits et n'est pas la même décision que la première. À trancher avant
+d'écrire la première route publique — pas avant, puisque le lot attend.
+
+---
+
+## 22 octobre 2026 — « sans avoir à entrer » : ce que le plan disait déjà, et les deux manques
+
+Précision apportée : « sans avoir à entrer, depuis n'importe quel appareil ; Liénothèque sera
+utilisée par des applications ou systèmes type Studio Clinique ou prof de basse, et d'autres à
+venir — coaching de remise en forme, autre. » Et, aussitôt après : **c'est sa fonction première,
+déjà discutée.**
+
+C'est exact, et `lot-e-proposition.md` §3 à §5 le porte. Cette entrée ne redécouvre donc rien :
+elle ferme une question d'accès laissée ouverte le même jour, en se rangeant au plan, et nomme
+**deux manques** que le plan ne couvre pas.
+
+### La question d'accès est tranchée par le plan, pas par une nouveauté
+
+J'avais proposé la veille une **lecture publique** de la façade. Elle est retirée : le plan a une
+réponse meilleure, et c'est elle qui vaut.
+
+§3 : la façade accepte **deux portes** — le témoin de session pour les écrans de Liénothèque, et
+un **jeton limité à une bibliothèque et à des actions** pour une application (INT-01, SEC-03),
+envoyé sous le même nom d'en-tête `X-API-Key` pour que le code de l'application n'ait pas à
+changer. Ce jeton n'est pas la clé maîtresse : il est borné, révocable seul, et sa révocation
+n'atteint aucun autre accès.
+
+**Et cela suffit à « sans avoir à entrer ».** Celui qui n'entre pas, c'est la personne : elle
+utilise Studio Clinique, pas Liénothèque. L'application porte le jeton, sur n'importe quel
+appareil. Ouvrir la lecture à tous n'ajouterait rien à cette promesse et retirerait la
+révocation.
+
+Que le jeton soit lisible dans une page statique n'y change rien — c'est précisément pourquoi il
+est **borné et révocable** plutôt que maître. Studio Clinique a payé trois correctifs successifs
+pour l'apprendre, sa clé ayant dû être tenue pour compromise ; le lot E est, dans les mots du
+plan, « le moment où ce risque se solde ».
+
+La lecture ouverte n'est donc pas retenue, et `lecture: "publique"` n'a pas lieu d'être.
+
+### Manque 1 — CORS n'est écrit nulle part, et la bascule bute dessus au premier appel
+
+Le plan dit que la bascule est **une seule valeur** : `WORKER_URL` pointe sur l'ancien Worker ou
+sur le nouveau. C'est vrai du code de l'application, et faux du navigateur.
+
+Le Worker de Liénothèque n'envoie **aucun en-tête CORS**, délibérément : il sert sa propre page,
+le témoin de session est `SameSite=Lax`, une seule origine — c'est écrit dans son `wrangler.toml`.
+Or une application consommatrice est servie depuis une autre origine. `clone-proxy` le règle avec
+un `ADOC_ALLOWED_ORIGIN` unique ; ici il en faut une **liste, déclarée par client**, puisqu'il y
+en aura plusieurs.
+
+Sans cela, le jour de la bascule, le navigateur refuse l'appel avant que la porte n'ait rien à
+dire. Le mot « CORS » n'apparaît dans aucun document de plan.
+
+### Manque 2 — la façade est clouée à une bibliothèque par un secret de déploiement
+
+`BIBLIOTHEQUE_FACADE` est un secret : une bibliothèque, fixée au déploiement. Trois applications
+en veulent trois, servies par le même Worker.
+
+Le plan donne la sortie sans la nommer : le jeton est « limité **à une bibliothèque** et à des
+actions ». La bibliothèque doit donc venir **du jeton**, pas du secret. Le secret disparaît, le
+plafond avec lui, et l'isolation reste structurelle — chaque jeton ne désigne qu'une place de la
+réserve.
+
+### Ce qui ne bouge pas
+
+Les fichiers ne sortent que par un **laissez-passer signé et périssable**, jamais par une route
+ouverte. L'écriture — publier, classer, retirer — reste au jeton et aux droits du registre.
+L'administration reste à la cérémonie WebAuthn : une personne, jamais une machine.
+
+Et la réserve de liaisons reste le modèle retenu, avec son prix assumé : publier une bibliothèque
+de plus est un déploiement. Cloudflare admet environ 5 000 liaisons D1 par script — le plafond
+n'est pas le nombre, c'est la main humaine sur chaque création. Tenable tant que c'est vous qui
+les ajoutez.
+
+### Rien n'est engagé
+
+L'ordre reste celui fixé le même jour : le bureau d'abord. Les deux manques sont nommés, non
+écrits.
+
+---
+
+## 22 octobre 2026 — la trace s'écrit dans un fichier, et dans le paquet livré aussi
+
+Le paquet signé n'a ni console, ni inspecteur, ni « Inspecter l'élément » au clic droit. Le
+traceur du 21 octobre existait pour cette situation exactement, et il n'y parlait à personne.
+
+### Deux raisons, et chacune suffisait
+
+`journal_page` écrivait avec `eprintln!`, donc sur la **sortie d'erreur**, et seulement sous
+`#[cfg(debug_assertions)]`.
+
+| | conséquence |
+|---|---|
+| le paquet signé est une construction **livrée** | la ligne était jetée sans être écrite nulle part |
+| une application lancée depuis le Finder n'a **pas de terminal** | même en mise au point, la sortie d'erreur n'allait à aucun endroit lisible |
+
+Un traceur muet là où il est seul à pouvoir parler n'est pas un traceur.
+
+### Ce qui a été fait
+
+**`trace.rs`** : un fichier, ouvert au démarrage dans le dossier de journaux de l'application —
+`~/Library/Logs/fr.c-concept.lienotheque.prototype/trace.log` sur macOS, donné par l'hôte et non
+inventé par nous. Remis à zéro à chaque lancement, plafonné à deux mégaoctets, vidé à chaque
+ligne pour qu'une application figée ne garde pas pour elle la ligne qui l'explique. Un échec
+d'ouverture ne fait jamais tomber le démarrage : on ne trace plus, c'est tout.
+
+**L'appel de l'hôte est tracé des deux côtés.** C'était la pièce qui manquait au traceur du
+21 octobre : il voyait le clic, et plus rien ensuite. On ne pouvait donc pas distinguer « le
+gestionnaire n'a jamais été appelé » de « il a été appelé et l'hôte a refusé » — deux causes, deux
+remèdes opposés, et aucune ligne pour les séparer. Tout `invoke` passe maintenant par une
+enveloppe qui écrit la demande puis ce qu'elle devient.
+
+**Les arguments ne sont jamais écrits**, seulement leurs noms : ils portent des chemins de
+l'ordinateur et le contenu des bibliothèques, et une trace qu'on envoie pour se faire aider ne
+doit rien emporter de tout cela.
+
+**Le sélecteur de dossier est tracé à part**, parce qu'il ne passe pas par une commande de l'hôte
+mais par le greffon de dialogue, dont les droits se déclarent dans la configuration du paquet. Un
+greffon sans droit échoue d'une manière qui, vue de l'écran, ressemble à un bouton qui ne fait
+rien. Trois lignes séparent désormais les trois cas : jamais appelé, refusé, ou renoncé.
+
+### Ce que la trace a servi à établir le jour même
+
+Le paquet signé que Christophe essayait datait du **21 octobre à 20 h 58**. Le correctif qui
+relie le bouton « Créer ma première bibliothèque » — commit `93aa40f5`, « Une porte peinte sur le
+mur » — est de **22 h 23**, une heure et demie plus tard, suivi de trois autres jusqu'à 23 h 17.
+
+**Le bouton était donc bel et bien mort dans ce paquet**, non par un défaut d'empaquetage mais
+parce que la construction précédait sa correction. Rien n'était à chercher du côté de la
+signature, du runtime renforcé ni des droits du greffon — trois pistes qu'on aurait suivies, et
+qu'une date a écartées.
+
+**La leçon n'est pas « il fallait reconstruire ».** Elle est qu'aucune des trois pistes ne pouvait
+être écartée sans une trace, et qu'il a fallu une journée pour s'en apercevoir. Un paquet porte
+désormais la sienne.
+
+---
+
+## 22 octobre 2026 — le paquet n'avait jamais exécuté la même chaîne que les bancs
+
+Trouvé en faisant exactement ce que `LIV-07` demande : Christophe ouvre le paquet signé lui-même,
+s'en sert, et rapporte ce qu'il voit. Message à l'écran : `spawnSync tesseract ENOENT`, sur
+l'essai d'une manière de lire, dans l'application installée sous `/Applications`.
+
+### Le fait
+
+Tesseract **est** dans le paquet — `Contents/MacOS/tesseract`, 88 Ko, posé là par `externalBin`.
+Mais la chaîne le lance **par son nom** (`execFileSync("tesseract", …)`, `outils/lecteur-texte/src/ocr.ts`)
+et compte donc sur le `PATH`. Une application ouverte depuis le Finder hérite d'un `PATH`
+minimal — `/usr/bin:/bin:/usr/sbin:/sbin` — qui ne contient pas le dossier de ses propres
+binaires.
+
+`TESSDATA_PREFIX` n'était pas transmis davantage. L'hôte Rust sait pourtant désigner les modèles
+de langue : `ocr.rs` le pose pour **son** chemin OCR. Mais la chaîne tourne dans un Node séparé,
+qui n'en savait rien. Même Tesseract trouvé, aucune langue n'aurait été reconnue.
+
+### Ce que cela révèle, et qui dépasse Tesseract
+
+**Toutes les mesures du projet ont été faites depuis un terminal**, où un Tesseract installé par
+ailleurs est sur le `PATH` : le réimport des 249 ouvrages, les bancs, les épreuves de corpus. Tous
+ont trouvé *un* Tesseract — jamais celui du paquet.
+
+Le paquet n'avait donc **jamais exécuté la même chaîne que les bancs**, et rien ne pouvait le
+dire : les deux trouvaient quelque chose. C'est la même famille que les neuf portes peintes du
+21 octobre — un mécanisme juste qu'aucun chemin réel n'empruntait — mais d'un cran au-dessus : ce
+n'était pas une porte de l'interface, c'était l'empaquetage lui-même.
+
+**`LIV-07` a payé le jour de son écriture.** L'exigence dit qu'un geste fait par Claude Code dans
+un banc ou une ligne de commande n'est pas une preuve. Ce défaut en est la démonstration : aucune
+des 2 260 épreuves ne pouvait le voir, et il a suffi d'un double-clic.
+
+### Le correctif
+
+`moteur.rs` donne au moteur l'environnement dont il a besoin : le dossier de ses binaires **en
+tête** du `PATH` — celui qu'on emporte a été éprouvé avec la chaîne, celui du système ne l'a pas
+été — et `TESSDATA_PREFIX` lorsque le dossier des modèles existe réellement.
+
+**L'environnement plutôt qu'un chemin passé de couche en couche.** La chaîne sait déjà résoudre un
+outil par son nom et honorer `TESSDATA_PREFIX` : c'est la convention de Tesseract lui-même. Lui
+donner son environnement la laisse fonctionner comme elle est écrite, et vaudra pour tout outil
+annexe que le paquet emportera ensuite. Faire descendre un chemin absolu à travers quatre couches
+demanderait quatre modifications pour dire la même chose, et une de plus au prochain outil.
+
+Trois épreuves : le dossier des binaires est en tête du chemin, les modèles sont désignés, et **un
+dossier de modèles absent ne se promet pas** — un réglage qui désigne un dossier vide vaut moins
+que son absence, puisque Tesseract chercherait là sans qu'on sache pourquoi il ne trouve rien.
+
+### Une réserve nommée, laissée ouverte
+
+**Siegfried n'est pas dans le paquet du tout.** `externalBin` ne déclare que `tesseract` et
+`node`. Or `parSiegfried` rend `undefined` sans erreur quand le binaire manque — « ce n'est pas
+une erreur », dit son commentaire, et c'est vrai d'un poste ordinaire. Dans le paquet,
+l'identification des formats retombe donc **silencieusement** sur la signature par contenu,
+méthode plus faible que celle employée par toutes les mesures.
+
+L'ajouter change le contenu du paquet et demande d'embarquer aussi son fichier de signatures
+PRONOM. **Soumis le 22 octobre, laissé de côté sans être tranché**, à la demande de Christophe.
+La réserve reste ouverte, et elle est de la même nature que celle qu'on vient de fermer : un
+écart entre ce que mesurent les bancs et ce qu'exécute le paquet.

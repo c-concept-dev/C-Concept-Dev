@@ -8,6 +8,7 @@
 pub mod arrivee;
 pub mod captures;
 pub mod depot;
+pub mod doublons;
 pub mod file;
 pub mod journal;
 pub mod limites;
@@ -19,6 +20,7 @@ pub mod pdf;
 pub mod plateforme;
 pub mod reglages;
 pub mod roulement;
+pub mod trace;
 pub mod traitement;
 pub mod travail;
 pub mod volume;
@@ -82,14 +84,22 @@ pub struct Etat {
 /// garantir : qu'elle s'écrit entière ou pas du tout.
 #[tauri::command]
 fn creer_bibliotheque(racine: String, description: String) -> Result<String, String> {
-    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Dossier impossible à préparer : {e}"))?;
-    if depot.deja_une_bibliotheque() {
-        return Err("Une bibliothèque occupe déjà ce dossier. Ouvrez-la, ou choisissez-en un autre.".to_owned());
+    trace::ecrire(&format!("hôte · creer_bibliotheque « {racine} » ({} octets de description)", description.len()));
+    let rendu = (|| {
+        let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Dossier impossible à préparer : {e}"))?;
+        if depot.deja_une_bibliotheque() {
+            return Err("Une bibliothèque occupe déjà ce dossier. Ouvrez-la, ou choisissez-en un autre.".to_owned());
+        }
+        depot
+            .ecrire_description(&description)
+            .map(|chemin| chemin.to_string_lossy().into_owned())
+            .map_err(|e| format!("Description impossible à écrire : {e}"))
+    })();
+    match &rendu {
+        Ok(chemin) => trace::ecrire(&format!("hôte · creer_bibliotheque → écrite à « {chemin} »")),
+        Err(souci) => trace::ecrire(&format!("hôte · creer_bibliotheque REFUSE : {souci}")),
     }
-    depot
-        .ecrire_description(&description)
-        .map(|chemin| chemin.to_string_lossy().into_owned())
-        .map_err(|e| format!("Description impossible à écrire : {e}"))
+    rendu
 }
 
 /// Met la file d'une bibliothèque en route, et la laisse tourner.
@@ -181,13 +191,16 @@ fn agir_sur_travail(racine: String, id: String, action: String) -> Result<serde_
 /// là où on peut le lire.
 #[tauri::command]
 fn journal_page(texte: String) {
-    // Silencieux dans un paquet livré : la trace sert à chercher, pas à accompagner. Le coût
-    // côté page est d'un appel par clic, c'est-à-dire rien, et le fil reste en place pour le
-    // jour où il faudra de nouveau regarder ce qu'une fenêtre sans console est en train de faire.
+    // **Dans le paquet livré aussi**, et c'est un changement du 22 octobre 2026. Elle était
+    // silencieuse hors mise au point, au motif qu'« une trace sert à chercher, pas à
+    // accompagner » — mais le seul endroit où l'on ne peut pas chercher autrement est
+    // précisément le paquet : pas de console, pas d'inspecteur, pas de terminal. Le traceur de
+    // la page parlait donc à personne, exactement quand il fallait l'écouter.
+    //
+    // Le coût est borné par `trace.rs` : un fichier remis à zéro à chaque démarrage, plafonné.
+    trace::ecrire(&format!("page · {texte}"));
     #[cfg(debug_assertions)]
     eprintln!("page : {texte}");
-    #[cfg(not(debug_assertions))]
-    let _ = texte;
 }
 
 /// Les emplacements du moteur embarqué, pour les commandes qui l'interrogent directement.
@@ -253,7 +266,24 @@ fn apercu_de_pages(racine: String, empreinte: String, nom: String, depuis: u32, 
             "image": format!("data:image/webp;base64,{}", BASE64.encode(&octets)),
         }));
     }
-    Ok(serde_json::json!({ "pages": rendues }))
+    // Pourquoi rien ne sort, quand rien ne sort. La cause la plus fréquente fait foi : une
+    // tranche de dix pages dont neuf portent plusieurs images et une est tronquée se résume par
+    // « plusieurs images », ce qui est ce qu'il faut dire. Sans ce mot, l'écran annonce « pas
+    // encore préparées » à quelqu'un qui attendrait pour rien — ces pages ne le seront jamais
+    // par ce chemin-là.
+    let refusees = lu["refusees"].as_array().unwrap_or(&vides);
+    let mut comptes: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for refus in refusees {
+        if let Some(cause) = refus["cause"].as_str() {
+            *comptes.entry(cause).or_default() += 1;
+        }
+    }
+    let dominante = comptes.into_iter().max_by_key(|(_, n)| *n).map(|(cause, _)| cause.to_owned());
+
+    Ok(match (rendues.is_empty(), dominante) {
+        (true, Some(cause)) => serde_json::json!({ "pages": rendues, "refus": cause }),
+        _ => serde_json::json!({ "pages": rendues }),
+    })
 }
 
 /// Essaie une manière de lire sur quelques pages, sans rien enregistrer (REC-07).
@@ -355,14 +385,70 @@ fn lire_maniere(racine: String) -> Result<Option<String>, String> {
 #[tauri::command]
 fn vue_de_document(racine: String, empreinte: String) -> Result<Option<serde_json::Value>, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    vue_active(&depot, &empreinte)
+}
+
+/// Ce que la commande ci-dessus rend, séparé d'elle pour qu'on puisse l'éprouver sur une vraie
+/// bibliothèque sans ouvrir de fenêtre.
+pub fn vue_active(depot: &depot::Depot, empreinte: &str) -> Result<Option<serde_json::Value>, String> {
     let Some(charge) = depot
-        .charge_active(&empreinte)
+        .charge_active(empreinte)
         .map_err(|e| format!("Version active illisible : {e}"))?
     else {
         return Ok(None);
     };
     let lu: serde_json::Value = serde_json::from_str(&charge).map_err(|e| format!("Version active illisible : {e}"))?;
-    Ok(Some(lu["vue"].clone()))
+    let mut vue = lu["vue"].clone();
+    greffer_le_texte(&mut vue, &lu["passages"]);
+    Ok(Some(vue))
+}
+
+/// Pose sur chaque page le texte qui en a été tiré.
+///
+/// ## Le trou que cela comble, mesuré le 22 octobre 2026
+///
+/// `construireVue` écrit `texte: []` en dur : la vue n'a jamais reçu les passages. Sur la
+/// bibliothèque réimportée, **aucune des 11 202 pages ne portait son texte** — zéro sur
+/// cent trente-huit documents — alors que les mêmes versions contiennent 32 052 passages. Le
+/// panneau « Texte de la page » du Lecteur était donc vide sur tout le corpus.
+///
+/// ## Pourquoi à la lecture, et non à la construction
+///
+/// Les deux, en vérité : la chaîne doit apprendre à le faire pour ce qu'elle produira ensuite.
+/// Mais réparer la chaîne seule laisserait les 243 documents déjà traités sans texte jusqu'à un
+/// réimport de cinq heures. La greffe vaut tout de suite, et elle ne coûte rien : les passages
+/// sont déjà dans la main de celui qui lit la version.
+///
+/// Le rang de page fait foi des deux côtés — `Passage.page` et `PageAffichee.index` comptent à
+/// partir de un —, et c'est la seule clé qui existe entre eux.
+fn greffer_le_texte(vue: &mut serde_json::Value, passages: &serde_json::Value) {
+    let Some(passages) = passages.as_array() else { return };
+    if passages.is_empty() {
+        return;
+    }
+    let mut par_page: std::collections::HashMap<u64, Vec<String>> = std::collections::HashMap::new();
+    for passage in passages {
+        let (Some(page), Some(texte)) = (passage["page"].as_u64(), passage["texte"].as_str()) else { continue };
+        // Le texte d'un passage est d'un bloc, sauts de ligne compris : c'est la page qui les a
+        // posés, et les recoller rendrait illisible ce que la mise en page séparait.
+        par_page
+            .entry(page)
+            .or_default()
+            .extend(texte.lines().map(str::trim).filter(|l| !l.is_empty()).map(str::to_owned));
+    }
+
+    let Some(pages) = vue["pages"].as_array_mut() else { return };
+    for page in pages.iter_mut() {
+        // On ne touche pas une page qui porte déjà son texte : le jour où la chaîne le posera,
+        // cette greffe se retirera d'elle-même, sans rien écraser entre-temps.
+        if page["texte"].as_array().is_some_and(|t| !t.is_empty()) {
+            continue;
+        }
+        let Some(index) = page["index"].as_u64() else { continue };
+        if let Some(lignes) = par_page.get(&index) {
+            page["texte"] = serde_json::json!(lignes);
+        }
+    }
 }
 
 /// Le texte d'un document, tel que la chaîne l'a rangé dans sa version active (RCH-07).
@@ -422,8 +508,54 @@ fn classements_de_bibliotheque(racine: String) -> Result<serde_json::Value, Stri
 /// l'activation a écrit. C'est la différence entre lire un index et le tenir.
 #[tauri::command]
 fn apercu_de_bibliotheque(racine: String) -> Result<Vec<serde_json::Value>, String> {
-    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    apercus_de(&racine)
+}
+
+/// Ce que la commande ci-dessus fait, séparé d'elle pour qu'on puisse le mesurer.
+///
+/// Une commande Tauri ne s'appelle que depuis une page ; sa logique, elle, doit pouvoir
+/// s'éprouver sur une vraie bibliothèque sans ouvrir de fenêtre. C'est ce que demande LIV-07 :
+/// ma vérification accélère le travail, elle ne remplace pas le dernier geste — encore faut-il
+/// qu'elle soit possible.
+/// Le titre d'un document vit dans son travail, et nulle part ailleurs.
+///
+/// **Une version n'en porte aucun.** Son champ `vue` est une `VueBibliotheque` : son `nom` est
+/// celui de la **bibliothèque**, pas du document. Le lire comme un titre était une erreur de
+/// catégorie, et elle se voyait : sur la bibliothèque réimportée, les 243 documents
+/// s'appelaient tous « Base de connaissance ». Pire, ce nom servait ensuite à dériver une
+/// extension de fichier — un nom sans extension donne « .bin », donc un chemin qui n'existe
+/// jamais, donc « ce fichier n'est plus dans la bibliothèque » sur un document bien présent.
+///
+/// Le travail, lui, garde le nom du fichier déposé. On le relit une fois — 249 travaux font
+/// 137 Ko — et on joint par l'empreinte, qui est la seule clé commune (ID-01).
+pub fn titres_de(depot: &depot::Depot) -> std::collections::HashMap<String, String> {
+    let mut titres: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    if let Ok(travaux) = file::charger_tout(&depot.travaux(), &mut |_| {}) {
+        for travail in travaux {
+            let (Some(empreinte), Some(sujet)) = (travail.empreinte, travail.sujet) else { continue };
+            // Un même contenu peut avoir plusieurs travaux — une reprise, un redépôt. Ils
+            // portent le même nom de fichier : le premier venu suffit.
+            titres.entry(empreinte).or_insert(sujet.nom);
+        }
+    }
+    titres
+}
+
+/// Le nom d'un document, ou de quoi le distinguer des autres à défaut.
+///
+/// Sans travail retrouvé, on ne devine pas : l'empreinte abrégée distingue au moins les documents
+/// les uns des autres, ce que le nom de la bibliothèque ne faisait pas.
+pub fn titre_ou_empreinte(titres: &std::collections::HashMap<String, String>, empreinte: &str) -> String {
+    titres
+        .get(empreinte)
+        .cloned()
+        .unwrap_or_else(|| format!("Document {}", &empreinte[..empreinte.len().min(8)]))
+}
+
+pub fn apercus_de(racine: &str) -> Result<Vec<serde_json::Value>, String> {
+    let depot = depot::Depot::ouvrir(racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     let actives = depot.actives().map_err(|e| format!("Versions actives illisibles : {e}"))?;
+    let titres = titres_de(&depot);
 
     let mut apercus = Vec::with_capacity(actives.len());
     for (empreinte, pointeur) in actives {
@@ -434,12 +566,33 @@ fn apercu_de_bibliotheque(racine: String) -> Result<Vec<serde_json::Value>, Stri
             continue;
         };
         let Ok(lu) = serde_json::from_str::<serde_json::Value>(&charge) else { continue };
+        let titre = titre_ou_empreinte(&titres, &empreinte);
+        // Un livre lu ne doit pas paraître vide.
+        //
+        // Les compteurs d'une version sont justes — « 130 pages » pour un document de 130 pages —
+        // mais un document **composé en texte** n'a aucune page affichable, et ses trois
+        // compteurs tombent donc à zéro. Sur la bibliothèque réimportée, 105 documents sur 243
+        // s'annonçaient ainsi vides alors qu'ils portent de 38 à 1 275 passages chacun.
+        //
+        // On ajoute donc ce qu'on sait, et seulement quand les compteurs ne disent rien : le
+        // nombre de passages réellement lus. C'est un rattrapage à la lecture, parce que la
+        // chaîne ne les compte pas encore dans la vue — le jour où elle le fera, ces lignes
+        // n'auront plus rien à ajouter et pourront partir.
+        let mut compteurs = lu["vue"]["compteurs"].clone();
+        let muets = compteurs
+            .as_array()
+            .is_none_or(|liste| liste.iter().all(|c| c["nombre"].as_u64().unwrap_or(0) == 0));
+        let passages = lu["passages"].as_array().map(Vec::len).unwrap_or(0);
+        if muets && passages > 0 {
+            compteurs = serde_json::json!([{ "nombre": passages, "mot": "passages lus" }]);
+        }
+
         apercus.push(serde_json::json!({
             "empreinte": empreinte,
             "version": pointeur.version,
             "activeeLe": pointeur.activee_le,
-            "nom": lu["vue"]["nom"].clone(),
-            "compteurs": lu["vue"]["compteurs"].clone(),
+            "nom": titre,
+            "compteurs": compteurs,
             "aVerifier": lu["vue"]["aVerifier"].clone(),
         }));
     }
@@ -451,6 +604,35 @@ fn apercu_de_bibliotheque(racine: String) -> Result<Vec<serde_json::Value>, Stri
 /// Une par une, et non toutes d'un coup : un livre de trois cents pages pèse des centaines de
 /// mégaoctets, et le Lecteur n'en montre qu'une à la fois. Elle revient dans la réponse plutôt
 /// que par un chemin que la page irait lire — la page web ne touche pas au disque.
+/// Les groupes de documents qui disent la même chose, dans cette bibliothèque (HER-08).
+///
+/// Elle **trouve et décrit, et ne supprime rien** : aucune mesure de texte ne distingue un vrai
+/// doublon d'un même ouvrage en deux formats, et garder l'un et l'autre est un choix légitime.
+/// Voir le module `doublons` pour les mesures qui l'établissent. Le retrait, lui, se demande
+/// document par document, par `retirer_document`.
+#[tauri::command]
+fn doublons_de_bibliotheque(racine: String) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let titres = titres_de(&depot);
+    let trouvaille = doublons::chercher(&depot, &|empreinte: &str| titre_ou_empreinte(&titres, empreinte))
+        .map_err(|e| format!("Recherche de doublons impossible : {e}"))?;
+    serde_json::to_value(trouvaille).map_err(|e| format!("Résultat illisible : {e}"))
+}
+
+/// Retire un document de la bibliothèque, et dit ce que le retrait a emporté (HER-07).
+///
+/// La source part à la corbeille du système : se tromper de document ne doit pas coûter un livre.
+/// Le reste — versions, dérivés, travaux, classement — s'efface, puisqu'il se reconstruit depuis
+/// cette source.
+#[tauri::command]
+fn retirer_document(racine: String, empreinte: String) -> Result<serde_json::Value, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let retrait = depot
+        .retirer_document(&empreinte)
+        .map_err(|e| format!("Retrait impossible : {e}"))?;
+    serde_json::to_value(retrait).map_err(|e| format!("Compte rendu illisible : {e}"))
+}
+
 #[tauri::command]
 fn image_de_page(racine: String, version: String, fichier: String) -> Result<Option<String>, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
@@ -636,7 +818,26 @@ pub fn run_captures() {
 
 fn lancer(captures: bool) {
     tauri::Builder::default()
-        .setup(move |app| if captures { captures::brancher(app) } else { Ok(()) })
+        .setup(move |app| {
+            // La trace d'abord, et avant tout le reste : ce qu'on cherche peut arriver au
+            // démarrage, et une trace ouverte après coup ne dit rien de ce qui l'a précédée.
+            // Le dossier vient de l'hôte — « ~/Library/Logs/<identifiant> » sur macOS — pour que
+            // la trace soit au même endroit qu'un autre journal d'application, et non dans un
+            // coin inventé par nous.
+            match app.path().app_log_dir() {
+                Ok(dossier) => {
+                    trace::ouvrir(&dossier);
+                    trace::ecrire(&format!("hôte · démarrage · trace dans « {} »", dossier.display()));
+                }
+                // Sans dossier de journaux, on ne trace pas, et l'application démarre quand même.
+                Err(souci) => eprintln!("trace impossible à ouvrir : {souci}"),
+            }
+            if captures {
+                captures::brancher(app)
+            } else {
+                Ok(())
+            }
+        })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(Etat::default())
@@ -660,6 +861,8 @@ fn lancer(captures: bool) {
             classements_de_bibliotheque,
             apercu_de_bibliotheque,
             image_de_page,
+            doublons_de_bibliotheque,
+            retirer_document,
             version_active,
             faire_tourner,
             travaux,
@@ -682,4 +885,59 @@ fn lancer(captures: bool) {
                 arreter_les_roulements(&app.state::<Etat>());
             }
         });
+}
+
+#[cfg(test)]
+mod greffe {
+    use super::greffer_le_texte;
+
+    /// Une vue de deux pages, telle que `construireVue` la rend : `texte` vide en dur.
+    fn vue_de_deux_pages() -> serde_json::Value {
+        serde_json::json!({ "pages": [
+            { "index": 1, "texte": [], "elements": [] },
+            { "index": 2, "texte": [], "elements": [] },
+        ]})
+    }
+
+    #[test]
+    fn le_texte_d_un_passage_se_pose_sur_sa_page() {
+        let mut vue = vue_de_deux_pages();
+        let passages = serde_json::json!([
+            { "page": 1, "texte": "Première ligne.\nSeconde ligne." },
+            { "page": 2, "texte": "Page deux." },
+        ]);
+        greffer_le_texte(&mut vue, &passages);
+        assert_eq!(vue["pages"][0]["texte"], serde_json::json!(["Première ligne.", "Seconde ligne."]));
+        assert_eq!(vue["pages"][1]["texte"], serde_json::json!(["Page deux."]));
+    }
+
+    #[test]
+    fn une_page_sans_passage_reste_sans_texte() {
+        let mut vue = vue_de_deux_pages();
+        greffer_le_texte(&mut vue, &serde_json::json!([{ "page": 1, "texte": "Seule." }]));
+        assert_eq!(vue["pages"][1]["texte"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn un_texte_deja_pose_ne_se_remplace_pas() {
+        // Le jour où la chaîne posera le texte elle-même, la greffe doit s'effacer devant lui.
+        let mut vue = serde_json::json!({ "pages": [{ "index": 1, "texte": ["Déjà là."] }] });
+        greffer_le_texte(&mut vue, &serde_json::json!([{ "page": 1, "texte": "Autre chose." }]));
+        assert_eq!(vue["pages"][0]["texte"], serde_json::json!(["Déjà là."]));
+    }
+
+    #[test]
+    fn sans_passage_la_vue_ne_bouge_pas() {
+        let mut vue = vue_de_deux_pages();
+        let avant = vue.clone();
+        greffer_le_texte(&mut vue, &serde_json::json!([]));
+        assert_eq!(vue, avant);
+    }
+
+    #[test]
+    fn les_lignes_vides_ne_se_montrent_pas() {
+        let mut vue = vue_de_deux_pages();
+        greffer_le_texte(&mut vue, &serde_json::json!([{ "page": 1, "texte": "Un.\n\n   \nDeux." }]));
+        assert_eq!(vue["pages"][0]["texte"], serde_json::json!(["Un.", "Deux."]));
+    }
 }

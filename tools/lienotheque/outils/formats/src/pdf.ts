@@ -154,6 +154,30 @@ function imageDe(objet: ObjetPdf | undefined): ImagePdf | undefined {
   };
 }
 
+/** Ce flux JPEG est-il entier ?
+ *
+ *  Un JPEG se termine par `FF D9`. Sans cette marque, il manque des octets — et c'est tout, car
+ *  rien dans le format ne permet de le deviner autrement.
+ *
+ *  ## Pourquoi cette question se pose, et pourquoi elle doit se poser ici
+ *
+ *  Un décodeur ne refuse pas un flux tronqué : il décode ce qu'il a, remplit le reste d'un gris
+ *  moyen, et rend une image de la bonne taille. Rien ne distingue alors une page grise d'une page
+ *  réellement grise. Mesuré le 22 octobre 2026 sur un document composé en texte : deux pages
+ *  rendues à 84,5 % et 95,7 % de `(128,128,128)`, quand un décodeur de référence tire du blanc
+ *  des mêmes octets — parce qu'il en recevait, lui, la totalité.
+ *
+ *  La troncature vient de l'extraction : ce lecteur de PDF est fondé sur des expressions
+ *  régulières et ne suit pas les structures compressées que porte ce document. Tant qu'il en est
+ *  là, mieux vaut **refuser une image dont on sait qu'elle est incomplète** que la montrer.
+ *
+ *  Sur le corpus réimporté, 23 documents sur 24 sondés n'en portent aucune : ce n'est pas une
+ *  avarie générale, c'est une famille de documents que ce lecteur ne sait pas ouvrir. */
+export function jpegComplet(octets: Uint8Array): boolean {
+  if (octets.length < 4) return false;
+  return octets[octets.length - 2] === 0xff && octets[octets.length - 1] === 0xd9;
+}
+
 /** Octets d'une image, tels qu'ils sont dans le PDF. Une image DCTDecode EST un JPEG : on
  *  l'écrit telle quelle, sans jamais la redécoder ni la rééchantillonner (OPT-04). */
 export function octetsImage(objets: Map<number, ObjetPdf>, numero: number): { extension: string; octets: Buffer } | undefined {

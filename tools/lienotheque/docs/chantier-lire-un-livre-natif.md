@@ -90,3 +90,58 @@ la moitié de la moitié.
    **à l'endroit de l'extrait**, ce qui demande de savoir surligner dans le texte affiché.
 3. Ce qu'on montre d'un document dont le texte est venu de la reconnaissance : la couche, avec ses
    fautes, ou rien ? Ce n'est pas la même promesse qu'un texte éditorial.
+
+---
+
+## 7. Route A, écrite le 22 octobre 2026
+
+Les trois questions du §6 sont tranchées, et la route A est en place.
+
+### Ce qui a été décidé
+
+| question du §6 | réponse | raison |
+|---|---|---|
+| A, B ou C | **A d'abord**, B pas engagée | Tout le matériau existait déjà. L'écran n'ajoute **aucune donnée** : il lit des passages déposés et éprouvés |
+| Un feuillet d'EPUB dans le même écran qu'une page de PDF ? | **Oui, le même** | Le choix ne se fait pas sur le format mais sur le fait : aucune image, du texte. Le mot affiché vient de `vue.mots.page`, donc une bibliothèque d'EPUB dit « feuillet » sans une ligne de plus (CLA-01) |
+| Le texte venu de la reconnaissance : la couche avec ses fautes, ou rien ? | **La couche, dite comme telle** | `Passage.source` porte déjà l'information. Un avis la nomme : « texte reconnu sur l'image de la page ». La cacher reviendrait à faire passer de l'OCR pour de l'éditorial |
+
+Une quatrième, qui ne s'était pas posée : **une page dont rien n'était lisible** (`lisible: false`,
+FMT-04) le dit **avant** son texte, pas après. On ne laisse pas quelqu'un lire trois lignes de
+bruit avant d'apprendre que c'en est.
+
+### Ce que l'écran fait
+
+`apps/app/src/pages/LectureDuTexte.tsx`, choisi par `App.tsx` quand la vue n'a aucune page **et**
+que des passages existent. Le choix porte sur ce qu'on a, jamais sur le format.
+
+Il cite par `citerPage` — le seul endroit où une page se cite (RCH-09) — donc par le numéro
+imprimé quand il existe, et par le rang en le disant sinon. Il montre l'emplacement quand le
+format le nomme, sans jamais s'en servir pour citer. Il avance aux flèches, par `actionDe`, le
+même tableau de raccourcis que le Lecteur.
+
+Quinze épreuves dans `apps/app/test/lecture-du-texte.test.tsx`.
+
+### Le défaut que les épreuves n'ont pas vu
+
+Les quinze passaient, et **l'écran ne s'affichait pas**. L'effet qui remet tout à zéro quand on
+change de bibliothèque effaçait les passages au démarrage, quand la bibliothèque passe d'absente
+à présente — et l'on retombait sur « rien à montrer » alors que le texte était là.
+
+C'est **exactement** le défaut corrigé la veille sur la vue, deux lignes plus haut dans le même
+effet. Il vivait deux fois. Les passages appartiennent au document regardé, comme la vue : ils
+suivent désormais la même garde.
+
+Pour qu'il se voie, le jeu de démonstration a reçu une variante : `?demonstration&sansImage`
+donne une vue sans aucune page et cinq passages qui couvrent les quatre cas. Sans elle, l'écran
+n'aurait eu que ses épreuves pour preuve — la situation même qui a produit les défauts du
+21 octobre.
+
+### Ce qui reste, et qui est nommé
+
+**Le fil entre la recherche et la lecture** (§6, question 2). Cliquer un résultat ouvre la bonne
+page, mais **l'extrait n'y est pas surligné** : l'adresse ne porte pas le terme cherché, et le
+faire porter touche `navigation.ts` et ses épreuves. Ce n'est pas fait, et aucune ligne ne
+prétend le contraire.
+
+**La route B** n'est pas engagée, et la préférence du §4 reste valable : on y viendra si l'on
+constate qu'il faut *voir* la page et pas seulement la lire.

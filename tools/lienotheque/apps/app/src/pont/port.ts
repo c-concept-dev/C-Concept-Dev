@@ -3,9 +3,11 @@ import type {
   ArriveeDeFichiers,
   ClassementLocal,
   DescriptionBibliotheque,
+  Doublons,
   Passage,
   Recette,
   ReglagesHote,
+  RetraitDeDocument,
   Travail,
   VueBibliotheque,
 } from "@lienotheque/contrats";
@@ -98,6 +100,14 @@ export type PortAdministration = {
   ) => Promise<VueBibliotheque>;
   readonly enregistrerManiere: (racine: string, recette: unknown) => Promise<string>;
   readonly lireManiere: (racine: string) => Promise<Recette | undefined>;
+
+  /** Tenir la bibliothèque : repérer ce qui s'y trouve deux fois, retirer ce dont on ne veut plus.
+   *
+   *  **Deux fonctions, et non une.** Chercher décrit, retirer agit, et rien ne va de l'une à
+   *  l'autre sans qu'on l'ait demandé — aucune mesure de texte ne distingue un vrai doublon d'un
+   *  même ouvrage en deux formats (HER-07, HER-08). */
+  readonly doublonsDeBibliotheque: (racine: string) => Promise<Doublons>;
+  readonly retirerDocument: (racine: string, empreinte: string) => Promise<RetraitDeDocument>;
 };
 
 /** Les noms de chaque port, pour que le partage soit vérifiable à l'exécution.
@@ -133,4 +143,6 @@ export const NOMS_D_ADMINISTRATION = [
   "essayerManiere",
   "enregistrerManiere",
   "lireManiere",
+  "doublonsDeBibliotheque",
+  "retirerDocument",
 ] as const satisfies readonly (keyof PortAdministration)[];

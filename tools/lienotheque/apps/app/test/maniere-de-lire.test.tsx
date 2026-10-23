@@ -208,3 +208,35 @@ describe("l'essai et l'enregistrement", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("n’a pas de description");
   });
 });
+
+/** La planche quand il n'y a rien à poser dessus (22 octobre 2026).
+ *
+ *  Ces trois épreuves existent parce qu'il a manqué exactement celles-ci. La prop s'appelle
+ *  `document` au contrat et se renomme `nomDuDocument` à la destructuration, **pour ne pas
+ *  masquer le `document` du navigateur**. Une correction écrite une heure plus tôt a employé le
+ *  nom court : `document === ""` valait alors toujours faux, et `{document}` demandait à React
+ *  d'afficher l'objet `Document` — page blanche, dans un paquet signé déjà installé.
+ *
+ *  Le typage ne l'a pas vu, et le reste du dépôt non plus : aucune épreuve ne rendait cet écran
+ *  sans pages. */
+describe("la planche sans image (CLA-01)", () => {
+  it("dit qu'aucun document n'est ouvert quand on arrive ici sans en choisir un", () => {
+    poser({ document: "", pages: [] });
+    expect(screen.getByText(/Aucun document n’est ouvert/)).toBeInTheDocument();
+    // Et elle dit où aller : un écran qui constate sans orienter laisse sur place.
+    expect(screen.getByRole("link", { name: "dépôt" })).toHaveAttribute("href", "#depot");
+  });
+
+  it("nomme le document dont les pages manquent, et le nomme vraiment", () => {
+    poser({ document: "aebersold-FRENCH.pdf", pages: [] });
+    // Le nom du document, pas l'objet `Document` du navigateur.
+    expect(screen.getByText(/« aebersold-FRENCH\.pdf »/)).toBeInTheDocument();
+    expect(screen.getByText(/feuillets de/)).toBeInTheDocument();
+  });
+
+  it("montre la page dès qu'il y en a une, et ne dit plus rien manquer", () => {
+    poser({ document: "aebersold-FRENCH.pdf" });
+    expect(screen.queryByText(/n’ont pas encore été/)).toBeNull();
+    expect(screen.queryByText(/Aucun document n’est ouvert/)).toBeNull();
+  });
+});

@@ -280,3 +280,66 @@ export const ApercuEnLigne = z
   })
   .strict();
 export type ApercuEnLigne = z.infer<typeof ApercuEnLigne>;
+
+/** Un document qu'on soupçonne d'en doubler un autre, et ce qui le distingue (HER-08).
+ *
+ *  Chaque champ est là pour **choisir**, et non pour décrire. Deux numérisations d'un même livre
+ *  se distinguent par leur poids ; un même ouvrage en deux formats, par son nom ; un diaporama
+ *  composé autrement, par son nombre de pages. Retirer un champ d'ici, c'est retirer à quelqu'un
+ *  le moyen de trancher. */
+export const DocumentSuspect = z
+  .object({
+    empreinte: Empreinte,
+    nom: z.string().min(1),
+    pages: z.number().int().nonnegative(),
+    passages: z.number().int().nonnegative(),
+    /** Les mots retenus de son texte : ce sur quoi la ressemblance a été calculée. */
+    mots: z.number().int().nonnegative(),
+    /** Le poids de sa source sur le disque. Zéro si elle a disparu. */
+    octets: z.number().int().nonnegative(),
+  })
+  .strict();
+export type DocumentSuspect = z.infer<typeof DocumentSuspect>;
+
+/** Des documents qui disent la même chose, et à quel point.
+ *
+ *  La ressemblance annoncée est **la plus faible du groupe** : c'est la plus prudente, et un
+ *  groupe ne doit pas paraître plus sûr que son membre le moins ressemblant. */
+export const GroupeDeDoublons = z
+  .object({
+    documents: z.array(DocumentSuspect).min(2),
+    ressemblance: z.number().min(0).max(1),
+  })
+  .strict();
+export type GroupeDeDoublons = z.infer<typeof GroupeDeDoublons>;
+
+/** Ce qu'une recherche de doublons a trouvé, et ce qu'elle n'a pas pu regarder (HER-08).
+ *
+ *  Elle **ne supprime rien et n'en a pas le moyen** : aucune mesure de texte ne distingue un vrai
+ *  doublon d'un même ouvrage en deux formats, et garder l'un et l'autre est un choix légitime. Ce
+ *  contrat porte donc de quoi décider, et aucun ordre.
+ *
+ *  `tropPeuDeTexte` n'est pas un détail à masquer : un document dont la lecture n'a presque rien
+ *  tiré ne peut se comparer à rien — deux textes de cent mots se ressemblent toujours — et c'est
+ *  un fait qui mérite d'être su pour lui-même. Les taire les ferait passer pour comparés. */
+export const Doublons = z
+  .object({
+    groupes: z.array(GroupeDeDoublons).default([]),
+    tropPeuDeTexte: z.array(DocumentSuspect).default([]),
+  })
+  .strict();
+export type Doublons = z.infer<typeof Doublons>;
+
+/** Ce qu'un retrait de document a emporté (HER-07).
+ *
+ *  On le dit plutôt que de laisser deviner : « retiré » sans compte rendu laisse croire qu'un
+ *  document a disparu alors que sa source est à la corbeille, ou l'inverse. */
+export const RetraitDeDocument = z
+  .object({
+    versions: z.number().int().nonnegative(),
+    travaux: z.number().int().nonnegative(),
+    /** Où la source a atterri dans la corbeille. Absente si le document n'en avait plus. */
+    source: z.string().min(1).optional(),
+  })
+  .strict();
+export type RetraitDeDocument = z.infer<typeof RetraitDeDocument>;

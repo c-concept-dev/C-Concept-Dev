@@ -155,3 +155,38 @@ export function peutPartir(travail: Travail, lourdsEnCours: number): boolean {
 export function dejaEnFile(travaux: readonly Travail[], empreinteEntree: string): Travail | undefined {
   return travaux.find((t) => t.empreinteEntree === empreinteEntree && !ETATS_TERMINAUX.includes(t.etat as EtatTravail));
 }
+
+/** Deux relevés de la file disent-ils la même chose ?
+ *
+ *  ## Le défaut que cette fonction ferme, mesuré le 22 octobre 2026
+ *
+ *  L'écran relit la file toutes les deux secondes — c'est voulu, et c'est peu coûteux : 249
+ *  travaux pèsent 137 Ko et se lisent en 6 ms. Mais il **republiait** le relevé à chaque
+ *  battement, identique ou non. Tout ce qui en dépendait se rejouait donc toutes les deux
+ *  secondes, et l'un de ces dépendants relisait la bibliothèque entière : **70,2 Mo de versions
+ *  toutes les deux secondes**, soit 35 Mo/s en continu, pour n'en tirer aucune différence.
+ *
+ *  Le remède n'est pas de supprimer le battement ni de taire ce qu'il déclenche : c'est de ne
+ *  republier que ce qui a changé. La correction vaut alors pour **tous** les dépendants, ceux
+ *  d'aujourd'hui comme ceux qu'on écrira — et elle vaut d'autant plus en ligne, où une relecture
+ *  n'est pas une lenteur mais un appel réseau facturé.
+ *
+ *  ## Ce qui compte comme un changement
+ *
+ *  Ce que les écrans lisent, et rien d'autre : l'identité du travail, son état, sa progression,
+ *  et la date de sa dernière mise à jour. Un bail qui se renouvelle sans rien changer d'autre
+ *  touche `majLe`, donc il compte — et c'est juste : il prouve qu'un moteur est vivant.
+ */
+export function memeFile(avant: readonly Travail[], apres: readonly Travail[]): boolean {
+  if (avant.length !== apres.length) return false;
+  return avant.every((travail, rang) => {
+    const autre = apres[rang];
+    return (
+      autre !== undefined &&
+      travail.id === autre.id &&
+      travail.etat === autre.etat &&
+      travail.progression === autre.progression &&
+      travail.majLe === autre.majLe
+    );
+  });
+}

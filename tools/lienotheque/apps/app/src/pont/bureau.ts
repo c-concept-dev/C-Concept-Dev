@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as invoquerSansTrace } from "@tauri-apps/api/core";
 import type { PortAdministration, PortDeLecture } from "./port.js";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
@@ -6,9 +6,11 @@ import {
   ArriveeDeFichiers,
   ClassementLocal,
   DescriptionBibliotheque,
+  Doublons,
   Passage,
   Recette,
   ReglagesHote,
+  RetraitDeDocument,
   Travail,
   VueBibliotheque,
 } from "@lienotheque/contrats";
@@ -38,7 +40,45 @@ export function estBureau(): boolean {
  *  observe ne sert à rien. */
 export function journaliser(texte: string): void {
   if (!estBureau()) return;
-  void invoke("journal_page", { texte }).catch(() => undefined);
+  // Sans trace, et c'est vital : `invoke` ci-dessous journalise chacun de ses appels. Tracer
+  // celui-ci ferait un appel par appel, sans fin.
+  void invoquerSansTrace("journal_page", { texte }).catch(() => undefined);
+}
+
+/** Tout appel à l'hôte passe par ici, et chacun laisse deux lignes : la demande, puis ce qu'elle
+ *  est devenue.
+ *
+ *  C'est la pièce qui manquait au traceur du 21 octobre. Il voyait le clic, et plus rien après :
+ *  on ne pouvait pas distinguer « le gestionnaire n'a pas été appelé » de « il a été appelé et
+ *  l'hôte a refusé ». Deux causes, deux remèdes opposés, et aucune ligne pour les séparer.
+ *
+ *  Les arguments ne sont **jamais** écrits : ils portent des chemins de l'ordinateur et le
+ *  contenu des bibliothèques. On écrit leurs noms, et c'est assez pour savoir ce qui est parti. */
+/** Les commandes que l'écran rappelle toutes les deux secondes **par dessein**.
+ *
+ *  Elles ne se taisent qu'en réussissant : un échec s'écrit toujours. Sans ce filtre, une trace
+ *  de trente secondes compte des dizaines de lignes de veille et la ligne qu'on y cherche —
+ *  celle du geste — y disparaît.
+ *
+ *  **Deux de plus y figuraient, et c'était une faute.** `apercu_de_bibliotheque` et
+ *  `classements_de_bibliotheque` lisent la bibliothèque entière : les taire parce qu'ils se
+ *  répétaient revenait à cacher le symptôme. Ils se répétaient parce que leur effet dépendait de
+ *  la file, relue toutes les deux secondes — soixante-dix mégaoctets relus en boucle. On ne tait
+ *  pas ce qui n'aurait pas dû se répéter ; on l'empêche de se répéter, et on le laisse se voir. */
+const VEILLE: ReadonlySet<string> = new Set(["travaux", "faire_tourner"]);
+
+async function invoke<T>(nom: string, arguments_?: Record<string, unknown>): Promise<T> {
+  const bavard = !VEILLE.has(nom);
+  const clefs = arguments_ === undefined ? "" : ` (${Object.keys(arguments_).join(", ")})`;
+  if (bavard) journaliser(`→ hôte · ${nom}${clefs}`);
+  try {
+    const rendu = await invoquerSansTrace<T>(nom, arguments_);
+    if (bavard) journaliser(`← hôte · ${nom} · répondu`);
+    return rendu;
+  } catch (souci) {
+    journaliser(`← hôte · ${nom} ÉCHEC : ${souci instanceof Error ? souci.message : String(souci)}`);
+    throw souci;
+  }
 }
 
 /** Crée la bibliothèque dans son dossier portable, et rend le chemin de sa description.
@@ -61,8 +101,20 @@ export async function ecrireBibliotheque(racine: string, description: Descriptio
 
 /** Ouvre le sélecteur de dossier du système, et rend le chemin choisi — ou rien si l'on renonce. */
 export async function choisirDossier(titre: string): Promise<string | undefined> {
-  const choisi = await open({ directory: true, multiple: false, title: titre });
-  return typeof choisi === "string" ? choisi : undefined;
+  // Tracée à part : le sélecteur de dossier ne passe pas par une commande de l'hôte mais par le
+  // greffon de dialogue, dont les droits se déclarent dans la configuration du paquet. Un
+  // greffon sans droit échoue **silencieusement du point de vue de l'écran** — le bouton paraît
+  // ne rien faire. Ces trois lignes disent lequel des trois cas on a : jamais appelé, appelé et
+  // refusé, appelé et renoncé.
+  journaliser("→ dialogue · choisir un dossier");
+  try {
+    const choisi = await open({ directory: true, multiple: false, title: titre });
+    journaliser(`← dialogue · ${typeof choisi === "string" ? "un dossier choisi" : "renoncé"}`);
+    return typeof choisi === "string" ? choisi : undefined;
+  } catch (souci) {
+    journaliser(`← dialogue ÉCHEC : ${souci instanceof Error ? souci.message : String(souci)}`);
+    throw souci;
+  }
 }
 
 /** Ce que l'hôte retient d'une session à l'autre : cet appareil, et les bibliothèques ouvertes. */
@@ -267,6 +319,21 @@ export const lectureDuBureau: PortDeLecture = {
   classerDocument,
 };
 
+/** Les groupes de documents qui disent la même chose (HER-08).
+ *
+ *  Elle **ne retire rien**. C'est une lecture, et son rendu ne porte aucun ordre : à qui la
+ *  bibliothèque appartient de trancher, document par document, par `retirerDocument`. */
+export async function doublonsDeBibliotheque(racine: string): Promise<Doublons> {
+  return Doublons.parse(await invoke("doublons_de_bibliotheque", { racine }));
+}
+
+/** Retire un document de la bibliothèque, et dit ce que le retrait a emporté (HER-07).
+ *
+ *  Sa source part à la corbeille du système : se tromper de document ne doit pas coûter un livre. */
+export async function retirerDocument(racine: string, empreinte: string): Promise<RetraitDeDocument> {
+  return RetraitDeDocument.parse(await invoke("retirer_document", { racine, empreinte }));
+}
+
 export const administrationDuBureau: PortAdministration = {
   creerBibliotheque,
   lireBibliotheque,
@@ -285,4 +352,6 @@ export const administrationDuBureau: PortAdministration = {
   essayerManiere,
   enregistrerManiere,
   lireManiere,
+  doublonsDeBibliotheque,
+  retirerDocument,
 };
