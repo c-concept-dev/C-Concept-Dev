@@ -1291,6 +1291,28 @@
     return (art && art._adocStructuredDoc) || null;
   }
 
+  function paragrapheDuDocument(doc, stepId) {
+    for (var carte of ((doc && doc.blocks) || []).filter(function (b) { return b && b.type === 'card'; })) {
+      var bloc = ((carte.content && carte.content.blocks) || []).find(function (b) { return b.id === stepId; });
+      if (bloc && bloc.type === 'paragraph') return bloc;
+    }
+    return null;
+  }
+
+  function texteProvisoire(texte) {
+    return !String(texte || '').trim() || String(texte).trim() === 'Nouveau paragraphe.';
+  }
+
+  function feuilleDuParagraphe(stepId) {
+    var el = document.getElementById(stepId);
+    return el && el.querySelector('[data-cc-editor-leaf="text"]');
+  }
+
+  function ecrireTexteVisible(leaf, texte) {
+    leaf.textContent = texte;
+    leaf.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   // Le dernier geste, pour l'annuler. Une seule profondeur : « annulation d'un geste », pas un
   // historique — c'est ce que demande le lot, et un historique qui n'est pas éprouvé ment.
   var dernierGeste = null;
@@ -1454,7 +1476,7 @@
     var seulPanneau = document.createElement('div');
     seulPanneau.className = 'nia-panneau nia-paragraphe-panneau';
     seulPanneau.hidden = true;
-    seulPanneau.innerHTML = '<p>La narration sera proposée pour ce paragraphe uniquement. Les autres étapes ne changeront pas.</p>'
+    seulPanneau.innerHTML = '<p>La proposition vise ce paragraphe uniquement. Si son texte est encore « Nouveau paragraphe. », l’application le remplacera aussi. Les autres étapes ne changeront pas.</p>'
       + '<div class="nia-ligne"><label>Longueur visée <input type="number" class="nia-paragraphe-mots" min="15" max="120" value="45"> mots</label>'
       + '<label>Adresse <select class="nia-paragraphe-adresse"><option value="vous">vous</option><option value="tu">tu</option></select></label></div>'
       + '<div class="nia-ligne"><button type="button" class="nia-paragraphe-generer">Proposer</button>'
@@ -1475,7 +1497,7 @@
       var etapes = doc && IA.contenuParEtape(doc);
       var etape = etapes && etapes.find(function (e) { return e.stepId === stepId; });
       if (!etape || etape.type !== 'paragraph') { dire(seulPanneau, 'Sélectionnez un paragraphe de la présentation.', true); return; }
-      var provisoire = !etape.texte || !etape.texte.trim() || etape.texte.trim() === 'Nouveau paragraphe.';
+      var provisoire = texteProvisoire(etape.texte);
       if (provisoire) {
         var voisins = etapes.filter(function (e) {
           return e.stepId !== stepId && e.texte
@@ -1507,13 +1529,13 @@
         if (docCourant() !== doc || !IA.contenuParEtape(doc).some(function (e) { return e.stepId === stepId && e.type === 'paragraph'; })) {
           dire(seulPanneau, 'Le document ou le paragraphe a changé : proposition écartée.', true); return;
         }
-        proposition = { doc: doc, stepId: stepId, paragraphText: etape.texte };
+        proposition = { doc: doc, stepId: stepId, paragraphText: etape.texte, provisoire: provisoire };
         var apercu = seulPanneau.querySelector('.nia-paragraphe-apercu');
         apercu.value = res.entree.text;
         apercu.hidden = false;
         seulPanneau.querySelector('.nia-paragraphe-appliquer').disabled = false;
         dire(seulPanneau, provisoire
-          ? 'Proposition fondée sur les blocs voisins et toute la présentation, pour ce nouveau paragraphe uniquement. Relisez-la : rien n’est encore écrit.'
+          ? 'Proposition fondée sur les blocs voisins et toute la présentation. En l’appliquant, vous remplacerez aussi « Nouveau paragraphe. » par ce texte, sans les marques de pause.'
           : 'Une proposition pour ce seul paragraphe. Relisez-la puis appliquez-la. Rien n’est encore écrit.');
       } catch (e) { dire(seulPanneau, 'Proposition impossible : ' + IA.sansCle(e && e.message || String(e)), true); }
       finally { btn.disabled = false; }
@@ -1526,28 +1548,51 @@
       var etape = IA.contenuParEtape(proposition.doc).find(function (e) { return e.stepId === proposition.stepId && e.type === 'paragraph'; });
       if (!etape) { dire(seulPanneau, 'Le paragraphe n’existe plus : rien n’a été écrit.', true); return; }
       if (etape.texte !== proposition.paragraphText) { dire(seulPanneau, 'Le paragraphe a changé depuis la proposition : recommencez.', true); return; }
+      var bloc = paragrapheDuDocument(proposition.doc, proposition.stepId);
+      var remplacerProvisoire = proposition.provisoire && texteProvisoire(etape.texte);
+      var leaf = remplacerProvisoire ? feuilleDuParagraphe(proposition.stepId) : null;
+      var texteVisible = remplacerProvisoire ? texte.replace(IA.pauseRe(), ' ').replace(/\s+/g, ' ').trim() : '';
+      if (!bloc || (remplacerProvisoire && (!leaf || !texteVisible))) {
+        dire(seulPanneau, 'Le bloc visible est introuvable ou la proposition est vide : rien n’a été écrit.', true); return;
+      }
       var ancienne = window.adocNarrationRead(proposition.doc, proposition.stepId);
       if (ancienne && ancienne !== texte && !window.confirm('Ce paragraphe porte déjà une narration. Remplacer uniquement celle-ci ?')) return;
-      if (ancienne === texte) { dire(seulPanneau, 'Cette narration est déjà appliquée.'); return; }
+      if (ancienne === texte && !remplacerProvisoire) { dire(seulPanneau, 'Cette narration est déjà appliquée.'); return; }
       dernierGeste = { source: 'single', doc: proposition.doc, stepId: proposition.stepId,
-        avant: JSON.parse(JSON.stringify(proposition.doc.narration || [])) };
+        avant: JSON.parse(JSON.stringify(proposition.doc.narration || [])),
+        narrationApres: texte,
+        blocAvant: remplacerProvisoire ? etape.texte : null,
+        blocApres: remplacerProvisoire ? texteVisible : null };
+      if (remplacerProvisoire) ecrireTexteVisible(leaf, texteVisible);
       window.adocNarrationWrite(proposition.doc, proposition.stepId, texte);
       window.adocEditorMarkDirty();
       panneau.querySelector('.nia-annuler').disabled = true;
       seulPanneau.querySelector('.nia-paragraphe-annuler').disabled = false;
       this.disabled = true;
-      dire(seulPanneau, 'Narration appliquée à ce paragraphe uniquement. Sauvegardez pour la conserver.');
+      dire(seulPanneau, remplacerProvisoire
+        ? 'Texte provisoire remplacé et narration appliquée à ce bloc uniquement. Sauvegardez pour les conserver.'
+        : 'Narration appliquée à ce paragraphe uniquement. Sauvegardez pour la conserver.');
       rafraichirChamp();
     };
     seulPanneau.querySelector('.nia-paragraphe-annuler').onclick = function () {
-      if (!dernierGeste || dernierGeste.source !== 'single' || dernierGeste.doc !== docCourant()
-        || dernierGeste.stepId !== proposition.stepId) return;
+      if (!dernierGeste || dernierGeste.source !== 'single' || dernierGeste.doc !== docCourant()) return;
+      if (window.adocNarrationRead(dernierGeste.doc, dernierGeste.stepId) !== dernierGeste.narrationApres) {
+        dire(seulPanneau, 'La narration a changé depuis ce geste : annulation impossible sans écraser votre texte.', true); return;
+      }
+      if (dernierGeste.blocAvant !== null) {
+        var bloc = paragrapheDuDocument(dernierGeste.doc, dernierGeste.stepId);
+        var leaf = feuilleDuParagraphe(dernierGeste.stepId);
+        if (!bloc || !leaf || bloc.content.text !== dernierGeste.blocApres) {
+          dire(seulPanneau, 'Le paragraphe a changé depuis ce geste : annulation impossible sans écraser votre texte.', true); return;
+        }
+        ecrireTexteVisible(leaf, dernierGeste.blocAvant);
+      }
       dernierGeste.doc.narration = JSON.parse(JSON.stringify(dernierGeste.avant));
       if (!dernierGeste.doc.narration.length) delete dernierGeste.doc.narration;
       window.adocEditorMarkDirty();
       dernierGeste = null;
       this.disabled = true;
-      dire(seulPanneau, 'Geste annulé : la narration précédente est restaurée.');
+      dire(seulPanneau, 'Geste annulé : le texte du bloc et sa narration précédente sont restaurés.');
       rafraichirChamp();
     };
 

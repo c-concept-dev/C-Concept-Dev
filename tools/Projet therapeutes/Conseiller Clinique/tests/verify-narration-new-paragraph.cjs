@@ -6,6 +6,8 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
   const browser = await (process.env.STUDIO_TEST_BROWSER === 'webkit' ? webkit : chromium).launch();
   try {
     const page = await browser.newPage();
+    const pageErrors = [];
+    page.on('pageerror', e => pageErrors.push(e.message));
     page.on('dialog', dialog => dialog.accept());
     await page.route('https://**/*', route => route.fulfill({ body: '', contentType: 'application/javascript' }));
     await page.goto('file://' + ROOT + '/studio-clinique.html');
@@ -34,7 +36,7 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
       window.NarrationIA.reecrireEtape = async (document, stepId, consigne, options) => {
         window.__narrationSingleCalls.push({ stepId, cible: options.cible, consigne,
           contexte: options.contexteNouveauParagraphe });
-        return { entree: { stepId, text: 'Voici une proposition de narration propre à ce paragraphe.' } };
+        return { entree: { stepId, text: 'Voici une proposition [pause] de narration propre à ce paragraphe.' } };
       };
     });
     await page.locator('.nia-paragraphe-bouton').click();
@@ -57,6 +59,34 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     assert.match(prompt, /AVANT, même diapositive.*Contenu clinique de la diapositive/);
     assert.match(prompt, /APRÈS, autre diapositive.*conséquence clinique/);
     assert.doesNotMatch(prompt, /contenu de cette étape : Nouveau paragraphe/);
+    assert.equal(await page.locator('#' + inserted + ' [data-cc-editor-leaf]').innerText(), 'Nouveau paragraphe.',
+      'la proposition seule ne modifie pas le bloc');
+    await page.waitForFunction(() => !document.querySelector('.nia-paragraphe-appliquer').disabled);
+    await page.locator('.nia-paragraphe-appliquer').click();
+    let snapshot = await page.evaluate(stepId => {
+      const d = window._adocArtifacts['test-doc']._adocStructuredDoc;
+      const block = d.blocks[0].content.blocks.find(b => b.id === stepId);
+      return { text: block.content.text, narration: d.narration.find(n => n.stepId === stepId)?.text };
+    }, inserted);
+    assert.equal(snapshot.text, 'Voici une proposition de narration propre à ce paragraphe.',
+      'le texte provisoire est remplacé sans marque de pause');
+    assert.match(snapshot.narration, /\[pause\]/, 'la marque de pause reste dans la narration orale');
+    assert.equal(await page.locator('#' + inserted + ' [data-cc-editor-leaf]').innerText(), snapshot.text,
+      'le changement est visible immédiatement');
+    const rendered = await page.evaluate(async () => {
+      const art = window._adocArtifacts['test-doc'];
+      return (await window.adocRenderClinicalDocument(art._adocStructuredDoc, art._adocStructuredSnapshot)).html;
+    });
+    assert.match(rendered, /Voici une proposition de narration propre à ce paragraphe/,
+      'le rendu depuis le JSON contient le texte, pas seulement le DOM de l’éditeur');
+    await page.locator('.nia-paragraphe-annuler').click();
+    snapshot = await page.evaluate(stepId => {
+      const d = window._adocArtifacts['test-doc']._adocStructuredDoc;
+      return { text: d.blocks[0].content.blocks.find(b => b.id === stepId).content.text,
+        narrations: d.narration };
+    }, inserted);
+    assert.equal(snapshot.text, 'Nouveau paragraphe.', 'annuler restaure le texte provisoire');
+    assert.deepEqual(snapshot.narrations, d.narration, 'annuler restaure les narrations précédentes');
     await page.locator('#' + inserted + ' [data-cc-editor-leaf]').fill('Un nouveau paragraphe consacré aux ressources du couple.');
     await page.locator('.nia-paragraphe-generer').click();
     await page.locator('.nia-paragraphe-appliquer').waitFor({ state: 'visible' });
@@ -69,6 +99,8 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     let narrations = await page.evaluate(() => window._adocArtifacts['test-doc']._adocStructuredDoc.narration);
     assert.equal(narrations.length, 2, 'la proposition n’écrit rien avant validation');
     await page.locator('.nia-paragraphe-appliquer').click();
+    assert.equal((await page.locator('#' + inserted + ' [data-cc-editor-leaf]').innerText()).trim(),
+      'Un nouveau paragraphe consacré aux ressources du couple.', 'un vrai paragraphe n’est pas remplacé');
     narrations = await page.evaluate(() => window._adocArtifacts['test-doc']._adocStructuredDoc.narration);
     assert.deepEqual(narrations.slice(0, 2), d.narration, 'les deux narrations existantes restent identiques');
     assert.equal(narrations[2].stepId, inserted);
@@ -78,6 +110,7 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
 
     await page.locator('#h1').click();
     assert.equal(await page.locator('.nia-paragraphe-bouton').isVisible(), false, 'option masquée sur un titre');
+    assert.deepEqual(pageErrors, [], 'aucune erreur JavaScript pendant les gestes');
     console.log('PASS narration isolée du nouveau paragraphe : aperçu, application, annulation');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
