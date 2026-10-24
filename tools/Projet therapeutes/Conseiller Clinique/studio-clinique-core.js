@@ -9909,8 +9909,53 @@ ${recent}`;
       + '</details></div>';
   }
   var _adocEditorLocalFonts = [];
+  var _adocFontSyncFamilies = null;
+  var _adocFontSyncBusy = false;
+  async function adocFontSyncRefresh(silent) {
+    if (_adocFontSyncBusy || location.origin !== 'https://c-concept-dev.github.io') return false;
+    _adocFontSyncBusy = true;
+    try {
+      const response = await fetch('https://127.0.0.1:43839/v1/fonts', {
+        cache: 'no-store', signal: AbortSignal.timeout(2500)
+      });
+      if (!response.ok) throw new Error('Compagnon indisponible');
+      const payload = await response.json();
+      if (payload.version !== 1 || !Array.isArray(payload.families)) throw new Error('Réponse inconnue');
+      const entries = payload.families.filter(function(f) {
+        return f && typeof f.label === 'string' && typeof f.family === 'string'
+          && typeof f.postscriptName === 'string' && f.label.length > 0 && f.label.length < 160;
+      });
+      const names = Array.from(new Set(entries.map(function(f) { return f.label; })))
+        .sort(function(a,b) { return a.localeCompare(b); });
+      // Certaines tables de polices portent des espaces invisibles dans le nom de famille.
+      // Un alias local fondé sur le nom PostScript garde les anciens documents utilisables.
+      let aliases = document.getElementById('cc-font-sync-aliases');
+      if (!aliases) { aliases = document.createElement('style'); aliases.id = 'cc-font-sync-aliases'; document.head.appendChild(aliases); }
+      aliases.textContent = entries.filter(function(f) { return f.family !== f.label; }).map(function(f) {
+        const label = f.label.replace(/["\\{};\n\r]/g, '');
+        const postscript = f.postscriptName.replace(/["\\{};\n\r]/g, '');
+        return '@font-face{font-family:"' + label + '";src:local("' + postscript + '")}';
+      }).join('');
+      if (JSON.stringify(names) !== JSON.stringify(_adocFontSyncFamilies)) {
+        _adocFontSyncFamilies = names;
+        adocEditorRefreshControls();
+      }
+      if (!silent) adocEditorMessage(names.length + ' polices actives synchronisées avec le Mac.');
+      return true;
+    } catch (_) {
+      if (_adocFontSyncFamilies !== null) { _adocFontSyncFamilies = null; adocEditorRefreshControls(); }
+      if (!silent) adocEditorMessage('Compagnon de polices indisponible. La liste historique peut être périmée.');
+      return false;
+    } finally { _adocFontSyncBusy = false; }
+  }
+  if (location.origin === 'https://c-concept-dev.github.io') {
+    adocFontSyncRefresh(true);
+    setInterval(function() { if (!document.hidden) adocFontSyncRefresh(true); }, 4000);
+    window.addEventListener('focus', function() { adocFontSyncRefresh(true); });
+  }
   window.adocEditorLoadLocalFonts = async function () {
-    if (!window.queryLocalFonts) { adocEditorMessage('Ce navigateur ne peut pas lister les polices installées (Safari ne le permet pas). La liste des polices de cet ordinateur est déjà proposée : elle est relevée hors navigateur, par tests/LISTER-POLICES.sh.'); return; }
+    if (await adocFontSyncRefresh(false)) return;
+    if (!window.queryLocalFonts) { adocEditorMessage('Safari ne peut pas lire le Livre des polices sans le compagnon local. La liste affichée est historique tant que le compagnon est indisponible.'); return; }
     try {
       const fonts = await window.queryLocalFonts();
       _adocEditorLocalFonts = Array.from(new Set(fonts.map(function (f) { return f.family; }))).sort(function (a,b) {return a.localeCompare(b);});
@@ -10125,14 +10170,14 @@ ${recent}`;
     // note qui prévient qu'elles ne survivent pas à un export est inchangée.
     const selectPolice = tools.querySelector('select[data-editor-style="fontFamily"]');
     if (selectPolice) {
-      const mac = (typeof ADOC_MAC_FONT_FAMILIES !== 'undefined' ? ADOC_MAC_FONT_FAMILIES : []);
+      const mac = _adocFontSyncFamilies || (typeof ADOC_MAC_FONT_FAMILIES !== 'undefined' ? ADOC_MAC_FONT_FAMILIES : []);
       const macSet = new Set(mac);
       const autres = Array.from(families).filter(function (f) { return !macSet.has(f); })
         .sort(function (a, b) { return a.toLowerCase().localeCompare(b.toLowerCase()); });
       const opt = function (f) { return '<option value="' + adocEsc(f) + '">' + adocEsc(f) + '</option>'; };
       let html = '<option value="">Police de la charte</option>';
       if (autres.length) html += '<optgroup label="Polices des chartes et des paires">' + autres.map(opt).join('') + '</optgroup>';
-      if (mac.length) html += '<optgroup label="Polices de cet ordinateur">' + mac.map(opt).join('') + '</optgroup>';
+      if (mac.length) html += '<optgroup label="' + (_adocFontSyncFamilies ? 'Polices actives sur ce Mac' : 'Catalogue historique (à vérifier)') + '">' + mac.map(opt).join('') + '</optgroup>';
       // VALEUR HÉRITÉE INCONNUE — un document venu d'un autre poste peut porter une police absente
       // d'ici. Sans cette option, affecter select.value la remettrait silencieusement à vide, et le
       // premier réglage suivant EFFACERAIT la police du document. Elle est donc conservée, montrée
@@ -11529,7 +11574,15 @@ ${recent}`;
         values.forEach((row,r)=>row.forEach((value,c)=>{table.rows[startRow+r].cells[startCol+c].querySelector('[data-cc-editor-leaf]').textContent=value;}));adocEditorSync();return;
       }
       const clean=html?adocEditorCleanHTML(html):adocEsc(text).replace(/\r?\n/g,'<br>');
-      const fragment=range.createContextualFragment(clean),last=fragment.lastChild;range.deleteContents();range.insertNode(fragment);
+      const fragment=range.createContextualFragment(clean);
+      // Un collage Word ou issu d'un autre document garde le gras et l'italique, mais
+      // hérite toujours de la police et de la taille du bloc dans lequel on colle.
+      fragment.querySelectorAll('[style]').forEach(function(node){
+        node.style.removeProperty('font-family');
+        node.style.removeProperty('font-size');
+        if(!node.style.length)node.removeAttribute('style');
+      });
+      const last=fragment.lastChild;range.deleteContents();range.insertNode(fragment);
       if(last){range.setStartAfter(last);range.collapse(true);sel.removeAllRanges();sel.addRange(range);}adocEditorSync();
     });
     lr.addEventListener('drop',function(e){if(e.target.closest('[data-cc-editor-leaf]')){e.preventDefault();adocEditorMessage('Utilisez le copier-coller pour insérer du texte dans ce passage.');}});
@@ -13479,7 +13532,12 @@ ${recent}`;
       }
       case 'quote': {
         const quoteLayer = adocBlockOpacityLayerHTML(b.style);
-        const quoteCombinedCSS = quoteLayer.outerStyle + extraCSS + nestedPosCSS;
+        // A vertically enlarged quote keeps its text and footnote together in the
+        // middle of the colored surface. With no explicit height, preserve the
+        // original markup and layout byte for byte.
+        const quoteCenterCSS = b.style && Number.isFinite(b.style.flowMinHeightPx)
+          ? 'display:flex;flex-direction:column;justify-content:center;' : '';
+        const quoteCombinedCSS = quoteLayer.outerStyle + extraCSS + nestedPosCSS + quoteCenterCSS;
         const quoteStyleAttr = quoteCombinedCSS ? ' style="' + adocEsc(quoteCombinedCSS) + '"' : '';
         return '<blockquote class="adoc-sc-block adoc-sc-quote' + statusClass + '" id="' + adocEsc(b.id) + '"' + quoteStyleAttr + '>' + quoteLayer.overlay + quoteLayer.wrapOpen + adocDeepDiveTextHTML(b, 'text', b.content.text, deepDiveLinksActive.slice()) + cites + deepDiveChips + quoteLayer.wrapClose + dragHandle + nestedResizeHandle + '</blockquote>';
       }
@@ -21541,7 +21599,15 @@ ${recent}`;
       } else {
         const style = Object.assign({}, block.style);
         if (direction.includes('e') || direction.includes('w')) { style.flowWidthPercent = width; blockEl.style.width = width + '%'; blockEl.style.maxWidth = '100%'; blockEl.style.boxSizing = 'border-box'; }
-        if (direction.includes('n') || direction.includes('s')) { style.flowMinHeightPx = height; blockEl.style.minHeight = height + 'px'; }
+        if (direction.includes('n') || direction.includes('s')) {
+          style.flowMinHeightPx = height;
+          blockEl.style.minHeight = height + 'px';
+          if (block.type === 'quote') {
+            blockEl.style.display = 'flex';
+            blockEl.style.flexDirection = 'column';
+            blockEl.style.justifyContent = 'center';
+          }
+        }
         block.style = style;
       }
       adocEditorSync(); adocEditorMarkDirty();

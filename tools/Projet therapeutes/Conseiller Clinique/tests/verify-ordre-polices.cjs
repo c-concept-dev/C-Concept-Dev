@@ -18,7 +18,7 @@ const RACINE = path.join(__dirname, '..');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
                 '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
                 '.css': 'text/css; charset=utf-8' };
-const ORDRE_VOULU = ['Polices des chartes et des paires', 'Polices de cet ordinateur',
+const ORDRE_VOULU = ['Polices des chartes et des paires', 'Catalogue historique (à vérifier)',
                      'Valeur du document, absente de cet ordinateur'];
 let n = 0;
 const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
@@ -120,7 +120,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
       assert.deepEqual(g.options, trie, 'le groupe « ' + g.label + ' » doit rester alphabétique');
     }
     const chartes = avecCharte.parGroupe.find((g) => /chartes et des paires/.test(g.label));
-    const ordi = avecCharte.parGroupe.find((g) => /cet ordinateur/.test(g.label));
+    const ordi = avecCharte.parGroupe.find((g) => /Catalogue historique/.test(g.label));
     // LIMITE DE CE CONTRÔLE, dite plutôt que cachée : une VRAIE charte importée n'est pas
     // simulée. Elle se lit dans `_adocRenderManifestOverride`, qui est validé contre
     // render-manifest.schema.json à l'ouverture : en poser un faux rendrait le document
@@ -140,7 +140,7 @@ const pass = (m) => { n++; console.log('PASS ' + n + '  ' + m); };
     const sans = await situation(PRESENTATION, { charte: false });
     assert.equal(sans.premiere, 'Police de la charte', 'la première option ne change pas');
     const i1 = sans.groupes.indexOf('Polices des chartes et des paires');
-    const i2 = sans.groupes.indexOf('Polices de cet ordinateur');
+    const i2 = sans.groupes.indexOf('Catalogue historique (à vérifier)');
     assert.ok(i1 === -1 || i2 === -1 || i1 < i2,
       'sans charte, si les deux groupes sont là, les chartes et paires passent en premier : '
       + JSON.stringify(sans.groupes));

@@ -88,7 +88,7 @@ const lireSelect = (page) => page.evaluate(() => {
     console.log('PASS ' + (++n) + '/7 — le panneau réel rend un <select>, sans champ libre ni datalist.');
 
     // ── 2 — les polices du Mac priment, et la liste est saine ──
-    const mac = s1.options.filter((o) => o.groupe === 'Polices de cet ordinateur').map((o) => o.v);
+    const mac = s1.options.filter((o) => o.groupe === 'Catalogue historique (à vérifier)').map((o) => o.v);
     assert.ok(mac.length > 100, 'la liste des polices de cet ordinateur doit être substantielle, reçu ' + mac.length);
     // Q3 (lot 2D-a, 20 octobre) — CET ORDRE EST INVERSÉ DEPUIS. Les polices de la charte et des
     // paires passent désormais en premier : les 227 polices de l'ordinateur repoussaient hors de
@@ -97,8 +97,8 @@ const lireSelect = (page) => page.evaluate(() => {
     // doublon — est inchangé.
     assert.equal(s1.groupes[0], 'Polices des chartes et des paires',
       'les polices de la charte et des paires passent en PREMIER (Q3)');
-    assert.equal(s1.groupes[1], 'Polices de cet ordinateur',
-      'celles de cet ordinateur viennent ensuite, toujours offertes');
+    assert.equal(s1.groupes[1], 'Catalogue historique (à vérifier)',
+      'la liste ancienne reste offerte sans prétendre être synchronisée avec le Mac');
     assert.equal(mac.filter((f) => f.trim().startsWith('.')).length, 0,
       'aucune famille interne de macOS (préfixe point) ne doit être proposée');
     assert.equal(mac.filter((f) => /\p{Cf}/u.test(f)).length, 0,
