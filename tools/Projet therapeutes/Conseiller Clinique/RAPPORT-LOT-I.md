@@ -54,6 +54,6 @@ de2fbd0972d6b59b43bf76f5b1ffc94351ccc5bdde21ba0cf8af8911506bff30
 
 Correctif poussé sur `main` par les commits `55387255`, `ea77b155`, `1817027e` ; Pages a publié le script `v=20261024-lot-i-photos-3`. La mesure HTTP ne reproduit pas les anciens échecs : leur cause précise reste inconnue. L'essai en direct vérifie une réouverture après rechargement, pas un nouveau profil Safari indépendant.
 
-La suppression de la copie et le contrôle GET 404 sont à renseigner après confirmation de suppression dans Safari.
+Après confirmation de Christophe, la seule copie `TEST-CODEX-LOT-I-2026-10-24` (ID `8d2ef476-21cf-472c-a83c-54261ad7dc5d`) a été supprimée par le dialogue du Studio. Le GET sur cet identifiant est passé de **200 avant** à **404 après**. Aucun original ni autre document n'a été supprimé.
 
 Pendant l'inspection réseau, le pilote Safari a inclus une valeur d'en-tête d'authentification dans une sortie interne. Elle n'a été ni copiée dans le dépôt ni reproduite dans ce rapport ; sa rotation après l'essai est recommandée.
