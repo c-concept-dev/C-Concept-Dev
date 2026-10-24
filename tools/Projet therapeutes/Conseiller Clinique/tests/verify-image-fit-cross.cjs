@@ -10,7 +10,7 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     await page.route('https://**/*', route => route.fulfill({ body: '', contentType: 'application/javascript' }));
     await page.goto('file://' + ROOT + '/studio-clinique.html');
     await page.evaluate(() => { document.getElementById('cc-login-screen')?.remove(); document.getElementById('assistdoc-screen')?.classList.add('active'); });
-    const svg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="300"><rect width="100" height="150" fill="red"/><rect y="150" width="100" height="150" fill="blue"/></svg>');
+    const svg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="300"><rect width="100" height="80" fill="red"/><rect y="80" width="100" height="140" fill="green"/><rect y="220" width="100" height="80" fill="blue"/></svg>');
     for (const kind of ['presentation', 'carrousel', 'fiche', 'tableau', 'script', 'liens']) {
       const d = doc(kind), key = 'fit-' + kind;
       const cards = ['presentation', 'carrousel'].includes(kind);

@@ -2683,6 +2683,16 @@
 .cc-media-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
 .cc-media-item { position: relative; border: 1px solid var(--stone-300); border-radius: 8px; overflow: hidden; background: var(--paper); display: flex; flex-direction: column; }
 .cc-media-thumb { width: 100%; height: 70px; object-fit: cover; display: block; background: var(--ivory); }
+.cc-media-grid[data-media-preview-grid] .cc-media-thumb:focus-visible { outline: 3px solid var(--petrol-800); outline-offset: -3px; }
+.cc-media-hover-preview {
+  position: fixed; z-index: 12000; pointer-events: none; margin: 0; padding: 8px;
+  width: min(400px, calc(100vw - 24px)); max-height: min(70vh, 480px);
+  display: flex; flex-direction: column; gap: 6px;
+  border: 1px solid var(--stone-300); border-radius: 10px;
+  background: var(--paper); box-shadow: 0 12px 32px rgba(16,47,49,.24);
+}
+.cc-media-hover-preview img { display: block; width: 100%; height: min(44vh, 300px); object-fit: contain; background: var(--ivory); }
+.cc-media-hover-preview figcaption { color: var(--muted); font-size: 11px; line-height: 1.3; }
 .cc-media-credit { font-size: 10px; color: var(--muted); margin: 4px 6px 0; line-height: 1.3; }
 .cc-media-actions { display: flex; gap: 4px; margin: 6px; }
 .cc-media-insert-btn {
@@ -3743,7 +3753,7 @@
 {"tokens-studio-clinique-default-v1":{"tokensSnapshotId":"tokens-studio-clinique-default-v1","$comment":"UX-8A.1 — jetons résolus de la charte studio-clinique-default, extraits verbatim du bloc :root en production de studio-clinique.html (palette pétrole/terracotta/ivoire, Phase UX-3). Référencé par render-manifest-default.json via tokensSnapshotId.","colors":{"petrol950":"#102f31","petrol900":"#173f42","petrol800":"#1f5053","petrol100":"#dce8e6","terracotta700":"#8a3f29","terracotta600":"#9b4e36","terracotta100":"#f4e5de","ink":"#273331","muted":"#5d6966","stone400":"#a9a49a","stone300":"#c9c3b8","stone200":"#ddd7cc","ivory":"#f6f2ea","paper":"#fffdf9","white":"#ffffff"},"typography":{"headingFontFamily":"\"Source Serif 4\", Georgia, serif","bodyFontFamily":"\"IBM Plex Sans\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"}}}
 </script>
 
-<script src="studio-clinique-core.js?v=20261024-paragraphe-cadrage-annulation"></script>
+<script src="studio-clinique-core.js?v=20261024-apercu-medias"></script>
 <!-- LOT 2 — Atelier de montage, chutier visuel. Fichier SÉPARÉ de core.js, comme le CDC v2
      l'exige (le cœur dépasse 23 000 lignes). Chargé APRÈS lui : le moteur pilote le lecteur,
      et refuse de démarrer si le lecteur n'est pas là. Aucune interface : seulement le moteur. -->

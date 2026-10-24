@@ -23682,9 +23682,70 @@ ${recent}`;
   // (adocMediaInsertFromSearch/FromHistory) — nécessaire pour le 3ᵉ mode « Choisir dans Médias »
   // du sous-panneau d'insertion de bloc, qui doit créer un vrai bloc, jamais un fond — et
   // `opts.showDelete` pour ne jamais proposer "Effacer" dans ce contexte de simple sélection.
+  let _adocMediaHoverTimer = null, _adocMediaHoverSource = null, _adocMediaHoverPopup = null;
+  function adocHideMediaHoverPreview() {
+    clearTimeout(_adocMediaHoverTimer); _adocMediaHoverTimer = null;
+    _adocMediaHoverSource = null;
+    if (_adocMediaHoverPopup) { _adocMediaHoverPopup.remove(); _adocMediaHoverPopup = null; }
+  }
+  function adocQueueMediaHoverPreview(thumb) {
+    adocHideMediaHoverPreview();
+    _adocMediaHoverSource = thumb;
+    _adocMediaHoverTimer = setTimeout(function () {
+      if (!thumb.isConnected || _adocMediaHoverSource !== thumb) return;
+      const popup = document.createElement('figure');
+      popup.className = 'cc-media-hover-preview';
+      popup.setAttribute('role', 'img');
+      popup.setAttribute('aria-label', 'Aperçu agrandi : ' + (thumb.alt || 'photo'));
+      const image = document.createElement('img');
+      image.src = thumb.dataset.mediaPreviewSrc || thumb.src;
+      image.alt = thumb.alt || 'Photo';
+      image.onerror = function () {
+        if (image.src !== thumb.src) image.src = thumb.src;
+      };
+      const caption = document.createElement('figcaption');
+      caption.textContent = thumb.dataset.mediaPreviewCredit || thumb.alt || '';
+      popup.append(image, caption);
+      document.body.appendChild(popup);
+      const anchor = thumb.getBoundingClientRect();
+      const width = popup.offsetWidth, height = popup.offsetHeight;
+      let left = anchor.right + 12;
+      if (left + width > innerWidth - 12) left = anchor.left - width - 12;
+      if (left < 12) left = Math.max(12, (innerWidth - width) / 2);
+      popup.style.left = Math.round(left) + 'px';
+      popup.style.top = Math.round(Math.max(12, Math.min(anchor.top, innerHeight - height - 12))) + 'px';
+      _adocMediaHoverPopup = popup;
+    }, 900);
+  }
+  function adocInstallMediaHoverPreview() {
+    if (document.body.dataset.mediaHoverPreviewReady) return;
+    document.body.dataset.mediaHoverPreviewReady = 'true';
+    document.addEventListener('pointerover', function (e) {
+      if (e.pointerType === 'touch') return;
+      const thumb = e.target.closest && e.target.closest('.cc-media-grid[data-media-preview-grid] .cc-media-thumb');
+      if (thumb && thumb !== _adocMediaHoverSource) adocQueueMediaHoverPreview(thumb);
+    });
+    document.addEventListener('pointerout', function (e) {
+      if (e.target === _adocMediaHoverSource) adocHideMediaHoverPreview();
+    });
+    document.addEventListener('focusin', function (e) {
+      const thumb = e.target.closest && e.target.closest('.cc-media-grid[data-media-preview-grid] .cc-media-thumb');
+      if (thumb) adocQueueMediaHoverPreview(thumb);
+    });
+    document.addEventListener('focusout', function (e) { if (e.target === _adocMediaHoverSource) adocHideMediaHoverPreview(); });
+    document.addEventListener('scroll', adocHideMediaHoverPreview, true);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && _adocMediaHoverPopup) {
+        e.preventDefault(); e.stopPropagation(); adocHideMediaHoverPreview();
+      }
+    }, true);
+  }
   function adocMediaRenderGrid(containerId, items, kind, opts) {
     const el = document.getElementById(containerId);
     if (!el) return;
+    adocHideMediaHoverPreview();
+    adocInstallMediaHoverPreview();
+    el.dataset.mediaPreviewGrid = 'true';
     opts = opts || {};
     if (!items || !items.length) {
       el.innerHTML = '<p class="cc-media-empty">' + (kind === 'search' ? 'Aucun résultat.' : 'Aucune image utilisée pour l’instant.') + '</p>';
@@ -23695,6 +23756,7 @@ ${recent}`;
     const showDelete = opts.showDelete !== undefined ? opts.showDelete : kind === 'history';
     el.innerHTML = items.map(function (item, i) {
       const thumb = kind === 'search' ? item.thumb : adocImageAssetUrl(item.asset_id);
+      const preview = kind === 'search' ? (item.url || thumb) : thumb;
       const credit = kind === 'search' ? (item.photographer || '') : (item.attribution || '');
       // Obligation des conditions Pexels — attribution jamais retirée ni minimisée, un simple
       // texte discret sous la vignette suffit (décision de Christophe, cf. rapport d'investigation).
@@ -23710,7 +23772,7 @@ ${recent}`;
         ? '<button type="button" class="cc-media-delete-btn" data-media-history-delete="' + i + '" onclick="event.stopPropagation();window.adocMediaDeleteFromHistory(' + i + ')" title="Effacer">Effacer</button>'
         : '';
       return '<div class="cc-media-item" data-media-item-' + kind + '="' + i + '">' +
-        '<img class="cc-media-thumb" src="' + adocEsc(thumb) + '" alt="' + adocEsc(item.alt || credit || 'Image') + '" loading="lazy">' +
+        '<img class="cc-media-thumb" src="' + adocEsc(thumb) + '" data-media-preview-src="' + adocEsc(preview) + '" data-media-preview-credit="' + adocEsc(creditLine) + '" alt="' + adocEsc(item.alt || credit || 'Image') + '" loading="lazy" tabindex="0">' +
         '<p class="cc-media-credit">' + adocEsc(creditLine) + '</p>' +
         '<div class="cc-media-actions">' +
           '<button type="button" class="cc-media-insert-btn" data-media-' + kind + '-insert="' + i + '" onclick="window.' + insertFn + '(' + insertArgsPrefix + i + ')">Insérer</button>' +
