@@ -4238,6 +4238,67 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (!query || !url || (typeof url === 'string' && url.includes('%23e2e8f0'))) return;
     _adocResolvedImageCache.set((isGen ? 'gen:' : 'pexels:') + String(query).trim(), url);
   }
+  // LOT I — le cache ci-dessus ne dure qu'une session. Les deux champs d'identifiant
+  // existent déjà dans le schéma ; imageRef/query restent la provenance et le repli.
+  // Aucun document rouvert n'est modifié implicitement : ce geste est appelé à la
+  // génération ou par « Figer les photos », jamais par adocResolveImages.
+  async function adocFreezeDocumentImages(doc, progress) {
+    const targets = [];
+    function walk(blocks) {
+      (blocks || []).forEach(function (block) {
+        if (block.type === 'card' && block.content) {
+          if (!block.content.imageAssetId && adocRequeteImageUtilisable(block.content.imageRef))
+            targets.push({ content: block.content, query: block.content.imageRef, field: 'imageAssetId' });
+          walk(block.content.blocks);
+        } else if (block.type === 'image' && block.content && !block.content.assetId
+            && adocRequeteImageUtilisable(block.content.query)) {
+          targets.push({ content: block.content, query: block.content.query, field: 'assetId' });
+        }
+      });
+    }
+    walk(doc && doc.blocks);
+    const result = { total: targets.length, saved: 0, missing: 0, assetIds: [] };
+    const byQuery = new Map();
+    for (const target of targets) {
+      const query = String(target.query).trim();
+      try {
+        let assetId = byQuery.get(query);
+        if (!assetId) {
+          let url = _adocResolvedImageCache.get('pexels:' + query);
+          if (!url) {
+            const r = await fetch(adocGetWorkerUrl() + '/fetch-image?q=' + encodeURIComponent(query.slice(0, 100)) + '&per_page=1',
+              { headers: { 'X-API-Key': adocGetApiKey() } });
+            if (!r.ok) throw new Error('Recherche HTTP ' + r.status);
+            const data = await r.json();
+            url = data.photos && data.photos[0] && data.photos[0].url;
+            if (!url) throw new Error('Photo introuvable');
+            adocRememberResolvedImage(query, false, url);
+          }
+          if (/^data:image\/(?:png|jpeg);base64,/.test(url)) {
+            const blob = await (await fetch(url)).blob();
+            assetId = await adocUploadImageAsset(new File([blob], 'photo.' + (blob.type === 'image/png' ? 'png' : 'jpg'), { type: blob.type }));
+          } else {
+            const saved = await fetch(adocGetWorkerUrl() + '/media-assets/from-url', {
+              method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+              body: JSON.stringify({ url: url, attribution: '' }),
+            });
+            if (!saved.ok) throw new Error('Enregistrement HTTP ' + saved.status);
+            assetId = (await saved.json()).asset_id;
+          }
+          if (!assetId) throw new Error('Identifiant de photo absent');
+          byQuery.set(query, assetId);
+        }
+        target.content[target.field] = assetId;
+        result.saved++;
+        result.assetIds.push(assetId);
+      } catch (e) {
+        result.missing++;
+      }
+      if (progress) progress(result);
+    }
+    return result;
+  }
+  window.adocFreezeDocumentImages = adocFreezeDocumentImages;
     async function adocResolveImages(htmlContent) {
     // L'adresse du Worker n'est plus une condition d'entrée : un fichier exporté porte ses images
     // en clair et n'a aucun Worker à joindre. Exiger cette adresse ici faisait rendre le HTML tel
@@ -4332,8 +4393,8 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
         // `q` est la REQUÊTE : elle ne doit jamais devenir visible. Seul le texte alternatif peut
         // l'être — et un fond sans image n'en a pas, d'où l'aplat nu dans ce cas.
         if (type === 'img') {
-          const alt = (el.getAttribute('alt') || '').trim();
-          el.src = svgPlaceholder(alt); el.removeAttribute('data-gen'); el.removeAttribute('data-pexels');
+          el.src = svgPlaceholder('Photo introuvable'); el.setAttribute('data-adoc-photo-missing', '1');
+          el.removeAttribute('data-gen'); el.removeAttribute('data-pexels');
         } else {
           el.style.backgroundImage = 'url(' + svgAplat() + ')';
           el.removeAttribute('data-pexels-bg'); el.removeAttribute('data-pexels');
@@ -14476,6 +14537,11 @@ ${recent}`;
   // pièces portent leur rang dans « Mes créations » (« Cours — X · Module 3/8 · Y »). Le titre du
   // document lui-même n'est JAMAIS réécrit : il est rendu à l'écran et dans l'export.
   async function adocDeliverStructuredFicheArtifact(doc, sourceSnapshot, rendered, brandKitName, nomArtefact) {
+    // Un document neuf garde les fichiers réellement choisis pour son premier aperçu.
+    // Les documents anciens, rouverts par un autre chemin, restent inchangés jusqu'au
+    // geste explicite « Figer les photos ».
+    const frozen = await adocFreezeDocumentImages(doc);
+    if (frozen.saved) rendered = await window.adocRenderClinicalDocument(doc, sourceSnapshot, rendered.renderManifest || null);
     const previewHtml = adocClinicalDocumentWrapHTML(doc, rendered.html, rendered.tokens);
     const storeKey = await adocDeliverArtifact({ html: previewHtml, topic: nomArtefact || doc.title, fmt: 'html', citations: [], autoGenerate: false });
     if (storeKey && window._adocArtifacts && window._adocArtifacts[storeKey]) {
@@ -17294,6 +17360,29 @@ ${recent}`;
     wsDocCardEl.classList.toggle('cc-ws-doc-card--presentation', !isLegacy && docKind === 'presentation');
     wsDocCardEl.innerHTML = renderedHtml;
     adocWsSetupBlockEditing(art); // UX-11 — sélection/correction ciblée d'un bloc, uniquement si blockEditing est vrai
+    if (!isLegacy) {
+      const showMissing = function (img) {
+        if (img.dataset.adocMissingShown) return;
+        img.dataset.adocMissingShown = '1';
+        const notice = document.createElement('div');
+        notice.className = 'adoc-photo-missing-notice';
+        notice.textContent = 'Photo introuvable. ';
+        const change = document.createElement('button');
+        change.type = 'button'; change.textContent = "Changer l’image";
+        change.addEventListener('click', function (event) {
+          event.preventDefault(); event.stopPropagation();
+          img.click();
+          window.adocChooseBlockInsertType('replace', 'image');
+        });
+        notice.appendChild(change);
+        img.insertAdjacentElement('afterend', notice);
+      };
+      wsDocCardEl.querySelectorAll('img[data-adoc-photo-missing]').forEach(showMissing);
+      wsDocCardEl.querySelectorAll('img[data-asset-id]').forEach(function (img) {
+        img.addEventListener('error', function () { showMissing(img); }, { once: true });
+        if (img.complete && !img.naturalWidth) showMissing(img);
+      });
+    }
     adocWsSetupLegacyBlockEditing(art); // Phase 1 (monobloc) — équivalent pour un document HTML libre de l'ancien moteur, uniquement si legacyBlockEditing est vrai
     adocRefreshHistoryButtons();
     adocWsRenderSources(snapshot);
@@ -24818,6 +24907,8 @@ ${recent}`;
       : saved ? 'Sauvegardé' + heure : 'Non sauvegardé';
     statusEl.className = 'cc-ws-save-status ' + (saved && !art._ccEditorDirty ? 'saved' : 'unsaved');
     if (deleteBtn) deleteBtn.hidden = !saved;
+    const freezeBtn = document.getElementById('cc-ws-freeze-photos-btn');
+    if (freezeBtn) freezeBtn.hidden = !(art && art._adocStructuredDoc);
     // Item 20 — même garde que Supprimer ci-dessus (saved requis, derivedFrom doit référencer un
     // document/version réels) + capacité transform (jamais legacy-html) + au moins une cible valide
     // depuis le documentKind courant (ex. jamais pour Carrousel, absent de ADOC_MAGIC_SWITCH_PAIRS).
@@ -25781,6 +25872,28 @@ ${recent}`;
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', adocQ7InstallerRaccourcis, { once: true });
     else adocQ7InstallerRaccourcis();
   }
+
+  window.adocWsFreezePhotos = async function () {
+    const key = window._adocWsState && window._adocWsState.storeKey;
+    const art = key && window._adocArtifacts && window._adocArtifacts[key];
+    if (!art || !art._adocStructuredDoc) return;
+    const btn = document.getElementById('cc-ws-freeze-photos-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Recherche des photos…'; }
+    try {
+      const result = await adocFreezeDocumentImages(art._adocStructuredDoc, function (state) {
+        if (btn) btn.textContent = 'Photos : ' + (state.saved + state.missing) + '/' + state.total;
+      });
+      if (result.saved) {
+        await window.adocOpenWorkspace(key);
+        adocEditorMarkDirty(); // Sauvegarder reste un geste explicite.
+      }
+      alert(result.saved + ' photos enregistrées, ' + result.missing + ' introuvables. '
+        + (result.saved ? 'Sauvegardez le document pour conserver ces changements.' : 'Le document reste inchangé.'));
+      return result;
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Figer les photos'; }
+    }
+  };
 
   window.adocWsSave = async function () {
     // Enregistrer, enregistrer sous et fermer n'appellent pas adocEditorMarkDirty :
