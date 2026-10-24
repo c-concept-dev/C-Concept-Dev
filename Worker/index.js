@@ -59639,6 +59639,23 @@ __name(assertLibraryTranslationNotDegenerate, "assertLibraryTranslationNotDegene
 async function translateLibrarySegment(env2, text, sourceLang, targetLang, fallbackDepth = 0) {
   if (!text.trim() || sourceLang.toLowerCase() === targetLang.toLowerCase()) return text;
   if (!env2.AI) throw new Error("Workers AI indisponible");
+  // Long underscore runs are worksheet blanks, not language. Sending them to
+  // m2m100 makes it repeat the blanks or surrounding question indefinitely.
+  // Keep every blank and its position; translate only the intervening words.
+  if (/_{16,}/.test(text)) {
+    const parts = text.split(/(_{16,})/g);
+    const translatedParts = [];
+    for (const part of parts) {
+      if (!part || !/\p{L}/u.test(part)) { translatedParts.push(part); continue; }
+      const leading = part.match(/^\s*/)[0], trailing = part.match(/\s*$/)[0];
+      const core = part.slice(leading.length, part.length - trailing.length);
+      translatedParts.push(leading + await translateLibrarySegment(env2, core, sourceLang, targetLang, fallbackDepth) + trailing);
+    }
+    const combined = translatedParts.join("");
+    assertLibraryTranslationNotDegenerate(combined, text.length);
+    console.info("[LibraryTranslate] preserved worksheet blanks", { blanks: parts.filter(part => /^_{16,}$/.test(part)).length });
+    return combined;
+  }
   try {
     const translated = await env2.AI.run("@cf/meta/m2m100-1.2b", { text, source_lang: sourceLang, target_lang: targetLang });
     const result = translated?.translated_text;

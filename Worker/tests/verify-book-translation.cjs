@@ -36,6 +36,7 @@ const { DatabaseSync } = require('node:sqlite');
         return { translated_text: 'one two three four five six seven eight '.repeat(3) };
       if (degenerateMode === 'inflated' && args.text.length > 250)
         return { translated_text: Array.from({ length: 300 }, (_, i) => `mot${i}`).join(' ') };
+      if (degenerateMode === 'blanks') assert.ok(!/_{16,}/.test(args.text), 'Worksheet blanks must never reach the model');
       if (degenerateMode === 'empty') return { translated_text: '' };
       return { translated_text: 'Traduction ' + args.text };
     } }
@@ -89,6 +90,24 @@ const { DatabaseSync } = require('node:sqlite');
   assert.equal((await send('/book-translate-segment', firstSegment)).status, 200,
     'A vastly inflated response without exact repeated phrases must also recover');
   assert.equal(aiCalls - callsBeforeInflation, 3);
+  const blank = '_'.repeat(75);
+  const worksheet = `${blank}\n${blank}\nWhat changed in the relationship? ${blank}\n${blank}\nWhat would you like to try next?`;
+  db.prepare('INSERT INTO chunks VALUES(?,?,?,?,?,?,?,?,?,?)').run('worksheet-0','worksheet','Worksheet','Writer','general','en',1,1,0,worksheet);
+  degenerateMode = 'blanks';
+  const worksheetManifest = await (await send('/book-translation-manifest', { book_id: 'worksheet' })).json();
+  assert.equal(worksheetManifest.total_segments, 1);
+  const callsBeforeWorksheet = aiCalls;
+  const worksheetResponse = await send('/book-translate-segment', { book_id: 'worksheet', id: 'worksheet-0',
+    segment_index: 0, source_hash: worksheetManifest.chunks[0].source_hash, target_lang: 'fr' });
+  assert.equal(worksheetResponse.status, 200);
+  const worksheetBody = await worksheetResponse.json();
+  assert.deepEqual(worksheetBody.translated_text.match(/_{16,}/g), worksheet.match(/_{16,}/g),
+    'Every worksheet blank must survive intact and in order');
+  assert.equal(worksheetBody.segment_count, 1, 'Protected blanks must not change the checkpoint manifest');
+  assert.equal(aiCalls - callsBeforeWorksheet, 2, 'Only the two text fragments should use Workers AI');
+  const callsBeforeBlanksOnly = aiCalls;
+  assert.equal(await ctx.translateLibrarySegment(env, `${blank}\n${blank}`, 'en', 'fr'), `${blank}\n${blank}`);
+  assert.equal(aiCalls, callsBeforeBlanksOnly, 'Blank-only content must not use Workers AI');
   degenerateMode = 'always';
   const callsBeforeExhaustion = aiCalls;
   assert.equal((await send('/book-translate-segment', firstSegment)).status, 502);
