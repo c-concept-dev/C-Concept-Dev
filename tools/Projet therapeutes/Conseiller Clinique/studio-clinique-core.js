@@ -4230,6 +4230,14 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   }
   window.adocEmbeddedImage = adocEmbeddedImage;
 
+  // Une requête Pexels identique ne doit jamais être relancée à chaque re-rendu de
+  // l'éditeur : un quota ou une panne passagère remplacerait une photo déjà obtenue
+  // par l'aplat de secours. Cache de session uniquement, jamais persisté dans le document.
+  const _adocResolvedImageCache = new Map();
+  function adocRememberResolvedImage(query, isGen, url) {
+    if (!query || !url || (typeof url === 'string' && url.includes('%23e2e8f0'))) return;
+    _adocResolvedImageCache.set((isGen ? 'gen:' : 'pexels:') + String(query).trim(), url);
+  }
     async function adocResolveImages(htmlContent) {
     // L'adresse du Worker n'est plus une condition d'entrée : un fichier exporté porte ses images
     // en clair et n'a aucun Worker à joindre. Exiger cette adresse ici faisait rendre le HTML tel
@@ -4245,14 +4253,20 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     if (!allNodes.length) return htmlContent;
 
     const fetchPexels = async (query) => {
+      const cached = _adocResolvedImageCache.get('pexels:' + query.trim());
+      if (cached) return { url: cached };
       const q = encodeURIComponent(query.trim().substring(0, 100));
       const r = await fetch(workerUrl + '/fetch-image?q=' + q + '&per_page=1', { headers: { 'X-API-Key': adocGetApiKey() } });
       if (!r.ok) throw new Error('Pexels ' + r.status);
       const d = await r.json();
-      return d.photos?.[0] || null;
+      const photo = d.photos?.[0] || null;
+      if (photo?.url) adocRememberResolvedImage(query, false, photo.url);
+      return photo;
     };
 
     const fetchFlux = async (prompt) => {
+      const cached = _adocResolvedImageCache.get('gen:' + prompt.trim());
+      if (cached) return cached;
       const r = await fetch(workerUrl + '/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
@@ -4260,6 +4274,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       });
       if (!r.ok) throw new Error('FLUX ' + r.status);
       const d = await r.json();
+      if (d.dataUrl) adocRememberResolvedImage(prompt, true, d.dataUrl);
       return d.dataUrl || null;
     };
 
@@ -10536,6 +10551,8 @@ ${recent}`;
         /^url\(["']?(.*?)["']?\)$/.exec(getComputedStyle(ctx.target).backgroundImage)?.[1])
       : ctx.target.src;
     if (!source) { adocEditorMessage('La photo doit être chargée avant son recadrage.'); return; }
+    const query = ctx.block.type === 'card' ? ctx.block.content.imageRef : ctx.block.content.query;
+    if (query && !String(source).includes('%23e2e8f0')) adocRememberResolvedImage(query, false, source);
     const veil = document.createElement('div');
     veil.className = 'adoc-crop-dialog';
     veil.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:20px;';

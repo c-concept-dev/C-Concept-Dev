@@ -8,8 +8,10 @@ const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><r
   const browser=await engine.launch();
   try{
    const page=await browser.newPage({viewport:{width:1200,height:900}});
+   let pexelsCalls=0;
    await page.route('https://**/*',route=>{
     if(route.request().url().includes('/brand-assets/'))return route.fulfill({body:svg,contentType:'image/svg+xml'});
+    if(route.request().url().includes('/fetch-image')){pexelsCalls++;return route.fulfill(pexelsCalls===1?{json:{photos:[{url:'data:image/svg+xml,'+encodeURIComponent(svg)}]}}:{status:429,json:{error:'quota'}})};
     if(route.request().resourceType()==='script')return route.fulfill({body:'',contentType:'application/javascript'});
     return route.fulfill({json:{results:[],items:[]}});
    });
@@ -64,8 +66,18 @@ const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><r
    const cr=await coverStage.boundingBox();await page.mouse.move(cr.x+cr.width*.1,cr.y+cr.height*.36);await page.mouse.down();await page.mouse.move(cr.x+cr.width*.9,cr.y+cr.height*.64,{steps:8});await page.mouse.up();
    await page.locator('[data-crop-apply]').click();
    assert.match(await page.locator('.adoc-sc-cover-image-layer').getAttribute('style'),/clip-path:inset/,'document cover renders crop');
+   const pexelsDoc=doc('presentation');pexelsDoc.blocks[0].content.imageRef='abri préhistorique';pexelsDoc.blocks[0].content.imageAlt='Abri préhistorique';
+   assert.equal(await open(page,pexelsDoc,'pexels-crop'),true,'Pexels document opens');
+   const original=await page.locator('.adoc-sc-card-img').first().getAttribute('src');
+   assert.ok(original&&original.startsWith('data:image/svg+xml,'),'first Pexels result is visible');
+   await page.locator('.adoc-sc-card-img').first().click();await page.locator('[data-image-crop-open]').click();
+   const ps=page.locator('[data-crop-stage]');await ps.locator('img').evaluate(el=>el.decode());
+   const pr=await ps.boundingBox();await page.mouse.move(pr.x+pr.width*.1,pr.y+pr.height*.36);await page.mouse.down();await page.mouse.move(pr.x+pr.width*.9,pr.y+pr.height*.64,{steps:8});await page.mouse.up();
+   await page.locator('[data-crop-apply]').click();
+   assert.equal(await page.locator('.adoc-sc-card-img').first().getAttribute('src'),original,'recadrage conserve la photo Pexels obtenue');
+   assert.equal(pexelsCalls,1,'aucun second appel Pexels après recadrage');
    await page.close();
-   console.log('PASS crop '+engine.name()+' 6 kinds + document cover');
+   console.log('PASS crop '+engine.name()+' 6 kinds + document cover + Pexels cache');
   }finally{await browser.close()}
  }
 })().catch(e=>{console.error(e);process.exitCode=1});
