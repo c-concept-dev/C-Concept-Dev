@@ -46,7 +46,10 @@ def font_body():
             if (os.path.isfile(path) and os.path.splitext(path)[1].lower()
                     in {".ttf", ".otf", ".ttc", ".otc"}
                     and os.path.getsize(path) <= 20 * 1024 * 1024):
-                font_id = hashlib.sha256(path.encode("utf-8")).hexdigest()
+                stat = os.stat(path)
+                # A font replaced in place must get a new ID so open browsers reload it.
+                fingerprint = f"{path}\0{stat.st_size}\0{stat.st_mtime_ns}"
+                font_id = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
                 files[font_id] = path
                 item["fontId"] = font_id
             public.append(item)

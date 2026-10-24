@@ -9912,6 +9912,7 @@ ${recent}`;
   var _adocFontSyncFamilies = null;
   var _adocFontSyncEntries = new Map();
   var _adocFontSyncLoaded = new Map();
+  var _adocFontSyncFaces = new Map();
   var _adocFontSyncPending = new Map();
   var _adocFontSyncBusy = false;
   function adocFontSyncLoad(name) {
@@ -9926,7 +9927,11 @@ ${recent}`;
       return response.arrayBuffer();
     }).then(function(bytes) { return new FontFace(name, bytes).load(); })
       .then(function(face) {
+        if (_adocFontSyncEntries.get(name)?.fontId !== entry.fontId) return false;
+        const previous = _adocFontSyncFaces.get(name);
+        if (previous) document.fonts.delete(previous);
         document.fonts.add(face);
+        _adocFontSyncFaces.set(name, face);
         _adocFontSyncLoaded.set(name, entry.fontId);
         return true;
       }).catch(function() { return false; }).finally(function() { _adocFontSyncPending.delete(name); });
@@ -9940,6 +9945,120 @@ ${recent}`;
       if (match) used.add(match[1].trim());
     });
     used.forEach(adocFontSyncLoad);
+  }
+  // Le select natif conserve la valeur et le chemin d'édition existants. Le menu visuel
+  // charge uniquement les polices qui entrent dans sa zone visible.
+  var _adocFontPickerObserver = null;
+  var _adocFontPickerQueue = [];
+  var _adocFontPickerActive = 0;
+  var _adocFontPickerFaces = new Map();
+  var _adocFontPickerSerial = 0;
+  function adocFontPickerRelease(row) {
+    row.dataset.fontPreviewAttempt = String((Number(row.dataset.fontPreviewAttempt) || 0) + 1);
+    const face = _adocFontPickerFaces.get(row);
+    if (face) { document.fonts.delete(face); _adocFontPickerFaces.delete(row); }
+    row.style.fontFamily = '';
+    delete row.dataset.fontPreviewReady;
+    delete row.dataset.fontPreviewPending;
+  }
+  function adocFontPickerDrain() {
+    while (_adocFontPickerActive < 2 && _adocFontPickerQueue.length) {
+      const row = _adocFontPickerQueue.shift();
+      if (!row.isConnected || row.dataset.fontPreviewPending !== '1' || row.dataset.fontPreviewVisible !== '1') continue;
+      _adocFontPickerActive++;
+      const name = row.dataset.fontValue;
+      const entry = _adocFontSyncEntries.get(name);
+      const attempt = row.dataset.fontPreviewAttempt;
+      fetch('https://127.0.0.1:43839/v1/font/' + entry.fontId, {
+        cache: 'no-store', signal: AbortSignal.timeout(8000)
+      }).then(function(response) {
+        if (!response.ok) throw new Error('Police indisponible');
+        return response.arrayBuffer();
+      }).then(function(bytes) {
+        return new FontFace('StudioPreview_' + (++_adocFontPickerSerial), bytes).load();
+      }).then(function(face) {
+        if (row.isConnected && row.dataset.fontPreviewVisible === '1' &&
+            row.dataset.fontPreviewAttempt === attempt && !row.closest('[data-font-picker-menu]').hidden) {
+          document.fonts.add(face);
+          _adocFontPickerFaces.set(row, face);
+          row.style.fontFamily = '"' + face.family + '"';
+          row.dataset.fontPreviewReady = '1';
+        }
+      }).catch(function() {
+        if (row.isConnected && row.dataset.fontPreviewVisible === '1' &&
+            row.dataset.fontPreviewAttempt === attempt && !row.closest('[data-font-picker-menu]').hidden) {
+          row.title = 'Aperçu indisponible sur ce navigateur';
+          row.dataset.fontPreviewUnavailable = '1';
+        }
+      }).finally(function() { _adocFontPickerActive--; adocFontPickerDrain(); });
+    }
+  }
+  function adocFontPickerPreview(row) {
+    if (row.dataset.fontPreviewPending || row.dataset.fontPreviewReady) return;
+    const name = row.dataset.fontValue;
+    const localEntry = _adocFontSyncEntries.get(name);
+    if (!localEntry || !/^[0-9a-f]{64}$/.test(localEntry.fontId || '')) {
+      row.style.fontFamily = '"' + name.replace(/["\\\n\r]/g, '') + '"';
+      row.dataset.fontPreviewReady = '1';
+      if (localEntry) row.title = 'Aperçu fourni directement par le navigateur';
+      return;
+    }
+    row.dataset.fontPreviewPending = '1';
+    row.dataset.fontPreviewAttempt = String((Number(row.dataset.fontPreviewAttempt) || 0) + 1);
+    _adocFontPickerQueue.push(row);
+    adocFontPickerDrain();
+  }
+  function adocFontPickerRender(picker) {
+    const select = picker.parentElement.querySelector('select[data-editor-style="fontFamily"]');
+    const list = picker.querySelector('[data-font-picker-list]');
+    const query = picker.querySelector('[data-font-picker-search]').value.trim().toLocaleLowerCase();
+    const options = Array.from(select.options).filter(function(option) {
+      return !option.disabled && (!query || option.textContent.toLocaleLowerCase().includes(query));
+    });
+    if (_adocFontPickerObserver) _adocFontPickerObserver.disconnect();
+    _adocFontPickerFaces.forEach(function(face, row) { adocFontPickerRelease(row); });
+    _adocFontPickerQueue = [];
+    let group = '';
+    list.innerHTML = (_adocFontSyncFamilies === null
+      ? '<p class="cc-font-picker-group">Compagnon hors ligne : polices du Mac à vérifier.</p>' : '') + options.map(function(option) {
+      const name = option.value;
+      const nextGroup = option.parentElement.tagName === 'OPTGROUP' ? option.parentElement.label : '';
+      const heading = nextGroup !== group && nextGroup ? '<p class="cc-font-picker-group">' + adocEsc(nextGroup) + '</p>' : '';
+      group = nextGroup;
+      return heading + '<button type="button" role="option" tabindex="-1" class="cc-font-picker-option" data-font-value="' +
+        adocEsc(name) + '" aria-selected="' + (name === select.value) + '">' +
+        adocEsc(option.textContent) + '</button>';
+    }).join('') || '<p class="cc-editor-note">Aucune police trouvée.</p>';
+    _adocFontPickerObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        entry.target.dataset.fontPreviewVisible = entry.isIntersecting ? '1' : '0';
+        if (entry.isIntersecting) adocFontPickerPreview(entry.target);
+        else adocFontPickerRelease(entry.target);
+      });
+    }, { root: list });
+    list.querySelectorAll('[data-font-value]').forEach(function(row) { _adocFontPickerObserver.observe(row); });
+  }
+  function adocFontPickerClose(picker) {
+    if (!picker) return;
+    picker.querySelector('[data-font-picker-menu]').hidden = true;
+    picker.querySelector('[data-font-picker-toggle]').setAttribute('aria-expanded', 'false');
+    if (_adocFontPickerObserver) _adocFontPickerObserver.disconnect();
+    _adocFontPickerQueue = [];
+    picker.querySelectorAll('[data-font-value]').forEach(function(row) { row.dataset.fontPreviewVisible = '0'; });
+    _adocFontPickerFaces.forEach(function(face, row) { adocFontPickerRelease(row); });
+  }
+  function adocFontPickerToggle(picker) {
+    const menu = picker.querySelector('[data-font-picker-menu]');
+    if (!menu.hidden) { adocFontPickerClose(picker); return; }
+    document.querySelectorAll('[data-font-picker]').forEach(adocFontPickerClose);
+    menu.hidden = false;
+    picker.querySelector('[data-font-picker-toggle]').setAttribute('aria-expanded', 'true');
+    const rect = picker.querySelector('[data-font-picker-toggle]').getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(rect.left, innerWidth - 328)) + 'px';
+    menu.style.top = (innerHeight - rect.bottom >= 340 ? rect.bottom + 4 : Math.max(8, rect.top - 344)) + 'px';
+    picker.querySelector('[data-font-picker-search]').value = '';
+    adocFontPickerRender(picker);
+    picker.querySelector('[data-font-picker-search]').focus();
   }
   async function adocFontSyncRefresh(silent) {
     if (_adocFontSyncBusy || location.origin !== 'https://c-concept-dev.github.io') return false;
@@ -9956,6 +10075,13 @@ ${recent}`;
           && typeof f.postscriptName === 'string' && f.label.length > 0 && f.label.length < 160;
       });
       _adocFontSyncEntries = new Map(entries.map(function(f) { return [f.label, f]; }));
+      _adocFontSyncFaces.forEach(function(face, name) {
+        const entry = _adocFontSyncEntries.get(name);
+        if (entry && entry.fontId === _adocFontSyncLoaded.get(name)) return;
+        document.fonts.delete(face);
+        _adocFontSyncFaces.delete(name);
+        _adocFontSyncLoaded.delete(name);
+      });
       const names = Array.from(new Set(entries.map(function(f) { return f.label; })))
         .sort(function(a,b) { return a.localeCompare(b); });
       // Certaines tables de polices portent des espaces invisibles dans le nom de famille.
@@ -10015,7 +10141,11 @@ ${recent}`;
       // inexistante, silencieusement ignorée par le navigateur. Un <select> rend la valeur hors liste
       // impossible. Le gestionnaire est inchangé — il écoute 'change' sur [data-editor-style] et lit
       // .value, exactement comme <select data-editor-style="textAlign"> juste en dessous.
-      '<div class="cc-editor-row"><label>Police<select data-editor-style="fontFamily"><option value="">Police de la charte</option></select></label>' + button('local-fonts','Polices de cet ordinateur') + number('fontSizePt','Taille (pt)',6,144) + '</div>' +
+      '<div class="cc-editor-row"><label class="cc-font-native-label">Police<select data-editor-style="fontFamily"><option value="">Police de la charte</option></select></label>' +
+      '<div class="cc-font-picker" data-font-picker><button type="button" data-font-picker-toggle aria-label="Choisir une police" aria-haspopup="listbox" aria-expanded="false">Police de la charte ▾</button>' +
+      '<div class="cc-font-picker-menu" data-font-picker-menu hidden><input type="search" data-font-picker-search aria-label="Rechercher une police" placeholder="Rechercher une police…">' +
+      '<div class="cc-font-picker-list" data-font-picker-list role="listbox" aria-label="Polices disponibles"></div></div></div>' +
+      button('local-fonts','Polices de cet ordinateur') + number('fontSizePt','Taille (pt)',6,144) + '</div>' +
       // NOTE SUR UNE POLICE LOCALE — une police installée sur cet ordinateur s'affiche ici, mais pas
       // dans un export ouvert ailleurs : le navigateur y retombe sur une police de repli. Les paires
       // Google (googleFontsHref) n'ont pas ce défaut, leur feuille partant avec le fichier.
@@ -10229,6 +10359,15 @@ ${recent}`;
       // puis éviter de rétablir la valeur le ramenait à « Police de la charte » après
       // une sélection pourtant appliquée au bloc.
       selectPolice.value = actuelle == null ? '' : actuelle;
+      const picker = tools.querySelector('[data-font-picker]');
+      if (picker) {
+        picker.parentElement.classList.add('cc-font-picker-ready');
+        const missing = !!(actuelle && !macSet.has(actuelle) && !families.has(actuelle));
+        const toggle = picker.querySelector('[data-font-picker-toggle]');
+        toggle.textContent = (actuelle || 'Police de la charte') + (missing ? ' — absente' : '') + ' ▾';
+        toggle.dataset.fontMissing = missing ? '1' : '0';
+        if (!picker.querySelector('[data-font-picker-menu]').hidden) adocFontPickerRender(picker);
+      }
       // La note ne s'affiche QUE si la police active est une police locale : jamais pour une paire
       // Google, qui survit à l'export, et jamais en permanence — un avertissement toujours visible
       // cesse d'être lu.
@@ -11498,6 +11637,17 @@ ${recent}`;
     });
     lr.addEventListener('pointerup',function(){setTimeout(function(){lr._ccPointerSelecting=false;},0);});
     lr.addEventListener('click',function(e){
+      const fontToggle=e.target.closest('[data-font-picker-toggle]');
+      if(fontToggle){adocFontPickerToggle(fontToggle.closest('[data-font-picker]'));return;}
+      const fontOption=e.target.closest('[data-font-value]');
+      if(fontOption){
+        const picker=fontOption.closest('[data-font-picker]');
+        const select=picker.parentElement.querySelector('select[data-editor-style="fontFamily"]');
+        select.value=fontOption.dataset.fontValue;
+        select.dispatchEvent(new Event('change',{bubbles:true}));
+        adocFontPickerClose(picker);
+        return;
+      }
       const action=e.target.closest('[data-editor-action]'),color=e.target.closest('[data-editor-color]');
       if(action)adocEditorAction(action.dataset.editorAction);if(color)adocEditorApplyStyle('color',color.dataset.editorColor);
       const swatch=e.target.closest('[data-block-surface-swatch]');
@@ -11514,10 +11664,32 @@ ${recent}`;
       if(e.target.closest('[data-image-reset]'))adocResetImageDisplay();
       if(e.target.closest('[data-image-crop-open]'))adocOpenImageCrop();
     });
+    lr.addEventListener('keydown',function(e){
+      if(e.key==='Escape' && e.target.closest('[data-font-picker]')) {
+        const picker=e.target.closest('[data-font-picker]');
+        adocFontPickerClose(picker);
+        picker.querySelector('[data-font-picker-toggle]').focus();
+      }
+      if((e.key==='ArrowDown'||e.key==='ArrowUp') && e.target.closest('[data-font-picker-menu]')) {
+        const rows=Array.from(e.target.closest('[data-font-picker-menu]').querySelectorAll('[data-font-value]'));
+        const index=rows.indexOf(e.target);
+        const next=e.key==='ArrowDown' ? Math.min(index+1,rows.length-1) : (index<0 ? rows.length-1 : Math.max(0,index-1));
+        if(rows[next]) {e.preventDefault();rows[next].focus();}
+      }
+      if(e.key==='Enter' && e.target.matches('[data-font-value]')) {e.preventDefault();e.target.click();}
+    });
+    if (!document._adocFontPickerOutsideBound) {
+      document._adocFontPickerOutsideBound = true;
+      document.addEventListener('click',function(e){
+        if(!e.target.closest('[data-font-picker]'))
+          document.querySelectorAll('[data-font-picker]').forEach(adocFontPickerClose);
+      });
+    }
     // LOT E — 'input' (jamais 'change') pour un aperçu réellement continu pendant le
     // glissement : 'change' ne se déclenche qu'au relâchement d'un <input type=range>, trop
     // tard pour "aperçu en temps réel pendant le déplacement" (exigence explicite).
     lr.addEventListener('input',function(e){if(e.target.matches('[data-editor-narration]'))adocEditorNarrationInput(e.target);
+      if(e.target.matches('[data-font-picker-search]'))adocFontPickerRender(e.target.closest('[data-font-picker]'));
       if(e.target.matches('[data-editor-opacity]'))adocApplyBlockOpacity(e.target.dataset.editorOpacity,e.target.value,false);
       if(e.target.matches('[data-image-opacity]'))adocApplyImageOpacity(e.target.value,false);
       if(e.target.matches('[data-image-size]'))adocApplyImageWidth(e.target.value,false);
