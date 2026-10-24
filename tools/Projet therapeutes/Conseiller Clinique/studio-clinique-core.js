@@ -10452,6 +10452,16 @@ ${recent}`;
       let style = scope === 'block' && ctx.block ? Object.assign({},ctx.block.style) : adocEditorReadStyle(target);
       if (field === 'reset') style = {}; else { if(value === '') delete style[field]; else style[field] = value; if (field === 'fontFamily') delete style.fontPairId; if (field === 'fontSizePt') delete style.fontSize; }
       if (scope === 'block' && ctx.block) ctx.block.style = style;
+      // Un ancien fragment enrichi peut garder sa propre taille/police. Pour « Tout le bloc »,
+      // ces valeurs locales masqueraient le réglage du bloc (seul l'interligne semblerait bouger).
+      // On retire uniquement la propriété concernée ; gras, italique, couleurs et liens restent.
+      if (scope === 'block' && (field === 'fontSizePt' || field === 'fontFamily')) {
+        const property = field === 'fontSizePt' ? 'font-size' : 'font-family';
+        ctx.el.querySelectorAll('[data-cc-editor-leaf] [style]').forEach(function (node) {
+          node.style.removeProperty(property);
+          if (!node.getAttribute('style')) node.removeAttribute('style');
+        });
+      }
       if(scope==='cell' && field==='backgroundColor' && target.dataset.ccRuleBase!=null)target.dataset.ccRuleBase=value;
       if((ctx.legacy || scope==='cell') && field!=='reset') {
         const change={};change[field]=value;const parsed=document.createElement('span');parsed.style.cssText=adocEditorStyleCSS(change,'paragraph');
