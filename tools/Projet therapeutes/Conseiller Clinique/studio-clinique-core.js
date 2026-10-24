@@ -10552,10 +10552,14 @@ ${recent}`;
       el.style.objectPosition = (d.focalX == null ? 50 : d.focalX) + '% ' + (d.focalY == null ? (ctx.st.zone === 'cover' ? 15 : 50) : d.focalY) + '%';
       if (ctx.st.zone === 'cover') {
         el.style.width = (d.sizePercent == null ? 100 : d.sizePercent) + '%'; el.style.marginInline = 'auto';
-        el.style.aspectRatio = Number.isFinite(d.aspectRatio) ? String(d.aspectRatio) : '';
+        el.style.aspectRatio = Number.isInteger(d.heightPx) ? 'auto' : Number.isFinite(d.aspectRatio) ? String(d.aspectRatio) : '';
+        el.style.height = Number.isInteger(d.heightPx) ? d.heightPx + 'px' : '';
         requestAnimationFrame(function () { adocPositionCardCoverHandles(el.parentElement); });
       }
-      if (ctx.st.zone === 'image') el.style.aspectRatio = Number.isFinite(d.aspectRatio) ? String(d.aspectRatio) : (d.fit ? '16 / 9' : '');
+      if (ctx.st.zone === 'image') {
+        el.style.aspectRatio = Number.isInteger(d.heightPx) ? 'auto' : Number.isFinite(d.aspectRatio) ? String(d.aspectRatio) : (d.fit ? '16 / 9' : '');
+        el.style.height = Number.isInteger(d.heightPx) ? d.heightPx + 'px' : '';
+      }
     }
     const filter = [];
     if (d.brightness != null) filter.push('brightness(' + d.brightness + '%)');
@@ -10575,7 +10579,16 @@ ${recent}`;
     const ctx = adocImageDisplayContext(); if (!ctx) return;
     if (checkpointOnce) adocEditorCheckpoint();
     const display = ctx.block.content.imageDisplay || (ctx.block.content.imageDisplay = {});
-    if (field === 'fit') { if (['contain', 'cover', 'fill'].includes(raw)) display.fit = raw; else delete display.fit; }
+    if (field === 'fit') {
+      // Sans hauteur de cadre, object-fit produit pratiquement le même affichage dans les
+      // trois modes. La première sélection conserve la hauteur visible comme cadre fixe.
+      if (['contain', 'cover', 'fill'].includes(raw)) {
+        if (ctx.st.zone !== 'doc-cover' && !Number.isInteger(display.heightPx)) {
+          display.heightPx = Math.max(60, Math.min(1200, Math.round(ctx.target.getBoundingClientRect().height)));
+        }
+        display.fit = raw;
+      } else delete display.fit;
+    }
     else if (field === 'borderColor') { if (/^#[0-9a-fA-F]{6}$/.test(raw)) display.borderColor = raw; }
     else if (field === 'mirrorX' || field === 'mirrorY') display[field] = !!raw;
     else {
@@ -20787,6 +20800,7 @@ ${recent}`;
   // Clés ASCII courtes (jamais le libellé accentué directement dans un attribut onclick, pour
   // éviter tout conflit d'apostrophe entre les niveaux d'échappement HTML/JS imbriqués).
   var ADOC_BLOCK_EDIT_INTENTS = {
+    draftParagraph: { label: 'Rédiger ce paragraphe', instruction: "Rédige uniquement ce paragraphe à partir du contexte du document. Si le texte actuel est « Nouveau paragraphe. », c'est un repère provisoire : remplace-le entièrement. Tiens compte des blocs précédents et suivants, sans répéter leur texte ni inventer de source. Ne produis ni consigne de narration ni balise [pause]." },
     rewrite: { label: 'Réécrire', instruction: "Réécris ce passage pour en améliorer la clarté et la fluidité, sans en changer le sens ni la longueur de façon significative." },
     shorten: { label: 'Raccourcir', instruction: "Raccourcis ce passage en conservant les éléments essentiels, sans perdre les informations cliniques importantes." },
     expand: { label: 'Développer', instruction: "Développe ce passage avec un peu plus de détail clinique pertinent, en restant proche du sujet." },
@@ -20863,8 +20877,8 @@ ${recent}`;
     },
   };
 
-  // Décrit le contenu ACTUEL du bloc pour le message utilisateur envoyé au modèle — jamais le
-  // document entier, jamais un nouvel appel à la bibliothèque RAG à ce stade (cf. demande).
+  // Décrit le contenu ACTUEL du bloc. La rédaction d'un nouveau paragraphe ajoute séparément
+  // le contexte du document ; les autres intentions restent ciblées sur ce seul bloc.
   function adocDescribeBlockContent(block) {
     switch (block.type) {
       case 'heading': return 'Titre (niveau ' + block.content.level + ') : ' + block.content.text;
@@ -20922,9 +20936,40 @@ ${recent}`;
       'séparément et ne doivent jamais être modifiées ici.';
   }
 
-  // Appel CIBLÉ : uniquement le contenu de CE bloc + l'intention + le contexte minimal —
-  // jamais l'intégralité du document, jamais streamé (payload minuscule et borné, même patron
-  // que le planner/le résumé de session : cf. adocPlanQuery/adocKvAutoSave, non-streamé aussi).
+  // Contexte de rédaction partagé par tous les formats structurés, cartes imbriquées comprises.
+  // La borne protège l'appel ciblé contre un document démesuré ; jamais de troncature silencieuse.
+  function adocParagraphDraftContext(doc, targetId) {
+    const lines = [];
+    function otherVisibleText(value, key) {
+      if (typeof value === 'string') return /(?:id|url|href|query|imageRef|assetId|visualRole|mediaType)$/i.test(key) ? '' : value;
+      if (Array.isArray(value)) return value.map(function (entry) { return otherVisibleText(entry, key); }).filter(Boolean).join(' | ');
+      if (value && typeof value === 'object') return Object.keys(value).map(function (field) {
+        return otherVisibleText(value[field], field);
+      }).filter(Boolean).join(' | ');
+      return '';
+    }
+    function walk(blocks) {
+      (blocks || []).forEach(function (block) {
+        if (!block) return;
+        if (block.type === 'card') {
+          lines.push('Carte : ' + (block.content && block.content.title || ''));
+          walk(block.content && block.content.blocks);
+        } else if (block.id === targetId) lines.push('[PARAGRAPHE À RÉDIGER]');
+        else if (ADOC_BLOCK_EDIT_TYPES.includes(block.type)) lines.push(adocDescribeBlockContent(block));
+        else {
+          const visible = otherVisibleText(block.content, 'content');
+          if (visible) lines.push(block.type + ' : ' + visible);
+        }
+      });
+    }
+    walk(doc.blocks);
+    const context = lines.join('\n');
+    if (context.length > 60000) throw new Error('Document trop long pour une rédaction contextualisée (60 000 caractères maximum).');
+    return context;
+  }
+
+  // Appel ciblé sur un seul bloc ; la rédaction contextuelle fournit en plus le texte du
+  // document, borné à 60 000 caractères. Aucun appel RAG ni changement du schéma d'outil.
   async function adocCallBlockCorrectionModel(systemPrompt, userContent) {
     const workerUrl = adocGetWorkerUrl();
     const resp = await fetch(workerUrl.replace(/\/+$/, ''), {
@@ -21061,7 +21106,7 @@ ${recent}`;
     const addImageBtn = '<button type="button" class="cc-clarity-reply-btn" data-block-add-image hidden onclick="event.stopPropagation();window.adocArmImageDropOnBlock()">Ajouter une image</button>';
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
-        btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
+        (blockType === 'paragraph' ? btn('draftParagraph') : '') + btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
         '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
         ((blockType === 'card' || (blockId || '').startsWith('root:card-title:')) ? '' : insertBtn('before', 'Insérer un bloc avant')) + insertBtn('after', 'Insérer un bloc après') + addImageBtn +
         // D1 — les gestes de PAGE, après ceux de bloc et derrière le même repère visuel discret :
@@ -22061,8 +22106,14 @@ ${recent}`;
     if (resultEl) { resultEl.hidden = false; resultEl.innerHTML = adocIconSvg('icon-progress') + ' Correction en cours…'; }
     try {
       const systemPrompt = adocBuildBlockCorrectionSystemPrompt(doc, intentInstruction);
-      const userContent = adocDescribeBlockContent(block);
+      const drafting = intentLabel === ADOC_BLOCK_EDIT_INTENTS.draftParagraph.label && block.type === 'paragraph';
+      const userContent = drafting
+        ? 'Paragraphe actuel : ' + (block.content.text || '') + '\n\nDOCUMENT ENTIER DANS SON ORDRE :\n' + adocParagraphDraftContext(doc, block.id)
+        : adocDescribeBlockContent(block);
       const raw = await adocCallBlockCorrectionModel(systemPrompt, userContent);
+      if (drafting && (!raw.text || /^Nouveau paragraphe\.?$/i.test(raw.text.trim()))) {
+        throw new Error('La proposition ne remplace pas encore le paragraphe provisoire. Réessayez.');
+      }
       let newContent;
       switch (block.type) {
         case 'heading': newContent = { text: adocStripEmoji(raw.text || ''), level: block.content.level }; break;
@@ -22082,7 +22133,8 @@ ${recent}`;
       // citations d'origine n'est plus garanti avec confiance.
       const forceReview = intentLabel === ADOC_BLOCK_EDIT_INTENTS.verifySources.label;
       const similarity = adocTextSimilarityRatio(oldText, newText);
-      const substantial = forceReview || similarity < ADOC_BLOCK_EDIT_SIMILARITY_THRESHOLD;
+      const substantial = forceReview || (similarity < ADOC_BLOCK_EDIT_SIMILARITY_THRESHOLD &&
+        !(drafting && !(block.citationIds || []).length && /^Nouveau paragraphe\.?$/i.test((block.content.text || '').trim())));
       // citationIds JAMAIS modifiés ici (aucune modification directe d'une citation elle-même) ;
       // citationReviewRequired ajouté SEULEMENT si substantiel, jamais retiré s'il était déjà
       // présent (un doute déjà signalé ne redevient jamais silencieusement "réglé" tout seul).
@@ -22125,6 +22177,7 @@ ${recent}`;
     // différent (régression #6 : un seul mécanisme de confirmation, une branche selon la cible).
     const rootRef = adocRootFieldRef(doc, st.blockId);
     if (rootRef) {
+      adocEditorCheckpoint();
       const originalValue = rootRef.get();
       rootRef.set(st.pendingBlock.content.text);
       const storeKey = st.storeKey;
@@ -22141,6 +22194,7 @@ ${recent}`;
     // échoue (cf. investigation du lot : la mutation intervenait auparavant avant toute vérification
     // que le rendu réussisse, et la sauvegarde suivait ensuite inconditionnellement).
     const originalBlock = siblings[idx];
+    adocEditorCheckpoint();
     siblings[idx] = st.pendingBlock; // remplace CE bloc précis, tous les autres restent strictement identiques
     const storeKey = st.storeKey;
     adocWsClearBlockSelection();
@@ -24866,7 +24920,7 @@ ${recent}`;
       insertBtn('before', 'Insérer un bloc avant') + insertBtn('after', 'Insérer un bloc après');
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
-        btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') + insertHTML +
+        (kind === 'paragraph' ? btn('draftParagraph') : '') + btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') + insertHTML +
         '<div style="display:flex;gap:6px;flex:1 1 240px;min-width:240px;">' +
           '<textarea class="cc-block-edit-freetext adoc-textarea" style="flex:1;min-height:34px;max-height:120px;" ' +
             'placeholder="Ou décrivez la correction souhaitée…" rows="1" ' +
@@ -25153,9 +25207,8 @@ ${recent}`;
     window.adocRequestLegacyBlockCorrection(intent.label, intent.instruction);
   };
 
-  // Décrit le contenu ACTUEL du passage pour le message envoyé au modèle —
-  // jamais le document entier, jamais un nouvel appel RAG (même principe que
-  // adocDescribeBlockContent, adapté à un élément DOM). Les <sup> sont retirés
+  // Décrit le contenu ACTUEL du passage. Seule la rédaction contextualisée ajoute le reste
+  // du document, sans nouvel appel RAG. Les <sup> sont retirés
   // AVANT description (jamais envoyés au modèle).
   function adocDescribeLegacyBlockContent(el, kind) {
     if (kind === 'table') return 'Tableau :\n' + Array.from(el.rows).map(function (r) { return Array.from(r.cells).map(function (c) { return adocStripCitationSups(c.innerHTML).text; }).join(' | '); }).join('\n');
@@ -25181,7 +25234,16 @@ ${recent}`;
     if (resultEl) { resultEl.hidden = false; resultEl.innerHTML = adocIconSvg('icon-progress') + ' Correction en cours…'; }
     try {
       const kind = st.kind;
-      const userContent = adocDescribeLegacyBlockContent(st.el, kind);
+      const drafting = intentLabel === ADOC_BLOCK_EDIT_INTENTS.draftParagraph.label && kind === 'paragraph';
+      let userContent = adocDescribeLegacyBlockContent(st.el, kind);
+      if (drafting) {
+        const root = document.getElementById('cc-ws-doc-card');
+        const context = adocWsCollectLegacyBlocks(root).map(function (el) {
+          return el === st.el ? '[PARAGRAPHE À RÉDIGER]' : adocDescribeLegacyBlockContent(el, adocLegacyBlockKind(el));
+        }).join('\n');
+        if (context.length > 60000) throw new Error('Document trop long pour une rédaction contextualisée (60 000 caractères maximum).');
+        userContent += '\n\nDOCUMENT ENTIER DANS SON ORDRE :\n' + context;
+      }
       const systemPrompt = "Tu es un assistant clinique qui corrige UN SEUL passage d'un document clinique déjà rédigé (format HTML libre), " +
         "sans jamais changer sa nature (un titre reste un titre, une liste reste une liste), sans réécrire le reste du document, " +
         "et sans jamais inventer de nouvelle source ou référence.\n\n" +
@@ -25190,6 +25252,9 @@ ${recent}`;
         'aucune référence bibliographique dans le texte : les citations de ce passage sont gérées ' +
         'séparément et ne doivent jamais être modifiées ici.';
       const raw = await adocCallBlockCorrectionModel(systemPrompt, userContent);
+      if (drafting && (!raw.text || /^Nouveau paragraphe\.?$/i.test(raw.text.trim()))) {
+        throw new Error('La proposition ne remplace pas encore le paragraphe provisoire. Réessayez.');
+      }
 
       // Reconstruit le HTML corrigé + décide du sort des citations d'origine — point 3 de
       // l'investigation : préservées (réinsérées) si le sens reste proche, retirées + signalées
@@ -25280,6 +25345,7 @@ ${recent}`;
     // art.html juste en dessous, suivi de l'adocOpenWorkspace ci-dessous qui réaffiche depuis ce
     // même art.html, effacerait silencieusement cette édition en attente.
     adocSyncEditedLegacyBlocksToHtml(art);
+    adocEditorCheckpoint();
     const idx = parseInt(st.blockKey.slice(3), 10);
     try {
       const parsed = new DOMParser().parseFromString(art.html || '', 'text/html');
