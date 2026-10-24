@@ -577,16 +577,15 @@
             </div>
         </div>
 
-        <!-- TAB: REMPLACER — carte dédiée du 22/10/2026. Jamais de suppression avant que la
-             nouvelle extraction soit confirmée bonne par vous : l'ancienne reste intacte tant
-             que vous n'avez pas cliqué vous-même sur « Supprimer l'ancienne version ». -->
+        <!-- TAB: REMPLACER — l'ancien livre reste intact tant que la nouvelle extraction
+             n'a pas été entièrement ingérée et vérifiée. -->
         <div class="tab-content" id="tab-replace">
             <div style="background:#fafaf8;border:1px solid #eee;border-radius:10px;padding:16px;margin-bottom:16px;font-size:13px;color:#555;">
-                <strong>Comment ça marche</strong> — trois étapes, jamais automatiques l'une sur l'autre :
+                <strong>Comment ça marche</strong> — remplacement protégé en trois étapes :
                 <ol style="margin:8px 0 0 18px;">
                     <li>Choisissez le livre à remplacer, puis déposez le nouveau fichier du même ouvrage.</li>
-                    <li>La nouvelle extraction est ingérée <em>à côté</em> de l'ancienne — rien n'est encore supprimé.</li>
-                    <li>Comparez les deux dans l'onglet Bibliothèque. Si c'est mieux, revenez ici et supprimez l'ancienne version, d'un clic distinct et confirmé.</li>
+                    <li>La nouvelle extraction est ingérée <em>à côté</em> de l'ancienne, puis sa disponibilité est vérifiée.</li>
+                    <li>Seulement après cette vérification, l'ancienne version est supprimée automatiquement. Si une étape échoue, le remplacement incomplet est signalé.</li>
                 </ol>
             </div>
 
@@ -906,8 +905,9 @@ function addFiles(files) {
         const name = f.name.toLowerCase();
         return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.epub');
     });
-    if (accepted.length === 0) { log('Aucun fichier PDF, HTML ou EPUB détecté'); return; }
+    if (accepted.length === 0) { log('Aucun fichier PDF, HTML ou EPUB détecté'); return []; }
 
+    const added = [];
     for (const f of accepted) {
         if (queue.find(q => q.file.name === f.name)) continue;
         const id = 'q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
@@ -929,6 +929,7 @@ function addFiles(files) {
             status: 'pending', chunks: [], error: null
         };
         queue.push(q);
+        added.push(q);
         // Détecter dès l'ajout, tant que le choix manuel reste visible. L'ingestion attend
         // ce résultat et n'écrit jamais une langue vide dans D1 (où elle deviendrait « fr »).
         q._languageDetectionPromise = detectBookLanguage(q);
@@ -936,6 +937,7 @@ function addFiles(files) {
     renderQueue();
     document.getElementById('actionBar').style.display = 'flex';
     log(`${accepted.length} fichier(s) ajouté(s) (${accepted.filter(f=>f.name.endsWith('.pdf')).length} PDF, ${accepted.filter(f=>f.name.match(/\.html?$/i)).length} HTML, ${accepted.filter(f=>f.name.toLowerCase().endsWith('.epub')).length} EPUB)`);
+    return added;
 }
 
 // ── Queue Render ──
@@ -1028,6 +1030,7 @@ async function verifyQueuedBookIndex(id) {
         q._partialInfo = { d1: result.d1_chunks, vec: q._acceptedVectorChunks ?? 0, total: q.chunks.length, postRead: true };
     } else q.status = 'verify_pending';
     renderQueue();
+    if (q.status === 'done' && q._replacementOf) await finishReplacement(q);
 }
 
 // ── Remplacer un livre — carte dédiée du 22/10/2026 ──
@@ -1068,51 +1071,104 @@ document.getElementById('replaceFileInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file || !_replaceOld) return;
 
-    addFiles([file]);
-    const q = queue[queue.length - 1];
+    const [q] = addFiles([file]);
+    e.target.value = '';
+    if (!q) {
+        document.getElementById('replaceStatus').textContent = 'Ce fichier est déjà dans la file, ou son format n’est pas accepté. Retirez-le de la file avant de le sélectionner à nouveau.';
+        return;
+    }
     // Identifiant et titre volontairement distincts de l'ancien — c'est ce qui empêche le
     // circuit de doublon/écrasement de se déclencher : cette ingestion-ci n'écrase rien.
     q.meta.book_id = (_replaceOld.book_id || 'livre') + '-nouvelle-extraction';
     q.meta.title = (_replaceOld.book_title || file.name) + ' — nouvelle extraction';
     q.meta.author = _replaceOld.author || '';
-    q.meta.language = _replaceOld.language || 'fr';
+    q.meta.language = normalizeAdminBookLanguage(_replaceOld.language);
     q.meta.approach = _replaceOld.approach || 'general';
+    // La détection démarrée par addFiles est asynchrone. Elle ne doit jamais effacer la
+    // langue connue du livre à remplacer et bloquer silencieusement cette ingestion.
+    q._languageManual = Boolean(q.meta.language);
+    q._replacementOf = _replaceOld.book_id;
     _replaceQueueId = q.id;
 
     document.getElementById('replaceStatus').innerHTML = `
         <div style="padding:12px;background:#fafaf8;border:1px solid #eee;border-radius:8px;font-size:13px;">
             <strong>${escHtml(q.meta.title)}</strong><br>
+            <label for="replaceLanguage" style="display:block;margin-top:8px;">Langue de la nouvelle extraction</label>
+            <select id="replaceLanguage" onchange="updateMeta('${q.id}','language',this.value)">${adminBookLanguageOptions(q.meta.language)}</select>
             <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
                 <button class="btn-sm" onclick="previewExtraction('${q.id}')">Aperçu (rien n'est écrit)</button>
-                <button class="btn btn-primary" onclick="replaceIngestNew()">Ingérer la nouvelle extraction, à côté de l'ancienne</button>
+                <button class="btn btn-primary" id="replaceIngestButton" onclick="replaceIngestNew()">Remplacer l'ouvrage après vérification</button>
             </div>
             <div id="qpv-${q.id}"></div>
-        </div>`;
+        </div><div id="replaceResult" style="margin-top:12px;"></div>`;
+    q._languageDetectionPromise.then(() => {
+        if (q.id === _replaceQueueId) document.getElementById('replaceLanguage').innerHTML = adminBookLanguageOptions(q.meta.language);
+    });
 });
 
 async function replaceIngestNew() {
     if (!_replaceQueueId) return;
-    const statusEl = document.getElementById('replaceStatus');
-    await startIngestion(); // le circuit déjà éprouvé — même extraction, même repli OCR
+    const resultEl = document.getElementById('replaceResult');
+    const button = document.getElementById('replaceIngestButton');
+    if (isIngesting) {
+        resultEl.textContent = 'Une indexation est déjà en cours. Attendez sa fin avant de remplacer cet ouvrage.';
+        return;
+    }
+    if (button) button.disabled = true;
+    try {
+        await startIngestion(_replaceQueueId); // Même circuit, limité à cette nouvelle extraction.
+    } finally {
+        if (button) button.disabled = false;
+    }
     const q = queue.find(x => x.id === _replaceQueueId);
     if (!q) return;
     if (q.status === 'done') {
-        statusEl.insertAdjacentHTML('beforeend', `
-            <div style="margin-top:12px;padding:12px;background:#f0f5f0;border:1px solid #cde0cd;border-radius:8px;font-size:13px;">
-                Nouvelle extraction ingérée (${q.chunks.length} chunks), <strong>à côté</strong> de l'ancienne.
-                Comparez les deux dans l'onglet « Bibliothèque ».<br><br>
-                Si c'est mieux :
-                <button class="btn-sm danger" onclick="deleteBook('${_replaceOld.book_id}', '${escHtml(_replaceOld.book_title || '').replace(/'/g, "\\'")}')">
-                    Supprimer l'ancienne version
-                </button>
-                <span style="color:#888;"> (confirmation demandée, comme d'habitude)</span>
-            </div>`);
+        await finishReplacement(q);
+    } else if (q.status === 'verify_pending') {
+        resultEl.innerHTML = `Nouvelle extraction écrite, mais sa disponibilité n'est pas encore confirmée. L'ancien livre est conservé.
+            <button class="btn-sm" onclick="verifyQueuedBookIndex('${q.id}')">Revérifier puis terminer le remplacement</button>`;
     } else {
-        statusEl.insertAdjacentHTML('beforeend', `
-            <div style="margin-top:12px;padding:12px;background:#fdf0ee;border:1px solid #f0cfc8;border-radius:8px;font-size:13px;color:#A32C2C;">
-                L'ingestion de la nouvelle extraction n'a pas réussi (${escHtml(q.error || 'statut : ' + q.status)}).
-                L'ancienne version n'a pas été touchée.
-            </div>`);
+        resultEl.innerHTML = `<div style="padding:12px;background:#fdf0ee;border:1px solid #f0cfc8;border-radius:8px;font-size:13px;color:#A32C2C;">
+            Remplacement non terminé (${escHtml(q.error || 'statut : ' + q.status)}). L'ancien livre est conservé.
+        </div>`;
+    }
+}
+
+async function finishReplacement(q) {
+    if (!q || q.status !== 'done' || !q._replacementOf || q._replacementFinalized || q._replacementFinalizing) return;
+    q._replacementFinalizing = true;
+    const resultEl = q.id === _replaceQueueId ? document.getElementById('replaceResult') : null;
+    if (resultEl) resultEl.textContent = 'Nouvelle extraction vérifiée. Suppression de l’ancienne version en cours…';
+    try {
+        const res = await fetch(getWorkerUrl() + '/delete-book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
+            body: JSON.stringify({ book_id: q._replacementOf })
+        });
+        const data = await res.json();
+        if (!res.ok || data.success !== true) {
+            throw new Error(data.partial
+                ? `Suppression partielle de l'ancien livre (D1 : ${data.deleted_d1 ?? '?'}, vecteurs : ${data.deleted_vectorize ?? '?'})`
+                : data.error || `HTTP ${res.status}`);
+        }
+        q._replacementFinalized = true;
+        if (resultEl) resultEl.innerHTML = `<div style="padding:12px;background:#f0f5f0;border:1px solid #cde0cd;border-radius:8px;font-size:13px;">
+            Remplacement terminé : nouvelle extraction vérifiée (${q.chunks.length} passages), ancienne version supprimée.</div>`;
+        const button = document.getElementById('replaceIngestButton');
+        if (button && q.id === _replaceQueueId) button.disabled = true;
+        log(`Remplacement terminé : ${q.meta.title} ; ancienne version supprimée`, 'success');
+        refreshLibrary();
+        refreshStats();
+    } catch (err) {
+        q._replacementDeleteError = err.message;
+        if (resultEl) resultEl.innerHTML = `<div style="padding:12px;background:#fdf0ee;border:1px solid #f0cfc8;border-radius:8px;font-size:13px;color:#A32C2C;">
+            La nouvelle extraction est vérifiée, mais la suppression de l'ancienne version n'est pas confirmée (${escHtml(err.message)}).
+            Vérifiez l'état des deux livres dans la Bibliothèque avant toute nouvelle tentative ; ne relancez pas l'ingestion.</div>`;
+        log(`Remplacement incomplet : suppression de l'ancienne version non confirmée (${err.message})`, 'error');
+        refreshLibrary();
+        refreshStats();
+    } finally {
+        q._replacementFinalizing = false;
     }
 }
 
@@ -1752,14 +1808,14 @@ function chunkPages(pages) {
 }
 
 // ── Ingestion ──
-async function startIngestion() {
+async function startIngestion(onlyQueueId = null) {
     if (isIngesting) return;
     isIngesting = true;
     const btn = document.getElementById('btnIngest');
     btn.disabled = true;
     btn.textContent = 'Indexation en cours...';
 
-    const pending = queue.filter(q => q.status === 'pending' || q.status === 'error');
+    const pending = queue.filter(q => (q.status === 'pending' || q.status === 'error') && (!onlyQueueId || q.id === onlyQueueId));
     // Filtrer ceux marqués 'skip' par l'utilisateur
     const toProcess = pending.filter(q => q._dupAction !== 'skip');
     let success = 0, errors = 0, partial = 0;
@@ -1822,7 +1878,8 @@ async function startIngestion() {
                 // demande une décision humaine, jamais un rejet silencieux ni un écrasement
                 // automatique (qui emprunterait le circuit « Écraser », déjà signalé à risque).
                 const similar = (stats.books || []).find(b =>
-                    b.book_id !== q.meta.book_id && titleSimilarity(b.book_title, q.meta.title) >= 0.6
+                    b.book_id !== q.meta.book_id && b.book_id !== q._replacementOf &&
+                    titleSimilarity(b.book_title, q.meta.title) >= 0.6
                 );
                 if (similar) {
                     q._similarTo = similar;
