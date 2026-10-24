@@ -4261,6 +4261,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
     walk(doc && doc.blocks);
     const result = { total: targets.length, saved: 0, missing: 0, assetIds: [] };
     const byQuery = new Map();
+    const staged = [];
     for (const target of targets) {
       const query = String(target.query).trim();
       try {
@@ -4278,26 +4279,41 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           }
           if (/^data:image\/(?:png|jpeg);base64,/.test(url)) {
             const blob = await (await fetch(url)).blob();
-            assetId = await adocUploadImageAsset(new File([blob], 'photo.' + (blob.type === 'image/png' ? 'png' : 'jpg'), { type: blob.type }));
+            try {
+              assetId = await adocUploadImageAsset(new File([blob], 'photo.' + (blob.type === 'image/png' ? 'png' : 'jpg'), { type: blob.type }));
+            } catch (error) { error.storageRejected = true; throw error; }
           } else {
-            const saved = await fetch(adocGetWorkerUrl() + '/media-assets/from-url', {
-              method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-              body: JSON.stringify({ url: url, attribution: _adocResolvedImageAttribution.get(query) || '' }),
-            });
-            if (!saved.ok) throw new Error('Enregistrement HTTP ' + saved.status);
+            let saved;
+            try {
+              saved = await fetch(adocGetWorkerUrl() + '/media-assets/from-url', {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
+                body: JSON.stringify({ url: url, attribution: _adocResolvedImageAttribution.get(query) || '' }),
+              });
+            } catch (error) { error.storageRejected = true; throw error; }
+            if (!saved.ok) {
+              const error = new Error('Enregistrement de photo refusé (HTTP ' + saved.status + ')');
+              error.storageRejected = true;
+              throw error;
+            }
             assetId = (await saved.json()).asset_id;
           }
-          if (!assetId) throw new Error('Identifiant de photo absent');
+          if (!assetId) {
+            const error = new Error('Identifiant de photo absent dans la réponse du Worker');
+            error.storageRejected = true;
+            throw error;
+          }
           byQuery.set(query, assetId);
         }
-        target.content[target.field] = assetId;
+        staged.push({ target: target, assetId: assetId });
         result.saved++;
         result.assetIds.push(assetId);
       } catch (e) {
+        if (e.storageRejected) { e.createdAssetIds = result.assetIds.slice(); throw e; }
         result.missing++;
       }
       if (progress) progress(result);
     }
+    staged.forEach(function (item) { item.target.content[item.target.field] = item.assetId; });
     return result;
   }
   window.adocFreezeDocumentImages = adocFreezeDocumentImages;
@@ -25892,6 +25908,9 @@ ${recent}`;
       alert(result.saved + ' photos enregistrées, ' + result.missing + ' introuvables. '
         + (result.saved ? 'Sauvegardez le document pour conserver ces changements.' : 'Le document reste inchangé.'));
       return result;
+    } catch (e) {
+      alert('Figer les photos a été interrompu : ' + (e && e.message || 'erreur inconnue') + '. Le document reste inchangé.');
+      return null;
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Figer les photos'; }
     }

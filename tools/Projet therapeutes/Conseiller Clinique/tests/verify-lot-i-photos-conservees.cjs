@@ -47,9 +47,11 @@ const pixel = Buffer.from('R0lGODlhAQABAAAAACw=', 'base64');
       searches++;
       const q = new URL(url).searchParams.get('q');
       return request.fulfill({ status: q === 'absente' ? 429 : 200, contentType: 'application/json',
-        body: q === 'absente' ? '{"error":"quota"}' : JSON.stringify({ photos: [{ url: 'https://images.pexels.com/photos/1/pexels-photo-1.jpeg' }] }) });
+        body: q === 'absente' ? '{"error":"quota"}' : JSON.stringify({ photos: [{ url: 'https://images.pexels.com/photos/1/pexels-photo-1.jpeg?query=' + encodeURIComponent(q) }] }) });
     }
     if (url.endsWith('/media-assets/from-url')) {
+      if (request.request().postDataJSON().url.includes('storage-refusee'))
+        return request.fulfill({ status: 503, json: { error: 'storage unavailable' } });
       stores++;
       return request.fulfill({ json: { asset_id: 'asset-exact', deduplicated: stores > 1 } });
     }
@@ -78,6 +80,17 @@ const pixel = Buffer.from('R0lGODlhAQABAAAAACw=', 'base64');
   assert.equal(result.doc.blocks[1].content.assetId, undefined);
   assert.equal(searches, 3);
   assert.equal(stores, 2);
+  const refused = await page.evaluate(async () => {
+    const d = { blocks: [
+      { type: 'card', content: { imageRef: 'premiere', blocks: [] } },
+      { type: 'card', content: { imageRef: 'storage-refusee', blocks: [] } },
+    ] };
+    try { await window.adocFreezeDocumentImages(d); return { failed: false, d }; }
+    catch (e) { return { failed: !!e.storageRejected, d }; }
+  });
+  assert.equal(refused.failed, true, 'le refus du stockage interrompt le geste');
+  assert.equal(refused.d.blocks[0].content.imageAssetId, undefined, 'aucun champ du document n’est écrit partiellement');
+  assert.equal(refused.d.blocks[1].content.imageAssetId, undefined);
 
   const old = presentationDoc();
   old.blocks[0].content.imageRef = 'ancienne photo';
