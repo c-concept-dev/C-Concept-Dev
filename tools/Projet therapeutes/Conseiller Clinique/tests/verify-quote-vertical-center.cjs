@@ -65,6 +65,23 @@ const documentTest = {
       assert.ok(Math.abs(calloutResult.gapTop - calloutResult.gapBottom) < 18, JSON.stringify(calloutResult));
       assert.equal(calloutResult.display, 'flex');
       assert.notEqual(calloutResult.normalDisplay, 'flex');
+      await page.locator('#callout-default').click();
+      const resize = page.locator('#callout-default > .cc-flow-resize-handle[data-flow-resize="s"]');
+      const handle = await resize.boundingBox();
+      assert.ok(handle, 'bottom resize handle is present');
+      await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2 + 160, { steps: 6 });
+      await page.mouse.up();
+      const gesture = await page.evaluate(() => {
+        const block = document.getElementById('callout-default');
+        const text = block.querySelector('[data-cc-editor-leaf]');
+        const outer = block.getBoundingClientRect(), inner = text.getBoundingClientRect();
+        return { height: outer.height, gapTop: inner.top - outer.top, gapBottom: outer.bottom - inner.bottom,
+          stored: window._adocArtifacts.adocArt_quoteCenter._adocStructuredDoc.blocks.find(b => b.id === 'callout-default').style?.flowMinHeightPx };
+      });
+      assert.ok(gesture.stored > 160, JSON.stringify(gesture));
+      assert.ok(Math.abs(gesture.gapTop - gesture.gapBottom) < 18, JSON.stringify(gesture));
       const presentation = structuredClone(documentTest);
       presentation.documentKind = 'presentation';
       presentation.blocks = [{ id: 'quote-card', type: 'card', content: {
