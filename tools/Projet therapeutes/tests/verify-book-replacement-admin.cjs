@@ -126,6 +126,44 @@ const { chromium } = require('playwright');
     assert.equal(delayed.status, 'done');
     assert.equal(delayed.finalized, true);
     assert.deepEqual(delayed.calls.slice(0, 2), ['verify-book-index', 'delete-book']);
+    const firstOpen = await page.evaluate(async () => {
+      window._libBooks = [];
+      libraryStatsInFlight = null;
+      let releaseStats;
+      let requests = 0;
+      window.fetch = async url => {
+        if (!String(url).endsWith('/library-stats')) throw new Error('Unexpected endpoint');
+        requests++;
+        await new Promise(resolve => { releaseStats = resolve; });
+        return new Response(JSON.stringify({ total_chunks: 1, total_books: 1,
+          books: [{ book_id: 'new-book', book_title: 'Livre chargé', author: 'Auteur', language: 'fr', approach: 'general' }],
+          by_approach: [] }), { status: 200 });
+      };
+      const headerLoad = refreshStats();
+      prepareReplaceTab();
+      const loading = document.getElementById('replaceBooksNotice').textContent;
+      releaseStats();
+      await headerLoad;
+      for (let i = 0; i < 10 && document.getElementById('replaceOldBook').options.length < 2; i++) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+      return { loading, requests, count: document.getElementById('replaceOldBook').options.length,
+        option: document.getElementById('replaceOldBook').options[1]?.textContent };
+    });
+    assert.match(firstOpen.loading, /Chargement/);
+    assert.equal(firstOpen.requests, 1, 'Initial header and replacement list should share one request');
+    assert.equal(firstOpen.count, 2, 'The selector must populate when the asynchronous response arrives');
+    assert.equal(firstOpen.option, 'Livre chargé');
+    const failedLoad = await page.evaluate(async () => {
+      window._libBooks = [];
+      libraryStatsInFlight = null;
+      window.fetch = async () => new Response('Unavailable', { status: 503 });
+      await refreshLibrary();
+      return { notice: document.getElementById('replaceBooksNotice').textContent,
+        count: document.getElementById('replaceOldBook').options.length };
+    });
+    assert.match(failedLoad.notice, /Liste indisponible.*HTTP 503[\s\S]*Réessayer/);
+    assert.equal(failedLoad.count, 1);
     console.log('PASS: replacement preserves language, scopes ingestion, verifies new index, deletes old only on ready, and reports deletion failure');
   } finally {
     await browser.close();

@@ -593,6 +593,7 @@
             <select id="replaceOldBook" style="width:100%;padding:10px 12px;border:2px solid #D8CDBB;border-radius:8px;font-family:inherit;font-size:13px;margin-bottom:16px;" onchange="onReplaceOldBookChange()">
                 <option value="">— Choisissez dans la bibliothèque —</option>
             </select>
+            <div id="replaceBooksNotice" role="status" aria-live="polite" style="font-size:12px;margin:-8px 0 16px;color:#666;"></div>
 
             <div class="dropzone" id="replaceDropzone" style="display:none;">
                 <span class="dropzone-icon" aria-hidden="true">Source</span>
@@ -1069,15 +1070,40 @@ function showReplacementProgress(q, label, done = null, total = null) {
 }
 
 function prepareReplaceTab() {
-    const sel = document.getElementById('replaceOldBook');
-    const books = window._libBooks || [];
-    sel.innerHTML = '<option value="">— Choisissez dans la bibliothèque —</option>' +
-        books.map((b, i) => `<option value="${i}">${escHtml(b.book_title || b.book_id)}</option>`).join('');
+    const activeReplacement = queue.find(q => q.id === _replaceQueueId && !q._replacementFinalized);
+    if (activeReplacement) {
+        renderReplaceBookOptions();
+        return; // Changer d'onglet ne doit pas effacer un remplacement en cours.
+    }
     document.getElementById('replaceDropzone').style.display = 'none';
     document.getElementById('replaceStatus').innerHTML = '';
     _replaceOld = null;
     _replaceQueueId = null;
-    if (!books.length) refreshLibrary();
+    renderReplaceBookOptions();
+    if (!window._libBooks?.length) {
+        document.getElementById('replaceBooksNotice').textContent = 'Chargement des ouvrages…';
+        refreshLibrary();
+    }
+}
+
+function renderReplaceBookOptions(error = '') {
+    const sel = document.getElementById('replaceOldBook');
+    const notice = document.getElementById('replaceBooksNotice');
+    const books = window._libBooks || [];
+    const selectedId = _replaceOld?.book_id;
+    sel.innerHTML = '<option value="">— Choisissez dans la bibliothèque —</option>' +
+        books.map((b, i) => `<option value="${i}">${escHtml(b.book_title || b.book_id)}</option>`).join('');
+    const selectedIndex = books.findIndex(b => b.book_id === selectedId);
+    if (selectedIndex >= 0) {
+        sel.value = String(selectedIndex);
+        _replaceOld = books[selectedIndex];
+    }
+    if (error) {
+        notice.innerHTML = `${books.length ? 'Mise à jour indisponible ; ancienne liste conservée.' : 'Liste indisponible.'} ${escHtml(error)}
+            <button class="btn-sm" type="button" onclick="refreshLibrary()">Réessayer</button>`;
+    } else {
+        notice.textContent = books.length ? `${books.length} ouvrages disponibles` : 'Chargement des ouvrages…';
+    }
 }
 
 function onReplaceOldBookChange() {
@@ -2272,27 +2298,42 @@ function libraryBookCount(data) {
     return ids.length ? new Set(ids).size : books.length;
 }
 
+let libraryStatsInFlight = null;
+function loadLibraryStats() {
+    // Le compteur d'accueil et le premier onglet ouvert peuvent demander la même liste
+    // simultanément. Partager cette seule requête ; chaque appel ultérieur reste frais.
+    if (!libraryStatsInFlight) {
+        libraryStatsInFlight = fetch(getWorkerUrl() + '/library-stats')
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                return res.json();
+            })
+            .finally(() => { libraryStatsInFlight = null; });
+    }
+    return libraryStatsInFlight;
+}
+
 async function refreshLibrary() {
     const el = document.getElementById('libraryContent');
     el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;">Chargement...</div>';
     document.getElementById('libraryFilterStatus').textContent = '';
 
     try {
-        const res = await fetch(getWorkerUrl() + '/library-stats');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
+        const data = await loadLibraryStats();
 
-        if (!data.books || data.books.length === 0) {
+        window._libBooks = Array.isArray(data.books) ? data.books : [];
+        renderReplaceBookOptions();
+
+        if (window._libBooks.length === 0) {
             el.innerHTML = `<div class="empty-state">
                 <div class="icon" aria-hidden="true">—</div>
                 <div>Bibliothèque vide — ajoutez des PDF dans l'onglet "Ajouter"</div>
             </div>`;
+            document.getElementById('replaceBooksNotice').textContent = 'Aucun ouvrage disponible.';
             return;
         }
 
         // Stocker les livres globalement — les index numériques évitent les problèmes d'apostrophes
-        window._libBooks = data.books;
-
         // Correctif urgent (sécurité P0) — book_title/author/approach/language viennent tous du
         // Worker (/library-stats), dérivés de métadonnées saisies à l'ingestion — jamais dignes
         // de confiance, échappés avant insertion.
@@ -2328,6 +2369,7 @@ async function refreshLibrary() {
 
     } catch (err) {
         el.innerHTML = '<div style="color:#c00;padding:20px;">Erreur: ' + escHtml(err.message) + '</div>';
+        renderReplaceBookOptions(err.message);
     }
 }
 function normalizeLibraryLanguage(value) {
@@ -3208,13 +3250,14 @@ function autoDetectMeta(pages, filename) {
 // ── Stats ──
 async function refreshStats() {
     try {
-        const res = await fetch(getWorkerUrl() + '/library-stats');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
+        const data = await loadLibraryStats();
         document.getElementById('headerStats').textContent =
             `${data.total_chunks || 0} chunks · ${libraryBookCount(data)} livres`;
+        window._libBooks = Array.isArray(data.books) ? data.books : [];
+        renderReplaceBookOptions();
     } catch {
         document.getElementById('headerStats').textContent = 'Worker inaccessible';
+        renderReplaceBookOptions('Impossible de joindre le Worker.');
     }
 }
 
