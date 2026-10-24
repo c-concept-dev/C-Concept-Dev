@@ -5,8 +5,12 @@
 
 .ln-catalogue {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: calc(var(--ln-grid) * 2);
+  height: 100%;
+  min-height: 0;
   padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+  overflow: hidden;
 }
 
 .ln-catalogue__entete {
@@ -67,10 +71,58 @@
   display: grid;
   grid-template-columns: minmax(0, 16rem) minmax(0, 1fr) minmax(0, 24rem);
   gap: calc(var(--ln-grid) * 2);
-  align-items: start;
+  min-height: 0;
+  overflow: hidden;
+  align-items: stretch;
 }
 
 /* ---- Filtres ---- */
+
+.ln-filtres,
+.ln-catalogue__documents-colonne,
+.ln-catalogue__pages-colonne {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ln-catalogue__documents-colonne,
+.ln-catalogue__pages-colonne {
+  display: grid;
+  align-content: start;
+  gap: calc(var(--ln-grid) * 2);
+}
+
+.ln-catalogue__documents-liste {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ln-catalogue__documents-liste > li {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+}
+
+.ln-catalogue__documents-liste .ln-btn {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+.ln-catalogue__texte-seul,
+.ln-catalogue__chargement {
+  display: grid;
+  justify-items: start;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 2);
+}
+
+.ln-catalogue__texte-seul p {
+  margin: 0;
+}
 
 .ln-filtres__titre {
   margin: 0 0 calc(var(--ln-grid)) 0;
@@ -183,9 +235,22 @@
 }
 
 .ln-pages--liste .ln-pages__carte {
+  /* Quatre enfants, quatre colonnes, toujours : la vignette, l'intitulé, les reliés, l'alerte.
+     L'alerte est facultative — sa colonne reste alors vide, ce qui ne déforme rien. */
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: calc(var(--ln-grid) * 2);
+}
+
+/* Le nom de la page et son titre, l'un sous l'autre en liste, l'un après l'autre en grille. */
+.ln-pages__intitule {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.25);
+  min-width: 0;
+}
+
+.ln-pages__intitule > * {
+  overflow-wrap: anywhere;
 }
 
 .ln-pages__carte--ouvert {
@@ -226,6 +291,15 @@
 
 .ln-pages__averifier {
   color: var(--ln-selection-text);
+}
+
+/* L'action suit la page choisie. Le détail est un quatrième bloc dans une grille à trois
+   colonnes et peut donc tomber sous une très longue liste de pages : l'ouverture ne doit jamais
+   dépendre de la longueur du document. */
+.ln-pages__ouvrir {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-start: calc(var(--ln-grid));
 }
 
 /* ---- Détail ---- */
@@ -300,31 +374,26 @@
   color: var(--ln-selection-text);
 }
 
-.ln-detail__ouvrir {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--ln-grid));
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ln-text-primary);
-  font: inherit;
-  font-size: 15px;
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  cursor: pointer;
-}
-
-.ln-detail__ouvrir:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  text-decoration: none;
-}
-
 @media (max-width: 1200px) {
+  .ln-catalogue {
+    display: block;
+    height: 100%;
+    overflow-y: auto;
+  }
+
+  .ln-catalogue__entete {
+    margin-block-end: calc(var(--ln-grid) * 2);
+  }
+
   .ln-catalogue__corps {
     grid-template-columns: minmax(0, 1fr);
+    overflow: visible;
+  }
+
+  .ln-filtres,
+  .ln-catalogue__documents-colonne,
+  .ln-catalogue__pages-colonne {
+    overflow-y: visible;
   }
 }
 
@@ -360,4 +429,13 @@ img.ln-pages__apercu,
      qui déclare sa propre couleur, et laissé le titre invisible — il héritait d'une couleur
      calculée plus haut dans l'arbre. */
   color: var(--ln-text-primary);
+}
+
+/* Le lien vers les doublons se tient dans la ligne des comptes : c'est un fait de la
+   bibliothèque parmi les autres, et non une action qui s'impose. */
+.ln-catalogue__doublons {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.5);
+  font-size: inherit;
 }

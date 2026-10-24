@@ -14,7 +14,7 @@ use crate::limites::LIMITES;
 use serde::Deserialize;
 use std::{
     io::{self, BufRead, BufReader, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     time::{Duration, Instant},
 };
@@ -156,18 +156,66 @@ impl Lancement {
         // Les codecs WebAssembly vivent à côté de la chaîne : un paquet n'a pas de `node_modules`
         // où les chercher.
         let codecs = script.parent().map(|d| d.join("codecs"));
+        let mut environnement = Vec::new();
+        if let Some(codecs) = codecs.filter(|c| c.exists()) {
+            environnement.push(("LIENOTHEQUE_CODECS".to_owned(), codecs.to_string_lossy().into_owned()));
+        }
+        environnement.extend(ou_sont_les_moteurs(&node, &script));
         Self {
             programme: node,
             arguments: vec![
                 format!("--max-old-space-size={}", LIMITES.memoire_max_mo),
                 script.to_string_lossy().into_owned(),
             ],
-            environnement: codecs
-                .filter(|c| c.exists())
-                .map(|c| vec![("LIENOTHEQUE_CODECS".to_owned(), c.to_string_lossy().into_owned())])
-                .unwrap_or_default(),
+            environnement,
         }
     }
+}
+
+/// Ce que le moteur doit savoir pour retrouver les outils que le paquet emporte pour lui.
+///
+/// ## Le défaut que cela corrige, trouvé le 22 octobre 2026
+///
+/// La chaîne lance `tesseract` **par son nom**, et compte donc sur le `PATH`. Une application
+/// ouverte depuis le Finder hérite d'un `PATH` minimal — `/usr/bin:/bin:/usr/sbin:/sbin` — qui ne
+/// contient évidemment pas le dossier des binaires du paquet. D'où `spawnSync tesseract ENOENT`,
+/// sur un paquet qui emporte pourtant Tesseract.
+///
+/// Le défaut ne s'était jamais vu parce que **toutes les mesures du projet ont été faites depuis
+/// un terminal**, où un Tesseract installé par ailleurs est sur le `PATH`. Le paquet n'a donc
+/// jamais exécuté la même chaîne que les bancs, et personne ne pouvait le savoir : l'un comme
+/// l'autre trouvaient un `tesseract`, mais pas le même.
+///
+/// ## Pourquoi l'environnement, et non un chemin passé de couche en couche
+///
+/// La chaîne sait déjà résoudre un outil par son nom et honorer `TESSDATA_PREFIX` : c'est la
+/// convention de Tesseract lui-même. Lui donner son environnement la laisse fonctionner comme
+/// elle est écrite, et vaudra pour **tout** outil annexe que le paquet emportera ensuite. Faire
+/// descendre un chemin absolu à travers quatre couches demanderait quatre modifications pour
+/// dire la même chose, et une de plus au prochain outil.
+///
+/// Le dossier du paquet passe **devant** l'existant : celui qu'on emporte a été éprouvé avec la
+/// chaîne, celui du système ne l'a pas été.
+fn ou_sont_les_moteurs(node: &Path, script: &Path) -> Vec<(String, String)> {
+    let mut dit = Vec::new();
+
+    // Les binaires annexes voyagent à côté de `node`, posés là par l'empaqueteur.
+    if let Some(binaires) = node.parent() {
+        let separateur = if cfg!(windows) { ";" } else { ":" };
+        let ancien = std::env::var("PATH").unwrap_or_default();
+        let devant = binaires.to_string_lossy().into_owned();
+        let chemin = if ancien.is_empty() { devant } else { format!("{devant}{separateur}{ancien}") };
+        dit.push(("PATH".to_owned(), chemin));
+    }
+
+    // Les modèles de langue sont une ressource, donc un cran au-dessus de la chaîne.
+    if let Some(tessdata) = script.parent().and_then(Path::parent).map(|m| m.join("tessdata")) {
+        if tessdata.exists() {
+            dit.push(("TESSDATA_PREFIX".to_owned(), tessdata.to_string_lossy().into_owned()));
+        }
+    }
+
+    dit
 }
 
 /// Un moteur lancé, et le tuyau par lequel on lui parle.
@@ -260,6 +308,56 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Un paquet en miniature : `MacOS/node` à côté des binaires, `Resources/moteurs/…` pour le
+    /// reste. C'est l'agencement réel, et c'est de lui que les deux réglages se déduisent.
+    fn paquet_en_miniature() -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
+        let racine = std::env::temp_dir().join(format!("lienotheque-moteur-{}", std::process::id()));
+        let macos = racine.join("Contents").join("MacOS");
+        let moteurs = racine.join("Contents").join("Resources").join("moteurs");
+        std::fs::create_dir_all(&macos).expect("MacOS");
+        std::fs::create_dir_all(moteurs.join("chaine")).expect("chaîne");
+        std::fs::create_dir_all(moteurs.join("tessdata")).expect("tessdata");
+        (racine, macos.join("node"), moteurs.join("chaine").join("moteur.js"))
+    }
+
+    #[test]
+    fn le_moteur_recoit_le_dossier_de_ses_binaires_en_tete_du_chemin() {
+        let (racine, node, script) = paquet_en_miniature();
+        let lancement = Lancement::embarque(node.clone(), script);
+        let chemin = lancement
+            .environnement
+            .iter()
+            .find(|(c, _)| c == "PATH")
+            .map(|(_, v)| v.clone())
+            .expect("le chemin doit être posé");
+        let attendu = node.parent().expect("dossier des binaires").to_string_lossy().into_owned();
+        // En tête, et non quelque part : celui qu'on emporte a été éprouvé avec la chaîne.
+        assert!(chemin.starts_with(&attendu), "« {chemin} » ne commence pas par « {attendu} »");
+        let _ = std::fs::remove_dir_all(&racine);
+    }
+
+    #[test]
+    fn le_moteur_recoit_ou_sont_les_modeles_de_langue() {
+        let (racine, node, script) = paquet_en_miniature();
+        let lancement = Lancement::embarque(node, script);
+        let modeles = lancement.environnement.iter().find(|(c, _)| c == "TESSDATA_PREFIX");
+        assert!(modeles.is_some(), "TESSDATA_PREFIX manque : Tesseract ne trouverait aucune langue");
+        assert!(modeles.expect("posé").1.ends_with("tessdata"));
+        let _ = std::fs::remove_dir_all(&racine);
+    }
+
+    #[test]
+    fn sans_dossier_de_modeles_on_ne_promet_rien() {
+        let (racine, node, script) = paquet_en_miniature();
+        std::fs::remove_dir_all(script.parent().and_then(Path::parent).expect("moteurs").join("tessdata"))
+            .expect("retiré");
+        let lancement = Lancement::embarque(node, script);
+        // Un réglage qui désigne un dossier absent vaut moins que son absence : Tesseract
+        // chercherait là et n'y trouverait rien, sans qu'on sache pourquoi.
+        assert!(lancement.environnement.iter().all(|(c, _)| c != "TESSDATA_PREFIX"));
+        let _ = std::fs::remove_dir_all(&racine);
+    }
 
     fn salutation() -> String {
         format!(

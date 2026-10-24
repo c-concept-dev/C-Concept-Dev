@@ -118,6 +118,10 @@ export function ManiereDeLire({
   const commencer = (evenement: PointerEvent<HTMLDivElement>): void => {
     const point = ou(evenement);
     if (point === undefined) return;
+    // Sans cela, le navigateur ouvre son propre glisser — celui d'une image ou d'une sélection —
+    // et le curseur devient un cercle barré au-dessus de tout ce qui n'accepte pas un dépôt.
+    // Relevé le 22 octobre : on ne pouvait pas tracer, et rien ne disait pourquoi.
+    evenement.preventDefault();
     evenement.currentTarget.setPointerCapture(evenement.pointerId);
     depart.current = point;
     setTrace(entre(point, point));
@@ -235,9 +239,18 @@ export function ManiereDeLire({
             onPointerUp={finir}
             onPointerCancel={finir}
           >
-            {page === undefined ? (
+            {/* Deux absences, et elles n'ont pas la même cause ni le même remède.
+                Sans document choisi, parler « des pages de ce document » désigne un document qui
+                n'existe pas : on arrive ici par la palette, qui mène à l'écran sans rien lui
+                donner à montrer. C'est l'écran qui doit le dire, et dire où aller. */}
+            {nomDuDocument === "" ? (
               <p className="ln-muted ln-maniere__planche-vide">
-                Les {description.mots.page.plusieurs} de ce document n’ont pas encore été
+                Aucun document n’est ouvert. Choisissez-en un dans le <a href="#depot">dépôt</a>,
+                puis revenez ici : c’est de là qu’un document arrive sur cette planche.
+              </p>
+            ) : page === undefined ? (
+              <p className="ln-muted ln-maniere__planche-vide">
+                Les {description.mots.page.plusieurs} de « {nomDuDocument} » n’ont pas encore été
                 préparées.
               </p>
             ) : (

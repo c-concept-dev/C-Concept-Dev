@@ -62,3 +62,74 @@ describe("un seul adaptateur connaît le moteur de base", () => {
     }
   });
 });
+
+
+/** Ce que la chaîne transmet à la lecture doit être éprouvé **par la porte** (JOB-05)
+ *
+ *  ## Le défaut que ce garde-fou ferme
+ *
+ *  Trois fois en deux jours, un mécanisme juste s'est révélé inatteignable depuis la porte que
+ *  l'application franchit — `executerTravail`. Le troisième cas dit tout : `lireLeTexte` décide
+ *  `options.doublePage ?? détection`, et la chaîne lui passait toujours une valeur définie. Le
+ *  `??` ne tombait jamais, la détection ne s'exécutait que dans les bancs, et **aucune épreuve de
+ *  la détection ne pouvait le voir** puisqu'aucune ne franchissait la porte.
+ *
+ *  Le point commun des trois : des épreuves vertes **au-dessus** du défaut, et rien qui passe par
+ *  là où l'application passe. Une épreuve qui appelle la fonction prouve la fonction ; seule une
+ *  épreuve qui franchit la porte prouve le produit.
+ *
+ *  ## La règle
+ *
+ *  Toute option que `lot.ts` transmet à `lireLeTexte` doit être **nommée dans au moins une épreuve
+ *  qui appelle `executerTravail`**. Ajouter un réglage à la lecture oblige donc à l'éprouver là où
+ *  il sera réellement employé, et non seulement là où il est écrit.
+ *
+ *  Ce n'est pas une preuve de justesse : une épreuve peut nommer un réglage sans rien en dire de
+ *  sérieux. C'est une preuve de **passage** — que quelqu'un soit allé jusqu'à la porte avec. Les
+ *  trois défauts de ces deux jours seraient tous tombés là-dessus.
+ */
+describe("ce que la chaîne transmet à la lecture est éprouvé par la porte", () => {
+  const lire = (chemin: string): string => readFileSync(join(RACINE, chemin), "utf8");
+
+  /** Les réglages que la lecture accepte, pris à son contrat et non recopiés ici. */
+  const OPTIONS = [...lire("outils/ingestion/src/texte.ts").matchAll(/readonly (\w+)\?:/g)].map((trouve) => trouve[1]!);
+
+  /** Ce que la chaîne lui passe vraiment : le bloc d'options de l'appel, et rien d'autre. */
+  const appel = ((): string => {
+    const source = lire("outils/ingestion/src/lot.ts");
+    const depart = source.indexOf("lireLeTexte(lot.pdf, {");
+    const fin = source.indexOf("});", depart);
+    return depart < 0 || fin < 0 ? "" : source.slice(depart, fin);
+  })();
+
+  const transmises = OPTIONS.filter((option) => new RegExp(`\\b${option}\\b`).test(appel));
+
+  /** Les épreuves qui franchissent la porte, **et seulement elle**.
+   *
+   *  Un fichier qui appelle aussi `lireLeTexte` ne compte pas : il nommerait le réglage sans que
+   *  rien ne dise lequel de ses deux appels l'emploie. C'est exactement ce qui est arrivé —
+   *  `aucune-page-lue.test.ts` nomme `doublePage`, franchit la porte ailleurs dans le même
+   *  fichier, et le défaut a vécu dessous. Un garde-fou satisfait par un voisinage ne garde
+   *  rien. */
+  const PAR_LA_PORTE = readdirSync(join(RACINE, "outils/ingestion/test"))
+    .filter((fichier) => fichier.endsWith(".ts"))
+    .map((fichier) => ({ fichier, texte: lire(`outils/ingestion/test/${fichier}`) }))
+    .filter((un) => un.texte.includes("executerTravail") && !un.texte.includes("lireLeTexte("));
+
+  it("trouve bien de quoi contrôler : sinon ce garde-fou ne garderait rien", () => {
+    expect(OPTIONS.length, "aucune option lue dans le contrat de la lecture").toBeGreaterThan(3);
+    expect(appel, "l'appel de la chaîne à la lecture est introuvable").not.toBe("");
+    expect(transmises.length, "la chaîne ne transmettrait aucun réglage ?").toBeGreaterThan(0);
+    expect(PAR_LA_PORTE.length, "aucune épreuve ne franchit la porte").toBeGreaterThan(0);
+  });
+
+  it("chaque réglage transmis est nommé dans une épreuve qui passe par la porte", () => {
+    const orphelins = transmises.filter((option) => !PAR_LA_PORTE.some((un) => new RegExp(`\\b${option}\\b`).test(un.texte)));
+    expect(
+      orphelins,
+      `réglage(s) transmis à la lecture sans aucune épreuve par la porte : ${orphelins.join(", ")}. ` +
+        "Une épreuve qui appelle la fonction prouve la fonction ; seule une épreuve qui franchit " +
+        "`executerTravail` prouve le produit.",
+    ).toEqual([]);
+  });
+});

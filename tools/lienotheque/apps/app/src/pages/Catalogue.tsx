@@ -14,6 +14,8 @@ import {
 } from "@lienotheque/contrats";
 import { classerUnDocument } from "@lienotheque/noyau";
 import { Bouton, FilAriane, Icone } from "../composants/index.js";
+import { imageAffichable } from "../image-affichable.js";
+import { compteursDeBibliotheque } from "../donnees/accueil.js";
 import "./Catalogue.css";
 
 /** Catalogue d'une bibliothèque (B3 — CLA-10, UX-01).
@@ -26,7 +28,16 @@ type Props = {
   readonly page?: number | undefined;
   readonly onPage: (numero: number) => void;
   readonly onLecteur: (page: number, ancreId: string) => void;
+  /** Le document porte du texte lisible séparément de ses repères. */
+  readonly texteLu?: boolean | undefined;
+  /** Première page réellement lue quand le document ne porte aucune page graphique. */
+  readonly premierePageTexte?: number | undefined;
+  /** Le document demandé mais pas encore reçu. L'ancienne vue ne doit jamais se faire passer pour lui. */
+  readonly chargementDocument?: string | undefined;
   readonly onAjouter: () => void;
+  /** Vers ce qui se trouve deux fois. **Dans le catalogue**, parce que c'est en regardant ses
+   *  documents qu'on se demande si l'un n'y est pas deux fois — pas en en déposant d'autres. */
+  readonly onDoublons?: (() => void) | undefined;
   /** Les axes de la bibliothèque. Sans eux, il n'y a rien sur quoi ranger. */
   readonly schema?: SchemaBibliotheque | undefined;
   /** Le document regardé, désigné par l'empreinte de sa source. */
@@ -69,7 +80,11 @@ export function Catalogue({
   page,
   onPage,
   onLecteur,
+  texteLu = false,
+  premierePageTexte,
+  chargementDocument,
   onAjouter,
+  onDoublons,
   schema,
   empreinte,
   classement,
@@ -163,6 +178,7 @@ export function Catalogue({
   // Ce qui attend un arbitrage et ce qui attend seulement d'être lu ne se comptent pas ensemble.
   const informations = vue.douteux.filter((cas) => cas.nature === "information").length;
   const aTrancher = vue.douteux.length - informations;
+  const compteurs = documents === undefined ? vue.compteurs : compteursDeBibliotheque(documents);
 
   const relies = (p: PageAffichee): number => p.elements.filter((e) => e.media !== undefined).length;
   const aVerifier = (p: PageAffichee): number => p.elements.filter((e) => e.aVerifier).length;
@@ -174,7 +190,7 @@ export function Catalogue({
           <FilAriane chemin={[{ libelle: "Accueil", href: "#" }, { libelle: vue.nom }]} />
           <h1 className="ln-catalogue__titre">{vue.nom}</h1>
           <p className="ln-catalogue__compteurs">
-            {vue.compteurs.map((compteur) => (
+            {compteurs.map((compteur) => (
               <span key={compteur.mot}>
                 {compteur.nombre} {compteur.mot}
               </span>
@@ -188,6 +204,12 @@ export function Catalogue({
                 {accorder(aTrancher, { un: "à vérifier", plusieurs: "à vérifier" })}
               </a>
             ) : null}
+            {onDoublons === undefined ? null : (
+              <button type="button" className="ln-lien-action ln-catalogue__doublons" onClick={onDoublons}>
+                <Icone nom="recherche" />
+                Chercher les doublons
+              </button>
+            )}
             {informations > 0 ? (
               <a className="ln-catalogue__informations" href="#verifier">
                 <Icone nom="info" />
@@ -285,8 +307,9 @@ export function Catalogue({
               ))}
         </nav>
 
-        {documents === undefined ? null : (
-          <section className="ln-catalogue__documents" aria-labelledby="titre-documents">
+        <div className="ln-catalogue__documents-colonne">
+          {documents === undefined ? null : (
+            <section className="ln-catalogue__documents" aria-labelledby="titre-documents">
             <h2 id="titre-documents" className="ln-filtres__nom">
               Documents
             </h2>
@@ -376,10 +399,13 @@ export function Catalogue({
                   </section>
                 );
               })}
-          </section>
-        )}
+            </section>
+          )}
+        </div>
 
-        <section className="ln-catalogue__liste" aria-labelledby="titre-pages">
+        <div className="ln-catalogue__pages-colonne">
+          {chargementDocument === undefined ? (
+            <section className="ln-catalogue__liste" aria-labelledby="titre-pages">
           <div className="ln-catalogue__barre ln-panneau-titre">
             <h2 id="titre-pages" className="ln-catalogue__sous-titre">
               {enTete(vue.mots.page.plusieurs)}
@@ -400,9 +426,21 @@ export function Catalogue({
             </div>
           </div>
 
+          {pages.length === 0 && texteLu ? (
+            <div className="ln-catalogue__texte-seul ln-panneau">
+              <p>Ce document ne porte aucune image de page, mais son texte a bien été lu.</p>
+              <Bouton
+                variante="principal"
+                icone={<Icone nom="chevronDroite" />}
+                onClick={() => onLecteur(premierePageTexte ?? 1, "")}
+              >
+                Lire le texte du document
+              </Bouton>
+            </div>
+          ) : (
           <ol className={mode === "grille" ? "ln-pages ln-pages--grille" : "ln-pages ln-pages--liste"}>
             {pages.map((p) => (
-              <li key={p.numero}>
+              <li key={p.index}>
                 <button
                   type="button"
                   className={p.index === detail?.index ? "ln-pages__carte ln-pages__carte--ouvert" : "ln-pages__carte"}
@@ -412,17 +450,23 @@ export function Catalogue({
                 >
                   {/* La vignette de la page quand le lot en porte une (OUT-04) ; son numéro
                       sinon. Décorative dans les deux cas : le nom accessible est sur le bouton. */}
-                  {p.vignette === undefined ? (
+                  {imageAffichable(p.vignette) === undefined ? (
                     <span className="ln-pages__apercu" aria-hidden="true">
                       {p.numero}
                     </span>
                   ) : (
-                    <img className="ln-pages__apercu" src={p.vignette} alt="" loading="lazy" decoding="async" />
+                    <img className="ln-pages__apercu" src={imageAffichable(p.vignette)} alt="" loading="lazy" decoding="async" />
                   )}
-                  <span className="ln-pages__nom">
-                    {enTete(citerPage(vue.mots, p))}
+                  {/* Le nom et le titre dans **une seule cellule**, et non deux.
+                      En liste, la carte déclare quatre colonnes ; elle portait quatre ou cinq
+                      enfants selon qu'une page a un titre, si bien que la grille changeait de
+                      forme d'une ligne à l'autre et que les deux libellés se chevauchaient.
+                      Réunis, ils comptent pour un, et la carte a toujours le même nombre
+                      d'enfants. */}
+                  <span className="ln-pages__intitule">
+                    <span className="ln-pages__nom">{enTete(citerPage(vue.mots, p))}</span>
+                    {p.titre === undefined ? null : <span className="ln-pages__titre">{p.titre}</span>}
                   </span>
-                  {p.titre === undefined ? null : <span className="ln-pages__titre">{p.titre}</span>}
                   <span className="ln-pages__relies">
                     <Icone nom="lien" />
                     {enTete(vue.mots.element.plusieurs)} : {relies(p)}
@@ -434,20 +478,39 @@ export function Catalogue({
                     </span>
                   ) : null}
                 </button>
+                {p.index === detail?.index ? (
+                  <div className="ln-pages__ouvrir">
+                    <Bouton
+                      variante="principal"
+                      icone={<Icone nom="chevronDroite" />}
+                      onClick={() => onLecteur(p.index, p.elements[0]?.ancreId ?? "")}
+                      disabled={p.elements.length === 0 && !texteLu}
+                    >
+                      Ouvrir dans le Lecteur
+                    </Bouton>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ol>
-        </section>
+          )}
+            </section>
+          ) : (
+            <section className="ln-catalogue__chargement ln-panneau" aria-live="polite">
+              Chargement de « {chargementDocument} »…
+            </section>
+          )}
 
-        <aside className="ln-detail ln-panneau" aria-label={`Détail — ${nommer(vue.mots.page, detail?.numero ?? "")}`}>
+          {chargementDocument === undefined ? (
+            <aside className="ln-detail ln-panneau" aria-label={`Détail — ${nommer(vue.mots.page, detail?.numero ?? "")}`}>
           {detail === undefined ? (
-            <p>Aucun résultat dans cette bibliothèque.</p>
+            texteLu ? <p>Le texte de ce document est disponible dans le Lecteur.</p> : <p>Aucun résultat dans cette bibliothèque.</p>
           ) : (
             <>
               <h2 className="ln-detail__titre">
                 {enTete(citerPage(vue.mots, detail))}
               </h2>
-              {detail.vignette === undefined ? (
+              {imageAffichable(detail.vignette) === undefined ? (
                 <div className="ln-detail__apercu" role="img" aria-label={enTete(citerPage(vue.mots, detail))}>
                   <span>{detail.numero ?? detail.index}</span>
                   {detail.titre === undefined ? null : <span className="ln-detail__sous-titre">{detail.titre}</span>}
@@ -455,7 +518,7 @@ export function Catalogue({
               ) : (
                 <img
                   className="ln-detail__apercu ln-detail__apercu--image"
-                  src={detail.vignette}
+                  src={imageAffichable(detail.vignette)}
                   alt={enTete(citerPage(vue.mots, detail))}
                   loading="lazy"
                   decoding="async"
@@ -489,17 +552,11 @@ export function Catalogue({
                 ))}
               </ul>
 
-              <button
-                type="button"
-                className="ln-detail__ouvrir"
-                onClick={() => onLecteur(detail.index, detail.elements[0]?.ancreId ?? "")}
-                disabled={detail.elements.length === 0}
-              >
-                Ouvrir dans le Lecteur <Icone nom="chevronDroite" />
-              </button>
             </>
           )}
-        </aside>
+            </aside>
+          ) : null}
+        </div>
       </div>
     </main>
   );

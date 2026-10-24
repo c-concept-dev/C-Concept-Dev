@@ -35,24 +35,111 @@ const COMPLET: Brouillon = {
   piste: { position: "droite", motif: "losange_sombre_chiffres_clairs", etiquetteDisque: false },
 };
 
+describe("une manière sans élément devient une recette valide (étape 6)", () => {
+  it("rend une recette que son contrat accepte, avec la seule lecture déclarée", () => {
+    // `manqueALaManiere` ne fait qu'autoriser l'essai ; ce qui compte ensuite est que la recette
+    // produite tienne debout. Une seule lecture, celle du numéro de page, et aucune règle de
+    // piste — c'est tout ce qu'un livre ordinaire demande.
+    const queLaPage: Brouillon = {
+      ...BROUILLON_NEUF,
+      id: "le-numero-seul",
+      zones: [{ cle: "a", role: "page_imprimee", rectangle: { x: 0.8, y: 0.92, l: 0.15, h: 0.05 } }],
+    };
+    const recette = enRecette(queLaPage);
+    expect(() => Recette.parse(recette)).not.toThrow();
+    expect(recette.lectures).toHaveLength(1);
+    expect(recette.lectures[0]?.ancre).toBe("page_imprimee");
+    expect(recette.regles.pistes).toBeUndefined();
+  });
+
+  it("et se rouvre dans l'éditeur telle qu'elle est", () => {
+    // Un aller-retour : ce qui sort de l'éditeur doit pouvoir y rentrer, sinon une manière
+    // devient incorrigible dès qu'elle est enregistrée.
+    const queLaPage: Brouillon = {
+      ...BROUILLON_NEUF,
+      id: "le-numero-seul",
+      zones: [{ cle: "a", role: "page_imprimee", rectangle: { x: 0.8, y: 0.92, l: 0.15, h: 0.05 } }],
+    };
+    const rouvert = depuisRecette(enRecette(queLaPage));
+    expect(rouvert.zones.filter((zone) => zone.role === "page_imprimee")).toHaveLength(1);
+    expect(rouvert.zones.filter((zone) => zone.role === "element")).toHaveLength(0);
+    expect(manqueALaManiere(rouvert), "une manière rouverte doit rester légitime").toBeUndefined();
+  });
+});
+
 describe("ce qui manque se dit, il ne se devine pas (UX-09)", () => {
   it("rien ne manque à un brouillon complet", () => {
     expect(manqueALaManiere(COMPLET)).toBeUndefined();
   });
 
-  it("sans zone d'éléments, il n'y a rien à lire", () => {
-    expect(manqueALaManiere(BROUILLON_NEUF)).toMatch(/numéro d’élément/);
+  it("une manière qui ne cherche rien ne cherche nulle part", () => {
+    // La seule exigence qui reste sur le nombre de zones. Elle ne parle plus d'éléments :
+    // un livre ordinaire n'en a pas, et le lui réclamer le refusait pour ce qu'il est.
+    expect(manqueALaManiere(BROUILLON_NEUF)).toMatch(/au moins une zone/i);
   });
 
   it("emploie les mots de la bibliothèque quand on les lui donne (CLA-01)", () => {
-    expect(manqueALaManiere(BROUILLON_NEUF, { element: "exercice", page: "feuillet" })).toMatch(
-      /numéro d’exercice/,
-    );
+    // La phrase a déménagé — elle vit maintenant sur « une seule zone » — mais elle doit
+    // toujours parler la langue de la bibliothèque et non la nôtre.
+    const deux = {
+      ...COMPLET,
+      zones: [...COMPLET.zones, { cle: "c", role: "element" as const, rectangle: { x: 0.5, y: 0.1, l: 0.1, h: 0.5 } }],
+    };
+    expect(manqueALaManiere(deux, { element: "exercice", page: "feuillet" })).toMatch(/numéros d’exercice/);
   });
 
   it("deux zones pour la même chose : les numéros sont tous au même endroit", () => {
     const deux = { ...COMPLET, zones: [...COMPLET.zones, { cle: "c", role: "element" as const, rectangle: { x: 0.5, y: 0.1, l: 0.1, h: 0.5 } }] };
     expect(manqueALaManiere(deux)).toMatch(/une seule zone/i);
+  });
+
+  it("une manière qui ne lit que le numéro de page est légitime (étape 6)", () => {
+    // Le défaut que cette étape corrige, et il était de fond : la chaîne refusait un livre
+    // ordinaire **parce qu'il n'a pas d'exercices numérotés**. Les quatre recettes écrites pour
+    // le corpus réel ne déclaraient que `page_imprimee` ; `pnpm check` les a rejetées, à raison
+    // au regard de l'ancienne règle, et à tort au regard de ce que la bibliothèque doit savoir
+    // lire. Ce qu'une manière doit déclarer, c'est **ce qu'elle lit** — pas ce qu'on suppose
+    // qu'elle devrait lire (CLA-01).
+    const queLaPage: Brouillon = {
+      ...BROUILLON_NEUF,
+      id: "le-numero-seul",
+      zones: [{ cle: "a", role: "page_imprimee", rectangle: { x: 0.8, y: 0.92, l: 0.15, h: 0.05 } }],
+    };
+    expect(manqueALaManiere(queLaPage)).toBeUndefined();
+  });
+
+  it("un repère de piste sans zone d'éléments ne désigne rien", () => {
+    // Une pastille se place **par rapport à un élément** — le contrat le dit, `relatif_a:
+    // "element"`. Sans élément, elle n'a pas d'ancrage, et la recette serait incohérente alors
+    // même que chaque pièce est valide séparément. Règle ajoutée avec l'étape 6 : en ouvrant la
+    // porte aux manières sans élément, on ouvrait aussi celle-là.
+    const pisteSeule: Brouillon = {
+      ...BROUILLON_NEUF,
+      id: "piste-sans-element",
+      zones: [{ cle: "a", role: "page_imprimee", rectangle: { x: 0.8, y: 0.92, l: 0.15, h: 0.05 } }],
+      piste: { position: "droite", motif: "losange_sombre_chiffres_clairs", etiquetteDisque: false },
+    };
+    expect(manqueALaManiere(pisteSeule)).toMatch(/piste/i);
+  });
+
+  it("la hauteur des éléments n'est jugée que si l'on en lit", () => {
+    // Elle décrit la taille d'un numéro d'élément. Sans zone d'élément, elle ne décrit rien, et
+    // la juger refuserait une manière pour une valeur qui ne la concerne pas.
+    const queLaPage: Brouillon = {
+      ...BROUILLON_NEUF,
+      zones: [{ cle: "a", role: "page_imprimee", rectangle: { x: 0.8, y: 0.92, l: 0.15, h: 0.05 } }],
+      hauteurElement: { min: 0.5, max: 0.5 },
+    };
+    expect(manqueALaManiere(queLaPage)).toBeUndefined();
+  });
+
+  it("l'exemple de numéro n'est jugé que si l'on lit des éléments", () => {
+    const queLaPage: Brouillon = {
+      ...BROUILLON_NEUF,
+      zones: [{ cle: "a", role: "page_imprimee", rectangle: { x: 0.8, y: 0.92, l: 0.15, h: 0.05 } }],
+      exempleDeNumero: "sans le moindre chiffre",
+    };
+    expect(manqueALaManiere(queLaPage)).toBeUndefined();
   });
 
   it("une zone sans surface ne cherche nulle part", () => {
@@ -81,7 +168,10 @@ describe("les zones deviennent une recette que le contrat accepte (REC-01)", () 
   });
 
   it("refuse d'écrire une recette d'un brouillon incomplet, en disant ce qui manque", () => {
-    expect(() => enRecette(BROUILLON_NEUF)).toThrow(/numéro d’élément/);
+    // La phrase a changé avec l'étape 6 — ce n'est plus l'élément qui manque, c'est la moindre
+    // zone — mais le principe tient : `enRecette` refuse, et elle refuse avec le mot de
+    // `manqueALaManiere`, jamais avec une seconde règle qui dirait presque la même chose.
+    expect(() => enRecette(BROUILLON_NEUF)).toThrow(/au moins une zone/i);
   });
 });
 
@@ -227,5 +317,36 @@ describe("on trace sur la page telle qu'elle est montrée", () => {
   it("une recette qui redresse se rouvre telle quelle : on ne la corrige pas dans son dos", () => {
     const avec = enRecette({ ...COMPLET, redressement: "auto" });
     expect(depuisRecette(avec).redressement).toBe("auto");
+  });
+});
+
+
+/** Ne rien dire de la double page traverse l'aller-retour (REC-01, REC-06)
+ *
+ *  Rien dans l'éditeur ne touche ce réglage : un brouillon neuf qui écrirait `double_page: false`
+ *  figerait une réponse que personne n'a donnée, et la chaîne lui obéirait. Le brouillon neuf ne
+ *  dit donc rien, et ce silence doit survivre à `enRecette` comme à `depuisRecette` — sans quoi
+ *  la première sauvegarde le remplacerait par une décision. */
+describe("ne rien dire de la double page traverse l'aller-retour", () => {
+  it("un brouillon neuf ne tranche pas", () => {
+    expect(BROUILLON_NEUF.pageDouble, "un défaut n'est pas une décision").toBeUndefined();
+  });
+
+  it("une recette montée depuis un brouillon muet ne porte pas la clef", () => {
+    const recette = enRecette(COMPLET);
+    expect(recette.preparation.double_page).toBeUndefined();
+  });
+
+  it("et le silence revient tel quel", () => {
+    const recette = enRecette(COMPLET);
+    expect(depuisRecette(recette).pageDouble).toBeUndefined();
+  });
+
+  it("une déclaration, elle, fait l'aller et le retour sans bouger", () => {
+    for (const declare of [true, false]) {
+      const recette = enRecette({ ...COMPLET, pageDouble: declare });
+      expect(recette.preparation.double_page).toBe(declare);
+      expect(depuisRecette(recette).pageDouble).toBe(declare);
+    }
   });
 });

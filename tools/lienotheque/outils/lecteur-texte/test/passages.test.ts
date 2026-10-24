@@ -14,7 +14,9 @@ import {
   lireCoucheTexte,
   lisible,
   motsBienFormes,
+  deuxPagesParFeuille,
   numeroImprime,
+  numerosEnMarge,
   pageDeTexte,
   partDeMotsOutils,
   texteIllisible,
@@ -33,12 +35,12 @@ const NATIF = join(RACINE, "fixtures/fichiers/500-pages.pdf");
 const siNatif = existsSync(NATIF) ? it : it.skip;
 
 /** Une page fabriquée, pour éprouver une règle sans dépendre d'un fichier. */
-const page = (mots: { texte: string; y: number }[], hauteur = 1000): PageLue =>
+const page = (mots: { texte: string; y: number }[], hauteur = 1000, largeur = 600): PageLue =>
   PageLue.parse({
     index: 1,
     source: "couche_texte",
     unite: "point",
-    largeur: 600,
+    largeur,
     hauteur,
     mots: mots.map((m) => ({ texte: m.texte, x: 72, y: m.y, l: 20, h: 11 })),
   });
@@ -328,4 +330,213 @@ describe("sur la fixture native de cinq cents pages (OUT-05, RCH-07)", () => {
     },
     120_000,
   );
+});
+
+
+/** Une feuille porte-t-elle deux pages ? (BAS-02, 20 octobre 2026)
+ *
+ *  ## Pourquoi la chaîne doit le voir elle-même
+ *
+ *  Le classement en familles le déclare, et **il se trompe sur 34 documents du corpus sur 53
+ *  examinés** dans la famille « une page par feuille » — 64 %, mesuré le 20 octobre. Lu selon son
+ *  classement, un de ces documents mêle les textes de deux pages dans un même passage et perd les
+ *  trois quarts de ses numéros imprimés, sans rien signaler. Une citation en sort invérifiable,
+ *  et « toujours sur la vraie page » est la promesse du produit.
+ *
+ *  ## Le signe, et pourquoi il ne coûte rien
+ *
+ *  Une feuille qui porte deux pages porte **deux folios consécutifs** dans ses bandes de marge.
+ *  C'est exactement ce que `numeroImprime` a sous les yeux au moment où il renonce à trancher —
+ *  « s'ils se contredisent, on ne tranche pas ». Il suffisait de regarder ce qu'il jette.
+ *
+ *  Et cela se lit dans la **couche texte**, sans reconnaissance : un folio est fait de chiffres,
+ *  et les chiffres n'ont pas d'accents à perdre. Cinq millisecondes la page.
+ *
+ *  ## Deux pages au moins, et c'est mesuré
+ *
+ *  Une seule paire ne suffit pas : un document rendait « 2003+2004 » — une plage d'années dans
+ *  une bibliographie, non deux folios. Un vrai livre à deux pages par feuille en montre sur
+ *  presque toutes ses feuilles ; une plage d'années n'apparaît qu'une fois. D'où le seuil : **au
+ *  moins deux feuilles** parmi celles qu'on regarde.
+ */
+describe("une feuille qui porte deux pages se reconnaît à ses deux folios", () => {
+  /** Une feuille de livre : du texte au milieu, et ses folios dans la marge basse.
+   *
+   *  **En paysage**, et c'est une correction : ces feuilles étaient plus hautes que larges, ce
+   *  qu'aucune feuille portant deux pages portrait ne peut être. L'oubli ne se voyait pas tant
+   *  que la forme n'entrait pas dans la décision — et les épreuves négatives ci-dessous auraient
+   *  alors réussi pour la mauvaise raison. */
+  const feuille = (folios: readonly number[], texte = "le texte courant de cette page"): PageLue =>
+    page(
+      [
+        ...texte.split(" ").map((mot) => ({ texte: mot, y: 500 })),
+        ...folios.map((numero) => ({ texte: String(numero), y: 960 })),
+      ],
+      1000,
+      1400,
+    );
+
+  /** Vingt feuilles, soit la longueur d'un vrai ouvrage : la fonction refuse de trancher sur un
+   *  document trop court, et c'est une épreuve à part. `folios` reçoit le rang de la feuille. */
+  const ouvrage = (folios: (rang: number) => readonly number[]): readonly PageLue[] =>
+    Array.from({ length: 20 }, (_, rang) => feuille(folios(rang)));
+
+  it("reconnaît un livre numérisé deux pages à la fois", () => {
+    expect(deuxPagesParFeuille(ouvrage((rang) => [64 + rang * 2, 65 + rang * 2]))).toBe(true);
+  });
+
+  it("laisse tranquille un livre d'une page par feuille", () => {
+    expect(deuxPagesParFeuille(ouvrage((rang) => [64 + rang]))).toBe(false);
+  });
+
+  it("ne se laisse pas prendre par une paire isolée", () => {
+    // Le faux positif mesuré : « 2003+2004 », une plage d'années dans une bibliographie. Une
+    // seule feuille la montre ; un vrai livre double en montre sur presque toutes.
+    expect(deuxPagesParFeuille(ouvrage((rang) => (rang === 9 ? [2003, 2004] : [64 + rang])))).toBe(false);
+  });
+
+  it("exige que les deux folios se suivent", () => {
+    // Deux nombres quelconques dans la marge ne font pas une double page : un numéro de partie
+    // et un folio cohabitent très bien sur une feuille simple.
+    expect(deuxPagesParFeuille(ouvrage((rang) => [7, 64 + rang * 2]))).toBe(false);
+  });
+
+  it("ne lit que les marges, jamais le corps du texte", () => {
+    // Un texte qui cite « 64 » et « 65 » au fil des lignes n'est pas une double page. La bande de
+    // marge est la même que celle de `numeroImprime`, et pour la même raison.
+    // En paysage, comme les autres feuilles de ce bloc : une feuille portrait serait refusée sur
+    // sa forme, et l'épreuve réussirait sans jamais regarder les marges.
+    const pages = Array.from({ length: 20 }, () =>
+      page(
+        [
+          { texte: "voir", y: 500 },
+          { texte: "64", y: 500 },
+          { texte: "et", y: 500 },
+          { texte: "65", y: 500 },
+        ],
+        1000,
+        1400,
+      ),
+    );
+    expect(deuxPagesParFeuille(pages)).toBe(false);
+  });
+
+  it("supporte des folios manquants : une couche en oublie souvent", () => {
+    // Mesuré sur le corpus : la couche rend parfois un seul des deux folios d'une feuille. Deux
+    // feuilles franches suffisent, et c'est pourquoi le seuil porte sur un compte et non sur une
+    // proportion.
+    // Deux feuilles franches suffisent au milieu de huit où la couche n'a rendu qu'un folio.
+    expect(
+      deuxPagesParFeuille(ouvrage((rang) => (rang === 10 || rang === 13 ? [140 + rang * 2, 141 + rang * 2] : [140 + rang * 2]))),
+    ).toBe(true);
+  });
+
+  it("ne dit rien d'un document sans aucun folio", () => {
+    expect(deuxPagesParFeuille(ouvrage(() => []))).toBe(false);
+  });
+
+  it("ne dit rien d'un document trop court pour en juger", () => {
+    expect(deuxPagesParFeuille([feuille([64, 65])])).toBe(false);
+  });
+
+  it("regarde le milieu du document, pas ses pages liminaires", () => {
+    // Couverture, faux-titre, table : elles ne portent pas de folio imprimé, et les lire ferait
+    // conclure « une page par feuille » sur un ouvrage qui en porte deux.
+    const liminaires = Array.from({ length: 10 }, () => feuille([]));
+    const corps = Array.from({ length: 10 }, (_, rang) => feuille([100 + rang * 2, 101 + rang * 2]));
+    expect(deuxPagesParFeuille([...liminaires, ...corps])).toBe(true);
+  });
+});
+
+/** Tous les nombres de la marge, et non le seul qui s'y trouverait seul (BAS-02, 20 octobre). */
+describe("ce que la marge porte, avant qu'on tranche", () => {
+  const enMarge = (nombres: readonly number[], corps: readonly number[] = []): PageLue =>
+    page([
+      ...corps.map((valeur) => ({ texte: String(valeur), y: 500 })),
+      ...nombres.map((valeur) => ({ texte: String(valeur), y: 960 })),
+    ]);
+
+  it("rend les candidats dans l'ordre, sans en choisir aucun", () => {
+    expect(numerosEnMarge(enMarge([7, 64]))).toEqual([7, 64]);
+  });
+
+  it("ignore ce qui est au milieu du texte, comme le fait numeroImprime", () => {
+    expect(numerosEnMarge(enMarge([64], [12, 13]))).toEqual([64]);
+  });
+
+  it("ne garde qu'une fois un folio répété en haut et en bas", () => {
+    expect(numerosEnMarge(enMarge([64, 64]))).toEqual([64]);
+  });
+
+  it("écarte ce qui ne peut pas être un numéro de page", () => {
+    expect(numerosEnMarge(enMarge([0, 64, 123_456]))).toEqual([64]);
+  });
+
+  it("et numeroImprime reste ce qu'il était : il ne tranche pas entre deux", () => {
+    // La règle d'origine ne bouge pas. Ce qui change, c'est qu'un appelant qui voit tout le
+    // document peut désormais trancher là où une page seule ne le pouvait pas.
+    expect(numeroImprime(enMarge([7, 64]))).toBeUndefined();
+    expect(numeroImprime(enMarge([64]))).toBe(64);
+  });
+});
+
+
+/** Ce qu'une page sait d'où elle vient suit jusqu'au passage (étape 7). */
+describe("l'emplacement traverse la mise en passages", () => {
+  const dUnePage = (emplacement?: string) => ({
+    index: 1,
+    texte: "un texte assez long pour faire un passage honnête",
+    source: "couche_texte" as const,
+    ...(emplacement === undefined ? {} : { emplacement }),
+  });
+
+  it("porte l'emplacement de la page jusqu'au passage", () => {
+    expect(enPassages([dUnePage("Text/ch07.xhtml")])[0]?.emplacement).toBe("Text/ch07.xhtml");
+  });
+
+  it("n'en invente pas quand la page n'en déclare aucun", () => {
+    // Une page de PDF n'a rien de plus à dire que son numéro.
+    expect(enPassages([dUnePage()])[0]?.emplacement).toBeUndefined();
+  });
+});
+
+
+/** Une feuille portrait ne porte pas deux pages portrait (étape 8)
+ *
+ *  Relevé sur le corpus : `deuxPagesParFeuille` dit « double » sur des documents dont les feuilles
+ *  sont **plus hautes que larges**. Deux nombres consécutifs dans une bande de marge suffisent à
+ *  la convaincre — un pied de page numéroté et un appel de note en font autant —, et elle ne
+ *  regardait pas la seule chose qui rend la chose possible : la forme de la feuille.
+ *
+ *  Couper en deux un livre ordinaire mêle deux moitiés de page dans chaque passage et fait pointer
+ *  toutes ses citations à côté. Le garde-fou coûte une comparaison. */
+describe("une feuille qui n'est pas en paysage ne porte pas deux pages", () => {
+  const feuille = (rang: number, largeur: number, hauteur: number): PageLue =>
+    PageLue.parse({
+      index: rang,
+      source: "couche_texte",
+      unite: "point",
+      largeur,
+      hauteur,
+      mots: [
+        { texte: String(rang * 2), x: largeur * 0.1, y: hauteur * 0.95, l: 10, h: 8 },
+        { texte: String(rang * 2 + 1), x: largeur * 0.8, y: hauteur * 0.95, l: 10, h: 8 },
+      ],
+    });
+
+  const dix = (largeur: number, hauteur: number): PageLue[] =>
+    Array.from({ length: 20 }, (_, rang) => feuille(rang + 1, largeur, hauteur));
+
+  it("voit la double page sur une feuille plus large que haute", () => {
+    expect(deuxPagesParFeuille(dix(1200, 850))).toBe(true);
+  });
+
+  it("refuse de la voir sur une feuille portrait, quoi que disent les marges", () => {
+    // Les mêmes marges, la même paire de nombres : seule la forme change.
+    expect(deuxPagesParFeuille(dix(850, 1200))).toBe(false);
+  });
+
+  it("refuse aussi sur une feuille carrée : il faut de la place pour deux", () => {
+    expect(deuxPagesParFeuille(dix(1000, 1000))).toBe(false);
+  });
 });

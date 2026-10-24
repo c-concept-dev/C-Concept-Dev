@@ -159,6 +159,20 @@ describe("Vérifier : défaire et garantir", () => {
     expect(annuler).toHaveBeenCalledOnce();
   });
 
+  it("laisse annuler la dernière décision même quand elle a vidé la file (UX-03)", async () => {
+    const annuler = vi.fn();
+    render(
+      <Verifier
+        vue={{ ...VUE, douteux: [] }}
+        onDecision={() => {}}
+        onAnnuler={annuler}
+        derniere={{ cas: VUE.douteux[0]!, decision: "confirme" }}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /annuler la dernière décision/i }));
+    expect(annuler).toHaveBeenCalledOnce();
+  });
+
   it("promet que les corrections survivent à un recalcul", () => {
     poser();
     expect(screen.getByText(/conservées même après un nouveau traitement/i)).toBeInTheDocument();

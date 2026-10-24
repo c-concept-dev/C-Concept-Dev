@@ -65,15 +65,35 @@ function poser(sur: Partial<Parameters<typeof ManiereDeLire>[0]> = {}): {
 
 describe("ce que l'écran dit avant qu'on trace", () => {
   it("emploie les mots de la bibliothèque, jamais les nôtres (CLA-01)", () => {
-    poser({ brouillon: BROUILLON_NEUF });
+    // L'étape 6 a déplacé la phrase qui porte le mot de la bibliothèque. Un brouillon vide ne
+    // nomme plus aucun objet du domaine — « tracez au moins une zone » n'a rien à traduire — et
+    // c'est la phrase sur **deux** zones d'éléments qui doit parler sa langue.
+    poser({
+      brouillon: {
+        ...AVEC_ZONE,
+        zones: [...AVEC_ZONE.zones, { cle: "z", role: "element", rectangle: { x: 0.5, y: 0.1, l: 0.1, h: 0.5 } }],
+      },
+    });
     expect(screen.getByText(/Tracez une zone sur la feuillet/)).toBeInTheDocument();
-    expect(screen.getByText(/numéro d’exercice/)).toBeInTheDocument();
+    expect(screen.getByText(/numéros d’exercice/)).toBeInTheDocument();
   });
 
   it("dit ce qui manque plutôt que d'éteindre un bouton sans raison (UX-09)", () => {
     poser({ brouillon: BROUILLON_NEUF });
-    expect(screen.getByText(/Tracez d’abord la zone/)).toBeInTheDocument();
+    expect(screen.getByText(/au moins une zone/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Essayer sur 10 feuillets/ })).toBeDisabled();
+  });
+
+  it("laisse essayer une manière qui ne lit que le numéro de page (étape 6)", () => {
+    // Le défaut corrigé, vu de l'écran : un document sans pièces numérotées restait bloqué sur
+    // « tracez d'abord la zone des numéros », qu'il n'aura jamais.
+    poser({
+      brouillon: {
+        ...BROUILLON_NEUF,
+        zones: [{ cle: "p", role: "page_imprimee", rectangle: { x: 0.8, y: 0.92, l: 0.15, h: 0.05 } }],
+      },
+    });
+    expect(screen.getByRole("button", { name: /Essayer sur 10 feuillets/ })).toBeEnabled();
   });
 
   it("laisse essayer dès qu'une zone d'éléments est tracée", () => {
@@ -186,5 +206,37 @@ describe("l'essai et l'enregistrement", () => {
   it("dit l'échec plutôt que de laisser l'écran muet (JOB-05)", () => {
     poser({ echec: "Cette bibliothèque n’a pas de description." });
     expect(screen.getByRole("alert")).toHaveTextContent("n’a pas de description");
+  });
+});
+
+/** La planche quand il n'y a rien à poser dessus (22 octobre 2026).
+ *
+ *  Ces trois épreuves existent parce qu'il a manqué exactement celles-ci. La prop s'appelle
+ *  `document` au contrat et se renomme `nomDuDocument` à la destructuration, **pour ne pas
+ *  masquer le `document` du navigateur**. Une correction écrite une heure plus tôt a employé le
+ *  nom court : `document === ""` valait alors toujours faux, et `{document}` demandait à React
+ *  d'afficher l'objet `Document` — page blanche, dans un paquet signé déjà installé.
+ *
+ *  Le typage ne l'a pas vu, et le reste du dépôt non plus : aucune épreuve ne rendait cet écran
+ *  sans pages. */
+describe("la planche sans image (CLA-01)", () => {
+  it("dit qu'aucun document n'est ouvert quand on arrive ici sans en choisir un", () => {
+    poser({ document: "", pages: [] });
+    expect(screen.getByText(/Aucun document n’est ouvert/)).toBeInTheDocument();
+    // Et elle dit où aller : un écran qui constate sans orienter laisse sur place.
+    expect(screen.getByRole("link", { name: "dépôt" })).toHaveAttribute("href", "#depot");
+  });
+
+  it("nomme le document dont les pages manquent, et le nomme vraiment", () => {
+    poser({ document: "aebersold-FRENCH.pdf", pages: [] });
+    // Le nom du document, pas l'objet `Document` du navigateur.
+    expect(screen.getByText(/« aebersold-FRENCH\.pdf »/)).toBeInTheDocument();
+    expect(screen.getByText(/feuillets de/)).toBeInTheDocument();
+  });
+
+  it("montre la page dès qu'il y en a une, et ne dit plus rien manquer", () => {
+    poser({ document: "aebersold-FRENCH.pdf" });
+    expect(screen.queryByText(/n’ont pas encore été/)).toBeNull();
+    expect(screen.queryByText(/Aucun document n’est ouvert/)).toBeNull();
   });
 });

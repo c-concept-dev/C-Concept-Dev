@@ -43,7 +43,9 @@ type Edition =
 
 type Props = {
   readonly description: DescriptionBibliotheque;
-  /** Appelé à chaque version du schéma : l'hôte écrit, l'écran ne fait que demander (JOB-06). */
+  /** Appelé à chaque version du schéma : l'hôte écrit, l'écran ne fait que demander (JOB-06).
+   *  Chaque geste est donc enregistré immédiatement ; le bouton final ne valide pas une
+   *  transaction différée. */
   readonly onSchema: (schema: SchemaBibliotheque) => void | Promise<void>;
   readonly onValider: () => void;
   /** Combien d'éléments sont rangés sur chaque façon de ranger, par clé d'axe.
@@ -99,7 +101,7 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
         </div>
         <p className="ln-organisation__bandeau">
           <Icone nom="info" />
-          Proposé d’après vos fichiers · modifiable à tout moment
+          Organisation actuelle · chaque changement est enregistré immédiatement
         </p>
       </div>
 
@@ -428,7 +430,7 @@ export function Organisation({ description, onSchema, onValider, classes, exempl
             Revenir aux propositions
           </button>
           <Bouton variante="principal" icone={<Icone nom="valide" />} onClick={onValider}>
-            Valider l’organisation
+            Continuer vers le dépôt
           </Bouton>
         </div>
       </div>

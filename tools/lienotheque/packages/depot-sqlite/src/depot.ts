@@ -40,6 +40,10 @@ const enPassage = (l: Lignes): Passage =>
     lisible: l["lisible"] !== 0,
     ...(l["page_imprimee"] === null ? {} : { pageImprimee: l["page_imprimee"] }),
     ...(l["confiance"] === null ? {} : { confiance: l["confiance"] }),
+    // Nulle pour tout passage écrit avant la migration 7, et pour toute page de PDF : le champ
+    // reste absent plutôt que de porter une chaîne vide, que le contrat refuserait de toute
+    // façon.
+    ...(l["emplacement"] === null || l["emplacement"] === undefined ? {} : { emplacement: l["emplacement"] }),
   });
 
 /** `node:sqlite` est livré avec Node : aucune compilation native, donc rien à installer sur
@@ -365,8 +369,8 @@ export function ouvrirDepot(dossier: string): Depot {
         // trouvable après avoir disparu.
         base.prepare("DELETE FROM passage WHERE version_id = ?").run(versionId);
         const poser = base.prepare(
-          `INSERT INTO passage (id, version_id, ancre_id, rang, texte, source, confiance, page, page_imprimee, lisible)
-           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO passage (id, version_id, ancre_id, rang, texte, source, confiance, page, page_imprimee, lisible, emplacement)
+           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
         );
         for (const p of passages)
           poser.run(
@@ -379,6 +383,7 @@ export function ouvrirDepot(dossier: string): Depot {
             p.page,
             p.pageImprimee ?? null,
             p.lisible ? 1 : 0,
+            p.emplacement ?? null,
           );
       });
     },

@@ -6,13 +6,15 @@ type Props = {
   readonly etiquette: string;
   readonly placeholder: string;
   readonly onRecherche: (texte: string) => void;
+  readonly valeur?: string | undefined;
+  readonly onValeurChange?: ((texte: string) => void) | undefined;
   /** Cmd+K (ou Ctrl+K) place le curseur dans le champ, où que soit le focus. */
   readonly raccourci?: boolean | undefined;
 };
 
 /** Champ de recherche du kit : étiquette permanente, champ natif de type « search »,
  *  soumission au clavier seul (UX-06) et raccourci Cmd+K du CDC. */
-export function ChampRecherche({ etiquette, placeholder, onRecherche, raccourci = true }: Props): JSX.Element {
+export function ChampRecherche({ etiquette, placeholder, onRecherche, valeur, onValeurChange, raccourci = true }: Props): JSX.Element {
   const id = useId();
   const champ = useRef<HTMLInputElement>(null);
 
@@ -43,7 +45,15 @@ export function ChampRecherche({ etiquette, placeholder, onRecherche, raccourci 
       <span className="ln-recherche__loupe">
         <Icone nom="recherche" />
       </span>
-      <input ref={champ} id={id} className="ln-recherche__champ" type="search" placeholder={placeholder} />
+      <input
+        ref={champ}
+        id={id}
+        className="ln-recherche__champ"
+        type="search"
+        placeholder={placeholder}
+        {...(valeur === undefined ? {} : { value: valeur })}
+        {...(onValeurChange === undefined ? {} : { onChange: (evenement) => onValeurChange(evenement.target.value) })}
+      />
       {raccourci ? (
         <kbd className="ln-recherche__raccourci" aria-hidden="true">
           ⌘K

@@ -16,10 +16,28 @@ export const PARAMETRE_DEMONSTRATION = "demonstration";
 export const demonstrationDemandee = (recherche: string): boolean =>
   new URLSearchParams(recherche).has(PARAMETRE_DEMONSTRATION);
 
+/** Variante du jeu de démonstration : un document composé en texte, donc sans aucune image de
+ *  page. Elle n'existe que pour qu'on puisse atteindre l'écran de lecture du texte à la main,
+ *  en développement, comme on atteint tous les autres. */
+export const PARAMETRE_SANS_IMAGE = "sansImage";
+
+export const sansImageDemandee = (recherche: string): boolean =>
+  demonstrationDemandee(recherche) && new URLSearchParams(recherche).has(PARAMETRE_SANS_IMAGE);
+
+/** Les passages du jeu de démonstration, et rien d'autre.
+ *
+ *  Hors démonstration, les passages viennent du dépôt par le pont : cette fonction rend un
+ *  tableau vide plutôt que d'en inventer. */
+export async function chargerPassages(recherche = globalThis.location?.search ?? ""): Promise<readonly import("@lienotheque/contrats").Passage[]> {
+  if (!(import.meta.env.DEV && sansImageDemandee(recherche))) return [];
+  const { PASSAGES_SANS_IMAGE } = await import("./vue-demonstration.js");
+  return PASSAGES_SANS_IMAGE;
+}
+
 export async function chargerVue(chemin = CHEMIN_INSTANTANE, recherche = globalThis.location?.search ?? ""): Promise<VueBibliotheque | undefined> {
   if (import.meta.env.DEV && demonstrationDemandee(recherche)) {
-    const { VUE_DEMONSTRATION } = await import("./vue-demonstration.js");
-    return VUE_DEMONSTRATION;
+    const { VUE_DEMONSTRATION, VUE_SANS_IMAGE } = await import("./vue-demonstration.js");
+    return sansImageDemandee(recherche) ? VUE_SANS_IMAGE : VUE_DEMONSTRATION;
   }
   try {
     const reponse = await fetch(chemin);

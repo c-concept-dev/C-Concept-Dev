@@ -69,7 +69,22 @@ export const Recette = z
     version: NumeroVersion,
     derivee_de: z.object({ id: z.string(), version: NumeroVersion }).strict().nullable(),
     preparation: z
-      .object({ redressement: z.enum(["auto", "aucun"]), double_page: z.boolean(), page_gauche: z.enum(["paire", "impaire"]).optional() })
+      .object({
+        redressement: z.enum(["auto", "aucun"]),
+        /** Deux pages par feuille — **facultatif, et c'est tout l'enjeu**.
+         *
+         *  Obligatoire, il était toujours présent, donc toujours une déclaration. Comme rien dans
+         *  l'éditeur ne le touche, toute manière de lire écrivait « une page par feuille » sans
+         *  que personne l'ait dit, et la chaîne, qui obéit à ce qui est déclaré, ne regardait
+         *  jamais le document. La détection automatique ne s'exécutait donc jamais par le chemin
+         *  du produit (relevé le 21 octobre 2026).
+         *
+         *  Absent : personne n'a tranché, la chaîne regarde la feuille. Présent : c'est une
+         *  décision, et elle l'emporte — y compris un `false`, qui vaut contre un détecteur
+         *  qui se tromperait. */
+        double_page: z.boolean().optional(),
+        page_gauche: z.enum(["paire", "impaire"]).optional(),
+      })
       .strict(),
     lectures: z.array(Lecture).min(1),
     regles: z

@@ -16,6 +16,11 @@ export type Route =
   | { readonly ecran: "maniere" }
   | { readonly ecran: "catalogue"; readonly page?: number }
   | { readonly ecran: "lecteur"; readonly page: number; readonly element?: string }
+  /** Retirer une bibliothèque : l'oublier, ou la mettre à la corbeille. Un écran à elle seule,
+   *  parce qu'une fenêtre de confirmation se ferme d'un clic distrait. */
+  | { readonly ecran: "retirer" }
+  /** Ce qui se trouve deux fois : on cherche, on décrit, c'est la personne qui retire. */
+  | { readonly ecran: "doublons" }
   | { readonly ecran: "verifier" }
   /** Entrer, enrôler, sortir — le seul écran qui vive **avant** toute session.
    *
@@ -62,6 +67,10 @@ export function lireRoute(fragment: string): Route {
       return { ecran: "maniere" };
     case "verifier":
       return { ecran: "verifier" };
+    case "retirer":
+      return { ecran: "retirer" };
+    case "doublons":
+      return { ecran: "doublons" };
     case "entrer": {
       const invitation = parametres.get("invitation");
       return invitation === undefined || invitation === "" ? { ecran: "entrer" } : { ecran: "entrer", invitation };
@@ -98,6 +107,10 @@ export function ecrireRoute(route: Route): string {
       return "#maniere";
     case "verifier":
       return "#verifier";
+    case "retirer":
+      return "#retirer";
+    case "doublons":
+      return "#doublons";
     case "entrer":
       return route.invitation === undefined ? "#entrer" : `#entrer/invitation=${route.invitation}`;
     case "catalogue":

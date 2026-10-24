@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { exporterPages } from "./pages-images.js";
 import { DescriptionBibliotheque, type Passage, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
-import { chargerRecette, rejouer, type Association, type Media, type Relecture } from "@lienotheque/recettes";
-import { type AdresseRecurrente, adressesRecurrentes, enPassages } from "@lienotheque/lecteur-texte";
+import { chargerRecette, rejouer, type Association, type Media, type MediaInventorie, type Relecture } from "@lienotheque/recettes";
+import { type AdresseRecurrente, adressesRecurrentes, enPassages, langueOcr } from "@lienotheque/lecteur-texte";
 import { construireVue } from "./instantane.js";
 import { lireLeTexte } from "./texte.js";
 
@@ -29,6 +29,8 @@ export type Lot = {
   readonly pdf: string;
   /** Dossier des médias, pris récursivement. */
   readonly medias: string;
+  /** Inventaire de l'hôte, quand les sources sont rangées par empreinte. */
+  readonly inventaireMedias?: readonly MediaInventorie[] | undefined;
   /** Recette qui dit comment lire ce document. */
   readonly recette: string;
   readonly description: string;
@@ -142,6 +144,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // la chaîne, n'arrivait jamais aux écrans. Un instantané doit venir du même traitement que la
   // mesure, sans quoi ce qu'on mesure n'est pas ce qu'on montre.
   const { resultat, association, medias } = await rejouer(lot.pdf, lot.medias, recette, {
+    ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
     ...(lot.cache === undefined ? {} : { cache: lot.cache }),
     ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
     ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
@@ -164,7 +167,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   const parRang = new Map<number, { image: string; largeur: number; hauteur: number; vignette?: string }>();
   if (lot.images !== undefined) {
     const adresse = lot.adresseImages ?? "/donnees/pages";
-    for (const page of await exporterPages(lot.pdf, lot.images))
+    for (const page of (await exporterPages(lot.pdf, lot.images)).pages)
       parRang.set(page.index + PREMIER_RANG, {
         image: `${adresse}/${page.fichier}`,
         largeur: page.largeur,
@@ -206,8 +209,30 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // deux folios se contredisent et le document perd ses numéros imprimés.
   lot.surPhase?.("vue assemblée ; lecture du texte");
 
+  // La langue de la reconnaissance vient de la **bibliothèque**, qui la déclare déjà :
+  // `SchemaBibliotheque.langue` est obligatoire au contrat. Elle ne venait de nulle part jusqu'au
+  // 20 octobre 2026, et la reconnaissance partait donc sur l'anglais : sur un corpus français,
+  // **un accent sur six était perdu** — 284 contre 337, mesuré sur six feuilles. C'est exactement
+  // ce que l'inversion de la couche venait de gagner.
+  //
+  // Une langue que la table ne connaît pas **se dit** au lieu de se remplacer en silence : la
+  // reconnaissance partira sur son propre défaut, et le journal du traitement portera pourquoi.
+  const langue = langueOcr(description.schema.langue);
+  if (langue === undefined)
+    lot.surPhase?.(
+      `langue « ${description.schema.langue} » inconnue de la reconnaissance : elle lira avec son modèle par défaut`,
+    );
+
+  // La double page **seulement si la manière de lire l'a déclarée**.
+  //
+  // Elle était transmise toujours, et `double_page` étant obligatoire au contrat, la valeur était
+  // toujours définie : le `??` de `lireLeTexte` ne tombait jamais et la détection automatique ne
+  // s'exécutait **jamais par ce chemin** — celui que l'application emprunte. Elle ne tournait que
+  // dans les bancs, qui appellent `lireLeTexte` sans option. Troisième mécanisme juste rendu
+  // inatteignable depuis la porte réelle en deux jours ; voir `docs/decisions.md`.
   const lu = await lireLeTexte(lot.pdf, {
-    doublePage: recette.preparation.double_page,
+    ...(recette.preparation.double_page === undefined ? {} : { doublePage: recette.preparation.double_page }),
+    ...(langue === undefined ? {} : { langue }),
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),
   });
   const passages = enPassages(lu.pages);

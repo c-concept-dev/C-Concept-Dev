@@ -9,6 +9,8 @@
 | 2026-10-03 | Nom Liénothèque ; charte graphite et cuivre v3 validée ; logo géométrique (deux documents, L en réserve) | Charte v3 |
 | 2026-10-03 | Jetons v3.0.1 : piste de progression sombre #3C4046, texte désactivé clair #5A5E63, liseré et pourcentage obligatoires sur la progression claire | Réserves CDC |
 | 2026-10-03 | Kit UI v1.1 adopté comme référence ; logo vectoriel validé (IoU 0,977 avec la planche) ; jetons du kit fusionnés dans tokens.json | docs/ui-kit |
+| 2026-10-20 | ~~**La découpe** est le remède à la lenteur de F4 (décidée le 17 octobre, `lot-e2-texte-plan.md` §9.1 ter)~~ — **invalidée** : une tranche de moins de neuf feuilles ne vote pas la même orientation, lit donc des pages couchées, rend un tiers des éléments et **aucun numéro imprimé**, sans rien signaler. Elle est rapide parce qu'elle échoue | Section ci-dessous, « la lecture lente fait le travail » |
+| 2026-10-20 | **Les quinze secondes par page de F4 sont le coût d'une lecture juste**, et acceptées comme telles. L'optimisation de `reperer` reste une piste, **hors périmètre de BAS-02** | Section ci-dessous |
 | 2026-10-19 | **Quatrième porte : l'invitation.** `/amorce` accepte le défi seul, parce qu'un navigateur ne peut pas porter le jeton de service | Section ci-dessous |
 | 2026-10-19 | **Le Worker sert aussi la page**, à la même origine que l'API : un témoin `SameSite=Lax` sans CORS ne peut pas fonctionner autrement | `docs/lot-e5-page-servie.md` |
 | 2026-10-19 | **Plus de repli TTF** : jamais téléchargé par les moteurs visés, toujours embarqué — deux mégaoctets sur quatre et demi | `apps/app/src/styles/polices.css` |
@@ -2877,3 +2879,1903 @@ La bibliothèque servie est **vide**. Deux documents dans sa base, aucun instant
 puisque aucune version ne s'est activée en ligne — le geste de publication n'a encore jamais
 tourné contre le seau déployé. L'écran le dit maintenant, au lieu de proposer de créer une
 bibliothèque.
+
+
+## 20 octobre 2026 — la couche texte des documents photographiés ne fait pas foi
+
+Le premier des trois bloquants de BAS-02, mesuré. **Verdict : pour un document photographié, la
+reconnaissance refaite l'emporte sur la couche existante, et la chaîne doit cesser de préférer
+la seconde.**
+
+### Le protocole, et ce qu'il mesure vraiment
+
+Cinquante pages relues à l'œil, en aveugle : deux lectures « A » et « B » tirées au sort page par
+page, trente pages où les deux divergent le plus et vingt où elles s'accordent, mélangées sans
+dire lesquelles sont lesquelles.
+
+L'aveugle n'est pas une coquetterie. Le gros du corpus vient d'un dossier nommé d'après un
+logiciel de reconnaissance de texte : **sa couche est elle-même un OCR**, et deux reconnaissances
+sur la même image abîmée se trompent souvent ensemble. Un accord élevé ne prouve donc rien tout
+seul, et c'est pour cela que le second lot existe.
+
+| lot | pages | la couche a raison | la reconnaissance a raison | les deux ont tort |
+|---|---:|---:|---:|---:|
+| divergence (accord < 79 %) | 30 | **23 %** | **70 %** | 3 |
+| accord (≥ 95 %) | 20 | 80 % | 95 % | **0** |
+
+### Ce que chaque ligne dit, et ce qu'elle ne dit pas
+
+**La première tranche.** Là où les deux lectures divergent, la couche a tort trois fois sur
+quatre. Le défaut dominant est nommé : des couches entières **ont perdu tous leurs accents** —
+« criti quais », « mechamment », « therapeute », « du faire » — là où la reconnaissance rend
+« méchamment », « thérapeute », « dû ». Pour une recherche en français, c'est un mot sur trois
+qu'on ne retrouve plus.
+
+**La seconde tranche n'est pas ce que je croyais mesurer, et c'est une leçon sur l'instrument.**
+Le « 80 % contre 95 % » n'est pas un écart d'exactitude : vérifié sur une fiche, les deux textes
+y étaient tous deux justes, et la préférence est allée au plus propre — une couche ouvrant sur
+« rr » et collant deux titres courants, contre une reconnaissance qui en omet un. Demander
+« laquelle correspond » sur deux textes quasi identiques fait répondre « laquelle est la plus
+soignée ». Ce lot ne vaut donc que par sa dernière colonne, et elle est nette : **jamais les deux
+ensemble.** Là où les deux lectures s'accordent, elles ont raison.
+
+### Une bande entière n'a pas été jugée, et c'était un défaut du tirage
+
+Les trente « divergences » s'arrêtent à 79 % d'accord, les vingt « accords » commencent à 95 %.
+**Quatre-vingt-quinze pages sur cent quatre-vingts — plus de la moitié — tombent entre les deux
+et n'ont aucun verdict.** Le tirage a pris les extrêmes en oubliant le ventre.
+
+La décision tient quand même, parce que l'encadrement suffit. En donnant à la bande inconnue le
+meilleur sort possible, la couche est juste sur 70 % des pages ; le pire la met à 41 %. **Les
+deux bornes passent sous le seuil de 85 % fixé avant la mesure**, et la règle de décision tranche
+donc sans qu'il faille connaître le ventre.
+
+### Un garde-fou gratuit, trouvé en chemin
+
+La part de lettres accentuées se lit **sans rien océriser**, en cinq millisecondes par page. Sur
+les dix-huit documents comparés, trois couches françaises rendent **0,00 %** d'accents là où la
+reconnaissance en rend 3 % — et ce sont celles que l'œil condamne (0/6, 1/5, 3/6). Les quatorze
+autres tournent entre 2,7 et 3,5 % des deux côtés.
+
+Une couche française sans accent se reconnaît donc pour rien, et le quatrième cas à 0,00 % est un
+ouvrage anglais, que la reconnaissance confirme à 0,03 % : le signal ne se trompe pas de langue
+pour peu qu'on lui donne celle du document.
+
+### Ce que cela change pour le réimport
+
+La chaîne préfère aujourd'hui la couche dès que `coucheSuffisante` passe, et n'essaie la
+reconnaissance que si la couche cède. **Cet ordre s'inverse pour les documents photographiés.**
+
+| | pages | |
+|---|---:|---|
+| livre photographié, une page par feuille | ~6 180 | à océriser |
+| livre photographié, deux pages par feuille | ~1 565 | à océriser |
+| feuillet photographié | ~237 | à océriser |
+| **ensemble** | **~7 985** | **≈ 4,4 h à 2 s la page** |
+
+Les comptes tiennent compte d'une autre découverte du tirage : beaucoup de documents classés
+« photographiés » ne le sont pas. Un diaporama, une thèse, un support de cours portent une image
+par page — un fond, un décor — et leur texte est d'origine. Mesuré : **13 % seulement** des
+« feuillets photographiés » le sont vraiment, 57 % des « deux pages par feuille », 80 % des « une
+page par feuille ». Leur couche, elle, n'a rien à se faire pardonner.
+
+L'estimation précédente annonçait 3 650 pages d'OCR en une à deux heures ; elle comptait les
+pages **sans** couche. Celle-ci compte les pages dont la couche ne mérite pas qu'on s'y fie. Le
+coût du réimport double, et il reste une dépense unique.
+
+### Fait le 20 octobre 2026, sur l'encadrement et sans les vingt pages de plus
+
+L'inversion est écrite : `laLectureRetenue` remplace `mieuxServi`, l'OCR se tente **dès qu'il y a
+une image à lire**, et la reconnaissance l'emporte dès qu'elle a vraiment lu. Onze épreuves
+unitaires figent la règle, dont les trois qui empêchent de reperdre ce qui marchait : une couche
+illisible perd toujours, une couche vide ne gagne jamais, une page courte sans image n'est pas
+perdue.
+
+Ce que la vérification a montré sur les fixtures, et qui n'était pas évident :
+
+| | |
+|---|---|
+| **F1** | son critère passe par `releverCoucheTexte`, jamais par l'arbitrage : immunisé par construction, et vérifié exact |
+| **F3** | passe bien par le nouvel arbitrage — mais **sa couche est vide sur toutes ses pages**, l'OCR la servait déjà : 95 sur 95, inchangé par construction |
+| **F4** | n'a aucune couche texte (143 images, pas une police) ; ses épreuves locales de lecture, de segments et d'orientation passent. Son critère complet demande le relais payant, non lancé |
+| **F5** | `fixtures/fichiers/F5` est vide : c'est le jeu de requêtes du lot C, aucun fichier à lire |
+| natif | vingt pages servies par la couche, **zéro océrisée** : une page sans image ne coûte toujours rien |
+
+**Le trou de couverture, et sa fermeture le même jour.** Aucune fixture du dépôt ne portait **à
+la fois** une couche texte et une image de page : `500-pages.pdf` n'a pas d'image, le scan et F3
+n'ont pas de couche, F4 non plus. L'inversion n'était donc éprouvée qu'unitairement, et son
+branchement — une ligne — seulement dans le sens « pas d'image, rien ne change ».
+
+`couche-fautive.pdf` pose enfin le cas, et `generer-locales.py` la fabrique : huit pages portant
+l'image du texte **avec** ses accents, et par-dessus, en rendu invisible comme le font les vrais
+outils de reconnaissance, la même phrase **sans** aucun accent.
+
+Elle discrimine, et c'est mesuré plutôt qu'espéré : la couche rend **63 mots** contre **62** à la
+reconnaissance, toutes deux lisibles à 45 % de mots outils. L'ancienne règle gardait donc la
+couche — la plus fournie — et la nouvelle prend la reconnaissance. Un seul mot d'écart : la
+fixture ne peut rien prouver d'autre que le renversement lui-même. Les deux mutations qui
+remettent l'ancien comportement — la règle, puis le branchement — la font échouer toutes les
+deux.
+
+**Ce qu'elle n'éprouve pas, et pourquoi.** Son folio n'est **jamais lu** par la reconnaissance :
+aucun mot purement numérique sur la page, à 244 pixels du bloc de texte comme à 70. Tesseract en
+segmentation « page entière » abandonne un chiffre isolé que rien n'entoure. Le chemin du numéro
+imprimé après OCR reste couvert par `500-pages-scan.pdf`, dont les pages sont couvertes de texte
+jusqu'au folio ; en poser une seconde épreuve ici n'aurait prouvé qu'une chose, qu'on sait écrire
+un test rouge.
+
+
+## 20 octobre 2026 — la dégradation de F4 : la cause est le vote d'orientation
+
+Réserve 9.1, ouverte depuis le 17 octobre, et deuxième bloquant de BAS-02. **La cause est
+trouvée, et ce n'était aucune des quatre hypothèses envisagées.**
+
+### Ce qui n'est pas en cause, cette fois mesuré avec les bons compteurs
+
+La note du 17 octobre écartait la mémoire parce que celle du processus **baisse** quand le
+traitement ralentit. Le raisonnement était fragile — une mémoire qui baisse pendant qu'on
+ralentit est aussi la signature d'un ramasse-miettes majeur ou du compresseur de macOS — et le
+banc `f4-ou-passe-le-temps.ts` a été écrit pour rouvrir la question. Verdict : **l'exclusion
+tient, pour de meilleures raisons.**
+
+| compteur | relevé pendant les pages lentes |
+|---|---|
+| ramasse-miettes | **zéro** milliseconde, zéro passage |
+| tas de V8 | **15 Mo**, plat du début à la fin |
+| hors tas | **~400 Mo**, plat |
+| compressions, swapins, swapouts du système | **zéro** en dix secondes |
+| débit de lecture du fichier | **4,9 Go/s** — il est entièrement en cache |
+| appels à Tesseract | **zéro**, vérifié par un relais posé en tête de `PATH` |
+
+### Un piège d'instrument, et il a failli emporter la conclusion
+
+`process.cpuUsage()` annonçait **2 à 6 %** du temps d'horloge : j'ai cru dix minutes durant que
+le processus attendait. `/usr/bin/time` sur le même travail dit **26,21 s « user » pour 27,04 s
+réelles**. Le processus calcule à plein ; c'est le compteur interne qui sous-compte sur macOS.
+
+À retenir pour toute mesure future de ce genre : **le temps processeur se lit du dehors.**
+
+### La cause, et le palier qui la désigne
+
+La durée par page ne se dégrade pas progressivement. Elle fait **un palier**, et il tombe à un
+endroit qui ne doit rien au hasard :
+
+| feuilles demandées | s par page |
+|---|---|
+| 4 | 1,94 |
+| 8 | 1,96 |
+| 12 | **14,92** |
+| 16 | **15,36** |
+
+Le seuil est entre 8 et 12, et `PAS_ECHANTILLON` vaut **8**. Le vote d'orientation du lot
+(`voterOrientation`) échantillonne un cliché sur huit : en deçà de neuf feuilles il n'en voit
+**qu'un**, au-delà il en voit **deux**. Mesuré sur F4 :
+
+| cliché | notes des quatre sens | ce que le vote en fait |
+|---|---|---|
+| 0 | 0 = 171,3 · 270 = 154,4 · 90 = 83,2 · 180 = 68,9 | partagé — l'écart est de 11 % |
+| 8 | 270 = 116,3 · 0 = 63,3 · 90 = 43,6 · 180 = 17,3 | net — l'écart est de 84 % |
+
+Un seul échantillon rend **rotation 0**, et toutes les pages coûtent deux secondes. Deux
+échantillons rendent **rotation 270**, parce que le second vote est le plus **confiant** et non
+le plus fort — et c'est le bon critère. Le lot bascule alors, et chaque page coûte quinze
+secondes.
+
+### Correction du même jour : ce n'est pas la rotation qui coûte
+
+J'ai d'abord écrit que les treize secondes étaient le prix de la rotation. **C'est faux, et la
+mesure le dit sans appel.** Chronométré sur deux clichés réels de F4, 4,3 mégapixels :
+
+| étape | durée |
+|---|---|
+| `tourner` 0°, 90°, 180°, 270° | **0,00 à 0,04 s** |
+| `gouttiere` | 0,01 s |
+| `couperDoublePage` | 0,00 s |
+| `effacerVerso` | 0,02 s |
+| `binariserAdaptatif` | 0,04 s |
+| **tout `redresser`, rotation comprise** | **~0,15 s** |
+
+Tourner une image est un remaniement de pixels : c'est gratuit. Le redressement entier pèse un
+sixième de seconde, et il pèse **la même chose** à 0° et à 270°.
+
+Les treize secondes sont donc **en aval**, dans `reperer` — la lecture des repères —, qui vit
+aussi dans l'intervalle chronométré (`lireLot` appelle `reperer([page])` avant d'annoncer la
+page). Ce que la bascule du vote change pour lui, ce n'est pas le coût de tourner : c'est **la
+forme de la page qu'il reçoit**, et donc ce qu'il a à y chercher.
+
+### Et ce que cela ouvre, qui n'est pas une finition
+
+Si 270° est la **bonne** orientation — et tout indique que oui, c'est pour cela que le vote
+existe —, alors la lecture lente est celle qui fait le travail, et la rapide était rapide parce
+qu'elle cherchait des repères sur des pages couchées, où il n'y a rien à trouver.
+
+**Dans ce cas il n'y a aucune économie à faire : les treize secondes sont le travail.** Et la
+question de la réserve 9.1 change de nature — elle cesse d'être « d'où vient cette lenteur » pour
+devenir « ce travail peut-il coûter moins ». Les deux ne se traitent pas pareil, et je ne l'ai
+pas encore tranché : il faudrait comparer ce que les deux lectures **trouvent**, et non ce
+qu'elles coûtent.
+
+La lenteur n'appartient donc ni au document, ni à la mémoire, ni à la rotation. Elle appartient à
+la lecture des repères sur des pages enfin droites — sous réserve de la vérification ci-dessus.
+
+### Ce que cela corrige dans la note du 17 octobre
+
+« La lenteur appartient à la lecture longue, pas au document » : la formule visait juste sans le
+savoir. Ce n'est pas la lecture longue en elle-même, c'est le fait qu'une lecture longue voit
+assez de clichés pour que le vote bascule. Et « les mêmes feuilles lues seules mettent 2,08 s »
+s'explique enfin : lues seules, elles étaient moins de neuf, donc jamais tournées.
+
+### Ce qui reste, et qui est une décision, pas une mesure
+
+La rotation est **nécessaire** : la décider page par page avait rendu deux pages à l'envers et
+deux couchées sur F4, et le commentaire de `preparerLot` le dit depuis le 4 octobre. Le défaut
+n'est donc pas qu'on tourne, c'est que tourner coûte treize secondes par page.
+
+Trois pistes, aucune mesurée, aucune engagée :
+
+1. ~~**La rotation elle-même**~~ — **écartée le jour même** : elle coûte 0,04 s, mesurée. La
+   piste à sa place est `reperer`, et seulement si la comparaison des **résultats** montre que la
+   lecture lente ne trouve pas plus que la rapide.
+2. **Tourner plus tard, ou moins** — les repères se cherchent dans des zones que la recette
+   désigne ; tourner la zone plutôt que la page serait une autre conception.
+3. **La découpe**, décidée en 9.1 ter, reste le contournement en place. Elle a désormais un
+   effet de bord connu : **une tranche de moins de neuf feuilles ne tourne pas du tout**, donc ne
+   lit pas la même chose qu'une tranche plus longue. C'est un défaut sérieux du contournement, et
+   il n'était pas visible avant aujourd'hui.
+
+### La mesure qui tranche : la lecture lente fait le travail
+
+Les **mêmes huit pages**, lues deux fois — une fois dans un lot de quatre feuilles, une fois dans
+un lot de douze — et l'on compte ce qui est **trouvé**, non ce qui est dépensé
+(`mesures/f4-gras-ou-travail.ts`) :
+
+| lecture | feuilles | rotation du lot | durée | éléments trouvés | numéros de page lus |
+|---|---:|---:|---:|---:|---:|
+| courte | 4 | 0° | 19 s | **12** | **0 sur 8** |
+| longue | 12 | 270° | 361 s | **35** | **8 sur 8** |
+
+**Il n'y a pas de gras.** La lecture rapide trouve un tiers des éléments et **ne lit aucun numéro
+de page** : elle cherchait des repères sur des pages couchées, en attrapait quelques-uns par
+chance, et n'a jamais su sur quelle page elle était. Une page dont le numéro imprimé n'est pas lu
+ne se cite pas (RCH-09) — c'est la promesse même du produit, « toujours sur la vraie page ». Une
+lecture qui n'en lit aucun ne vaut rien, quelle que soit sa vitesse.
+
+Les quinze secondes par page sont donc **le prix d'une lecture juste**, et non un défaut à
+corriger. La réserve 9.1 cesse d'être « d'où vient cette lenteur » : la question devient « ce
+travail peut-il coûter moins », ce qui est un tout autre chantier.
+
+### Et la découpe n'est pas un contournement : c'est un piège
+
+C'est la conséquence sérieuse, et elle renverse la décision de 9.1 ter. Une tranche de moins de
+neuf feuilles **ne tourne pas**, donc lit des pages couchées, donc rend un tiers des éléments et
+aucun numéro de page — **sans rien signaler**. Elle est rapide parce qu'elle échoue.
+
+Découper reste possible, mais plus comme on l'avait décidé : il faudrait que l'orientation du lot
+soit **votée sur le document entier et transmise à chaque tranche**, jamais revotée par tranche.
+Tant que ce n'est pas fait, une découpe fine produit silencieusement des lectures fausses, et
+c'est pire que la lenteur qu'elle évite.
+
+
+## 20 octobre 2026 — le premier document réel traité en entier
+
+Troisième bloquant de BAS-02. *Théorie ACT* — 66 feuilles, 37,5 Mo, choisi pour être le **pire
+cas** du chemin du texte : sa couche n'a pas un seul accent.
+
+| relevé | valeur |
+|---|---:|
+| pages lues | 132 (66 feuilles coupées en deux) |
+| durée | **113 s**, soit 0,86 s par page |
+| pointe mémoire | 1 477 Mo |
+| servies par la couche | **1** feuille sur 66 |
+| servies par la reconnaissance | **65** |
+| passages produits | 130, dont **2** illisibles |
+| **numéros de page lus** | **99 sur 132 — 75 %** |
+
+**L'inversion du 20 octobre fait exactement ce qu'elle annonçait**, et à l'échelle d'un vrai
+document : 65 feuilles sur 66 passent par la reconnaissance, parce que la couche est lisible et
+fausse. Deux passages illisibles sur 130 — le reste entre dans l'index en pouvant être vérifié.
+
+### La surprise, et elle n'est pas où je la cherchais
+
+Le premier relevé annonçait **20 % de numéros lus**, et j'ai cru tenir un défaut grave. La sonde
+a montré l'inverse : les folios **sont lus**, mais par deux — « 12 13 », « 18 19 », « 28 29 ».
+C'est un livre numérisé **deux pages par feuille**, et `numeroImprime` refuse alors de trancher,
+comme il le doit : « s'ils se contredisent, on ne tranche pas ».
+
+Je lisais une double page comme une seule. Les 20 % mesuraient mon erreur. Coupé en deux, le
+même document rend **75 %**, et la quasi-totalité une fois les pages liminaires passées — elles
+ne portent pas de folio imprimé, et c'est normal.
+
+**Mais l'erreur est instructive, parce que ce n'est pas seulement la mienne.** Le classement en
+familles (`familles.json`, 18 octobre) range ce document dans « livre photographié, **une** page
+par feuille ». Il est manifestement à deux. Un réimport conduit par ce classement lirait donc
+deux pages comme une, mêlerait leurs textes dans un même passage, et perdrait les trois quarts
+des numéros imprimés — **sans rien signaler**, exactement comme mon banc.
+
+C'est la première surprise d'échelle réelle, et elle est en amont du traitement : **le classement
+en familles n'est pas fiable au document près.** Avant BAS-02, il faut soit le vérifier document
+par document, soit détecter la double page à la lecture — deux folios sur une feuille en sont
+précisément le signe, et la chaîne les a sous les yeux.
+
+### Ce qui reste ouvert, et n'est pas mesuré
+
+La mémoire **monte avec les pages** : 1 034 Mo à la dixième feuille, 1 806 à la soixante-sixième
+en lecture simple, 1 477 en double. Sur un document de 480 pages et 410 Mo — le corpus en a un —
+rien ne dit où elle s'arrête. Le plafond du projet est à 8 Go. À mesurer avant de traiter les
+gros, et à ne pas supposer.
+
+
+## 20 octobre 2026 — étape 6 faite, et l'ampleur de la double page mesurée
+
+### Étape 6 : une manière de lire sans zone d'élément est légitime
+
+La règle exigeait une zone d'élément, **toujours**. Elle refusait donc un document ordinaire
+parce que rien n'y est numéroté pièce par pièce — et ces documents-là sont la quasi-totalité
+d'une bibliothèque. C'était une hypothèse de domaine dans du code générique (CLA-01).
+
+La règle juste, celle que le plan avait prévue : au moins **une** zone quel que soit son rôle, au
+plus **une** zone d'élément, au plus **une** zone de numéro de page. Aucun contrat n'a bougé, et
+les quatre recettes de méthode passent à l'identique.
+
+**Une quatrième règle est née avec les autres, et elle n'était pas au plan** : un repère de piste
+exige une zone d'élément. Une pastille se cherche à côté d'un élément — `relatif_a: "element"` au
+contrat — et en ouvrant la porte aux manières sans élément on ouvrait aussi celle d'une piste
+sans ancrage : chaque pièce valide séparément, la recette incohérente une fois assemblée.
+
+Deux contrôles ne jugent plus que ce qui les concerne : la hauteur des éléments et l'exemple de
+numéro décrivent un élément, et sans zone d'élément ils ne décrivent rien.
+
+### Et l'ampleur de la double page : trente-quatre documents mal rangés
+
+Trois feuilles lues par document, **couche texte seule, aucune reconnaissance** — un folio est
+fait de chiffres, et les chiffres n'ont pas d'accents à perdre. Le signe cherché est celui que
+`numeroImprime` a sous les yeux au moment où il renonce : **deux folios consécutifs dans les
+bandes de marge** (`mesures/combien-de-doubles-pages.ts`).
+
+| famille déclarée | deux pages mesurées | une page | couche muette |
+|---|---:|---:|---:|
+| livre photographié, deux pages par feuille | 17 | 7 | 0 |
+| **livre photographié, une page par feuille** | **34** | 15 | 4 |
+| feuillet photographié | 0 | 12 | 5 |
+
+**Trente-quatre documents sur les cinquante-trois examinés de la famille « une page par
+feuille » en portent deux — soit 64 %.** Le classement se trompe plus souvent qu'il n'a raison
+pour cette famille. Ce n'est pas une anomalie, c'est un chantier, et il passe devant le reste :
+lu selon son classement, chacun de ces documents mêlera les textes de deux pages dans un même
+passage et perdra les trois quarts de ses numéros imprimés, **sans rien signaler**.
+
+Ordre de grandeur des pages concernées : cette famille compte 7 728 pages pour 71 documents, soit
+une centaine chacun ; trente-quatre documents en représentent donc de l'ordre de **3 700 feuilles,
+7 400 pages**. C'est une extrapolation depuis une moyenne, et elle vaut ce que valent les
+extrapolations de ce journal — l'ordre de grandeur, pas le chiffre.
+
+**Ce que le relevé ne prouve pas**, et il faut le dire : le signe est une heuristique. Un cas est
+clairement faux — `Applications cliniques en ICV.pdf` rend « 2003+2004 », qui est une plage
+d'années et non deux folios. Les paires franches — 90+91, 132+133, 64+65 — ne laissent aucun
+doute, mais le compte exact demanderait un œil. L'ordre de grandeur, lui, est solide : des
+dizaines, pas deux.
+
+Les sept documents de la famille « deux pages » qui ne rendent qu'un folio pourraient être mal
+rangés dans l'autre sens. Le relevé ne le dit pas : il cherche une **preuve de double page**, pas
+une preuve de page simple, parce que c'est la double page non détectée qui abîme les citations.
+L'asymétrie est volontaire.
+
+
+## 20 octobre 2026 — la double page se détecte seule, et le premier livre ordinaire passe
+
+### La détection, et sa vérification
+
+`deuxPagesParFeuille` vit dans `passages.ts`, à côté de `numeroImprime` dont elle lit les restes :
+**deux folios consécutifs dans les bandes de marge**, ce que `numeroImprime` jette en refusant de
+trancher. La couche suffit, elle est déjà lue, et un folio est fait de chiffres — cela ne coûte
+rien.
+
+Deux garde-fous tirés de la mesure : **deux feuilles au moins** doivent montrer le signe (un
+document rendait « 2003+2004 », une plage d'années), et l'on regarde le **milieu** du document,
+jamais ses pages liminaires. L'appelant garde le dernier mot : `doublePage` donné explicitement
+l'emporte, ce qui laisse les deux positions éprouvables.
+
+**Vérifié sur le document qui avait révélé le défaut, sans rien lui dire** : *Théorie ACT* rend
+132 pages et **99 numéros imprimés sur 132**, exactement ce qu'il fallait lui imposer à la main.
+
+### Le premier livre ordinaire, et l'étape 6 à l'épreuve
+
+*Biologie du couple*, 173 pages, document natif sans la moindre pièce numérotée — le cas que la
+chaîne refusait jusqu'à ce matin.
+
+| relevé | valeur |
+|---|---:|
+| pages lues | 173 |
+| durée | **1 seconde** |
+| servies par la couche | **173** — aucune reconnaissance |
+| passages illisibles | **0** |
+| pointe mémoire | 581 Mo |
+| numéros de page lus | 106 sur 173 — 61 % |
+
+**Un livre natif ne coûte rien** : 0,01 s la page, contre 1,72 s pour un numérisé. Les deux
+extrêmes du corpus tiennent maintenant dans le même banc, et l'écart entre eux est d'un facteur
+cent soixante-dix.
+
+### Et une troisième trouvaille, que seul un livre ordinaire pouvait donner
+
+Les 39 % de folios manquants ne manquent pas : **les 173 pages portent toutes un nombre dans leur
+bande de marge**, et 67 d'entre elles en portent **plusieurs**. `numeroImprime` refuse alors de
+trancher — « s'ils se contredisent, on ne tranche pas ».
+
+Ce n'est **pas** une double page : la détection ne s'est pas déclenchée, et à raison — les valeurs
+ne se suivent pas. C'est un titre courant numéroté, ou un appel de note, qui partage la marge avec
+le folio. La règle « exactement un candidat » est juste pour un livre numérisé et trop stricte
+pour un livre composé.
+
+Deux remèdes se présentent, aucun mesuré : préférer le nombre le plus **proche du bord** de la
+page, ou celui dont la valeur **progresse** avec le rang de la feuille. Le second est le plus sûr
+— un folio avance d'un en un, un appel de note non — et le plus coûteux, puisqu'il demande de
+voir le document avant de trancher. À éprouver, pas à supposer.
+
+
+## 20 octobre 2026 — le folio se tranche sur le document, plus sur la page seule
+
+Quatrième chantier de la journée. `numeroImprime` refuse de trancher entre deux nombres de la
+marge, et c'est juste pour une page seule : elle n'a aucun moyen de savoir lequel est son folio.
+Mesuré sur un livre ordinaire, cela coûtait **39 % des numéros** — les 173 pages portaient toutes
+un nombre, 67 en portaient plusieurs.
+
+**Un folio progresse**, et c'est ce qui le distingue de ses voisins : il avance d'un en un avec le
+rang, là où un titre courant numéroté, un appel de note ou une année ne le font pas. On vote donc
+le **décalage** sur tout le document, et l'on retient page par page le candidat qui s'y tient.
+
+Le vote n'a pas été réécrit : `decalageDominant` existe depuis le 4 octobre pour le chemin des
+images, et c'est la même question. Deux votes pour une même question finissent par ne plus dire
+la même chose.
+
+### Le résultat, sur les deux documents déjà mesurés
+
+| document | avant | après |
+|---|---:|---:|
+| *Biologie du couple* — natif, 173 pages | 61 % | **100 %** |
+| *Théorie ACT* — numérisé, 132 pages | 75 % | **80 %** |
+
+Les deux montent, aucun ne baisse. Sur le livre natif, **la totalité des pages porte désormais son
+numéro imprimé** : une citation y est vérifiable de bout en bout.
+
+### Deux garde-fous, et le second a été trouvé par une fixture
+
+Le vote ne parle que si le document a **au moins quatre pages** — en deçà, « le plus fréquent »
+serait un tirage au sort déguisé.
+
+Et il lui faut un **appui** : au moins trois pages, et un cinquième du document. Ce second
+garde-fou n'était pas prévu ; une fixture l'a imposé. Une feuille qui ne porte **qu'un** folio,
+coupée en deux, donne un folio toutes les deux pages : le décalage change alors à chaque fois —
+1−1, 2−3, 3−5 — et aucun ne revient. `decalageDominant` rend toujours une réponse, c'est son
+contrat ; sans appui, cette réponse aurait emporté tout le document et **effacé les numéros justes
+que chaque page avait trouvés seule**.
+
+### Et le vote peut effacer, délibérément
+
+Quand il parle, il l'emporte y compris pour **retirer** un numéro : une page dont le seul nombre de
+marge ne tient pas le décalage portait un numéro de partie ou un appel de note, et `numeroImprime`
+l'avait pris pour un folio. Mieux vaut pas de numéro qu'un faux — une citation renvoyée à la
+mauvaise page est pire qu'une citation renvoyée à un rang assumé comme tel (RCH-09).
+
+
+## 20 octobre 2026 — la chaîne océrise en anglais, et personne ne lui dit la langue
+
+Trouvé en faisant le bilan des trois bloquants, et c'est une zone d'ombre que les mesures de la
+journée **masquaient** : `lireParOcr` emploie `options.langue ?? "eng"`, et **rien dans `lot.ts`
+ne passe de langue**. La chaîne réelle lit donc un corpus français avec le modèle anglais.
+
+Tous les bons chiffres de la journée venaient d'un `langue: "fra"` que mes bancs ajoutaient. Ils
+mesuraient donc une chaîne que la chaîne n'est pas.
+
+### Ce que cela coûte, mesuré plutôt que redouté
+
+Six feuilles de *Théorie ACT*, lues deux fois :
+
+| langue | mots | accents | mots outils | folios |
+|---|---:|---:|---:|---:|
+| défaut de la chaîne (`eng`) | 1 946 | **284** | 35,4 % | 6/12 |
+| `fra` | 1 944 | **337** | 34,9 % | 6/12 |
+
+**Un accent sur six est perdu**, et rien d'autre ne bouge : même nombre de mots, même part de mots
+outils, mêmes folios. J'avais écrit « c'est grave » avant de mesurer ; c'est un défaut réel et
+borné, pas un effondrement — le modèle anglais reconnaît la plupart des glyphes accentués.
+
+Mais c'est **exactement ce que l'inversion de la couche était censée gagner** : des accents, dont
+une recherche en français dépend. En perdre un sur six après en avoir récupéré la totalité est une
+régression silencieuse.
+
+### Ce qui reste à décider, et qui n'est pas fait
+
+D'où la langue devrait venir : la description de la bibliothèque la connaît-elle ? La recette ?
+Faut-il la deviner du texte lu ? Aucune de ces réponses n'est évidente, et aucune n'est tranchée.
+Ce qui est sûr, c'est qu'un défaut à `eng` dans un outil générique est une hypothèse de domaine
+déguisée (CLA-01) — au même titre que les zones d'élément obligatoires l'étaient ce matin.
+
+
+## 20 octobre 2026 — le plus gros document du corpus : la mémoire plafonne à 3,2 Go
+
+480 pages, 391 Mo — le plus lourd des 250. Lancé pour sonder la seule ombre qui pouvait arrêter
+le réimport net.
+
+| relevé | valeur |
+|---|---:|
+| pages lues | 480 |
+| durée | **1 129 s**, soit 19 minutes |
+| cadence | 2,35 s par page |
+| **pointe mémoire** | **3 212 Mo, atteinte tôt et stable** |
+| servies par la couche | **0** — ce document n'a aucune couche texte |
+| servies par la reconnaissance | 480 |
+| passages illisibles | **0** sur 480 |
+| numéros de page lus | 166 sur 480 — 35 % |
+
+**La question de la mémoire est réglée.** Elle monte, puis elle plafonne : 3 212 Mo atteints avant
+la trois centième page et plus un octet ensuite. Le plafond du projet est à 8 Go, et c'est le plus
+gros document du corpus. **Aucun document ne le dépassera.**
+
+Ce qui montait sur les documents précédents n'était donc pas une fuite : c'est le régime de
+croisière d'une lecture d'images, atteint d'autant plus vite que le document est lourd.
+
+La cadence confirme l'estimation du chemin du texte : 2,35 s par page océrisée contre les 2 s
+mesurées le matin. Sur les ~8 000 pages à océriser du corpus, cela fait de l'ordre de **cinq
+heures**, dépense unique.
+
+### Les 35 % de folios, non expliqués, mais pas inexpliquables
+
+Trois documents, trois résultats : 100 % sur un natif, 80 % sur un numérisé avec couche, **35 %
+ici**. Ce qui distingue celui-ci est connu et déjà mesuré : il n'a **aucune couche texte**, donc
+chacun de ses folios doit venir de la reconnaissance — et Tesseract, en segmentation « page
+entière », **abandonne un chiffre isolé que rien n'entoure**. C'est ce qui a été constaté sur la
+fixture `couche-fautive.pdf`, dont le folio n'est jamais lu quelle que soit sa distance au bloc de
+texte.
+
+L'hypothèse n'est pas vérifiée sur ce document-ci, et le chiffre reste tel quel. Mais elle a une
+conséquence utile : **le vote du décalage ne peut pas récupérer ce que la reconnaissance n'a pas
+lu**. Si cette piste se confirme, le remède n'est pas dans le vote mais dans la façon dont on
+demande la lecture des marges — une segmentation serrée sur la bande, comme la lecture d'un repère
+le fait déjà.
+
+
+## 20 octobre 2026 — le chaînon manquant : du dépôt à la recherche
+
+### Ce qui n'existait pas, et que personne n'avait vu
+
+Relevé sur `origin/main` en préparant le plan : `executerTravail` lisait un document, construisait
+une vue et des passages, **rapportait** — et n'écrivait rien. `ingerer` savait écrire le lot et
+**n'était appelée que par ses propres épreuves**. `enregistrerPassages` n'avait **aucun appelant**,
+nulle part. `activerVersion` non plus, hors épreuves.
+
+L'étape 5 du chemin du texte — « écriture dans `passage` et l'index plein texte à l'activation
+d'une version » — n'était donc pas faite. **Toutes les pièces existaient, bien faites et
+éprouvées ; leur assemblage manquait**, et c'est lui seul qui séparait la chaîne d'une
+bibliothèque cherchable.
+
+### `enregistrerLeTraitement`, et l'ordre de ses trois gestes
+
+Le lot, puis les passages, puis l'activation — **l'activation en dernier**. Une version n'est
+active que lorsque tout ce qu'elle promet est écrit : si les passages sont refusés — un trou dans
+les rangs est ce qu'un transport perd —, la version précédente reste celle qu'on lit. Activer
+d'abord laisserait une version vivante et vide, ce qui est pire que pas de version du tout.
+
+Cinq épreuves, dont celle qui garde cet ordre : un lot aux rangs troués est refusé, et la version
+d'avant reste active avec son texte encore trouvable.
+
+### Le critère, vérifié sur un vrai livre
+
+*Biologie du couple*, 173 pages, par `mesures/du-depot-a-la-recherche.ts` :
+
+| | |
+|---|---|
+| lu | 173 pages, 173 passages, **1 s** |
+| déposé | 173 passages, version active |
+| recherche « provoquent en s'interpellant sans en » | 1 résultat |
+| **la recherche dit** | **page 87, numéro imprimé 87** |
+| **le PDF la porte** | **page 87** |
+
+**La citation pointe sur la page où le texte est réellement imprimé.** La vérification ne tourne
+pas en rond : la phrase est cherchée une seconde fois dans le PDF d'origine par un chemin qui ne
+partage rien avec celui qui l'a indexée — `lireCoucheTexte` seul, sans coupe de feuille, sans
+arbitrage, sans vote de décalage.
+
+**Ce que cela ne prouve pas**, et il faut le dire : les deux chemins lisent la même couche texte.
+Sur un document **numérisé**, dont le texte vient de la reconnaissance, cette vérification ne
+s'applique pas — il faudrait un œil sur l'image. Elle vaut pour un document natif, où la couche
+**est** le texte imprimé.
+
+### Et un défaut du banc, attrapé par le banc
+
+Son premier jet cherchait « les quatre premiers mots longs de la page », qui ne se suivent pas
+dans le texte : la phrase n'existait nulle part et la recherche ne la trouvait pas. Pendant un
+instant cela ressemblait à un défaut d'indexation. C'était le banc qui avait tort, et il cherche
+désormais des mots **contigus**.
+
+
+## 20 octobre 2026 — un document numérisé jusqu'à la recherche, et l'EPUB qui n'existe pas
+
+### 1. Le numérisé : trois citations prêtes à vérifier à l'œil
+
+*Théorie ACT* traverse la chaîne entière — lecture, dépôt, activation, recherche — et rend trois
+citations retrouvées (`mesures/citations-a-verifier.ts`) :
+
+| citation | la recherche dit | sur la feuille |
+|---|---|---|
+| « appellation sont interchangeables). C'est l'impli- cation » | page 34, folio **33** | 17, moitié droite |
+| « permettrait de poursuivre le trajet, de » | page 67, folio **66** | 34, moitié gauche |
+| « présent \| Acceptation \| Défusion _ » | page 99, folio **98** | 50, moitié gauche |
+
+Le décalage est constant — folio = rang − 1 — ce qui est le signe que le vote du décalage a trouvé
+la bonne série.
+
+**La vérification ne peut pas être faite par le programme, et c'est le point.** Sur un document
+natif, `du-depot-a-la-recherche.ts` recherche la phrase une seconde fois dans le PDF : la couche
+**est** le texte imprimé. Ici le texte vient de la reconnaissance, et la couche est précisément ce
+qu'on valide — la confronter à elle-même reviendrait à demander à l'accusé de témoigner pour
+lui-même. **Seule l'image de la feuille fait foi**, et seul un œil peut la lire. Le banc prépare
+la comparaison et s'arrête là.
+
+### 2. L'EPUB : la chaîne ne sait pas le lire, et c'est bloquant
+
+La composition réelle attendue des bibliothèques est **50 % PDF / 50 % EPUB**, et non les 7,6 %
+du corpus d'essai (19 fichiers sur 250). L'étape 7 du chemin du texte — « formats sans pages
+fixes : lecture par chapitre, ancre déclarée comme telle » — avait été différée sur l'hypothèse
+inverse. **Cette hypothèse est caduque.**
+
+Mesuré, sans ambiguïté : `lireLeTexte` sur un EPUB du corpus rend
+`InvalidPDFException: Invalid PDF structure.` La chaîne traite **tout** comme un PDF. L'EPUB est
+seulement **identifié** — `signatures.ts` reconnaît `application/epub+zip` — et rien ne le lit.
+
+Conséquence sur la demande de vérifier la propagation de la langue jusqu'à l'EPUB : **la question
+ne peut pas se poser**, il n'y a aucun chemin EPUB dans lequel une langue pourrait se propager.
+
+Et le refus n'est même pas poli : rien ne vérifie le type du document avant de le lire, et l'on
+obtient une levée de pdf.js plutôt qu'un message qui dise ce qui ne va pas. Un format que l'on ne
+sait pas lire doit se dire, pas planter.
+
+### Ce que cela change pour le troisième bloquant
+
+Il **n'est pas clos**. Le chaînon fonctionne, et il est prouvé sur deux documents PDF — un natif
+de bout en bout, un numérisé jusqu'à la citation. Mais la moitié de ce que les bibliothèques
+porteront ne franchit pas la première étape.
+
+
+## 20 octobre 2026 — la chaîne lit les EPUB : des feuillets, pas des pages
+
+L'étape 7 du chemin du texte, avancée parce que la composition réelle attendue est **50 % PDF /
+50 % EPUB** et non les 7,6 % du corpus d'essai.
+
+### Ce que la mesure a décidé à notre place
+
+Quatre EPUB du corpus sondés : **aucun** ne porte de pagination d'édition imprimée — ni
+`page-list`, ni repère `pagebreak`. « Toujours sur la vraie page » n'a donc pas de sens littéral
+ici, et fabriquer des numéros promettrait une vérification impossible.
+
+Et le découpage de l'auteur ne fait pas mesure : **3 fichiers de contenu** pour un livre,
+**69** pour un autre ; 1 Kio médian contre 16. « Chapitre 1 sur 3 » ne situe rien.
+
+### Ce qui a été retenu
+
+| | |
+|---|---|
+| le **rang** | un découpage régulier en **feuillets de 300 mots**, figé avec la version |
+| la **vérifiabilité** | le texte exact du feuillet, qui est son propre repère |
+| le **contexte** | le chapitre d'où il vient |
+
+Un feuillet **n'est pas une page** et ne s'appelle pas ainsi : `pageImprimee` reste **absent**, et
+`citerPage` dit alors « passage 47 du document » plutôt qu'un numéro que le livre ne porte pas. Le
+contrat prévoyait déjà ce cas — **rien n'a eu à changer**.
+
+Trois cents mots parce que c'est l'ordre de grandeur d'une page de livre. La valeur est figée avec
+la version : la changer renumérote toutes les citations d'un livre déjà lu, et cela demande de le
+relire, comme changer une recette le demande.
+
+### La langue vient du livre, pas de la bibliothèque
+
+Chaque EPUB sondé déclare la sienne, et **l'un des quatre est en anglais dans une bibliothèque
+française**. Une bibliothèque dit la langue de sa collection ; un livre dit la sienne, et c'est
+celle-là qui compte pour le lire. `lireEpub` la rend.
+
+### Un lecteur de ZIP écrit plutôt qu'emprunté
+
+Un EPUB n'emploie que deux façons de ranger un fichier, telle quelle ou dégonflée, et `node:zlib`
+sait dégonfler. Le reste est un format de table qui tient en quelques dizaines de lignes — la même
+décision que l'encodeur CCITT et la table d'objets PDF du dépôt, et pour la même raison.
+
+**La table centrale fait foi, jamais les en-têtes locaux** : c'est elle qui fait autorité, et un
+fichier dont les deux se contredisent est précisément celui qu'on ne veut pas lire au hasard. Une
+méthode de compression inconnue se dit plutôt que de rendre des octets qui ressembleraient à du
+texte.
+
+### Vérifié de bout en bout
+
+*L'Intelligence du cœur*, EPUB de 69 chapitres :
+
+| | |
+|---|---|
+| lu | **322 feuillets**, moins d'une seconde |
+| déposé | 322 passages, version active |
+| recherche « possibilité de s'affirmer, d'être entendu, » | 1 résultat |
+| la recherche dit | **feuillet 162, sans numéro imprimé** |
+| le livre le porte | **feuillet 162** |
+
+La vérification relit les chapitres **depuis l'archive**, sans passer par le dépôt : ce qu'elle
+établit est que la citation est un extrait réel du livre, et que le feuillet cité est celui qui la
+porte. C'est ce qu'un EPUB permet de vérifier — il n'a pas de page imprimée à confronter.
+
+### Ce qui reste, et qui n'est pas fait
+
+**Le chapitre n'est pas conservé.** `Feuillet` le porte, `lireUnEpub` le laisse tomber : `Passage`
+est `.strict()` et n'a pas de champ pour lui. Le montrer à l'écran demande donc un champ au
+contrat, une colonne au dépôt et une migration. C'est le tiers de la décision du 20 octobre qui
+n'est pas livré, et il est dit ici plutôt que tu.
+
+
+## 20 octobre 2026 — un passage dit d'où il vient (contrat, colonne, migration 7)
+
+Le tiers manquant de la décision sur les EPUB. `Passage` gagne **`emplacement`**, une chaîne
+facultative : le chapitre pour un EPUB, rien pour une page de PDF.
+
+### Pourquoi un format sans pages en a besoin
+
+« Feuillet 162 » ne situe rien pour un lecteur. Le chapitre le situe. Mais il **ne sert jamais à
+citer** : deux livres ne découpent pas leurs chapitres de la même façon — trois fichiers de
+contenu pour l'un, soixante-neuf pour l'autre, mesuré — et un rang tiré de là ne se comparerait
+pas. Citer reste l'affaire de `page` et, quand le document le porte, de `pageImprimee`.
+
+Et il reste **absent** plutôt que de porter du remplissage : une page de PDF n'a rien à déclarer
+au-delà de son numéro, et un champ qui dirait « je sais » sans rien savoir vaudrait moins que son
+absence. Le contrat refuse d'ailleurs une chaîne vide.
+
+### La migration ne casse rien, et c'est éprouvé
+
+`ALTER TABLE passage ADD COLUMN emplacement TEXT` — nulle par défaut, donc rien à réécrire ni à
+recalculer. L'épreuve qui compte est celle qui reproduit ce qui arrive à la bibliothèque de
+quelqu'un : **un dépôt arrêté à la migration 6, rempli, puis migré**. Ses passages se relisent, son
+index plein texte les retrouve toujours, et leur emplacement est `undefined` — une colonne neuve
+qui aurait inventé une valeur se serait vue là.
+
+Les migrations D1 ont été réengendrées : le garde-fou compare les fichiers du disque à ce qu'il
+engendrerait, et il a refusé tant que la septième manquait.
+
+### Vérifié de bout en bout
+
+*L'Intelligence du cœur* : la recherche rend « page 162, sans numéro imprimé, **dans
+text/part0033.html** ». Le chapitre traverse la lecture, le découpage, le dépôt et la recherche.
+
+### Ce qui reste, et qui n'est pas fait
+
+**Aucun écran ne le montre encore.** `citerPage` ne connaît pas `emplacement` : il dit « page 162
+du document » là où il pourrait dire où. La donnée est là, sa mise à l'écran ne l'est pas.
+
+
+## 20 octobre 2026 — la porte franchie pour de vrai, et une correction de mon diagnostic
+
+### Ce que j'avais conclu, et qui était faux
+
+J'ai relevé que `enregistrerLeTraitement` n'est appelée par rien dans le produit. **Le constat est
+juste.** La conclusion que j'en ai tirée — « le dernier chaînon manque, le texte déposé n'arrive
+pas à la recherche » — **était fausse**, et la consigne de brancher la porte sur cette fonction en
+découlait.
+
+Le produit a un chemin complet, et il ne passe pas par le dépôt SQLite :
+
+| | |
+|---|---|
+| 1 | `executerTravail` rend un instantané, passages compris — et **n'écrit rien** (JOB-06) |
+| 2 | l'hôte Rust écrit cet instantané tel quel, puis pose le pointeur d'activation |
+| 3 | il le relit et sert ses passages (`passages_de_document`) |
+| 4 | l'écran cherche dedans avec `chercher`, en mémoire |
+
+Je n'avais regardé que le dépôt SQLite, et pas l'hôte. Ce que j'aurais dû faire d'abord, et ce que
+j'ai fait cette fois : suivre le chemin depuis l'écran, pas depuis la fonction que je venais
+d'écrire.
+
+### Pourquoi la porte n'a pas été branchée comme demandé
+
+Trois raisons, et chacune suffirait :
+
+- **JOB-06** dit que l'hôte est le seul écrivain du dépôt — décision du 6 octobre 2026, inscrite
+  dans `processus.ts` et dans `traitement.rs`. Faire écrire le processus annexe la contredit.
+- Le texte serait écrit **deux fois à deux endroits**, l'instantané et SQLite, et l'un des deux
+  finirait par mentir.
+- `@lienotheque/depot-sqlite` est une dépendance de **développement** d'ingestion ; l'y faire
+  entrer en production pour nourrir un magasin que rien ne lit n'a pas d'usage.
+
+**Réserve nommée, tranchée le 21 octobre 2026 :** le dépôt SQLite, ses sept migrations et son index
+plein texte FTS5 sont **lus par rien dans l'application**. Ils ont été bâtis pour l'hébergement du
+lot E, où D1 reprendra le même schéma. **Décision : aucune action maintenant** — c'est pour E3 et
+D1, pas pour le bureau local. On le laisse en réserve nommée plutôt qu'en chantier ouvert.
+
+### Le défaut que le passage par la vraie porte a trouvé
+
+*Biologie du couple*, 173 pages, traité par `executerTravail`, relu comme l'hôte le relit, cherché
+avec la fonction même de l'écran. La phrase cherchée est imprimée **page 87**. La recherche
+répondait **page 1** — la page de copyright.
+
+La fenêtre d'extrait se prenait autour de la **première correspondance venue**. Les morceaux
+cherchés sont composés `[phrase, ...mots]`, mais les correspondances sont rendues dans l'ordre du
+texte : sur une page de deux mille signes, la fenêtre tombait sur un mot isolé du début et ne
+contenait jamais la suite cherchée.
+
+Ce n'était pas qu'un extrait mal choisi. La sûreté d'un résultat se juge **sur son extrait**
+(`porteLaSuite`) : une page qui portait la suite passait donc pour du bruit, et la citation tombait
+ailleurs. Le correctif centre la fenêtre sur la suite entière quand la ligne la porte, et ne garde
+la première correspondance que par défaut. Les surlignages, eux, ne changent pas.
+
+Après correction : « page 87 », l'extrait porte la phrase, et un second chemin de lecture
+(`lireCoucheTexte` seul, sans coupe de feuille ni arbitrage) confirme que la page 87 du PDF la
+porte. **Le critère de BAS-02 est tenu sur ce document.**
+
+### Ce que les épreuves d'avant ne pouvaient pas voir
+
+Les épreuves de `chercher` tenaient en une ligne de texte, où la suite est toujours à portée de la
+fenêtre. C'est le genre de défaut qu'aucune épreuve unitaire bien écrite ne trouve, et qu'un vrai
+document trouve en une minute. D'où la nouvelle épreuve `de-la-porte-a-la-recherche.test.ts`, qui
+emprunte le chemin entier — porte, aller-retour JSON de l'hôte, contrats de relecture, `chercher` —
+sur une fixture qui dit elle-même quelle page porte quoi.
+
+
+## 21 octobre 2026 — les trois bloquants de BAS-02 sont clos, avec leurs réserves
+
+Décision de Christophe. Le réimport des deux cent cinquante peut être envisagé : les trois
+conditions qu'on s'était données sont tenues.
+
+| Bloquant | Ce qui le clôt |
+|---|---|
+| 1. Qualité de la couche texte | 50 couples adjugés à l'œil sur le vrai corpus, borne 41–70 %, OCR préféré à la couche, fixture qui le prouve, F1/F3/F4/F5 inchangés |
+| 2. Dégradation de F4 | Cause trouvée — le vote d'orientation qui bascule à la 9ᵉ feuille ; 15 s/page actées comme le coût d'une lecture juste ; la découpe du 17 octobre invalidée |
+| 3. Le vrai corpus de bout en bout | Trois formats traversent la chaîne (PDF natif, PDF numérisé, EPUB), et un document réel traverse la **porte réelle** jusqu'à la recherche, cité sur la page où le texte est imprimé |
+
+### Les réserves, consignées plutôt que tues
+
+**L'épreuve Rust est séparée du reste.** L'épreuve de bout en bout reproduit l'aller-retour JSON de
+l'hôte, elle ne lance pas l'hôte. `ecrire_version`, `activer` et `charge_active` sont couverts par
+les épreuves Rust, qui ne sont pas dans `pnpm check` (voir la décision sur les deux intégrations
+continues). `passages_de_document`, une extraction d'une ligne, n'a pas d'épreuve.
+
+**Le dépôt SQLite reste lu par rien.** Réserve nommée, tranchée ci-dessus : rien à faire avant E3
+et D1.
+
+### Les trois citations du document numérisé, vérifiées à l'œil
+
+*Theorie ACT Que sais-je.pdf*, document numérisé en double page, texte venu de la reconnaissance —
+donc la couche ne peut pas servir de preuve, c'est elle qu'on valide. Trois citations confrontées à
+l'image de la feuille :
+
+| Feuille | Moitié | Folio annoncé | Vu sur l'image |
+|---|---|---|---|
+| 17 | droite | 33 | le texte y est, folio 33 à droite, 32 à gauche |
+| 34 | gauche | 66 | le texte y est, folio 66 ; la moitié droite finit le chapitre, sans folio |
+| 50 | gauche | 98 | l'emplacement est juste, folio 98 |
+
+**Ce que la troisième apprend, et qu'aucune des deux autres ne disait :** « présent | Acceptation |
+Défusion » n'est pas une phrase imprimée. Ce sont les **étiquettes d'une figure** que la
+reconnaissance a lues en ligne. La page est la bonne et le repère est le bon — une citation peut
+donc tomber juste et rester illisible comme phrase. Rien n'est fait de ce constat pour l'instant :
+retirer le texte de figure changerait l'extrait exact que RCH-07 promet, et une légende de figure
+est parfois exactement ce qu'on cherche.
+
+
+## 21 octobre 2026 — un livre composé en texte n'avait rien à montrer, et ne le disait pas
+
+Relevé en passant un document du corpus par la porte réelle : sa vue sort avec **zéro page**. Ce
+n'est pas un accident de banc, c'est structurel, et cela vaut pour la moitié du corpus.
+
+### Pourquoi un livre natif n'a aucune page dans sa vue
+
+Les pages de la vue viennent **uniquement** de la chaîne d'images. `instantaneDeLot` le dit en
+toutes lettres : « une page existe parce qu'elle a été lue », et `pages` est tiré de
+`resultat.pages`, ce que la manière de lire a su lire **sur l'image de la feuille**. Or
+`exporterPages` extrait le JPEG que porte chaque feuille d'un document **numérisé** : un livre
+composé en texte n'en porte aucun, donc aucune image, donc aucun repère, donc aucune page.
+
+L'hôte demande pourtant toujours les images (`charge_de`) : ce n'est pas un oubli de configuration,
+il n'y a simplement rien à extraire. Aucun moteur de rendu n'existe dans la chaîne, et en ajouter un
+serait un chantier, pas un correctif.
+
+Le chemin du texte, lui, fonctionne parfaitement sur ces documents : 173 passages lus, citations
+justes, vérifiées contre le PDF.
+
+### Ce que l'écran montrait
+
+Rendu du Lecteur avec une telle vue, texte visible relevé :
+
+    Accueil · Un livre ordinaire · feuillet
+    Clause 0 sur 0
+    Note — Clause
+    Position dans le document : — sur 0
+    Réduire · 100 % · Agrandir · Ajuster à la fenêtre
+
+Colonne de vignettes vide, centre vide, aucune phrase. **Le défaut n'est pas l'absence de pages,
+qui est un fait ; c'est le silence.** Quelqu'un qui vient de déposer un livre et dont le traitement
+a réussi tombe sur une carcasse, sans savoir si son document est perdu — alors que son texte est là
+et se cherche.
+
+### Ce qui a été fait
+
+Le Lecteur dit maintenant ce qu'il en est, et retire les outils de page au lieu de les laisser
+inertes — un zoom sur rien et un compteur à zéro se lisent comme une panne. Les mots viennent du
+schéma (CLA-01).
+
+Il ne peut pas deviner seul si le texte a été lu : la vue porte les repères, les passages portent le
+texte, et les deux lui arrivent séparément. D'où `texteLu`, sans quoi l'écran promettrait une
+recherche qui ne rendrait rien sur un document que la chaîne n'a pas su lire.
+
+### Ce qui reste, et qui n'est pas fait
+
+- **Le Lecteur ne montre toujours pas le texte d'un livre natif.** Il sait dire où le chercher,
+  pas l'afficher. Montrer le texte d'un document sans image est un écran à concevoir, pas un
+  correctif de silence. **Ouvert comme chantier à part entière le 21 octobre 2026**, pour qu'il ne
+  devienne pas une dette tue : `docs/chantier-lire-un-livre-natif.md` — le fait, son ampleur, trois
+  routes et ce qu'il faudra décider avant d'écrire. Il sera nécessaire avant que le Lecteur soit
+  complet sur la moitié du corpus.
+- **Le banc divergeait de l'application** : il n'envoyait pas d'images de pages, là où l'hôte en
+  demande toujours. Corrigé — sans quoi il n'éprouvait pas ce qu'il prétendait éprouver. La
+  correction n'a rien changé au résultat (zéro image extraite d'un natif), mais c'est par chance.
+- **Le mode démonstration ne permet pas d'atteindre le Lecteur.** La vue chargée au démarrage est
+  effacée dès que la bibliothèque de démonstration arrive (`setVue(undefined)` au changement de
+  racine, qui est juste pour une vraie bibliothèque). Le Lecteur n'y est donc visible que dans la
+  fenêtre de course qui précède ce chargement. Constaté, non corrigé : cela ne touche que la
+  démonstration.
+
+
+## 21 octobre 2026 — l'état du corpus, mesuré plutôt que supposé
+
+Trois inconnues de l'état des lieux ont été mesurées avant d'en faire une recommandation. Deux se
+dissolvent, une se réduit à un document.
+
+### L'inventaire : 250 documents, 21 515 pages au moins
+
+| | |
+|---|---:|
+| Fichiers lus | 293, 12,87 Go |
+| Doublons exacts | 43 fichiers, 4,57 Go |
+| **Documents distincts** | **250**, 8,30 Go |
+| Pages comptées | 21 515 |
+| Portant une couche texte | 220 sur 250 |
+| Formats | 231 PDF, 18 EPUB, 1 .docx |
+
+**21 515 est un plancher, pas un total** : l'inventaire ne sait pas compter les pages de 23
+documents (les 18 EPUB, le .docx, et quatre PDF).
+
+### Les « quatre documents illisibles » n'existent pas
+
+Ils étaient illisibles **par le compteur de pages de l'inventaire**, pas par la chaîne. Les quatre
+passés par la porte réelle, en entier :
+
+| Document | Ce qui en sort |
+|---|---|
+| *Relier les états du moi* | 6 feuillets lus par la couche, citation juste |
+| *Livre mais tu ne m'avais jamais dit ça* | 171 passages, rang 86 → numéro imprimé 91, citation juste |
+| *Manuel N1 ICV2020* | rang 29 → numéro imprimé 29, citation juste |
+| *Métaphores et suggestions hypnotiques* | 562 passages, aucun numéro imprimé — cité par son rang, et il le dit |
+
+Au passage, une confirmation de la décision du 17 octobre sur la découpe : le même document lu sur
+**quatre pages** donnait « page 2000 » — une année de bibliographie prise pour un folio, le vote
+n'ayant pas assez d'appuis pour la rejeter. Lu en entier, il donne 91. **Une tranche ne vaut pas un
+document**, et la faute qu'elle produit a l'air d'un résultat.
+
+### Les dix-huit EPUB : dix-sept sur dix-huit, vérifiés
+
+Un seul EPUB avait été traversé de bout en bout, pour une moitié annoncée du corpus. Les dix-huit
+sont passés par `mesures/tous-les-epub.ts` : chacun lu, puis une phrase prise au milieu cherchée
+une seconde fois dans les chapitres relus depuis l'archive.
+
+**17 lus, 17 citations vérifiées, en un dixième de seconde chacun.** Tous les feuillets portent leur
+chapitre. Les langues déclarées par les archives sont variées — `fr`, `fr-FR`, `en`, `en-US`,
+`EN-US` — et c'est bien celle de l'archive qui est retenue.
+
+**Le dix-huitième est un vrai EPUB que la chaîne refuse.** *Hypnose Conversationnelle*
+(Allan Trevor) porte son `mimetype` à `application/epub+zip`, son `META-INF/container.xml` et ses
+27 fichiers XHTML — tout ce qu'il faut. Mais l'entrée `mimetype` y est rangée **dix-huitième** au
+lieu d'être la première, et la reconnaissance par signature, qui lit les premiers octets, ne voit
+qu'une archive ZIP. Le message le dit correctement — « la chaîne ne sait pas encore lire ce format
+(Archive ZIP) » — il n'accuse rien à tort. Le correctif est une condition : devant une archive ZIP,
+chercher `mimetype` ou `META-INF/container.xml` dans le catalogue central avant de renoncer.
+
+
+## 21 octobre 2026 — ce que coûte un réimport, et le document que la chaîne refuse
+
+### Le chiffre : une nuit, pas un après-midi
+
+Dix documents pris en travers des familles, chronométrés par la **porte réelle**, cache neuf.
+
+| Document | Pages | Temps | Couche | Reconnaissance |
+|---|---:|---:|---:|---:|
+| DSM-5 | 1275 | 6,7 s | 1275 | 0 |
+| Thérapeutique manuelle (390 Mo) | 480 | **1846,8 s** | 0 | 480 |
+| Biologie du couple | 173 | 0,7 s | 173 | 0 |
+| Trois EPUB | 1023 | 0,3 s | 1023 | 0 |
+| Protocole tabac | 6 | — | **refusé** | **refusé** |
+| Schémas 2021 — Introduction | 28 | 0,2 s | 26 | 0 |
+| La thérapie d'acceptation et d'engagement | 66 | 143,1 s | 0 | 66 |
+| Théorie ACT Que sais-je | 66 | 174,6 s | 1 | 65 |
+
+**Deux cadences :** la couche sert **0,003 s/page**, la reconnaissance **3,54 s/page**. Un facteur
+mille deux cents. Rapporté au corpus — de l'ordre de dix mille pages lourdes sur 21 515 — le
+réimport demande **environ dix heures**, stable entre 9,1 h et 10,0 h selon où l'on place la
+frontière. À lancer le soir.
+
+**Les quinze secondes par page de F4 ne s'appliquaient pas.** C'était le coût du chemin des images
+avec son vote d'orientation ; le chemin du texte coûte quatre fois moins. L'estimation d'hier était
+pessimiste d'un facteur quatre.
+
+**On ne sait pas d'avance de quelle famille un document relève.** *Thérapeutique manuelle* porte des
+polices et part à 100 % en reconnaissance — l'inversion a jugé sa couche mauvaise. *Schémas 2021*
+n'en déclare aucune et se lit à 26/28 par sa couche, ses polices étant héritées du nœud parent. Le
+détecteur se trompe dans les deux sens : d'où une fourchette, et non un nombre.
+
+### Le document refusé : une famille de trois, pas un dixième du corpus
+
+Dans l'échantillon, un document sur dix était refusé en entier. La proportion a inquiété — à ce
+taux, vingt-cinq documents à reprendre à la main. **Elle était fausse** : l'échantillon contenait
+par hasard un des trois.
+
+Recensement de la composition des pages sur tout le corpus (`mesures/images-du-corpus.ts`) : une
+page se lit si elle déclare une **police**, ou si elle porte une **image exploitable** — un
+`DCTDecode` qu'`octetsImage` rend en JPEG, ou des bandes à 1 bit que `rasterBilevel` empile.
+
+| | |
+|---|---:|
+| PDF sondés | 253 |
+| Pages vues | 23 090 |
+| Pages sans police ni image exploitable | **97**, soit 0,42 % |
+| Documents dont une page au moins est muette | 20 |
+| **Documents refusés en entier, vérifiés un par un** | **3** |
+
+Les trois : *Protocole tabac* (6 pages), *auto-hypnose tabac* (2 pages), *Mémo 4 — Analyse
+fonctionnelle* (1 page). **Neuf pages sur 21 515.**
+
+**La cause est une seule, et elle est nette.** Leurs pages ne portent qu'un raster `FlateDecode` à
+8 bits et aucune police. `octetsImage` le rend sous l'étiquette `raw` ; `exporterPages` ne prend que
+`jpg`, et `rasterBilevel` ne prend que des bandes à 1 bit. Ni l'un ni l'autre ne sait en faire une
+image, et la reconnaissance n'a donc rien à lire.
+
+Les documents écartés du recensement ne sont pas un angle mort : les plus lourds portent tous un
+`DCTDecode` par page — 255 pour 255 pages, 307 pour 307 —, donc une image JPEG chacune. Et les
+quatre que ce lecteur ne sait pas ouvrir ont été passés par la porte réelle le matin même, et se
+lisent.
+
+### Ce qui est décidé, et ce qui ne l'est pas
+
+**Cela ne bloque pas le réimport.** Trois documents sur deux cent cinquante, neuf pages sur
+vingt et un mille, et un refus **explicite qui nomme sa cause** : rien ne se perd en silence, et
+ces trois-là se reprennent après coup.
+
+**Petite dette technique, à traiter après le réimport — décidé le 21 octobre 2026.** 97 pages sur
+23 090, trois documents refusés en entier sur deux cent cinquante, et un refus qui nomme sa cause :
+aucune urgence, et rien qui se perde en silence. On la note pour ne pas l'oublier, on ne la traite
+pas avant.
+
+**Ce qu'elle demande :** savoir prendre un raster `FlateDecode` comme image
+de page. C'est le cas le plus simple qui soit — une trame non compressée dont la largeur, la hauteur
+et l'espace de couleur sont dans le dictionnaire — et `@lienotheque/images` sait déjà réduire et
+encoder. Les pages en `JPXDecode` (JPEG 2000) tombent sous la même limite : 23 pages d'un document
+de 594, qui se lit par ailleurs.
+
+
+## 21 octobre 2026 — la détection de la double page ne sert à rien : la porte ne la consulte pas
+
+Relevé en abordant le point 2. Le problème n'est pas celui qu'on croyait, et il est plus grave.
+
+### Le troisième mécanisme juste que la porte ne franchit pas
+
+`lireLeTexte` décide ainsi :
+
+    const doublePage = options.doublePage ?? (couche.length > 0 && deuxPagesParFeuille(couche));
+
+Et la chaîne appelle ainsi (`lot.ts`) :
+
+    const lu = await lireLeTexte(lot.pdf, { doublePage: recette.preparation.double_page, … });
+
+`preparation.double_page` est un **booléen obligatoire** au contrat. Il est donc toujours défini,
+le `??` ne tombe jamais, et **la détection automatique ne s'exécute jamais par le chemin du
+produit**. Elle ne tourne que là où `lireLeTexte` est appelée sans l'option : les bancs et les
+épreuves.
+
+C'est la troisième fois en deux jours qu'un mécanisme juste se révèle inatteignable depuis la porte
+réelle — après `enregistrerLeTraitement`, après le texte des documents natifs. **Le même défaut,
+un cran plus loin à chaque fois.**
+
+**Et il a faussé une vérification.** Les trois citations de *Théorie ACT* vérifiées à l'œil le
+20 octobre — « feuille 17, moitié droite, folio 33 » — sont sorties de `citations-a-verifier.ts`,
+qui appelle `lireLeTexte` **sans déclaration** : la coupe a donc eu lieu. Par la porte, le même
+document rend **66 passages pour 66 feuilles** : aucune coupe. Les citations étaient justes ; le
+chemin qui les a produites n'est pas celui du produit.
+
+### Ce que le corpus dit, et qui renverse la question de départ
+
+Relevé sur 257 PDF (`mesures/doubles-pages-du-corpus.ts`), deux signes par document : les **folios**
+— deux nombres consécutifs dans la bande de marge, ce que la chaîne regarde — et la **forme**, le
+rapport largeur sur hauteur de la feuille.
+
+| | |
+|---|---:|
+| Documents que les folios disent doubles | **82** |
+| Feuilles en paysage qu'aucun folio ne dénonce | 32 |
+| …dont la couche est trop maigre pour voir quoi que ce soit | **1** |
+
+**L'angle mort qu'on redoutait n'existe presque pas** : un seul document numérisé est muet au point
+que la détection n'ait rien à regarder. En revanche :
+
+- Les 32 feuilles en paysage non dénoncées sont des **diaporamas** — 1,78 (seize neuvièmes) et
+  1,33 (quatre tiers), « 1 diapo par page » jusque dans leurs noms. Les couper en deux serait une
+  faute, et le détecteur a raison de se taire. **La forme seule n'est donc pas un signe sûr.**
+- Mais parmi les 82 que les folios disent doubles, certains ont une forme de **0,71** — une feuille
+  **portrait**, plus haute que large. Une telle feuille ne peut pas porter deux pages portrait
+  côte à côte : ce sont des faux positifs, et ils sont faciles à nommer.
+
+### Ce qui est à trancher, et qui ne l'est pas ici
+
+Le détecteur gagnerait un garde-fou d'une ligne — une feuille qui n'est pas en paysage ne porte pas
+deux pages — mais cela ne changerait rien tant que la porte ne le consulte pas. Le fond est un choix
+de contrat : `preparation.double_page` est-il une **décision de l'administrateur** (et alors son
+absence doit être permise, pour laisser voir le document) ou un **réglage toujours présent** (et
+alors la détection n'a pas lieu d'être) ? Soumis avant d'écrire.
+
+
+## 21 octobre 2026 — la double page se déclare ou se laisse voir, et un garde-fou pour la porte
+
+Décision de Christophe : **option A**, la déclaration devient facultative, **avec le garde-fou de
+forme**. Implémentée, épreuves avant code.
+
+### Ce qui change
+
+| | |
+|---|---|
+| `Recette.preparation.double_page` | **facultatif**. Absent : personne n'a tranché, la chaîne regarde la feuille. Présent : c'est une décision, et elle l'emporte — y compris un `false` |
+| `Brouillon.pageDouble` | facultatif lui aussi, et `BROUILLON_NEUF` **se tait** : aucun écran ne demande ce réglage, un défaut écrit serait pris pour une décision |
+| `enRecette` / `depuisRecette` | le silence traverse l'aller-retour sans devenir un `false` |
+| `lot.ts` | ne transmet `doublePage` que si la manière de lire l'a déclaré |
+| `deuxPagesParFeuille` | **refuse de conclure sur une feuille qui n'est pas en paysage** |
+
+Le garde-fou de forme n'est pas un détail : le relevé du corpus montrait des documents **portrait**
+déclarés doubles par leurs folios — deux nombres consécutifs dans une bande de marge, ce qu'un pied
+de page numéroté et un appel de note produisent très bien. Les couper mêlerait deux moitiés de page
+dans chaque passage et ferait pointer toutes leurs citations à côté.
+
+Au passage, trois épreuves anciennes de la détection décrivaient leurs feuilles **en portrait** —
+une forme qu'aucune feuille à deux pages ne peut avoir. L'oubli ne se voyait pas tant que la forme
+n'entrait pas dans la décision ; les fixtures ont été redressées, sans quoi les épreuves négatives
+auraient réussi pour la mauvaise raison.
+
+### La vérification qui compte, refaite par la bonne porte
+
+Les trois citations de *Théorie ACT* validées à l'œil le 20 octobre venaient d'un banc qui appelait
+`lireLeTexte` directement. `citations-a-verifier.ts` franchit désormais `executerTravail`, fait subir
+au résultat l'aller-retour JSON de l'hôte, et cherche avec `chercher` — la fonction même de l'écran.
+
+Par ce chemin, avec une manière de lire qui ne déclare rien : **66 feuilles, 130 passages** — la
+coupe a lieu, parce que le document a été consulté. Et les trois citations sont **identiques**,
+phrase pour phrase :
+
+| | La recherche dit | Phrase |
+|---|---|---|
+| 1 | page 34, folio 33, feuille 17, moitié droite | « appellation sont interchangeables). C'est l'impli- cation » |
+| 2 | page 67, folio 66, feuille 34, moitié gauche | « permettrait de poursuivre le trajet, de » |
+| 3 | page 99, folio 98, feuille 50, moitié gauche | « présent \| Acceptation \| Défusion _ » |
+
+La vérification à l'œil de Christophe porte donc maintenant sur ce que l'application produit
+réellement, et non plus sur ce qu'un banc produisait.
+
+### Le garde-fou structurel : une épreuve par la porte, ou rien
+
+Trois fois en deux jours, un mécanisme juste s'est révélé inatteignable depuis `executerTravail` :
+le dépôt des passages, le texte des documents sans image, la détection de la double page. **Le point
+commun : des épreuves vertes au-dessus du défaut, et rien qui passe par là où l'application passe.**
+
+Règle, dans `packages/banc` : **toute option que `lot.ts` transmet à `lireLeTexte` doit être nommée
+dans au moins une épreuve qui appelle `executerTravail`** — et dans un fichier qui n'appelle **pas**
+`lireLeTexte` lui-même.
+
+Cette seconde condition a été ajoutée après coup, et elle est le cœur du garde-fou. Sans elle, il
+passait au vert : `aucune-page-lue.test.ts` nomme `doublePage` et franchit la porte **ailleurs dans
+le même fichier**. Un garde-fou satisfait par un voisinage ne garde rien — vérifié par mutation, il
+échoue maintenant quand on retire le réglage de l'épreuve qui le couvre.
+
+Ce n'est pas une preuve de justesse : une épreuve peut nommer un réglage sans rien en dire de
+sérieux. C'est une preuve de **passage**. Les trois défauts de ces deux jours seraient tous tombés
+dessus.
+
+### Ce qui reste, et qui n'est pas fait
+
+- **Aucun écran ne propose la double page.** Le brouillon la tait, et c'est voulu tant que l'éditeur
+  ne la montre pas ; le jour où il la montrera, il faudra trois états et non deux — déclarée vraie,
+  déclarée fausse, non déclarée.
+- **Le garde-fou ne couvre que la lecture du texte.** Le chemin des images a ses propres réglages,
+  et rien n'exige encore qu'ils passent par la porte.
+
+
+## 21 octobre 2026 — les deux conditions réglées avant l'essai de la file
+
+### 1. L'EPUB mal rangé se lit
+
+La reconnaissance par signature lit les premiers octets, et la convention veut qu'un EPUB y range
+`mimetype` **en premier**, non compressé. Un livre du corpus le range **en dix-huitième position** :
+l'en-tête ne montrait qu'une archive ZIP, et la chaîne refusait — correctement, d'après ce qu'elle
+voyait.
+
+`estUnEpub` consulte désormais la **table centrale**, qui dit toujours ce qu'une archive contient,
+où que ses entrées soient rangées. Deux signes, et l'un suffit : la **déclaration** `mimetype` quand
+elle est là, le **conteneur** `META-INF/container.xml` sinon. Aucun des deux n'appartient à un autre
+format de la famille — un document bureautique déclare son propre type et range son inventaire
+ailleurs. Elle répond, elle ne lève pas : appelée sur ce qui n'est pas une archive, elle dit non.
+
+Vérifié sur le corpus entier : **18 EPUB sur 18 lus, 18 citations sur 18 vérifiées** contre les
+chapitres relus depuis l'archive. Le dix-huitième rend 122 feuillets, tous porteurs de leur chapitre.
+
+### 2. Le document que le détecteur coupait à tort
+
+*Sexualité positive.pdf* — forme **1,76**, soit un seize neuvièmes, une mise en page de diaporama —
+était dit double par ses folios. Vérifié par la porte : **75 passages pour 38 feuilles**, la coupe a
+bien lieu, et le passage qui porte la citation est rangé **au rang 38 alors que le texte est sur la
+feuille 19**.
+
+Ce qui emporte la décision n'est pas la forme seule, mais un désaccord interne : les passages
+déposés **ne portent aucun numéro imprimé**. Les deux nombres consécutifs que le détecteur a vus
+dans les marges n'ont donc pas survécu au vote de folio à l'échelle du document. Il a coupé sur des
+nombres que la chaîne elle-même refuse de tenir pour des folios.
+
+**La déclaration à appliquer**, le jour où la bibliothèque du réimport sera créée — rien ne peut
+être installé avant, puisqu'il n'y a pas encore de bibliothèque :
+
+| | |
+|---|---|
+| empreinte | `4045b033dbb3257d75cf9993060a3eb7a82a2ba435b23300e3bf47b3d0f8fad1` |
+| `base/manieres.json` | `{ "4045b033…fad1": "sans-double-page" }` |
+| `base/recettes/sans-double-page.json` | la manière de lire de la bibliothèque, avec `"double_page": false` dans sa `preparation` |
+
+Un `false` déclaré fait autorité contre le détecteur : c'est exactement ce que l'option A du matin
+rend possible.
+
+**Une piste générale, relevée et non suivie :** un verdict « double page » tiré de nombres en marge
+que le vote de folio rejette ensuite est un verdict douteux. Croiser les deux rendrait l'exception
+inutile. Ce n'est pas fait, et cela demanderait de voir le résultat du vote avant de décider de la
+coupe — soit l'inverse de l'ordre actuel.
+
+
+## 21 octobre 2026 — l'essai de la file : elle tient, et elle fait gagner du temps
+
+Dix documents, les **mêmes** que la mesure de coût, par le **vrai `Roulement`** — son fil, ses
+baux, ses reprises — avec le moteur rassemblé comme le paquet le rassemble.
+
+### Ce que la file a fait
+
+| Arrivée | État | Document |
+|---:|---|---|
+| 8,0 s | terminé | DSM-5 |
+| 296,7 s | terminé | Biologie du couple |
+| 296,7 s | terminé | L'Intelligence du cœur (EPUB) |
+| 298,7 s | terminé | Je jouis comme je suis (EPUB) |
+| 298,7 s | terminé | L'hypnose en situation d'urgence (EPUB) |
+| 300,7 s | terminé | Schémas 2021 — Introduction |
+| 451,1 s | terminé | La thérapie d'acceptation et d'engagement |
+| 633,6 s | terminé | Théorie ACT Que sais-je |
+| 1811,5 s | terminé | Thérapeutique manuelle |
+| — | **en_echec_definitif** | Protocole tabac, « aucune des 6 pages n'a pu être lue » |
+
+**Neuf terminés, un échec définitif attendu, aucun blocage, une seule tentative chacun.** L'échec
+porte sa cause dans le travail, comme JOB-05 l'exige.
+
+Les heures sont des **arrivées**, pas des durées : deux travaux lourds tournent de front
+(`travauxLourdsSimultanes = 2`), et *Biologie du couple* — sept dixièmes de seconde de lecture —
+affiche 296,7 s parce qu'elle a attendu son tour.
+
+### Le facteur : un gain, pas un surcoût
+
+| | |
+|---|---:|
+| La chaîne seule, en série | 2 172,3 s |
+| La file, du premier travail au dernier | **1 811,5 s** |
+| Rapport | **0,83 — un gain de 20 %** |
+
+La file ne coûte donc rien : les processus lancés, les instantanés écrits et les pointeurs posés
+sont payés, et au-delà, par le fait que deux travaux avancent ensemble.
+
+**Ce que ce chiffre ne dit pas.** Le gain est ici **borné par le plus long travail** : 1 811 s,
+c'est *Thérapeutique manuelle* toute seule, et la seconde place a traité tout le reste en 325 s
+avant d'attendre. Sur deux cent cinquante documents, les deux places auront de quoi travailler en
+permanence et le gain devrait être plus franc — mais la reconnaissance est liée au processeur, et
+deux lectures de front se disputent les mêmes cœurs. **Je ne sais pas extrapoler ce facteur**, et
+je ne le ferai pas : ce que l'essai prouve est que la file ne perd rien, pas qu'elle divise par deux.
+
+### Le défaut était dans l'épreuve, pas dans la file
+
+L'essai a tourné une demi-heure de plus que nécessaire en croyant attendre un travail que la file
+avait conclu en une seconde : il cherchait un état nommé « echoue », qui n'existe pas. `appliquer`
+écrit `en_echec_definitif` et `en_echec_recuperable`. J'avais **deviné** le nom d'un état au lieu de
+le lire chez celui qui l'écrit — le même geste qui a produit trois défauts cette semaine, à l'envers.
+
+Corrigé, et l'essai garde désormais son bac quand quelque chose a cloché : un essai qui efface ses
+preuves fait payer trente minutes deux fois.
+
+### Le moteur empaqueté lit comme la chaîne, vérifié sur les deux chemins
+
+Le journal de la file portait un avertissement qui n'apparaît jamais depuis les sources :
+
+    Cannot load "@napi-rs/canvas" package
+    Cannot polyfill `ImageData`, rendering may be broken.
+
+`mesures/moteur-empaquete.ts` fait parler le vrai `moteur.js` comme l'hôte lui parle — une demande
+par l'entrée standard, les messages par la sortie standard — et compare **passage par passage**,
+texte, page et numéro imprimé compris.
+
+| Document | Chemin éprouvé | Résultat |
+|---|---|---|
+| *Biologie du couple* | couche texte, 173 passages | identique |
+| *Théorie ACT Que sais-je* | reconnaissance, double page, 130 passages | identique |
+
+**Décision : ne rien embarquer, et le documenter.** La chaîne ne rastérise jamais avec pdf.js — elle
+extrait les images que le PDF porte déjà. `ImageData` et `Path2D` servent à dessiner une page, ce que
+personne ne lui demande. Embarquer `@napi-rs/canvas` ajouterait un module natif par architecture
+pour faire taire une phrase **exacte** : le rendu *serait* cassé si on le demandait. On préfère un
+avertissement vrai à un paquet plus lourd, et la mesure ci-dessus dit pourquoi il est sans
+conséquence.
+
+
+## 21 octobre 2026 — BAS-02 : le réimport des 250 a eu lieu
+
+Accord de Christophe, lancé à 13 h 58, terminé à 19 h 19. Bibliothèque d'essai sur volume externe —
+le disque interne n'avait que 13 Gio libres pour 12 à 15 attendus.
+
+| | |
+|---|---:|
+| Documents en file | **249** (292 fichiers lisibles, 43 doublons confondus par leur empreinte) |
+| Réussis | **243** |
+| Échecs | **6** |
+| Temps réel | **18 907 s — 5 h 15** |
+| Estimation en série | 10,04 h |
+| Passages déposés | **32 052** |
+| …avec un numéro imprimé | 17 071, soit 53,3 % |
+| …avec un chapitre (EPUB) | 4 697 |
+| Versions sans aucun texte | **0** |
+| Poids de la bibliothèque | 9,3 Go — 7,7 de sources, 1,4 de dérivés |
+
+**La file a tenu cinq heures sans surveillance.** Le facteur mesuré sur dix documents — un gain de
+20 % — valait pour un échantillon où un seul travail dominait ; sur 249, les deux places n'ont pas
+désempli et le gain est de **1,9**, c'est-à-dire la parallélisation complète.
+
+### La bibliothèque répond
+
+Vingt documents tirés au long de la table des actives, lus **par où l'écran les lit** — la table,
+l'instantané, puis `chercher` : **19 répondent, 19 citent juste**. Le vingtième n'a pas assez de
+mots pour qu'on lui pose une question, ce qui n'est pas un échec de la recherche.
+
+### Les six échecs, en deux familles
+
+**Trois refus francs**, déjà connus et consignés comme dette : *Protocole tabac*, *auto-hypnose
+tabac*, *Mémo 4*. Leurs pages ne portent qu'un raster `FlateDecode` à 8 bits et aucune police. La
+cause est écrite dans le travail, en toutes lettres.
+
+**Trois échecs qui ne disent rien** : *Manuel Clinique des Psychothérapies de Couple*, *Mémo 3*,
+*SAGA.pdf*. Leur cause enregistrée est `[object Object]`.
+
+La ligne du journal qui précède le premier dit ce que la cause aurait dû porter :
+`Unsupported color conversion request` — le décodeur JPEG refuse un espace de couleur, très
+probablement du CMJN. Il lève **un objet qui n'est pas une `Error`**, et `executant.ts` en fait
+`String(cause)` : tout le message se perd. **C'est une erreur avalée, ce que JOB-05 interdit.**
+Correction à écrire : inspecter ce qui n'est pas une `Error` au lieu de le convertir en chaîne.
+
+### Le défaut que seul un vrai corpus pouvait montrer
+
+**Quatre documents traités avec succès sont invisibles dans la bibliothèque.**
+
+243 versions écrites, **239 pointeurs d'activation**. Les quatre manquants — *Gérer nos propres
+Schémas et Stratégies*, *Practicum — protocoles des voix critiques*, *Reparentage*, *memo 2 V2* —
+ont un travail `termine`, un instantané complet sur le disque, et aucune entrée dans
+`base/actives.json`. Rien ne les désigne, donc aucun écran ne les montrera jamais.
+
+**La cause est une course à l'écriture.** `Depot::activer` lit la table entière, y insère son
+pointeur, puis la réécrit :
+
+    let mut table = self.actives()?;
+    table.insert(empreinte, Pointeur { … });
+    self.ecrire_actives(&table)
+
+L'écriture est atomique — `ecrire_atomique` s'en assure, et le commentaire du dépôt le dit — mais
+**la lecture-modification-écriture ne l'est pas**, et deux travaux lourds tournent de front. Deux
+qui finissent ensemble lisent la même table, chacun y ajoute son pointeur, et le second efface
+celui du premier. *Practicum* et *Reparentage* se sont conclus **dans la même seconde** du journal.
+
+**Écriture atomique n'est pas mise à jour atomique.** C'est la distinction que le code a manquée, et
+aucune épreuve ne pouvait la voir : il faut deux travaux qui finissent ensemble, donc un corpus.
+
+Correction à écrire : un verrou autour d'`activer` — le `Roulement` est un seul processus, un
+`Mutex` suffit —, et une épreuve qui lance deux activations concurrentes et vérifie que les deux
+pointeurs survivent. Les quatre documents se rattrapent en relançant le réimport : il se reprend,
+et une version déjà écrite se réactive sans rien retraiter.
+
+### Ce que cette bibliothèque est, et n'est pas
+
+Une **bibliothèque d'essai**, et Christophe la jettera si elle ne lui convient pas. Son classement
+est un leurre — un axe nommé « Un axe », une valeur nommée « Une valeur » — parce que le classement
+vient de l'administrateur et que personne ne l'a encore posé. Sa manière de lire n'a été regardée
+sur aucune page.
+
+**L'écran de dépôt n'a toujours pas été franchi sur une création complète.** C'est la dernière
+porte, et c'est celle que Christophe poussera lui-même.
+
+
+## 21 octobre 2026 — les deux défauts du réimport, corrigés
+
+### La course à l'activation, et une seconde course dessous
+
+`VERROU_ACTIVES`, un verrou de processus, rend **indivisible la mise à jour** de la table des
+actives et non plus seulement son écriture. `activer` et `migrer_les_actives` le prennent.
+
+L'épreuve qui le garde lance **vingt activations de front** et vérifie que les vingt pointeurs
+survivent. Elle échouait avant le verrou — mais pas comme attendu : elle tombait sur un
+`No such file or directory`, et c'est **une seconde course, plus grave**, qu'elle a mise au jour.
+
+`ecrire_atomique` nommait son fichier temporaire d'après sa cible : `actives.json` → `actives.tmp`,
+**le même nom pour tout le monde**. Deux fils qui écrivent le même fichier écrivaient dans le même
+temporaire ; le second `rename` ne trouvait plus rien — ou pire, renommait un fichier écrit à
+moitié par l'un et à moitié par l'autre. Or une table d'actives abîmée **se lit comme une table
+vide**, par un choix assumé ailleurs dans ce fichier : toute la bibliothèque aurait disparu d'un
+coup, sans un mot. Le temporaire porte maintenant le numéro du processus et un compteur.
+
+Le réimport n'a perdu que des pointeurs, jamais la table entière. C'est une chance, pas une
+garantie.
+
+**Ce que le verrou ne couvre pas, et qui est dit :** deux *processus* qui activeraient dans la même
+bibliothèque se marcheraient encore dessus. Cela ne se produit pas aujourd'hui ; le jour où cela se
+produirait, il faudrait un verrou sur le disque.
+
+### La cause qui ne disait rien
+
+`causeLisible` rend quelque chose d'utile de tout ce qu'un `throw` peut porter : le message d'une
+`Error`, celui d'un objet qui en porte un, le contenu d'un objet qui n'en porte pas, et un mot sur
+ce qui ne porte rien. Elle ne lève jamais — une fonction qui sert à dire une panne et qui tombe
+dedans emporte la seule trace qui restait — et elle borne ce qu'elle rend : une cause traverse un
+tuyau entre deux processus et finit écrite dans un travail.
+
+Employée là où une cause atteint quelqu'un : les deux sorties d'`executerTravail`, et `publier`.
+
+**Ce qu'elle a révélé.** Les trois échecs qui disaient `[object Object]` disent maintenant
+**« Program terminated with exit(1) »**. C'est le message d'arrêt d'Emscripten : le décodeur JPEG
+en WebAssembly ne lève pas une erreur, **il arrête le processus**. L'objet levé était son
+`ExitStatus`, dont le message existait et se perdait au premier `String`.
+
+La cause est donc désormais reconnaissable, sans être encore la bonne : la vraie raison —
+« Unsupported color conversion request » — ne part que sur la sortie d'erreur du moteur. La
+rattacher au travail demanderait que l'hôte garde les dernières lignes du journal d'un moteur qui
+meurt, et c'est un autre chantier.
+
+### La réparation, et ce qu'elle a appris
+
+L'outil de réimport répare au démarrage — `migrer_les_actives` relit les travaux terminés et
+inscrit les pointeurs manquants, sans rien retraiter — et reprend les échecs définitifs sur demande
+(`--reprendre`), **en remettant leur compteur de tentatives à un**. Sans cela, un travail qui les a
+toutes consommées revient en file et n'en sort jamais : la file le juge hors d'atteinte et l'ignore,
+silencieusement. Deux des six échecs étaient dans ce cas.
+
+Au passage, une leçon de méthode : la première reprise n'a rien changé parce que **le moteur
+empaqueté n'avait pas été reconstruit**. Corriger le TypeScript ne corrige pas ce que la file
+lance ; il faut rejouer `preparer-moteur-node.py`. La chaîne et le paquet sont deux objets.
+
+### L'état de la bibliothèque d'essai
+
+| | |
+|---|---:|
+| Versions écrites | 243 |
+| Pointeurs actifs | **243** |
+| Versions sans pointeur | **0** |
+| Échecs | 6, tous avec une cause lisible |
+| Trente documents tirés au long de la table | **29 répondent, 29 citent juste** |
+
+Les quatre documents invisibles sont revenus. Le trentième n'a pas assez de mots pour qu'on lui
+pose une question, ce qui n'est pas un échec de la recherche.
+
+
+## 21 octobre 2026 — dette : la vraie cause d'un moteur qui meurt
+
+Décision de Christophe : **dette séparée, pas urgente.** Notée pour ne pas l'oublier, pas traitée.
+
+### Ce qu'on sait
+
+Trois documents du corpus arrêtent le moteur net : *Manuel Clinique des Psychothérapies de Couple*,
+*Mémo 3*, *SAGA.pdf*. Depuis `causeLisible`, leur travail porte **« Program terminated with
+exit(1) »** — le message d'arrêt d'Emscripten. Le décodeur JPEG en WebAssembly ne lève pas une
+erreur : il **arrête le processus**. Ce qu'il lève est un `ExitStatus`, et son message dit la
+manière de mourir, pas la raison.
+
+La raison, elle, part sur la **sortie d'erreur** du moteur, une ligne plus tôt :
+
+    Unsupported color conversion request
+
+Un espace de couleur que le décodeur refuse, très probablement du CMJN — courant dans les scans
+d'imprimerie.
+
+### Ce qu'il faudrait pour aller plus loin
+
+Deux choses, et elles ne sont pas du même ordre.
+
+**Rattacher les dernières lignes du journal au travail qui meurt.** L'hôte laisse la sortie
+d'erreur du moteur filer vers la sienne ; quand un moteur s'arrête sans rendre de résultat, la
+cause enregistrée ne peut pas dire ce que ces lignes disaient. Garder un petit tampon des dernières
+lignes et le joindre à l'échec vaudrait pour **toutes** les morts de moteur, pas seulement
+celle-ci. C'est le geste utile.
+
+**Décoder l'espace de couleur en cause.** C'est une affaire de codec, bien plus lourde, et elle ne
+concerne que trois documents sur deux cent quarante-neuf.
+
+### Pourquoi cela attend
+
+Trois documents, une cause reconnaissable, aucun silence : on sait les nommer et on sait qu'ils
+échouent. Cette dette rejoint celle du raster `FlateDecode` — même famille, même urgence, c'est-à-
+dire aucune.
+
+
+## 21 octobre 2026 — une porte peinte sur le mur, et le traceur qui l'a montrée
+
+### Le défaut
+
+Le bouton **« Nouvelle bibliothèque »** de l'accueil n'avait **aucun gestionnaire de clic**.
+L'écran n'acceptait même pas de prop pour cela. Il s'affichait, il se cliquait, et rien derrière.
+
+**Il est invisible tant qu'on n'a pas de bibliothèque.** Sans bibliothèque, l'application montre
+le premier lancement, dont le bouton est câblé — et c'est cet écran-là que toutes les épreuves
+regardaient, et celui que j'atteignais dans un navigateur en répétant « chez moi cela
+fonctionne ». Il a fallu une vraie bibliothèque, sur une vraie machine, pour tomber dessus.
+
+Huitième défaut de la même famille en deux jours, et le plus simple de tous : non pas un mécanisme
+juste derrière une porte que personne n'a franchie, mais **une porte peinte sur le mur**.
+
+### Ce qui l'a trouvé, après une heure perdue
+
+J'ai cherché dans le mauvais écran. L'application affichait « 1 bibliothèque » — c'était écrit sur
+la première capture — et j'ai quand même supposé l'écran de premier lancement, puis mis en cause
+tour à tour la politique de sécurité du paquet, le moteur de rendu, la construction de production.
+Trois hypothèses, trois mesures, trois réfutations, et le défaut était ailleurs.
+
+Ce qui a tranché en une minute : **un traceur dans la page**, qui porte au journal de l'hôte chaque
+clic — en phase de capture, donc avant que quoi que ce soit puisse l'arrêter —, chaque changement
+d'adresse et chaque erreur. Le journal a montré douze `clic sur button « Nouvelle bibliothèque »`
+sans un seul changement d'adresse derrière. Il n'y avait plus rien à supposer.
+
+**Un paquet n'a pas de console.** Ce qu'on ne peut pas observer, on le suppose — et supposer coûte
+plus cher que tracer. Le traceur reste : `apps/app/src/traceur.ts`, silencieux hors du bureau, et
+muet dans un paquet livré (`journal_page` n'écrit que sous `debug_assertions`).
+
+### Ce qui reste en place, et pourquoi
+
+| | |
+|---|---|
+| `traceur.ts` | clics, adresses, erreurs, promesses rompues — la seule fenêtre sur un paquet qui n'en a pas |
+| `journal_page` | la commande d'hôte qui l'écrit, silencieuse en production |
+| `?bureau` en développement | fait prendre aux écrans la branche de l'hôte **sans hôte derrière**, pour atteindre dans un navigateur un chemin que le navigateur ne prend jamais |
+
+Un essai d'inspecteur ouvert au démarrage a été retiré : il ne montrait rien, et du code qui ne
+fait pas ce qu'il annonce vaut moins que pas de code du tout.
+
+### Ce que le garde-fou de ce matin ne voit pas
+
+Il exige qu'une option transmise à la lecture soit éprouvée par la porte. **Il ne regarde pas si un
+bouton mène quelque part.** Les deux seules sorties de l'accueil — le bouton et la carte d'une
+bibliothèque — n'étaient éprouvées ni l'une ni l'autre ; elles le sont maintenant, mais rien
+n'empêche le prochain bouton muet. C'est un garde-fou à écrire.
+
+---
+
+## 22 octobre 2026 — la version en ligne : trois décisions, et un ordre
+
+Demande : employer Cloudflare — Stream pour les vidéos, D1, R2 et du RAG — sur le modèle de
+`tools/Projet therapeutes/bibliotheque-admin.html` et du Worker `clone-proxy`, pour des
+bibliothèques consultables en ligne et non plus seulement sur l'ordinateur.
+
+**Relevé préalable.** Le Worker `lienotheque-api` répond déjà : `/sante` rend 200, la façade
+(`/search-library`, `/rag-search`, `/library-facets`) rend 401 — elle existe et elle est gardée —
+et `/entree/defi` rend 200. D1 `lienotheque-registre`, D1 `lienotheque-essai` (place `BIB_1`) et
+R2 `lienotheque-medias` existent, en WEUR. Le schéma d'une bibliothèque publiée porte déjà
+`passage`, `passage_texte` en FTS5, et `journal_indexation` (JOB-07). L'adresse « ne donne rien »
+parce que rien n'y a été publié et qu'aucune clé n'est enrôlée, non parce que rien n'est déployé.
+
+### 1. La vidéo passe par R2, pas par Stream
+
+Stream n'est **pas** compris dans l'abonnement Workers Paid : abonnement à part, 5 $ par
+1 000 minutes stockées et 1 $ par 1 000 minutes livrées, **aucun palier gratuit**, arrondi au
+millier supérieur, et une vidéo chargée sans être regardée est facturée en livraison.
+
+R2 a l'**égress gratuit**, et les laissez-passer signés (`/laissez`, `/fichier/:laissez`) servent
+déjà ses objets : une vidéo n'y ajoute aucune plomberie. Ce que Stream achète — transcodage en
+plusieurs débits, lecture adaptative, lecteur, vignettes, sous-titres — compte pour des vidéos
+longues sur une connexion médiocre, pas pour une bibliothèque où la vidéo est occasionnelle.
+
+`Segment` est en secondes et ne sait pas qui sert les octets : basculer plus tard est une colonne
+de plus, pas une reprise.
+
+### 2. Le RAG tient dans les passages, pas dans AutoRAG
+
+AutoRAG découpe lui-même les fichiers de R2 et rend des morceaux opaques. Or les 32 052 passages
+portent déjà leur document, leur version, leur ancre, leur rang et leur page imprimée : c'est
+précisément ce que le réimport a coûté 5 h 15 à produire, et ce que la promesse « toujours sur la
+vraie page » exige. **Les passages sont les morceaux.** On les plonge (`@cf/baai/bge-m3`), on
+range les vecteurs dans Vectorize sous l'identifiant du passage, et `/rag-search` fusionne le FTS5
+déjà bâti avec le vectoriel — le schéma hybride du fichier d'inspiration. `journal_indexation`
+fait la réconciliation, et c'est ce pour quoi il a été écrit.
+
+Coût mesuré sur le corpus réel : plongement initial ≈ 0,10 $ une fois (8 M jetons à 0,012 $/M),
+stockage Vectorize ≈ 0,01 $/mois (32,8 M dimensions, 10 M incluses), requêtes incluses
+(50 M dimensions ≈ 48 000 recherches/mois), D1 dans les paliers inclus, R2 ≈ 0,15 $/mois pour
+10 Go. **Le tout tient dans les 5 $.**
+
+### 3. L'ordre : le bureau d'abord
+
+« Une fois Liénothèque fonctionnelle, je mets ma première bibliothèque sur mon Mac ; si ça
+fonctionne, je la migre sur R2. » Le lot en ligne est donc **en réserve, prêt**, et la séquence de
+mise en marche (`lot-e5-etape4-plan.md` §13) n'est pas engagée. Rien n'est déployé, aucun réglage
+ni secret n'est posé.
+
+### Ce qui reste ouvert
+
+**L'accès.** « Ouvert à tous en lecture » a été retenu. Deux lectures en découlent, et elles ne
+donnent pas le même travail : *lire sans avoir à entrer depuis n'importe quel appareil* (routes
+publiques en lecture, mise en cache, limitation de débit) ou *diffuser publiquement*. La seconde
+porte sur des ouvrages sous droits et n'est pas la même décision que la première. À trancher avant
+d'écrire la première route publique — pas avant, puisque le lot attend.
+
+---
+
+## 22 octobre 2026 — « sans avoir à entrer » : ce que le plan disait déjà, et les deux manques
+
+Précision apportée : « sans avoir à entrer, depuis n'importe quel appareil ; Liénothèque sera
+utilisée par des applications ou systèmes type Studio Clinique ou prof de basse, et d'autres à
+venir — coaching de remise en forme, autre. » Et, aussitôt après : **c'est sa fonction première,
+déjà discutée.**
+
+C'est exact, et `lot-e-proposition.md` §3 à §5 le porte. Cette entrée ne redécouvre donc rien :
+elle ferme une question d'accès laissée ouverte le même jour, en se rangeant au plan, et nomme
+**deux manques** que le plan ne couvre pas.
+
+### La question d'accès est tranchée par le plan, pas par une nouveauté
+
+J'avais proposé la veille une **lecture publique** de la façade. Elle est retirée : le plan a une
+réponse meilleure, et c'est elle qui vaut.
+
+§3 : la façade accepte **deux portes** — le témoin de session pour les écrans de Liénothèque, et
+un **jeton limité à une bibliothèque et à des actions** pour une application (INT-01, SEC-03),
+envoyé sous le même nom d'en-tête `X-API-Key` pour que le code de l'application n'ait pas à
+changer. Ce jeton n'est pas la clé maîtresse : il est borné, révocable seul, et sa révocation
+n'atteint aucun autre accès.
+
+**Et cela suffit à « sans avoir à entrer ».** Celui qui n'entre pas, c'est la personne : elle
+utilise Studio Clinique, pas Liénothèque. L'application porte le jeton, sur n'importe quel
+appareil. Ouvrir la lecture à tous n'ajouterait rien à cette promesse et retirerait la
+révocation.
+
+Que le jeton soit lisible dans une page statique n'y change rien — c'est précisément pourquoi il
+est **borné et révocable** plutôt que maître. Studio Clinique a payé trois correctifs successifs
+pour l'apprendre, sa clé ayant dû être tenue pour compromise ; le lot E est, dans les mots du
+plan, « le moment où ce risque se solde ».
+
+La lecture ouverte n'est donc pas retenue, et `lecture: "publique"` n'a pas lieu d'être.
+
+### Manque 1 — CORS n'est écrit nulle part, et la bascule bute dessus au premier appel
+
+Le plan dit que la bascule est **une seule valeur** : `WORKER_URL` pointe sur l'ancien Worker ou
+sur le nouveau. C'est vrai du code de l'application, et faux du navigateur.
+
+Le Worker de Liénothèque n'envoie **aucun en-tête CORS**, délibérément : il sert sa propre page,
+le témoin de session est `SameSite=Lax`, une seule origine — c'est écrit dans son `wrangler.toml`.
+Or une application consommatrice est servie depuis une autre origine. `clone-proxy` le règle avec
+un `ADOC_ALLOWED_ORIGIN` unique ; ici il en faut une **liste, déclarée par client**, puisqu'il y
+en aura plusieurs.
+
+Sans cela, le jour de la bascule, le navigateur refuse l'appel avant que la porte n'ait rien à
+dire. Le mot « CORS » n'apparaît dans aucun document de plan.
+
+### Manque 2 — la façade est clouée à une bibliothèque par un secret de déploiement
+
+`BIBLIOTHEQUE_FACADE` est un secret : une bibliothèque, fixée au déploiement. Trois applications
+en veulent trois, servies par le même Worker.
+
+Le plan donne la sortie sans la nommer : le jeton est « limité **à une bibliothèque** et à des
+actions ». La bibliothèque doit donc venir **du jeton**, pas du secret. Le secret disparaît, le
+plafond avec lui, et l'isolation reste structurelle — chaque jeton ne désigne qu'une place de la
+réserve.
+
+### Ce qui ne bouge pas
+
+Les fichiers ne sortent que par un **laissez-passer signé et périssable**, jamais par une route
+ouverte. L'écriture — publier, classer, retirer — reste au jeton et aux droits du registre.
+L'administration reste à la cérémonie WebAuthn : une personne, jamais une machine.
+
+Et la réserve de liaisons reste le modèle retenu, avec son prix assumé : publier une bibliothèque
+de plus est un déploiement. Cloudflare admet environ 5 000 liaisons D1 par script — le plafond
+n'est pas le nombre, c'est la main humaine sur chaque création. Tenable tant que c'est vous qui
+les ajoutez.
+
+### Rien n'est engagé
+
+L'ordre reste celui fixé le même jour : le bureau d'abord. Les deux manques sont nommés, non
+écrits.
+
+---
+
+## 22 octobre 2026 — la trace s'écrit dans un fichier, et dans le paquet livré aussi
+
+Le paquet signé n'a ni console, ni inspecteur, ni « Inspecter l'élément » au clic droit. Le
+traceur du 21 octobre existait pour cette situation exactement, et il n'y parlait à personne.
+
+### Deux raisons, et chacune suffisait
+
+`journal_page` écrivait avec `eprintln!`, donc sur la **sortie d'erreur**, et seulement sous
+`#[cfg(debug_assertions)]`.
+
+| | conséquence |
+|---|---|
+| le paquet signé est une construction **livrée** | la ligne était jetée sans être écrite nulle part |
+| une application lancée depuis le Finder n'a **pas de terminal** | même en mise au point, la sortie d'erreur n'allait à aucun endroit lisible |
+
+Un traceur muet là où il est seul à pouvoir parler n'est pas un traceur.
+
+### Ce qui a été fait
+
+**`trace.rs`** : un fichier, ouvert au démarrage dans le dossier de journaux de l'application —
+`~/Library/Logs/fr.c-concept.lienotheque.prototype/trace.log` sur macOS, donné par l'hôte et non
+inventé par nous. Remis à zéro à chaque lancement, plafonné à deux mégaoctets, vidé à chaque
+ligne pour qu'une application figée ne garde pas pour elle la ligne qui l'explique. Un échec
+d'ouverture ne fait jamais tomber le démarrage : on ne trace plus, c'est tout.
+
+**L'appel de l'hôte est tracé des deux côtés.** C'était la pièce qui manquait au traceur du
+21 octobre : il voyait le clic, et plus rien ensuite. On ne pouvait donc pas distinguer « le
+gestionnaire n'a jamais été appelé » de « il a été appelé et l'hôte a refusé » — deux causes, deux
+remèdes opposés, et aucune ligne pour les séparer. Tout `invoke` passe maintenant par une
+enveloppe qui écrit la demande puis ce qu'elle devient.
+
+**Les arguments ne sont jamais écrits**, seulement leurs noms : ils portent des chemins de
+l'ordinateur et le contenu des bibliothèques, et une trace qu'on envoie pour se faire aider ne
+doit rien emporter de tout cela.
+
+**Le sélecteur de dossier est tracé à part**, parce qu'il ne passe pas par une commande de l'hôte
+mais par le greffon de dialogue, dont les droits se déclarent dans la configuration du paquet. Un
+greffon sans droit échoue d'une manière qui, vue de l'écran, ressemble à un bouton qui ne fait
+rien. Trois lignes séparent désormais les trois cas : jamais appelé, refusé, ou renoncé.
+
+### Ce que la trace a servi à établir le jour même
+
+Le paquet signé que Christophe essayait datait du **21 octobre à 20 h 58**. Le correctif qui
+relie le bouton « Créer ma première bibliothèque » — commit `93aa40f5`, « Une porte peinte sur le
+mur » — est de **22 h 23**, une heure et demie plus tard, suivi de trois autres jusqu'à 23 h 17.
+
+**Le bouton était donc bel et bien mort dans ce paquet**, non par un défaut d'empaquetage mais
+parce que la construction précédait sa correction. Rien n'était à chercher du côté de la
+signature, du runtime renforcé ni des droits du greffon — trois pistes qu'on aurait suivies, et
+qu'une date a écartées.
+
+**La leçon n'est pas « il fallait reconstruire ».** Elle est qu'aucune des trois pistes ne pouvait
+être écartée sans une trace, et qu'il a fallu une journée pour s'en apercevoir. Un paquet porte
+désormais la sienne.
+
+---
+
+## 22 octobre 2026 — le paquet n'avait jamais exécuté la même chaîne que les bancs
+
+Trouvé en faisant exactement ce que `LIV-07` demande : Christophe ouvre le paquet signé lui-même,
+s'en sert, et rapporte ce qu'il voit. Message à l'écran : `spawnSync tesseract ENOENT`, sur
+l'essai d'une manière de lire, dans l'application installée sous `/Applications`.
+
+### Le fait
+
+Tesseract **est** dans le paquet — `Contents/MacOS/tesseract`, 88 Ko, posé là par `externalBin`.
+Mais la chaîne le lance **par son nom** (`execFileSync("tesseract", …)`, `outils/lecteur-texte/src/ocr.ts`)
+et compte donc sur le `PATH`. Une application ouverte depuis le Finder hérite d'un `PATH`
+minimal — `/usr/bin:/bin:/usr/sbin:/sbin` — qui ne contient pas le dossier de ses propres
+binaires.
+
+`TESSDATA_PREFIX` n'était pas transmis davantage. L'hôte Rust sait pourtant désigner les modèles
+de langue : `ocr.rs` le pose pour **son** chemin OCR. Mais la chaîne tourne dans un Node séparé,
+qui n'en savait rien. Même Tesseract trouvé, aucune langue n'aurait été reconnue.
+
+### Ce que cela révèle, et qui dépasse Tesseract
+
+**Toutes les mesures du projet ont été faites depuis un terminal**, où un Tesseract installé par
+ailleurs est sur le `PATH` : le réimport des 249 ouvrages, les bancs, les épreuves de corpus. Tous
+ont trouvé *un* Tesseract — jamais celui du paquet.
+
+Le paquet n'avait donc **jamais exécuté la même chaîne que les bancs**, et rien ne pouvait le
+dire : les deux trouvaient quelque chose. C'est la même famille que les neuf portes peintes du
+21 octobre — un mécanisme juste qu'aucun chemin réel n'empruntait — mais d'un cran au-dessus : ce
+n'était pas une porte de l'interface, c'était l'empaquetage lui-même.
+
+**`LIV-07` a payé le jour de son écriture.** L'exigence dit qu'un geste fait par Claude Code dans
+un banc ou une ligne de commande n'est pas une preuve. Ce défaut en est la démonstration : aucune
+des 2 260 épreuves ne pouvait le voir, et il a suffi d'un double-clic.
+
+### Le correctif
+
+`moteur.rs` donne au moteur l'environnement dont il a besoin : le dossier de ses binaires **en
+tête** du `PATH` — celui qu'on emporte a été éprouvé avec la chaîne, celui du système ne l'a pas
+été — et `TESSDATA_PREFIX` lorsque le dossier des modèles existe réellement.
+
+**L'environnement plutôt qu'un chemin passé de couche en couche.** La chaîne sait déjà résoudre un
+outil par son nom et honorer `TESSDATA_PREFIX` : c'est la convention de Tesseract lui-même. Lui
+donner son environnement la laisse fonctionner comme elle est écrite, et vaudra pour tout outil
+annexe que le paquet emportera ensuite. Faire descendre un chemin absolu à travers quatre couches
+demanderait quatre modifications pour dire la même chose, et une de plus au prochain outil.
+
+Trois épreuves : le dossier des binaires est en tête du chemin, les modèles sont désignés, et **un
+dossier de modèles absent ne se promet pas** — un réglage qui désigne un dossier vide vaut moins
+que son absence, puisque Tesseract chercherait là sans qu'on sache pourquoi il ne trouve rien.
+
+### Une réserve nommée, laissée ouverte
+
+**Siegfried n'est pas dans le paquet du tout.** `externalBin` ne déclare que `tesseract` et
+`node`. Or `parSiegfried` rend `undefined` sans erreur quand le binaire manque — « ce n'est pas
+une erreur », dit son commentaire, et c'est vrai d'un poste ordinaire. Dans le paquet,
+l'identification des formats retombe donc **silencieusement** sur la signature par contenu,
+méthode plus faible que celle employée par toutes les mesures.
+
+L'ajouter change le contenu du paquet et demande d'embarquer aussi son fichier de signatures
+PRONOM. **Soumis le 22 octobre, laissé de côté sans être tranché**, à la demande de Christophe.
+La réserve reste ouverte, et elle est de la même nature que celle qu'on vient de fermer : un
+écart entre ce que mesurent les bancs et ce qu'exécute le paquet.
+
+---
+
+## 23 octobre 2026 — le nom du média voyage avec son empreinte, son adresse non
+
+### Mesuré avant
+
+Un média était bien copié sous `sources/<préfixe>/<empreinte>.mp3`, mais le dépôt ne gardait pas
+son nom d'origine. La recette cherchait alors un numéro dans le nom du fichier rangé et lisait
+les chiffres de l'empreinte. La version active ne portait par ailleurs aucune adresse que le
+Lecteur puisse ouvrir : le guide disait exactement « Média non disponible ici ».
+
+### Décision
+
+Le dépôt porte désormais `base/medias.json` : une table portable `empreinte, nom, contenu,
+extension`. Le moteur reçoit cet inventaire et interprète le **nom d'origine**. La version active
+reste indépendante de la machine : aucune adresse ni aucun port n'y est écrit. À la lecture,
+l'hôte résout les empreintes présentes dans la vue, ouvre un serveur sur la boucle locale avec
+un jeton imprévisible, puis greffe des adresses éphémères aux seuls médias réellement présents.
+
+### Mesuré après
+
+Sur le document réel de référence F3 et ses 99 MP3 : **99 noms distincts et 99 empreintes
+distinctes** ont été conservés ; le moteur a retrouvé les pistes 1 à 99, sans prendre un chiffre
+dans un nom de stockage. Le serveur répond en plages, et le paquet construit depuis cette branche
+a lu `Track 01.mp3` de **0:00 à 0:19** dans le vrai Lecteur. L'association page-piste de cette
+mesure a été posée mécaniquement dans une bibliothèque temporaire, hors dépôt : elle prouve le
+service du son, pas la qualité de l'association automatique.
+
+---
+
+## 23 octobre 2026 — une décision de vérification appartient à la bibliothèque
+
+### Mesuré avant
+
+`App.tsx` gardait les décisions dans un état React. Quitter le document ou l'application
+réinitialisait ce tableau ; vingt décisions prises valaient donc zéro au lancement suivant.
+
+### Décision
+
+Les décisions sont écrites atomiquement dans `base/decisions.json`, par empreinte de document et
+identifiant stable du cas. L'écran ne retire un cas qu'après confirmation de l'hôte. À la
+réouverture, il relit la table et masque les cas déjà tranchés. « Annuler la dernière décision »
+retire cette seule entrée du même fichier.
+
+### Mesuré après
+
+Une épreuve ferme puis rouvre réellement un dépôt : deux décisions y survivent, puis l'annulation
+n'en retire qu'une. Dans le paquet construit depuis la branche, le cas réel « Pistes 1 à 99 » a
+été marqué vu : l'écran est passé de 1 à 0, `base/decisions.json` a porté son identifiant et la
+valeur `vu`, puis une fermeture et une relance ont laissé l'écran à 0. Ce parcours a révélé que
+l'annulation disparaissait avec le dernier cas ; elle reste désormais accessible même quand la
+file vient d'être vidée. Cette preuve technique ne remplace pas l'usage demandé à Christophe par
+`LIV-07`.
+
+---
+
+## 23 octobre 2026 — le corpus démonté borne la correction du texte
+
+Le volume qui porte les 243 documents et les 32 052 passages n'est pas monté. La population des
+50 documents presque sans texte ne peut donc ni être relue ni être remesurée honnêtement.
+
+Le document F3 disponible a tout de même traversé le moteur embarqué : 29 pages, 29 images,
+**0 passage**, 0 page servie par la couche, 0 par reconnaissance, 29 sans texte. Ses pages sont
+principalement graphiques ; Tesseract n'a rien rendu sur les pages sondées séparément. Cette
+mesure ne remplace pas les 50 documents et ne justifie aucune correction générale.
+
+L'audit visuel du même paquet confirme la structure du Lecteur et le son servi. Il révèle un
+défaut distinct : la grande page est visible, mais les vignettes latérales montrent une image
+cassée. Organisation et Dépôt ont été ouverts sur cette bibliothèque temporaire ; ils n'ont pas
+été vérifiés sur le volume des 243 documents, puisqu'il reste absent.

@@ -1,6 +1,7 @@
 import {
   ApercuEnLigne,
   PassagesDuDocument,
+  TraductionDePage,
   VueBibliotheque,
   type ApercuDocument,
   type ClassementLocal,
@@ -167,6 +168,15 @@ export function pontEnLigne({ base, appeler = fetch }: Adresse): PortDeLecture {
       const { laissez } = brut as Record<string, unknown>;
       if (typeof laissez !== "string" || laissez.length === 0) return undefined;
       return `${racineDuService}/fichier/${laissez}`;
+    },
+
+    traduirePage: async (_racine: string, version: string, page: number) => {
+      const brut = await demander("/traduction/page", {
+        method: "POST",
+        body: JSON.stringify({ version, page }),
+      });
+      if (brut === undefined) throw new Error("Aucun texte canonique n'est disponible pour cette page.");
+      return TraductionDePage.parse(brut);
     },
 
     /** Classer ne se fait pas en ligne, et ce n'est pas un manque à combler.

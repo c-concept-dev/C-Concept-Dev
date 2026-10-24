@@ -114,7 +114,17 @@ function morceauxDe(requete: string): { readonly phrase: string; readonly mots: 
   return { phrase: plie.replace(/\s+/gu, " ").trim(), mots };
 }
 
-/** Un extrait du texte autour de la première correspondance, avec ses positions recalées. */
+/** Un extrait du texte autour de ce qui a été cherché, avec ses positions recalées.
+ *
+ *  Autour de la **suite entière** quand la ligne la porte, et seulement à défaut autour de la
+ *  première correspondance venue. Les morceaux arrivent dans l'ordre `[phrase, ...mots]`, mais
+ *  les correspondances, elles, sont rendues dans l'ordre du texte : prendre la première donnait
+ *  la fenêtre d'un mot isolé du début de page, et jamais celle de la phrase cherchée.
+ *
+ *  Ce n'était pas qu'un extrait mal choisi. La sûreté d'un résultat se juge sur son extrait
+ *  (`porteLaSuite`) : une page qui portait la suite passait donc pour du bruit, et la citation
+ *  tombait sur une autre page. Relevé le 20 octobre 2026 sur un document du corpus traité par la
+ *  porte de l'application — une phrase imprimée page 87 citait la première page du livre. */
 function extraireAutour(
   lignes: readonly string[],
   morceaux: readonly string[],
@@ -124,11 +134,16 @@ function extraireAutour(
     const premier = surlignes[0];
     if (premier === undefined) continue;
 
+    // La suite entière si la ligne la porte, la première correspondance sinon. Les surlignages
+    // restent tous : ce qui change est l'endroit qu'on montre, pas ce qu'on marque dedans.
+    const laSuite = morceaux.length > 1 ? trouver(ligne, [morceaux[0]!]) : [];
+    const centre = laSuite[0] ?? premier;
+
     // Une fenêtre autour de la correspondance : une ligne entière de trois cents signes ne se lit
     // pas dans une liste, et couper au milieu d'un mot se voit.
     const marge = 48;
-    const debut = Math.max(0, premier.debut - marge);
-    const fin = Math.min(ligne.length, premier.fin + marge);
+    const debut = Math.max(0, centre.debut - marge);
+    const fin = Math.min(ligne.length, centre.fin + marge);
     const coupe = ligne.slice(debut, fin);
     const extrait = `${debut > 0 ? "…" : ""}${coupe}${fin < ligne.length ? "…" : ""}`;
     const decalage = (debut > 0 ? 1 : 0) - debut;

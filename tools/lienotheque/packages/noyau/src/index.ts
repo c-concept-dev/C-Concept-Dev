@@ -13,3 +13,4 @@ export * from "./signature.js";
 export * from "./droits.js";
 export * from "./comparaison.js";
 export * from "./ceremonie.js";
+export * from "./cause.js";

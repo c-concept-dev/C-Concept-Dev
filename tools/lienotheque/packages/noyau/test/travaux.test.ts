@@ -5,7 +5,7 @@ import { BATTEMENT_VERROU_S, DELAI_ENTRE_TENTATIVES_S, EXPIRATION_VERROU_S, Trav
 import { FICHIER_DESCRIPTION } from "@lienotheque/contrats";
 import { DOSSIERS_BIBLIOTHEQUE } from "../src/index.js";
 import { describe, expect, it } from "vitest";
-import { annuler, avancer, battreSiDu, dejaEnFile, echouer, mettreEnPause, prendre, prochain, repriseA, reprenable, reprendre } from "../src/travaux.js";
+import { annuler, avancer, battreSiDu, dejaEnFile, echouer, memeFile, mettreEnPause, prendre, prochain, repriseA, reprenable, reprendre } from "../src/travaux.js";
 
 const id = (n: number): string => `0190f0a0-0000-7000-8000-${String(n).padStart(12, "0")}`;
 const T0 = new Date("2026-10-03T10:00:00Z");
@@ -184,5 +184,58 @@ describe("un seul endroit pour la cadence du bail", () => {
     expect(limites, "et les limites viennent du fichier que le TypeScript lit aussi").toMatch(
       /include_str!\("\.\.\/\.\.\/\.\.\/\.\.\/packages\/contrats\/limites\.json"\)/,
     );
+  });
+});
+
+/** Ne republier que ce qui a changé (JOB-01, et le défaut du 22 octobre 2026).
+ *
+ *  La file se relit toutes les deux secondes. Ce qui coûte n'est pas la lecture — 137 Ko, 6 ms —
+ *  mais la republication : tout ce qui dépend du relevé se rejoue, et l'un de ces dépendants
+ *  relit la bibliothèque entière, 70,2 Mo. Ces épreuves tiennent la règle qui l'arrête. */
+describe("deux relevés de la file disent-ils la même chose", () => {
+  const unTravail = (sur: Partial<Travail> = {}): Travail =>
+    Travail.parse({
+      id: "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c01",
+      outil: { nom: "traitement-de-lot", version: "1.0.0" },
+      versionCible: "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c99",
+      etat: "en_cours",
+      lieu: "application",
+      poids: "lourd",
+      tentative: 1,
+      progression: 0.5,
+      creeLe: "2026-10-22T10:00:00.000Z",
+      majLe: "2026-10-22T10:00:00.000Z",
+      ...sur,
+    });
+
+  it("oui, quand rien n'a bougé", () => {
+    expect(memeFile([unTravail()], [unTravail()])).toBe(true);
+  });
+
+  it("non, quand la progression avance", () => {
+    expect(memeFile([unTravail()], [unTravail({ progression: 0.6 })])).toBe(false);
+  });
+
+  it("non, quand l'état change", () => {
+    expect(memeFile([unTravail()], [unTravail({ etat: "en_pause" })])).toBe(false);
+  });
+
+  it("non, quand le bail se renouvelle — c'est la preuve qu'un moteur est vivant", () => {
+    expect(memeFile([unTravail()], [unTravail({ majLe: "2026-10-22T10:00:02.000Z" })])).toBe(false);
+  });
+
+  it("non, quand un travail s'ajoute ou disparaît", () => {
+    expect(memeFile([], [unTravail()])).toBe(false);
+    expect(memeFile([unTravail()], [])).toBe(false);
+  });
+
+  it("non, quand deux travaux échangent leur place", () => {
+    const a = unTravail();
+    const b = unTravail({ id: "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c02" });
+    expect(memeFile([a, b], [b, a])).toBe(false);
+  });
+
+  it("oui, sur une file vide — l'état le plus fréquent, et celui qui coûtait le plus", () => {
+    expect(memeFile([], [])).toBe(true);
   });
 });

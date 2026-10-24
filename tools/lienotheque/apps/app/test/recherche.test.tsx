@@ -78,6 +78,19 @@ describe("ce que la recherche montre avant qu'on tape", () => {
 });
 
 describe("chercher", () => {
+  it("ne donne pas un chemin interne au navigateur comme s'il s'agissait d'une image", async () => {
+    const personne = userEvent.setup();
+    const vue = VueBibliotheque.parse({
+      ...VUE,
+      pages: VUE.pages.map((page, index) => index === 0 ? { ...page, image: "pages/page-0127.webp" } : page),
+    });
+    poser({ vue });
+    await personne.type(screen.getByRole("combobox"), "articulation");
+
+    expect(screen.getByText(/n’a pas encore d’image/)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: /feuillet 127/i })).not.toBeInTheDocument();
+  });
+
   it("groupe les résultats avec les mots de la bibliothèque", async () => {
     const personne = userEvent.setup();
     poser();

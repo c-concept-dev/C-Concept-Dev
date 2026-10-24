@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App.js";
 import { DEMONSTRATION } from "../src/donnees/demonstration.js";
-import { ACCUEIL_VIDE, type DonneesAccueil } from "../src/donnees/modele.js";
+import { ACCUEIL_VIDE, type BibliothequeAffichee, type DonneesAccueil } from "../src/donnees/modele.js";
 import { Accueil } from "../src/pages/Accueil.js";
 
 beforeEach(() => {
@@ -190,5 +190,51 @@ describe("le premier lancement n'emprunte pas la mise en page de l'accueil garni
     expect(accroche?.querySelector("h1 img")).toHaveAttribute("alt", "Liénothèque");
     expect(accroche).toHaveTextContent("Vos documents et médias, enfin reliés.");
     expect(accroche?.querySelector(".ln-btn--principal")).toHaveTextContent("Créer ma première bibliothèque");
+  });
+});
+
+
+/** Le bouton « Nouvelle bibliothèque » mène quelque part (UX-01)
+ *
+ *  ## Ce qu'il faisait
+ *
+ *  Rien. Pas de gestionnaire, pas de prop — l'écran n'en acceptait aucune. Il s'affichait, il se
+ *  cliquait, et il ne se passait rien.
+ *
+ *  Le défaut a vécu parce qu'il est **invisible tant qu'on n'a pas de bibliothèque** : sans
+ *  bibliothèque, on arrive au premier lancement, dont le bouton est câblé, et c'est cet écran-là
+ *  que toutes les épreuves regardaient. Il a fallu une vraie bibliothèque sur une vraie machine
+ *  pour tomber dessus — et un traceur dans le paquet pour le voir, puisqu'un clic qui n'aboutit
+ *  à rien ne laisse aucune trace.
+ *
+ *  ## Ce que ces épreuves gardent
+ *
+ *  Qu'il appelle quelqu'un, et que la carte d'une bibliothèque mène toujours à son dépôt. Deux
+ *  chemins pour sortir de l'accueil, et c'étaient les deux seuls.
+ */
+describe("sortir de l'accueil : les deux chemins (UX-01)", () => {
+  const UNE: BibliothequeAffichee = {
+    id: "une-bibliotheque",
+    nom: "Une bibliothèque",
+    href: "#depot",
+    collection: "research",
+    icones: [],
+    compteurs: [],
+    hebergement: { libelle: "Sur cet ordinateur", icones: ["ordinateur"] },
+    etat: { libelle: "Prêt", icone: "valide" },
+    ouverte: "à l’instant",
+  };
+
+  it("appelle onCreer quand on demande une nouvelle bibliothèque", async () => {
+    const creer = vi.fn();
+    render(<Accueil donnees={{ ...ACCUEIL_VIDE, bibliotheques: [UNE] }} onFichiers={vi.fn()} onCreer={creer} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /Nouvelle bibliothèque/ }));
+    expect(creer, "le bouton n’appelait personne").toHaveBeenCalledTimes(1);
+  });
+
+  it("la carte d’une bibliothèque mène à son dépôt", () => {
+    render(<Accueil donnees={{ ...ACCUEIL_VIDE, bibliotheques: [UNE] }} onFichiers={vi.fn()} onCreer={vi.fn()} />);
+    expect(screen.getByRole("link", { name: /Une bibliothèque/ })).toHaveAttribute("href", "#depot");
   });
 });

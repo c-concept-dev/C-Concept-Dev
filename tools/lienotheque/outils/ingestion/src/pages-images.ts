@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { empreinteDe, objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
+import { empreinteDe, jpegComplet, objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, encoderWebp, redimensionner, type ImageRvba } from "@lienotheque/images";
 import { vignette } from "@lienotheque/optimiseur";
 
@@ -29,6 +29,19 @@ export type PageExportee = {
   readonly vignette?: string | undefined;
 };
 
+/** Pourquoi une page n'a pas donné d'image. Trois causes, et elles ne se disent pas pareil à
+ *  l'écran : « rien à montrer » n'est pas « ce document n'est pas une numérisation ». */
+export type CauseDeRefus = "sans_image" | "plusieurs_images" | "image_tronquee";
+
+export type PageRefusee = { readonly index: number; readonly cause: CauseDeRefus };
+
+/** Ce que l'export a produit, et ce qu'il a refusé de produire.
+ *
+ *  Les refus comptent autant que les pages : sans eux, un document dont aucune page ne sort est
+ *  indiscernable d'un document qu'on n'a pas encore traité, et l'écran dit « pas encore
+ *  préparées » à quelqu'un qui attendra pour rien. */
+export type Export = { readonly pages: readonly PageExportee[]; readonly refusees: readonly PageRefusee[] };
+
 export type OptionsExport = {
   readonly largeur?: number;
   /** Ne traiter que les premières pages : pour un essai rapide. */
@@ -41,6 +54,39 @@ export type OptionsExport = {
   readonly vignettes?: boolean;
 };
 
+/** Pourquoi la première image d'une page n'est pas la page, quand elle ne l'est pas.
+ *
+ *  **Cette fonction porte toute la prudence de l'export.** `exporterPages` prend la première
+ *  image d'une page et la présente comme étant la page. C'est exact d'un document **numérisé**,
+ *  où chaque page est une photographie unique — et faux partout ailleurs.
+ *
+ *  Le 22 octobre 2026, l'éditeur de manière de lire a ainsi montré, sur un document composé en
+ *  texte, un extrait de figure en guise de page 8, et une autre figure en guise de page 13 : trois
+ *  pages, trois dimensions sans rapport. Tracer une zone là-dessus aurait enregistré une
+ *  géométrie qui ne désigne rien.
+ *
+ *  Deux refus, et chacun a sa raison d'être :
+ *
+ *  | refus | ce qu'il évite |
+ *  |---|---|
+ *  | la page porte **plusieurs** images | aucune d'elles n'est la page ; en choisir une serait tirer au sort |
+ *  | le flux JPEG est **tronqué** | le décodeur rendrait un aplat gris de la bonne taille, indiscernable d'une vraie page grise |
+ *
+ *  Une page **sans** image n'est pas un refus : il n'y avait rien à montrer, et c'est déjà ce que
+ *  l'ancien code faisait. Rendre `undefined` ici veut dire « cette image est la page ».
+ */
+function pourquoiPasLaPage(
+  objets: ReturnType<typeof objetsPdf>,
+  page: { readonly index: number; readonly images: readonly { readonly numero: number }[] },
+): PageRefusee | undefined {
+  if (page.images.length === 0) return { index: page.index, cause: "sans_image" };
+  if (page.images.length > 1) return { index: page.index, cause: "plusieurs_images" };
+  const octets = octetsImage(objets, page.images[0]!.numero);
+  if (octets === undefined || octets.extension !== "jpg") return { index: page.index, cause: "sans_image" };
+  if (!jpegComplet(octets.octets)) return { index: page.index, cause: "image_tronquee" };
+  return undefined;
+}
+
 /** Réduit une image à la largeur demandée, en gardant ses proportions. */
 async function aLaLargeur(image: ImageRvba, largeur: number): Promise<ImageRvba> {
   if (image.width <= largeur) return image;
@@ -48,7 +94,7 @@ async function aLaLargeur(image: ImageRvba, largeur: number): Promise<ImageRvba>
 }
 
 /** Exporte les pages d'un document numérisé, une à la fois, et rend ce qui a été écrit. */
-export async function exporterPages(pdf: string, dossier: string, options: OptionsExport = {}): Promise<PageExportee[]> {
+export async function exporterPages(pdf: string, dossier: string, options: OptionsExport = {}): Promise<Export> {
   const largeurVoulue = options.largeur ?? LARGEUR_PAR_DEFAUT;
   const avecVignettes = options.vignettes ?? true;
   mkdirSync(dossier, { recursive: true });
@@ -63,14 +109,18 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
   const source = avecVignettes ? await empreinteDe(pdf) : undefined;
 
   const exportees: PageExportee[] = [];
+  const refusees: PageRefusee[] = [];
   for (const [rangDansLaTranche, page] of retenues.entries()) {
     // Le rang dans le document, et non dans la tranche : une page exportée seule doit porter le
     // même numéro que si tout le document l'avait été, sans quoi deux tranches se recouvrent.
     const index = depuis + rangDansLaTranche;
-    const image = page.images[0];
-    if (image === undefined) continue;
-    const octets = octetsImage(objets, image.numero);
-    if (octets === undefined || octets.extension !== "jpg") continue;
+    const refus = pourquoiPasLaPage(objets, page);
+    if (refus !== undefined) {
+      refusees.push(refus);
+      continue;
+    }
+    const image = page.images[0]!;
+    const octets = octetsImage(objets, image.numero)!;
 
     const reduite = await aLaLargeur(await decoderJpeg(octets.octets), largeurVoulue);
     const nom = `page-${String(index).padStart(4, "0")}.webp`;
@@ -99,5 +149,5 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
       ...(nomVignette === undefined ? {} : { vignette: nomVignette }),
     });
   }
-  return exportees;
+  return { pages: exportees, refusees };
 }

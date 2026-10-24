@@ -171,9 +171,9 @@ fn lance_le_sidecar_tesseract_embarque() {
 }
 
 /// Lit une réponse HTTP brute : pas de client HTTP en dépendance pour un prototype.
-fn interroger(port: u16, plage: Option<&str>) -> (u16, String, Vec<u8>) {
+fn interroger_route(port: u16, route: &str, plage: Option<&str>) -> (u16, String, Vec<u8>) {
     let mut flux = TcpStream::connect(("127.0.0.1", port)).expect("serveur local joignable");
-    let mut requete = format!("GET /media HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n");
+    let mut requete = format!("GET {route} HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n");
     if let Some(valeur) = plage {
         requete.push_str(&format!("Range: {valeur}\r\n"));
     }
@@ -191,6 +191,10 @@ fn interroger(port: u16, plage: Option<&str>) -> (u16, String, Vec<u8>) {
         .and_then(|c| c.parse().ok())
         .expect("code de statut");
     (code, entetes, brut[separation + 4..].to_vec())
+}
+
+fn interroger(port: u16, plage: Option<&str>) -> (u16, String, Vec<u8>) {
+    interroger_route(port, "/media", plage)
 }
 
 #[test]
@@ -229,6 +233,25 @@ fn sert_un_mp3_par_plages() {
         ms,
         serveur.infos.url
     );
+}
+
+#[test]
+fn sert_un_media_de_bibliotheque_par_son_empreinte_anc_05() {
+    let chemin = fixture("piste.mp3");
+    exiger(&chemin, "lancez `python3 fixtures/generer-locales.py`");
+    let empreinte = "a".repeat(64);
+    let serveur = media::servir_bibliotheque(
+        racine_projet(),
+        std::collections::BTreeMap::from([(empreinte.clone(), (chemin, "audio/mpeg".to_owned()))]),
+    )
+    .expect("serveur de bibliothèque démarré");
+
+    let route = format!("{}/{}", serveur.infos.url.split_once(&format!("127.0.0.1:{}", serveur.infos.port)).unwrap().1, empreinte);
+    let (code, entetes, corps) = interroger_route(serveur.infos.port, &route, Some("bytes=0-255"));
+    assert_eq!(code, 206);
+    assert!(entetes.contains("Content-Type: audio/mpeg"));
+    assert_eq!(corps.len(), 256);
+    assert_eq!(serveur.empreintes, std::collections::BTreeSet::from([empreinte]));
 }
 
 #[test]

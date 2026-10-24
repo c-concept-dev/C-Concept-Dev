@@ -302,12 +302,12 @@ describe("l'écran se parcourt au clavier (UX-06)", () => {
     expect(screen.getByLabelText("Son nom")).toHaveValue("Première");
   });
 
-  it("valider rend la main à qui a ouvert l'écran", async () => {
+  it("continuer rend la main à qui a ouvert l'écran", async () => {
     const personne = userEvent.setup();
     const onValider = vi.fn();
     render(<Organisation description={DESCRIPTION} onSchema={vi.fn()} onValider={onValider} />);
 
-    await personne.click(screen.getByRole("button", { name: /Valider l’organisation/ }));
+    await personne.click(screen.getByRole("button", { name: /Continuer vers le dépôt/ }));
     expect(onValider).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,4 +1,4 @@
-import type { DescriptionBibliotheque, TypeDeContenu, VueBibliotheque } from "@lienotheque/contrats";
+import type { ApercuDocument, DescriptionBibliotheque, TypeDeContenu, VueBibliotheque } from "@lienotheque/contrats";
 import type { BibliothequeAffichee } from "./modele.js";
 import type { Collection, NomIcone } from "../composants/index.js";
 
@@ -29,14 +29,33 @@ const ICONES: Readonly<Record<TypeDeContenu, NomIcone>> = {
   images: "image",
 };
 
+/** Les comptes d'une bibliothèque entière, à partir de ses projections légères.
+ *
+ * Les compteurs de `VueBibliotheque` ne décrivent qu'un document. Les afficher dans l'en-tête
+ * du Catalogue ou sur la carte d'Accueil faisait donc passer le document ouvert pour toute la
+ * bibliothèque. Ici, les mots restent ceux des projections (CLA-01), les zéros sans information
+ * disparaissent, et « document » désigne seulement l'objet que l'application sait compter. */
+export function compteursDeBibliotheque(documents: readonly ApercuDocument[]): BibliothequeAffichee["compteurs"] {
+  const sommes = new Map<string, number>();
+  for (const document of documents)
+    for (const compteur of document.compteurs)
+      sommes.set(compteur.mot, (sommes.get(compteur.mot) ?? 0) + compteur.nombre);
+
+  return [
+    { nombre: documents.length, mot: documents.length === 1 ? "document" : "documents" },
+    ...[...sommes].filter(([, nombre]) => nombre > 0).map(([mot, nombre]) => ({ nombre, mot })),
+  ];
+}
+
 /** Une bibliothèque telle que l'accueil la montre. Sans version active, elle existe quand même :
  *  elle n'a simplement encore rien traité, et le dire vaut mieux que la cacher. */
 export function pourLAccueil(
   description: DescriptionBibliotheque,
   vue: VueBibliotheque | undefined,
   surCetAppareil: string,
+  compteursDeLaBibliotheque?: BibliothequeAffichee["compteurs"],
 ): BibliothequeAffichee {
-  const compteurs = vue?.compteurs ?? [];
+  const compteurs = compteursDeLaBibliotheque ?? vue?.compteurs ?? [];
   return {
     id: description.id,
     nom: description.nom,

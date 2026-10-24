@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DescriptionBibliotheque, VueBibliotheque } from "@lienotheque/contrats";
-import { bandeauDe, pourLAccueil } from "../src/donnees/accueil.js";
+import { bandeauDe, compteursDeBibliotheque, pourLAccueil } from "../src/donnees/accueil.js";
 
 /** Ce que l'accueil montre d'une bibliothèque ouverte (B1, CLA-01).
  *
@@ -68,5 +68,22 @@ describe("le bandeau dit ce qu'elle contient, jamais ce que ses éléments sont"
 
   it("retombe sur un bandeau neutre quand rien n'est annoncé", () => {
     expect(bandeauDe([])).toBe("research");
+  });
+});
+
+describe("les compteurs portent sur la bibliothèque entière", () => {
+  it("additionne les projections et retire les zéros qui ne disent rien", () => {
+    const documents = [
+      { empreinte: "a".repeat(64), version: VUE.id, activeeLe: 1, nom: "Un", compteurs: [{ nombre: 5, mot: "passages lus" }, { nombre: 0, mot: "liens" }], aVerifier: 0 },
+      { empreinte: "b".repeat(64), version: VUE.id, activeeLe: 1, nom: "Deux", compteurs: [{ nombre: 7, mot: "passages lus" }, { nombre: 0, mot: "liens" }], aVerifier: 0 },
+    ];
+    expect(compteursDeBibliotheque(documents)).toEqual([
+      { nombre: 2, mot: "documents" },
+      { nombre: 12, mot: "passages lus" },
+    ]);
+    expect(pourLAccueil(DESCRIPTION, VUE, "Ici", compteursDeBibliotheque(documents)).compteurs).toEqual([
+      { nombre: 2, mot: "documents" },
+      { nombre: 12, mot: "passages lus" },
+    ]);
   });
 });

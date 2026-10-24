@@ -5,6 +5,20 @@ description = "Prototype bureau Liénothèque (lot 0) : PDF, sidecar, reprise, l
 edition = "2021"
 rust-version = "1.82"
 publish = false
+# L'application, et elle seule, quand personne ne précise quoi lancer.
+#
+# Un outil posé dans `src/bin/` a ajouté un second binaire au paquet, et `cargo run` a cessé de
+# savoir lequel servir : « could not determine which binary to run ». `tauri dev` l'appelle sans
+# `--bin`, donc l'application de bureau ne démarrait plus — un outil d'appoint avait pris en otage
+# la commande de développement.
+#
+# Il est depuis rangé dans `examples/`, où vivent déjà les outils de ce genre, et d'où le paquet
+# ne l'emporte pas : le bundler copiait dans `Contents/MacOS/` tout binaire trouvé à côté de
+# l'application, et la livrait donc avec un outil qui n'est pas le produit.
+#
+# La déclaration reste : elle dit ce que `cargo run` doit lancer, et le dira encore le jour où un
+# second binaire reviendra.
+default-run = "lienotheque-bureau"
 
 [lib]
 name = "lienotheque_bureau"

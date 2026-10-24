@@ -49,7 +49,10 @@ export type Brouillon = {
   readonly piste?: RepereDePiste;
   /** La part de la hauteur de page qu'occupe un numéro d'élément, du plus petit au plus grand. */
   readonly hauteurElement: { readonly min: number; readonly max: number };
-  readonly pageDouble: boolean;
+  /** Deux pages par feuille. **Absent veut dire « je n'ai pas tranché »**, et la chaîne
+   *  regardera la feuille ; présent, c'est une décision et elle l'emporte. Voir
+   *  `Recette.preparation.double_page`. */
+  readonly pageDouble?: boolean | undefined;
   readonly redressement: "auto" | "aucun";
   readonly ordreElements: "strictement_croissant" | "croissant";
   readonly sautMax: number;
@@ -69,7 +72,8 @@ export const BROUILLON_NEUF: Brouillon = {
   version: 1,
   zones: [],
   hauteurElement: { min: 0.012, max: 0.04 },
-  pageDouble: false,
+  // Rien sur la double page : aucun écran ne la demande, et un défaut écrit serait pris pour une
+  // décision. Le brouillon neuf se tait, la chaîne regarde.
   // Aucun redressement par défaut, et c'est l'éditeur qui l'impose : on trace les zones sur la
   // page **telle qu'elle est montrée**. Redresser la tourne sous le tracé, et la zone ne
   // désigne plus rien — on cherche alors au bon endroit d'une page qui a bougé. L'épreuve F5
@@ -90,18 +94,65 @@ export type MotsPourLaPhrase = { readonly element: string; readonly page: string
 
 const MOTS_GENERIQUES: MotsPourLaPhrase = { element: "élément", page: "page" };
 
-/** Ce qui manque pour essayer, dit à qui le lit — ou rien si l'on peut lancer l'essai. */
+/** Ce qui manque pour essayer, dit à qui le lit — ou rien si l'on peut lancer l'essai.
+ *
+ *  ## Ce qui a changé le 20 octobre 2026, et pourquoi c'était un défaut de fond
+ *
+ *  La règle exigeait **une zone d'élément**, toujours. Elle refusait donc un document ordinaire
+ *  **parce que rien n'y est numéroté pièce par pièce** — et ces documents-là sont la
+ *  quasi-totalité d'une bibliothèque. Les quatre recettes écrites pour le corpus réel ne
+ *  déclaraient que
+ *  `page_imprimee` ; `pnpm check` les a rejetées, à raison au regard de l'ancienne règle, et à
+ *  tort au regard de ce qu'une bibliothèque universelle doit savoir lire (CLA-01, étape 6).
+ *
+ *  C'était une **hypothèse de domaine dans du code générique** : supposer que tout document
+ *  porte des pièces numérotées à repérer sur la page. Certains ouvrages d'apprentissage en
+ *  portent ; un essai, un manuel, une thèse n'en portent aucune, et se lisent très bien.
+ *
+ *  ## La règle juste
+ *
+ *  Ce qu'une manière doit déclarer, c'est **ce qu'elle lit** :
+ *
+ *  | | |
+ *  |---|---|
+ *  | au moins **une** zone, quel que soit son rôle | une manière qui ne cherche rien ne cherche nulle part |
+ *  | au plus **une** zone d'élément | ils sont tous au même endroit |
+ *  | au plus **une** zone de numéro de page | inchangé |
+ *  | un repère de piste **exige** une zone d'élément | une pastille se cherche à côté d'un élément |
+ *
+ *  La dernière est née avec les autres : en ouvrant la porte aux manières sans élément, on
+ *  ouvrait aussi celle d'une piste sans ancrage — chaque pièce valide séparément, la recette
+ *  incohérente une fois assemblée (`relatif_a: "element"` au contrat).
+ *
+ *  Et deux contrôles ne jugent plus que ce qui les concerne : la hauteur des éléments et
+ *  l'exemple de numéro décrivent un élément. Sans zone d'élément, ils ne décrivent rien, et les
+ *  juger refusait une manière pour des valeurs qui ne la regardent pas.
+ *
+ *  **Rien n'est retiré** : les quatre recettes de méthode passent à l'identique, puisqu'elles
+ *  déclarent les trois lectures. Aucun contrat n'a bougé. */
 export function manqueALaManiere(brouillon: Brouillon, mots: MotsPourLaPhrase = MOTS_GENERIQUES): string | undefined {
   const parRole = (role: RoleZone): number => brouillon.zones.filter((zone) => zone.role === role).length;
-  if (parRole("element") === 0) return `Tracez d’abord la zone où se trouve le numéro d’${mots.element}.`;
+  /** Cette manière lit-elle des éléments ? C'est elle qui le déclare, et non nous qui le
+   *  supposons — tout ce qui suit en dépend. */
+  const litDesElements = parRole("element") > 0;
+
+  if (brouillon.zones.length === 0)
+    return "Tracez au moins une zone : une manière de lire qui ne cherche rien ne cherche nulle part.";
   if (parRole("element") > 1)
     return `Une seule zone pour les numéros d’${mots.element} : ils sont tous au même endroit.`;
   if (parRole("page_imprimee") > 1) return `Une seule zone pour le numéro de ${mots.page}.`;
-  if (brouillon.hauteurElement.max <= brouillon.hauteurElement.min)
+  if (brouillon.piste !== undefined && !litDesElements)
+    return `Une piste se cherche à côté d’un numéro d’${mots.element} : tracez-en la zone, ou retirez le repère de piste.`;
+  if (litDesElements && brouillon.hauteurElement.max <= brouillon.hauteurElement.min)
     return "La plus grande hauteur doit dépasser la plus petite.";
   for (const zone of brouillon.zones)
     if (zone.rectangle.l <= 0 || zone.rectangle.h <= 0) return "Une zone sans surface ne cherche nulle part.";
-  if (brouillon.exempleDeNumero !== undefined && brouillon.exempleDeNumero.trim() !== "" && !/\d/.test(brouillon.exempleDeNumero))
+  if (
+    litDesElements &&
+    brouillon.exempleDeNumero !== undefined &&
+    brouillon.exempleDeNumero.trim() !== "" &&
+    !/\d/.test(brouillon.exempleDeNumero)
+  )
     return "Votre exemple de numéro ne contient aucun chiffre.";
   return undefined;
 }
@@ -153,7 +204,10 @@ export function enRecette(brouillon: Brouillon): RecetteLue {
     id: brouillon.id,
     version: brouillon.version,
     derivee_de: brouillon.derivee === undefined ? null : { id: brouillon.derivee.id, version: brouillon.derivee.version },
-    preparation: { redressement: brouillon.redressement, double_page: brouillon.pageDouble },
+    preparation: {
+      redressement: brouillon.redressement,
+      ...(brouillon.pageDouble === undefined ? {} : { double_page: brouillon.pageDouble }),
+    },
     lectures,
     regles: {
       elements: { ordre: brouillon.ordreElements, saut_max: brouillon.sautMax },
@@ -200,7 +254,7 @@ export function depuisRecette(recette: RecetteLue): Brouillon {
     ...(piste === undefined ? {} : { piste }),
     hauteurElement,
     ...(exempleDeNumero === undefined ? {} : { exempleDeNumero }),
-    pageDouble: recette.preparation.double_page,
+    ...(recette.preparation.double_page === undefined ? {} : { pageDouble: recette.preparation.double_page }),
     redressement: recette.preparation.redressement,
     ordreElements: recette.regles.elements.ordre,
     sautMax: recette.regles.elements.saut_max,

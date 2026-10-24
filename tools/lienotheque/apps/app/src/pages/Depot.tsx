@@ -25,6 +25,8 @@ const ICONES: Readonly<Record<TypeDeContenu, NomIcone>> = {
  *  L'unité comptée vient du point de reprise, donc la phrase suit ce que le moteur lit vraiment :
  *  « Lecture des pages » quand il lit des pages, « Lecture des pistes » quand il lit des pistes. */
 export function ouEnEst(travail: Travail, mots: MotsBibliotheque): { readonly phrase: string; readonly icone: NomIcone } {
+  if (travail.etat === "termine" && travail.erreur !== undefined)
+    return { phrase: "Terminé avec erreur", icone: "alerte" };
   const unite = travail.pointReprise?.unite;
   const lu = unite === "piste" ? mots.piste.plusieurs : unite === "image" ? "images" : mots.page.plusieurs;
   switch (travail.etat) {
@@ -70,9 +72,19 @@ type Props = {
   readonly onFichiers: (fichiers: readonly File[]) => void;
   readonly onAction: (id: string, action: ActionTravail) => void;
   readonly onVerifier: () => void;
+  /** Ouvrir l'écran qui retire cette bibliothèque — l'oublier, ou la mettre à la corbeille.
+   *  Absent là où l'on ne peut pas administrer : en ligne, on ne retire rien. */
+  readonly onRetirer?: (() => void) | undefined;
+  /** Vers ce qui se trouve deux fois. Auprès du retrait, parce que c'est la même intention :
+   *  tenir la bibliothèque, plutôt que l'alimenter. */
+  readonly onDoublons?: (() => void) | undefined;
+  /** Accès directs aux deux écrans de consultation. Une bibliothèque de deux cent cinquante
+   *  documents ne doit pas réserver sa navigation à la palette de recherche. */
+  readonly onOrganisation?: (() => void) | undefined;
+  readonly onCatalogue?: (() => void) | undefined;
   /** Ouvre la manière de lire pour ce document : c'est par lui qu'on y entre, parce que c'est
    *  lui qu'on regarde en la montrant. */
-  readonly onManiere?: ((nom: string) => void) | undefined;
+  readonly onManiere?: ((empreinte: string, nom: string) => void) | undefined;
 };
 
 export function Depot({
@@ -84,10 +96,14 @@ export function Depot({
   onFichiers,
   onAction,
   onVerifier,
+  onRetirer,
+  onDoublons,
+  onOrganisation,
+  onCatalogue,
   onManiere,
 }: Props): JSX.Element {
   const enCours = travaux.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length;
-  const aVerifier = travaux.filter((travail) => travail.erreur !== undefined).length;
+  const enErreur = travaux.filter((travail) => travail.erreur !== undefined).length;
 
   return (
     <main id="contenu" className="ln-layout ln-traitement" tabIndex={-1}>
@@ -99,10 +115,32 @@ export function Depot({
             { libelle: "Ajouter des fichiers" },
           ]}
         />
+        <nav className="ln-traitement__navigation" aria-label="Bibliothèque">
+          {onCatalogue === undefined ? null : (
+            <button type="button" className="ln-lien-action" onClick={onCatalogue}>Catalogue</button>
+          )}
+          {onOrganisation === undefined ? null : (
+            <button type="button" className="ln-lien-action" onClick={onOrganisation}>Organisation</button>
+          )}
+        </nav>
+        {/* Dans l'en-tête, et non en pied : sous une liste de deux cent cinquante documents, un
+            lien de pied est à des milliers de pixels et n'existe pas. Discret, mais atteignable.  */}
+        {onDoublons === undefined ? null : (
+          <button type="button" className="ln-lien-action ln-traitement__retirer" onClick={onDoublons}>
+            <Icone nom="recherche" />
+            Chercher les doublons…
+          </button>
+        )}
+        {onRetirer === undefined ? null : (
+          <button type="button" className="ln-lien-action ln-traitement__retirer" onClick={onRetirer}>
+            <Icone nom="alerte" />
+            Retirer cette bibliothèque…
+          </button>
+        )}
         <p className="ln-traitement__compteur">
           <Icone nom="horloge" />
           {enCours} en cours
-          {aVerifier === 0 ? null : ` · ${aVerifier} à vérifier`}
+          {enErreur === 0 ? null : ` · ${enErreur} erreur${enErreur > 1 ? "s" : ""}`}
         </p>
       </div>
 
@@ -127,7 +165,7 @@ export function Depot({
 
       <div className="ln-traitement__barre ln-panneau-titre">
         <p className="ln-section">
-          En traitement · {travaux.length} fichier{travaux.length > 1 ? "s" : ""}
+          Fichiers déposés · {travaux.length} fichier{travaux.length > 1 ? "s" : ""}
         </p>
         <p className="ln-muted">Vous pouvez fermer cette fenêtre&nbsp;: le traitement continue.</p>
       </div>
@@ -137,7 +175,7 @@ export function Depot({
           Rien en traitement pour l’instant. Déposez des fichiers&nbsp;: ils partiront d’eux-mêmes.
         </p>
       ) : (
-        <ul className="ln-file" aria-label="Fichiers en traitement">
+        <ul className="ln-file" aria-label="Fichiers déposés">
           {travaux.map((travail) => {
             const etat = ouEnEst(travail, description.mots);
             const sur = compte(travail);
@@ -154,7 +192,7 @@ export function Depot({
                       <button
                         type="button"
                         className="ln-lien-action ln-ligne__ouvrir"
-                        onClick={() => onManiere(travail.sujet!.nom)}
+                        onClick={() => onManiere(travail.empreinteEntree ?? "", travail.sujet!.nom)}
                       >
                         {travail.sujet.nom}
                       </button>
@@ -168,7 +206,20 @@ export function Depot({
                     {enPanne ? (
                       <>
                         {" "}
-                        <button type="button" className="ln-lien-action" onClick={onVerifier}>
+                        {/* Vers l'éditeur de manière de lire, et non vers la vérification : un
+                            travail arrêté faute de manière de lire ne se répare qu'en lui en
+                            apprenant une. La vérification, elle, n'a rien à montrer tant que rien
+                            n'a tourné — et renvoyait donc à l'accueil, ce qui faisait tourner en
+                            rond le premier geste d'une bibliothèque neuve. */}
+                        <button
+                          type="button"
+                          className="ln-lien-action"
+                          onClick={() =>
+                            onManiere !== undefined && travail.sujet !== undefined
+                              ? onManiere(travail.empreinteEntree ?? "", travail.sujet.nom)
+                              : onVerifier()
+                          }
+                        >
                           Ouvrir
                         </button>
                       </>

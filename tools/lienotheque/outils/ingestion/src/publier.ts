@@ -5,6 +5,7 @@ import {
   type Passage,
   type VueBibliotheque,
 } from "@lienotheque/contrats";
+import { causeLisible } from "@lienotheque/noyau";
 
 /** Publier un document, au moment où sa version s'active (scénario B).
  *
@@ -59,7 +60,7 @@ export type ADocumentPublier = {
 
 const sansFin = (adresse: string): string => adresse.trim().replace(/\/+$/, "");
 
-const lisible = (souci: unknown): string => (souci instanceof Error ? souci.message : String(souci));
+const lisible = (souci: unknown): string => causeLisible(souci);
 
 /** Publie un document et rafraîchit l'aperçu. `appeler` est remplaçable pour que les épreuves
  *  tournent sans réseau — c'est la seule façon d'éprouver une moitié posée. */

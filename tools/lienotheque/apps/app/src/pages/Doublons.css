@@ -1,0 +1,94 @@
+/* Ce qui se trouve deux fois. Des documents qui se ressemblent doivent se lire côte à côte, et
+   leurs faits distinctifs doivent s'aligner : c'est en les comparant qu'on choisit.
+   Aucune couleur ni aucune taille écrites ici : uniquement les variables --ln-*. */
+
+.ln-doublons {
+  display: grid;
+  gap: calc(var(--ln-grid) * 2);
+  padding: calc(var(--ln-grid) * 2) calc(var(--ln-grid) * 3);
+  max-width: calc(var(--ln-grid) * 90);
+  justify-items: start;
+}
+
+.ln-doublons__titre {
+  margin: 0;
+  font-size: 28px;
+}
+
+.ln-doublons__propos,
+.ln-doublons__ou {
+  margin: 0;
+  color: var(--ln-text-secondary);
+  max-width: calc(var(--ln-grid) * 75);
+}
+
+.ln-doublons__groupe {
+  display: grid;
+  gap: calc(var(--ln-grid));
+  padding: calc(var(--ln-grid) * 2);
+  width: 100%;
+}
+
+/* Les documents dont on n'a presque rien lu ne sont pas un verdict mais une observation : un
+   liseré les met à part sans les mettre en cause. */
+.ln-doublons__groupe--maigre {
+  border-left: 3px solid var(--ln-avertissement, var(--ln-accent));
+}
+
+.ln-doublons__sous-titre {
+  margin: 0;
+  font-size: 17px;
+}
+
+.ln-doublons__lignes {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Le nom à gauche, le geste à droite, et la même colonne pour tous : un bouton qui se déplace
+   d'une ligne à l'autre se clique de travers. */
+.ln-doublons__ligne {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: calc(var(--ln-grid));
+  padding: calc(var(--ln-grid) * 0.75) 0;
+  border-top: 1px solid var(--ln-border);
+}
+
+.ln-doublons__ligne:first-child {
+  border-top: none;
+}
+
+.ln-doublons__quoi {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.25);
+  min-width: 0;
+}
+
+.ln-doublons__nom {
+  overflow-wrap: anywhere;
+}
+
+/* Les faits distinctifs en chiffres tabulaires : ils se comparent d'un regard, en colonne. */
+.ln-doublons__faits {
+  color: var(--ln-text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ln-doublons__rien,
+.ln-doublons__fait,
+.ln-doublons__echec {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0;
+}
+
+.ln-doublons__echec {
+  color: var(--ln-avertissement, var(--ln-accent));
+}

@@ -97,6 +97,10 @@
   overflow: hidden;
   touch-action: none;
   cursor: crosshair;
+  /* Ni sélection ni glisser natif sur la planche : l'un et l'autre remplacent le réticule par un
+     cercle barré dès qu'on appuie, et c'est exactement le geste qu'on vient faire ici. */
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .ln-maniere__planche img {

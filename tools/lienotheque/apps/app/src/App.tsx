@@ -1,31 +1,38 @@
-import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import type {
   CasDouteux,
   ApercuDocument,
   ClassementLocal,
   DescriptionBibliotheque,
+  DocumentSuspect,
+  Doublons as DoublonsTrouves,
   Passage,
   SchemaBibliotheque,
   Travail,
   TypeDeContenu,
   VueBibliotheque,
 } from "@lienotheque/contrats";
-import { BROUILLON_NEUF, bilanDEssai, depuisRecette, enRecette, type Brouillon } from "@lienotheque/noyau";
+import { BROUILLON_NEUF, bilanDEssai, depuisRecette, enRecette, memeFile, type Brouillon } from "@lienotheque/noyau";
 import { EnTete } from "./EnTete.js";
 import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } from "./donnees/chargement.js";
-import { chargerVue } from "./donnees/vue.js";
+import { chargerPassages, chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
+import { journaliser } from "./pont/bureau.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
-import { pourLAccueil } from "./donnees/accueil.js";
+import { compteursDeBibliotheque, pourLAccueil } from "./donnees/accueil.js";
 import { Accueil } from "./pages/Accueil.js";
 import { Catalogue } from "./pages/Catalogue.js";
 import { Entrer } from "./pages/Entrer.js";
 import { Lecteur } from "./pages/Lecteur.js";
+import { LectureDuTexte } from "./pages/LectureDuTexte.js";
+import { parOuLire, quelquesImagesSeulement } from "./lire-ou-montrer.js";
 import { PremierLancement } from "./pages/PremierLancement.js";
 import { RienAMontrer } from "./pages/RienAMontrer.js";
 import { Reglages } from "./pages/Reglages.js";
 import { Verifier, type Decision } from "./pages/Verifier.js";
 import { Creer } from "./pages/Creer.js";
+import { Retirer } from "./pages/Retirer.js";
+import { Doublons } from "./pages/Doublons.js";
 import { Organisation } from "./pages/Organisation.js";
 import { Depot, type ActionTravail } from "./pages/Depot.js";
 import { Recherche } from "./pages/Recherche.js";
@@ -51,7 +58,7 @@ import { useTheme } from "./theme/useTheme.js";
 const SERVIE_EN_LIGNE = { racine: "" } as const;
 
 /** Les écrans qui tiennent dans la fenêtre au lieu de la faire défiler (correction 3). */
-const PLEINE_HAUTEUR: ReadonlySet<Route["ecran"]> = new Set(["lecteur"]);
+const PLEINE_HAUTEUR: ReadonlySet<Route["ecran"]> = new Set(["lecteur", "catalogue"]);
 
 /** Navigation entre les écrans du lot C (B4). Chaque écran a son adresse : on y revient, on la
  *  partage, et le clavier y arrive comme la souris puisque ce sont des liens.
@@ -63,16 +70,30 @@ export function App(): JSX.Element {
   // Qui répond, ici. Les écrans demandaient dix-sept fois « sommes-nous sur le bureau ? » —
   // la mauvaise question : ce qui les intéresse est de savoir si la capacité qu'ils veulent
   // est là. Une lecture n'a pas à être bloquée parce qu'une écriture est impossible.
-  const lecture = pontDeLecture();
-  const administration = pontDAdministration();
+  // Les ponts sont sans état, mais leur **identité** compte pour React : les reconstruire à
+  // chaque rendu relançait les effets qui les ont en dépendance. Avec un document publié, le
+  // chargement posait l'aperçu, provoquait un rendu, annulait la lecture du document en cours et
+  // en lançait une nouvelle — indéfiniment. Safari recevait bien toutes les réponses 200, mais
+  // l'écran restait sur « rien à montrer ». Une instance par montage tient la boucle fermée.
+  const lecture = useMemo(() => pontDeLecture(), []);
+  const administration = useMemo(() => pontDAdministration(), []);
 
   const [theme, changerTheme] = useTheme();
   const [donnees, setDonnees] = useState<DonneesAccueil>(ACCUEIL_VIDE);
   /** Le document dont les écrans montrent la version active. Un seul à la fois aujourd'hui. */
   const [regarde, setRegarde] = useState<string | undefined>(undefined);
   const [vue, setVue] = useState<VueBibliotheque | undefined>(undefined);
+  /** Les noms durables des grandes images, séparés de leurs adresses éphémères.
+   *
+   *  En ligne, un laissez-passer ne vaut que trois minutes. Le recopier dans la vue de cent
+   *  cinquante pages au chargement faisait donc disparaître les pages que l'on ouvrait plus
+   *  tard, tandis que leurs vignettes déjà chargées restaient visibles. Le nom du dérivé reste
+   *  ici ; l'adresse, elle, est redemandée pour la seule page effectivement ouverte. */
+  const [imagesDePages, setImagesDePages] = useState<ReadonlyMap<number, string>>(new Map());
   // Le texte du document regardé, lu à part de sa vue et jamais recopié dedans.
   const [passages, setPassages] = useState<readonly Passage[]>([]);
+  /** Document demandé mais pas encore reçu : l'ancienne vue est masquée pendant cette attente. */
+  const [chargementDocument, setChargementDocument] = useState<string | undefined>(undefined);
   // Le classement de chaque document de la bibliothèque, lu d'un coup : les filtres
   // comptent dessus, et les demander un par un vaudrait autant d'allers-retours.
   const [classements, setClassements] = useState<ReadonlyMap<string, ClassementLocal>>(new Map());
@@ -102,15 +123,19 @@ export function App(): JSX.Element {
    *  exactement là où l'on était en la fermant. */
   const requeteDeLAdresse = useMemo(() => rechercheDemandee(globalThis.location?.search ?? ""), []);
   const [cherche, setCherche] = useState(requeteDeLAdresse !== undefined);
+  const [requeteRecherche, setRequeteRecherche] = useState(requeteDeLAdresse ?? "");
   /** L'éditeur de manière de lire : le document regardé, ses pages, le brouillon, l'essai. */
   const [maniere, setManiere] = useState<{
     document: string;
+    /** L'empreinte du document montré : c'est par elle qu'on en demande d'autres pages, et c'est
+     *  elle qui le range dans la bibliothèque. */
+    empreinte: string;
     pages: readonly { rang: number; image: string }[];
     brouillon: Brouillon;
     essai?: Essai | undefined;
     occupe?: boolean | undefined;
     echec?: string | undefined;
-  }>({ document: "", pages: [], brouillon: BROUILLON_NEUF });
+  }>({ document: "", empreinte: "", pages: [], brouillon: BROUILLON_NEUF });
 
   // ⌘K ouvre la recherche depuis n'importe quel écran (UX-02). Ctrl+K pour les claviers qui
   // n'ont pas de touche Commande.
@@ -124,6 +149,12 @@ export function App(): JSX.Element {
     globalThis.addEventListener?.("keydown", auClavier);
     return () => globalThis.removeEventListener?.("keydown", auClavier);
   }, []);
+
+  // Ce que l'application montre, porté au journal de l'hôte à chaque changement d'écran. Sans
+  // cela, un écran qui ne s'affiche pas dans le paquet ne laisse aucune trace.
+  useEffect(() => {
+    journaliser(`écran ${route.ecran} · adresse ${globalThis.location?.hash ?? "(aucune)"}`);
+  }, [route]);
 
   useEffect(() => {
     const suivre = (): void => setRoute(lireRoute(globalThis.location?.hash ?? ""));
@@ -144,6 +175,11 @@ export function App(): JSX.Element {
     });
     void chargerVue().then((chargee) => {
       if (vivant) setVue(chargee);
+    });
+    // Hors démonstration, ceci rend un tableau vide : les passages viennent alors du pont, avec
+    // le document qu'on ouvre.
+    void chargerPassages().then((charges) => {
+      if (vivant && charges.length > 0) setPassages(charges);
     });
     // Les bibliothèques que l'hôte a retenues : sans elles, il faudrait repointer l'application
     // vers son dossier à chaque lancement.
@@ -171,12 +207,144 @@ export function App(): JSX.Element {
 
   const deposer = (fichiers: readonly File[]): void => setDepots(fichiers.map((fichier) => fichier.name));
 
+  const [retrait, setRetrait] = useState<{ readonly occupe: boolean; readonly echec?: string }>({ occupe: false });
+
+  /** Ouvrir une bibliothèque donnée, et non « la dernière de la liste ».
+   *
+   *  `derniere` est le dernier élément de `creees` : c'est ainsi que l'application désigne celle
+   *  où l'on est. Choisir une bibliothèque revient donc à la mettre en queue. Sans ce geste,
+   *  toutes les cartes menaient au même écran, qui montrait toujours la même — on se croyait dans
+   *  une bibliothèque en lisant les documents d'une autre. */
+  const choisirBibliotheque = (id: string): void => {
+    setCreees((anciennes) => {
+      const choisie = anciennes.find((autre) => autre.description.id === id);
+      return choisie === undefined ? anciennes : [...anciennes.filter((autre) => autre !== choisie), choisie];
+    });
+  };
+
+  /** Ce que la recherche de doublons a trouvé, et où elle en est (HER-08).
+   *
+   *  `trouves` absent **n'est pas** « rien trouvé » : c'est « pas encore cherché ». L'écran dit
+   *  l'un et l'autre, et les confondre lui ferait annoncer une bibliothèque propre avant de
+   *  l'avoir lue. */
+  const [doublons, setDoublons] = useState<{
+    readonly trouves?: DoublonsTrouves;
+    readonly occupe: boolean;
+    readonly echec?: string;
+    readonly retire?: string;
+  }>({ occupe: false });
+
+  /** Combien de fois on a demandé à relire la bibliothèque pour une raison qui n'est pas un
+   *  traitement achevé — un retrait de document, par exemple. Un compteur, et non un drapeau :
+   *  deux retraits de suite doivent faire deux relectures. */
+  const [relectures, setRelectures] = useState(0);
+
+  /** Retirer une bibliothèque, d'une des deux façons.
+   *
+   *  L'oubli ne touche à rien ; la suppression met le dossier à la corbeille, d'où il se ressort.
+   *  Dans les deux cas la bibliothèque sort de la liste, et l'on revient à l'accueil : rester sur
+   *  l'écran d'une bibliothèque qu'on vient de retirer n'aurait aucun sens. */
+  const retirer = async (racine: string, comment: "oublier" | "supprimer"): Promise<void> => {
+    if (administration === undefined) return;
+    setRetrait({ occupe: true });
+    try {
+      if (comment === "supprimer") await administration.supprimerBibliotheque(racine);
+      else await administration.oublierBibliotheque(racine);
+      setCreees((anciennes) => anciennes.filter((autre) => autre.racine !== racine));
+      setRetrait({ occupe: false });
+      aller(ACCUEIL);
+    } catch (souci) {
+      setRetrait({ occupe: false, echec: souci instanceof Error ? souci.message : String(souci) });
+    }
+  };
+
+  /** Chercher les documents qui disent la même chose. Elle ne retire rien (HER-08).
+   *
+   *  Mesuré à dix secondes sur deux cent quarante-trois documents : c'est long, donc on le dit
+   *  pendant que ça dure, et le bouton ne se représente pas comme disponible. */
+  const chercherLesDoublons = async (): Promise<void> => {
+    if (administration === undefined || courante === undefined) return;
+    setDoublons({ occupe: true });
+    try {
+      const trouves = await administration.doublonsDeBibliotheque(courante.racine);
+      setDoublons({ occupe: false, trouves });
+    } catch (souci) {
+      setDoublons({ occupe: false, echec: souci instanceof Error ? souci.message : String(souci) });
+    }
+  };
+
+  /** Retirer un document de la bibliothèque (HER-07).
+   *
+   *  On retire **de la liste affichée** ce qui vient de partir, et l'on redemande la bibliothèque :
+   *  sans quoi l'écran garderait un document qui n'est plus là, et le catalogue aussi. */
+  const retirerUnDocument = async (empreinte: string): Promise<void> => {
+    if (administration === undefined || courante === undefined) return;
+    setDoublons((avant) => ({ ...avant, occupe: true }));
+    try {
+      const compte = await administration.retirerDocument(courante.racine, empreinte);
+      // Le contrat rend des tableaux mutables : les reconstruire en lecture seule les rendrait
+      // inassignables à ce qu'on vient d'en lire, pour aucun gain.
+      const sansLui = (documents: DocumentSuspect[]): DocumentSuspect[] =>
+        documents.filter((document) => document.empreinte !== empreinte);
+      setDoublons((avant) => ({
+        occupe: false,
+        retire:
+          compte.source === undefined
+            ? "Document retiré de la bibliothèque. Sa source n’y était plus."
+            : "Document retiré. Sa source est à la corbeille, d’où vous pouvez la ressortir.",
+        ...(avant.trouves === undefined
+          ? {}
+          : {
+              trouves: {
+                // Un groupe qui tombe à un seul membre n'est plus un groupe : il ne double plus rien.
+                groupes: avant.trouves.groupes
+                  .map((groupe) => ({ ...groupe, documents: sansLui(groupe.documents) }))
+                  .filter((groupe) => groupe.documents.length > 1),
+                tropPeuDeTexte: sansLui(avant.trouves.tropPeuDeTexte),
+              },
+            }),
+      }));
+      setRegarde((avant) => (avant === empreinte ? undefined : avant));
+      setRelectures((avant) => avant + 1);
+    } catch (souci) {
+      setDoublons((avant) => ({
+        ...avant,
+        occupe: false,
+        echec: souci instanceof Error ? souci.message : String(souci),
+      }));
+    }
+  };
+
   /** Les cas restants : ceux sur lesquels aucune décision n'a encore été prise. */
   const restants = useMemo(() => {
     if (vue === undefined) return undefined;
     const decides = new Set(decisions.map((prise) => prise.cas.id));
     return { ...vue, douteux: vue.douteux.filter((cas) => !decides.has(cas.id)) };
   }, [vue, decisions]);
+
+  const enregistrerDecision = (cas: CasDouteux, decision: Decision): void => {
+    if (administration === undefined || courante === undefined || regarde === undefined) {
+      setDecisions((avant) => [...avant, { cas, decision }]);
+      return;
+    }
+    void administration
+      .enregistrerDecision(courante.racine, regarde, cas.id, decision)
+      .then(() => setDecisions((avant) => [...avant, { cas, decision }]))
+      .catch((souci: unknown) => setEchecOuverture(souci instanceof Error ? souci.message : String(souci)));
+  };
+
+  const annulerDerniereDecision = (): void => {
+    const derniere = decisions[decisions.length - 1];
+    if (derniere === undefined) return;
+    if (administration === undefined || courante === undefined || regarde === undefined) {
+      setDecisions((avant) => avant.slice(0, -1));
+      return;
+    }
+    void administration
+      .annulerDecision(courante.racine, regarde, derniere.cas.id)
+      .then(() => setDecisions((avant) => avant.slice(0, -1)))
+      .catch((souci: unknown) => setEchecOuverture(souci instanceof Error ? souci.message : String(souci)));
+  };
 
   /** Créer une bibliothèque : l'hôte écrit, jamais la page. Sans hôte — sur le web — on le dit
    *  plutôt que de faire semblant d'avoir créé quelque chose. */
@@ -202,21 +370,31 @@ export function App(): JSX.Element {
   // pages pèse des centaines de mégaoctets, et le Lecteur n'en montre qu'une. Elle remplace
   // l'adresse que la vue porte, qui ne désigne rien sur le bureau.
   useEffect(() => {
-    if (courante === undefined || lecture === undefined || route.ecran !== "lecteur" || vue === undefined)
+    if (courante === undefined || lecture === undefined || route.ecran !== "lecteur")
       return undefined;
     // Par le **rang** : c'est lui que les écrans passent, et le numéro imprimé manque sur
     // tout ouvrage qui ne numérote rien.
-    const page = vue.pages.find((candidate) => candidate.index === route.page);
-    if (page?.image === undefined || page.image.startsWith("data:")) return undefined;
-    const fichier = page.image.split("/").pop();
+    const adresseDurable = imagesDePages.get(route.page);
+    if (adresseDurable === undefined) return undefined;
+    const fichier = adresseDurable.split("/").pop();
     if (fichier === undefined) return undefined;
 
     let vivant = true;
     if (regarde === undefined) return undefined;
+    const passageOcr = passages.find((passage) => passage.page === route.page && passage.source === "ocr");
     void lecture.versionActive(courante.racine, regarde)
-      .then(async (version) => (version === undefined ? undefined : lecture.imageDePage(courante.racine, version, fichier)))
-      .then((image) => {
-        if (!vivant || image === undefined) return;
+      .then(async (version) => {
+        if (version === undefined) return undefined;
+        const image = await lecture.imageDePage(courante.racine, version, `pages/${fichier}`);
+        const langue = creees[creees.length - 1]?.description.schema?.langue ?? "fr";
+        const texte =
+          passageOcr === undefined || administration === undefined
+            ? undefined
+            : await administration.relireTexteDePage(courante.racine, version, fichier, langue).catch(() => undefined);
+        return { image, texte };
+      })
+      .then((relu) => {
+        if (!vivant || relu === undefined || (relu.image === undefined && relu.texte === undefined)) return;
         setVue((avant) =>
           avant === undefined
             ? avant
@@ -225,9 +403,23 @@ export function App(): JSX.Element {
                 // Par le rang, et jamais par le numéro imprimé : deux pages sans numéro le
                 // portent toutes deux à `undefined`, et `undefined === undefined` est vrai —
                 // l'image d'une page serait recopiée sur toutes les autres.
-                pages: avant.pages.map((autre) => (autre.index === page.index ? { ...autre, image } : autre)),
+                pages: avant.pages.map((autre) =>
+                  autre.index === route.page
+                    ? {
+                        ...autre,
+                        ...(relu.image === undefined ? {} : { image: relu.image }),
+                        ...(relu.texte === undefined ? {} : { texte: [relu.texte] }),
+                      }
+                    : autre,
+                ),
               },
         );
+        if (relu.texte !== undefined && passageOcr !== undefined)
+          setPassages((avant) =>
+            avant.map((passage) =>
+              passage.rang === passageOcr.rang ? { ...passage, texte: relu.texte ?? passage.texte } : passage,
+            ),
+          );
       })
       .catch(() => {
         // Une image qui manque n'empêche pas de lire : l'écran le dit déjà à sa façon.
@@ -235,7 +427,20 @@ export function App(): JSX.Element {
     return () => {
       vivant = false;
     };
-  }, [courante, route, vue]);
+  }, [courante, route, imagesDePages, passages, administration, lecture, creees]);
+
+  /** Ce qui, dans la file, justifie de relire la bibliothèque.
+   *
+   *  **Un traitement qui s'achève, et lui seul** : c'est lui qui pose une nouvelle version active
+   *  (JOB-06). Une progression qui avance, un bail qui se renouvelle, un travail qui échoue ne
+   *  changent rien à ce que les écrans lisent.
+   *
+   *  Mesuré le 22 octobre 2026 sur la bibliothèque réimportée : l'effet dépendait de `file`
+   *  entière, que la veille réécrit toutes les deux secondes. Il relisait donc **70,2 Mo de
+   *  versions toutes les deux secondes**, soit 35 Mo/s en continu depuis un volume externe, pour
+   *  n'en tirer aucune différence. Un nombre stable à la place d'un tableau neuf suffit à
+   *  l'arrêter. */
+  const travauxAcheves = file.filter((travail) => travail.etat === "termine").length;
 
   // Ce que les écrans lisent vient de la bibliothèque ouverte, et non d'un instantané de
   // développement : sur le bureau, c'est le dépôt qui fait foi. On la relit après chaque
@@ -268,14 +473,47 @@ export function App(): JSX.Element {
     return () => {
       vivant = false;
     };
-  }, [courante, file]);
+  }, [courante, travauxAcheves, relectures]);
+
+  // La racine est l'adresse que l'on ouvre naturellement après l'entrée. Au bureau elle mène à
+  // l'Accueil, mais cet écran décrit des bibliothèques locales et n'existe pas dans la façade en
+  // ligne. Quand le service vient de rendre un aperçu non vide, conduire au Catalogue plutôt
+  // que retomber sur « aucune publication » — qui était faux malgré 243 documents bien reçus.
+  useEffect(() => {
+    if (
+      administration === undefined &&
+      route.ecran === "accueil" &&
+      recuEnLigne === "oui" &&
+      documents.length > 0
+    )
+      aller({ ecran: "catalogue" });
+  }, [administration, route.ecran, recuEnLigne, documents.length, aller]);
+
+  /** Ce qu'on regardait, le temps qu'on le regardait : lu sans le remettre dans les dépendances
+   *  de l'effet qui suit, sans quoi il se rejouerait à chaque document ouvert. */
+  const regardeAlors = useRef(regarde);
+  regardeAlors.current = regarde;
 
   // Changer de bibliothèque repart de zéro : garder le document d'une autre ferait lire une vue
   // qui n'appartient pas à celle qu'on vient d'ouvrir.
+  //
+  // **Mais seulement si l'on regardait un document.** Cet effet effaçait la vue en toutes
+  // circonstances, y compris au démarrage, quand `courante` passe d'absente à présente — et la
+  // vue chargée à ce moment-là est celle du jeu de démonstration, la seule qu'il y ait. Le
+  // Lecteur était donc inatteignable en démonstration : on y naviguait, et l'on retombait sur
+  // l'accueil, faute de vue. Sans document ouvert, il n'y a de toute façon rien à oublier.
+  //
+  // **Les passages suivent la vue, et pour la même raison.** Ils appartiennent au document
+  // regardé, pas à la bibliothèque : les effacer en toutes circonstances effaçait au démarrage
+  // ceux du jeu de démonstration, et l'écran de lecture du texte retombait sur « rien à
+  // montrer » alors que le texte était là. La vue avait exactement ce défaut la veille ; il
+  // vivait deux fois, à deux lignes d'écart.
   useEffect(() => {
     setRegarde(undefined);
-    setVue(undefined);
-    setPassages([]);
+    if (regardeAlors.current !== undefined) {
+      setVue(undefined);
+      setPassages([]);
+    }
     setDocuments([]);
     setClassements(new Map());
   }, [courante?.racine]);
@@ -285,21 +523,75 @@ export function App(): JSX.Element {
   useEffect(() => {
     if (courante === undefined || regarde === undefined || lecture === undefined) return undefined;
     let vivant = true;
+    setDecisions([]);
+    setPassages([]);
+    setImagesDePages(new Map());
+    setChargementDocument(documents.find((document) => document.empreinte === regarde)?.nom ?? "ce document");
     // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent le
     // texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
-    void Promise.all([lecture.vueDeDocument(courante.racine, regarde), lecture.passagesDeDocument(courante.racine, regarde)])
-      .then(([lue, lus]) => {
+    const decisionsLues = administration?.lireDecisions(courante.racine, regarde) ?? Promise.resolve(new Map());
+    void Promise.all([
+      lecture.vueDeDocument(courante.racine, regarde),
+      lecture.passagesDeDocument(courante.racine, regarde),
+      decisionsLues,
+    ])
+      .then(async ([lue, lus, dejaPrises]) => {
         if (!vivant) return;
         setPassages(lus);
-        if (lue !== undefined) setVue(lue);
+        if (lue !== undefined) {
+          setImagesDePages(new Map(
+            lue.pages.flatMap((page) => (page.image === undefined ? [] : [[page.index, page.image] as const])),
+          ));
+          // Les chemins `/donnees/pages/….webp` sont des repères de dépôt, pas des URL. Le même
+          // port les résout au bureau (adresse locale éphémère) et en ligne (laissez-passer signé).
+          // La condition sur `administration` qui vivait ici empêchait précisément la version en
+          // ligne d'emprunter cette porte ; la grande page n'était par ailleurs jamais résolue.
+          let visible = lue;
+          const version = await lecture.versionActive(courante.racine, regarde);
+          if (version !== undefined) {
+            const resoudre = async (adresse: string | undefined): Promise<string | undefined> => {
+              const fichier = adresse?.split("/").pop();
+              if (fichier === undefined) return undefined;
+              try {
+                return await lecture.imageDePage(courante.racine, version, `pages/${fichier}`);
+              } catch {
+                return undefined;
+              }
+            };
+            visible = {
+              ...lue,
+              pages: await Promise.all(
+                lue.pages.map(async (page) => {
+                  const vignette = await resoudre(page.vignette);
+                  // Une grande page n'est signée qu'au moment où le Lecteur la montre. Garder
+                  // ici une adresse signée condamnait les pages ouvertes après son expiration.
+                  return { ...page, image: undefined, vignette };
+                }),
+              ),
+            };
+          }
+          if (!vivant) return;
+          setVue(visible);
+          setDecisions(
+            visible.douteux.flatMap((cas) => {
+              const decision = dejaPrises.get(cas.id);
+              return decision === undefined ? [] : [{ cas, decision }];
+            }),
+          );
+        } else setVue(undefined);
+        setChargementDocument(undefined);
       })
       .catch(() => {
         // Un document sans version active n'a rien à montrer, et ce n'est pas une panne.
+        if (!vivant) return;
+        setVue(undefined);
+        setPassages([]);
+        setChargementDocument(undefined);
       });
     return () => {
       vivant = false;
     };
-  }, [courante, regarde]);
+  }, [courante, regarde, lecture, administration, documents]);
 
   // La file est à l'hôte : on la relit, on ne la devine pas. Toutes les deux secondes suffisent —
   // un traitement se compte en minutes, et un écran qui se redessine sans cesse fatigue.
@@ -311,7 +603,13 @@ export function App(): JSX.Element {
     });
     const relire = (): void => {
       void administration.travauxDe(courante.racine).then((travaux) => {
-        if (vivant) setFile(travaux);
+        if (!vivant) return;
+        // **Ne republier que ce qui a changé.** Relire est peu coûteux — 249 travaux font 137 Ko
+        // et se lisent en 6 ms —, mais republier un relevé identique rejoue tout ce qui en
+        // dépend, et l'un de ces dépendants relit la bibliothèque entière. En gardant la
+        // référence précédente quand rien n'a bougé, la cascade s'arrête à sa source, pour tous
+        // les dépendants d'aujourd'hui et ceux qu'on écrira.
+        setFile((avant) => (memeFile(avant, travaux) ? avant : travaux));
       });
     };
     relire();
@@ -336,7 +634,9 @@ export function App(): JSX.Element {
         return;
       }
       await administration.retenirBibliotheque(racine);
-      setCreees((anciennes) => [{ racine, description }, ...anciennes.filter((autre) => autre.racine !== racine)]);
+      // En queue, jamais en tête : `derniere` est le dernier élément, et une bibliothèque
+      // qu'on vient d'ouvrir est celle où l'on veut être.
+      setCreees((anciennes) => [...anciennes.filter((autre) => autre.racine !== racine), { racine, description }]);
       aller({ ecran: "organisation" });
     } catch (erreur) {
       setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur));
@@ -369,11 +669,12 @@ export function App(): JSX.Element {
   };
 
   /** Montre quelques pages d'un document : c'est la première chose dont l'éditeur a besoin. */
-  const montrerLesPages = async (racine: string, nom: string, depuis: number): Promise<void> => {
+  const montrerLesPages = async (racine: string, empreinte: string, nom: string, depuis: number): Promise<void> => {
     if (administration === undefined) return;
-    setManiere((avant) => ({ ...avant, document: nom, occupe: true, echec: undefined }));
+    setManiere((avant) => ({ ...avant, document: nom, empreinte, occupe: true, echec: undefined }));
+    journaliser(`aperçu demandé · racine « ${racine} » · empreinte « ${empreinte} » · nom « ${nom} »`);
     try {
-      const pages = await administration.apercuDePages(racine, nom, depuis, 8);
+      const pages = await administration.apercuDePages(racine, empreinte, nom, depuis, 8);
       const connue = await administration.lireManiere(racine);
       setManiere((avant) => ({
         ...avant,
@@ -385,6 +686,7 @@ export function App(): JSX.Element {
         occupe: false,
       }));
     } catch (erreur) {
+      journaliser(`aperçu refusé · ${erreur instanceof Error ? erreur.message : String(erreur)}`);
       setManiere((avant) => ({ ...avant, occupe: false, echec: erreur instanceof Error ? erreur.message : String(erreur) }));
     }
   };
@@ -398,6 +700,7 @@ export function App(): JSX.Element {
       // à lire, et un essai qui ne lit rien ne dit rien.
       const vue = await administration.essayerManiere(
         racine,
+        maniere.empreinte,
         maniere.document,
         enRecette(maniere.brouillon),
         maniere.pages[0]?.rang ?? 0,
@@ -461,7 +764,12 @@ export function App(): JSX.Element {
       : {
           ...donnees,
           bibliotheques: creees.map((creee) =>
-            pourLAccueil(creee.description, creee === courante ? vue : undefined, "Sur cet ordinateur"),
+            pourLAccueil(
+              creee.description,
+              creee === courante ? vue : undefined,
+              "Sur cet ordinateur",
+              creee === courante && documents.length > 0 ? compteursDeBibliotheque(documents) : undefined,
+            ),
           ),
         };
 
@@ -473,15 +781,16 @@ export function App(): JSX.Element {
    *  était simplement vide. Deux écrans honnêtes à la place : la cérémonie quand le service
    *  nous a refusés, l'attente quand il nous a reçus et n'a rien.
    *
-   *  Tant qu'on ne sait pas encore — la première demande n'est pas revenue — on montre
-   *  l'attente plutôt que la cérémonie : proposer d'entrer à quelqu'un qui est déjà entré est
-   *  plus trompeur que de le faire patienter le temps d'un aller-retour. */
+   *  Tant qu'on ne sait pas encore — la première demande n'est pas revenue — on montre une
+   *  vérification explicite plutôt que la cérémonie. Une fois reçu, l'écran vide confirme
+   *  l'entrée : employer le même texte dans les deux états a fait croire à un blocage réel dans
+   *  Safari le 24 octobre 2026. */
   const sansRienAMontrer = (): JSX.Element => {
     if (administration === undefined && lecture !== undefined)
       return recuEnLigne === "non" ? (
         <Entrer onEntre={() => aller({ ecran: "catalogue" })} />
       ) : (
-        <RienAMontrer theme={theme} />
+        <RienAMontrer theme={theme} etat={recuEnLigne === "oui" ? "vide" : "verification"} />
       );
     return aLAccueil.bibliotheques.length === 0 ? (
       <PremierLancement
@@ -492,7 +801,12 @@ export function App(): JSX.Element {
         echec={echecOuverture}
       />
     ) : (
-      <Accueil donnees={aLAccueil} onFichiers={deposer} />
+      <Accueil
+        donnees={aLAccueil}
+        onFichiers={deposer}
+        onCreer={() => aller({ ecran: "creer" })}
+        onOuvrir={choisirBibliotheque}
+      />
     );
   };
 
@@ -526,7 +840,7 @@ export function App(): JSX.Element {
           onBrouillon={(brouillon) => setManiere((avant) => ({ ...avant, brouillon }))}
           onEssayer={() => void essayer(derniere.racine)}
           onEnregistrer={(brouillon) => void enregistrer(derniere.racine, brouillon)}
-          onAutresPages={(depuis) => void montrerLesPages(derniere.racine, maniere.document, depuis)}
+          onAutresPages={(depuis) => void montrerLesPages(derniere.racine, maniere.empreinte, maniere.document, depuis)}
           {...(maniere.essai === undefined ? {} : { essai: maniere.essai })}
           {...(maniere.occupe === undefined ? {} : { occupe: maniere.occupe })}
           {...(maniere.echec === undefined ? {} : { echec: maniere.echec })}
@@ -551,11 +865,15 @@ export function App(): JSX.Element {
           onFichiers={deposer}
           onAction={(id, action) => void agir(derniere.racine, id, action)}
           onVerifier={() => aller({ ecran: "verifier" })}
+          onCatalogue={() => aller({ ecran: "catalogue" })}
+          onOrganisation={() => aller({ ecran: "organisation" })}
+          {...(administration === undefined ? {} : { onRetirer: () => aller({ ecran: "retirer" }) })}
+          {...(administration === undefined ? {} : { onDoublons: () => aller({ ecran: "doublons" }) })}
           onManiere={
             administration !== undefined
-              ? (nom) => {
+              ? (empreinte, nom) => {
                   aller({ ecran: "maniere" });
-                  void montrerLesPages(derniere.racine, nom, 0);
+                  void montrerLesPages(derniere.racine, empreinte, nom, 0);
                 }
               : undefined
           }
@@ -578,6 +896,35 @@ export function App(): JSX.Element {
           exemples={exemples}
         />
       );
+    if (route.ecran === "retirer")
+      return derniere === undefined ? (
+        sansRienAMontrer()
+      ) : (
+        <Retirer
+          nom={derniere.description.nom}
+          racine={derniere.racine}
+          onOublier={() => void retirer(derniere.racine, "oublier")}
+          onSupprimer={() => void retirer(derniere.racine, "supprimer")}
+          onAnnuler={() => aller({ ecran: "depot" })}
+          {...(retrait.echec === undefined ? {} : { echec: retrait.echec })}
+          occupe={retrait.occupe}
+        />
+      );
+    if (route.ecran === "doublons")
+      return derniere === undefined || administration === undefined ? (
+        sansRienAMontrer()
+      ) : (
+        <Doublons
+          nom={derniere.description.nom}
+          onChercher={() => void chercherLesDoublons()}
+          onRetirer={(empreinte) => void retirerUnDocument(empreinte)}
+          onRetour={() => aller({ ecran: "catalogue" })}
+          {...(doublons.trouves === undefined ? {} : { trouves: doublons.trouves })}
+          {...(doublons.echec === undefined ? {} : { echec: doublons.echec })}
+          {...(doublons.retire === undefined ? {} : { retire: doublons.retire })}
+          occupe={doublons.occupe}
+        />
+      );
     if (route.ecran === "creer")
       return (
         <Creer
@@ -595,17 +942,50 @@ export function App(): JSX.Element {
       return (
         <Verifier
           vue={restants}
-          onDecision={(cas, decision) => setDecisions([...decisions, { cas, decision }])}
-          onAnnuler={() => setDecisions(decisions.slice(0, -1))}
+          onDecision={enregistrerDecision}
+          onAnnuler={annulerDerniereDecision}
           {...(decisions.length === 0 ? {} : { derniere: decisions[decisions.length - 1]! })}
+        />
+      );
+    // Un document composé en texte n'a aucune image, donc aucune page dans sa vue — mais son
+    // texte, lui, a été lu entièrement. Le Lecteur ne saurait qu'en dire « rien à montrer » ;
+    // cet écran-ci le montre. Le choix se fait sur ce qu'on a, jamais sur le format : c'est le
+    // même fait qui vaut pour un PDF composé en texte et pour un EPUB.
+    if (route.ecran === "lecteur" && parOuLire(vue.pages.length, passages.length) === "texte")
+      return (
+        <LectureDuTexte
+          vue={vue}
+          {...(documents.find((document) => document.empreinte === regarde)?.nom === undefined
+            ? {}
+            : { document: documents.find((document) => document.empreinte === regarde)!.nom })}
+          passages={passages}
+          page={route.page}
+          imagesPartielles={quelquesImagesSeulement(vue.pages.length, passages.length)}
+          onPage={(page) => aller({ ecran: "lecteur", page })}
         />
       );
     if (route.ecran === "lecteur")
       return (
         <Lecteur
           vue={vue}
+          {...(documents.find((document) => document.empreinte === regarde)?.nom === undefined
+            ? {}
+            : { document: documents.find((document) => document.empreinte === regarde)!.nom })}
           page={route.page}
           element={route.element ?? ""}
+          // La vue porte les repères, les passages portent le texte : sans ce témoin, un
+          // document sans page renverrait à une recherche qui ne rendrait rien.
+          texteLu={passages.length > 0}
+          textePage={passages.filter((passage) => passage.page === route.page).map((passage) => passage.texte)}
+          {...(lecture === undefined || lecture.traduirePage === undefined || courante === undefined || regarde === undefined
+            ? {}
+            : {
+                onTraduire: async (page: number) => {
+                  const version = await lecture.versionActive(courante.racine, regarde);
+                  if (version === undefined) throw new Error("Aucune version active ne peut être traduite.");
+                  return lecture.traduirePage!(courante.racine, version, page);
+                },
+              })}
           onPage={(page) => aller({ ecran: "lecteur", page })}
           onElement={(element) => aller({ ecran: "lecteur", page: route.page, element })}
         />
@@ -614,6 +994,9 @@ export function App(): JSX.Element {
       return (
         <Catalogue
           vue={vue}
+          texteLu={passages.length > 0}
+          {...(passages[0] === undefined ? {} : { premierePageTexte: passages[0].page })}
+          {...(chargementDocument === undefined ? {} : { chargementDocument })}
           {...(derniere?.description.schema === undefined ? {} : { schema: derniere.description.schema })}
           {...(regarde === undefined ? {} : { empreinte: regarde })}
           {...(regarde === undefined || classements.get(regarde) === undefined
@@ -626,6 +1009,7 @@ export function App(): JSX.Element {
           {...(route.page === undefined ? {} : { page: route.page })}
           onPage={(page) => aller({ ecran: "catalogue", page })}
           onLecteur={(page, element) => aller({ ecran: "lecteur", page, element })}
+          {...(administration === undefined ? {} : { onDoublons: () => aller({ ecran: "doublons" }) })}
           onAjouter={() => aller(ACCUEIL)}
         />
       );
@@ -640,8 +1024,14 @@ export function App(): JSX.Element {
       <EnTete
         theme={theme}
         onThemeChange={changerTheme}
-        onRecherche={() => setCherche(true)}
+        onRecherche={(texte) => {
+          setRequeteRecherche(texte);
+          setCherche(true);
+        }}
+        requeteRecherche={requeteRecherche}
+        onRequeteRecherche={setRequeteRecherche}
         donnees={aLAccueil}
+        rechercheDisponible={vue !== undefined && chargementDocument === undefined}
         enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
       />
       <div className="ln-application__vue">{ecran}</div>
@@ -659,10 +1049,14 @@ export function App(): JSX.Element {
                   { cle: "maniere", titre: "Revoir la manière de lire", source: derniere.description.nom, aussi: ["recette", "zones", "lecture"] },
                 ]
           }
-          {...(requeteDeLAdresse === undefined ? {} : { requeteInitiale: requeteDeLAdresse })}
-          onFermer={() => setCherche(false)}
+          requeteInitiale={requeteRecherche}
+          onFermer={() => {
+            setCherche(false);
+            setRequeteRecherche("");
+          }}
           onOuvrir={(resultat) => {
             setCherche(false);
+            setRequeteRecherche("");
             if (resultat.page !== undefined)
               aller(
                 resultat.element === undefined
@@ -672,11 +1066,13 @@ export function App(): JSX.Element {
           }}
           onEcouter={(resultat) => {
             setCherche(false);
+            setRequeteRecherche("");
             if (resultat.page !== undefined && resultat.element !== undefined)
               aller({ ecran: "lecteur", page: resultat.page, element: resultat.element });
           }}
           onAction={(cle) => {
             setCherche(false);
+            setRequeteRecherche("");
             if (cle === "organisation") aller({ ecran: "organisation" });
             else if (cle === "depot") aller({ ecran: "depot" });
             else if (cle === "verifier") aller({ ecran: "verifier" });
@@ -684,7 +1080,11 @@ export function App(): JSX.Element {
           }}
         />
       ) : null}
-      {administration !== undefined ? (
+      {/* Les mesures du lot 0 n'apparaissent **que sur une bibliothèque d'essai**.
+          Ce bloc s'affichait dès qu'un hôte répondait, donc sous une vraie bibliothèque de 243
+          documents, où il n'a rien à faire : « quatre capacités à éprouver avant de décider du
+          socle » s'adresse à nous, pas à qui veut lire ses livres. */}
+      {administration !== undefined && courante === undefined ? (
         <div className="ln-layout">
           <Prototype />
         </div>

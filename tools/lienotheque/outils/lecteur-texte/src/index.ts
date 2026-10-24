@@ -3,3 +3,4 @@ export * from "./ocr.js";
 export * from "./passages.js";
 export * from "./dommatrix.js";
 export * from "./filigranes.js";
+export * from "./epub.js";

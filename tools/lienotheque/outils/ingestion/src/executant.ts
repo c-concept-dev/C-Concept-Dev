@@ -9,6 +9,7 @@ import {
 } from "@lienotheque/contrats";
 import { jetonDacces, relectureCiblee, transportVersWorker } from "@lienotheque/vision";
 import { sousDossier } from "@lienotheque/cache";
+import { causeLisible } from "@lienotheque/noyau";
 import { instantaneDeLot, type LotTraite } from "./lot.js";
 
 /** La porte de la chaîne : une demande entre, un message sort (JOB-01 à JOB-09, PLT-02).
@@ -33,6 +34,18 @@ export const ChargeTraitement = z
   .object({
     document: z.string().min(1),
     medias: z.string().min(1),
+    /** Inventaire établi au dépôt : le nom d'origine porte les indices et l'empreinte désigne la
+     *  copie rangée. Absent pour les anciens appelants qui donnent un dossier. */
+    inventaireMedias: z
+      .array(
+        z
+          .object({
+            nom: z.string().min(1),
+            empreinte: z.string().regex(/^[a-f0-9]{64}$/),
+          })
+          .strict(),
+      )
+      .optional(),
     recette: z.string().min(1),
     description: z.string().min(1),
     /** Racine du cache de travail. L'exécutant y prend ses coins ; l'hôte n'a qu'à dire où. */
@@ -131,6 +144,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
       surPhase: (phase) => dire(phase),
       pdf: charge.document,
       medias: charge.medias,
+      ...(charge.inventaireMedias === undefined ? {} : { inventaireMedias: charge.inventaireMedias }),
       recette: charge.recette,
       description: charge.description,
       ...(charge.cache === undefined ? {} : { cache: sousDossier(charge.cache, "lectures") }),
@@ -210,7 +224,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
     return Resultat.parse({ type: "resultat", protocole: VERSION_PROTOCOLE, travailId: demande.travailId, charge: traite });
   } catch (cause) {
     // Reprenable : ce qui a déjà été lu l'est pour de bon, et une relance repartira de là.
-    const texte = cause instanceof Error ? cause.message : String(cause);
+    const texte = causeLisible(cause);
     dire(texte, "erreur");
     return echec(demande.travailId, texte, true);
   }
@@ -230,7 +244,7 @@ async function apercuDePages(demande: Demande, emettre?: Emission): Promise<Mess
 
   try {
     const { exporterPages } = await import("./pages-images.js");
-    const pages = await exporterPages(charge.document, charge.images, {
+    const exporte = await exporterPages(charge.document, charge.images, {
       depuis: charge.depuis,
       pages: charge.combien,
       // Pas de vignettes : l'éditeur montre une page en grand, et produire trois cents vignettes
@@ -244,17 +258,21 @@ async function apercuDePages(demande: Demande, emettre?: Emission): Promise<Mess
       protocole: VERSION_PROTOCOLE,
       travailId: demande.travailId,
       charge: {
-        pages: pages.map((page) => ({
+        pages: exporte.pages.map((page) => ({
           rang: page.index,
           image: `${adresse}/${page.fichier}`,
           fichier: page.fichier,
           largeur: page.largeur,
           hauteur: page.hauteur,
         })),
+        // Les refus voyagent avec les pages : sans eux, un document dont rien ne sort est
+        // indiscernable d'un document qu'on n'a pas encore traité, et l'écran fait attendre
+        // pour rien quelqu'un qui n'a rien à attendre.
+        refusees: exporte.refusees.map((refus) => ({ rang: refus.index, cause: refus.cause })),
       },
     });
   } catch (cause) {
-    const texte = cause instanceof Error ? cause.message : String(cause);
+    const texte = causeLisible(cause);
     return echec(demande.travailId, texte, true);
   }
 }

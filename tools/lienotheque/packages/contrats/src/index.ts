@@ -24,3 +24,4 @@ export * from "./resultat-outil.js";
 export * from "./service.js";
 export * from "./vision.js";
 export * from "./identite.js";
+export * from "./traduction.js";

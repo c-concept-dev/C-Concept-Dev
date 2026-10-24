@@ -101,6 +101,41 @@ describe("Catalogue : en-tête (CLA-10, UX-01)", () => {
     expect(ajouter).toHaveBeenCalledOnce();
   });
 
+  it("compte la bibliothèque entière, pas le seul document ouvert", () => {
+    const documents = [
+      {
+        empreinte: "b".repeat(64),
+        version: ID(30),
+        activeeLe: 1,
+        nom: "Premier",
+        compteurs: [{ nombre: 12, mot: "passages lus" }],
+        aVerifier: 0,
+      },
+      {
+        empreinte: "c".repeat(64),
+        version: ID(31),
+        activeeLe: 1,
+        nom: "Deuxième",
+        compteurs: [{ nombre: 8, mot: "passages lus" }],
+        aVerifier: 0,
+      },
+    ];
+    render(
+      <Catalogue
+        vue={VueBibliotheque.parse({ ...VUE, compteurs: [{ nombre: 0, mot: "éléments" }, { nombre: 0, mot: "liens" }] })}
+        documents={documents}
+        onPage={vi.fn()}
+        onLecteur={vi.fn()}
+        onAjouter={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("2 documents")).toBeInTheDocument();
+    expect(screen.getByText("20 passages lus")).toBeInTheDocument();
+    expect(screen.queryByText("0 éléments")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 liens")).not.toBeInTheDocument();
+  });
+
   it("mène à Vérifier quand il reste des cas", () => {
     poser();
     expect(screen.getByRole("link", { name: /2 à vérifier/i })).toHaveAttribute("href", "#verifier");
@@ -191,6 +226,15 @@ describe("Catalogue : grille et liste", () => {
 });
 
 describe("Catalogue : panneau de détail (B3)", () => {
+  it("garde l'ouverture auprès de la page choisie, même si le document est très long", () => {
+    poser();
+    const pageChoisie = screen.getByRole("button", { name: "Feuillet 127" });
+    const carte = pageChoisie.closest("li");
+
+    expect(carte).not.toBeNull();
+    expect(within(carte!).getByRole("button", { name: /ouvrir dans le lecteur/i })).toBeInTheDocument();
+  });
+
   it("liste les clauses de la page, leurs liens et leur état", () => {
     poser();
     const detail = screen.getByRole("complementary", { name: /détail — feuillet 127/i });
@@ -206,6 +250,64 @@ describe("Catalogue : panneau de détail (B3)", () => {
     const { vers } = poser();
     await userEvent.click(screen.getByRole("button", { name: /ouvrir dans le lecteur/i }));
     expect(vers).toEqual([{ page: 127, ancre: ID(21) }]);
+  });
+
+  it("ouvre aussi le texte lu quand la page ne porte aucun repère", async () => {
+    const sansRepere = VueBibliotheque.parse({
+      ...VUE,
+      pages: [{ ...VUE.pages[0]!, elements: [] }],
+    });
+    const ouvrir = vi.fn();
+    render(
+      <Catalogue
+        vue={sansRepere}
+        page={126}
+        texteLu
+        onPage={vi.fn()}
+        onLecteur={ouvrir}
+        onAjouter={vi.fn()}
+      />,
+    );
+
+    const bouton = screen.getByRole("button", { name: /ouvrir dans le lecteur/i });
+    expect(bouton).toBeEnabled();
+    await userEvent.click(bouton);
+    expect(ouvrir).toHaveBeenCalledWith(126, "");
+  });
+
+  it("ouvre un document textuel même quand aucune page graphique n'existe", async () => {
+    const sansImage = VueBibliotheque.parse({ ...VUE, pages: [] });
+    const ouvrir = vi.fn();
+    render(
+      <Catalogue
+        vue={sansImage}
+        texteLu
+        premierePageTexte={16}
+        onPage={vi.fn()}
+        onLecteur={ouvrir}
+        onAjouter={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/aucun résultat dans cette bibliothèque/i)).not.toBeInTheDocument();
+    const bouton = screen.getByRole("button", { name: /lire le texte du document/i });
+    await userEvent.click(bouton);
+    expect(ouvrir).toHaveBeenCalledWith(16, "");
+  });
+
+  it("cache les pages de l'ancien document pendant le chargement du suivant", () => {
+    render(
+      <Catalogue
+        vue={VUE}
+        chargementDocument="Document suivant.pdf"
+        onPage={vi.fn()}
+        onLecteur={vi.fn()}
+        onAjouter={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/chargement de « Document suivant\.pdf »/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Feuillet 127" })).not.toBeInTheDocument();
   });
 });
 

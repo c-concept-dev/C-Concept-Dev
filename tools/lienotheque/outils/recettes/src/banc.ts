@@ -57,6 +57,9 @@ export type Relecture = (contexte: {
 }) => Promise<ReadonlyMap<string, LectureParVision>>;
 
 export type OptionsBanc = OptionsReperes & {
+  /** Médias déjà inventoriés par l'hôte. Leur nom d'origine sert à lire leur rang ; leur
+   *  empreinte évite de relire chaque gros fichier uniquement pour la recalculer. */
+  readonly inventaireMedias?: readonly MediaInventorie[];
   /** Appelé après chaque cliché lu, pour que l'appelant dise où il en est (JOB-03).
    *
    *  Après la lecture, pas après le décodage : c'est la lecture qui coûte, et annoncer cent pour
@@ -121,13 +124,13 @@ async function voterOrientation(chemin: string, options: OptionsBanc): Promise<R
  *  vient n'est plus retenue par personne. */
 export async function* preparerLot(chemin: string, recette: Recette, options: OptionsBanc = {}): AsyncGenerator<PageAlire> {
   const preparation = recette.preparation;
-  const telle = !preparation.double_page && preparation.redressement === "aucun";
+  const telle = preparation.double_page !== true && preparation.redressement === "aucun";
 
   const reglages = telle
     ? undefined
     : ReglagesRedressement.parse({
         rotation: preparation.redressement,
-        doublePage: preparation.double_page,
+        doublePage: preparation.double_page === true,
         ...(preparation.page_gauche === undefined ? {} : { pageGauche: preparation.page_gauche }),
         effacerVerso: true,
         binarisation: options.sansBinarisation === true ? "aucune" : "adaptative",
@@ -170,7 +173,7 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
           ...(produite.grise === undefined ? {} : { grise: produite.grise }),
           index,
           total,
-          rang: preparation.double_page ? index * 2 + (cote === "droite" ? 1 : 0) : index,
+          rang: preparation.double_page === true ? index * 2 + (cote === "droite" ? 1 : 0) : index,
           ...(cote === undefined ? {} : { cote }),
         };
       }
@@ -269,6 +272,33 @@ export async function mediasDuDossier(dossier: string, recette?: Recette, extens
   return medias.sort((a, b) => (a.disque ?? 1) - (b.disque ?? 1) || a.piste - b.piste || a.nom.localeCompare(b.nom, "fr"));
 }
 
+export type MediaInventorie = {
+  readonly nom: string;
+  readonly empreinte: string;
+};
+
+/** Relit un inventaire portable sans déduire quoi que ce soit du nom de rangement.
+ *
+ *  Dans une bibliothèque, le fichier s'appelle par son empreinte. Le numéro, lui, ne peut venir
+ *  que du nom d'origine conservé au dépôt (REC-05). */
+export function mediasDeLInventaire(inventaire: readonly MediaInventorie[], recette?: Recette): Media[] {
+  const motif = recette?.audio?.motif_nom;
+  const medias: Media[] = [];
+  for (const entree of inventaire) {
+    const extension = entree.nom.toLowerCase().endsWith(".mp3") ? ".mp3" : undefined;
+    if (extension === undefined) continue;
+    const indices = lireNomMedia(basename(entree.nom, extension), motif);
+    if (indices.piste === undefined) continue;
+    medias.push({
+      piste: indices.piste,
+      ...(indices.disque === undefined ? {} : { disque: indices.disque }),
+      nom: entree.nom,
+      empreinte: entree.empreinte,
+    });
+  }
+  return medias.sort((a, b) => (a.disque ?? 1) - (b.disque ?? 1) || a.piste - b.piste || a.nom.localeCompare(b.nom, "fr"));
+}
+
 export type Rejeu = {
   readonly resultat: ResultatRecette;
   readonly association: Association;
@@ -339,7 +369,10 @@ export async function lireLot(pdf: string, recette: Recette, options: OptionsBan
 }
 
 export async function rejouer(pdf: string, dossierMedias: string, recette: Recette, options: OptionsBanc = {}): Promise<Rejeu> {
-  const medias = await mediasDuDossier(dossierMedias, recette);
+  const medias =
+    options.inventaireMedias === undefined
+      ? await mediasDuDossier(dossierMedias, recette)
+      : mediasDeLInventaire(options.inventaireMedias, recette);
   // Combien de pistes le support compte est un fait sur le média, pas sur son nom (REC-05). Et
   // quels supports sont là : un livre qui couvre deux disques dont on n'a que le premier ne doit
   // pas voir ses derniers éléments forcés dans celui-là.

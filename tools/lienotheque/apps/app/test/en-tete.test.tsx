@@ -49,10 +49,30 @@ describe("le compteur de traitements dit la file, et non un chiffre écrit d'ava
   });
 });
 
-describe("les boutons carrés de l'en-tête", () => {
-  it("montrent les initiales du compte, et portent son nom entier", () => {
+describe("l'en-tête n'annonce que ce qui existe (22 octobre 2026)", () => {
+  /** Cette épreuve attestait l'inverse, et c'est pour cela qu'elle est réécrite.
+   *
+   *  Elle vérifiait que le bouton du compte montre ses initiales et porte le nom entier. Il le
+   *  faisait très bien — et **n'avait aucun gestionnaire de clic**. « Notifications » non plus.
+   *  Deux portes peintes, sur tous les écrans d'une bibliothèque garnie, attestées par un test
+   *  qui ne regardait que leur apparence.
+   *
+   *  Ni l'un ni l'autre n'ouvre quoi que ce soit : il n'existe ni écran de notifications ni
+   *  écran de compte. Ils sont retirés jusqu'à ce qu'il y ait quelque chose derrière, et le
+   *  filet des portes peintes couvre désormais l'en-tête pour qu'ils ne reviennent pas seuls. */
+  it("ne porte ni bouton de compte ni bouton de notifications tant que rien ne les ouvre", () => {
     render(<EnTete theme="light" onThemeChange={vi.fn()} onRecherche={vi.fn()} donnees={GARNIE} />);
-    const compte = screen.getByRole("button", { name: "Christophe Bonnet" });
-    expect(compte).toHaveTextContent("CB");
+    expect(screen.queryByRole("button", { name: "Christophe Bonnet" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Notifications" })).toBeNull();
+  });
+
+  it("n'annonce plus « Synchronisé » : rien ne synchronise", () => {
+    render(<EnTete theme="light" onThemeChange={vi.fn()} onRecherche={vi.fn()} donnees={GARNIE} />);
+    expect(screen.queryByText("Synchronisé")).toBeNull();
+  });
+
+  it("dit la portée réelle de sa recherche", () => {
+    render(<EnTete theme="light" onThemeChange={vi.fn()} onRecherche={vi.fn()} donnees={GARNIE} />);
+    expect(screen.getByLabelText("Rechercher dans le document ouvert")).toBeInTheDocument();
   });
 });

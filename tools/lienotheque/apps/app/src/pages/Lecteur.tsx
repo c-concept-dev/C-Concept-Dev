@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
-import { citerPage, enTete, nommer, type ElementAffiche, type VueBibliotheque } from "@lienotheque/contrats";
+import {
+  citerPage,
+  enTete,
+  nommer,
+  type ElementAffiche,
+  type TraductionDePage,
+  type VueBibliotheque,
+} from "@lienotheque/contrats";
 import { Bouton, Icone } from "../composants/index.js";
 import { FilAriane } from "../composants/FilAriane.js";
 import { FilVersSegment } from "./lecteur/FilVersSegment.js";
@@ -8,6 +15,7 @@ import { PanneauEcoute, type Segment } from "./lecteur/PanneauEcoute.js";
 import { useEcoute } from "../ecoute/useEcoute.js";
 import { TextePage } from "./lecteur/TextePage.js";
 import { LEGENDE, actionDe, tempoSuivant } from "./lecteur/raccourcis.js";
+import { imageAffichable } from "../image-affichable.js";
 import "./Lecteur.css";
 
 /** Lecteur (B1 — UX-01, UX-02, ANC-03, ANC-05).
@@ -21,8 +29,18 @@ import "./Lecteur.css";
 
 type Props = {
   readonly vue: VueBibliotheque;
+  readonly document?: string | undefined;
   readonly page: number;
   readonly element: string;
+  /** Le texte du document a-t-il été lu ? L'écran ne peut pas le savoir seul : la vue porte les
+   *  repères, les passages portent le texte, et les deux lui arrivent séparément. Sans cette
+   *  réponse il promettrait une recherche qui ne rendrait rien. */
+  readonly texteLu?: boolean;
+  /** Texte publié pour la page courante. Les passages sont stockés à part de la vue graphique :
+   *  cette propriété les raccorde au panneau « Texte de la page » sans prétendre qu'ils viennent
+   *  des dérivés d'image. */
+  readonly textePage?: readonly string[];
+  readonly onTraduire?: (page: number) => Promise<TraductionDePage>;
   readonly onPage: (numero: number) => void;
   readonly onElement: (ancreId: string) => void;
 };
@@ -31,7 +49,7 @@ type Props = {
  *  pour dessiner une forme d'onde. Dès que l'une des deux est connue, c'est elle qui vaut. */
 const DUREE_SUPPOSEE = 44;
 
-export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.Element {
+export function Lecteur({ vue, document, page, element, texteLu = false, textePage, onTraduire, onPage, onElement }: Props): JSX.Element {
   const [boucle, setBoucle] = useState(false);
   const [tempo, setTempo] = useState(75);
   const [zoom, setZoom] = useState(100);
@@ -106,6 +124,44 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
     });
   }, [actif, elements, dureeS]);
 
+  /** Un document dont la vue ne porte aucune page, et qui le dit (UX-01).
+   *
+   *  Les pages viennent de la chaîne d'images : un livre composé en texte n'en porte aucune, et
+   *  c'est la moitié du corpus. L'écran montrait alors sa carcasse — vignettes vides, centre
+   *  vide, « 0 sur 0 » — sans une phrase pour l'expliquer, pendant que le texte du document,
+   *  lui, était lu et cherchable. Le défaut n'était pas l'absence de pages, qui est un fait,
+   *  c'était le silence.
+   *
+   *  Les outils de page sont retirés plutôt que laissés inertes : un zoom sur rien et un
+   *  compteur à zéro se lisent comme une panne. */
+  if (vue.pages.length === 0)
+    return (
+      <main id="contenu" className="ln-lecteur ln-lecteur--sans-page" tabIndex={-1}>
+        <div className="ln-lecteur__entete ln-panneau-titre">
+          <FilAriane chemin={[
+            { libelle: "Accueil", href: "#" },
+            { libelle: vue.nom, href: "#catalogue" },
+            ...(document === undefined ? [] : [{ libelle: document }]),
+          ]} />
+        </div>
+        <section className="ln-lecteur__rien ln-panneau" aria-labelledby="titre-rien">
+          <h2 id="titre-rien" className="ln-lecteur__rien-titre">
+            Rien à montrer de ce document
+          </h2>
+          <p className="ln-lecteur__rien-quoi">
+            Aucun {vue.mots.page.un} ne peut être affiché : les images qu'il faudrait montrer sont tirées du document
+            lui-même, et celui-ci n'en porte pas. C'est le cas des documents composés en texte, qui n'ont jamais été
+            numérisés.
+          </p>
+          <p className="ln-lecteur__rien-quoi">
+            {texteLu
+              ? "Son texte, lui, a bien été lu : la recherche le retrouve, et vous y verrez l'endroit exact d'où vient chaque extrait."
+              : "Son texte n'a pas encore été lu. Reprenez son traitement, ou vérifiez la manière de lire qui lui est donnée."}
+          </p>
+        </section>
+      </main>
+    );
+
   return (
     <main id="contenu" className="ln-lecteur" tabIndex={-1}>
       <div className="ln-lecteur__entete ln-panneau-titre">
@@ -113,6 +169,7 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
           chemin={[
             { libelle: "Accueil", href: "#" },
             { libelle: vue.nom, href: "#catalogue" },
+            ...(document === undefined ? [] : [{ libelle: document, href: "#catalogue" }]),
             { libelle: pageCourante === undefined ? vue.mots.page.un : enTete(citerPage(vue.mots, pageCourante)) },
           ]}
         />
@@ -155,10 +212,10 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
                 >
                   {/* La vraie vignette quand l'ingestion en a produit une (OUT-04) ; la feuille
                       vide sinon — un lot sans dérivés garde une bande cliquable. */}
-                  {p.vignette === undefined ? (
+                  {imageAffichable(p.vignette) === undefined ? (
                     <span className="ln-vignettes__feuille" aria-hidden="true" />
                   ) : (
-                    <img className="ln-vignettes__feuille" src={p.vignette} alt="" loading="lazy" decoding="async" />
+                    <img className="ln-vignettes__feuille" src={imageAffichable(p.vignette)} alt="" loading="lazy" decoding="async" />
                   )}
                   <span className="ln-vignettes__numero ln-sur-photo">{p.numero}</span>
                   {p.elements.some((e) => e.media !== undefined) ? <span className="ln-vignettes__repere" aria-hidden="true" /> : null}
@@ -210,7 +267,14 @@ export function Lecteur({ vue, page, element, onPage, onElement }: Props): JSX.E
             </section>
           )}
 
-          {pageCourante === undefined ? null : <TextePage original={pageCourante.texte} traduction={pageCourante.traduction} />}
+          {pageCourante === undefined ? null : (
+            <TextePage
+              key={pageCourante.index}
+              original={textePage !== undefined && textePage.length > 0 ? textePage : pageCourante.texte}
+              traduction={pageCourante.traduction}
+              {...(onTraduire === undefined ? {} : { onTraduire: () => onTraduire(pageCourante.index) })}
+            />
+          )}
 
           <section className="ln-note ln-panneau" aria-labelledby="titre-note">
             <h2 id="titre-note" className="ln-note__titre">
