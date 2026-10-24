@@ -9910,7 +9910,37 @@ ${recent}`;
   }
   var _adocEditorLocalFonts = [];
   var _adocFontSyncFamilies = null;
+  var _adocFontSyncEntries = new Map();
+  var _adocFontSyncLoaded = new Map();
+  var _adocFontSyncPending = new Map();
   var _adocFontSyncBusy = false;
+  function adocFontSyncLoad(name) {
+    const entry = _adocFontSyncEntries.get(name);
+    if (!entry || !/^[0-9a-f]{64}$/.test(entry.fontId || '')) return Promise.resolve(false);
+    if (_adocFontSyncLoaded.get(name) === entry.fontId) return Promise.resolve(true);
+    if (_adocFontSyncPending.has(name)) return _adocFontSyncPending.get(name);
+    const pending = fetch('https://127.0.0.1:43839/v1/font/' + entry.fontId, {
+      cache: 'no-store', signal: AbortSignal.timeout(8000)
+    }).then(function(response) {
+      if (!response.ok) throw new Error('Fichier de police indisponible');
+      return response.arrayBuffer();
+    }).then(function(bytes) { return new FontFace(name, bytes).load(); })
+      .then(function(face) {
+        document.fonts.add(face);
+        _adocFontSyncLoaded.set(name, entry.fontId);
+        return true;
+      }).catch(function() { return false; }).finally(function() { _adocFontSyncPending.delete(name); });
+    _adocFontSyncPending.set(name, pending);
+    return pending;
+  }
+  function adocFontSyncLoadUsed() {
+    const used = new Set();
+    document.querySelectorAll('[style*="font-family"]').forEach(function(el) {
+      const match = (el.getAttribute('style') || '').match(/font-family:\s*["']?([^;"']+)/i);
+      if (match) used.add(match[1].trim());
+    });
+    used.forEach(adocFontSyncLoad);
+  }
   async function adocFontSyncRefresh(silent) {
     if (_adocFontSyncBusy || location.origin !== 'https://c-concept-dev.github.io') return false;
     _adocFontSyncBusy = true;
@@ -9925,17 +9955,21 @@ ${recent}`;
         return f && typeof f.label === 'string' && typeof f.family === 'string'
           && typeof f.postscriptName === 'string' && f.label.length > 0 && f.label.length < 160;
       });
+      _adocFontSyncEntries = new Map(entries.map(function(f) { return [f.label, f]; }));
       const names = Array.from(new Set(entries.map(function(f) { return f.label; })))
         .sort(function(a,b) { return a.localeCompare(b); });
       // Certaines tables de polices portent des espaces invisibles dans le nom de famille.
       // Un alias local fondé sur le nom PostScript garde les anciens documents utilisables.
       let aliases = document.getElementById('cc-font-sync-aliases');
       if (!aliases) { aliases = document.createElement('style'); aliases.id = 'cc-font-sync-aliases'; document.head.appendChild(aliases); }
-      aliases.textContent = entries.filter(function(f) { return f.family !== f.label; }).map(function(f) {
+      aliases.textContent = entries.filter(function(f) { return !f.fontId && f.family !== f.label; }).map(function(f) {
         const label = f.label.replace(/["\\{};\n\r]/g, '');
         const postscript = f.postscriptName.replace(/["\\{};\n\r]/g, '');
         return '@font-face{font-family:"' + label + '";src:local("' + postscript + '")}';
       }).join('');
+      // Safari n'envoie pas d'en-tête Origin pour un src:url() de police locale.
+      // Le fetch explicite l'envoie, puis FontFace charge les octets dans cette page.
+      adocFontSyncLoadUsed();
       if (JSON.stringify(names) !== JSON.stringify(_adocFontSyncFamilies)) {
         _adocFontSyncFamilies = names;
         adocEditorRefreshControls();
@@ -11502,6 +11536,9 @@ ${recent}`;
       if(e.target.type==='number'&&!e.target.checkValidity()){adocEditorMessage('Valeur hors limites.');return;}
       const value=e.target.type==='number'?(e.target.value===''?'':Number(e.target.value)):e.target.value;
       adocEditorApplyStyle(e.target.dataset.editorStyle,value);
+      if(e.target.dataset.editorStyle==='fontFamily') adocFontSyncLoad(value).then(function(ok) {
+        if (!ok && _adocFontSyncEntries.has(value)) adocEditorMessage('Cette police est visible sur le Mac mais son fichier n’a pas pu être chargé dans Safari.');
+      });
     }});
     lr.addEventListener('focusin',function(e){const leaf=e.target.closest('[data-cc-editor-leaf]');if(leaf){_adocEditorLeaf=leaf;const el=leaf.closest('.adoc-sc-block,[data-cc-legacy-block-id]');if(el&&!lr._ccPointerSelecting&&!el.classList.contains('is-selected'))el.click();}});
     lr.addEventListener('beforeinput',function(e){

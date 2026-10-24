@@ -6,8 +6,9 @@ const ROOT = path.join(__dirname, '..');
 const ORIGIN = 'https://c-concept-dev.github.io';
 let families = [
   { label: 'Georgia', family: 'Georgia', postscriptName: 'Georgia' },
-  { label: 'Pompiere', family: 'Pompiere ', postscriptName: 'Pompiere-Regular' },
+  { label: 'Pompiere', family: 'Pompiere ', postscriptName: 'Pompiere-Regular', fontId: 'a'.repeat(64) },
 ];
+let fontReads = 0;
 const doc = {
   schemaVersion: 1, documentId: 'font-sync-test', versionId: 'font-sync-test-v1', previousVersionId: null,
   requestId: 'font-sync-request', sourceSnapshotId: 'font-sync-snapshot',
@@ -30,6 +31,12 @@ const doc = {
       if (url.origin === 'https://127.0.0.1:43839' && url.pathname === '/v1/fonts') {
         return route.fulfill({ status: 200, contentType: 'application/json',
           headers: { 'Access-Control-Allow-Origin': ORIGIN }, body: JSON.stringify({ version: 1, families }) });
+      }
+      if (url.origin === 'https://127.0.0.1:43839' && url.pathname === '/v1/font/' + 'a'.repeat(64)) {
+        fontReads++;
+        return route.fulfill({ status: 200, contentType: 'font/ttf',
+          headers: { 'Access-Control-Allow-Origin': ORIGIN },
+          body: fs.readFileSync(path.resolve(ROOT, '../../Atelier Prompts/core/documents/vendor/pdf/standard_fonts/LiberationSans-Regular.ttf')) });
       }
       if (url.origin !== ORIGIN) return route.abort();
       const file = path.resolve(ROOT, decodeURIComponent(url.pathname).slice(1));
@@ -54,8 +61,9 @@ const doc = {
     let listed = await values();
     assert.ok(listed.some(item => item.value === 'Pompiere' && item.group === 'Polices actives sur ce Mac'));
     assert.ok(!listed.some(item => item.value === 'Academy Engraved LET'));
-    assert.ok(await page.evaluate(async () => (await document.fonts.load('16px "Pompiere"')).length > 0));
     await page.locator('select[data-editor-style="fontFamily"]').selectOption('Pompiere');
+    await page.waitForFunction(() => [...document.fonts].some(face => face.family === 'Pompiere' && face.status === 'loaded'));
+    assert.equal(fontReads, 1, 'one explicit CORS fetch loads the chosen font bytes');
     assert.equal(await page.locator('select[data-editor-style="fontFamily"]').inputValue(), 'Pompiere');
     assert.equal(await page.evaluate(() => window._adocArtifacts.adocArt_fontSync._adocStructuredDoc.blocks[0].style.fontFamily), 'Pompiere');
     assert.match(await page.locator('#font-sync-paragraph').evaluate(el => getComputedStyle(el).fontFamily), /Pompiere/);
