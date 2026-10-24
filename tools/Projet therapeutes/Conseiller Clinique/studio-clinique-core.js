@@ -4234,9 +4234,11 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
   // l'éditeur : un quota ou une panne passagère remplacerait une photo déjà obtenue
   // par l'aplat de secours. Cache de session uniquement, jamais persisté dans le document.
   const _adocResolvedImageCache = new Map();
-  function adocRememberResolvedImage(query, isGen, url) {
+  const _adocResolvedImageAttribution = new Map();
+  function adocRememberResolvedImage(query, isGen, url, attribution) {
     if (!query || !url || (typeof url === 'string' && url.includes('%23e2e8f0'))) return;
     _adocResolvedImageCache.set((isGen ? 'gen:' : 'pexels:') + String(query).trim(), url);
+    if (attribution) _adocResolvedImageAttribution.set(String(query).trim(), attribution);
   }
   // LOT I — le cache ci-dessus ne dure qu'une session. Les deux champs d'identifiant
   // existent déjà dans le schéma ; imageRef/query restent la provenance et le repli.
@@ -4272,7 +4274,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
             const data = await r.json();
             url = data.photos && data.photos[0] && data.photos[0].url;
             if (!url) throw new Error('Photo introuvable');
-            adocRememberResolvedImage(query, false, url);
+            adocRememberResolvedImage(query, false, url, data.photos[0].photographer || '');
           }
           if (/^data:image\/(?:png|jpeg);base64,/.test(url)) {
             const blob = await (await fetch(url)).blob();
@@ -4280,7 +4282,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
           } else {
             const saved = await fetch(adocGetWorkerUrl() + '/media-assets/from-url', {
               method: 'POST', headers: { 'Content-Type': 'application/json', 'X-API-Key': adocGetApiKey() },
-              body: JSON.stringify({ url: url, attribution: '' }),
+              body: JSON.stringify({ url: url, attribution: _adocResolvedImageAttribution.get(query) || '' }),
             });
             if (!saved.ok) throw new Error('Enregistrement HTTP ' + saved.status);
             assetId = (await saved.json()).asset_id;
@@ -4321,7 +4323,7 @@ ${commonBase}${extraNote ? '\n\n── PRÉCISION POUR CETTE GÉNÉRATION ──
       if (!r.ok) throw new Error('Pexels ' + r.status);
       const d = await r.json();
       const photo = d.photos?.[0] || null;
-      if (photo?.url) adocRememberResolvedImage(query, false, photo.url);
+      if (photo?.url) adocRememberResolvedImage(query, false, photo.url, photo.photographer || '');
       return photo;
     };
 
@@ -10470,7 +10472,7 @@ ${recent}`;
   function adocSetEditableImage(block, image) {
     if (!block || !['card', 'image'].includes(block.type)) throw new Error('Cette sélection ne porte pas d’image remplaçable.');
     if (block.type === 'card') {
-      block.content.imageRef = image ? (image.assetId ? null : image.query) : null;
+      block.content.imageRef = image ? (image.query || null) : null;
       block.content.imageAlt = image ? image.alt : null;
       delete block.content.imageAssetId;
       if (image && image.assetId) block.content.imageAssetId = image.assetId;
@@ -23854,9 +23856,9 @@ ${recent}`;
     return adocInsertStructuredBlock(direction, type, adocDefaultBlockContent(type, imageDescription));
   };
 
-  async function adocInsertImageBlockWithAsset(direction, assetId, label) {
-    if (direction === 'replace') return adocReplaceSelectedImage({ assetId: assetId, alt: label || 'Image importée' });
-    return adocInsertStructuredBlock(direction, 'image', { query: label, alt: label, assetId: assetId });
+  async function adocInsertImageBlockWithAsset(direction, assetId, label, query) {
+    if (direction === 'replace') return adocReplaceSelectedImage({ assetId: assetId, alt: label || 'Image importée', query: query || null });
+    return adocInsertStructuredBlock(direction, 'image', { query: query || label, alt: label, assetId: assetId });
   }
 
   async function adocInsertVideoBlockWithLink(direction, url, title) {
@@ -24119,7 +24121,7 @@ ${recent}`;
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      const created = await adocInsertImageBlockWithAsset(direction, data.asset_id, item.alt || item.photographer || 'Image');
+      const created = await adocInsertImageBlockWithAsset(direction, data.asset_id, item.alt || item.photographer || 'Image', document.getElementById('cc-block-media-search-input')?.value.trim());
       if (!created && btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
     } catch (e) {
       alert('Insertion impossible : ' + e.message);
@@ -24156,7 +24158,7 @@ ${recent}`;
   // adocConfirmBlockInsert/adocConfirmBlockInsertFromFile ci-dessus) reste totalement INCHANGÉ et
   // reste le SEUL moyen de créer un bloc image dédié — jamais un fallback automatique ici vers ce
   // mécanisme (décision explicite : un refus clair, jamais une action de substitution surprise).
-  async function adocApplyMediaAssetToSelectedBlock(assetId, label) {
+  async function adocApplyMediaAssetToSelectedBlock(assetId, label, query) {
     const st = window._adocBlockEditState;
     if (!st.storeKey || !st.blockId) {
       alert('Sélectionnez d’abord un bloc du document avant de choisir une image dans Médias.');
@@ -24166,7 +24168,7 @@ ${recent}`;
     if (!art || !art._adocStructuredDoc) return false;
     const doc = art._adocStructuredDoc;
     const imageTarget = adocFindEditableBlock(doc, st.blockId.replace(/^root:card-title:/, ''));
-    if (imageTarget && ['card', 'image'].includes(imageTarget.type)) return adocReplaceSelectedImage({ assetId: assetId, alt: label || 'Image importée' });
+    if (imageTarget && ['card', 'image'].includes(imageTarget.type)) return adocReplaceSelectedImage({ assetId: assetId, alt: label || 'Image importée', query: query || null });
     const dropEl = document.getElementById(st.blockId);
     if (!dropEl) {
       alert('Le bloc sélectionné est introuvable — sélectionnez-le à nouveau.');
@@ -24203,7 +24205,7 @@ ${recent}`;
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      const applied = await adocApplyMediaAssetToSelectedBlock(data.asset_id, item.alt || item.photographer || 'Image');
+      const applied = await adocApplyMediaAssetToSelectedBlock(data.asset_id, item.alt || item.photographer || 'Image', document.getElementById('cc-ws-media-search-input')?.value.trim());
       if (!applied) { if (btn) { btn.disabled = false; btn.textContent = 'Insérer'; } return; }
       window.adocMediaLoadHistory();
     } catch (e) {

@@ -124,7 +124,7 @@ const pixel = Buffer.from('R0lGODlhAQABAAAAACw=', 'base64');
   // Migration : un document sans photo enregistrée rend le même HTML qu'avant le lot.
   const root = path.resolve(__dirname, '../../../..');
   const sourcePath = 'tools/Projet therapeutes/Conseiller Clinique/studio-clinique-core.js';
-  const priorCore = execFileSync('git', ['show', 'HEAD:' + sourcePath], { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+  const priorCore = execFileSync('git', ['show', 'c4f09d16:' + sourcePath], { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
   const baseline = await browser.newPage();
   await baseline.route('**/studio-clinique-core.js*', r => r.fulfill({ status: 200, contentType: 'application/javascript', body: priorCore }));
   await baseline.addInitScript(() => localStorage.setItem('workerApiKey', 'test-key'));
