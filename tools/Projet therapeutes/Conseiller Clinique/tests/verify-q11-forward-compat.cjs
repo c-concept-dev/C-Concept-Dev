@@ -16,7 +16,8 @@ const imageDisplay = {
   focalX: 30, focalY: 60, brightness: 110, contrast: 105,
   saturation: 95, temperature: 10, grayscale: 8, blur: 2,
   opacity: 80, rotation: 15, borderWidth: 2, borderColor: '#286b7b',
-  shadow: 5, mirrorX: true, mirrorY: false, coverHeightPx: 360
+  shadow: 5, mirrorX: true, mirrorY: false, coverHeightPx: 360,
+  crop: { x: 10, y: 20, width: 70, height: 50, aspectRatio: 1.4 }
 };
 function enriched() {
   const d = doc('presentation');

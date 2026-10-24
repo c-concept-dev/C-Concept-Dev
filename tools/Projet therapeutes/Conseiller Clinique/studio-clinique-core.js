@@ -10328,6 +10328,7 @@ ${recent}`;
     if (display.mirrorX) transforms.push('scaleX(-1)');
     if (display.mirrorY) transforms.push('scaleY(-1)');
     if (transforms.length) css.push('transform:' + transforms.join(' '));
+    if (display.crop) css.push(adocImageCropStyle(display));
     if (display.borderWidth) css.push('border:' + n('borderWidth', 0) + 'px solid ' + (/^#[0-9a-fA-F]{6}$/.test(display.borderColor || '') ? display.borderColor : '#286b7b'));
     if (display.shadow) css.push('box-shadow:0 4px ' + n('shadow', 0) + 'px rgba(0,0,0,.35)');
     if (surface === 'cover' && Number.isFinite(display.sizePercent)) css.push('width:' + Math.max(10, Math.min(100, display.sizePercent)) + '%;margin-inline:auto');
@@ -10336,6 +10337,22 @@ ${recent}`;
     else if (surface === 'image' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
     else if (surface === 'image' && ['contain', 'cover', 'fill'].includes(display.fit)) css.push('aspect-ratio:16/9');
     return css.length ? css.join(';') + ';' : '';
+  }
+  // Le rectangle est exprimé dans les coordonnées de l'original, jamais dans celles du cadre.
+  // clip-path + transform fonctionne aussi dans Safari (object-view-box n'y est pas disponible).
+  function adocImageCropStyle(display) {
+    const c = display && display.crop;
+    if (!c || ![c.x, c.y, c.width, c.height].every(Number.isFinite) ||
+        c.width < 1 || c.height < 1 || c.x < 0 || c.y < 0 ||
+        c.x + c.width > 100.001 || c.y + c.height > 100.001) return '';
+    const x = c.x / 100, y = c.y / 100, w = c.width / 100, h = c.height / 100;
+    const rotate = display.rotation ? 'rotate(' + display.rotation + 'deg) ' : '';
+    const mirror = (display.mirrorX ? 'scaleX(-1) ' : '') + (display.mirrorY ? 'scaleY(-1) ' : '');
+    const tx = (0.5 - x - w / 2) * 100, ty = (0.5 - y - h / 2) * 100;
+    return 'object-fit:fill;clip-path:inset(' + c.y + '% ' + (100 - c.x - c.width) + '% ' +
+      (100 - c.y - c.height) + '% ' + c.x + '%);transform-origin:center center;' +
+      'transform:' + rotate + mirror + 'scale(' + (1 / w) + ',' + (1 / h) + ') translate(' + tx + '%,' + ty + '%);' +
+      (Number.isFinite(c.aspectRatio) ? 'height:auto;aspect-ratio:' + c.aspectRatio + ';' : '');
   }
   function adocImageDisplayControlsHTML(isImageBlock) {
     const range = (label, key, min, max, value) => '<label>' + label + ' <output data-image-output="' + key + '">' + value + '</output><input type="range" min="' + min + '" max="' + max + '" step="1" value="' + value + '" data-image-display="' + key + '"></label>';
@@ -10348,6 +10365,7 @@ ${recent}`;
     return '<fieldset class="cc-image-display-controls"><legend>Options de la photo</legend>' +
       '<p>L’original reste conservé ; seul son affichage change.</p>' + mainControls +
       '<label>Cadrage<select data-image-display="fit" aria-label="Cadrage"><option value="">Cadrage actuel</option><option value="contain">Ajuster · image entière</option><option value="cover">Remplir · recadrage possible</option><option value="fill">Étirer · déformation possible</option></select></label>' +
+      '<button type="button" class="cc-clarity-other-btn" data-image-crop-open>Recadrer la photo…</button>' +
       '<div class="cc-editor-row">' + range('Point focal horizontal', 'focalX', 0, 100, 50) + range('Point focal vertical', 'focalY', 0, 100, 50) + '</div>' +
       '<details><summary>Corrections de la photo</summary><div class="cc-editor-row">' +
       range('Luminosité', 'brightness', 0, 200, 100) + range('Contraste', 'contrast', 0, 200, 100) + range('Saturation', 'saturation', 0, 200, 100) +
@@ -10511,9 +10529,96 @@ ${recent}`;
       document.querySelector('#' + CSS.escape(block.id) + ' .adoc-sc-image-cadre > img');
     return target ? { st, art, block, target } : null;
   }
+  function adocOpenImageCrop() {
+    const ctx = adocImageDisplayContext(); if (!ctx) return;
+    const source = ctx.st.zone === 'doc-cover'
+      ? (ctx.target.querySelector('.adoc-sc-cover-image-layer')?.src ||
+        /^url\(["']?(.*?)["']?\)$/.exec(getComputedStyle(ctx.target).backgroundImage)?.[1])
+      : ctx.target.src;
+    if (!source) { adocEditorMessage('La photo doit être chargée avant son recadrage.'); return; }
+    const veil = document.createElement('div');
+    veil.className = 'adoc-crop-dialog';
+    veil.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:20px;';
+    veil.innerHTML = '<div role="dialog" aria-modal="true" aria-label="Recadrer la photo" style="max-width:96vw;max-height:96vh;overflow:auto;background:#fff;border-radius:10px;padding:16px;box-shadow:0 10px 40px #0008">' +
+      '<strong>Recadrer la photo</strong><p>Tracez le rectangle à conserver, puis déplacez-le ou ajustez ses huit poignées. L’original reste intact.</p>' +
+      '<div data-crop-stage style="position:relative;display:table;touch-action:none;cursor:crosshair;line-height:0;background:#ddd;overflow:hidden;margin:12px auto">' +
+      '<img alt="Photo originale à recadrer" style="display:block;max-width:min(80vw,950px);max-height:62vh;width:auto;height:auto;user-select:none;pointer-events:none">' +
+      '<div data-crop-selection style="position:absolute;border:2px dashed #fff;outline:1px solid #073b48;box-shadow:0 0 0 100vmax rgba(0,0,0,.38);cursor:move;box-sizing:border-box"></div></div>' +
+      '<p style="display:flex;gap:10px;justify-content:flex-end"><button type="button" class="cc-clarity-other-btn" data-crop-reset>Image entière</button><button type="button" class="cc-clarity-other-btn" data-crop-cancel>Annuler</button><button type="button" class="cc-clarity-other-btn" data-crop-apply>Appliquer le recadrage</button></p></div>';
+    document.body.appendChild(veil);
+    const stage = veil.querySelector('[data-crop-stage]'), image = stage.querySelector('img'), selection = stage.querySelector('[data-crop-selection]');
+    let box = Object.assign({ x: 25, y: 25, width: 50, height: 50 }, ctx.block.content.imageDisplay?.crop || {});
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const draw = () => {
+      selection.style.left = box.x + '%'; selection.style.top = box.y + '%';
+      selection.style.width = box.width + '%'; selection.style.height = box.height + '%';
+    };
+    const cursors = { nw:'nwse-resize', n:'ns-resize', ne:'nesw-resize', e:'ew-resize', se:'nwse-resize', s:'ns-resize', sw:'nesw-resize', w:'ew-resize' };
+    Object.keys(cursors).forEach(function (edge) {
+      const handle = document.createElement('span'); handle.dataset.cropHandle = edge;
+      handle.setAttribute('aria-label', 'Poignée ' + edge);
+      handle.style.cssText = 'position:absolute;width:12px;height:12px;border:2px solid #fff;border-radius:50%;background:#087b9a;box-sizing:border-box;transform:translate(-50%,-50%);cursor:' + cursors[edge] + ';pointer-events:auto;';
+      handle.style.left = edge.includes('w') ? '0%' : edge.includes('e') ? '100%' : '50%';
+      handle.style.top = edge.includes('n') ? '0%' : edge.includes('s') ? '100%' : '50%';
+      selection.appendChild(handle);
+    });
+    image.onload = draw;
+    image.onerror = () => { veil.remove(); adocEditorMessage('Impossible de charger la photo originale pour le recadrage.'); };
+    image.src = source;
+    draw();
+    const close = () => { veil.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    let drag = null;
+    const point = e => { const r = stage.getBoundingClientRect(); return { x: clamp((e.clientX - r.left) * 100 / r.width, 0, 100), y: clamp((e.clientY - r.top) * 100 / r.height, 0, 100) }; };
+    stage.addEventListener('pointerdown', function (e) {
+      const p = point(e), edge = e.target.dataset.cropHandle;
+      drag = { edge: edge || (selection.contains(e.target) ? 'move' : 'new'), start: p, old: Object.assign({}, box) };
+      if (drag.edge === 'new') box = { x:p.x, y:p.y, width:5, height:5 };
+      stage.setPointerCapture(e.pointerId); e.preventDefault(); draw();
+    });
+    stage.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      const p = point(e), old = drag.old, edge = drag.edge;
+      if (edge === 'new') {
+        box.x = clamp(Math.min(p.x, drag.start.x), 0, 95); box.y = clamp(Math.min(p.y, drag.start.y), 0, 95);
+        box.width = clamp(Math.abs(p.x - drag.start.x), 5, 100 - box.x);
+        box.height = clamp(Math.abs(p.y - drag.start.y), 5, 100 - box.y);
+      } else if (edge === 'move') {
+        box.x = clamp(old.x + p.x - drag.start.x, 0, 100 - old.width);
+        box.y = clamp(old.y + p.y - drag.start.y, 0, 100 - old.height);
+      } else {
+        let l = old.x, t = old.y, r = old.x + old.width, b = old.y + old.height;
+        if (edge.includes('w')) l = clamp(p.x, 0, r - 5);
+        if (edge.includes('e')) r = clamp(p.x, l + 5, 100);
+        if (edge.includes('n')) t = clamp(p.y, 0, b - 5);
+        if (edge.includes('s')) b = clamp(p.y, t + 5, 100);
+        box = { x:l, y:t, width:r-l, height:b-t };
+      }
+      draw(); e.preventDefault();
+    });
+    stage.addEventListener('pointerup', () => { drag = null; });
+    veil.querySelector('[data-crop-cancel]').onclick = close;
+    veil.querySelector('[data-crop-reset]').onclick = () => { box = { x:0, y:0, width:100, height:100 }; draw(); };
+    veil.querySelector('[data-crop-apply]').onclick = function () {
+      if (!image.naturalWidth || !image.naturalHeight) return;
+      adocEditorCheckpoint();
+      const display = ctx.block.content.imageDisplay || (ctx.block.content.imageDisplay = {});
+      if (ctx.block.type === 'image' && display.rotation == null && ctx.block.content.rotation) display.rotation = ctx.block.content.rotation;
+      if (box.x < .01 && box.y < .01 && box.width > 99.99 && box.height > 99.99) delete display.crop;
+      else display.crop = { x:+box.x.toFixed(3), y:+box.y.toFixed(3), width:+box.width.toFixed(3), height:+box.height.toFixed(3),
+        aspectRatio:+Math.max(.01, Math.min(100, (image.naturalWidth * box.width) / (image.naturalHeight * box.height))).toFixed(5) };
+      if (display.crop) { delete display.fit; delete display.heightPx; delete display.aspectRatio; }
+      close();
+      const key = ctx.st.storeKey;
+      adocWsClearBlockSelection(); window.adocOpenWorkspace(key); adocEditorMarkDirty();
+    };
+  }
   function adocRefreshImageDisplayControls() {
     const ctx = adocImageDisplayContext(); if (!ctx) return;
     const display = ctx.block.content.imageDisplay || {};
+    const cropButton = ctx.st.panelEl.querySelector('[data-image-crop-open]');
+    if (cropButton) cropButton.textContent = display.crop ? 'Modifier le recadrage…' : 'Recadrer la photo…';
     ctx.st.panelEl.querySelectorAll('[data-image-display]').forEach(function (input) {
       const field = input.dataset.imageDisplay;
       const fallback = field === 'fit' ? '' : field === 'borderColor' ? '#286b7b' :
@@ -10574,17 +10679,26 @@ ${recent}`;
     el.style.transform = [rotation ? 'rotate(' + rotation + 'deg)' : '', d.mirrorX ? 'scaleX(-1)' : '', d.mirrorY ? 'scaleY(-1)' : ''].filter(Boolean).join(' ');
     el.style.border = d.borderWidth ? d.borderWidth + 'px solid ' + (d.borderColor || '#286b7b') : '';
     el.style.boxShadow = d.shadow ? '0 4px ' + d.shadow + 'px rgba(0,0,0,.35)' : '';
+    if (d.crop) {
+      const cropCSS = document.createElement('span').style;
+      cropCSS.cssText = adocImageCropStyle(d);
+      for (const property of cropCSS) el.style.setProperty(property, cropCSS.getPropertyValue(property));
+    }
   }
   function adocApplyImageDisplay(field, raw, checkpointOnce) {
     const ctx = adocImageDisplayContext(); if (!ctx) return;
     if (checkpointOnce) adocEditorCheckpoint();
     const display = ctx.block.content.imageDisplay || (ctx.block.content.imageDisplay = {});
+    const leavingCrop = field === 'fit' && !!display.crop;
     if (field === 'fit') {
+      // Un nouveau mode de cadrage remplace le rectangle explicite, sinon le sélecteur
+      // semblerait inactif puisque le recadrage l'emporterait visuellement.
+      delete display.crop;
       // Sans hauteur de cadre, object-fit produit pratiquement le même affichage dans les
       // trois modes. La première sélection conserve la hauteur visible comme cadre fixe.
       if (['contain', 'cover', 'fill'].includes(raw)) {
         if (ctx.st.zone !== 'doc-cover' && !Number.isInteger(display.heightPx)) {
-          display.heightPx = Math.max(60, Math.min(1200, Math.round(ctx.target.getBoundingClientRect().height)));
+          display.heightPx = Math.max(60, Math.min(1200, Math.round(leavingCrop ? ctx.target.offsetHeight : ctx.target.getBoundingClientRect().height)));
         }
         display.fit = raw;
       } else delete display.fit;
@@ -10595,6 +10709,11 @@ ${recent}`;
       const input = ctx.st.panelEl.querySelector('[data-image-display="' + field + '"]');
       const min = input ? Number(input.min) : 0, max = input ? Number(input.max) : 100;
       display[field] = Math.max(min, Math.min(max, Number(raw)));
+    }
+    if (leavingCrop) {
+      const key = ctx.st.storeKey;
+      adocWsClearBlockSelection(); window.adocOpenWorkspace(key); adocEditorMarkDirty();
+      return;
     }
     adocPreviewImageDisplay(ctx);
     adocRefreshImageDisplayControls();
@@ -11215,6 +11334,7 @@ ${recent}`;
       if(e.target.closest('[data-block-surface-add-border]'))window.adocAddBlockBorder();
       if(e.target.closest('[data-block-surface-remove-border]'))window.adocRemoveBlockBorder();
       if(e.target.closest('[data-image-reset]'))adocResetImageDisplay();
+      if(e.target.closest('[data-image-crop-open]'))adocOpenImageCrop();
     });
     // LOT E — 'input' (jamais 'change') pour un aperçu réellement continu pendant le
     // glissement : 'change' ne se déclenche qu'au relâchement d'un <input type=range>, trop
@@ -21236,7 +21356,11 @@ ${recent}`;
     if (!cardEl) return;
     const img = cardEl.querySelector(':scope > .adoc-sc-card-img');
     if (!img) return;
-    const r = img.getBoundingClientRect(), parent = cardEl.getBoundingClientRect();
+    const parent = cardEl.getBoundingClientRect();
+    // Le transform du recadrage agrandit la boîte géométrique de <img> ; les prises
+    // doivent rester sur son cadre de mise en page, non sur cette boîte transformée.
+    const r = img.style.clipPath ? { left: parent.left + img.offsetLeft, top: parent.top + img.offsetTop,
+      width: img.offsetWidth, height: img.offsetHeight } : img.getBoundingClientRect();
     cardEl.querySelectorAll(':scope > .cc-card-cover-resize-handle').forEach(function (h) {
       const dir = h.dataset.imageResize;
       h.style.left = (r.left - parent.left + (dir.includes('w') ? 0 : dir.includes('e') ? r.width : r.width / 2)) + 'px';
@@ -21610,11 +21734,12 @@ ${recent}`;
         }
         const direction = imageHandle.dataset.imageResize;
         const startX = e.clientX, startY = e.clientY;
-        const startRect = cadre.getBoundingClientRect();
+        const transformedCrop = !!(coverCard && cadre.style.clipPath);
+        const startRect = transformedCrop ? { width: cadre.offsetWidth, height: cadre.offsetHeight } : cadre.getBoundingClientRect();
         const startWidth = documentCover ? (documentCover.querySelector('.adoc-sc-cover-image-layer')?.getBoundingClientRect().width || startRect.width) : startRect.width;
         const parentWidth = documentCover ? documentCover.getBoundingClientRect().width : coverCard ? coverCard.clientWidth - parseFloat(getComputedStyle(coverCard).paddingLeft) - parseFloat(getComputedStyle(coverCard).paddingRight) : figure.getBoundingClientRect().width;
         const img = documentCover ? documentCover.querySelector('.adoc-sc-cover-image-layer') : coverCard ? cadre : cadre.querySelector('img');
-        const startHeight = img && !documentCover ? img.getBoundingClientRect().height : startRect.height;
+        const startHeight = img && !documentCover ? (transformedCrop ? img.offsetHeight : img.getBoundingClientRect().height) : startRect.height;
         let changed = false;
         function suppressClick(ev) { ev.preventDefault(); ev.stopPropagation(); document.removeEventListener('click', suppressClick, true); }
         function move(ev) {
