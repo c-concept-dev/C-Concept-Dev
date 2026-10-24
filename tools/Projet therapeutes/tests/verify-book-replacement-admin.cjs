@@ -19,16 +19,23 @@ const { chromium } = require('playwright');
       const old = { book_id: 'PNL pour les nuls', book_title: 'PNL pour les nuls',
         author: 'Auteur', language: 'fr', approach: 'pnl' };
       window._libBooks = [old];
-      let resolveDetection;
-      samplePDFLanguageText = () => new Promise(resolve => { resolveDetection = resolve; });
-      extractPDFText = async () => ({ pages: [{ page: 1, text: 'Une nouvelle extraction complète. '.repeat(30) }], numPages: 1, ocrPagesCount: 0 });
+      let detectionCalls = 0;
+      samplePDFLanguageText = () => { detectionCalls++; throw new Error('No language rescan expected'); };
+      extractPDFText = async (_file, progress) => {
+        progress(50);
+        return { pages: [{ page: 1, text: 'Une nouvelle extraction complète. '.repeat(30) }], numPages: 1, ocrPagesCount: 0 };
+      };
       chunkPages = () => [{ content: 'Un passage fiable. '.repeat(30), page: 1 }];
       const calls = [];
+      let releaseIngest;
       window.fetch = async (url, options) => {
         const endpoint = String(url).split('/').pop();
         calls.push(endpoint);
         if (endpoint === 'library-stats') return new Response(JSON.stringify({ books: [old] }), { status: 200 });
-        if (endpoint === 'ingest') return new Response(JSON.stringify({ chunks_d1: 1, chunks_vectorize: 1 }), { status: 200 });
+        if (endpoint === 'ingest') {
+          await new Promise(resolve => { releaseIngest = resolve; });
+          return new Response(JSON.stringify({ chunks_d1: 1, chunks_vectorize: 1 }), { status: 200 });
+        }
         if (endpoint === 'verify-book-index') return new Response(JSON.stringify({
           status: 'ready', d1_chunks: 1, expected_chunks: 1, vector_sample_found: 1, vector_sample_total: 1
         }), { status: 200 });
@@ -48,20 +55,29 @@ const { chromium } = require('playwright');
       input.dispatchEvent(new Event('change'));
       const replacement = queue.find(q => q.id === _replaceQueueId);
       const inheritedLanguage = replacement.meta.language;
-      resolveDetection(''); // A late/uncertain auto-detection must not erase the known language.
       await replacement._languageDetectionPromise;
       const languageAfterDetection = replacement.meta.language;
       // Another queued book must never be ingested by the replacement button.
       queue.push({ id: 'other', file: new File(['x'], 'other.pdf'), status: 'pending',
         meta: { book_id: 'other', title: 'Other', language: 'fr' }, chunks: [] });
-      await replaceIngestNew();
+      const replacementRun = replaceIngestNew();
+      for (let i = 0; i < 20 && !releaseIngest; i++) await new Promise(resolve => setTimeout(resolve, 0));
+      const progressDuringIngest = document.getElementById('replaceProgressText').textContent;
+      const progressVisible = !document.getElementById('replaceProgress').hidden;
+      if (!releaseIngest) throw new Error('Replacement did not reach ingestion');
+      releaseIngest();
+      await replacementRun;
       return { inheritedLanguage, languageAfterDetection, status: replacement.status,
         finalized: replacement._replacementFinalized,
         otherStatus: queue.find(q => q.id === 'other').status, calls,
+        detectionCalls, progressDuringIngest, progressVisible,
         panel: document.getElementById('replaceStatus').innerText };
     });
     assert.equal(result.inheritedLanguage, 'fr');
     assert.equal(result.languageAfterDetection, 'fr');
+    assert.equal(result.detectionCalls, 0, 'Known language must not cause a second scan of the PDF');
+    assert.equal(result.progressVisible, true);
+    assert.match(result.progressDuringIngest, /Indexation : 0 \/ 1|passages préparés/);
     assert.equal(result.status, 'done');
     assert.equal(result.finalized, true);
     assert.equal(result.otherStatus, 'pending');

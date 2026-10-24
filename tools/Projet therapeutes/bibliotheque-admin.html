@@ -900,7 +900,7 @@ fileInput.addEventListener('change', () => {
     fileInput.value = '';
 });
 
-function addFiles(files) {
+function addFiles(files, options = {}) {
     const accepted = files.filter(f => {
         const name = f.name.toLowerCase();
         return name.endsWith('.pdf') || name.endsWith('.html') || name.endsWith('.htm') || name.endsWith('.epub');
@@ -928,11 +928,18 @@ function addFiles(files) {
             },
             status: 'pending', chunks: [], error: null
         };
+        if (options.language) {
+            q.meta.language = normalizeAdminBookLanguage(options.language);
+            q._languageManual = Boolean(q.meta.language);
+            q._languageHint = 'Langue reprise de l’ouvrage existant — modifiable';
+        }
         queue.push(q);
         added.push(q);
         // Détecter dès l'ajout, tant que le choix manuel reste visible. L'ingestion attend
         // ce résultat et n'écrit jamais une langue vide dans D1 (où elle deviendrait « fr »).
-        q._languageDetectionPromise = detectBookLanguage(q);
+        // Lors d'un remplacement, la langue connue de l'ancien livre est déjà affichée et
+        // modifiable. Ne pas rescanner un grand PDF en parallèle de son extraction réelle.
+        q._languageDetectionPromise = q._languageManual ? Promise.resolve() : detectBookLanguage(q);
     }
     renderQueue();
     document.getElementById('actionBar').style.display = 'flex';
@@ -1046,6 +1053,21 @@ async function verifyQueuedBookIndex(id) {
 let _replaceOld = null;
 let _replaceQueueId = null;
 
+function showReplacementProgress(q, label, done = null, total = null) {
+    if (!q || q.id !== _replaceQueueId) return;
+    const box = document.getElementById('replaceProgress');
+    const text = document.getElementById('replaceProgressText');
+    const bar = document.getElementById('replaceProgressBar');
+    if (!box || !text || !bar) return;
+    box.hidden = false;
+    text.textContent = label;
+    if (Number.isFinite(done) && Number.isFinite(total) && total > 0) {
+        bar.value = Math.max(0, Math.min(100, Math.round(done / total * 100)));
+    } else {
+        bar.removeAttribute('value'); // progression indéterminée, pas de pourcentage inventé
+    }
+}
+
 function prepareReplaceTab() {
     const sel = document.getElementById('replaceOldBook');
     const books = window._libBooks || [];
@@ -1071,7 +1093,7 @@ document.getElementById('replaceFileInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file || !_replaceOld) return;
 
-    const [q] = addFiles([file]);
+    const [q] = addFiles([file], { language: _replaceOld.language });
     e.target.value = '';
     if (!q) {
         document.getElementById('replaceStatus').textContent = 'Ce fichier est déjà dans la file, ou son format n’est pas accepté. Retirez-le de la file avant de le sélectionner à nouveau.';
@@ -1099,6 +1121,10 @@ document.getElementById('replaceFileInput').addEventListener('change', (e) => {
                 <button class="btn-sm" onclick="previewExtraction('${q.id}')">Aperçu (rien n'est écrit)</button>
                 <button class="btn btn-primary" id="replaceIngestButton" onclick="replaceIngestNew()">Remplacer l'ouvrage après vérification</button>
             </div>
+            <div id="replaceProgress" role="status" aria-live="polite" hidden style="margin-top:12px;">
+                <div id="replaceProgressText" style="margin-bottom:6px;"></div>
+                <progress id="replaceProgressBar" max="100" style="width:100%;height:12px;"></progress>
+            </div>
             <div id="qpv-${q.id}"></div>
         </div><div id="replaceResult" style="margin-top:12px;"></div>`;
     q._languageDetectionPromise.then(() => {
@@ -1115,6 +1141,8 @@ async function replaceIngestNew() {
         return;
     }
     if (button) button.disabled = true;
+    const active = queue.find(x => x.id === _replaceQueueId);
+    showReplacementProgress(active, 'Préparation de la nouvelle extraction…');
     try {
         await startIngestion(_replaceQueueId); // Même circuit, limité à cette nouvelle extraction.
     } finally {
@@ -1128,6 +1156,7 @@ async function replaceIngestNew() {
         resultEl.innerHTML = `Nouvelle extraction écrite, mais sa disponibilité n'est pas encore confirmée. L'ancien livre est conservé.
             <button class="btn-sm" onclick="verifyQueuedBookIndex('${q.id}')">Revérifier puis terminer le remplacement</button>`;
     } else {
+        showReplacementProgress(q, 'Remplacement interrompu : ' + (q.error || q.status));
         resultEl.innerHTML = `<div style="padding:12px;background:#fdf0ee;border:1px solid #f0cfc8;border-radius:8px;font-size:13px;color:#A32C2C;">
             Remplacement non terminé (${escHtml(q.error || 'statut : ' + q.status)}). L'ancien livre est conservé.
         </div>`;
@@ -1139,6 +1168,7 @@ async function finishReplacement(q) {
     q._replacementFinalizing = true;
     const resultEl = q.id === _replaceQueueId ? document.getElementById('replaceResult') : null;
     if (resultEl) resultEl.textContent = 'Nouvelle extraction vérifiée. Suppression de l’ancienne version en cours…';
+    showReplacementProgress(q, 'Nouvelle extraction vérifiée. Suppression de l’ancienne version…');
     try {
         const res = await fetch(getWorkerUrl() + '/delete-book', {
             method: 'POST',
@@ -1152,6 +1182,7 @@ async function finishReplacement(q) {
                 : data.error || `HTTP ${res.status}`);
         }
         q._replacementFinalized = true;
+        showReplacementProgress(q, 'Remplacement terminé.', 1, 1);
         if (resultEl) resultEl.innerHTML = `<div style="padding:12px;background:#f0f5f0;border:1px solid #cde0cd;border-radius:8px;font-size:13px;">
             Remplacement terminé : nouvelle extraction vérifiée (${q.chunks.length} passages), ancienne version supprimée.</div>`;
         const button = document.getElementById('replaceIngestButton');
@@ -1383,11 +1414,13 @@ async function extractPDFText(file, progressCb, logFn) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const numPages = pdf.numPages;
+    if (progressCb) progressCb(0, 0, numPages, 'document ouvert');
     let allText = '';
     const pages = [];
     let ocrPagesCount = 0;
 
     for (let i = 1; i <= numPages; i++) {
+        if (progressCb) progressCb(Math.round(((i - 1) / numPages) * 100), i, numPages, 'en cours');
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
         let pageText = content.items.map(item => item.str).join(' ');
@@ -1410,7 +1443,7 @@ async function extractPDFText(file, progressCb, logFn) {
             pages.push({ page: i, text: pageText.trim(), source });
         }
         allText += pageText + '\n\n';
-        if (progressCb) progressCb(Math.round((i / numPages) * 100));
+        if (progressCb) progressCb(Math.round((i / numPages) * 100), i, numPages, 'traitée');
     }
 
     return { pages, fullText: allText, numPages, ocrPagesCount };
@@ -1822,6 +1855,7 @@ async function startIngestion(onlyQueueId = null) {
 
     for (const q of toProcess) {
         try {
+            showReplacementProgress(q, 'Vérification de la langue de l’ouvrage…');
             if (q._languageDetectionPromise) await q._languageDetectionPromise;
             if (!normalizeAdminBookLanguage(q.meta.language)) {
                 q.status = 'pending';
@@ -1845,6 +1879,7 @@ async function startIngestion(onlyQueueId = null) {
             // pour ce livre (capturée par le catch englobant, qui marque déjà le livre en
             // erreur — jamais un faux succès ni un faux repli silencieux).
             if (q._dupAction !== 'overwrite') {
+                showReplacementProgress(q, 'Vérification de la bibliothèque avant écriture…');
                 log('  Vérification doublon : ' + q.meta.book_id + '...');
                 let statsRes;
                 try {
@@ -1926,6 +1961,7 @@ async function startIngestion(onlyQueueId = null) {
             // Phase 1: Extract
             q.status = 'extracting';
             renderQueue();
+            showReplacementProgress(q, 'Extraction du texte en cours…');
             log(`Extraction: ${q.meta.title}...`);
 
             let pages, numPages;
@@ -1933,6 +1969,7 @@ async function startIngestion(onlyQueueId = null) {
                 const result = await extractHTMLText(q.file, pct => {
                     const bar = document.getElementById('qp-' + q.id);
                     if (bar) bar.style.width = pct + '%';
+                    showReplacementProgress(q, `Extraction HTML : ${Math.round(pct)} %`, pct, 100);
                 });
                 pages = result.pages;
                 numPages = result.numPages;
@@ -1946,14 +1983,20 @@ async function startIngestion(onlyQueueId = null) {
                 const result = q._epubExtraction || await extractEPUBText(q.file, pct => {
                     const bar = document.getElementById('qp-' + q.id);
                     if (bar) bar.style.width = pct + '%';
+                    showReplacementProgress(q, `Extraction EPUB : ${Math.round(pct)} %`, pct, 100);
                 });
                 pages = result.pages;
                 numPages = result.numPages;
             } else {
-                const result = await extractPDFText(q.file, pct => {
+                const result = await extractPDFText(q.file, (pct, page, total, stage) => {
                     const bar = document.getElementById('qp-' + q.id);
                     if (bar) bar.style.width = pct + '%';
-                }, msg => log('  ' + msg));
+                    const detail = total ? (page ? `page ${page}/${total} ${stage}` : `${total} pages détectées`) : 'texte en cours';
+                    showReplacementProgress(q, `Extraction PDF : ${detail} — ${Math.round(pct)} %`, pct, 100);
+                }, msg => {
+                    log('  ' + msg);
+                    showReplacementProgress(q, 'Extraction PDF / OCR : ' + msg);
+                });
                 pages = result.pages;
                 numPages = result.numPages;
                 if (result.ocrPagesCount > 0) {
@@ -1978,6 +2021,7 @@ async function startIngestion(onlyQueueId = null) {
 
             // Phase 2: Chunk
             q.chunks = chunkPages(pages);
+            showReplacementProgress(q, `${q.chunks.length} passages préparés. Indexation en cours…`, 0, q.chunks.length);
             const avgWords = Math.round(q.chunks.reduce((s, c) => s + c.content.split(/\s+/).length, 0) / q.chunks.length);
             log(`  ${q.chunks.length} chunks (${numPages} pages, ~${avgWords} mots/chunk)`);
 
@@ -2032,6 +2076,7 @@ async function startIngestion(onlyQueueId = null) {
                 totalSent += batch.length;
                 const bar = document.getElementById('qp-' + q.id);
                 if (bar) bar.style.width = Math.round((totalSent / q.chunks.length) * 100) + '%';
+                showReplacementProgress(q, `Indexation : ${totalSent} / ${q.chunks.length} passages envoyés`, totalSent, q.chunks.length);
             }
 
             if (d1Written < q.chunks.length || vecWritten < q.chunks.length) {
@@ -2043,6 +2088,7 @@ async function startIngestion(onlyQueueId = null) {
                 q._acceptedVectorChunks = vecWritten;
                 q.status = 'verifying';
                 renderQueue();
+                showReplacementProgress(q, 'Passages envoyés. Vérification D1 et recherche vectorielle…');
                 const result = await verifyBookIndexWithRetries(q);
                 q._verifyInfo = result;
                 if (result?.status === 'ready') {
