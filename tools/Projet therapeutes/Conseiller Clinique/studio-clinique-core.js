@@ -9835,7 +9835,7 @@ ${recent}`;
       // exact du <details>/<summary> "Espacements et bordures" juste en dessous, déjà de ce lot.
       // Les actions IA (Réécrire/Raccourcir/…) vivent dans .cc-block-edit-controls, EN DEHORS de
       // ce bloc et donc jamais affectées par ce repli.
-      '<details class="cc-editor-text-format"><summary>Texte et mise en forme</summary><div class="cc-editor-row">' + button('undo','Annuler') + button('redo','Rétablir') +
+      '<details class="cc-editor-text-format"><summary>Texte et mise en forme</summary><div class="cc-editor-row">' +
       '<label>Appliquer à<select data-editor-scope><option value="block">Tout le bloc</option><option value="selection">Texte sélectionné</option><option value="cell">Cellule active</option></select></label></div>' +
       // LISTE FERMÉE — <select> et non plus <input>+<datalist>. La datalist ne donnait que des
       // SUGGESTIONS : le champ restait du texte libre, donc une faute de frappe produisait une police
@@ -10066,30 +10066,54 @@ ${recent}`;
     const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); adocEditorRememberSelection();
   }
   function adocEditorSnapshot() {
-    const ctx = adocEditorContext(); if (!ctx) return null;
+    const ctx = adocEditorContext();
+    const art = ctx ? ctx.art : adocEditorArt();
+    if (!art) return null;
     adocEditorSync();
-    const clone = document.getElementById('cc-ws-doc-card').cloneNode(true); clone.querySelectorAll('.cc-block-edit-panel').forEach(function (p) {p.remove();});
-    return {html:clone.innerHTML, doc:ctx.art._adocStructuredDoc ? JSON.parse(JSON.stringify(ctx.art._adocStructuredDoc)) : null, source:ctx.art.html, id:ctx.legacy ? ctx.el.getAttribute('data-cc-legacy-block-id') : ctx.el.id};
+    const root = document.getElementById('cc-ws-doc-card'); if (!root) return null;
+    const clone = root.cloneNode(true); clone.querySelectorAll('.cc-block-edit-panel').forEach(function (p) {p.remove();});
+    return {html:clone.innerHTML, doc:art._adocStructuredDoc ? JSON.parse(JSON.stringify(art._adocStructuredDoc)) : null,
+      source:art.html, id:ctx ? (ctx.legacy ? ctx.el.getAttribute('data-cc-legacy-block-id') : ctx.el.id) : null,
+      zone:ctx && ctx.st.zone};
+  }
+  function adocRefreshHistoryButtons() {
+    const h = adocEditorArt()?._ccEditorHistory;
+    const undo = document.getElementById('cc-ws-undo-btn');
+    const redo = document.getElementById('cc-ws-redo-btn');
+    if (undo) undo.disabled = !(h && h.undo.length);
+    if (redo) redo.disabled = !(h && h.redo.length);
+    document.querySelectorAll('.cc-block-edit-panel .cc-block-edit-undo').forEach(function (button) {
+      button.hidden = !(h && h.undo.length);
+    });
   }
   function adocEditorCheckpoint() {
     const ctx = adocEditorContext(); if (!ctx) return;
     const snap = adocEditorSnapshot(); const h = ctx.art._ccEditorHistory || (ctx.art._ccEditorHistory = {undo:[],redo:[]});
     if (!h.undo.length || h.undo[h.undo.length-1].html !== snap.html) { h.undo.push(snap); if(h.undo.length > 50) h.undo.shift(); }
     h.redo = [];
+    adocRefreshHistoryButtons();
     adocEditorMarkDirty();
   }
   function adocEditorHistory(redo) {
-    const ctx = adocEditorContext(); if (!ctx) return; const h = ctx.art._ccEditorHistory; if (!h) return;
+    const art = adocEditorArt(); if (!art) return;
+    const h = art._ccEditorHistory; if (!h) return;
     const from = redo ? h.redo : h.undo, to = redo ? h.undo : h.redo; if (!from.length) return;
-    to.push(adocEditorSnapshot()); const snap = from.pop();
-    if (snap.doc) ctx.art._adocStructuredDoc = snap.doc; else ctx.art.html = snap.source;
+    const current = adocEditorSnapshot(); if (!current) return;
+    to.push(current); const snap = from.pop();
+    if (snap.doc) art._adocStructuredDoc = snap.doc; else art.html = snap.source;
     adocWsClearBlockSelection(); adocWsClearLegacyBlockSelection();
     const root = document.getElementById('cc-ws-doc-card'); root.innerHTML = snap.html;
-    adocWsSetupBlockEditing(ctx.art); adocWsSetupLegacyBlockEditing(ctx.art);
-    const el = snap.doc ? document.getElementById(snap.id) : root.querySelector('[data-cc-legacy-block-id="' + snap.id + '"]');
+    adocWsSetupBlockEditing(art); adocWsSetupLegacyBlockEditing(art);
+    const el = snap.doc ? (snap.zone === 'doc-cover' ? root.querySelector('.adoc-sc-cover') :
+      snap.zone === 'cover' ? root.querySelector('#' + CSS.escape(snap.id) + ' > .adoc-sc-card-img') :
+      snap.id ? document.getElementById(snap.id) : null) :
+      snap.id ? root.querySelector('[data-cc-legacy-block-id="' + snap.id + '"]') : null;
     if (el) { el.click(); adocEditorFocus(el.querySelector('[data-cc-editor-leaf]'), true); }
     adocEditorSync(); adocEditorMarkDirty();
+    adocRefreshHistoryButtons();
   }
+  window.adocWsUndo = function () { adocEditorHistory(false); };
+  window.adocWsRedo = function () { adocEditorHistory(true); };
   function adocEditorApplyStyle(field, value) {
     const ctx = adocEditorContext(); if (!ctx) return;
     const scope = ctx.st.panelEl.querySelector('[data-editor-scope]').value;
@@ -17119,6 +17143,7 @@ ${recent}`;
     wsDocCardEl.innerHTML = renderedHtml;
     adocWsSetupBlockEditing(art); // UX-11 — sélection/correction ciblée d'un bloc, uniquement si blockEditing est vrai
     adocWsSetupLegacyBlockEditing(art); // Phase 1 (monobloc) — équivalent pour un document HTML libre de l'ancien moteur, uniquement si legacyBlockEditing est vrai
+    adocRefreshHistoryButtons();
     adocWsRenderSources(snapshot);
     adocRenderDocs(); // Documents joints — même rendu partagé que le reste de l'app (aucune divergence)
     if (!options || !options.preserveLibrarySearch) {
@@ -20973,7 +20998,9 @@ ${recent}`;
     else if (window._adocLegacyBlockEditState.storeKey) adocWsClearLegacyBlockSelection();
   };
   function adocBlockEditPanelHeaderHTML(previewText) {
+    const h = adocEditorArt()?._ccEditorHistory;
     return '<div class="cc-block-edit-target">' +
+      '<button type="button" class="cc-block-edit-undo" title="Annuler la dernière modification" aria-label="Annuler la dernière modification" onclick="event.stopPropagation();window.adocWsUndo()"' + (h && h.undo.length ? '' : ' hidden') + '>↶ Annuler</button>' +
       '<button type="button" class="cc-block-edit-close" aria-label="Fermer le panneau de correction" onclick="window.adocCloseBlockEditPanel()">×</button>' +
       'Bloc en cours d’édition : <strong>« ' + previewText + ' »</strong>' +
     '</div>';

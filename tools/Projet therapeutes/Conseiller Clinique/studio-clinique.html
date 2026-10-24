@@ -1970,6 +1970,8 @@
     #cc-ws-save-status, #cc-ws-transform-btn, #cc-ws-export-btn { margin-left: 10px; }
     #cc-ws-transform-btn:not([hidden]) ~ #cc-ws-export-btn { margin-left: 0; }
     .cc-ws-topbar-btn:hover, .cc-ws-topbar-btn:focus-visible { background: rgba(255,255,255,.22); }
+    .cc-ws-topbar-btn:disabled { opacity: .48; cursor: not-allowed; }
+    .cc-ws-topbar-btn.cc-ws-history-btn { padding: 5px 8px; font-size: 17px; line-height: 1; }
     /* UX-10A Étape 2 — bug découvert en testant #cc-ws-delete-btn : .cc-ws-topbar-btn fixe
        display:inline-flex avec la même spécificité que la règle UA [hidden]{display:none},
        et l'emporte dans la cascade (règle d'auteur après la feuille UA) — l'attribut hidden
@@ -2346,6 +2348,14 @@
       border: 1px solid var(--stone-300); border-radius: 50%; cursor: pointer;
     }
     .cc-block-edit-target .cc-block-edit-close:hover { color: var(--ink); border-color: var(--stone-400,var(--stone-300)); }
+    .cc-block-edit-target .cc-block-edit-undo {
+      order: 1; flex: 0 0 auto; margin-left: auto; padding: 2px 7px;
+      color: var(--petrol-700); background: var(--petrol-100); border: 1px solid var(--petrol-700);
+      border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer;
+    }
+    .cc-block-edit-target .cc-block-edit-undo:hover { background: var(--petrol-100); }
+    .cc-block-edit-target .cc-block-edit-undo[hidden] { display: none; }
+    .cc-block-edit-target .cc-block-edit-undo:not([hidden]) + .cc-block-edit-close { margin-left: 0; }
     .cc-block-edit-diff { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
     .cc-block-edit-label {
       font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
@@ -3819,6 +3829,8 @@
          comportement caché. "Non sauvegardé" tant qu'aucun clic n'a eu lieu ; aucun document
          n'existe côté serveur avant ce geste (confirmé par l'investigation UX-10A Étape 1). -->
     <span class="cc-ws-save-status unsaved" id="cc-ws-save-status">Non sauvegardé</span>
+    <button type="button" class="cc-ws-topbar-btn cc-ws-history-btn" id="cc-ws-undo-btn" onclick="window.adocWsUndo()" title="Annuler la dernière modification (⌘Z)" aria-label="Annuler la dernière modification" disabled>↶</button>
+    <button type="button" class="cc-ws-topbar-btn cc-ws-history-btn" id="cc-ws-redo-btn" onclick="window.adocWsRedo()" title="Rétablir la modification (⇧⌘Z)" aria-label="Rétablir la dernière modification" disabled>↷</button>
     <button type="button" class="cc-ws-topbar-btn" id="cc-ws-save-btn" onclick="window.adocWsSave()" aria-label="Sauvegarder le document">
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-cloud"></use></svg>
       <span>Sauvegarder</span>
