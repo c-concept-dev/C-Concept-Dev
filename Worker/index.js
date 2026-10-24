@@ -59601,20 +59601,61 @@ function splitLibraryTranslationSegments(content) {
   return segments;
 }
 __name(splitLibraryTranslationSegments, "splitLibraryTranslationSegments");
-async function translateLibrarySegment(env2, text, sourceLang, targetLang) {
-  if (!text.trim() || sourceLang.toLowerCase() === targetLang.toLowerCase()) return text;
-  if (!env2.AI) throw new Error("Workers AI indisponible");
-  const translated = await env2.AI.run("@cf/meta/m2m100-1.2b", { text, source_lang: sourceLang, target_lang: targetLang });
-  const result = translated?.translated_text;
-  if (typeof result !== "string" || !result.trim()) throw new Error("Empty translation");
+function splitDegenerateLibraryTranslation(text) {
+  const midpoint = Math.floor(text.length / 2);
+  const lower = Math.floor(text.length / 4), upper = Math.ceil(text.length * 3 / 4);
+  let cut = midpoint;
+  for (let distance = 0; distance <= midpoint; distance++) {
+    const before = midpoint - distance, after = midpoint + distance;
+    if (before >= lower && /\s/.test(text[before])) { cut = before + 1; break; }
+    if (after < upper && /\s/.test(text[after])) { cut = after + 1; break; }
+  }
+  if (cut > 0 && /[\uD800-\uDBFF]/.test(text[cut - 1])) cut--;
+  if (!text.slice(0, cut).trim() || !text.slice(cut).trim()) return null;
+  return [text.slice(0, cut), text.slice(cut)];
+}
+__name(splitDegenerateLibraryTranslation, "splitDegenerateLibraryTranslation");
+function assertLibraryTranslationNotDegenerate(result, sourceChars) {
+  // Repetition is not always verbatim: the model can also inflate a short
+  // source with varying filler that does not repeat an exact eight-word span.
+  if (result.length > Math.max(200, sourceChars * 2.5)) {
+    const error = new Error("Degenerate translation");
+    error.code = "DEGENERATE_TRANSLATION";
+    throw error;
+  }
   const words = result.toLowerCase().split(/\s+/), repetitions = new Map();
   for (let j = 0; j + 8 <= words.length; j++) {
     const phrase = words.slice(j, j + 8).join(" ");
     const count = (repetitions.get(phrase) || 0) + 1;
-    if (count >= 3) throw new Error("Degenerate translation");
+    if (count >= 3) {
+      const error = new Error("Degenerate translation");
+      error.code = "DEGENERATE_TRANSLATION";
+      throw error;
+    }
     repetitions.set(phrase, count);
   }
-  return result;
+}
+__name(assertLibraryTranslationNotDegenerate, "assertLibraryTranslationNotDegenerate");
+async function translateLibrarySegment(env2, text, sourceLang, targetLang, fallbackDepth = 0) {
+  if (!text.trim() || sourceLang.toLowerCase() === targetLang.toLowerCase()) return text;
+  if (!env2.AI) throw new Error("Workers AI indisponible");
+  try {
+    const translated = await env2.AI.run("@cf/meta/m2m100-1.2b", { text, source_lang: sourceLang, target_lang: targetLang });
+    const result = translated?.translated_text;
+    if (typeof result !== "string" || !result.trim()) throw new Error("Empty translation");
+    assertLibraryTranslationNotDegenerate(result, text.length);
+    return result;
+  } catch (error) {
+    if (error?.code !== "DEGENERATE_TRANSLATION" || fallbackDepth >= 2) throw error;
+    const parts = splitDegenerateLibraryTranslation(text);
+    if (!parts) throw error;
+    console.info("[LibraryTranslate] anti-degeneration fallback", { chars: text.length, depth: fallbackDepth + 1 });
+    const translatedParts = [];
+    for (const part of parts) translatedParts.push(await translateLibrarySegment(env2, part, sourceLang, targetLang, fallbackDepth + 1));
+    const combined = translatedParts.map(part => part.trim()).join(" ");
+    assertLibraryTranslationNotDegenerate(combined, text.length);
+    return combined;
+  }
 }
 __name(translateLibrarySegment, "translateLibrarySegment");
 async function handlePassageFull(request2, env2) {
