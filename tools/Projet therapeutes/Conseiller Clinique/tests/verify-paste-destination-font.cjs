@@ -10,7 +10,7 @@ const documentTest = {
   title: 'Essai du collage', purpose: 'supervision', audience: 'clinicien',
   documentKind: 'fiche', renderManifestId: 'manifest-default-001', derivedFrom: null,
   blocks: [{ id: 'paste-target', type: 'paragraph', content: { text: 'Début ' },
-    style: { fontFamily: 'Georgia', fontSizePt: 22 }, citationIds: [], validation: {} }],
+    style: { fontFamily: 'Georgia', fontSizePt: 22, lineHeight: 1.8 }, citationIds: [], validation: {} }],
   citations: [], validation: { sourceIntegrity: 'pending', contentCompleteness: 'pending',
     layout: 'pending', accessibility: 'pending', humanClinicalReview: 'required' },
 };
@@ -40,24 +40,26 @@ const documentTest = {
         range.selectNodeContents(target); range.collapse(false);
         selection.removeAllRanges(); selection.addRange(range);
         const clipboardData = new DataTransfer();
-        clipboardData.setData('text/html', '<p><span style="font-family:Arial;font-size:40pt;font-weight:bold">Texte Word</span></p>');
+        clipboardData.setData('text/html', '<p><span style="font-family:Arial;font-size:40pt;font-weight:bold;color:red;line-height:3;background:yellow">Texte Word</span></p>');
         clipboardData.setData('text/plain', 'Texte Word');
         target.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData }));
       });
       const result = await page.evaluate(() => {
         const target = document.querySelector('#paste-target [data-cc-editor-leaf]');
-        const word = Array.from(target.querySelectorAll('*')).filter(el => el.textContent === 'Texte Word').at(-1);
         const block = window._adocArtifacts.adocArt_paste._adocStructuredDoc.blocks[0];
-        return { html: target.innerHTML, font: getComputedStyle(word).fontFamily,
-          size: getComputedStyle(word).fontSize, weight: getComputedStyle(word).fontWeight,
+        return { html: target.innerHTML, font: getComputedStyle(target).fontFamily,
+          size: getComputedStyle(target).fontSize, weight: getComputedStyle(target).fontWeight,
+          lineHeight: getComputedStyle(target).lineHeight, color: getComputedStyle(target).color,
           saved: block.editor?.html?.text || '' };
       });
       assert.match(result.font, /Georgia/);
       assert.ok(Math.abs(parseFloat(result.size) - 29.3333) < 0.01);
-      assert.ok(Number(result.weight) >= 700);
-      assert.doesNotMatch(result.html, /Arial|40pt|font-size/i);
-      assert.doesNotMatch(result.saved, /Arial|40pt|font-size/i);
-      console.log(engine.name() + ': collage Word harmonisé, gras conservé, texte persisté');
+      assert.ok(Number(result.weight) < 700);
+      assert.ok(Math.abs(parseFloat(result.lineHeight) / parseFloat(result.size) - 1.8) < 0.01);
+      assert.notEqual(result.color, 'rgb(255, 0, 0)');
+      assert.doesNotMatch(result.html, /Arial|40pt|font-size|font-weight|line-height|background|red/i);
+      assert.doesNotMatch(result.saved, /Arial|40pt|font-size|font-weight|line-height|background|red/i);
+      console.log(engine.name() + ': collage Word entièrement harmonisé, texte persisté');
     } finally { await browser.close(); }
   }
 })().catch(err => { console.error(err); process.exitCode = 1; });

@@ -11783,7 +11783,8 @@ ${recent}`;
     lr.addEventListener('paste',function(e){
       const leaf=e.target.closest('[data-cc-editor-leaf]');if(!leaf)return;e.preventDefault();adocEditorCheckpoint();
       const sel=window.getSelection();if(!sel.rangeCount)return;const range=sel.getRangeAt(0);if(!leaf.contains(range.commonAncestorContainer))return;
-      // Preserve rich inline text; block/list/table structures cannot escape the active host.
+      // Le texte collé prend intégralement la mise en forme du point d'insertion.
+      // Les structures de bloc/liste/tableau ne peuvent pas sortir de l'hôte actif.
       const html=e.clipboardData.getData('text/html'),text=e.clipboardData.getData('text/plain');
       const cell=leaf.closest('td,th');
       if(cell && text.includes('\t')) {
@@ -11795,15 +11796,8 @@ ${recent}`;
         Array.from(table.rows).forEach((tr,r)=>{while(tr.cells.length<width){const n=document.createElement(r===0?'th':'td');n.appendChild(adocEditorNewLeaf(''));tr.appendChild(n);}});
         values.forEach((row,r)=>row.forEach((value,c)=>{table.rows[startRow+r].cells[startCol+c].querySelector('[data-cc-editor-leaf]').textContent=value;}));adocEditorSync();return;
       }
-      const clean=html?adocEditorCleanHTML(html):adocEsc(text).replace(/\r?\n/g,'<br>');
-      const fragment=range.createContextualFragment(clean);
-      // Un collage Word ou issu d'un autre document garde le gras et l'italique, mais
-      // hérite toujours de la police et de la taille du bloc dans lequel on colle.
-      fragment.querySelectorAll('[style]').forEach(function(node){
-        node.style.removeProperty('font-family');
-        node.style.removeProperty('font-size');
-        if(!node.style.length)node.removeAttribute('style');
-      });
+      const plain=text || (html ? adocEditorPlain(adocEditorCleanHTML(html)) : '');
+      const fragment=range.createContextualFragment(adocEsc(plain).replace(/\r\n?|\n/g,'<br>'));
       const last=fragment.lastChild;range.deleteContents();range.insertNode(fragment);
       if(last){range.setStartAfter(last);range.collapse(true);sel.removeAllRanges();sel.addRange(range);}adocEditorSync();
     });
