@@ -13513,7 +13513,9 @@ ${recent}`;
       }
       case 'callout': {
         const calloutLayer = adocBlockOpacityLayerHTML(b.style);
-        const calloutCombinedCSS = calloutLayer.outerStyle + extraCSS + nestedPosCSS;
+        const calloutCenterCSS = b.style && Number.isFinite(b.style.flowMinHeightPx)
+          ? 'display:flex;flex-direction:column;justify-content:center;' : '';
+        const calloutCombinedCSS = calloutLayer.outerStyle + extraCSS + nestedPosCSS + calloutCenterCSS;
         const calloutStyleAttr = calloutCombinedCSS ? ' style="' + adocEsc(calloutCombinedCSS) + '"' : '';
         return '<div class="adoc-sc-block adoc-sc-callout adoc-sc-callout-' + adocEsc(b.content.visualRole) + statusClass + '" id="' + adocEsc(b.id) + '"' + calloutStyleAttr + ' role="note">' + calloutLayer.overlay + calloutLayer.wrapOpen + adocDeepDiveTextHTML(b, 'text', b.content.text, deepDiveLinksActive.slice()) + cites + deepDiveChips + calloutLayer.wrapClose + dragHandle + nestedResizeHandle + '</div>';
       }
@@ -21605,7 +21607,7 @@ ${recent}`;
         if (direction.includes('n') || direction.includes('s')) {
           style.flowMinHeightPx = height;
           blockEl.style.minHeight = height + 'px';
-          if (block.type === 'quote') {
+          if (block.type === 'quote' || block.type === 'callout') {
             blockEl.style.display = 'flex';
             blockEl.style.flexDirection = 'column';
             blockEl.style.justifyContent = 'center';

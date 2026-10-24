@@ -14,6 +14,10 @@ const documentTest = {
       style: { backgroundColor: '#eee2de', flowMinHeightPx: 320 }, citationIds: [], validation: {} },
     { id: 'quote-default', type: 'quote', content: { text: 'Une citation ordinaire.' },
       citationIds: [], validation: {} },
+    { id: 'callout-enlarged', type: 'callout', content: { text: 'Un encadré coloré.', visualRole: 'warning' },
+      style: { backgroundColor: '#eee2de', flowMinHeightPx: 320 }, citationIds: [], validation: {} },
+    { id: 'callout-default', type: 'callout', content: { text: 'Un encadré ordinaire.', visualRole: 'info' },
+      citationIds: [], validation: {} },
   ],
   citations: [], validation: { sourceIntegrity: 'pending', contentCompleteness: 'pending',
     layout: 'pending', accessibility: 'pending', humanClinicalReview: 'required' },
@@ -49,6 +53,18 @@ const documentTest = {
       assert.notEqual(result.normalDisplay, 'flex');
       assert.doesNotMatch(result.normalStyle, /justify-content/);
       assert.equal(result.text, 'Une citation sur deux lignes.');
+      const calloutResult = await page.evaluate(() => {
+        const block = document.getElementById('callout-enlarged');
+        const text = block.querySelector('[data-cc-editor-leaf]');
+        const normal = document.getElementById('callout-default');
+        const box = block.getBoundingClientRect(), content = text.getBoundingClientRect();
+        return { height: box.height, gapTop: content.top - box.top, gapBottom: box.bottom - content.bottom,
+          display: getComputedStyle(block).display, normalDisplay: getComputedStyle(normal).display };
+      });
+      assert.ok(calloutResult.height >= 320);
+      assert.ok(Math.abs(calloutResult.gapTop - calloutResult.gapBottom) < 18, JSON.stringify(calloutResult));
+      assert.equal(calloutResult.display, 'flex');
+      assert.notEqual(calloutResult.normalDisplay, 'flex');
       const presentation = structuredClone(documentTest);
       presentation.documentKind = 'presentation';
       presentation.blocks = [{ id: 'quote-card', type: 'card', content: {
@@ -65,7 +81,7 @@ const documentTest = {
         return { gapTop: content.top - box.top, gapBottom: box.bottom - content.bottom };
       });
       assert.ok(Math.abs(inSlide.gapTop - inSlide.gapBottom) < 18, JSON.stringify(inSlide));
-      console.log(engine.name() + ': citation agrandie centrée en fiche et présentation, citation ordinaire inchangée');
+      console.log(engine.name() + ': citation et encadré agrandis centrés en fiche et présentation, blocs ordinaires inchangés');
     } finally { await browser.close(); }
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });
