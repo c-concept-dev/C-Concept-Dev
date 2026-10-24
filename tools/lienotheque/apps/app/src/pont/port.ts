@@ -101,6 +101,10 @@ export type PortAdministration = {
   readonly enregistrerManiere: (racine: string, recette: unknown) => Promise<string>;
   readonly lireManiere: (racine: string) => Promise<Recette | undefined>;
 
+  /** Relire localement une page reconnue par OCR, sans réécrire la version conservée. Le Lecteur
+   *  s'en sert pour ne pas propager à l'écran un ordre de colonnes manifestement abîmé. */
+  readonly relireTexteDePage: (racine: string, version: string, fichier: string, langue: string) => Promise<string | undefined>;
+
   /** Les décisions de Vérifier vivent dans la bibliothèque, pas dans la page (UX-03, SYN-07). */
   readonly lireDecisions: (racine: string, empreinte: string) => Promise<ReadonlyMap<string, DecisionVerification>>;
   readonly enregistrerDecision: (
@@ -155,6 +159,7 @@ export const NOMS_D_ADMINISTRATION = [
   "essayerManiere",
   "enregistrerManiere",
   "lireManiere",
+  "relireTexteDePage",
   "lireDecisions",
   "enregistrerDecision",
   "annulerDecision",

@@ -101,6 +101,41 @@ describe("Catalogue : en-tête (CLA-10, UX-01)", () => {
     expect(ajouter).toHaveBeenCalledOnce();
   });
 
+  it("compte la bibliothèque entière, pas le seul document ouvert", () => {
+    const documents = [
+      {
+        empreinte: "b".repeat(64),
+        version: ID(30),
+        activeeLe: 1,
+        nom: "Premier",
+        compteurs: [{ nombre: 12, mot: "passages lus" }],
+        aVerifier: 0,
+      },
+      {
+        empreinte: "c".repeat(64),
+        version: ID(31),
+        activeeLe: 1,
+        nom: "Deuxième",
+        compteurs: [{ nombre: 8, mot: "passages lus" }],
+        aVerifier: 0,
+      },
+    ];
+    render(
+      <Catalogue
+        vue={VueBibliotheque.parse({ ...VUE, compteurs: [{ nombre: 0, mot: "éléments" }, { nombre: 0, mot: "liens" }] })}
+        documents={documents}
+        onPage={vi.fn()}
+        onLecteur={vi.fn()}
+        onAjouter={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("2 documents")).toBeInTheDocument();
+    expect(screen.getByText("20 passages lus")).toBeInTheDocument();
+    expect(screen.queryByText("0 éléments")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 liens")).not.toBeInTheDocument();
+  });
+
   it("mène à Vérifier quand il reste des cas", () => {
     poser();
     expect(screen.getByRole("link", { name: /2 à vérifier/i })).toHaveAttribute("href", "#verifier");

@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type JSX, type KeyboardEve
 import type { Passage, VueBibliotheque } from "@lienotheque/contrats";
 import { aLaFile, chercher, morceler, type Action, type GenreResultat, type Resultat } from "@lienotheque/noyau";
 import { Bouton, Icone, type NomIcone } from "../composants/index.js";
+import { imageAffichable } from "../image-affichable.js";
 import "./Recherche.css";
 
 /** Recherche ⌘K (maquette 5, RCH, UX-02, UX-06).
@@ -255,16 +256,20 @@ function Apercu({
 }): JSX.Element {
   const page = vue.pages.find((candidate) => candidate.index === resultat.page);
   const element = page?.elements.find((candidate) => candidate.ancreId === resultat.element);
+  // Sur le bureau, `/donnees/pages/...` est un repère pour l'hôte, pas une URL du WebView.
+  // Le Lecteur le remplace par une data URL à la demande ; la recherche attend cette adresse
+  // réellement servie au lieu d'afficher une image cassée.
+  const image = imageAffichable(page?.image, false);
 
   return (
     <>
       <div className="ln-chercher__page">
-        {page?.image === undefined ? (
+        {image === undefined ? (
           <p className="ln-muted">
             Cette {vue.mots.page.un} n’a pas encore d’image&nbsp;: le traitement ne l’a pas produite.
           </p>
         ) : (
-          <img src={page.image} alt={`${vue.mots.page.un} ${page.numero}`} />
+          <img src={image} alt={`${vue.mots.page.un} ${page?.numero ?? page?.index ?? resultat.page}`} />
         )}
       </div>
       <div>

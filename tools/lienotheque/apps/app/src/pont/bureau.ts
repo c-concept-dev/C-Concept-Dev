@@ -325,6 +325,17 @@ export async function imageDePage(racine: string, version: string, fichier: stri
   return (await invoke<string | null>("image_de_page", { racine, version, fichier })) ?? undefined;
 }
 
+/** Relit une seule image avec le moteur embarqué. Rien n'est écrit : c'est une correction de
+ * lecture dans le Lecteur, limitée aux pages dont le passage conservé vient déjà de l'OCR. */
+export async function relireTexteDePage(
+  racine: string,
+  version: string,
+  fichier: string,
+  langue: string,
+): Promise<string | undefined> {
+  return (await invoke<string | null>("relire_texte_page", { racine, version, fichier, langue })) ?? undefined;
+}
+
 /** Le pont du bureau remplit **les deux** ports.
  *
  *  Rien n'est réécrit : les fonctions ci-dessus sont rassemblées telles quelles, et le typage
@@ -376,6 +387,7 @@ export const administrationDuBureau: PortAdministration = {
   essayerManiere,
   enregistrerManiere,
   lireManiere,
+  relireTexteDePage,
   lireDecisions,
   enregistrerDecision,
   annulerDecision,

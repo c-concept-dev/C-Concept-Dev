@@ -56,6 +56,57 @@ const ACTIVE: &str = "active.json";
 /// fois, et un verrou par racine coûterait une table de verrous pour un gain nul.
 static VERROU_ACTIVES: std::sync::Mutex<()> = std::sync::Mutex::new(());
 static VERROU_DECISIONS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Déplace une entrée à la corbeille. La fonction de renommage est injectée pour pouvoir éprouver
+/// le cas EXDEV sans dépendre de la façon dont la machine de test monte ses volumes.
+fn deplacer_avec_repli<F>(source: &Path, destination: &Path, renommer: F) -> io::Result<()>
+where
+    F: FnOnce(&Path, &Path) -> io::Result<()>,
+{
+    match renommer(source, destination) {
+        Ok(()) => Ok(()),
+        Err(erreur) if erreur.kind() == io::ErrorKind::CrossesDevices || erreur.raw_os_error() == Some(18) => {
+            if let Err(cause) = copier_entree(source, destination) {
+                retirer_entree(destination).ok();
+                return Err(cause);
+            }
+            // La copie est entière avant le premier geste sur l'original. Si le retrait échoue,
+            // on garde la copie : mieux vaut un doublon récupérable qu'une moitié perdue.
+            retirer_entree(source)
+        }
+        Err(erreur) => Err(erreur),
+    }
+}
+
+fn copier_entree(source: &Path, destination: &Path) -> io::Result<()> {
+    let nature = fs::symlink_metadata(source)?;
+    if nature.is_dir() {
+        fs::create_dir(destination)?;
+        for entree in fs::read_dir(source)? {
+            let entree = entree?;
+            copier_entree(&entree.path(), &destination.join(entree.file_name()))?;
+        }
+        fs::set_permissions(destination, nature.permissions())?;
+        return Ok(());
+    }
+    if nature.is_file() {
+        fs::copy(source, destination)?;
+        return Ok(());
+    }
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        format!("Entrée impossible à copier vers la corbeille : {}", source.display()),
+    ))
+}
+
+fn retirer_entree(chemin: &Path) -> io::Result<()> {
+    match fs::symlink_metadata(chemin) {
+        Ok(nature) if nature.is_dir() => fs::remove_dir_all(chemin),
+        Ok(_) => fs::remove_file(chemin),
+        Err(erreur) if erreur.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(erreur) => Err(erreur),
+    }
+}
 /// La table des versions actives, une entrée par document.
 const ACTIVES: &str = "actives.json";
 /// Le classement des documents, par empreinte. Même forme et mêmes raisons que la table
@@ -370,7 +421,7 @@ impl Depot {
                     vise = corbeille.join(format!("{rang} {nom}"));
                     rang += 1;
                 }
-                fs::rename(&chemin, &vise)?;
+                deplacer_avec_repli(&chemin, &vise, |de, vers| fs::rename(de, vers))?;
                 jetee = Some(vise);
             }
         }
@@ -420,7 +471,7 @@ impl Depot {
             rang += 1;
         }
 
-        fs::rename(&self.racine, &vise)?;
+        deplacer_avec_repli(&self.racine, &vise, |de, vers| fs::rename(de, vers))?;
         Ok(vise)
     }
 
@@ -739,6 +790,29 @@ mod tests {
         assert!(jetee.join(BASE).join(DESCRIPTION).exists(), "la description devrait avoir suivi");
         assert!(jetee.join(SOURCES).join("un-document.pdf").exists(), "les documents aussi");
         fs::remove_dir_all(&jetee).ok();
+    }
+
+    /// Un renommage ne traverse pas deux volumes (EXDEV). La corbeille du compte est sur le
+    /// disque système, alors qu'une bibliothèque peut vivre sur un disque externe : elle doit
+    /// être copiée entièrement avant que l'original disparaisse.
+    #[test]
+    fn une_bibliotheque_sur_un_autre_volume_est_copiee_puis_retiree() {
+        let source = std::env::temp_dir().join(format!("lienotheque-exdev-source-{}", std::process::id()));
+        let destination = std::env::temp_dir().join(format!("lienotheque-exdev-destination-{}", std::process::id()));
+        fs::remove_dir_all(&source).ok();
+        fs::remove_dir_all(&destination).ok();
+        fs::create_dir_all(source.join("base")).expect("source");
+        fs::write(source.join("base").join("bibliotheque.json"), b"description").expect("fichier");
+
+        deplacer_avec_repli(&source, &destination, |_de, _vers| Err(io::Error::from_raw_os_error(18)))
+            .expect("le repli copie puis retire");
+
+        assert!(!source.exists(), "l'original ne part qu'après la copie complète");
+        assert_eq!(
+            fs::read(destination.join("base").join("bibliotheque.json")).expect("copie"),
+            b"description"
+        );
+        fs::remove_dir_all(&destination).ok();
     }
 
     /// Et elle refuse un dossier qui n'en porte pas : un chemin devenu faux n'emporte rien.

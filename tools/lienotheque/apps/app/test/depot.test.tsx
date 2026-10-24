@@ -147,7 +147,13 @@ describe("ce qui a mal tourné se dit, et mène quelque part (JOB-05, UX-03)", (
 
   it("se compte dans l'en-tête, pour qu'on le voie sans faire défiler", () => {
     poser({ travaux: [enPanne] });
-    expect(screen.getByText(/1 à vérifier/)).toBeInTheDocument();
+    expect(screen.getByText(/1 erreur/)).toBeInTheDocument();
+  });
+
+  it("ne marque pas prêt un travail terminé avec une erreur", () => {
+    poser({ travaux: [travail(1, { etat: "termine", progression: 1, erreur: { cause: "Résultat impossible à écrire", elements: [], reprisePossible: false } })] });
+    expect(screen.getByText("Terminé avec erreur")).toBeInTheDocument();
+    expect(screen.queryByText("Prêt")).not.toBeInTheDocument();
   });
 
   it("mène à Vérifier", async () => {
@@ -161,6 +167,19 @@ describe("ce qui a mal tourné se dit, et mène quelque part (JOB-05, UX-03)", (
   it("se reprend, puisque la reprise est possible", () => {
     poser({ travaux: [enPanne] });
     expect(screen.getByRole("button", { name: /Reprendre/ })).toBeInTheDocument();
+  });
+});
+
+describe("navigation d'une grande bibliothèque", () => {
+  it("rend Catalogue et Organisation accessibles sans connaître la palette de recherche", async () => {
+    const onCatalogue = vi.fn();
+    const onOrganisation = vi.fn();
+    poser({ onCatalogue, onOrganisation });
+
+    await userEvent.click(screen.getByRole("button", { name: "Catalogue" }));
+    await userEvent.click(screen.getByRole("button", { name: "Organisation" }));
+    expect(onCatalogue).toHaveBeenCalledTimes(1);
+    expect(onOrganisation).toHaveBeenCalledTimes(1);
   });
 });
 

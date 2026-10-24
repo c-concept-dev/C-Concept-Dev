@@ -8,6 +8,7 @@ import { PanneauEcoute, type Segment } from "./lecteur/PanneauEcoute.js";
 import { useEcoute } from "../ecoute/useEcoute.js";
 import { TextePage } from "./lecteur/TextePage.js";
 import { LEGENDE, actionDe, tempoSuivant } from "./lecteur/raccourcis.js";
+import { imageAffichable } from "../image-affichable.js";
 import "./Lecteur.css";
 
 /** Lecteur (B1 — UX-01, UX-02, ANC-03, ANC-05).
@@ -193,10 +194,10 @@ export function Lecteur({ vue, page, element, texteLu = false, onPage, onElement
                 >
                   {/* La vraie vignette quand l'ingestion en a produit une (OUT-04) ; la feuille
                       vide sinon — un lot sans dérivés garde une bande cliquable. */}
-                  {p.vignette === undefined ? (
+                  {imageAffichable(p.vignette) === undefined ? (
                     <span className="ln-vignettes__feuille" aria-hidden="true" />
                   ) : (
-                    <img className="ln-vignettes__feuille" src={p.vignette} alt="" loading="lazy" decoding="async" />
+                    <img className="ln-vignettes__feuille" src={imageAffichable(p.vignette)} alt="" loading="lazy" decoding="async" />
                   )}
                   <span className="ln-vignettes__numero ln-sur-photo">{p.numero}</span>
                   {p.elements.some((e) => e.media !== undefined) ? <span className="ln-vignettes__repere" aria-hidden="true" /> : null}

@@ -19,7 +19,7 @@ import { chargerPassages, chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
 import { journaliser } from "./pont/bureau.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
-import { pourLAccueil } from "./donnees/accueil.js";
+import { compteursDeBibliotheque, pourLAccueil } from "./donnees/accueil.js";
 import { Accueil } from "./pages/Accueil.js";
 import { Catalogue } from "./pages/Catalogue.js";
 import { Entrer } from "./pages/Entrer.js";
@@ -366,10 +366,20 @@ export function App(): JSX.Element {
 
     let vivant = true;
     if (regarde === undefined) return undefined;
+    const passageOcr = passages.find((passage) => passage.page === page.index && passage.source === "ocr");
     void lecture.versionActive(courante.racine, regarde)
-      .then(async (version) => (version === undefined ? undefined : lecture.imageDePage(courante.racine, version, fichier)))
-      .then((image) => {
-        if (!vivant || image === undefined) return;
+      .then(async (version) => {
+        if (version === undefined) return undefined;
+        const image = await lecture.imageDePage(courante.racine, version, fichier);
+        const langue = creees[creees.length - 1]?.description.schema?.langue ?? "fr";
+        const texte =
+          passageOcr === undefined || administration === undefined
+            ? undefined
+            : await administration.relireTexteDePage(courante.racine, version, fichier, langue).catch(() => undefined);
+        return { image, texte };
+      })
+      .then((relu) => {
+        if (!vivant || relu === undefined || (relu.image === undefined && relu.texte === undefined)) return;
         setVue((avant) =>
           avant === undefined
             ? avant
@@ -378,9 +388,23 @@ export function App(): JSX.Element {
                 // Par le rang, et jamais par le numéro imprimé : deux pages sans numéro le
                 // portent toutes deux à `undefined`, et `undefined === undefined` est vrai —
                 // l'image d'une page serait recopiée sur toutes les autres.
-                pages: avant.pages.map((autre) => (autre.index === page.index ? { ...autre, image } : autre)),
+                pages: avant.pages.map((autre) =>
+                  autre.index === page.index
+                    ? {
+                        ...autre,
+                        ...(relu.image === undefined ? {} : { image: relu.image }),
+                        ...(relu.texte === undefined ? {} : { texte: [relu.texte] }),
+                      }
+                    : autre,
+                ),
               },
         );
+        if (relu.texte !== undefined && passageOcr !== undefined)
+          setPassages((avant) =>
+            avant.map((passage) =>
+              passage.rang === passageOcr.rang ? { ...passage, texte: relu.texte ?? passage.texte } : passage,
+            ),
+          );
       })
       .catch(() => {
         // Une image qui manque n'empêche pas de lire : l'écran le dit déjà à sa façon.
@@ -388,7 +412,7 @@ export function App(): JSX.Element {
     return () => {
       vivant = false;
     };
-  }, [courante, route, vue]);
+  }, [courante, route, vue, passages, administration, lecture, creees]);
 
   /** Ce qui, dans la file, justifie de relire la bibliothèque.
    *
@@ -479,13 +503,39 @@ export function App(): JSX.Element {
       lecture.passagesDeDocument(courante.racine, regarde),
       decisionsLues,
     ])
-      .then(([lue, lus, dejaPrises]) => {
+      .then(async ([lue, lus, dejaPrises]) => {
         if (!vivant) return;
         setPassages(lus);
         if (lue !== undefined) {
-          setVue(lue);
+          // Les chemins `/donnees/pages/vignette-….webp` sont des repères du dépôt, pas des URL
+          // que le WebView de bureau peut ouvrir. Servir les petites vignettes par le même pont
+          // que la grande page évite une colonne entière d'images cassées. En ligne, les URL sont
+          // déjà servies et cette résolution locale n'a pas lieu.
+          let visible = lue;
+          if (administration !== undefined) {
+            const version = await lecture.versionActive(courante.racine, regarde);
+            if (version !== undefined) {
+              visible = {
+                ...lue,
+                pages: await Promise.all(
+                  lue.pages.map(async (page) => {
+                    const fichier = page.vignette?.split("/").pop();
+                    if (fichier === undefined) return page;
+                    try {
+                      const vignette = await lecture.imageDePage(courante.racine, version, fichier);
+                      return vignette === undefined ? { ...page, vignette: undefined } : { ...page, vignette };
+                    } catch {
+                      return { ...page, vignette: undefined };
+                    }
+                  }),
+                ),
+              };
+            }
+          }
+          if (!vivant) return;
+          setVue(visible);
           setDecisions(
-            lue.douteux.flatMap((cas) => {
+            visible.douteux.flatMap((cas) => {
               const decision = dejaPrises.get(cas.id);
               return decision === undefined ? [] : [{ cas, decision }];
             }),
@@ -671,7 +721,12 @@ export function App(): JSX.Element {
       : {
           ...donnees,
           bibliotheques: creees.map((creee) =>
-            pourLAccueil(creee.description, creee === courante ? vue : undefined, "Sur cet ordinateur"),
+            pourLAccueil(
+              creee.description,
+              creee === courante ? vue : undefined,
+              "Sur cet ordinateur",
+              creee === courante && documents.length > 0 ? compteursDeBibliotheque(documents) : undefined,
+            ),
           ),
         };
 
@@ -766,6 +821,8 @@ export function App(): JSX.Element {
           onFichiers={deposer}
           onAction={(id, action) => void agir(derniere.racine, id, action)}
           onVerifier={() => aller({ ecran: "verifier" })}
+          onCatalogue={() => aller({ ecran: "catalogue" })}
+          onOrganisation={() => aller({ ecran: "organisation" })}
           {...(administration === undefined ? {} : { onRetirer: () => aller({ ecran: "retirer" }) })}
           {...(administration === undefined ? {} : { onDoublons: () => aller({ ecran: "doublons" }) })}
           onManiere={

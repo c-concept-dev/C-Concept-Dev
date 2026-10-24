@@ -14,6 +14,8 @@ import {
 } from "@lienotheque/contrats";
 import { classerUnDocument } from "@lienotheque/noyau";
 import { Bouton, FilAriane, Icone } from "../composants/index.js";
+import { imageAffichable } from "../image-affichable.js";
+import { compteursDeBibliotheque } from "../donnees/accueil.js";
 import "./Catalogue.css";
 
 /** Catalogue d'une bibliothèque (B3 — CLA-10, UX-01).
@@ -167,6 +169,7 @@ export function Catalogue({
   // Ce qui attend un arbitrage et ce qui attend seulement d'être lu ne se comptent pas ensemble.
   const informations = vue.douteux.filter((cas) => cas.nature === "information").length;
   const aTrancher = vue.douteux.length - informations;
+  const compteurs = documents === undefined ? vue.compteurs : compteursDeBibliotheque(documents);
 
   const relies = (p: PageAffichee): number => p.elements.filter((e) => e.media !== undefined).length;
   const aVerifier = (p: PageAffichee): number => p.elements.filter((e) => e.aVerifier).length;
@@ -178,7 +181,7 @@ export function Catalogue({
           <FilAriane chemin={[{ libelle: "Accueil", href: "#" }, { libelle: vue.nom }]} />
           <h1 className="ln-catalogue__titre">{vue.nom}</h1>
           <p className="ln-catalogue__compteurs">
-            {vue.compteurs.map((compteur) => (
+            {compteurs.map((compteur) => (
               <span key={compteur.mot}>
                 {compteur.nombre} {compteur.mot}
               </span>
@@ -422,12 +425,12 @@ export function Catalogue({
                 >
                   {/* La vignette de la page quand le lot en porte une (OUT-04) ; son numéro
                       sinon. Décorative dans les deux cas : le nom accessible est sur le bouton. */}
-                  {p.vignette === undefined ? (
+                  {imageAffichable(p.vignette) === undefined ? (
                     <span className="ln-pages__apercu" aria-hidden="true">
                       {p.numero}
                     </span>
                   ) : (
-                    <img className="ln-pages__apercu" src={p.vignette} alt="" loading="lazy" decoding="async" />
+                    <img className="ln-pages__apercu" src={imageAffichable(p.vignette)} alt="" loading="lazy" decoding="async" />
                   )}
                   {/* Le nom et le titre dans **une seule cellule**, et non deux.
                       En liste, la carte déclare quatre colonnes ; elle portait quatre ou cinq
@@ -463,7 +466,7 @@ export function Catalogue({
               <h2 className="ln-detail__titre">
                 {enTete(citerPage(vue.mots, detail))}
               </h2>
-              {detail.vignette === undefined ? (
+              {imageAffichable(detail.vignette) === undefined ? (
                 <div className="ln-detail__apercu" role="img" aria-label={enTete(citerPage(vue.mots, detail))}>
                   <span>{detail.numero ?? detail.index}</span>
                   {detail.titre === undefined ? null : <span className="ln-detail__sous-titre">{detail.titre}</span>}
@@ -471,7 +474,7 @@ export function Catalogue({
               ) : (
                 <img
                   className="ln-detail__apercu ln-detail__apercu--image"
-                  src={detail.vignette}
+                  src={imageAffichable(detail.vignette)}
                   alt={enTete(citerPage(vue.mots, detail))}
                   loading="lazy"
                   decoding="async"

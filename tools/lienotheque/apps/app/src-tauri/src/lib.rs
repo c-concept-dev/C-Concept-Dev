@@ -696,17 +696,20 @@ pub fn apercus_de(racine: &str) -> Result<Vec<serde_json::Value>, String> {
         // compteurs tombent donc à zéro. Sur la bibliothèque réimportée, 105 documents sur 243
         // s'annonçaient ainsi vides alors qu'ils portent de 38 à 1 275 passages chacun.
         //
-        // On ajoute donc ce qu'on sait, et seulement quand les compteurs ne disent rien : le
-        // nombre de passages réellement lus. C'est un rattrapage à la lecture, parce que la
-        // chaîne ne les compte pas encore dans la vue — le jour où elle le fera, ces lignes
-        // n'auront plus rien à ajouter et pourront partir.
+        // On ajoute donc ce qu'on sait : le nombre de passages réellement lus. Il accompagne les
+        // pages plutôt que de les remplacer, car l'en-tête de la bibliothèque additionne ces
+        // projections. Le jour où la chaîne comptera elle-même les passages sous le même mot,
+        // cette garde empêchera le doublon et ces lignes pourront partir.
         let mut compteurs = lu["vue"]["compteurs"].clone();
-        let muets = compteurs
-            .as_array()
-            .is_none_or(|liste| liste.iter().all(|c| c["nombre"].as_u64().unwrap_or(0) == 0));
         let passages = lu["passages"].as_array().map(Vec::len).unwrap_or(0);
-        if muets && passages > 0 {
-            compteurs = serde_json::json!([{ "nombre": passages, "mot": "passages lus" }]);
+        if passages > 0 {
+            if !compteurs.is_array() {
+                compteurs = serde_json::json!([]);
+            }
+            let liste = compteurs.as_array_mut().expect("tableau posé ci-dessus");
+            if !liste.iter().any(|c| c["mot"].as_str() == Some("passages lus")) {
+                liste.push(serde_json::json!({ "nombre": passages, "mot": "passages lus" }));
+            }
         }
 
         apercus.push(serde_json::json!({
@@ -772,6 +775,58 @@ fn image_de_page(racine: String, version: String, fichier: String) -> Result<Opt
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(format!("Image de page illisible : {e}")),
     }
+}
+
+fn nom_image_page(fichier: &str) -> Result<&str, String> {
+    let nom = std::path::Path::new(fichier)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or("Nom d’image invalide.")?;
+    if nom != fichier || !nom.ends_with(".webp") {
+        return Err("Seule une image de page peut être relue.".to_owned());
+    }
+    Ok(nom)
+}
+
+fn langue_tesseract(langue: &str) -> &'static str {
+    if langue.to_ascii_lowercase().starts_with("en") { "eng" } else { "fra" }
+}
+
+fn relire_page(
+    moteurs: &Moteurs,
+    racine: &str,
+    version: &str,
+    fichier: &str,
+    langue: &str,
+) -> Result<Option<String>, String> {
+    let depot = depot::Depot::ouvrir(racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    let nom = nom_image_page(fichier)?;
+    let chemin = depot.racine().join(depot::DERIVES).join(version).join("pages").join(nom);
+    if !chemin.exists() {
+        return Ok(None);
+    }
+    let mesure = ocr::reconnaitre(&moteurs.binaire, &moteurs.tessdata, &chemin, langue_tesseract(langue))?;
+    Ok((!mesure.texte.is_empty()).then_some(mesure.texte))
+}
+
+/// Relit le texte de la seule page ouverte dans le Lecteur.
+///
+/// La version conservée n'est jamais modifiée : le panneau et la recherche de la session gagnent
+/// une lecture propre, tandis que la preuve d'ingestion reste intacte et réparable par un nouveau
+/// traitement explicite.
+#[tauri::command]
+fn relire_texte_page(
+    application: tauri::AppHandle,
+    racine: String,
+    version: String,
+    fichier: String,
+    langue: String,
+) -> Result<Option<String>, String> {
+    let ressources = application
+        .path()
+        .resolve("moteurs", tauri::path::BaseDirectory::Resource)
+        .map_err(|e| e.to_string())?;
+    relire_page(&Moteurs::installes(&ressources), &racine, &version, &fichier, &langue)
 }
 
 /// La version active d'un document, pour savoir où prendre ses images.
@@ -986,6 +1041,7 @@ fn lancer(captures: bool) {
             annuler_decision,
             apercu_de_bibliotheque,
             image_de_page,
+            relire_texte_page,
             doublons_de_bibliotheque,
             retirer_document,
             version_active,
@@ -1090,5 +1146,45 @@ mod greffe {
         let greffees = greffer_sources_media(&mut vue, "http://127.0.0.1:4321/media/jeton", &BTreeSet::new());
         assert_eq!(greffees, 0);
         assert!(vue["pages"][0]["elements"][0]["media"].get("source").is_none());
+    }
+}
+
+#[cfg(test)]
+mod relecture_ocr {
+    use super::{relire_page, Moteurs};
+    use std::{fs, path::Path};
+
+    #[test]
+    fn une_image_de_page_est_relue_par_le_moteur_embarque() {
+        let racine = std::env::temp_dir().join(format!("lienotheque-relecture-{}", std::process::id()));
+        fs::remove_dir_all(&racine).ok();
+        let pages = racine.join("derives").join("version-test").join("pages");
+        fs::create_dir_all(&pages).expect("pages");
+        fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/fichiers/page-ocr.png"),
+            pages.join("page-0000.webp"),
+        )
+        .expect("fixture");
+        let moteurs = Moteurs::depuis(&Path::new(env!("CARGO_MANIFEST_DIR")).join("moteurs"));
+
+        let texte = relire_page(
+            &moteurs,
+            racine.to_str().expect("racine utf8"),
+            "version-test",
+            "page-0000.webp",
+            "fr",
+        )
+        .expect("relecture")
+        .expect("texte");
+
+        assert!(texte.contains("Liénothèque reconnaît cette page"), "{texte}");
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    #[test]
+    fn un_chemin_traverse_ne_sort_pas_des_pages() {
+        let moteurs = Moteurs::depuis(&Path::new(env!("CARGO_MANIFEST_DIR")).join("moteurs"));
+        let refus = relire_page(&moteurs, "/tmp", "version-test", "../secret.webp", "fr").expect_err("refus");
+        assert!(refus.contains("image de page"), "{refus}");
     }
 }

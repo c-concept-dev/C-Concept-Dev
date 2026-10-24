@@ -40,6 +40,11 @@ describe("deux ports, et une frontière qui tient", () => {
       expect(NOMS_D_ADMINISTRATION as readonly string[]).toContain(deLaFile);
   });
 
+  it("la relecture OCR d'une image locale reste une capacité du bureau", () => {
+    expect(NOMS_D_ADMINISTRATION as readonly string[]).toContain("relireTexteDePage");
+    expect(NOMS_DE_LECTURE as readonly string[]).not.toContain("relireTexteDePage");
+  });
+
   it("aucune fonction n'appartient aux deux ports", () => {
     const communes = (NOMS_DE_LECTURE as readonly string[]).filter((nom) =>
       (NOMS_D_ADMINISTRATION as readonly string[]).includes(nom),

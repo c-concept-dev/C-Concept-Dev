@@ -27,6 +27,12 @@
   font-size: 13px;
 }
 
+.ln-traitement__navigation {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
 .ln-traitement__barre {
   display: flex;
   flex-wrap: wrap;
@@ -181,8 +187,6 @@
   display: inline-flex;
   align-items: center;
   gap: calc(var(--ln-grid) * 0.5);
-  margin-left: auto;
-  margin-right: calc(var(--ln-grid) * 2);
   font-size: 13px;
   color: var(--ln-text-secondary);
 }
