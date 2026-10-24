@@ -9,6 +9,7 @@ import type {
   ReglagesHote,
   RetraitDeDocument,
   Travail,
+  TraductionDePage,
   VueBibliotheque,
 } from "@lienotheque/contrats";
 
@@ -45,6 +46,8 @@ export type PortDeLecture = {
   readonly passagesDeDocument: (racine: string, empreinte: string) => Promise<readonly Passage[]>;
   readonly versionActive: (racine: string, empreinte: string) => Promise<string | undefined>;
   readonly imageDePage: (racine: string, version: string, fichier: string) => Promise<string | undefined>;
+  /** Facultative : le bureau reste local et ne sollicite jamais Workers AI. */
+  readonly traduirePage?: (racine: string, version: string, page: number) => Promise<TraductionDePage>;
   readonly classementsDeBibliotheque: (racine: string) => Promise<ReadonlyMap<string, ClassementLocal>>;
   readonly classerDocument: (racine: string, classement: ClassementLocal) => Promise<void>;
 };

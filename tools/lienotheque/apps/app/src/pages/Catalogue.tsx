@@ -30,6 +30,10 @@ type Props = {
   readonly onLecteur: (page: number, ancreId: string) => void;
   /** Le document porte du texte lisible séparément de ses repères. */
   readonly texteLu?: boolean | undefined;
+  /** Première page réellement lue quand le document ne porte aucune page graphique. */
+  readonly premierePageTexte?: number | undefined;
+  /** Le document demandé mais pas encore reçu. L'ancienne vue ne doit jamais se faire passer pour lui. */
+  readonly chargementDocument?: string | undefined;
   readonly onAjouter: () => void;
   /** Vers ce qui se trouve deux fois. **Dans le catalogue**, parce que c'est en regardant ses
    *  documents qu'on se demande si l'un n'y est pas deux fois — pas en en déposant d'autres. */
@@ -77,6 +81,8 @@ export function Catalogue({
   onPage,
   onLecteur,
   texteLu = false,
+  premierePageTexte,
+  chargementDocument,
   onAjouter,
   onDoublons,
   schema,
@@ -301,8 +307,9 @@ export function Catalogue({
               ))}
         </nav>
 
-        {documents === undefined ? null : (
-          <section className="ln-catalogue__documents" aria-labelledby="titre-documents">
+        <div className="ln-catalogue__documents-colonne">
+          {documents === undefined ? null : (
+            <section className="ln-catalogue__documents" aria-labelledby="titre-documents">
             <h2 id="titre-documents" className="ln-filtres__nom">
               Documents
             </h2>
@@ -392,10 +399,13 @@ export function Catalogue({
                   </section>
                 );
               })}
-          </section>
-        )}
+            </section>
+          )}
+        </div>
 
-        <section className="ln-catalogue__liste" aria-labelledby="titre-pages">
+        <div className="ln-catalogue__pages-colonne">
+          {chargementDocument === undefined ? (
+            <section className="ln-catalogue__liste" aria-labelledby="titre-pages">
           <div className="ln-catalogue__barre ln-panneau-titre">
             <h2 id="titre-pages" className="ln-catalogue__sous-titre">
               {enTete(vue.mots.page.plusieurs)}
@@ -416,9 +426,21 @@ export function Catalogue({
             </div>
           </div>
 
+          {pages.length === 0 && texteLu ? (
+            <div className="ln-catalogue__texte-seul ln-panneau">
+              <p>Ce document ne porte aucune image de page, mais son texte a bien été lu.</p>
+              <Bouton
+                variante="principal"
+                icone={<Icone nom="chevronDroite" />}
+                onClick={() => onLecteur(premierePageTexte ?? 1, "")}
+              >
+                Lire le texte du document
+              </Bouton>
+            </div>
+          ) : (
           <ol className={mode === "grille" ? "ln-pages ln-pages--grille" : "ln-pages ln-pages--liste"}>
             {pages.map((p) => (
-              <li key={p.numero}>
+              <li key={p.index}>
                 <button
                   type="button"
                   className={p.index === detail?.index ? "ln-pages__carte ln-pages__carte--ouvert" : "ln-pages__carte"}
@@ -471,11 +493,18 @@ export function Catalogue({
               </li>
             ))}
           </ol>
-        </section>
+          )}
+            </section>
+          ) : (
+            <section className="ln-catalogue__chargement ln-panneau" aria-live="polite">
+              Chargement de « {chargementDocument} »…
+            </section>
+          )}
 
-        <aside className="ln-detail ln-panneau" aria-label={`Détail — ${nommer(vue.mots.page, detail?.numero ?? "")}`}>
+          {chargementDocument === undefined ? (
+            <aside className="ln-detail ln-panneau" aria-label={`Détail — ${nommer(vue.mots.page, detail?.numero ?? "")}`}>
           {detail === undefined ? (
-            <p>Aucun résultat dans cette bibliothèque.</p>
+            texteLu ? <p>Le texte de ce document est disponible dans le Lecteur.</p> : <p>Aucun résultat dans cette bibliothèque.</p>
           ) : (
             <>
               <h2 className="ln-detail__titre">
@@ -525,7 +554,9 @@ export function Catalogue({
 
             </>
           )}
-        </aside>
+            </aside>
+          ) : null}
+        </div>
       </div>
     </main>
   );

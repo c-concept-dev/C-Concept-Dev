@@ -1,4 +1,13 @@
-import { DemandeVision, EstimationVision, EtatService, ReponseVision, reponseRepondA, type Capacite } from "@lienotheque/contrats";
+import {
+  DemandeTraductionPage,
+  DemandeVision,
+  EstimationVision,
+  EtatService,
+  ReponseVision,
+  TraductionDePage,
+  reponseRepondA,
+  type Capacite,
+} from "@lienotheque/contrats";
 import {
   DUREE_PAR_DEFAUT,
   DUREE_SESSION,
@@ -49,16 +58,27 @@ import {
   type CompteurDeJetons,
   type LecteurDeZones,
 } from "./vision.js";
+import {
+  PhraseTropLongue,
+  TraductionRefusee,
+  modeleWorkersAi,
+  traduireLaPage,
+  type PassageCanoniqueATraduire,
+} from "./traduction.js";
 
 export const SERVICE = "lienotheque-api";
 export const VERSION = "0.2.0";
 
 /** Ce que le service sait faire. La liste grandit avec les routes (HEB-01). */
-export const CAPACITES: readonly Capacite[] = ["sante", "vision", "fichiers", "recherche"];
+export const CAPACITES: readonly Capacite[] = ["sante", "vision", "fichiers", "recherche", "traduction"];
 
 /** Ce que l'hébergeur fournit. Jamais écrit dans un fichier du dépôt, jamais rendu dans une
  *  réponse, jamais consigné : ce sont des secrets posés à la main sur le Worker (règle 6). */
 export type Liaisons = {
+  /** Workers AI, lié au Worker : aucun secret ni nouvelle ressource de stockage. */
+  readonly AI?: {
+    readonly run: (modele: string, entree: Record<string, unknown>) => Promise<unknown>;
+  };
   readonly ANTHROPIC_API_KEY?: string;
   readonly JETON_ACCES?: string;
   /** Le secret qui signe les laissez-passer des fichiers (SEC-05). */
@@ -300,10 +320,10 @@ export function creerApp({
     return undefined;
   };
 
-  const ouvrirFacade = async (contexte: {
-    env: Liaisons;
-    req: { raw: Request };
-  }): Promise<{ base: BaseSql; correspondance: Correspondance } | Response> => {
+  const ouvrirFacade = async (
+    contexte: { env: Liaisons; req: { raw: Request } },
+    action = "chercher",
+  ): Promise<{ base: BaseSql; correspondance: Correspondance } | Response> => {
     // La porte d'abord, la configuration ensuite.
     //
     // L'inverse — vérifier la configuration avant le jeton — apprenait à un appelant anonyme si
@@ -311,7 +331,7 @@ export function creerApp({
     // les refus indiscernables des droits : qui n'a pas le jeton n'apprend rien, pas même
     // l'état du service. Le défaut s'est vu en éprouvant les routes par-dessus le réseau, pas
     // dans les tests — ils passaient tous, chacun regardant une question à la fois.
-    const refus = await porteParBascule(contexte, "chercher");
+    const refus = await porteParBascule(contexte, action);
     if (refus !== undefined) return refus;
 
     const registre = contexte.env.REGISTRE;
@@ -354,6 +374,84 @@ export function creerApp({
       return {};
     }
   };
+
+  /** Résout une version dans l'instantané effectivement servi au navigateur.
+   * La D1 de façade ne recopie pas les documents publiés : elle reçoit seulement le cache. */
+  const passagesPubliesDe = async (
+    environnement: Liaisons,
+    version: string,
+    page: number,
+  ): Promise<readonly PassageCanoniqueATraduire[] | undefined> => {
+    const compartiment = environnement.MEDIAS;
+    const bibliotheque = environnement.BIBLIOTHEQUE_FACADE;
+    if (compartiment === undefined || bibliotheque === undefined) return undefined;
+
+    const lireJson = async (cle: string): Promise<unknown | undefined> => {
+      const objet = await compartiment.get(cle);
+      if (objet === null || objet.body === null) return undefined;
+      return new Response(objet.body).json();
+    };
+    const apercuBrut = await lireJson(cleVue(bibliotheque, "apercu.json"));
+    if (apercuBrut === undefined) return [];
+    const apercu = ApercuEnLigne.parse(apercuBrut);
+    const document = apercu.documents.find((un) => un.version === version);
+    if (document === undefined) return [];
+
+    const cle = clePassagesDeDocument(bibliotheque, document.empreinte);
+    if (cle === undefined) return [];
+    const passagesBruts = await lireJson(cle);
+    if (passagesBruts === undefined) return [];
+    const axes = apercu.classements.find((un) => un.empreinte === document.empreinte)?.axes;
+    return PassagesDuDocument.parse(passagesBruts)
+      .filter((passage) => passage.page === page)
+      .map((passage) => ({
+        id: `${version}:${passage.rang}`,
+        rang: passage.rang,
+        texte: passage.texte,
+        classement_axes: axes === undefined ? null : JSON.stringify(axes),
+      }));
+  };
+
+  /** Traduit une page canonique de la bibliothèque, jamais un texte fourni par le navigateur.
+   * La fonction de domaine ne range le cache qu'après la réussite de tous les segments. */
+  app.post("/traduction/page", async (contexte) => {
+    const ouverte = await ouvrirFacade(contexte, "traduire");
+    if (ouverte instanceof Response) return ouverte;
+
+    let brut: unknown;
+    try {
+      brut = await contexte.req.json();
+    } catch {
+      return contexte.json({ erreur: "Corps illisible" }, 400);
+    }
+    const demande = DemandeTraductionPage.safeParse(brut);
+    if (!demande.success)
+      return contexte.json(
+        { erreur: "Demande refusée", ecarts: demande.error.issues.map((souci) => `${souci.path.join(".")} : ${souci.message}`) },
+        400,
+      );
+
+    const langue = ouverte.correspondance["language"] ?? ouverte.correspondance["langue"];
+    const axeLangue = langue !== null && langue !== undefined && "axe" in langue ? langue.axe : undefined;
+    try {
+      const passagesPublies = await passagesPubliesDe(contexte.env, demande.data.version, demande.data.page);
+      const traduction = await traduireLaPage(ouverte.base, modeleWorkersAi(contexte.env.AI), demande.data, {
+        maintenant: () => maintenant().toISOString(),
+        ...(axeLangue === undefined ? {} : { axeLangue }),
+        ...(passagesPublies === undefined ? {} : { passages: passagesPublies }),
+      });
+      return contexte.json(TraductionDePage.parse(traduction));
+    } catch (erreur) {
+      if (erreur instanceof PhraseTropLongue)
+        return contexte.json({ erreur: erreur.message }, 422);
+      if (erreur instanceof TraductionRefusee)
+        return new Response(JSON.stringify({ erreur: erreur.message }), {
+          status: erreur.statut,
+          headers: { "content-type": "application/json; charset=utf-8" },
+        });
+      return contexte.json({ erreur: "La traduction automatique n'a pas abouti." }, 502);
+    }
+  });
 
   for (const route of ["/search-library", "/rag-search", "/d1-query"] as const) {
     app.post(route, async (contexte) => {

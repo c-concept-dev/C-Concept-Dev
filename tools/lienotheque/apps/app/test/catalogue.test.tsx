@@ -274,6 +274,41 @@ describe("Catalogue : panneau de détail (B3)", () => {
     await userEvent.click(bouton);
     expect(ouvrir).toHaveBeenCalledWith(126, "");
   });
+
+  it("ouvre un document textuel même quand aucune page graphique n'existe", async () => {
+    const sansImage = VueBibliotheque.parse({ ...VUE, pages: [] });
+    const ouvrir = vi.fn();
+    render(
+      <Catalogue
+        vue={sansImage}
+        texteLu
+        premierePageTexte={16}
+        onPage={vi.fn()}
+        onLecteur={ouvrir}
+        onAjouter={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/aucun résultat dans cette bibliothèque/i)).not.toBeInTheDocument();
+    const bouton = screen.getByRole("button", { name: /lire le texte du document/i });
+    await userEvent.click(bouton);
+    expect(ouvrir).toHaveBeenCalledWith(16, "");
+  });
+
+  it("cache les pages de l'ancien document pendant le chargement du suivant", () => {
+    render(
+      <Catalogue
+        vue={VUE}
+        chargementDocument="Document suivant.pdf"
+        onPage={vi.fn()}
+        onLecteur={vi.fn()}
+        onAjouter={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/chargement de « Document suivant\.pdf »/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Feuillet 127" })).not.toBeInTheDocument();
+  });
 });
 
 describe("Catalogue : les mots viennent du schéma (CLA-01)", () => {

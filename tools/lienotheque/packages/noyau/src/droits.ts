@@ -20,6 +20,7 @@ export type Niveau = (typeof NIVEAUX)[number];
 export const EXIGE: Readonly<Record<string, Niveau>> = {
   lire: "lecture",
   chercher: "lecture",
+  traduire: "lecture",
   ouvrir_fichier: "lecture",
   annoter: "contribution",
   corriger_lien: "contribution",

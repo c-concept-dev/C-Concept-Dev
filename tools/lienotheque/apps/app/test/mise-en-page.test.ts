@@ -9,6 +9,7 @@ const FEUILLES = {
   premier: lire("../src/pages/PremierLancement.css"),
   base: lire("../src/styles/base.css"),
   lecteur: lire("../src/pages/Lecteur.css"),
+  catalogue: lire("../src/pages/Catalogue.css"),
   verifier: lire("../src/pages/Verifier.css"),
 };
 
@@ -72,6 +73,20 @@ describe("premier lancement : contenu centré dans la fenêtre", () => {
   it("hérite d'une mise en page elle-même centrée", () => {
     const layout = reglesPour(FEUILLES.base, ".ln-layout");
     expect(layout.some((corps) => declaration(corps, "margin") === "auto")).toBe(true);
+  });
+});
+
+describe("Catalogue : trois colonnes stables dans la fenêtre", () => {
+  it("borne l'écran et fait défiler chaque longue colonne séparément", () => {
+    const catalogue = reglesPour(FEUILLES.catalogue, ".ln-catalogue");
+    expect(catalogue.some((corps) => declaration(corps, "overflow") === "hidden")).toBe(true);
+
+    for (const selecteur of [".ln-filtres", ".ln-catalogue__documents-colonne", ".ln-catalogue__pages-colonne"]) {
+      const regles = reglesPour(FEUILLES.catalogue, selecteur);
+      expect(regles.length, selecteur).toBeGreaterThan(0);
+      expect(regles.some((corps) => declaration(corps, "overflow-y") === "auto"), selecteur).toBe(true);
+      expect(regles.some((corps) => declaration(corps, "min-height") === "0"), selecteur).toBe(true);
+    }
   });
 });
 

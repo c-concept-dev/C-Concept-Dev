@@ -58,7 +58,7 @@ import { useTheme } from "./theme/useTheme.js";
 const SERVIE_EN_LIGNE = { racine: "" } as const;
 
 /** Les écrans qui tiennent dans la fenêtre au lieu de la faire défiler (correction 3). */
-const PLEINE_HAUTEUR: ReadonlySet<Route["ecran"]> = new Set(["lecteur"]);
+const PLEINE_HAUTEUR: ReadonlySet<Route["ecran"]> = new Set(["lecteur", "catalogue"]);
 
 /** Navigation entre les écrans du lot C (B4). Chaque écran a son adresse : on y revient, on la
  *  partage, et le clavier y arrive comme la souris puisque ce sont des liens.
@@ -83,8 +83,17 @@ export function App(): JSX.Element {
   /** Le document dont les écrans montrent la version active. Un seul à la fois aujourd'hui. */
   const [regarde, setRegarde] = useState<string | undefined>(undefined);
   const [vue, setVue] = useState<VueBibliotheque | undefined>(undefined);
+  /** Les noms durables des grandes images, séparés de leurs adresses éphémères.
+   *
+   *  En ligne, un laissez-passer ne vaut que trois minutes. Le recopier dans la vue de cent
+   *  cinquante pages au chargement faisait donc disparaître les pages que l'on ouvrait plus
+   *  tard, tandis que leurs vignettes déjà chargées restaient visibles. Le nom du dérivé reste
+   *  ici ; l'adresse, elle, est redemandée pour la seule page effectivement ouverte. */
+  const [imagesDePages, setImagesDePages] = useState<ReadonlyMap<number, string>>(new Map());
   // Le texte du document regardé, lu à part de sa vue et jamais recopié dedans.
   const [passages, setPassages] = useState<readonly Passage[]>([]);
+  /** Document demandé mais pas encore reçu : l'ancienne vue est masquée pendant cette attente. */
+  const [chargementDocument, setChargementDocument] = useState<string | undefined>(undefined);
   // Le classement de chaque document de la bibliothèque, lu d'un coup : les filtres
   // comptent dessus, et les demander un par un vaudrait autant d'allers-retours.
   const [classements, setClassements] = useState<ReadonlyMap<string, ClassementLocal>>(new Map());
@@ -114,6 +123,7 @@ export function App(): JSX.Element {
    *  exactement là où l'on était en la fermant. */
   const requeteDeLAdresse = useMemo(() => rechercheDemandee(globalThis.location?.search ?? ""), []);
   const [cherche, setCherche] = useState(requeteDeLAdresse !== undefined);
+  const [requeteRecherche, setRequeteRecherche] = useState(requeteDeLAdresse ?? "");
   /** L'éditeur de manière de lire : le document regardé, ses pages, le brouillon, l'essai. */
   const [maniere, setManiere] = useState<{
     document: string;
@@ -360,22 +370,22 @@ export function App(): JSX.Element {
   // pages pèse des centaines de mégaoctets, et le Lecteur n'en montre qu'une. Elle remplace
   // l'adresse que la vue porte, qui ne désigne rien sur le bureau.
   useEffect(() => {
-    if (courante === undefined || lecture === undefined || route.ecran !== "lecteur" || vue === undefined)
+    if (courante === undefined || lecture === undefined || route.ecran !== "lecteur")
       return undefined;
     // Par le **rang** : c'est lui que les écrans passent, et le numéro imprimé manque sur
     // tout ouvrage qui ne numérote rien.
-    const page = vue.pages.find((candidate) => candidate.index === route.page);
-    if (page?.image === undefined || page.image.startsWith("data:")) return undefined;
-    const fichier = page.image.split("/").pop();
+    const adresseDurable = imagesDePages.get(route.page);
+    if (adresseDurable === undefined) return undefined;
+    const fichier = adresseDurable.split("/").pop();
     if (fichier === undefined) return undefined;
 
     let vivant = true;
     if (regarde === undefined) return undefined;
-    const passageOcr = passages.find((passage) => passage.page === page.index && passage.source === "ocr");
+    const passageOcr = passages.find((passage) => passage.page === route.page && passage.source === "ocr");
     void lecture.versionActive(courante.racine, regarde)
       .then(async (version) => {
         if (version === undefined) return undefined;
-        const image = await lecture.imageDePage(courante.racine, version, fichier);
+        const image = await lecture.imageDePage(courante.racine, version, `pages/${fichier}`);
         const langue = creees[creees.length - 1]?.description.schema?.langue ?? "fr";
         const texte =
           passageOcr === undefined || administration === undefined
@@ -394,7 +404,7 @@ export function App(): JSX.Element {
                 // portent toutes deux à `undefined`, et `undefined === undefined` est vrai —
                 // l'image d'une page serait recopiée sur toutes les autres.
                 pages: avant.pages.map((autre) =>
-                  autre.index === page.index
+                  autre.index === route.page
                     ? {
                         ...autre,
                         ...(relu.image === undefined ? {} : { image: relu.image }),
@@ -417,7 +427,7 @@ export function App(): JSX.Element {
     return () => {
       vivant = false;
     };
-  }, [courante, route, vue, passages, administration, lecture, creees]);
+  }, [courante, route, imagesDePages, passages, administration, lecture, creees]);
 
   /** Ce qui, dans la file, justifie de relire la bibliothèque.
    *
@@ -514,6 +524,9 @@ export function App(): JSX.Element {
     if (courante === undefined || regarde === undefined || lecture === undefined) return undefined;
     let vivant = true;
     setDecisions([]);
+    setPassages([]);
+    setImagesDePages(new Map());
+    setChargementDocument(documents.find((document) => document.empreinte === regarde)?.nom ?? "ce document");
     // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent le
     // texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
     const decisionsLues = administration?.lireDecisions(courante.racine, regarde) ?? Promise.resolve(new Map());
@@ -526,30 +539,36 @@ export function App(): JSX.Element {
         if (!vivant) return;
         setPassages(lus);
         if (lue !== undefined) {
-          // Les chemins `/donnees/pages/vignette-….webp` sont des repères du dépôt, pas des URL
-          // que le WebView de bureau peut ouvrir. Servir les petites vignettes par le même pont
-          // que la grande page évite une colonne entière d'images cassées. En ligne, les URL sont
-          // déjà servies et cette résolution locale n'a pas lieu.
+          setImagesDePages(new Map(
+            lue.pages.flatMap((page) => (page.image === undefined ? [] : [[page.index, page.image] as const])),
+          ));
+          // Les chemins `/donnees/pages/….webp` sont des repères de dépôt, pas des URL. Le même
+          // port les résout au bureau (adresse locale éphémère) et en ligne (laissez-passer signé).
+          // La condition sur `administration` qui vivait ici empêchait précisément la version en
+          // ligne d'emprunter cette porte ; la grande page n'était par ailleurs jamais résolue.
           let visible = lue;
-          if (administration !== undefined) {
-            const version = await lecture.versionActive(courante.racine, regarde);
-            if (version !== undefined) {
-              visible = {
-                ...lue,
-                pages: await Promise.all(
-                  lue.pages.map(async (page) => {
-                    const fichier = page.vignette?.split("/").pop();
-                    if (fichier === undefined) return page;
-                    try {
-                      const vignette = await lecture.imageDePage(courante.racine, version, fichier);
-                      return vignette === undefined ? { ...page, vignette: undefined } : { ...page, vignette };
-                    } catch {
-                      return { ...page, vignette: undefined };
-                    }
-                  }),
-                ),
-              };
-            }
+          const version = await lecture.versionActive(courante.racine, regarde);
+          if (version !== undefined) {
+            const resoudre = async (adresse: string | undefined): Promise<string | undefined> => {
+              const fichier = adresse?.split("/").pop();
+              if (fichier === undefined) return undefined;
+              try {
+                return await lecture.imageDePage(courante.racine, version, `pages/${fichier}`);
+              } catch {
+                return undefined;
+              }
+            };
+            visible = {
+              ...lue,
+              pages: await Promise.all(
+                lue.pages.map(async (page) => {
+                  const vignette = await resoudre(page.vignette);
+                  // Une grande page n'est signée qu'au moment où le Lecteur la montre. Garder
+                  // ici une adresse signée condamnait les pages ouvertes après son expiration.
+                  return { ...page, image: undefined, vignette };
+                }),
+              ),
+            };
           }
           if (!vivant) return;
           setVue(visible);
@@ -559,15 +578,20 @@ export function App(): JSX.Element {
               return decision === undefined ? [] : [{ cas, decision }];
             }),
           );
-        }
+        } else setVue(undefined);
+        setChargementDocument(undefined);
       })
       .catch(() => {
         // Un document sans version active n'a rien à montrer, et ce n'est pas une panne.
+        if (!vivant) return;
+        setVue(undefined);
+        setPassages([]);
+        setChargementDocument(undefined);
       });
     return () => {
       vivant = false;
     };
-  }, [courante, regarde, lecture, administration]);
+  }, [courante, regarde, lecture, administration, documents]);
 
   // La file est à l'hôte : on la relit, on ne la devine pas. Toutes les deux secondes suffisent —
   // un traitement se compte en minutes, et un écran qui se redessine sans cesse fatigue.
@@ -931,6 +955,9 @@ export function App(): JSX.Element {
       return (
         <LectureDuTexte
           vue={vue}
+          {...(documents.find((document) => document.empreinte === regarde)?.nom === undefined
+            ? {}
+            : { document: documents.find((document) => document.empreinte === regarde)!.nom })}
           passages={passages}
           page={route.page}
           imagesPartielles={quelquesImagesSeulement(vue.pages.length, passages.length)}
@@ -941,12 +968,24 @@ export function App(): JSX.Element {
       return (
         <Lecteur
           vue={vue}
+          {...(documents.find((document) => document.empreinte === regarde)?.nom === undefined
+            ? {}
+            : { document: documents.find((document) => document.empreinte === regarde)!.nom })}
           page={route.page}
           element={route.element ?? ""}
           // La vue porte les repères, les passages portent le texte : sans ce témoin, un
           // document sans page renverrait à une recherche qui ne rendrait rien.
           texteLu={passages.length > 0}
           textePage={passages.filter((passage) => passage.page === route.page).map((passage) => passage.texte)}
+          {...(lecture === undefined || lecture.traduirePage === undefined || courante === undefined || regarde === undefined
+            ? {}
+            : {
+                onTraduire: async (page: number) => {
+                  const version = await lecture.versionActive(courante.racine, regarde);
+                  if (version === undefined) throw new Error("Aucune version active ne peut être traduite.");
+                  return lecture.traduirePage!(courante.racine, version, page);
+                },
+              })}
           onPage={(page) => aller({ ecran: "lecteur", page })}
           onElement={(element) => aller({ ecran: "lecteur", page: route.page, element })}
         />
@@ -956,6 +995,8 @@ export function App(): JSX.Element {
         <Catalogue
           vue={vue}
           texteLu={passages.length > 0}
+          {...(passages[0] === undefined ? {} : { premierePageTexte: passages[0].page })}
+          {...(chargementDocument === undefined ? {} : { chargementDocument })}
           {...(derniere?.description.schema === undefined ? {} : { schema: derniere.description.schema })}
           {...(regarde === undefined ? {} : { empreinte: regarde })}
           {...(regarde === undefined || classements.get(regarde) === undefined
@@ -983,9 +1024,14 @@ export function App(): JSX.Element {
       <EnTete
         theme={theme}
         onThemeChange={changerTheme}
-        onRecherche={() => setCherche(true)}
+        onRecherche={(texte) => {
+          setRequeteRecherche(texte);
+          setCherche(true);
+        }}
+        requeteRecherche={requeteRecherche}
+        onRequeteRecherche={setRequeteRecherche}
         donnees={aLAccueil}
-        rechercheDisponible={vue !== undefined}
+        rechercheDisponible={vue !== undefined && chargementDocument === undefined}
         enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
       />
       <div className="ln-application__vue">{ecran}</div>
@@ -1003,10 +1049,14 @@ export function App(): JSX.Element {
                   { cle: "maniere", titre: "Revoir la manière de lire", source: derniere.description.nom, aussi: ["recette", "zones", "lecture"] },
                 ]
           }
-          {...(requeteDeLAdresse === undefined ? {} : { requeteInitiale: requeteDeLAdresse })}
-          onFermer={() => setCherche(false)}
+          requeteInitiale={requeteRecherche}
+          onFermer={() => {
+            setCherche(false);
+            setRequeteRecherche("");
+          }}
           onOuvrir={(resultat) => {
             setCherche(false);
+            setRequeteRecherche("");
             if (resultat.page !== undefined)
               aller(
                 resultat.element === undefined
@@ -1016,11 +1066,13 @@ export function App(): JSX.Element {
           }}
           onEcouter={(resultat) => {
             setCherche(false);
+            setRequeteRecherche("");
             if (resultat.page !== undefined && resultat.element !== undefined)
               aller({ ecran: "lecteur", page: resultat.page, element: resultat.element });
           }}
           onAction={(cle) => {
             setCherche(false);
+            setRequeteRecherche("");
             if (cle === "organisation") aller({ ecran: "organisation" });
             else if (cle === "depot") aller({ ecran: "depot" });
             else if (cle === "verifier") aller({ ecran: "verifier" });

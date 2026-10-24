@@ -21,6 +21,7 @@ import "./LectureDuTexte.css";
 
 type Props = {
   readonly vue: VueBibliotheque;
+  readonly document?: string | undefined;
   /** Dans l'ordre de lecture, sans trou : c'est `PassagesDuDocument` qui le garantit. */
   readonly passages: readonly Passage[];
   /** Le rang de page demandé par l'adresse, à partir de un — la même convention que le Lecteur. */
@@ -43,7 +44,7 @@ const enParagraphes = (texte: string): readonly string[] =>
     .map((ligne) => ligne.trim())
     .filter((ligne) => ligne !== "");
 
-export function LectureDuTexte({ vue, passages, page, imagesPartielles = false, onPage }: Props): JSX.Element {
+export function LectureDuTexte({ vue, document, passages, page, imagesPartielles = false, onPage }: Props): JSX.Element {
   // Par le rang de page, et non par la position dans le tableau : un document peut porter
   // plusieurs passages sur une même page, et c'est la page que l'adresse désigne.
   const courant = passages.find((passage) => passage.page === page) ?? passages[0];
@@ -71,7 +72,11 @@ export function LectureDuTexte({ vue, passages, page, imagesPartielles = false, 
     return (
       <main id="contenu" className="ln-texte-lu" tabIndex={-1}>
         <div className="ln-texte-lu__entete ln-panneau-titre">
-          <FilAriane chemin={[{ libelle: "Accueil", href: "#" }, { libelle: vue.nom, href: "#catalogue" }]} />
+          <FilAriane chemin={[
+            { libelle: "Accueil", href: "#" },
+            { libelle: vue.nom, href: "#catalogue" },
+            ...(document === undefined ? [] : [{ libelle: document }]),
+          ]} />
         </div>
         <section className="ln-texte-lu__corps ln-panneau">
           <p className="ln-texte-lu__avis">Ce document n’a aucun texte lu.</p>
@@ -87,7 +92,11 @@ export function LectureDuTexte({ vue, passages, page, imagesPartielles = false, 
       <div className="ln-texte-lu__entete ln-panneau-titre">
         {/* Le fil s'arrête à la bibliothèque : la position est le titre de l'écran, juste
             dessous, et l'écrire aux deux endroits donnerait deux fois la même chose à lire. */}
-        <FilAriane chemin={[{ libelle: "Accueil", href: "#" }, { libelle: vue.nom, href: "#catalogue" }]} />
+        <FilAriane chemin={[
+          { libelle: "Accueil", href: "#" },
+          { libelle: vue.nom, href: "#catalogue" },
+          ...(document === undefined ? [] : [{ libelle: document }]),
+        ]} />
         <span className="ln-texte-lu__rang">
           {rang + 1} / {passages.length}
         </span>

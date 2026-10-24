@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
-import { citerPage, enTete, nommer, type ElementAffiche, type VueBibliotheque } from "@lienotheque/contrats";
+import {
+  citerPage,
+  enTete,
+  nommer,
+  type ElementAffiche,
+  type TraductionDePage,
+  type VueBibliotheque,
+} from "@lienotheque/contrats";
 import { Bouton, Icone } from "../composants/index.js";
 import { FilAriane } from "../composants/FilAriane.js";
 import { FilVersSegment } from "./lecteur/FilVersSegment.js";
@@ -22,6 +29,7 @@ import "./Lecteur.css";
 
 type Props = {
   readonly vue: VueBibliotheque;
+  readonly document?: string | undefined;
   readonly page: number;
   readonly element: string;
   /** Le texte du document a-t-il été lu ? L'écran ne peut pas le savoir seul : la vue porte les
@@ -32,6 +40,7 @@ type Props = {
    *  cette propriété les raccorde au panneau « Texte de la page » sans prétendre qu'ils viennent
    *  des dérivés d'image. */
   readonly textePage?: readonly string[];
+  readonly onTraduire?: (page: number) => Promise<TraductionDePage>;
   readonly onPage: (numero: number) => void;
   readonly onElement: (ancreId: string) => void;
 };
@@ -40,7 +49,7 @@ type Props = {
  *  pour dessiner une forme d'onde. Dès que l'une des deux est connue, c'est elle qui vaut. */
 const DUREE_SUPPOSEE = 44;
 
-export function Lecteur({ vue, page, element, texteLu = false, textePage, onPage, onElement }: Props): JSX.Element {
+export function Lecteur({ vue, document, page, element, texteLu = false, textePage, onTraduire, onPage, onElement }: Props): JSX.Element {
   const [boucle, setBoucle] = useState(false);
   const [tempo, setTempo] = useState(75);
   const [zoom, setZoom] = useState(100);
@@ -129,7 +138,11 @@ export function Lecteur({ vue, page, element, texteLu = false, textePage, onPage
     return (
       <main id="contenu" className="ln-lecteur ln-lecteur--sans-page" tabIndex={-1}>
         <div className="ln-lecteur__entete ln-panneau-titre">
-          <FilAriane chemin={[{ libelle: "Accueil", href: "#" }, { libelle: vue.nom, href: "#catalogue" }]} />
+          <FilAriane chemin={[
+            { libelle: "Accueil", href: "#" },
+            { libelle: vue.nom, href: "#catalogue" },
+            ...(document === undefined ? [] : [{ libelle: document }]),
+          ]} />
         </div>
         <section className="ln-lecteur__rien ln-panneau" aria-labelledby="titre-rien">
           <h2 id="titre-rien" className="ln-lecteur__rien-titre">
@@ -156,6 +169,7 @@ export function Lecteur({ vue, page, element, texteLu = false, textePage, onPage
           chemin={[
             { libelle: "Accueil", href: "#" },
             { libelle: vue.nom, href: "#catalogue" },
+            ...(document === undefined ? [] : [{ libelle: document, href: "#catalogue" }]),
             { libelle: pageCourante === undefined ? vue.mots.page.un : enTete(citerPage(vue.mots, pageCourante)) },
           ]}
         />
@@ -255,8 +269,10 @@ export function Lecteur({ vue, page, element, texteLu = false, textePage, onPage
 
           {pageCourante === undefined ? null : (
             <TextePage
+              key={pageCourante.index}
               original={textePage !== undefined && textePage.length > 0 ? textePage : pageCourante.texte}
               traduction={pageCourante.traduction}
+              {...(onTraduire === undefined ? {} : { onTraduire: () => onTraduire(pageCourante.index) })}
             />
           )}
 

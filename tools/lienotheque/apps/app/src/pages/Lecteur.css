@@ -405,6 +405,46 @@
   color: var(--ln-text-secondary);
 }
 
+.ln-texte__traduction-commandes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ln-grid);
+  margin-block-end: var(--ln-grid);
+}
+
+.ln-texte__badge {
+  padding: calc(var(--ln-grid) * 0.5) var(--ln-grid);
+  border-radius: 999px;
+  background: var(--ln-selection-background);
+  color: var(--ln-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ln-texte__action {
+  padding: calc(var(--ln-grid) * 0.75) var(--ln-grid);
+  border: 1px solid var(--ln-control-border);
+  border-radius: var(--ln-radius);
+  background: var(--ln-background);
+  color: var(--ln-text-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ln-texte__action:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.ln-texte__erreur,
+.ln-texte__information {
+  margin: 0 0 var(--ln-grid);
+  font-size: 13px;
+  color: var(--ln-text-secondary);
+}
+
 .ln-texte__ligne--lue {
   background: color-mix(in srgb, var(--ln-selection-background) 50%, transparent);
   border-radius: 4px;

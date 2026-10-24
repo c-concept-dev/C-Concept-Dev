@@ -58,6 +58,19 @@ describe("un document sans image se lit quand même (RCH-07)", () => {
 });
 
 describe("savoir où l'on est, et pouvoir le citer (RCH-09)", () => {
+  it("nomme le document ouvert dans le fil d'Ariane", () => {
+    render(
+      <LectureDuTexte
+        vue={vueSansPage()}
+        document="Livre sans images.epub"
+        passages={TROIS}
+        page={1}
+        onPage={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("navigation", { name: /fil d’ariane/i })).toHaveTextContent("Livre sans images.epub");
+  });
+
   it("cite par le numéro imprimé quand la page le porte", () => {
     render(<LectureDuTexte vue={vueSansPage()} passages={TROIS} page={3} onPage={vi.fn()} />);
     expect(screen.getByText(/page 127/i)).toBeTruthy();

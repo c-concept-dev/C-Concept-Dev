@@ -36,6 +36,11 @@ compatibility_date = "2026-03-08"
 workers_dev = true
 preview_urls = false
 
+# Le même moteur de traduction que Studio Clinique. Cette liaison n'ajoute ni base ni seau :
+# le cache vit dans la base BIB_1 déjà reliée ci-dessous.
+[ai]
+binding = "AI"
+
 # ── La page, servie par le Worker lui-même ────────────────────────────────────
 #
 # Ce n'est pas un choix de commodité : le témoin de session est « SameSite=Lax »

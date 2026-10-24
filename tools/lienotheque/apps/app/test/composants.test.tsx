@@ -99,6 +99,30 @@ describe("champ de recherche (UX-06 et raccourci Cmd+K du CDC)", () => {
     await utilisateur.keyboard("{Control>}k{/Control}");
     expect(screen.getByRole("searchbox")).toHaveFocus();
   });
+
+  it("reflète la requête tenue par l'écran et peut donc être vidé à la fermeture", () => {
+    const rendu = render(
+      <ChampRecherche
+        etiquette="Rechercher"
+        placeholder="Mot"
+        valeur="objet"
+        onValeurChange={vi.fn()}
+        onRecherche={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("searchbox")).toHaveValue("objet");
+
+    rendu.rerender(
+      <ChampRecherche
+        etiquette="Rechercher"
+        placeholder="Mot"
+        valeur=""
+        onValeurChange={vi.fn()}
+        onRecherche={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("searchbox")).toHaveValue("");
+  });
 });
 
 describe("carte de bibliothèque (UX-09 et charte v3)", () => {

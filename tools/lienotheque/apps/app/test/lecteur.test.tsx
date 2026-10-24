@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { VueBibliotheque } from "@lienotheque/contrats";
 import { Lecteur } from "../src/pages/Lecteur.js";
 import { LEGENDE, actionDe, tempoSuivant } from "../src/pages/lecteur/raccourcis.js";
@@ -97,6 +97,21 @@ describe("Lecteur : la page et ses éléments (B1, UX-01)", () => {
     const ariane = screen.getByRole("navigation", { name: /fil d’ariane/i });
     expect(within(ariane).getByRole("link", { name: "Accueil" })).toBeInTheDocument();
     expect(within(ariane).getByRole("link", { name: "Recueil de procédures" })).toBeInTheDocument();
+  });
+
+  it("nomme aussi le document ouvert dans le fil d'Ariane", () => {
+    render(
+      <Lecteur
+        vue={VUE}
+        document="Manuel de référence.pdf"
+        page={127}
+        element=""
+        onPage={vi.fn()}
+        onElement={vi.fn()}
+      />,
+    );
+    const ariane = screen.getByRole("navigation", { name: /fil d’ariane/i });
+    expect(within(ariane).getByText("Manuel de référence.pdf")).toBeInTheDocument();
   });
 
   it("dit où l’on est dans la page : l’élément tant sur tant", () => {

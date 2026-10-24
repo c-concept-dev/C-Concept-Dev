@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App.js";
 
@@ -129,6 +129,49 @@ describe("en ligne, c'est le service qui tient la bibliothèque", () => {
     render(<App />);
 
     expect(await screen.findByLabelText("Rechercher dans le document ouvert")).toBeTruthy();
+  });
+
+  it("ne signe la grande page qu'au moment où le Lecteur l'ouvre", async () => {
+    globalThis.history.replaceState({}, "", "/#catalogue");
+    const fichiersDemandes: string[] = [];
+    const appeler = vi.fn(async (entree: RequestInfo | URL, options?: RequestInit) => {
+      const adresse = String(entree);
+      if (adresse.endsWith("/vue/apercu")) return Response.json(apercuAvecDocument);
+      if (adresse.endsWith(`/vue/document/${EMPREINTE}/passages`))
+        return Response.json([{ rang: 0, page: 1, texte: "Une page lisible.", source: "couche_texte", lisible: true }]);
+      if (adresse.endsWith(`/vue/document/${EMPREINTE}`))
+        return Response.json({
+          ...vuePubliee,
+          pages: [{
+            index: 1,
+            image: "/donnees/pages/page-0001.webp",
+            vignette: "/donnees/pages/vignette-0001.webp",
+            elements: [],
+          }],
+        });
+      if (adresse.endsWith("/laissez")) {
+        const fichier = JSON.parse(String(options?.body))["fichier"] as string;
+        fichiersDemandes.push(fichier);
+        return Response.json({ laissez: fichier.includes("vignette") ? "vignette.signee" : "page.signee" });
+      }
+      return new Response("", { status: 404 });
+    });
+    vi.stubGlobal("fetch", appeler);
+
+    render(<App />);
+
+    expect(await screen.findByRole("img", { name: /page 1/i })).toHaveAttribute("src", expect.stringContaining("/fichier/vignette.signee"));
+    expect(fichiersDemandes).toEqual(["pages/vignette-0001.webp"]);
+
+    fireEvent.click(screen.getByRole("button", { name: /ouvrir dans le lecteur/i }));
+
+    await waitFor(() =>
+      expect(fichiersDemandes).toEqual(["pages/vignette-0001.webp", "pages/page-0001.webp"]),
+    );
+    expect(screen.getByRole("button", { name: /traduire en français/i })).toBeTruthy();
+    expect(
+      screen.getAllByRole("img", { name: /page 1/i }).some((image) => image.getAttribute("src")?.includes("/fichier/page.signee")),
+    ).toBe(true);
   });
 
   it("conduit la racine vers le catalogue quand la bibliothèque publiée contient des documents", async () => {

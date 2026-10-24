@@ -11,6 +11,8 @@ type Props = {
   readonly theme: Theme;
   readonly onThemeChange: (theme: Theme) => void;
   readonly onRecherche: (texte: string) => void;
+  readonly requeteRecherche?: string | undefined;
+  readonly onRequeteRecherche?: ((texte: string) => void) | undefined;
   readonly donnees: DonneesAccueil;
   /** Un document est réellement chargé, même si aucune bibliothèque locale ne le porte.
    *  C'est le cas en ligne : la façade sert une bibliothèque sans dossier sur cet ordinateur. */
@@ -28,7 +30,7 @@ type Props = {
  *  Le thème se règle dans les réglages, pas ici : la barre ne le montre qu'en développement, où
  *  l'on bascule sans cesse entre les trois variantes.
  *  Le logo est le vectoriel validé du kit ; l'hybride garde la barre graphite, donc l'emblème sombre. */
-export function EnTete({ theme, onThemeChange, onRecherche, donnees, rechercheDisponible = false, enTraitement }: Props): JSX.Element {
+export function EnTete({ theme, onThemeChange, onRecherche, requeteRecherche, onRequeteRecherche, donnees, rechercheDisponible = false, enTraitement }: Props): JSX.Element {
   const embleme = theme === "light" ? emblemeClair : emblemeSombre;
   const garnie = donnees.bibliotheques.length > 0 || rechercheDisponible;
 
@@ -53,6 +55,8 @@ export function EnTete({ theme, onThemeChange, onRecherche, donnees, rechercheDi
           etiquette="Rechercher dans le document ouvert"
           placeholder="Rechercher dans le document ouvert…"
           onRecherche={onRecherche}
+          {...(requeteRecherche === undefined ? {} : { valeur: requeteRecherche })}
+          {...(onRequeteRecherche === undefined ? {} : { onValeurChange: onRequeteRecherche })}
         />
       ) : null}
 
