@@ -70,8 +70,13 @@ export function App(): JSX.Element {
   // Qui répond, ici. Les écrans demandaient dix-sept fois « sommes-nous sur le bureau ? » —
   // la mauvaise question : ce qui les intéresse est de savoir si la capacité qu'ils veulent
   // est là. Une lecture n'a pas à être bloquée parce qu'une écriture est impossible.
-  const lecture = pontDeLecture();
-  const administration = pontDAdministration();
+  // Les ponts sont sans état, mais leur **identité** compte pour React : les reconstruire à
+  // chaque rendu relançait les effets qui les ont en dépendance. Avec un document publié, le
+  // chargement posait l'aperçu, provoquait un rendu, annulait la lecture du document en cours et
+  // en lançait une nouvelle — indéfiniment. Safari recevait bien toutes les réponses 200, mais
+  // l'écran restait sur « rien à montrer ». Une instance par montage tient la boucle fermée.
+  const lecture = useMemo(() => pontDeLecture(), []);
+  const administration = useMemo(() => pontDAdministration(), []);
 
   const [theme, changerTheme] = useTheme();
   const [donnees, setDonnees] = useState<DonneesAccueil>(ACCUEIL_VIDE);
@@ -460,6 +465,20 @@ export function App(): JSX.Element {
     };
   }, [courante, travauxAcheves, relectures]);
 
+  // La racine est l'adresse que l'on ouvre naturellement après l'entrée. Au bureau elle mène à
+  // l'Accueil, mais cet écran décrit des bibliothèques locales et n'existe pas dans la façade en
+  // ligne. Quand le service vient de rendre un aperçu non vide, conduire au Catalogue plutôt
+  // que retomber sur « aucune publication » — qui était faux malgré 243 documents bien reçus.
+  useEffect(() => {
+    if (
+      administration === undefined &&
+      route.ecran === "accueil" &&
+      recuEnLigne === "oui" &&
+      documents.length > 0
+    )
+      aller({ ecran: "catalogue" });
+  }, [administration, route.ecran, recuEnLigne, documents.length, aller]);
+
   /** Ce qu'on regardait, le temps qu'on le regardait : lu sans le remettre dans les dépendances
    *  de l'effet qui suit, sans quoi il se rejouerait à chaque document ouvert. */
   const regardeAlors = useRef(regarde);
@@ -738,15 +757,16 @@ export function App(): JSX.Element {
    *  était simplement vide. Deux écrans honnêtes à la place : la cérémonie quand le service
    *  nous a refusés, l'attente quand il nous a reçus et n'a rien.
    *
-   *  Tant qu'on ne sait pas encore — la première demande n'est pas revenue — on montre
-   *  l'attente plutôt que la cérémonie : proposer d'entrer à quelqu'un qui est déjà entré est
-   *  plus trompeur que de le faire patienter le temps d'un aller-retour. */
+   *  Tant qu'on ne sait pas encore — la première demande n'est pas revenue — on montre une
+   *  vérification explicite plutôt que la cérémonie. Une fois reçu, l'écran vide confirme
+   *  l'entrée : employer le même texte dans les deux états a fait croire à un blocage réel dans
+   *  Safari le 24 octobre 2026. */
   const sansRienAMontrer = (): JSX.Element => {
     if (administration === undefined && lecture !== undefined)
       return recuEnLigne === "non" ? (
         <Entrer onEntre={() => aller({ ecran: "catalogue" })} />
       ) : (
-        <RienAMontrer theme={theme} />
+        <RienAMontrer theme={theme} etat={recuEnLigne === "oui" ? "vide" : "verification"} />
       );
     return aLAccueil.bibliotheques.length === 0 ? (
       <PremierLancement
@@ -926,6 +946,7 @@ export function App(): JSX.Element {
           // La vue porte les repères, les passages portent le texte : sans ce témoin, un
           // document sans page renverrait à une recherche qui ne rendrait rien.
           texteLu={passages.length > 0}
+          textePage={passages.filter((passage) => passage.page === route.page).map((passage) => passage.texte)}
           onPage={(page) => aller({ ecran: "lecteur", page })}
           onElement={(element) => aller({ ecran: "lecteur", page: route.page, element })}
         />
@@ -934,6 +955,7 @@ export function App(): JSX.Element {
       return (
         <Catalogue
           vue={vue}
+          texteLu={passages.length > 0}
           {...(derniere?.description.schema === undefined ? {} : { schema: derniere.description.schema })}
           {...(regarde === undefined ? {} : { empreinte: regarde })}
           {...(regarde === undefined || classements.get(regarde) === undefined
@@ -963,6 +985,7 @@ export function App(): JSX.Element {
         onThemeChange={changerTheme}
         onRecherche={() => setCherche(true)}
         donnees={aLAccueil}
+        rechercheDisponible={vue !== undefined}
         enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
       />
       <div className="ln-application__vue">{ecran}</div>

@@ -28,6 +28,10 @@ type Props = {
    *  repères, les passages portent le texte, et les deux lui arrivent séparément. Sans cette
    *  réponse il promettrait une recherche qui ne rendrait rien. */
   readonly texteLu?: boolean;
+  /** Texte publié pour la page courante. Les passages sont stockés à part de la vue graphique :
+   *  cette propriété les raccorde au panneau « Texte de la page » sans prétendre qu'ils viennent
+   *  des dérivés d'image. */
+  readonly textePage?: readonly string[];
   readonly onPage: (numero: number) => void;
   readonly onElement: (ancreId: string) => void;
 };
@@ -36,7 +40,7 @@ type Props = {
  *  pour dessiner une forme d'onde. Dès que l'une des deux est connue, c'est elle qui vaut. */
 const DUREE_SUPPOSEE = 44;
 
-export function Lecteur({ vue, page, element, texteLu = false, onPage, onElement }: Props): JSX.Element {
+export function Lecteur({ vue, page, element, texteLu = false, textePage, onPage, onElement }: Props): JSX.Element {
   const [boucle, setBoucle] = useState(false);
   const [tempo, setTempo] = useState(75);
   const [zoom, setZoom] = useState(100);
@@ -249,7 +253,12 @@ export function Lecteur({ vue, page, element, texteLu = false, onPage, onElement
             </section>
           )}
 
-          {pageCourante === undefined ? null : <TextePage original={pageCourante.texte} traduction={pageCourante.traduction} />}
+          {pageCourante === undefined ? null : (
+            <TextePage
+              original={textePage !== undefined && textePage.length > 0 ? textePage : pageCourante.texte}
+              traduction={pageCourante.traduction}
+            />
+          )}
 
           <section className="ln-note ln-panneau" aria-labelledby="titre-note">
             <h2 id="titre-note" className="ln-note__titre">

@@ -28,6 +28,8 @@ type Props = {
   readonly page?: number | undefined;
   readonly onPage: (numero: number) => void;
   readonly onLecteur: (page: number, ancreId: string) => void;
+  /** Le document porte du texte lisible séparément de ses repères. */
+  readonly texteLu?: boolean | undefined;
   readonly onAjouter: () => void;
   /** Vers ce qui se trouve deux fois. **Dans le catalogue**, parce que c'est en regardant ses
    *  documents qu'on se demande si l'un n'y est pas deux fois — pas en en déposant d'autres. */
@@ -74,6 +76,7 @@ export function Catalogue({
   page,
   onPage,
   onLecteur,
+  texteLu = false,
   onAjouter,
   onDoublons,
   schema,
@@ -453,6 +456,18 @@ export function Catalogue({
                     </span>
                   ) : null}
                 </button>
+                {p.index === detail?.index ? (
+                  <div className="ln-pages__ouvrir">
+                    <Bouton
+                      variante="principal"
+                      icone={<Icone nom="chevronDroite" />}
+                      onClick={() => onLecteur(p.index, p.elements[0]?.ancreId ?? "")}
+                      disabled={p.elements.length === 0 && !texteLu}
+                    >
+                      Ouvrir dans le Lecteur
+                    </Bouton>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ol>
@@ -508,14 +523,6 @@ export function Catalogue({
                 ))}
               </ul>
 
-              <button
-                type="button"
-                className="ln-detail__ouvrir"
-                onClick={() => onLecteur(detail.index, detail.elements[0]?.ancreId ?? "")}
-                disabled={detail.elements.length === 0}
-              >
-                Ouvrir dans le Lecteur <Icone nom="chevronDroite" />
-              </button>
             </>
           )}
         </aside>

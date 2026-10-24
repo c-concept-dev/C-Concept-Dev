@@ -7,6 +7,7 @@ import "./PremierLancement.css";
 
 type Props = {
   readonly theme: Theme;
+  readonly etat: "verification" | "vide";
 };
 
 /** La bibliothèque en ligne n'a encore rien de publié.
@@ -24,12 +25,12 @@ type Props = {
  *  Il emprunte la mise en page du premier lancement — même panneau, même logo — parce que c'est
  *  la même place dans le parcours : l'écran qu'on voit quand il n'y a rien à voir.
  *
- *  **Il n'affirme pas qu'on est entré**, et c'est délibéré. Il a d'abord dit « Vous êtes bien
- *  entré » ; mesuré en production le 20 octobre, le texte s'affichait le temps que le refus du
- *  service revienne — donc il le disait exactement à qui ne l'était pas. Un écran ne certifie
- *  pas ce qu'il attend encore d'apprendre. Celui qui n'est pas entré voit la cérémonie une
- *  fraction de seconde plus tard ; celui qui l'est voit une phrase qui reste vraie. */
-export function RienAMontrer({ theme }: Props): JSX.Element {
+ *  **L'attente et la bibliothèque vide ne disent plus la même chose.** Mesuré dans Safari le
+ *  24 octobre : la session était bien reconnue et l'aperçu répondait 404, mais le même texte
+ *  s'affichait avant et après la réponse. Christophe ne pouvait donc pas distinguer « encore en
+ *  train de vérifier » de « déjà entré, rien de publié ». On ne certifie l'entrée qu'après la
+ *  réponse du service ; avant elle, l'écran dit seulement qu'il vérifie. */
+export function RienAMontrer({ theme, etat }: Props): JSX.Element {
   const logo = theme === "light" ? logoClair : logoSombre;
   return (
     <main id="contenu" className="ln-layout ln-premier" tabIndex={-1}>
@@ -40,7 +41,9 @@ export function RienAMontrer({ theme }: Props): JSX.Element {
         <p className="ln-premier__signature">Vos documents et médias, enfin reliés.</p>
         <p className="ln-premier__attente">
           <Icone nom="info" />
-          Cette bibliothèque n’a encore rien à montrer : aucun document n’y a été publié.
+          {etat === "verification"
+            ? "Vérification de votre accès…"
+            : "Vous êtes bien entré. Cette bibliothèque n’a encore rien à montrer : aucun document n’y a été publié."}
         </p>
       </div>
     </main>

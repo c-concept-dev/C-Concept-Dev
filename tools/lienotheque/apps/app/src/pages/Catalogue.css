@@ -241,6 +241,15 @@
   color: var(--ln-selection-text);
 }
 
+/* L'action suit la page choisie. Le détail est un quatrième bloc dans une grille à trois
+   colonnes et peut donc tomber sous une très longue liste de pages : l'ouverture ne doit jamais
+   dépendre de la longueur du document. */
+.ln-pages__ouvrir {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-start: calc(var(--ln-grid));
+}
+
 /* ---- Détail ---- */
 
 .ln-detail__titre {
@@ -311,28 +320,6 @@
 
 .ln-detail__etat--doute {
   color: var(--ln-selection-text);
-}
-
-.ln-detail__ouvrir {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(var(--ln-grid));
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ln-text-primary);
-  font: inherit;
-  font-size: 15px;
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  cursor: pointer;
-}
-
-.ln-detail__ouvrir:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  text-decoration: none;
 }
 
 @media (max-width: 1200px) {

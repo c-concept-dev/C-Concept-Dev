@@ -69,6 +69,22 @@ function poser(element = ID(11)) {
 }
 
 describe("Lecteur : la page et ses éléments (B1, UX-01)", () => {
+  it("montre le passage publié même quand la vue graphique ne porte aucun texte", () => {
+    render(
+      <Lecteur
+        vue={VUE}
+        page={126}
+        element=""
+        textePage={["Ce texte vient des passages publiés, séparément des images."]}
+        onPage={() => undefined}
+        onElement={() => undefined}
+      />,
+    );
+
+    expect(screen.getByRole("region", { name: "Texte de la page" })).toBeInTheDocument();
+    expect(screen.getByText("Ce texte vient des passages publiés, séparément des images.")).toBeInTheDocument();
+  });
+
   it("emploie les mots de la bibliothèque, jamais les siens (CLA-01)", () => {
     poser();
     expect(screen.getAllByText(/feuillet 127/i).length).toBeGreaterThan(0);

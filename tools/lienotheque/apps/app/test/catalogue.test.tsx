@@ -226,6 +226,15 @@ describe("Catalogue : grille et liste", () => {
 });
 
 describe("Catalogue : panneau de détail (B3)", () => {
+  it("garde l'ouverture auprès de la page choisie, même si le document est très long", () => {
+    poser();
+    const pageChoisie = screen.getByRole("button", { name: "Feuillet 127" });
+    const carte = pageChoisie.closest("li");
+
+    expect(carte).not.toBeNull();
+    expect(within(carte!).getByRole("button", { name: /ouvrir dans le lecteur/i })).toBeInTheDocument();
+  });
+
   it("liste les clauses de la page, leurs liens et leur état", () => {
     poser();
     const detail = screen.getByRole("complementary", { name: /détail — feuillet 127/i });
@@ -241,6 +250,29 @@ describe("Catalogue : panneau de détail (B3)", () => {
     const { vers } = poser();
     await userEvent.click(screen.getByRole("button", { name: /ouvrir dans le lecteur/i }));
     expect(vers).toEqual([{ page: 127, ancre: ID(21) }]);
+  });
+
+  it("ouvre aussi le texte lu quand la page ne porte aucun repère", async () => {
+    const sansRepere = VueBibliotheque.parse({
+      ...VUE,
+      pages: [{ ...VUE.pages[0]!, elements: [] }],
+    });
+    const ouvrir = vi.fn();
+    render(
+      <Catalogue
+        vue={sansRepere}
+        page={126}
+        texteLu
+        onPage={vi.fn()}
+        onLecteur={ouvrir}
+        onAjouter={vi.fn()}
+      />,
+    );
+
+    const bouton = screen.getByRole("button", { name: /ouvrir dans le lecteur/i });
+    expect(bouton).toBeEnabled();
+    await userEvent.click(bouton);
+    expect(ouvrir).toHaveBeenCalledWith(126, "");
   });
 });
 

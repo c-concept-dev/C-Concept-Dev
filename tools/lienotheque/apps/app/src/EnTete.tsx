@@ -12,6 +12,9 @@ type Props = {
   readonly onThemeChange: (theme: Theme) => void;
   readonly onRecherche: (texte: string) => void;
   readonly donnees: DonneesAccueil;
+  /** Un document est réellement chargé, même si aucune bibliothèque locale ne le porte.
+   *  C'est le cas en ligne : la façade sert une bibliothèque sans dossier sur cet ordinateur. */
+  readonly rechercheDisponible?: boolean | undefined;
   /** Combien de travaux tournent vraiment, lus de la file de l'hôte.
    *
    *  Le bandeau annonçait « 1 traitement en cours » quoi qu'il arrive — un chiffre écrit dans le
@@ -25,9 +28,9 @@ type Props = {
  *  Le thème se règle dans les réglages, pas ici : la barre ne le montre qu'en développement, où
  *  l'on bascule sans cesse entre les trois variantes.
  *  Le logo est le vectoriel validé du kit ; l'hybride garde la barre graphite, donc l'emblème sombre. */
-export function EnTete({ theme, onThemeChange, onRecherche, donnees, enTraitement }: Props): JSX.Element {
+export function EnTete({ theme, onThemeChange, onRecherche, donnees, rechercheDisponible = false, enTraitement }: Props): JSX.Element {
   const embleme = theme === "light" ? emblemeClair : emblemeSombre;
-  const garnie = donnees.bibliotheques.length > 0;
+  const garnie = donnees.bibliotheques.length > 0 || rechercheDisponible;
 
 
   return (
