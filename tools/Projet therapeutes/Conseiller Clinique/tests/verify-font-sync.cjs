@@ -55,6 +55,10 @@ const doc = {
     assert.ok(listed.some(item => item.value === 'Pompiere' && item.group === 'Polices actives sur ce Mac'));
     assert.ok(!listed.some(item => item.value === 'Academy Engraved LET'));
     assert.ok(await page.evaluate(async () => (await document.fonts.load('16px "Pompiere"')).length > 0));
+    await page.locator('select[data-editor-style="fontFamily"]').selectOption('Pompiere');
+    assert.equal(await page.locator('select[data-editor-style="fontFamily"]').inputValue(), 'Pompiere');
+    assert.equal(await page.evaluate(() => window._adocArtifacts.adocArt_fontSync._adocStructuredDoc.blocks[0].style.fontFamily), 'Pompiere');
+    assert.match(await page.locator('#font-sync-paragraph').evaluate(el => getComputedStyle(el).fontFamily), /Pompiere/);
 
     families = [families[1], { label: 'Police Nouvelle', family: 'Police Nouvelle', postscriptName: 'Police-Nouvelle' }];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));

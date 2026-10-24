@@ -10187,11 +10187,14 @@ ${recent}`;
         html += '<optgroup label="Valeur du document, absente de cet ordinateur">'
           + '<option value="' + adocEsc(actuelle) + '" disabled>' + adocEsc(actuelle) + '</option></optgroup>';
       }
-      selectPolice.innerHTML = html;
+      if (selectPolice.innerHTML !== html) selectPolice.innerHTML = html;
       // La boucle générique [data-editor-style] a déjà posé les valeurs PLUS HAUT, alors que ce
       // <select> n'avait pas encore ses options : sans cette ligne, sa valeur retomberait à vide à
       // chaque rafraîchissement, quelle que soit la police du bloc.
-      if (document.activeElement !== selectPolice) selectPolice.value = actuelle == null ? '' : actuelle;
+      // Safari garde le <select> actif pendant l'événement change. Recréer ses options
+      // puis éviter de rétablir la valeur le ramenait à « Police de la charte » après
+      // une sélection pourtant appliquée au bloc.
+      selectPolice.value = actuelle == null ? '' : actuelle;
       // La note ne s'affiche QUE si la police active est une police locale : jamais pour une paire
       // Google, qui survit à l'export, et jamais en permanence — un avertissement toujours visible
       // cesse d'être lu.
