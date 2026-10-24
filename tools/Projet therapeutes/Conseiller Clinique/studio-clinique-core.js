@@ -9992,6 +9992,8 @@ ${recent}`;
           });
         } catch (e) { console.warn('[narration-ia] ' + (e && e.message)); }
       }
+      const paragrapheBtn = narrBoite.querySelector('.nia-paragraphe-bouton');
+      if (paragrapheBtn) paragrapheBtn.hidden = !(etape && ctx.block && ctx.block.type === 'paragraph' && ctx.block.id === etape.stepId);
       if (etape) {
         const zone = narrBoite.querySelector('[data-editor-narration]');
         const sur = etape.surRang > 1 ? ', étape ' + etape.rang + ' sur ' + etape.surRang : ', étape unique';

@@ -1259,7 +1259,9 @@
     + '.nia-brut{max-height:160px;overflow:auto;white-space:pre-wrap;font-size:11px;'
     + 'background:#fff;border:1px solid var(--stone-300,#c9c3b8);padding:6px;margin-top:6px;}'
     + '.nia-etat{margin:6px 0 0;color:var(--muted,#667);white-space:pre-wrap;}'
-    + '.nia-etat[data-erreur]{color:var(--terracotta-700,#9c4221);}';
+    + '.nia-etat[data-erreur]{color:var(--terracotta-700,#9c4221);}'
+    + '.nia-paragraphe-bouton[hidden],.nia-paragraphe-panneau[hidden]{display:none;}'
+    + '.nia-paragraphe-apercu{width:100%;box-sizing:border-box;min-height:90px;font:inherit;resize:vertical;}';
 
   function poserCss() {
     if (document.getElementById('nia-css')) return;
@@ -1426,7 +1428,102 @@
     boite.appendChild(bouton);
     boite.appendChild(panneau);
 
-    bouton.onclick = function () { panneau.hidden = !panneau.hidden; };
+    // Le geste contextuel vise exclusivement le paragraphe sélectionné. Le cœur décide de sa
+    // visibilité selon le type de bloc ; le module ne lit que son stepId au moment du clic.
+    var seul = document.createElement('button');
+    seul.type = 'button';
+    seul.className = 'nia-paragraphe-bouton';
+    seul.textContent = 'Rédiger seulement ce paragraphe';
+    seul.hidden = true;
+    seul.style.cssText = 'margin:6px 0 0 8px;font:inherit;padding:4px 10px;cursor:pointer;';
+    var seulPanneau = document.createElement('div');
+    seulPanneau.className = 'nia-panneau nia-paragraphe-panneau';
+    seulPanneau.hidden = true;
+    seulPanneau.innerHTML = '<p>La narration sera proposée pour ce paragraphe uniquement. Les autres étapes ne changeront pas.</p>'
+      + '<div class="nia-ligne"><label>Longueur visée <input type="number" class="nia-paragraphe-mots" min="15" max="120" value="45"> mots</label>'
+      + '<label>Adresse <select class="nia-paragraphe-adresse"><option value="vous">vous</option><option value="tu">tu</option></select></label></div>'
+      + '<div class="nia-ligne"><button type="button" class="nia-paragraphe-generer">Proposer</button>'
+      + '<button type="button" class="nia-paragraphe-appliquer" disabled>Appliquer à ce paragraphe</button>'
+      + '<button type="button" class="nia-paragraphe-annuler" disabled>Annuler ce geste</button>'
+      + '<button type="button" class="nia-paragraphe-fermer">Fermer</button></div>'
+      + '<p class="nia-etat" role="status" aria-live="polite"></p>'
+      + '<textarea class="nia-paragraphe-apercu" aria-label="Aperçu de la narration de ce paragraphe" hidden></textarea>';
+    boite.appendChild(seul);
+    boite.appendChild(seulPanneau);
+    var proposition = null;
+    seul.onclick = function () { seulPanneau.hidden = !seulPanneau.hidden; panneau.hidden = true; };
+    seulPanneau.querySelector('.nia-paragraphe-fermer').onclick = function () { seulPanneau.hidden = true; };
+    seulPanneau.querySelector('.nia-paragraphe-generer').onclick = async function () {
+      var doc = docCourant();
+      var zone = boite.querySelector('[data-editor-narration]');
+      var stepId = zone && zone.dataset.stepId;
+      var etape = doc && IA.contenuParEtape(doc).find(function (e) { return e.stepId === stepId; });
+      if (!etape || etape.type !== 'paragraph') { dire(seulPanneau, 'Sélectionnez un paragraphe de la présentation.', true); return; }
+      if (!etape.texte || !etape.texte.trim() || etape.texte.trim() === 'Nouveau paragraphe.') {
+        dire(seulPanneau, 'Rédigez d’abord le paragraphe à commenter.', true); return;
+      }
+      var cible = Number(seulPanneau.querySelector('.nia-paragraphe-mots').value);
+      if (!Number.isInteger(cible) || cible < IA.MOTS_MIN_ETAPE || cible > IA.MOTS_MAX_ETAPE) {
+        dire(seulPanneau, 'Choisissez entre 15 et 120 mots.', true); return;
+      }
+      var btn = this;
+      btn.disabled = true;
+      seulPanneau.querySelector('.nia-paragraphe-appliquer').disabled = true;
+      seulPanneau.querySelector('.nia-paragraphe-apercu').hidden = true;
+      proposition = null;
+      dire(seulPanneau, 'Proposition en cours pour ce paragraphe…');
+      try {
+        var res = await IA.reecrireEtape(doc, stepId, 'Rédigez la narration orale de ce paragraphe uniquement.', {
+          cible: cible, adresse: seulPanneau.querySelector('.nia-paragraphe-adresse').value,
+          transport: window.NarrationIA._transportDEssai || undefined,
+          dejaEcrites: Object.fromEntries((doc.narration || []).map(function (n) { return [n.stepId, n.text]; })),
+        });
+        if (docCourant() !== doc || !IA.contenuParEtape(doc).some(function (e) { return e.stepId === stepId && e.type === 'paragraph'; })) {
+          dire(seulPanneau, 'Le document ou le paragraphe a changé : proposition écartée.', true); return;
+        }
+        proposition = { doc: doc, stepId: stepId, paragraphText: etape.texte };
+        var apercu = seulPanneau.querySelector('.nia-paragraphe-apercu');
+        apercu.value = res.entree.text;
+        apercu.hidden = false;
+        seulPanneau.querySelector('.nia-paragraphe-appliquer').disabled = false;
+        dire(seulPanneau, 'Une proposition pour ce seul paragraphe. Relisez-la puis appliquez-la. Rien n’est encore écrit.');
+      } catch (e) { dire(seulPanneau, 'Proposition impossible : ' + IA.sansCle(e && e.message || String(e)), true); }
+      finally { btn.disabled = false; }
+    };
+    seulPanneau.querySelector('.nia-paragraphe-appliquer').onclick = function () {
+      if (!proposition || docCourant() !== proposition.doc) { dire(seulPanneau, 'Document changé : rien n’a été écrit.', true); return; }
+      var apercu = seulPanneau.querySelector('.nia-paragraphe-apercu');
+      var texte = apercu.value.trim();
+      if (!texte) { dire(seulPanneau, 'La narration est vide : rien n’a été écrit.', true); return; }
+      var etape = IA.contenuParEtape(proposition.doc).find(function (e) { return e.stepId === proposition.stepId && e.type === 'paragraph'; });
+      if (!etape) { dire(seulPanneau, 'Le paragraphe n’existe plus : rien n’a été écrit.', true); return; }
+      if (etape.texte !== proposition.paragraphText) { dire(seulPanneau, 'Le paragraphe a changé depuis la proposition : recommencez.', true); return; }
+      var ancienne = window.adocNarrationRead(proposition.doc, proposition.stepId);
+      if (ancienne && ancienne !== texte && !window.confirm('Ce paragraphe porte déjà une narration. Remplacer uniquement celle-ci ?')) return;
+      if (ancienne === texte) { dire(seulPanneau, 'Cette narration est déjà appliquée.'); return; }
+      dernierGeste = { source: 'single', doc: proposition.doc, stepId: proposition.stepId,
+        avant: JSON.parse(JSON.stringify(proposition.doc.narration || [])) };
+      window.adocNarrationWrite(proposition.doc, proposition.stepId, texte);
+      window.adocEditorMarkDirty();
+      panneau.querySelector('.nia-annuler').disabled = true;
+      seulPanneau.querySelector('.nia-paragraphe-annuler').disabled = false;
+      this.disabled = true;
+      dire(seulPanneau, 'Narration appliquée à ce paragraphe uniquement. Sauvegardez pour la conserver.');
+      rafraichirChamp();
+    };
+    seulPanneau.querySelector('.nia-paragraphe-annuler').onclick = function () {
+      if (!dernierGeste || dernierGeste.source !== 'single' || dernierGeste.doc !== docCourant()
+        || dernierGeste.stepId !== proposition.stepId) return;
+      dernierGeste.doc.narration = JSON.parse(JSON.stringify(dernierGeste.avant));
+      if (!dernierGeste.doc.narration.length) delete dernierGeste.doc.narration;
+      window.adocEditorMarkDirty();
+      dernierGeste = null;
+      this.disabled = true;
+      dire(seulPanneau, 'Geste annulé : la narration précédente est restaurée.');
+      rafraichirChamp();
+    };
+
+    bouton.onclick = function () { panneau.hidden = !panneau.hidden; seulPanneau.hidden = true; };
     panneau.querySelector('.nia-fermer').onclick = function () { panneau.hidden = true; };
 
     var dernierResultat = null;
@@ -1535,6 +1632,7 @@
       }
       // L'état d'AVANT, en entier : c'est lui que « Annuler ce geste » restaure.
       dernierGeste = { doc: doc, avant: JSON.parse(JSON.stringify(doc.narration || [])) };
+      seulPanneau.querySelector('.nia-paragraphe-annuler').disabled = true;
       aEcrire.forEach(function (en) {
         window.adocNarrationWrite(doc, en.stepId, en.text);
       });
@@ -1552,7 +1650,7 @@
     };
 
     panneau.querySelector('.nia-annuler').onclick = function () {
-      if (!dernierGeste) return;
+      if (!dernierGeste || dernierGeste.source === 'single') return;
       // Restaure l'état d'avant EXACTEMENT : on vide puis on repose, plutôt que de réécrire
       // étape par étape — une narration ajoutée là où il n'y en avait aucune doit disparaître.
       dernierGeste.doc.narration = JSON.parse(JSON.stringify(dernierGeste.avant));
