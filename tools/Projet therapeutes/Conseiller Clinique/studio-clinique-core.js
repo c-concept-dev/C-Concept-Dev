@@ -21551,10 +21551,9 @@ ${recent}`;
           if (!parentWidth || (!changed && Math.abs(horizontalDelta) < 2 && Math.abs(verticalDelta) < 2)) return;
           if (!changed) { adocEditorCheckpoint(); document.addEventListener('click', suppressClick, true); changed = true; }
           block.content.imageDisplay = block.content.imageDisplay || {};
-          // Les huit prises pilotent deux dimensions indépendantes. Une photo redimensionnée
-          // remplit son cadre, sans conserver son ratio intrinsèque ni recadrer l'autre axe.
-          block.content.imageDisplay.fit = 'fill';
-          if (img) img.style.objectFit = 'fill';
+          // Les huit prises pilotent deux dimensions indépendantes du cadre. Le choix de
+          // cadrage reste celui de l'utilisatrice : cover/contain gardent les proportions,
+          // et seule l'option explicite « Étirer » déforme la photo.
           if (!documentCover && !Number.isInteger(block.content.imageDisplay.heightPx)) {
             block.content.imageDisplay.heightPx = Math.max(60, Math.min(1200, Math.round(startHeight)));
             delete block.content.imageDisplay.aspectRatio;

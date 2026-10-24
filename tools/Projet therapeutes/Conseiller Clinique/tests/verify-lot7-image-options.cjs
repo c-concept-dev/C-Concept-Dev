@@ -120,6 +120,7 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     assert.equal(await page.locator('.cc-image-display-controls [data-image-size]').count(), 1, 'taille dans les options de la photo');
     assert.equal(await page.locator('.cc-image-display-controls [data-image-opacity]').count(), 1, 'opacité dans les options de la photo');
     assert.equal(await page.locator('.cc-image-display-controls [data-image-rotation]').count(), 1, 'rotation dans les options de la photo');
+    await page.getByLabel('Cadrage').selectOption('contain');
     await page.locator('[data-image-size="widthPercent"]').fill('60');
     assert.equal(await page.locator('[data-image-main-output="size"]').textContent(), '60 %', 'taille affichée pendant le réglage');
     assert.equal(await page.locator('#photo-1 .adoc-sc-image-cadre').evaluate(el => Math.round(el.getBoundingClientRect().width / el.parentElement.getBoundingClientRect().width * 100)), 60, 'le curseur Taille redimensionne immédiatement le cadre visible');
@@ -145,6 +146,7 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     await page.mouse.up();
     const heightAfter = await page.locator('#photo-1 img').evaluate(el => el.getBoundingClientRect().height);
     assert.ok(heightAfter > heightBefore + 30, 'la poignée verticale étire réellement le cadre photo');
+    assert.equal(await page.locator('#photo-1 img').evaluate(el => getComputedStyle(el).objectFit), 'contain', 'les poignées ne forcent pas le mode Étirer sur un bloc image');
     await page.getByLabel('Cadrage').selectOption('fill');
     assert.equal(await page.locator('#photo-1 img').evaluate(el => getComputedStyle(el).objectFit), 'fill');
     await page.evaluate(() => adocOpenWorkspace(window._adocWsState.storeKey));
@@ -220,7 +222,7 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQ
     await classicPage.goto('http://studio.test/fiche.html');
     await classicOffline.setOffline(true);
     await classicPage.waitForSelector('.adoc-sc-cover-image-layer');
-    assert.equal(await classicPage.locator('.adoc-sc-cover-image-layer').evaluate(el => getComputedStyle(el).objectFit), 'fill', 'une bannière étirée conserve la déformation dans l’export');
+    assert.equal(await classicPage.locator('.adoc-sc-cover-image-layer').evaluate(el => getComputedStyle(el).objectFit), 'contain', 'redimensionner la bannière conserve le cadrage choisi dans l’export');
     assert.equal(await classicPage.locator('.adoc-sc-cover-image-layer').evaluate(el => el.src.startsWith('data:image/')), true, 'couverture Fiche embarquée hors connexion');
     await classicOffline.close();
     const carrousel = doc('carrousel');
