@@ -1148,7 +1148,22 @@
     lignes.push('Diapositive : ' + (etape.cardTitle || 'sans titre'));
     lignes.push('  stepId: ' + etape.stepId);
     lignes.push('  cible: ' + cible + ' mots');
-    lignes.push('  contenu de cette étape : ' + (etape.texte || '(pas de texte, image ou titre seul)'));
+    if (o.contexteNouveauParagraphe) {
+      lignes.push('  Ce paragraphe contient encore un texte provisoire, sans contenu à commenter.');
+      lignes.push('  Contexte de toute la présentation, dans l’ordre des diapositives :');
+      toutes.forEach(function (autre, rang) {
+        if (rang === i || !autre.texte || !autre.texte.trim()
+          || autre.texte.trim() === 'Nouveau paragraphe.') return;
+        lignes.push('  ' + (rang < i ? 'AVANT' : 'APRÈS')
+          + (autre.cardId === etape.cardId ? ', même diapositive' : ', autre diapositive')
+          + ' — ' + (autre.cardTitle || 'sans titre') + ' : ' + autre.texte.trim());
+      });
+      lignes.push('  Inspirez-vous d’abord des blocs voisins, puis du fil général de toutes les diapositives.');
+      lignes.push('  Proposez une transition orale pour cette nouvelle étape, sans répéter la narration des étapes voisines.');
+      lignes.push('  Ne présentez pas le texte provisoire comme un contenu et n’ajoutez aucun fait absent du contexte.');
+    } else {
+      lignes.push('  contenu de cette étape : ' + (etape.texte || '(pas de texte, image ou titre seul)'));
+    }
     lignes.push('');
     lignes.push('Consigne de l’auteur : ' + (String(consigne || '').trim() || 'réécrivez autrement.'));
 
@@ -1457,10 +1472,18 @@
       var doc = docCourant();
       var zone = boite.querySelector('[data-editor-narration]');
       var stepId = zone && zone.dataset.stepId;
-      var etape = doc && IA.contenuParEtape(doc).find(function (e) { return e.stepId === stepId; });
+      var etapes = doc && IA.contenuParEtape(doc);
+      var etape = etapes && etapes.find(function (e) { return e.stepId === stepId; });
       if (!etape || etape.type !== 'paragraph') { dire(seulPanneau, 'Sélectionnez un paragraphe de la présentation.', true); return; }
-      if (!etape.texte || !etape.texte.trim() || etape.texte.trim() === 'Nouveau paragraphe.') {
-        dire(seulPanneau, 'Rédigez d’abord le paragraphe à commenter.', true); return;
+      var provisoire = !etape.texte || !etape.texte.trim() || etape.texte.trim() === 'Nouveau paragraphe.';
+      if (provisoire) {
+        var voisins = etapes.filter(function (e) {
+          return e.stepId !== stepId && e.texte
+            && e.texte.trim() && e.texte.trim() !== 'Nouveau paragraphe.';
+        });
+        if (!voisins.length) {
+          dire(seulPanneau, 'La présentation ne contient pas encore de texte à commenter. Rédigez le paragraphe ou ajoutez du contenu.', true); return;
+        }
       }
       var cible = Number(seulPanneau.querySelector('.nia-paragraphe-mots').value);
       if (!Number.isInteger(cible) || cible < IA.MOTS_MIN_ETAPE || cible > IA.MOTS_MAX_ETAPE) {
@@ -1471,12 +1494,15 @@
       seulPanneau.querySelector('.nia-paragraphe-appliquer').disabled = true;
       seulPanneau.querySelector('.nia-paragraphe-apercu').hidden = true;
       proposition = null;
-      dire(seulPanneau, 'Proposition en cours pour ce paragraphe…');
+      dire(seulPanneau, provisoire
+        ? 'Paragraphe provisoire : proposition fondée sur les blocs voisins et toute la présentation…'
+        : 'Proposition en cours pour ce paragraphe…');
       try {
         var res = await IA.reecrireEtape(doc, stepId, 'Rédigez la narration orale de ce paragraphe uniquement.', {
           cible: cible, adresse: seulPanneau.querySelector('.nia-paragraphe-adresse').value,
           transport: window.NarrationIA._transportDEssai || undefined,
           dejaEcrites: Object.fromEntries((doc.narration || []).map(function (n) { return [n.stepId, n.text]; })),
+          contexteNouveauParagraphe: provisoire,
         });
         if (docCourant() !== doc || !IA.contenuParEtape(doc).some(function (e) { return e.stepId === stepId && e.type === 'paragraph'; })) {
           dire(seulPanneau, 'Le document ou le paragraphe a changé : proposition écartée.', true); return;
@@ -1486,7 +1512,9 @@
         apercu.value = res.entree.text;
         apercu.hidden = false;
         seulPanneau.querySelector('.nia-paragraphe-appliquer').disabled = false;
-        dire(seulPanneau, 'Une proposition pour ce seul paragraphe. Relisez-la puis appliquez-la. Rien n’est encore écrit.');
+        dire(seulPanneau, provisoire
+          ? 'Proposition fondée sur les blocs voisins et toute la présentation, pour ce nouveau paragraphe uniquement. Relisez-la : rien n’est encore écrit.'
+          : 'Une proposition pour ce seul paragraphe. Relisez-la puis appliquez-la. Rien n’est encore écrit.');
       } catch (e) { dire(seulPanneau, 'Proposition impossible : ' + IA.sansCle(e && e.message || String(e)), true); }
       finally { btn.disabled = false; }
     };

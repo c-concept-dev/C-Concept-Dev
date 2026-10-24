@@ -11,6 +11,10 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     await page.goto('file://' + ROOT + '/studio-clinique.html');
     await page.evaluate(() => { document.getElementById('cc-login-screen')?.remove(); document.getElementById('assistdoc-screen')?.classList.add('active'); });
     const d = doc();
+    d.blocks.push({ id: 'card-02', type: 'card', content: { title: 'Diapositive suivante', imageRef: null,
+      imageAlt: null, blocks: [{ id: 'p-apres', type: 'paragraph',
+        content: { text: 'Une conséquence clinique exposée sur la diapositive suivante.' },
+        citationIds: [], validation: {} }] }, citationIds: [], validation: {} });
     d.narration = [{ stepId: 'h1', text: 'Narration existante de la première étape.' },
       { stepId: 'p1', text: 'Narration existante de la deuxième étape.' }];
     assert.equal(await open(page, d), true);
@@ -26,23 +30,42 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     assert.equal(await page.locator('.nia-paragraphe-bouton').isVisible(), true, 'l’option est visible sur le paragraphe inséré');
     await page.evaluate(() => {
       window.__narrationSingleCalls = [];
+      window.NarrationIA.__reecrireEtapeOriginal = window.NarrationIA.reecrireEtape;
       window.NarrationIA.reecrireEtape = async (document, stepId, consigne, options) => {
-        window.__narrationSingleCalls.push({ stepId, cible: options.cible, consigne });
+        window.__narrationSingleCalls.push({ stepId, cible: options.cible, consigne,
+          contexte: options.contexteNouveauParagraphe });
         return { entree: { stepId, text: 'Voici une proposition de narration propre à ce paragraphe.' } };
       };
     });
     await page.locator('.nia-paragraphe-bouton').click();
     await page.locator('.nia-paragraphe-generer').click();
-    assert.match(await page.locator('.nia-paragraphe-panneau .nia-etat').innerText(), /Rédigez d’abord le paragraphe/);
-    assert.equal((await page.evaluate(() => window.__narrationSingleCalls)).length, 0, 'un paragraphe vide ne déclenche aucun appel');
+    assert.match(await page.locator('.nia-paragraphe-panneau .nia-etat').innerText(), /toute la présentation/);
+    let calls = await page.evaluate(() => window.__narrationSingleCalls);
+    assert.equal(calls.length, 1, 'le nouveau paragraphe déclenche une proposition contextuelle');
+    assert.equal(calls[0].contexte, true);
+    const prompt = await page.evaluate(async ({ stepId }) => {
+      const d = window._adocArtifacts['test-doc']._adocStructuredDoc;
+      let message = '';
+      try {
+        await window.NarrationIA.__reecrireEtapeOriginal(d, stepId, 'Narration ciblée', {
+          cible: 45, contexteNouveauParagraphe: true,
+          transport: async input => { message = input.messages[0].content; throw new Error('arrêt du test'); },
+        });
+      } catch (e) { if (e.message !== 'arrêt du test') throw e; }
+      return message;
+    }, { stepId: inserted });
+    assert.match(prompt, /AVANT, même diapositive.*Contenu clinique de la diapositive/);
+    assert.match(prompt, /APRÈS, autre diapositive.*conséquence clinique/);
+    assert.doesNotMatch(prompt, /contenu de cette étape : Nouveau paragraphe/);
     await page.locator('#' + inserted + ' [data-cc-editor-leaf]').fill('Un nouveau paragraphe consacré aux ressources du couple.');
     await page.locator('.nia-paragraphe-generer').click();
     await page.locator('.nia-paragraphe-appliquer').waitFor({ state: 'visible' });
     assert.equal(await page.locator('.nia-paragraphe-appliquer').isEnabled(), true);
-    const calls = await page.evaluate(() => window.__narrationSingleCalls);
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].stepId, inserted, 'la requête vise exclusivement le nouveau bloc');
-    assert.equal(calls[0].cible, 45);
+    calls = await page.evaluate(() => window.__narrationSingleCalls);
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].stepId, inserted, 'la requête vise exclusivement le nouveau bloc');
+    assert.equal(calls[1].cible, 45);
+    assert.equal(calls[1].contexte, false, 'le texte rédigé remplace le contexte de secours');
     let narrations = await page.evaluate(() => window._adocArtifacts['test-doc']._adocStructuredDoc.narration);
     assert.equal(narrations.length, 2, 'la proposition n’écrit rien avant validation');
     await page.locator('.nia-paragraphe-appliquer').click();
