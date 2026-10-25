@@ -56,6 +56,10 @@ type Props = {
 };
 
 type Vue = "grille" | "liste";
+type TriDocuments = "alphabetique" | "date" | "theme";
+type AxeDeTri = { readonly cle: string; readonly nom?: string; readonly valeurs: ReadonlyMap<string, string> };
+
+const comparer = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
 
 /** L'état du lien est le seul axe que l'écran connaît de lui-même.
  *
@@ -97,6 +101,7 @@ export function Catalogue({
 }: Props): JSX.Element {
   const [mode, setMode] = useState<Vue>("grille");
   const [choisis, setChoisis] = useState<ReadonlySet<string>>(new Set());
+  const [triDocuments, setTriDocuments] = useState<TriDocuments>("alphabetique");
 
   const basculer = (clef: string): void => {
     const suivant = new Set(choisis);
@@ -132,6 +137,66 @@ export function Catalogue({
       return true;
     });
   }, [documents, classements, choisis, axesClassants]);
+
+  // Le premier axe réellement porté par au moins un document donne le tri thématique. Sa clé,
+  // son nom et ses valeurs viennent tous du schéma : le Catalogue ne connaît aucun domaine. Si
+  // le premier axe est vide mais qu'un axe suivant est utilisé, celui-ci prend naturellement le
+  // relais — par exemple un axe d'approche défini par une autre bibliothèque.
+  const axeDeTri = useMemo((): AxeDeTri | undefined => {
+    const declare = axesClassants.find((axe) =>
+        (documents ?? []).some((document) => {
+          const portees = classements?.get(document.empreinte)?.axes[axe.cle];
+          return (
+            portees?.type === "reference" &&
+            portees.valeurs.some((cle) => axe.valeurs.some((valeur) => !valeur.retiree && valeur.cle === cle))
+          );
+        }),
+      );
+    if (declare !== undefined)
+      return {
+        cle: declare.cle,
+        nom: declare.nom,
+        valeurs: new Map(declare.valeurs.filter((valeur) => !valeur.retiree).map((valeur) => [valeur.cle, valeur.nom])),
+      };
+
+    // En ligne, l'aperçu porte les classements mais pas toute la description locale. Les clés
+    // restent alors suffisantes pour grouper sans inventer de libellé : elles sont des données
+    // du classement, et le tri alphabétique départage proprement les groupes.
+    for (const document of documents ?? []) {
+      const range = classements?.get(document.empreinte);
+      for (const [cle, portees] of Object.entries(range?.axes ?? {})) {
+        if (portees.type === "reference" && portees.valeurs.length > 0)
+          return { cle, valeurs: new Map(portees.valeurs.map((valeur) => [valeur, valeur])) };
+      }
+    }
+    return undefined;
+  }, [axesClassants, documents, classements]);
+
+  const documentsTries = useMemo(() => {
+    const parTitre = (a: ApercuDocument, b: ApercuDocument): number => comparer.compare(a.nom, b.nom);
+    const resultat = [...documentsRetenus];
+
+    if (triDocuments === "date") return resultat.sort((a, b) => b.activeeLe - a.activeeLe || parTitre(a, b));
+    if (triDocuments !== "theme" || axeDeTri === undefined) return resultat.sort(parTitre);
+
+    const nomDuTheme = (document: ApercuDocument): string | undefined => {
+      const portees = classements?.get(document.empreinte)?.axes[axeDeTri.cle];
+      if (portees?.type !== "reference") return undefined;
+      const noms = portees.valeurs
+        .map((cle) => axeDeTri.valeurs.get(cle) ?? cle)
+        .filter((nom): nom is string => nom !== undefined)
+        .sort(comparer.compare);
+      return noms.length === 0 ? undefined : noms.join(" · ");
+    };
+
+    return resultat.sort((a, b) => {
+      const themeA = nomDuTheme(a);
+      const themeB = nomDuTheme(b);
+      if (themeA === undefined && themeB !== undefined) return 1;
+      if (themeA !== undefined && themeB === undefined) return -1;
+      return (themeA === undefined || themeB === undefined ? 0 : comparer.compare(themeA, themeB)) || parTitre(a, b);
+    });
+  }, [documentsRetenus, triDocuments, axeDeTri, classements]);
 
   // Ranger ce document sur un axe. On reprend le classement entier et l'on y remplace un axe :
   // c'est le noyau qui sait lire un schéma, et lui seul doit le vérifier. L'écran compare des
@@ -314,14 +379,34 @@ export function Catalogue({
         <div className="ln-catalogue__documents-colonne">
           {documents === undefined ? null : (
             <section className="ln-catalogue__documents" aria-labelledby="titre-documents">
-            <h2 id="titre-documents" className="ln-filtres__nom">
-              Documents
-            </h2>
+            <div className="ln-catalogue__documents-barre">
+              <h2 id="titre-documents" className="ln-filtres__nom">
+                Documents
+              </h2>
+              <label className="ln-catalogue__tri">
+                <span>Trier</span>
+                <select
+                  aria-label="Trier les documents"
+                  value={triDocuments === "theme" && axeDeTri === undefined ? "alphabetique" : triDocuments}
+                  onChange={(evenement) => setTriDocuments(evenement.target.value as TriDocuments)}
+                >
+                  <option value="alphabetique">Alphabétique (titre)</option>
+                  <option value="date">Date d’ajout / ancienneté</option>
+                  <option value="theme" disabled={axeDeTri === undefined}>
+                    {axeDeTri === undefined
+                      ? "Par thème (aucun classement)"
+                      : axeDeTri.nom === undefined
+                        ? "Par thème"
+                        : `Par thème — ${axeDeTri.nom}`}
+                  </option>
+                </select>
+              </label>
+            </div>
             {documentsRetenus.length === 0 ? (
               <p className="ln-muted">Aucun document ne porte ce classement.</p>
             ) : (
               <ul aria-labelledby="titre-documents" className="ln-catalogue__documents-liste">
-                {documentsRetenus.map((document) => (
+                {documentsTries.map((document) => (
                   <li key={document.empreinte}>
                     <Bouton
                       variante={document.empreinte === empreinte ? "principal" : "secondaire"}

@@ -146,18 +146,17 @@ describe("filtrer les documents de la bibliothèque sur leur classement (CLA-10)
   const B = "b".repeat(64);
   const C = "c".repeat(64);
 
-  const apercu = (empreinte: string, nom: string): unknown => ({
-    empreinte,
-    version: ID(9),
-    activeeLe: 1,
-    nom,
-    compteurs: [],
-    aVerifier: 0,
-  });
+  const apercu = (empreinte: string, nom: string) =>
+    ApercuDocument.parse({
+      empreinte,
+      version: ID(9),
+      activeeLe: 1,
+      nom,
+      compteurs: [],
+      aVerifier: 0,
+    });
 
-  const DOCUMENTS = [apercu(A, "Premier document"), apercu(B, "Deuxième document"), apercu(C, "Troisième document")].map(
-    (un) => ApercuDocument.parse(un),
-  );
+  const DOCUMENTS = [apercu(A, "Premier document"), apercu(B, "Deuxième document"), apercu(C, "Troisième document")];
 
   const range = (empreinte: string, valeur: string): ClassementLocal => ({
     empreinte,
@@ -213,5 +212,58 @@ describe("filtrer les documents de la bibliothèque sur leur classement (CLA-10)
 
     await userEvent.click(screen.getByRole("button", { name: /Deuxième document/ }));
     expect(choisi).toHaveBeenCalledWith(B);
+  });
+
+  describe("trier sans changer le filtre", () => {
+    const DATES = [
+      ApercuDocument.parse({ ...apercu(A, "Zèbre"), activeeLe: 20 }),
+      ApercuDocument.parse({ ...apercu(B, "Alpha"), activeeLe: 30 }),
+      ApercuDocument.parse({ ...apercu(C, "Éclair"), activeeLe: 10 }),
+    ];
+    const libelles = (): string[] =>
+      within(screen.getByRole("list", { name: /documents/i }))
+        .getAllByRole("listitem")
+        .map((ligne) => ligne.textContent ?? "");
+
+    it("propose les trois tris et commence par le titre alphabétique", () => {
+      render(<Catalogue {...avecDocuments} documents={DATES} onDocument={() => undefined} />);
+
+      const tri = screen.getByRole("combobox", { name: "Trier les documents" });
+      expect(within(tri).getByRole("option", { name: "Alphabétique (titre)" })).toBeTruthy();
+      expect(within(tri).getByRole("option", { name: "Date d’ajout / ancienneté" })).toBeTruthy();
+      expect(within(tri).getByRole("option", { name: /Par thème/ })).toBeTruthy();
+      expect(libelles()).toEqual(["Alpha", "Éclair · non rangé", "Zèbre"]);
+    });
+
+    it("trie par date d’ajout, du plus récent au plus ancien", async () => {
+      render(<Catalogue {...avecDocuments} documents={DATES} onDocument={() => undefined} />);
+
+      await userEvent.selectOptions(screen.getByRole("combobox", { name: "Trier les documents" }), "date");
+      expect(libelles()).toEqual(["Alpha", "Zèbre", "Éclair · non rangé"]);
+    });
+
+    it("trie par la valeur lisible du premier axe réellement utilisé et laisse les non-rangés à la fin", async () => {
+      render(<Catalogue {...avecDocuments} documents={DATES} onDocument={() => undefined} />);
+
+      await userEvent.selectOptions(screen.getByRole("combobox", { name: "Trier les documents" }), "theme");
+      // « Valeur deux » vient avant « Valeur une » ; le document sans valeur vient après les
+      // groupes classés. Le code ne connaît ni ces mots ni leur domaine : ils viennent du schéma.
+      expect(libelles()).toEqual(["Alpha", "Zèbre", "Éclair · non rangé"]);
+    });
+
+    it("garde le tri thématique visible mais inactif quand aucun axe n’est réellement utilisé", () => {
+      render(<Catalogue {...avecDocuments} documents={DATES} classements={new Map()} onDocument={() => undefined} />);
+
+      expect(screen.getByRole("option", { name: /Par thème/ })).toBeDisabled();
+    });
+
+    it("reste utilisable en ligne, où les classements arrivent sans le schéma local", async () => {
+      render(<Catalogue {...socle} documents={DATES} classements={CLASSEMENTS} onDocument={() => undefined} />);
+
+      const option = screen.getByRole("option", { name: /Par thème/ });
+      expect(option).toBeEnabled();
+      await userEvent.selectOptions(screen.getByRole("combobox", { name: "Trier les documents" }), "theme");
+      expect(libelles()).toEqual(["Zèbre", "Alpha", "Éclair · non rangé"]);
+    });
   });
 });
