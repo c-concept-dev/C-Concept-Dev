@@ -7,7 +7,7 @@ import type { Recette } from "@lienotheque/contrats";
  *  mais sur toute la suite à la fois : la meilleure attribution est celle qui explique le mieux
  *  l'ensemble des lectures tout en respectant les pas que la recette autorise.
  *
- *  Porté de `docs/prototypes/westwood_apparier.py`, qui reste l'oracle. */
+ *  Porté du prototype historique d'appariement, qui reste l'oracle. */
 
 /** Ce dont l'attribution a besoin pour un élément : ce qui a été lu, et à quel point. */
 export type LecturePiste = {

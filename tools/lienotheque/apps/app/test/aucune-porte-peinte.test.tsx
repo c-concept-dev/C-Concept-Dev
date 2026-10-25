@@ -10,14 +10,18 @@ import { Creer } from "../src/pages/Creer.js";
 import { Depot } from "../src/pages/Depot.js";
 import { EnTete } from "../src/EnTete.js";
 import { Entrer } from "../src/pages/Entrer.js";
+import { Lecteur } from "../src/pages/Lecteur.js";
 import { LectureDuTexte } from "../src/pages/LectureDuTexte.js";
 import { ManiereDeLire } from "../src/pages/ManiereDeLire.js";
 import { Organisation } from "../src/pages/Organisation.js";
 import { PremierLancement } from "../src/pages/PremierLancement.js";
 import { Reglages } from "../src/pages/Reglages.js";
 import { Retirer } from "../src/pages/Retirer.js";
+import { Recherche } from "../src/pages/Recherche.js";
 import { Doublons } from "../src/pages/Doublons.js";
 import { Verifier } from "../src/pages/Verifier.js";
+import { PanneauEcoute } from "../src/pages/lecteur/PanneauEcoute.js";
+import { TextePage } from "../src/pages/lecteur/TextePage.js";
 
 /** **Aucun bouton visible ne doit être inerte** (UX-09, et le relevé du 21 octobre 2026).
  *
@@ -183,6 +187,29 @@ const VUE = VueBibliotheque.parse({
 });
 
 const PASSAGES = [Passage.parse({ rang: 0, page: 1, texte: "Une ligne lue.", source: "couche_texte" })];
+
+const VUE_AVEC_MEDIA = VueBibliotheque.parse({
+  ...VUE,
+  pages: [
+    {
+      ...VUE.pages[0],
+      elements: [
+        {
+          ...VUE.pages[0]!.elements[0],
+          media: {
+            empreinte: "a".repeat(64),
+            nom: "un-media.mp3",
+            piste: 1,
+            position: { segment: "connu", debut: 2, fin: 8, confiance: 1 },
+            source: "/un-media.mp3",
+            duree: 10,
+          },
+          pourquoi: { preuve: "lu", confiance: 1, phrase: "Lien lu dans le document" },
+        },
+      ],
+    },
+  ],
+});
 
 const ACCUEIL_GARNI = {
   bibliotheques: [
@@ -431,6 +458,101 @@ describe("aucune porte peinte : chaque bouton visible mène quelque part", () =>
     await aucunBoutonInerte("Entrer", () => {
       const g = gestes("onEntre");
       render(<Entrer onEntre={g["onEntre"]!} />);
+      return g;
+    });
+  });
+
+  it("le Lecteur", async () => {
+    await aucunBoutonInerte("Lecteur", () => {
+      const g = gestes("onPage", "onElement", "onTraduire");
+      g["onTraduire"]!.mockResolvedValue({
+        etat: "traduite",
+        page: 1,
+        langueSource: "en",
+        langueCible: "fr",
+        traduction: ["Une ligne traduite."],
+        automatique: true,
+        cache: "cree",
+        modele: "@cf/meta/m2m100-1.2b",
+      });
+      render(
+        <Lecteur
+          vue={VUE}
+          page={1}
+          element={ID(20)}
+          onPage={g["onPage"]!}
+          onElement={g["onElement"]!}
+          onTraduire={g["onTraduire"]!}
+        />,
+      );
+      return g;
+    });
+  });
+
+  it("la recherche", async () => {
+    await aucunBoutonInerte("Recherche", () => {
+      const g = gestes("onFermer", "onOuvrir", "onEcouter", "onAction");
+      render(
+        <Recherche
+          vue={VUE}
+          passages={PASSAGES}
+          requeteInitiale="ligne"
+          onFermer={g["onFermer"]!}
+          onOuvrir={g["onOuvrir"]!}
+          onEcouter={g["onEcouter"]!}
+          onAction={g["onAction"]!}
+        />,
+      );
+      return g;
+    });
+  });
+
+  it("le panneau d'écoute", async () => {
+    await aucunBoutonInerte("Panneau d'écoute", () => {
+      const g = gestes("onLecture", "onBoucle", "onTempo", "onPrecedent", "onSuivant");
+      render(
+        <PanneauEcoute
+          element={VUE_AVEC_MEDIA.pages[0]!.elements[0]!}
+          mots={VUE_AVEC_MEDIA.mots}
+          segments={[{ debut: 2, fin: 8, libelle: "1", actif: true }]}
+          dureeS={10}
+          positionS={2}
+          ecoute={{
+            disponible: true,
+            enPanne: false,
+            enLecture: false,
+            positionS: 2,
+            dureeS: 10,
+            basculer: g["onLecture"]!,
+            arreter: vi.fn(),
+          }}
+          boucle={false}
+          tempo={75}
+          onLecture={g["onLecture"]!}
+          onBoucle={g["onBoucle"]!}
+          onTempo={g["onTempo"]!}
+          onPrecedent={g["onPrecedent"]!}
+          onSuivant={g["onSuivant"]!}
+        />,
+      );
+      return g;
+    });
+  });
+
+  it("le bouton de traduction", async () => {
+    await aucunBoutonInerte("Traduction", () => {
+      const g = gestes("onTraduire");
+      g["onTraduire"]!.mockResolvedValue({
+        etat: "traduite",
+        page: 1,
+        langueSource: "en",
+        langueCible: "fr",
+        traduction: ["Une ligne traduite."],
+        automatique: true,
+        cache: "cree",
+        modele: "@cf/meta/m2m100-1.2b",
+      });
+      render(<TextePage original={["One translated line."]} traduction={[]} onTraduire={g["onTraduire"]!} />);
       return g;
     });
   });

@@ -38,7 +38,7 @@ const BANDE_NUMERO = 0.06;
 const LARGEUR_MAX_RELATIVE = 3.5;
 
 /** Largeur minimale, même mesure. Une barre de mesure a exactement la hauteur d'un chiffre et
- *  deux pixels de large : c'est le faux positif le plus courant d'une marge de partition, et
+ *  deux pixels de large : c'est le faux positif le plus courant d'une marge à lignes, et
  *  c'est sa finesse qui le trahit. Un « 1 » seul reste au-dessus. */
 const LARGEUR_MIN_RELATIVE = 0.18;
 
@@ -52,7 +52,7 @@ const ENCRE_MINIMALE = 0.12;
 /** La bande de marge extérieure, en pixels.
  *
  *  `largeur_rel` vaut pour le cliché entier, pas pour la demi-page : c'est la correction déjà
- *  consignée après Westwood, et la refaire ici serait la refaire à moitié. Sur une page coupée,
+ *  consignée après l'épreuve du corpus de référence, et la refaire ici serait la refaire à moitié. Sur une page coupée,
  *  la même part de largeur occupe donc deux fois plus de la page qu'on regarde.
  *
  *  Sans côté connu, on prend les deux bords : on ne devine pas de quel côté était la reliure. */
