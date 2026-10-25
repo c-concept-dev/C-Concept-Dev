@@ -475,20 +475,6 @@ export function App(): JSX.Element {
     };
   }, [courante, travauxAcheves, relectures]);
 
-  // La racine est l'adresse que l'on ouvre naturellement après l'entrée. Au bureau elle mène à
-  // l'Accueil, mais cet écran décrit des bibliothèques locales et n'existe pas dans la façade en
-  // ligne. Quand le service vient de rendre un aperçu non vide, conduire au Catalogue plutôt
-  // que retomber sur « aucune publication » — qui était faux malgré 243 documents bien reçus.
-  useEffect(() => {
-    if (
-      administration === undefined &&
-      route.ecran === "accueil" &&
-      recuEnLigne === "oui" &&
-      documents.length > 0
-    )
-      aller({ ecran: "catalogue" });
-  }, [administration, route.ecran, recuEnLigne, documents.length, aller]);
-
   /** Ce qu'on regardait, le temps qu'on le regardait : lu sans le remettre dans les dépendances
    *  de l'effet qui suit, sans quoi il se rejouerait à chaque document ouvert. */
   const regardeAlors = useRef(regarde);
@@ -759,8 +745,27 @@ export function App(): JSX.Element {
   // L'accueil montre les bibliothèques ouvertes. Sans cela, l'administrateur qui vient d'en
   // créer une retombe sur le premier lancement, comme s'il n'avait rien fait.
   const aLAccueil: DonneesAccueil =
-    creees.length === 0
-      ? donnees
+    administration === undefined && lecture !== undefined && documents.length > 0
+      ? {
+          ...donnees,
+          reprises: [],
+          bibliotheques: [
+            {
+              id: "bibliotheque-en-ligne",
+              nom: "Base de connaissance",
+              href: "#catalogue",
+              collection: "research",
+              icones: ["livre"],
+              compteurs: compteursDeBibliotheque(documents),
+              ...(vue === undefined || vue.aVerifier === 0 ? {} : { aVerifier: vue.aVerifier }),
+              hebergement: { libelle: "En ligne", icones: ["nuage"] },
+              etat: { libelle: "Prêt", icone: "valide" },
+              ouverte: "à l’instant",
+            },
+          ],
+        }
+      : creees.length === 0
+        ? donnees
       : {
           ...donnees,
           bibliotheques: creees.map((creee) =>
@@ -786,12 +791,27 @@ export function App(): JSX.Element {
    *  l'entrée : employer le même texte dans les deux états a fait croire à un blocage réel dans
    *  Safari le 24 octobre 2026. */
   const sansRienAMontrer = (): JSX.Element => {
-    if (administration === undefined && lecture !== undefined)
-      return recuEnLigne === "non" ? (
-        <Entrer onEntre={() => aller({ ecran: "catalogue" })} />
+    if (administration === undefined && lecture !== undefined) {
+      if (recuEnLigne === "non") return <Entrer onEntre={() => aller({ ecran: "catalogue" })} />;
+      if (recuEnLigne !== "oui") return <RienAMontrer theme={theme} etat="verification" />;
+      return aLAccueil.bibliotheques.length === 0 ? (
+        <RienAMontrer theme={theme} etat="vide" />
       ) : (
-        <RienAMontrer theme={theme} etat={recuEnLigne === "oui" ? "vide" : "verification"} />
+        <Accueil
+          donnees={aLAccueil}
+          onOuvrir={() => {
+            // L'Accueil ne suppose pas qu'un document soit encore sélectionné : une relance ou
+            // un retour depuis une adresse vide peut avoir effacé ce choix. Ouvrir la carte
+            // choisit donc explicitement le premier document publié avant d'ouvrir le Catalogue.
+            // Changer seulement le fragment laissait sinon l'adresse sur `#catalogue` tandis
+            // que l'écran, faute de vue active, restait visuellement sur l'Accueil.
+            const premier = documents[0]?.empreinte;
+            if (premier !== undefined) setRegarde(premier);
+            aller({ ecran: "catalogue" });
+          }}
+        />
       );
+    }
     return aLAccueil.bibliotheques.length === 0 ? (
       <PremierLancement
         theme={theme}
@@ -1010,7 +1030,7 @@ export function App(): JSX.Element {
           onPage={(page) => aller({ ecran: "catalogue", page })}
           onLecteur={(page, element) => aller({ ecran: "lecteur", page, element })}
           {...(administration === undefined ? {} : { onDoublons: () => aller({ ecran: "doublons" }) })}
-          onAjouter={() => aller(ACCUEIL)}
+          {...(administration === undefined ? {} : { onAjouter: () => aller(ACCUEIL) })}
         />
       );
     return sansRienAMontrer();
