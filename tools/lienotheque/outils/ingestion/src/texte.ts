@@ -3,9 +3,18 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PageLue } from "@lienotheque/contrats";
-import { estUnEpub, formatParSignature, objetsPdf, octetsImage, pagesPdf, TAILLE_ENTETE } from "@lienotheque/formats";
+import {
+  causeJpegNonDirect,
+  estUnEpub,
+  formatParSignature,
+  objetsPdf,
+  octetsImage,
+  pagesPdf,
+  TAILLE_ENTETE,
+} from "@lienotheque/formats";
 import { decalageDominant } from "@lienotheque/recettes";
 import { decoderJpeg, enGris, versPgm } from "@lienotheque/images";
+import { causeLisible } from "@lienotheque/noyau";
 import {
   type PageDeTexte,
   couperEnDeux,
@@ -17,6 +26,8 @@ import {
   lisible,
   lireParOcr,
   pageDeTexte,
+  ouvrirRenduPdf,
+  type PageRendue,
 } from "@lienotheque/lecteur-texte";
 
 /** Le texte d'un document, d'où qu'il vienne (RCH-07, OUT-05).
@@ -87,6 +98,8 @@ export type OptionsTexte = {
   readonly binaire?: string | undefined;
   readonly langue?: string | undefined;
   readonly tessdata?: string | undefined;
+  /** Une panne locale reste attachée à sa page, même quand le repli permet de continuer. */
+  readonly surAvertissement?: ((message: string) => void) | undefined;
 };
 
 export type TexteDuDocument = {
@@ -101,6 +114,15 @@ export type TexteDuDocument = {
    *  ce document n'a pu être lue » plutôt que d'annoncer un succès sur un résultat vide. */
   readonly sansTexte: number;
 };
+
+/** Mots assez substantiels pour dire qu'une couche décrit réellement la page.
+ *
+ * Les compteurs de dette emploient la même unité : une référence bibliographique de vingt
+ * fragments, dont beaucoup ne sont que des initiales et signes, ne doit pas masquer les cent
+ * mots lisibles de l'image située dessous. */
+export function nombreMotsSignificatifs(texte: string): number {
+  return texte.match(/[\p{L}']{4,}/gu)?.length ?? 0;
+}
 
 /** Les images de page d'un PDF, par **rang de page** et non par ordre d'apparition.
  *
@@ -151,6 +173,7 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
   // tous les flux. Le moteur embarqué y mourait d'un signal après trois minutes et demie, et le
   // parcours complet de l'administrateur ne passait plus.
   const objets = objetsPdf(donnees);
+  const pagesDuPdf = pagesPdf(objets);
   const images = imagesParPage(objets);
 
   // Combien de pages il y a : la couche les compte toutes, même celles qu'elle ne sert pas. Sans
@@ -161,6 +184,7 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
   );
 
   let dossier: string | undefined;
+  let renduComplet: Awaited<ReturnType<typeof ouvrirRenduPdf>> | undefined;
   const pages: PageDeTexte[] = [];
   /** Les nombres de la marge de chaque page, dans l'ordre des pages. Une page seule ne sait pas
    *  lequel est son folio ; le document, lui, le sait. */
@@ -192,12 +216,59 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
       }
 
       async function tenterOcr(): Promise<PageLue | undefined> {
+        const pagePdf = pagesDuPdf[rang - 1];
         const numero = images.get(rang);
-        if (numero === undefined) return undefined;
-        const octets = octetsImage(objets, numero);
-        if (octets === undefined || octets.extension !== "jpg") return undefined;
-        dossier ??= mkdtempSync(join(tmpdir(), "lienotheque-texte-"));
-        return ocrDeLaPage(octets.octets, rang, dossier, options);
+        const octets = numero === undefined ? undefined : octetsImage(objets, numero);
+        let directe: PageLue | undefined;
+
+        // Un flux isolé n'est la page que lorsqu'il est l'unique image de celle-ci. Sur le corpus
+        // réel, prendre la première vignette d'une composition pour la page rendait zéro mot et
+        // empêchait précisément le repli complet de se déclencher.
+        if (pagePdf?.images.length === 1 && octets?.extension === "jpg") {
+          const causePreflight = causeJpegNonDirect(octets.octets);
+          if (causePreflight !== undefined)
+            options.surAvertissement?.(`Page ${rang} : ${causePreflight} ; rendu complet essayé`);
+          else
+            try {
+              dossier ??= mkdtempSync(join(tmpdir(), "lienotheque-texte-"));
+              directe = await ocrDuJpeg(octets.octets, rang, dossier, options);
+              // Quand la couche est faible, quelques mots trouvés dans l'image isolée peuvent
+              // n'être qu'une figure ou un décor. Le rendu complet est alors la seule lecture de
+              // toute la page. Si la couche est déjà jugeable, la comparaison habituelle suffit.
+              if (nombreMotsSignificatifs(deLaCouche?.mots.map((mot) => mot.texte).join(" ") ?? "") >= MOTS_MINIMUM)
+                return directe;
+              options.surAvertissement?.(
+                `Page ${rang} : couche insuffisante ; rendu complet essayé après le JPEG isolé (${directe.mots.length} mots)`,
+              );
+            } catch (cause) {
+              // Les flux connus pour terminer le processus sont écartés avant ce point. Une
+              // erreur ordinaire reste locale et le rendu complet prend le relais.
+              options.surAvertissement?.(
+                `Page ${rang} : décodage direct du JPEG refusé (${causeLisible(cause)}) ; rendu complet essayé`,
+              );
+            }
+        }
+
+        // Flate, JPX, plusieurs images : aucun flux isolé n'est la page. Le rendu de la page
+        // entière est le seul chemin fidèle. Une page purement native sans image garde sa couche
+        // et ne paie pas une reconnaissance inutile.
+        const coucheInsuffisante =
+          nombreMotsSignificatifs(deLaCouche?.mots.map((mot) => mot.texte).join(" ") ?? "") < MOTS_MINIMUM;
+        // « Aucune image détectée » ne signifie pas toujours « page native » : les objets
+        // compressés de treize PDF réels échappent au lecteur structurel, alors que pdf.js rend
+        // parfaitement leur page. Une couche pauvre déclenche donc le rendu complet. En revanche,
+        // `forcerOcr` est un banc explicite : sans image vue, il doit continuer à dire qu'il n'a
+        // rien pu océriser, conformément à son contrat de mesure.
+        if ((pagePdf?.images.length ?? 0) === 0 && (options.forcerOcr === true || !coucheInsuffisante)) return undefined;
+        try {
+          dossier ??= mkdtempSync(join(tmpdir(), "lienotheque-texte-"));
+          renduComplet ??= await ouvrirRenduPdf(pdf);
+          const pixels = await renduComplet.page(rang, 1800);
+          return ocrDesPixels(pixels, rang, dossier, options);
+        } catch (cause) {
+          options.surAvertissement?.(`Page ${rang} : rendu complet impossible (${causeLisible(cause)})`);
+          return directe;
+        }
       }
 
       // Rien de lu : ni couche exploitable, ni image à océriser, ni mot après l'OCR. On le
@@ -226,6 +297,7 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
       options.avancement?.(rang, total);
     }
   } finally {
+    await renduComplet?.fermer();
     if (dossier !== undefined) rmSync(dossier, { recursive: true, force: true });
   }
 
@@ -431,8 +503,12 @@ export function laLectureRetenue(couche: PageLue | undefined, ocr: PageLue | und
  *  cents sur le disque, et c'est déjà arrivé de le remplir : chaque image part dès qu'elle a
  *  été lue.
  */
-async function ocrDeLaPage(jpeg: Buffer, rang: number, dossier: string, options: OptionsTexte): Promise<PageLue> {
-  const image = enGris(await decoderJpeg(jpeg));
+async function ocrDuJpeg(jpeg: Buffer, rang: number, dossier: string, options: OptionsTexte): Promise<PageLue> {
+  return ocrDesPixels(await decoderJpeg(jpeg), rang, dossier, options);
+}
+
+async function ocrDesPixels(imageRendue: PageRendue, rang: number, dossier: string, options: OptionsTexte): Promise<PageLue> {
+  const image = enGris(imageRendue);
   const chemin = join(dossier, `page-${rang}.pgm`);
   writeFileSync(chemin, versPgm(image));
   try {

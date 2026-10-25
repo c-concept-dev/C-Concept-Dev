@@ -4,7 +4,14 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { PassagesDuDocument } from "@lienotheque/contrats";
 import { enPassages, tesseractDisponible } from "@lienotheque/lecteur-texte";
-import { lireLeTexte } from "../src/index.js";
+import { lireLeTexte, nombreMotsSignificatifs } from "../src/index.js";
+
+it("une référence bibliographique ne masque pas une page image encore riche", () => {
+  const couche =
+    "Jacob, G., & Arntz, A. (2021). La thérapie des schémas. Principes et outils (traduction J.-M. Fichel). Louvain-la-Neuve : De Boeck supérieur. Catégories de modes : aperçu";
+  expect(couche.split(/\s+/).length, "le comptage brut franchit l'ancien seuil").toBeGreaterThanOrEqual(20);
+  expect(nombreMotsSignificatifs(couche), "seuls les mots substantiels disent si la page est fournie").toBeLessThan(20);
+});
 
 /** Le texte d'un document, d'où qu'il vienne (RCH-07, OUT-05, étape 3).
  *

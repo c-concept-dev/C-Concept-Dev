@@ -4,3 +4,4 @@ export * from "./passages.js";
 export * from "./dommatrix.js";
 export * from "./filigranes.js";
 export * from "./epub.js";
+export * from "./rendu-page.js";

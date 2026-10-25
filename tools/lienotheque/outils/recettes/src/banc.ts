@@ -9,7 +9,7 @@ import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
 import { associer, lireNomMedia, type Association, type Media } from "./associateur.js";
 import { interpreter, type LectureParVision, type PageLue, type SupportsPresents, supportsPresents } from "./interprete.js";
-import { lireCoucheTexte } from "@lienotheque/lecteur-texte";
+import { lireCoucheTexte, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
 import { texteDePage } from "@lienotheque/contrats";
 import { VERSION_LECTURE, consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from "./reperes.js";
 
@@ -200,12 +200,42 @@ export async function* pagesEnGris(
   // restant ne peut pas s'en passer.
   surTotal?.(retenues.length);
 
-  for (const page of retenues) {
-    const image = page.images[0];
-    if (image === undefined) continue;
-    const octets = octetsImage(objets, image.numero);
-    if (octets === undefined || octets.extension !== "jpg") continue;
-    yield enGris(await decoderJpeg(octets.octets));
+  let renduComplet: Awaited<ReturnType<typeof ouvrirRenduPdf>> | undefined;
+  try {
+    for (const page of retenues) {
+      // Le chemin direct n'est fidèle que pour une page faite d'un unique JPEG. La garde du
+      // décodeur refuse avant WebAssembly les flux tronqués ou CMJN ; toute autre composition
+      // passe par le rendu PDF complet, comme l'export des pages et la lecture de texte.
+      let causeDirecte: unknown;
+      if (page.images.length === 1) {
+        const octets = octetsImage(objets, page.images[0]!.numero);
+        if (octets?.extension === "jpg")
+          try {
+            yield enGris(await decoderJpeg(octets.octets));
+            continue;
+          } catch (cause) {
+            causeDirecte = cause;
+            // La cause exacte remontera seulement si le rendu complet échoue lui aussi. Ici, le
+            // repli est précisément la manière de continuer sans perdre la page.
+          }
+      }
+
+      // Une page native sans aucune image n'a pas de repère photographié à lire. La couche texte
+      // suit son propre chemin ; la rasteriser ici ferait payer tout un livre sans rien ajouter.
+      if (page.images.length === 0) continue;
+      try {
+        renduComplet ??= await ouvrirRenduPdf(chemin);
+        yield enGris(await renduComplet.page(page.index + 1, 1800));
+      } catch (causeRendu) {
+        const dire = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause));
+        throw new Error(
+          `Page ${page.index + 1} illisible par rendu complet (${dire(causeRendu)})` +
+            (causeDirecte === undefined ? "" : ` après refus du JPEG direct (${dire(causeDirecte)})`),
+        );
+      }
+    }
+  } finally {
+    await renduComplet?.fermer();
   }
 }
 

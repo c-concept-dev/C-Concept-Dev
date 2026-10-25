@@ -154,6 +154,9 @@ importers:
       '@jsquash/webp':
         specifier: ^1.5.0
         version: 1.5.0
+      '@lienotheque/formats':
+        specifier: workspace:*
+        version: link:../formats
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -244,6 +247,9 @@ importers:
       '@lienotheque/formats':
         specifier: workspace:*
         version: link:../formats
+      '@napi-rs/canvas':
+        specifier: ^0.1.100
+        version: 0.1.100
       pdfjs-dist:
         specifier: ^5.4.149
         version: 5.7.284
@@ -2699,7 +2705,6 @@ snapshots:
       '@napi-rs/canvas-linux-x64-musl': 0.1.100
       '@napi-rs/canvas-win32-arm64-msvc': 0.1.100
       '@napi-rs/canvas-win32-x64-msvc': 0.1.100
-    optional: true
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true

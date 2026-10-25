@@ -5,6 +5,7 @@ import { chargerRecette, rejouer, type Association, type Media, type MediaInvent
 import { type AdresseRecurrente, adressesRecurrentes, enPassages, langueOcr } from "@lienotheque/lecteur-texte";
 import { construireVue } from "./instantane.js";
 import { lireLeTexte } from "./texte.js";
+import { causeLisible } from "@lienotheque/noyau";
 
 /** D'un lot réel à l'instantané que lisent les écrans (correction 8).
  *
@@ -167,13 +168,20 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   const parRang = new Map<number, { image: string; largeur: number; hauteur: number; vignette?: string }>();
   if (lot.images !== undefined) {
     const adresse = lot.adresseImages ?? "/donnees/pages";
-    for (const page of (await exporterPages(lot.pdf, lot.images)).pages)
-      parRang.set(page.index + PREMIER_RANG, {
-        image: `${adresse}/${page.fichier}`,
-        largeur: page.largeur,
-        hauteur: page.hauteur,
-        ...(page.vignette === undefined ? {} : { vignette: `${adresse}/${page.vignette}` }),
-      });
+    try {
+      for (const page of (await exporterPages(lot.pdf, lot.images)).pages)
+        parRang.set(page.index + PREMIER_RANG, {
+          image: `${adresse}/${page.fichier}`,
+          largeur: page.largeur,
+          hauteur: page.hauteur,
+          ...(page.vignette === undefined ? {} : { vignette: `${adresse}/${page.vignette}` }),
+        });
+    } catch (cause) {
+      // Une image et sa vignette sont des dérivés : leur absence ne retire jamais le texte du
+      // document. C'était pourtant ce qui arrivait au réimport réel — 242 368 mots déjà présents
+      // dans la couche disparaissaient parce qu'un codec de vignette refusait une page.
+      lot.surPhase?.(`images de pages non produites : ${causeLisible(cause)} ; lecture du texte maintenue`);
+    }
   }
 
   lot.surPhase?.(`images de pages : ${parRang.size} écrite(s)`);
@@ -234,6 +242,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     ...(recette.preparation.double_page === undefined ? {} : { doublePage: recette.preparation.double_page }),
     ...(langue === undefined ? {} : { langue }),
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+    ...(lot.surPhase === undefined ? {} : { surAvertissement: lot.surPhase }),
   });
   const passages = enPassages(lu.pages);
   lot.surPhase?.(`texte lu : ${passages.length} passage(s)`);

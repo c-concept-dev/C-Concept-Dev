@@ -110,11 +110,28 @@ export function cheminReel(chemin: string): string {
   }
 }
 
-export function lireParOcr(image: string, largeur: number, hauteur: number, index: number, options: OptionsOcr = {}): PageLue {
-  const arguments_ = [cheminReel(image), "stdout", "-l", options.langue ?? LANGUE_PAR_DEFAUT, "--psm", String(options.segmentation ?? 3), "tsv"];
+/** Arguments qui ne dépendent que des modèles de langue embarqués.
+ *
+ * `tsv` employé comme nom de configuration fonctionne avec une installation complète de
+ * Tesseract, mais pas dans le paquet qui n'embarque que les modèles `.traineddata`. Le réglage
+ * explicite produit la même sortie sans exiger un fichier caché supplémentaire. */
+export function argumentsOcr(image: string, options: OptionsOcr = {}): string[] {
+  const arguments_ = [
+    cheminReel(image),
+    "stdout",
+    "-l",
+    options.langue ?? LANGUE_PAR_DEFAUT,
+    "--psm",
+    String(options.segmentation ?? 3),
+    "-c",
+    "tessedit_create_tsv=1",
+  ];
   if (options.alphabet !== undefined) arguments_.push("-c", `tessedit_char_whitelist=${options.alphabet}`);
+  return arguments_;
+}
 
-  const tsv = execFileSync(options.binaire ?? "tesseract", arguments_, {
+export function lireParOcr(image: string, largeur: number, hauteur: number, index: number, options: OptionsOcr = {}): PageLue {
+  const tsv = execFileSync(options.binaire ?? "tesseract", argumentsOcr(image, options), {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
     maxBuffer: 64 * 1024 * 1024,

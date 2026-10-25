@@ -7,6 +7,7 @@
   "exports": { ".": "./src/index.ts" },
   "scripts": { "test": "vitest run --maxWorkers=2", "typecheck": "tsc --noEmit" },
   "dependencies": {
+    "@lienotheque/formats": "workspace:*",
     "@jsquash/avif": "^2.1.1",
     "@jsquash/jpeg": "^1.6.0",
     "@jsquash/resize": "^2.1.1",

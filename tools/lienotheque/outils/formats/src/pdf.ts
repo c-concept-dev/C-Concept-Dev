@@ -178,6 +178,45 @@ export function jpegComplet(octets: Uint8Array): boolean {
   return octets[octets.length - 2] === 0xff && octets[octets.length - 1] === 0xd9;
 }
 
+/** Nombre de composantes annoncé par le premier marqueur Start Of Frame du JPEG.
+ *
+ *  Le codec embarqué quitte brutalement le processus sur certains flux CMJN : cette lecture
+ *  minimale doit donc avoir lieu **avant** le décodeur, sans lui confier le moindre octet. */
+export function composantesJpeg(octets: Uint8Array): number | undefined {
+  const marqueursSof = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
+  for (let index = 2; index + 9 < octets.length; index += 1) {
+    if (octets[index] !== 0xff) continue;
+    let marqueur = index + 1;
+    while (marqueur < octets.length && octets[marqueur] === 0xff) marqueur += 1;
+    if (!marqueursSof.has(octets[marqueur] ?? -1)) continue;
+    return octets[marqueur + 8];
+  }
+  return undefined;
+}
+
+/** Cause factuelle qui interdit le chemin JPEG direct, avant tout appel au codec fatal. */
+export function causeJpegNonDirect(octets: Uint8Array): string | undefined {
+  if (!jpegComplet(octets)) return "flux JPEG incomplet";
+  const composantes = composantesJpeg(octets);
+  if (composantes !== undefined && composantes > 3)
+    return `JPEG à ${composantes} composantes colorimétriques`;
+  return undefined;
+}
+
+/** Seules les signatures dont le codec réel termine le processus sont interdites globalement.
+ *
+ * Un long flux sans EOI reste impropre à représenter directement une page, mais mozjpeg sait
+ * souvent le décoder pour l'OCR. Les flux minuscules et les quatre composantes, eux, ont été
+ * reproduits avec `exit(1)` sur le corpus : ils ne doivent jamais atteindre le WebAssembly. */
+export function causeJpegFatalAvantDecodage(octets: Uint8Array): string | undefined {
+  const composantes = composantesJpeg(octets);
+  if (composantes !== undefined && composantes > 3)
+    return `JPEG à ${composantes} composantes colorimétriques`;
+  if (!jpegComplet(octets) && octets.length < 1_024)
+    return "flux JPEG incomplet et trop court pour être décodé sûrement";
+  return undefined;
+}
+
 /** Octets d'une image, tels qu'ils sont dans le PDF. Une image DCTDecode EST un JPEG : on
  *  l'écrit telle quelle, sans jamais la redécoder ni la rééchantillonner (OPT-04). */
 export function octetsImage(objets: Map<number, ObjetPdf>, numero: number): { extension: string; octets: Buffer } | undefined {

@@ -16,6 +16,7 @@ dans `node_modules` dépendrait du dépôt ; un fichier unique voyage avec le pa
 from __future__ import annotations
 
 import pathlib
+import platform
 import shutil
 import subprocess
 import sys
@@ -40,7 +41,8 @@ def poids(chemin: pathlib.Path) -> float:
 
 def architecture() -> str:
     """L'architecture de cette machine, telle que `lipo` la nomme."""
-    return "arm64" if executer("uname", "-m").strip() == "arm64" else "x86_64"
+    machine = platform.machine().lower()
+    return "arm64" if machine in {"arm64", "aarch64"} else "x86_64"
 
 
 def embarquer_node(cible: pathlib.Path) -> str:
@@ -94,10 +96,48 @@ def rassembler_chaine(cible: pathlib.Path) -> str:
         "--target=node24",
         # Les modules natifs de Node ne s'embarquent pas : ils viennent du moteur lui-même.
         "--external:node:*",
+        # Canvas porte un binaire natif propre à chaque architecture. Esbuild ne peut pas mettre
+        # un `.node` dans un fichier JavaScript ; `embarquer_canvas` le pose à côté du moteur.
+        "--external:@napi-rs/canvas",
         f"--outfile={sortie}",
         dans=PROJET,
     )
     return f"{poids(sortie):.2f} Mo"
+
+
+def embarquer_canvas(cible: pathlib.Path) -> str:
+    """Pose le moteur de rendu PDF et son binaire natif à côté de la chaîne.
+
+    Le repli de rendu complet est précisément destiné aux PDF que les codecs WebAssembly ne
+    savent pas décoder. Il doit donc voyager dans le paquet réel, sans dépendre du `node_modules`
+    du dépôt. Seule la variante de la plateforme construite est copiée.
+    """
+    modules = PROJET / "node_modules" / ".pnpm"
+    paquet = next(iter(sorted(modules.glob("@napi-rs+canvas@*/node_modules/@napi-rs/canvas"))), None)
+    if paquet is None:
+        raise SystemExit("@napi-rs/canvas introuvable : lancez pnpm install avant.")
+
+    machine = architecture()
+    suffixe = {
+        ("darwin", "arm64"): "darwin-arm64",
+        ("darwin", "x86_64"): "darwin-x64",
+        ("win32", "arm64"): "win32-arm64-msvc",
+        ("win32", "x86_64"): "win32-x64-msvc",
+    }.get((sys.platform, machine))
+    if suffixe is None:
+        raise SystemExit(f"variante de @napi-rs/canvas non prévue pour {sys.platform}/{machine}")
+    natif_nom = f"@napi-rs/canvas-{suffixe}"
+    natif = next(iter(sorted(modules.glob(f"@napi-rs+canvas-{suffixe}@*/node_modules/{natif_nom}"))), None)
+    if natif is None:
+        raise SystemExit(f"{natif_nom} introuvable : lancez pnpm install sur la plateforme cible.")
+
+    porte = cible / "node_modules" / "@napi-rs"
+    porte.mkdir(parents=True, exist_ok=True)
+    shutil.rmtree(porte / "canvas", ignore_errors=True)
+    shutil.rmtree(porte / f"canvas-{suffixe}", ignore_errors=True)
+    shutil.copytree(paquet, porte / "canvas")
+    shutil.copytree(natif, porte / f"canvas-{suffixe}")
+    return f"{suffixe}, {poids(porte / 'canvas') + poids(porte / f'canvas-{suffixe}'):.2f} Mo"
 
 
 
@@ -177,12 +217,14 @@ def main() -> int:
         executer("codesign", "--force", "--sign", "-", str(sidecar))
 
     chaine = rassembler_chaine(MOTEURS / "chaine")
+    canvas = embarquer_canvas(MOTEURS / "chaine")
     codecs = embarquer_codecs(MOTEURS / "chaine" / "codecs")
     travail = poser_module_de_travail(MOTEURS / "chaine")
 
     print(f"moteur        : {dit}")
     print(f"binaire annexe: {sidecar.name}")
     print(f"chaîne        : {chaine}")
+    print(f"rendu PDF     : {canvas}")
     print(f"codecs        : {codecs}")
     print(f"module travail: {travail}")
     print(f"total moteurs : {poids(MOTEURS):.0f} Mo")
