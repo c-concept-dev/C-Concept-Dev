@@ -174,13 +174,25 @@ describe("en ligne, c'est le service qui tient la bibliothèque", () => {
     ).toBe(true);
   });
 
-  it("conduit la racine vers le catalogue quand la bibliothèque publiée contient des documents", async () => {
+  it("garde un vrai Accueil en ligne et ouvre la bibliothèque publiée depuis sa carte", async () => {
     vi.stubGlobal("fetch", serviceAvecUnDocument());
 
     render(<App />);
 
-    expect((await screen.findAllByText("Document réellement publié")).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("heading", { name: "Bonjour" })).toBeTruthy();
+    expect(globalThis.location.hash).toBe("");
+    expect(screen.queryByRole("button", { name: /nouvelle bibliothèque/i })).toBeNull();
+    expect(screen.queryByText(/déposez des fichiers ici/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole("link", { name: /ouvrir la bibliothèque base de connaissance/i }));
     expect(globalThis.location.hash).toBe("#catalogue");
+
+    expect(await screen.findByRole("heading", { name: "Document réellement publié" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /ajouter des fichiers/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole("link", { name: /^accueil$/i }));
+    expect(await screen.findByRole("heading", { name: "Bonjour" })).toBeTruthy();
+    expect(globalThis.location.hash).toBe("");
   });
 
   it("ne propose jamais les deux gestes de bureau, qui n'existent pas ici", async () => {

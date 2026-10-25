@@ -13,7 +13,9 @@ import "./Accueil.css";
 
 type Props = {
   readonly donnees: DonneesAccueil;
-  readonly onFichiers: (fichiers: readonly File[]) => void;
+  /** Le dépôt n'existe que sur le bureau. L'Accueil en ligne reste un vrai Accueil, sans
+   *  peindre une zone qui ne pourrait remettre aucun fichier au navigateur. */
+  readonly onFichiers?: ((fichiers: readonly File[]) => void) | undefined;
   /** Créer une bibliothèque de plus. **Le bouton n'appelait personne** : il s'affichait, se
    *  cliquait, et ne faisait rien — invisible tant qu'on n'avait pas de bibliothèque, puisque
    *  l'écran de premier lancement, lui, était câblé. */
@@ -72,9 +74,11 @@ export function Accueil({ donnees, onFichiers, onCreer, onOuvrir }: Props): JSX.
             <h2 id="titre-bibliotheques" className="ln-accueil__titre">
               Vos bibliothèques
             </h2>
-            <Bouton variante="principal" icone={<Icone nom="plus" />} onClick={onCreer}>
-              Nouvelle bibliothèque
-            </Bouton>
+            {onCreer === undefined ? null : (
+              <Bouton variante="principal" icone={<Icone nom="plus" />} onClick={onCreer}>
+                Nouvelle bibliothèque
+              </Bouton>
+            )}
           </div>
           <div className="ln-grille">
             {bibliotheques.map((bibliotheque) => (
@@ -97,6 +101,7 @@ export function Accueil({ donnees, onFichiers, onCreer, onOuvrir }: Props): JSX.
         </section>
       </div>
 
+      {aVerifier === undefined && traitement === undefined && onFichiers === undefined ? null : (
       <aside className="ln-accueil__cote" aria-label="Ce qui demande votre attention">
         {aVerifier === undefined ? null : (
           <section className="ln-panneau" aria-labelledby="titre-verifier">
@@ -123,13 +128,16 @@ export function Accueil({ donnees, onFichiers, onCreer, onOuvrir }: Props): JSX.
           </section>
         )}
 
-        <ZoneDepot
-          titre="Déposez des fichiers ici"
-          aide="Liénothèque proposera la bonne bibliothèque."
-          libelleBouton="Choisir des fichiers"
-          onFichiers={onFichiers}
-        />
+        {onFichiers === undefined ? null : (
+          <ZoneDepot
+            titre="Déposez des fichiers ici"
+            aide="Liénothèque proposera la bonne bibliothèque."
+            libelleBouton="Choisir des fichiers"
+            onFichiers={onFichiers}
+          />
+        )}
       </aside>
+      )}
     </main>
   );
 }

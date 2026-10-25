@@ -21,7 +21,7 @@ const sectionsVisibles = (): string[] =>
     .filter((texte): texte is (typeof SECTIONS)[number] => (SECTIONS as readonly string[]).includes(texte));
 
 const accueil = (donnees: Partial<DonneesAccueil>) =>
-  render(<Accueil donnees={{ ...ACCUEIL_VIDE, ...donnees }} onFichiers={vi.fn()} />);
+  render(<Accueil donnees={{ ...ACCUEIL_VIDE, ...donnees }} onFichiers={vi.fn()} onCreer={vi.fn()} />);
 
 describe("premier lancement : l'accueil part vide (UX-01, UX-09)", () => {
   it("montre le logo, la signature et une seule chose à faire", () => {
@@ -119,7 +119,7 @@ describe("chaque section n'apparaît qu'avec son contenu", () => {
 });
 
 describe("accueil garni : composition des maquettes", () => {
-  const garni = () => render(<Accueil donnees={DEMONSTRATION} onFichiers={vi.fn()} />);
+  const garni = () => render(<Accueil donnees={DEMONSTRATION} onFichiers={vi.fn()} onCreer={vi.fn()} />);
 
   it("présente les quatre sections et les quatre bibliothèques", () => {
     garni();

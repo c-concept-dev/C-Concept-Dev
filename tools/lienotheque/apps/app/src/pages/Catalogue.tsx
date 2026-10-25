@@ -34,7 +34,9 @@ type Props = {
   readonly premierePageTexte?: number | undefined;
   /** Le document demandé mais pas encore reçu. L'ancienne vue ne doit jamais se faire passer pour lui. */
   readonly chargementDocument?: string | undefined;
-  readonly onAjouter: () => void;
+  /** Ajouter est un geste du bureau. La façade en ligne ne l'affiche pas puisqu'elle ne peut
+   *  ni choisir un fichier local ni écrire dans la bibliothèque publiée. */
+  readonly onAjouter?: (() => void) | undefined;
   /** Vers ce qui se trouve deux fois. **Dans le catalogue**, parce que c'est en regardant ses
    *  documents qu'on se demande si l'un n'y est pas deux fois — pas en en déposant d'autres. */
   readonly onDoublons?: (() => void) | undefined;
@@ -218,9 +220,11 @@ export function Catalogue({
             ) : null}
           </p>
         </div>
-        <Bouton variante="principal" icone={<Icone nom="plus" />} onClick={onAjouter}>
-          Ajouter des fichiers
-        </Bouton>
+        {onAjouter === undefined ? null : (
+          <Bouton variante="principal" icone={<Icone nom="plus" />} onClick={onAjouter}>
+            Ajouter des fichiers
+          </Bouton>
+        )}
       </div>
 
       <div className="ln-catalogue__corps">
