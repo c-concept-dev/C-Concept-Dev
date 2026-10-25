@@ -77,6 +77,7 @@ export type BaseMinimale = {
       readonly run: () => Promise<{ readonly meta: { readonly changes: number } }>;
     };
   };
+  readonly batch?: <T extends readonly { readonly run: () => Promise<unknown> }[]>(requetes: T) => Promise<unknown[]>;
 };
 
 export function baseEnMemoire(migrations: readonly Migration[]): BaseMinimale & {
@@ -95,6 +96,18 @@ export function baseEnMemoire(migrations: readonly Migration[]): BaseMinimale & 
         run: async () => ({ meta: { changes: Number(base.prepare(sql).run(...(valeurs as never[])).changes) } }),
       }),
     }),
+    batch: async (requetes) => {
+      base.exec("BEGIN");
+      try {
+        const resultats = [];
+        for (const requete of requetes) resultats.push(await requete.run());
+        base.exec("COMMIT");
+        return resultats;
+      } catch (erreur) {
+        base.exec("ROLLBACK");
+        throw erreur;
+      }
+    },
     executer: (sql: string) => base.exec(sql),
     fermer: () => base.close(),
   };

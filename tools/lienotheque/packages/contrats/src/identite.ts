@@ -76,6 +76,28 @@ export const SessionEnregistree = z
   .strict();
 export type SessionEnregistree = z.infer<typeof SessionEnregistree>;
 
+/** Les seules capacités qu'une application tierce peut recevoir. Elles ne forment pas une
+ * échelle : chaque case est accordée explicitement, et une capacité absente ne vaut rien. */
+export const ActionApplication = z.enum(["lire", "chercher", "ouvrir_fichier"]);
+export type ActionApplication = z.infer<typeof ActionApplication>;
+
+/** L'accès durable d'une application à une seule bibliothèque. Le secret n'appartient pas à ce
+ * contrat : il n'existe qu'au moment de l'émission et seule son empreinte est conservée. */
+export const JetonApplication = z
+  .object({
+    id: Identifiant,
+    application: z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$|^[a-z0-9]$/),
+    nom: z.string().trim().min(1).max(120),
+    bibliotheque: z.string().min(1),
+    actions: z.array(ActionApplication).min(1),
+    creePar: z.string().min(1),
+    creeLe: Horodatage,
+    expireLe: Horodatage,
+    revoqueLe: Horodatage.optional(),
+  })
+  .strict();
+export type JetonApplication = z.infer<typeof JetonApplication>;
+
 /** À quoi un défi sert. Un défi émis pour enrôler ne doit pas pouvoir servir à entrer : ce
  *  serait permettre d'ouvrir une porte avec la clé qu'on venait de faire tailler. */
 export const UsageDuDefi = z.enum(["enrolement", "entree"]);
