@@ -7,7 +7,7 @@ import type { CotePage, ElementRepere } from "@lienotheque/contrats";
  *  longue suite croissante compatible — ce sont les ancres, ce qu'on tient pour sûr —, puis on
  *  répare ce qui est entre deux ancres, quand la réparation est forcée.
  *
- *  Porté de `docs/prototypes/westwood_apparier.py`, qui reste l'oracle. */
+ *  Porté du prototype historique d'appariement, qui reste l'oracle. */
 
 export type ElementPlace = ElementRepere & {
   readonly pageImprimee: number;

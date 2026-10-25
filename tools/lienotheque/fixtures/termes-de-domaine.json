@@ -4,8 +4,10 @@
     { "chemin": "packages/contrats/src" },
     { "chemin": "packages/jetons/src" },
     { "chemin": "packages/noyau/src" },
+    { "chemin": "outils/*/src" },
     { "chemin": "apps/worker/src" },
-    { "chemin": "apps/app/src", "sauf": ["apps/app/src/donnees"] }
+    { "chemin": "apps/app/src", "sauf": ["apps/app/src/donnees"] },
+    { "chemin": "apps/app/src-tauri/src" }
   ],
   "termes": [
     "thérapie", "thérapeutique", "psychanalyse", "psychothérapie", "gestalt", "emdr",

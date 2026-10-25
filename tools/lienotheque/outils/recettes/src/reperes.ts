@@ -30,7 +30,7 @@ import {
 
 /** Lecteur de repères (OUT-07) : numéros de page, numéros d'élément, pastilles, séquence.
  *
- *  Porté des prototypes `docs/prototypes/ocr_methode.py` et `westwood_*.py`, qui restent les
+ *  Porté des prototypes historiques d'OCR et d'appariement, qui restent les
  *  oracles. Le principe ne change pas : plusieurs lectures indépendantes de la même page —
  *  échelles et modes de segmentation différents — puis un vote. Une page scannée se lit mal une
  *  fois et bien trois fois.
