@@ -67,6 +67,16 @@ describe("ce qui se trouve deux fois (HER-08)", () => {
     expect(screen.getByText(/Aucun document n’en double un autre/)).toBeTruthy();
   });
 
+  it("nomme factuellement les textes insuffisants sans présenter les documents comme défectueux", () => {
+    monter({
+      groupes: [],
+      tropPeuDeTexte: [suspect("cc", "Une fiche volontairement courte.pdf", { mots: 141, pages: 2 })],
+    });
+    expect(screen.getByText(/texte insuffisant pour comparer les doublons/i)).toBeTruthy();
+    expect(screen.queryByText(/n.a presque rien lu/i)).toBeNull();
+    expect(screen.queryByText(/numérisés sans avoir été relus/i)).toBeNull();
+  });
+
   /** Les faits qui distinguent deux documents sont ce qui permet de choisir. Sans le poids, deux
    *  numérisations du même livre sont indiscernables à l'écran — et c'est justement le cas
    *  mesuré le 22 octobre : 118 Mo contre 329 Mo pour le même nombre de pages. */
@@ -121,13 +131,13 @@ describe("ce qui se trouve deux fois (HER-08)", () => {
 
   /** Les documents dont on n'a presque rien lu ne sont pas comparés — et ne sont pas tus.
    *  Les taire les ferait passer pour comparés, donc pour uniques. */
-  it("HER-08 : les documents trop peu lus sont montrés à part, avec pourquoi", () => {
+  it("HER-08 : les documents trop courts pour comparer sont montrés à part, sans diagnostic inventé", () => {
     monter({
       groupes: [],
       tropPeuDeTexte: [suspect("cc", "Des feuilles numérisées.pdf", { mots: 141, pages: 96 })],
     });
-    expect(screen.getByText(/n’ont pas pu être comparés|n’a pas pu être comparé/)).toBeTruthy();
-    expect(screen.getByText(/deux textes de cent mots se ressemblent toujours/)).toBeTruthy();
+    expect(screen.getByText(/texte insuffisant pour comparer les doublons/i)).toBeTruthy();
+    expect(screen.getByText(/peuvent légitimement contenir peu de texte/i)).toBeTruthy();
     expect(screen.getByText("Des feuilles numérisées.pdf")).toBeTruthy();
   });
 

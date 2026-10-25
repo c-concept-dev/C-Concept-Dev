@@ -180,12 +180,11 @@ export function Doublons({
       {trouves === undefined || trouves.tropPeuDeTexte.length === 0 ? null : (
         <section className="ln-panneau ln-doublons__groupe ln-doublons__groupe--maigre">
           <h2 className="ln-doublons__sous-titre">
-            {trouves.tropPeuDeTexte.length} documents n’ont pas pu être comparés
+            Texte insuffisant pour comparer les doublons — {trouves.tropPeuDeTexte.length} document(s)
           </h2>
           <p className="ln-doublons__propos">
-            Liénothèque n’a presque rien lu de leur texte, et deux textes de cent mots se ressemblent toujours&nbsp;:
-            les comparer dirait n’importe quoi. Ils sont peut-être numérisés sans avoir été relus&nbsp;— une lecture de
-            l’image leur rendrait leur texte.
+            Ces documents sont trop courts pour une comparaison fiable. Une fiche, une couverture ou quelques pages
+            peuvent légitimement contenir peu de texte&nbsp;: cette catégorie décrit seulement la limite de la comparaison.
           </p>
           <ul className="ln-doublons__lignes">
             {trouves.tropPeuDeTexte.map((suspect) => (

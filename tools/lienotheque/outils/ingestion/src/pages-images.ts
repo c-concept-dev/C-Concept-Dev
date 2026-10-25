@@ -1,9 +1,11 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { empreinteDe, jpegComplet, objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
+import { causeJpegNonDirect, empreinteDe, objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, encoderWebp, redimensionner, type ImageRvba } from "@lienotheque/images";
 import { vignette } from "@lienotheque/optimiseur";
+import { causeLisible } from "@lienotheque/noyau";
+import { ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
 
 /** Images de page pour les écrans, écrites au fil de l'eau (correction 8).
  *
@@ -31,7 +33,12 @@ export type PageExportee = {
 
 /** Pourquoi une page n'a pas donné d'image. Trois causes, et elles ne se disent pas pareil à
  *  l'écran : « rien à montrer » n'est pas « ce document n'est pas une numérisation ». */
-export type CauseDeRefus = "sans_image" | "plusieurs_images" | "image_tronquee";
+export type CauseDeRefus =
+  | "sans_image"
+  | "plusieurs_images"
+  | "image_tronquee"
+  | "jpeg_non_rvb"
+  | "rendu_impossible";
 
 export type PageRefusee = { readonly index: number; readonly cause: CauseDeRefus };
 
@@ -83,7 +90,9 @@ function pourquoiPasLaPage(
   if (page.images.length > 1) return { index: page.index, cause: "plusieurs_images" };
   const octets = octetsImage(objets, page.images[0]!.numero);
   if (octets === undefined || octets.extension !== "jpg") return { index: page.index, cause: "sans_image" };
-  if (!jpegComplet(octets.octets)) return { index: page.index, cause: "image_tronquee" };
+  const causeJpeg = causeJpegNonDirect(octets.octets);
+  if (causeJpeg === "flux JPEG incomplet") return { index: page.index, cause: "image_tronquee" };
+  if (causeJpeg !== undefined) return { index: page.index, cause: "jpeg_non_rvb" };
   return undefined;
 }
 
@@ -110,44 +119,73 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
 
   const exportees: PageExportee[] = [];
   const refusees: PageRefusee[] = [];
-  for (const [rangDansLaTranche, page] of retenues.entries()) {
-    // Le rang dans le document, et non dans la tranche : une page exportée seule doit porter le
-    // même numéro que si tout le document l'avait été, sans quoi deux tranches se recouvrent.
-    const index = depuis + rangDansLaTranche;
-    const refus = pourquoiPasLaPage(objets, page);
-    if (refus !== undefined) {
-      refusees.push(refus);
-      continue;
-    }
-    const image = page.images[0]!;
-    const octets = octetsImage(objets, image.numero)!;
-
-    const reduite = await aLaLargeur(await decoderJpeg(octets.octets), largeurVoulue);
-    const nom = `page-${String(index).padStart(4, "0")}.webp`;
-    // Écrite tout de suite : la page suivante ne doit pas attendre que celle-ci soit retenue.
-    writeFileSync(join(dossier, nom), await encoderWebp(reduite, { quality: options.qualite ?? 72 }));
-
-    // La vignette sort de l'image déjà réduite, pendant qu'elle est encore là. Si le générateur
-    // de dérivés refuse celle-ci — une page qui ne se comprime pas sous son plafond —, la page
-    // garde son image et perd sa vignette : les écrans savent s'en passer.
-    let nomVignette: string | undefined;
-    if (source !== undefined)
-      try {
-        const derive = await vignette(reduite, source);
-        nomVignette = `vignette-${String(index).padStart(4, "0")}.webp`;
-        writeFileSync(join(dossier, nomVignette), derive.octets);
-      } catch (cause) {
-        nomVignette = undefined;
-        console.warn(`Vignette de la page ${index} non produite : ${cause instanceof Error ? cause.message : String(cause)}`);
+  let renduComplet: Awaited<ReturnType<typeof ouvrirRenduPdf>> | undefined;
+  try {
+    for (const [rangDansLaTranche, page] of retenues.entries()) {
+      // Le rang dans le document, et non dans la tranche : une page exportée seule doit porter le
+      // même numéro que si tout le document l'avait été, sans quoi deux tranches se recouvrent.
+      const index = depuis + rangDansLaTranche;
+      const refusDirect = pourquoiPasLaPage(objets, page);
+      let directe: ImageRvba | undefined;
+      let causeDirecte: unknown;
+      if (refusDirect === undefined) {
+        const image = page.images[0]!;
+        const octets = octetsImage(objets, image.numero)!;
+        try {
+          directe = await decoderJpeg(octets.octets);
+        } catch (cause) {
+          causeDirecte = cause;
+        }
       }
 
-    exportees.push({
-      index,
-      fichier: nom,
-      largeur: reduite.width,
-      hauteur: reduite.height,
-      ...(nomVignette === undefined ? {} : { vignette: nomVignette }),
-    });
+      let reduite: ImageRvba;
+      if (directe !== undefined) reduite = await aLaLargeur(directe, largeurVoulue);
+      else
+        try {
+          // Une page est une composition, pas nécessairement un JPEG. Le rendu complet couvre
+          // Flate, JPX, plusieurs images, graphismes et JPEG que le codec direct refuse.
+          renduComplet ??= await ouvrirRenduPdf(pdf);
+          reduite = await renduComplet.page(index + 1, largeurVoulue);
+        } catch (causeRendu) {
+          const directeDite =
+            causeDirecte === undefined
+              ? refusDirect?.cause ?? "format d’image non directement exploitable"
+              : causeLisible(causeDirecte);
+          console.warn(
+            `Page ${index + 1} non produite : chemin direct (${directeDite}) ; rendu complet (${causeLisible(causeRendu)})`,
+          );
+          refusees.push({ index, cause: "rendu_impossible" });
+          continue;
+        }
+
+      const nom = `page-${String(index).padStart(4, "0")}.webp`;
+      // Écrite tout de suite : la page suivante ne doit pas attendre que celle-ci soit retenue.
+      writeFileSync(join(dossier, nom), await encoderWebp(reduite, { quality: options.qualite ?? 72 }));
+
+      // La vignette sort de l'image déjà réduite, pendant qu'elle est encore là. Si le générateur
+      // de dérivés refuse celle-ci — une page qui ne se comprime pas sous son plafond —, la page
+      // garde son image et perd sa vignette : les écrans savent s'en passer.
+      let nomVignette: string | undefined;
+      if (source !== undefined)
+        try {
+          const derive = await vignette(reduite, source);
+          nomVignette = `vignette-${String(index).padStart(4, "0")}.webp`;
+          writeFileSync(join(dossier, nomVignette), derive.octets);
+        } catch (cause) {
+          nomVignette = undefined;
+          console.warn(`Vignette de la page ${index} non produite : ${causeLisible(cause)}`);
+        }
+
+      exportees.push({
+        index,
+        fichier: nom,
+        largeur: reduite.width,
+        hauteur: reduite.height,
+        ...(nomVignette === undefined ? {} : { vignette: nomVignette }),
+      });
+    }
+  } finally {
+    await renduComplet?.fermer();
   }
   return { pages: exportees, refusees };
 }

@@ -1,10 +1,16 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { LANGUE_PAR_DEFAUT, analyserTsv, langueOcr } from "../src/ocr.js";
+import { LANGUE_PAR_DEFAUT, analyserTsv, argumentsOcr, langueOcr } from "../src/ocr.js";
 
 /** Ce que la reconnaissance rend, et dans quelle langue elle lit. */
 
 describe("la sortie tabulée de Tesseract se relit sans Tesseract", () => {
+  it("demande le TSV par un réglage autonome, sans dépendre du fichier de configuration tsv", () => {
+    const arguments_ = argumentsOcr("/tmp/page.pgm", { langue: "fra" });
+    expect(arguments_).toContain("tessedit_create_tsv=1");
+    expect(arguments_).not.toContain("tsv");
+  });
+
   it("ne garde que les mots qui ont une boîte", () => {
     const tsv =
       "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n" +

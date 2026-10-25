@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { causeJpegFatalAvantDecodage } from "@lienotheque/formats";
 
 /** Amorçage des codecs @jsquash hors d'un navigateur.
  *
@@ -73,7 +74,15 @@ export async function redimensionner(image: ImageRvba, largeur: number, hauteur:
 /** Décodage JPEG : les pages numérisées d'un PDF en sont souvent faites, et un dérivé se tire
  *  de pixels, pas d'un train d'octets. L'original, lui, n'est jamais redécodé pour être rangé
  *  (OPT-04) : il est repris tel quel. */
+export function verifierJpegAvantDecodage(octets: Uint8Array): void {
+  const cause = causeJpegFatalAvantDecodage(octets);
+  if (cause !== undefined) throw new Error(`Décodage JPEG refusé avant le codec : ${cause}`);
+}
+
 export async function decoderJpeg(octets: Uint8Array): Promise<ImageRvba> {
+  // Cette garde est volontairement au point d'entrée commun. Un appelant qui oublierait le
+  // préflight ne doit jamais pouvoir rendre à nouveau tout le moteur à `exit(1)`.
+  verifierJpegAvantDecodage(octets);
   const decodeur = await uneSeuleFois("jpeg", async () => {
     const module = await import("@jsquash/jpeg/decode.js");
     await module.init(await compile(join(racine("@jsquash/jpeg"), "codec/dec/mozjpeg_dec.wasm")));
