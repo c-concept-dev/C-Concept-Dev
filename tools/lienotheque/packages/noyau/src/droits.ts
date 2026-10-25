@@ -33,6 +33,7 @@ export const EXIGE: Readonly<Record<string, Niveau>> = {
   publier: "administration",
   depublier: "administration",
   reviser_droits: "administration",
+  gerer_jetons_application: "administration",
   supprimer: "administration",
 };
 /** Une action qui demande un niveau. « Protégée » parce que `Action` tout court existe

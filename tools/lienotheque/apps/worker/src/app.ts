@@ -43,6 +43,7 @@ import {
   revoquerLaSession,
 } from "./qui-entre.js";
 import {
+  ActionApplication,
   ApercuEnLigne,
   PassagesDuDocument,
   PreuveDEnrolement,
@@ -65,6 +66,15 @@ import {
   traduireLaPage,
   type PassageCanoniqueATraduire,
 } from "./traduction.js";
+import {
+  emettreJetonApplication,
+  identifierParJetonApplication,
+  leJetonApplication,
+  lireOriginesApplications,
+  origineAutorisee,
+  revoquerJetonApplication,
+  type ApplicationIdentifiee,
+} from "./jetons-application.js";
 
 export const SERVICE = "lienotheque-api";
 export const VERSION = "0.2.0";
@@ -97,6 +107,8 @@ export type Liaisons = {
   /** La bibliothèque que la façade sert. Une seule : la façade existe pour une application qui
    *  n'en connaît qu'une, et lui en proposer plusieurs serait lui demander de changer. */
   readonly BIBLIOTHEQUE_FACADE?: string;
+  /** Liste exacte des origines par application, posée à la main comme secret JSON. */
+  readonly ORIGINES_APPLICATIONS?: string;
   /** L'origine exacte de la page qui mène les cérémonies : schéma, hôte et port, telle qu'un
    *  navigateur l'écrit.
    *
@@ -153,6 +165,40 @@ export function creerApp({
   Bindings: Liaisons;
 }> {
   const app = new Hono<{ Bindings: Liaisons }>();
+
+  /** CORS n'accorde aucun accès : il permet seulement à un navigateur de présenter sa clé à une
+   * porte qui l'éprouvera ensuite. La réponse ne reprend une origine qu'après égalité exacte avec
+   * la configuration posée à la main. */
+  app.use("*", async (contexte, suivant) => {
+    const origine = contexte.req.raw.headers.get("origin");
+    const configuration = lireOriginesApplications(contexte.env?.ORIGINES_APPLICATIONS);
+    const connue = origine !== null && Object.values(configuration).some((origines) => origines.includes(origine));
+    if (contexte.req.method === "OPTIONS") {
+      if (!connue) return new Response(null, { status: 403 });
+      const methode = contexte.req.raw.headers.get("access-control-request-method") ?? "";
+      const entetes = (contexte.req.raw.headers.get("access-control-request-headers") ?? "")
+        .split(",")
+        .map((un) => un.trim().toLowerCase())
+        .filter(Boolean);
+      if (!["GET", "POST", "DELETE"].includes(methode) || entetes.some((un) => !["content-type", "x-api-key"].includes(un)))
+        return new Response(null, { status: 403 });
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "access-control-allow-origin": origine,
+          "access-control-allow-methods": "GET, POST, DELETE",
+          "access-control-allow-headers": "Content-Type, X-API-Key",
+          "access-control-max-age": "600",
+          vary: "Origin",
+        },
+      });
+    }
+    await suivant();
+    if (connue) {
+      contexte.res.headers.set("access-control-allow-origin", origine);
+      contexte.res.headers.append("vary", "Origin");
+    }
+  });
 
   app.get("/sante", (contexte) => {
     const etat = EtatService.parse({
@@ -285,12 +331,31 @@ export function creerApp({
    *  L'ordre est celui de la règle du 10 octobre : on identifie **avant** de lire le moindre
    *  réglage, de sorte qu'un appelant anonyme n'apprenne pas si la façade est configurée.
    *
-   *  Rend `undefined` quand la porte s'ouvre — un refus est une réponse, et il n'y a rien à
-   *  rendre quand il n'y a pas de refus. */
+   *  Rend l'identité de la bibliothèque quand la porte s'ouvre : les routes n'ont ainsi jamais à
+   *  relire un choix dans la requête ou dans un secret de façade. */
+  type AccesOuvert = {
+    readonly bibliotheque: string;
+    readonly source: "session" | "application" | "service";
+    readonly application?: ApplicationIdentifiee & { readonly ouverte: true };
+  };
+
   const porteParBascule = async (
     contexte: { env: Liaisons; req: { raw: Request } },
     action: string,
-  ): Promise<Response | undefined> => {
+  ): Promise<Response | AccesOuvert> => {
+    const registre = contexte.env.REGISTRE;
+    const presente = contexte.req.raw.headers.get("x-api-key");
+    if (presente?.startsWith("ln_app_") === true) {
+      if (registre === undefined) return Response.json({ erreur: "Accès refusé." }, { status: 401 });
+      const application = await identifierParJetonApplication(registre, contexte.req.raw.headers, maintenant().toISOString());
+      if (!application.ouverte || !application.actions.has(action as never))
+        return Response.json({ erreur: "Accès refusé." }, { status: 401 });
+      const origines = lireOriginesApplications(contexte.env.ORIGINES_APPLICATIONS);
+      if (!origineAutorisee(origines, application.application, contexte.req.raw.headers.get("origin")))
+        return Response.json({ erreur: "Accès refusé." }, { status: 401 });
+      return { bibliotheque: application.bibliotheque, source: "application", application };
+    }
+
     if (!sessionsExigees) {
       const attendu = contexte.env.JETON_ACCES;
       if (attendu === undefined || attendu.length === 0)
@@ -298,10 +363,12 @@ export function creerApp({
       const donne = contexte.req.raw.headers.get("x-api-key") ?? undefined;
       if (donne === undefined || !memeJeton(donne, attendu))
         return Response.json({ erreur: "Jeton refusé" }, { status: 401 });
-      return undefined;
+      const bibliotheque = contexte.env.BIBLIOTHEQUE_FACADE;
+      if (bibliotheque === undefined || bibliotheque.length === 0)
+        return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
+      return { bibliotheque, source: "service" };
     }
 
-    const registre = contexte.env.REGISTRE;
     if (registre === undefined) return Response.json({ erreur: "Accès refusé." }, { status: 401 });
 
     // Premier temps : aucun réglage n'est lu, donc rien n'est appris.
@@ -317,13 +384,13 @@ export function creerApp({
     if (!droit.ouverte) return Response.json({ erreur: droit.mot }, { status: droit.statut });
 
     await repousserSiBesoin(registre, qui.session, maintenant().toISOString());
-    return undefined;
+    return { bibliotheque: cle, source: "session" };
   };
 
   const ouvrirFacade = async (
     contexte: { env: Liaisons; req: { raw: Request } },
     action = "chercher",
-  ): Promise<{ base: BaseSql; correspondance: Correspondance } | Response> => {
+  ): Promise<{ base: BaseSql; correspondance: Correspondance; bibliotheque: string } | Response> => {
     // La porte d'abord, la configuration ensuite.
     //
     // L'inverse — vérifier la configuration avant le jeton — apprenait à un appelant anonyme si
@@ -331,19 +398,19 @@ export function creerApp({
     // les refus indiscernables des droits : qui n'a pas le jeton n'apprend rien, pas même
     // l'état du service. Le défaut s'est vu en éprouvant les routes par-dessus le réseau, pas
     // dans les tests — ils passaient tous, chacun regardant une question à la fois.
-    const refus = await porteParBascule(contexte, action);
-    if (refus !== undefined) return refus;
+    const acces = await porteParBascule(contexte, action);
+    if (acces instanceof Response) return acces;
 
     const registre = contexte.env.REGISTRE;
-    const cle = contexte.env.BIBLIOTHEQUE_FACADE;
-    if (cle === undefined || cle.length === 0 || registre === undefined)
+    const cle = acces.bibliotheque;
+    if (registre === undefined)
       return Response.json({ erreur: "La façade n'est pas configurée" }, { status: 503 });
 
     // Tant que personne n'est identifié, la façade ne sert qu'une bibliothèque d'essai.
     //
     // Le même mot de refus que pour toute autre indisponibilité, et **après** le jeton : un
     // appelant n'apprend ni qu'une bibliothèque existe, ni pourquoi elle lui est refusée.
-    if (!laFacadePeutServir(cle, sessionsExigees))
+    if (acces.source === "service" && !laFacadePeutServir(cle, sessionsExigees))
       return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
 
     const inscrite = await laBibliotheque(registre, cle);
@@ -363,7 +430,7 @@ export function creerApp({
     // Une correspondance illisible ne se devine pas : mieux vaut un service indisponible qu'un
     // service qui rend des champs vides sans le dire.
     if (!lue.success) return Response.json({ erreur: "Bibliothèque indisponible" }, { status: 503 });
-    return { base, correspondance: lue.data };
+    return { base, correspondance: lue.data, bibliotheque: cle };
   };
 
   const corpsDe = async (contexte: { req: { json: () => Promise<unknown> } }): Promise<Record<string, unknown>> => {
@@ -379,12 +446,12 @@ export function creerApp({
    * La D1 de façade ne recopie pas les documents publiés : elle reçoit seulement le cache. */
   const passagesPubliesDe = async (
     environnement: Liaisons,
+    bibliotheque: string,
     version: string,
     page: number,
   ): Promise<readonly PassageCanoniqueATraduire[] | undefined> => {
     const compartiment = environnement.MEDIAS;
-    const bibliotheque = environnement.BIBLIOTHEQUE_FACADE;
-    if (compartiment === undefined || bibliotheque === undefined) return undefined;
+    if (compartiment === undefined) return undefined;
 
     const lireJson = async (cle: string): Promise<unknown | undefined> => {
       const objet = await compartiment.get(cle);
@@ -434,7 +501,12 @@ export function creerApp({
     const langue = ouverte.correspondance["language"] ?? ouverte.correspondance["langue"];
     const axeLangue = langue !== null && langue !== undefined && "axe" in langue ? langue.axe : undefined;
     try {
-      const passagesPublies = await passagesPubliesDe(contexte.env, demande.data.version, demande.data.page);
+      const passagesPublies = await passagesPubliesDe(
+        contexte.env,
+        ouverte.bibliotheque,
+        demande.data.version,
+        demande.data.page,
+      );
       const traduction = await traduireLaPage(ouverte.base, modeleWorkersAi(contexte.env.AI), demande.data, {
         maintenant: () => maintenant().toISOString(),
         ...(axeLangue === undefined ? {} : { axeLangue }),
@@ -500,12 +572,12 @@ export function creerApp({
     contexte: { env: Liaisons; req: { raw: Request } },
     quelleCle: (bibliotheque: string) => string | undefined,
   ): Promise<Response> => {
-    const refus = await porteParBascule(contexte, "lire");
-    if (refus !== undefined) return refus;
+    const acces = await porteParBascule(contexte, "lire");
+    if (acces instanceof Response) return acces;
 
     const compartiment = contexte.env.MEDIAS;
-    const bibliotheque = contexte.env.BIBLIOTHEQUE_FACADE;
-    if (compartiment === undefined || bibliotheque === undefined || bibliotheque.length === 0)
+    const bibliotheque = acces.bibliotheque;
+    if (compartiment === undefined)
       return Response.json({ erreur: "Le service de fichiers n'est pas configuré" }, { status: 503 });
 
     const cle = quelleCle(bibliotheque);
@@ -635,12 +707,12 @@ export function creerApp({
    *  sans porte doit rendre un refus de porte, sans quoi un inconnu apprendrait ce que la route
    *  attend. */
   app.post("/laissez", async (contexte) => {
-    const refus = await porteParBascule(contexte, "ouvrir_fichier");
-    if (refus !== undefined) return refus;
+    const acces = await porteParBascule(contexte, "ouvrir_fichier");
+    if (acces instanceof Response) return acces;
 
     const secret = contexte.env.SECRET_LAISSEZ;
-    const cle = contexte.env.BIBLIOTHEQUE_FACADE;
-    if (secret === undefined || secret.length === 0 || cle === undefined || cle.length === 0)
+    const cle = acces.bibliotheque;
+    if (secret === undefined || secret.length === 0)
       return contexte.json({ erreur: "Le service de fichiers n'est pas configuré" }, 503);
 
     const corps = await corpsObjet(contexte);
@@ -739,6 +811,68 @@ export function creerApp({
 
     contexte.header("set-cookie", entetRetrait(NOM_DU_TEMOIN));
     return contexte.json({ ferme: true });
+  });
+
+  /** Émettre un accès d'application reste un geste personnel d'administration. Le secret est
+   * rendu une fois dans cette réponse ; le registre n'en garde que l'empreinte. */
+  app.post("/administration/jetons-application", async (contexte) => {
+    const registre = contexte.env.REGISTRE;
+    if (registre === undefined) return contexte.json({ erreur: "Accès refusé." }, 401);
+    const maintenantIso = maintenant().toISOString();
+    const qui = await identifierParSession(registre, contexte.req.raw.headers, maintenantIso);
+    if (!qui.ouverte) return contexte.json({ erreur: qui.mot }, qui.statut);
+
+    const corps = await corpsObjet(contexte);
+    const bibliotheque = corps["bibliotheque"];
+    if (typeof bibliotheque !== "string") return contexte.json({ erreur: "Demande refusée" }, 400);
+    const droit = await autoriser(registre, qui.personneId, bibliotheque, "gerer_jetons_application");
+    if (!droit.ouverte) return contexte.json({ erreur: droit.mot }, droit.statut);
+
+    const actionsBrutes = corps["actions"];
+    if (!Array.isArray(actionsBrutes)) return contexte.json({ erreur: "Demande refusée" }, 400);
+    const actions = actionsBrutes.map((action) => ActionApplication.safeParse(action));
+    if (actions.some((action) => !action.success)) return contexte.json({ erreur: "Demande refusée" }, 400);
+    const application = corps["application"];
+    const nom = corps["nom"];
+    if (typeof application !== "string" || typeof nom !== "string")
+      return contexte.json({ erreur: "Demande refusée" }, 400);
+    const expireLe =
+      typeof corps["expireLe"] === "string"
+        ? corps["expireLe"]
+        : new Date(maintenant().getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const emis = await emettreJetonApplication(
+      registre,
+      {
+        application,
+        nom,
+        bibliotheque,
+        actions: actions.flatMap((action) => (action.success ? [action.data] : [])),
+        expireLe,
+      },
+      maintenantIso,
+      qui.personneId,
+    );
+    if (!emis.fait) return contexte.json({ erreur: emis.raison }, 400);
+    await repousserSiBesoin(registre, qui.session, maintenantIso);
+    return contexte.json(emis.valeur, 201);
+  });
+
+  /** Révoquer date la ligne au lieu de la supprimer : le journal et l'accès racontent alors la
+   * même histoire, et la révocation est visible dès la requête suivante. */
+  app.delete("/administration/jetons-application/:id", async (contexte) => {
+    const registre = contexte.env.REGISTRE;
+    if (registre === undefined) return contexte.json({ erreur: "Accès refusé." }, 401);
+    const maintenantIso = maintenant().toISOString();
+    const qui = await identifierParSession(registre, contexte.req.raw.headers, maintenantIso);
+    if (!qui.ouverte) return contexte.json({ erreur: qui.mot }, qui.statut);
+    const acces = await leJetonApplication(registre, contexte.req.param("id"));
+    if (acces === undefined) return contexte.json({ erreur: "Accès refusé." }, 401);
+    const droit = await autoriser(registre, qui.personneId, acces.bibliotheque, "gerer_jetons_application");
+    if (!droit.ouverte) return contexte.json({ erreur: droit.mot }, droit.statut);
+    const revoque = await revoquerJetonApplication(registre, acces.id, qui.personneId, maintenantIso);
+    if (!revoque.fait) return contexte.json({ erreur: revoque.raison }, 400);
+    await repousserSiBesoin(registre, qui.session, maintenantIso);
+    return contexte.json({ revoque: true, acces: revoque.valeur });
   });
 
   /** La porte des enrôlements : une session, et le droit d'enrôler une clé. */

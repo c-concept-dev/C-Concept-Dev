@@ -22,6 +22,7 @@ export type BaseSql = {
       readonly run: () => Promise<{ readonly meta: { readonly changes: number } }>;
     };
   };
+  readonly batch?: <T extends readonly { readonly run: () => Promise<unknown> }[]>(requetes: T) => Promise<unknown[]>;
 };
 
 type LigneRegistre = {
