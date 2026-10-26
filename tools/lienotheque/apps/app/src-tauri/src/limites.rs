@@ -35,6 +35,16 @@ pub struct Limites {
     pub tentatives_max: u32,
     /// Le temps qu'on laisse passer avant de réessayer.
     pub delai_entre_tentatives_s: u64,
+    /// Poids maximal du fichier ZIP avant ouverture.
+    pub archive_octets_max: u64,
+    /// Nombre maximal d'entrées, dossiers compris.
+    pub archive_entrees_max: usize,
+    /// Poids maximal d'une entrée après ouverture.
+    pub archive_entree_octets_max: u64,
+    /// Poids cumulé maximal après ouverture.
+    pub archive_total_octets_max: u64,
+    /// Rapport maximal entre taille ouverte et taille comprimée.
+    pub archive_rapport_compression_max: f64,
 }
 
 pub static LIMITES: LazyLock<Limites> = LazyLock::new(|| {
@@ -52,6 +62,9 @@ mod tests {
         assert!(LIMITES.protocole >= 1);
         assert!(LIMITES.travaux_lourds_simultanes >= 1);
         assert!(LIMITES.delai_arret_propre_s >= 1);
+        assert!(LIMITES.archive_entrees_max >= 100);
+        assert!(LIMITES.archive_total_octets_max > 54_313_291);
+        assert!(LIMITES.archive_rapport_compression_max > 1.238);
     }
 
     #[test]

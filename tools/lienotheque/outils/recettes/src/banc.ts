@@ -307,6 +307,16 @@ export type MediaInventorie = {
   readonly empreinte: string;
 };
 
+/** Support porté par un dossier CD1, CD 2, Disque3… dans une archive. Le chemin reste une donnée
+ *  d'origine ; le rangement par empreinte ne doit pas effacer cette distinction. */
+function disqueDuChemin(nom: string): number | undefined {
+  for (const partie of nom.replaceAll("\\", "/").split("/").slice(0, -1)) {
+    const trouve = /^(?:cd|disque)\s*[-_ ]?\s*(\d+)$/i.exec(partie.trim());
+    if (trouve?.[1] !== undefined) return Number.parseInt(trouve[1], 10);
+  }
+  return undefined;
+}
+
 /** Relit un inventaire portable sans déduire quoi que ce soit du nom de rangement.
  *
  *  Dans une bibliothèque, le fichier s'appelle par son empreinte. Le numéro, lui, ne peut venir
@@ -319,9 +329,10 @@ export function mediasDeLInventaire(inventaire: readonly MediaInventorie[], rece
     if (extension === undefined) continue;
     const indices = lireNomMedia(basename(entree.nom, extension), motif);
     if (indices.piste === undefined) continue;
+    const disque = disqueDuChemin(entree.nom) ?? indices.disque;
     medias.push({
       piste: indices.piste,
-      ...(indices.disque === undefined ? {} : { disque: indices.disque }),
+      ...(disque === undefined ? {} : { disque }),
       nom: entree.nom,
       empreinte: entree.empreinte,
     });

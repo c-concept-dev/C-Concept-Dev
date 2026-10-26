@@ -184,6 +184,11 @@ describe("navigation d'une grande bibliothèque", () => {
 });
 
 describe("ce qui est déposé mais ne se lit pas seul", () => {
+  it("annonce le dépôt ZIP PDF et MP3 dans le même geste (C9.1)", () => {
+    poser();
+    expect(screen.getByText(/ZIP contenant un PDF et ses MP3/)).toBeInTheDocument();
+  });
+
   it("se montre à part, en disant pourquoi", () => {
     poser({ accompagnements: [{ nom: "une-piste.mp3", contenu: "audio" }] });
     const bloc = screen.getByText(/Déposés avec/).parentElement!;

@@ -11,6 +11,11 @@ import {
   MEMOIRE_MAX_MO,
   TRAVAUX_LOURDS_SIMULTANES,
   VERSION_PROTOCOLE,
+  ARCHIVE_OCTETS_MAX,
+  ARCHIVE_ENTREES_MAX,
+  ARCHIVE_ENTREE_OCTETS_MAX,
+  ARCHIVE_TOTAL_OCTETS_MAX,
+  ARCHIVE_RAPPORT_COMPRESSION_MAX,
 } from "../src/index.js";
 
 /** Les limites d'exécution sont une donnée, pas du code (PLT-02, JOB-02).
@@ -33,6 +38,11 @@ const Limites = z
     expirationVerrouS: z.number().int().positive(),
     tentativesMax: z.number().int().positive(),
     delaiEntreTentativesS: z.number().int().positive(),
+    archiveOctetsMax: z.number().int().positive(),
+    archiveEntreesMax: z.number().int().positive(),
+    archiveEntreeOctetsMax: z.number().int().positive(),
+    archiveTotalOctetsMax: z.number().int().positive(),
+    archiveRapportCompressionMax: z.number().positive(),
   })
   .strict();
 
@@ -53,6 +63,11 @@ describe("le fichier des limites", () => {
     expect(EXPIRATION_VERROU_S).toBe(limites.expirationVerrouS);
     expect(TENTATIVES_MAX).toBe(limites.tentativesMax);
     expect(DELAI_ENTRE_TENTATIVES_S).toBe(limites.delaiEntreTentativesS);
+    expect(ARCHIVE_OCTETS_MAX).toBe(limites.archiveOctetsMax);
+    expect(ARCHIVE_ENTREES_MAX).toBe(limites.archiveEntreesMax);
+    expect(ARCHIVE_ENTREE_OCTETS_MAX).toBe(limites.archiveEntreeOctetsMax);
+    expect(ARCHIVE_TOTAL_OCTETS_MAX).toBe(limites.archiveTotalOctetsMax);
+    expect(ARCHIVE_RAPPORT_COMPRESSION_MAX).toBe(limites.archiveRapportCompressionMax);
   });
 
   it("laisse deux battements de marge avant qu'un bail n'expire (JOB-02)", () => {
@@ -112,7 +127,7 @@ describe("personne ne recopie une limite", () => {
       for (const ligne of texte.split("\n")) {
         // Une déclaration de constante qui porte un nombre : c'est la forme qu'aurait une recopie.
         const recopie =
-          /^\s*(?:pub\s+)?const\s+(BATTEMENT|EXPIRATION|MEMOIRE_MAX|DELAI_ARRET|DELAI_ENTRE|TENTATIVES_MAX|TRAVAUX_LOURDS|VERSION_PROTOCOLE)[A-Z_]*\s*(?::[^=]+)?=\s*\d/.test(
+          /^\s*(?:pub\s+)?const\s+(ARCHIVE|BATTEMENT|EXPIRATION|MEMOIRE_MAX|DELAI_ARRET|DELAI_ENTRE|TENTATIVES_MAX|TRAVAUX_LOURDS|VERSION_PROTOCOLE)[A-Z_]*\s*(?::[^=]+)?=\s*\d/.test(
             ligne,
           );
         if (recopie) fautifs.push(`${fichier.slice(RACINE.length + 1)} : ${ligne.trim()}`);

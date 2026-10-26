@@ -43,6 +43,16 @@ export const TRAVAUX_LOURDS_SIMULTANES = limites.travauxLourdsSimultanes;
  *  s'emballerait, au lieu de laisser la machine se figer. */
 export const MEMOIRE_MAX_MO = limites.memoireMaxMo;
 
+/** Bornes des ZIP déposés. Le lot réel C9.1 mesure 100 entrées, 43 876 822 octets dans
+ *  l'archive et 54 313 291 octets une fois ouvert (rapport 1,238). Ces plafonds laissent de la
+ *  place à plusieurs supports et à de grandes méthodes, sans offrir un disque entier à une
+ *  archive accidentelle ou hostile. */
+export const ARCHIVE_OCTETS_MAX = limites.archiveOctetsMax;
+export const ARCHIVE_ENTREES_MAX = limites.archiveEntreesMax;
+export const ARCHIVE_ENTREE_OCTETS_MAX = limites.archiveEntreeOctetsMax;
+export const ARCHIVE_TOTAL_OCTETS_MAX = limites.archiveTotalOctetsMax;
+export const ARCHIVE_RAPPORT_COMPRESSION_MAX = limites.archiveRapportCompressionMax;
+
 /** Délai laissé à un processus pour s'arrêter de lui-même avant qu'on le tue.
  *
  *  Un arrêt propre écrit son dernier point de reprise ; un processus tué ne le fait pas, et le

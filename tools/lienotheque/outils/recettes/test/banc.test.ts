@@ -78,4 +78,15 @@ describe("inventaire portable des médias (REC-05, ANC-05)", () => {
     ]);
     expect(medias).toEqual([{ piste: 7, nom: "Piste 07.mp3", empreinte: "f".repeat(64) }]);
   });
+
+  it("conserve le support porté par les sous-dossiers CD1 et CD2 d'un ZIP (C9.1)", () => {
+    const medias = mediasDeLInventaire([
+      { nom: "CD1/Piste 03.mp3", empreinte: "a".repeat(64) },
+      { nom: "CD2/Piste 03.mp3", empreinte: "b".repeat(64) },
+    ]);
+    expect(medias).toEqual([
+      { piste: 3, disque: 1, nom: "CD1/Piste 03.mp3", empreinte: "a".repeat(64) },
+      { piste: 3, disque: 2, nom: "CD2/Piste 03.mp3", empreinte: "b".repeat(64) },
+    ]);
+  });
 });
