@@ -62,6 +62,32 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
     expect(traite.passages[0]?.texte).toContain("intact");
   });
 
+  it("rend accessibles les pages du PDF ordinaire même sans repère métier", async () => {
+    doubles.exporterPages.mockResolvedValue({
+      pages: [{ index: 0, fichier: "page-0000.webp", largeur: 800, hauteur: 1200, vignette: "vignette-0000.webp" }],
+      refusees: [],
+    });
+
+    await instantaneDeLot({
+      pdf: join(RACINE, "fixtures/fichiers/inexistant-mais-double.pdf"),
+      medias: RACINE,
+      recette: RECETTE,
+      description: DESCRIPTION,
+      images: join(RACINE, ".cache-images-test"),
+    });
+
+    expect(doubles.construireVue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pages: [{ index: 1 }],
+        imageDePage: expect.any(Function),
+      }),
+    );
+    const entree = doubles.construireVue.mock.calls[0]?.[0] as { imageDePage?: (rang: number) => unknown };
+    expect(entree.imageDePage?.(1)).toEqual(
+      expect.objectContaining({ image: "/donnees/pages/page-0000.webp", vignette: "/donnees/pages/vignette-0000.webp" }),
+    );
+  });
+
   it("transmet surAvertissement jusqu'au journal par la vraie porte", async () => {
     doubles.exporterPages.mockResolvedValue({ pages: [], refusees: [] });
     const journaux: string[] = [];

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, type JSX } from "react";
 import { citerPage, enTete, type Passage, type VueBibliotheque } from "@lienotheque/contrats";
+import type { CibleRecherche } from "@lienotheque/noyau";
 import { Bouton, Icone } from "../composants/index.js";
 import { FilAriane } from "../composants/FilAriane.js";
 import { actionDe } from "./lecteur/raccourcis.js";
+import { TexteSurligne } from "./lecteur/TexteSurligne.js";
 import "./LectureDuTexte.css";
 
 /** Lire un document qui n'a aucune image (RCH-07, RCH-09, CLA-01).
@@ -30,6 +32,7 @@ type Props = {
    *  planche. Le dire évite de laisser croire qu'il n'en existe aucune, et explique pourquoi
    *  l'on est ici plutôt que devant elles. */
   readonly imagesPartielles?: boolean | undefined;
+  readonly cibleRecherche?: CibleRecherche | undefined;
   readonly onPage: (page: number) => void;
 };
 
@@ -38,13 +41,15 @@ type Props = {
  *  Un passage porte le texte d'une page **tel quel**, retours à la ligne compris : les recoller
  *  en un seul bloc rendrait illisible ce que la mise en page séparait. Les lignes vides ne
  *  comptent pas — elles séparent, elles ne se montrent pas. */
-const enParagraphes = (texte: string): readonly string[] =>
-  texte
-    .split(/\n+/)
-    .map((ligne) => ligne.trim())
-    .filter((ligne) => ligne !== "");
+const enParagraphes = (texte: string): readonly { readonly texte: string; readonly debut: number }[] =>
+  [...texte.matchAll(/[^\n]+/gu)].flatMap((trouve) => {
+    const brut = trouve[0];
+    const propre = brut.trim();
+    if (propre === "") return [];
+    return [{ texte: propre, debut: (trouve.index ?? 0) + brut.indexOf(propre) }];
+  });
 
-export function LectureDuTexte({ vue, document, passages, page, imagesPartielles = false, onPage }: Props): JSX.Element {
+export function LectureDuTexte({ vue, document, passages, page, imagesPartielles = false, cibleRecherche, onPage }: Props): JSX.Element {
   // Par le rang de page, et non par la position dans le tableau : un document peut porter
   // plusieurs passages sur une même page, et c'est la page que l'adresse désigne.
   const courant = passages.find((passage) => passage.page === page) ?? passages[0];
@@ -129,7 +134,11 @@ export function LectureDuTexte({ vue, document, passages, page, imagesPartielles
         <div className="ln-texte-lu__texte">
           {paragraphes.map((paragraphe, place) => (
             // Le rang suffit à distinguer deux paragraphes identiques, et leur ordre ne bouge pas.
-            <p key={`${courant.rang}-${place}`}>{paragraphe}</p>
+            <p key={`${courant.rang}-${place}`}>
+              {courant.rang === cibleRecherche?.passage
+                ? <TexteSurligne texte={paragraphe.texte} origine={paragraphe.debut} cible={cibleRecherche} />
+                : paragraphe.texte}
+            </p>
           ))}
         </div>
 

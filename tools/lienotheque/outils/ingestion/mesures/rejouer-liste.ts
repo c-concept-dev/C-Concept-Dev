@@ -68,6 +68,7 @@ async function rejouer(entree: Entree, rang: number): Promise<LigneRapport> {
         PATH: `/opt/homebrew/bin:/usr/bin:/bin:${process.env["PATH"] ?? ""}`,
         TESSDATA_PREFIX: "/Applications/Liénothèque.app/Contents/Resources/moteurs/tessdata",
         LIENOTHEQUE_CODECS: CODECS,
+        LIENOTHEQUE_PDFJS: join(RACINE, "apps/app/src-tauri/moteurs/chaine/pdfjs"),
       },
     });
     const lignes = createInterface({ input: enfant.stdout });

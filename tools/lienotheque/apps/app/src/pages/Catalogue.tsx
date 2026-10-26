@@ -16,6 +16,7 @@ import { classerUnDocument } from "@lienotheque/noyau";
 import { Bouton, FilAriane, Icone } from "../composants/index.js";
 import { imageAffichable } from "../image-affichable.js";
 import { compteursDeBibliotheque } from "../donnees/accueil.js";
+import { ImageSure } from "./lecteur/ImageSure.js";
 import "./Catalogue.css";
 
 /** Catalogue d'une bibliothèque (B3 — CLA-10, UX-01).
@@ -53,6 +54,7 @@ type Props = {
   /** Ce que chacun porte. Reçue à part, jamais recopiée dans la vue. */
   readonly classements?: ReadonlyMap<string, ClassementLocal> | undefined;
   readonly onDocument?: ((empreinte: string) => void) | undefined;
+  readonly chargerImage?: ((source: string) => Promise<string | undefined>) | undefined;
 };
 
 type Vue = "grille" | "liste";
@@ -86,6 +88,7 @@ export function Catalogue({
   page,
   onPage,
   onLecteur,
+  chargerImage,
   texteLu = false,
   premierePageTexte,
   chargementDocument,
@@ -544,7 +547,7 @@ export function Catalogue({
                       {p.numero}
                     </span>
                   ) : (
-                    <img className="ln-pages__apercu" src={imageAffichable(p.vignette)} alt="" loading="lazy" decoding="async" />
+                    <ImageSure className="ln-pages__apercu" source={p.vignette} {...(chargerImage === undefined ? {} : { charger: chargerImage })} alt="" />
                   )}
                   {/* Le nom et le titre dans **une seule cellule**, et non deux.
                       En liste, la carte déclare quatre colonnes ; elle portait quatre ou cinq
@@ -605,12 +608,11 @@ export function Catalogue({
                   {detail.titre === undefined ? null : <span className="ln-detail__sous-titre">{detail.titre}</span>}
                 </div>
               ) : (
-                <img
+                <ImageSure
                   className="ln-detail__apercu ln-detail__apercu--image"
-                  src={imageAffichable(detail.vignette)}
+                  source={detail.vignette}
+                  {...(chargerImage === undefined ? {} : { charger: chargerImage })}
                   alt={enTete(citerPage(vue.mots, detail))}
-                  loading="lazy"
-                  decoding="async"
                 />
               )}
 

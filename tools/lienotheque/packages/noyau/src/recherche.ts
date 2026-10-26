@@ -21,6 +21,16 @@ export type GenreResultat = "element" | "page" | "piste" | "action";
 /** Une portion de texte qui correspond, en positions du texte **original**. */
 export type Surlignage = { readonly debut: number; readonly fin: number };
 
+/** La correspondance qui a conduit au Lecteur.
+ *
+ * Le rang du passage et la position dans son texte sont stables ; le numéro imprimé ne l'est pas
+ * assez pour naviguer, et l'extrait affiché par la palette est volontairement tronqué. */
+export type CibleRecherche = {
+  readonly passage: number;
+  readonly debut: number;
+  readonly requete: string;
+};
+
 export type Resultat = {
   readonly genre: GenreResultat;
   /** Identité stable : c'est elle que le clavier suit d'un résultat à l'autre. */
@@ -36,6 +46,7 @@ export type Resultat = {
   readonly page?: number;
   readonly element?: string;
   readonly piste?: number;
+  readonly cibleRecherche?: CibleRecherche;
 };
 
 export type Groupe = { readonly genre: GenreResultat; readonly libelle: string; readonly resultats: readonly Resultat[] };
@@ -128,8 +139,8 @@ function morceauxDe(requete: string): { readonly phrase: string; readonly mots: 
 function extraireAutour(
   lignes: readonly string[],
   morceaux: readonly string[],
-): { readonly extrait: string; readonly surlignes: readonly Surlignage[] } | undefined {
-  for (const ligne of lignes) {
+): { readonly extrait: string; readonly surlignes: readonly Surlignage[]; readonly ligne: number; readonly debut: number } | undefined {
+  for (const [rangLigne, ligne] of lignes.entries()) {
     const surlignes = trouver(ligne, morceaux);
     const premier = surlignes[0];
     if (premier === undefined) continue;
@@ -149,12 +160,22 @@ function extraireAutour(
     const decalage = (debut > 0 ? 1 : 0) - debut;
     return {
       extrait,
+      ligne: rangLigne,
+      debut: centre.debut,
       surlignes: surlignes
         .filter((portion) => portion.debut >= debut && portion.fin <= fin)
         .map((portion) => ({ debut: portion.debut + decalage, fin: portion.fin + decalage })),
     };
   }
   return undefined;
+}
+
+/** Les correspondances d'une requête dans le texte original, avec les mêmes règles que la
+ * palette : accents et casse ignorés, suite entière prioritaire, positions originales rendues. */
+export function surlignagesDe(texte: string, requete: string): readonly Surlignage[] {
+  const { phrase, mots } = morceauxDe(requete);
+  if (phrase === "") return [];
+  return trouver(texte, mots.length > 1 ? [phrase, ...mots] : mots);
 }
 
 /** Premier mot en capitale, le reste intact : les mots de la bibliothèque arrivent au singulier
@@ -257,7 +278,7 @@ export function chercher(
   //
   // Le numéro imprimé n'est pas toujours connu — mesuré sur un livre de quatre-vingt-seize
   // pages, sept numéros pour vingt-sept passages. À défaut on cite le rang, et on le dit.
-  const parCitation = new Map<string, { imprimee?: number; rang: number; lignes: string[] }>();
+  const parCitation = new Map<string, { imprimee?: number; rang: number; lignes: string[]; passages: number[] }>();
   for (const passage of options.passages ?? []) {
     const cle = passage.pageImprimee === undefined ? `rang:${passage.page}` : `imprime:${passage.pageImprimee}`;
     const deja = parCitation.get(cle);
@@ -266,10 +287,14 @@ export function chercher(
         ...(passage.pageImprimee === undefined ? {} : { imprimee: passage.pageImprimee }),
         rang: passage.page,
         lignes: [passage.texte],
+        passages: [passage.rang],
       });
     // Une page qui répond deux fois reste une page : on rassemble ses lignes au lieu de la
     // rendre deux fois dans la liste.
-    else deja.lignes.push(passage.texte);
+    else {
+      deja.lignes.push(passage.texte);
+      deja.passages.push(passage.rang);
+    }
   }
   for (const [cle, citation] of parCitation) {
     const autour = extraireAutour(citation.lignes, morceaux);
@@ -285,7 +310,12 @@ export function chercher(
       extrait: autour.extrait,
       surlignesExtrait: autour.surlignes,
       cote,
-      ...(citation.imprimee === undefined ? {} : { page: citation.imprimee }),
+      page: citation.rang,
+      cibleRecherche: {
+        passage: citation.passages[autour.ligne]!,
+        debut: autour.debut,
+        requete: requete.trim(),
+      },
     });
   }
 

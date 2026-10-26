@@ -1,6 +1,8 @@
 import { useId, useState, type JSX } from "react";
 import type { TraductionDePage } from "@lienotheque/contrats";
+import type { CibleRecherche } from "@lienotheque/noyau";
 import { Icone } from "../../composants/index.js";
+import { TexteSurligne } from "./TexteSurligne.js";
 
 /** Texte reconnu de la page, repliable, avec sa bascule original / traduction (B1, OUT-11).
  *
@@ -9,11 +11,13 @@ import { Icone } from "../../composants/index.js";
 
 type Props = {
   readonly original: readonly string[];
+  readonly rangs?: readonly number[];
   readonly traduction: readonly string[];
   readonly onTraduire?: () => Promise<TraductionDePage>;
+  readonly cibleRecherche?: CibleRecherche | undefined;
 };
 
-export function TextePage({ original, traduction, onTraduire }: Props): JSX.Element | null {
+export function TextePage({ original, rangs, traduction, onTraduire, cibleRecherche }: Props): JSX.Element | null {
   const [ouvert, setOuvert] = useState(true);
   const [vue, setVue] = useState<"original" | "traduction">("original");
   const [traduite, setTraduite] = useState<readonly string[]>(traduction);
@@ -92,7 +96,9 @@ export function TextePage({ original, traduction, onTraduire }: Props): JSX.Elem
           <ol className="ln-texte__lignes">
             {lignes.map((ligne, rang) => (
               <li key={`${rang}-${ligne.slice(0, 12)}`} className={rang === 0 ? "ln-texte__ligne ln-texte__ligne--lue" : "ln-texte__ligne"}>
-                {ligne}
+                {vue === "original" && rangs?.[rang] === cibleRecherche?.passage
+                  ? <TexteSurligne texte={ligne} cible={cibleRecherche} />
+                  : ligne}
               </li>
             ))}
           </ol>

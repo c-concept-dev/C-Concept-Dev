@@ -8,6 +8,7 @@ import {
   type PageAffichee,
   type ZoneRelative,
 } from "@lienotheque/contrats";
+import { ImageSure } from "./ImageSure.js";
 
 /** La page elle-même, avec les zones de ses éléments (B1, UX-01, UX-07).
  *
@@ -27,6 +28,7 @@ type Props = {
   readonly actif: string;
   readonly zoom: number;
   readonly onElement: (ancreId: string) => void;
+  readonly chargerImage?: ((source: string) => Promise<string | undefined>) | undefined;
 };
 
 /** Ce qu'une bande garde au-dessus du numéro qui l'ouvre : un titre se pose souvent
@@ -64,7 +66,7 @@ export function bandesDeLaPage(elements: readonly ElementAffiche[]): Bande[] {
 }
 
 export const PageZoomable = forwardRef<HTMLSpanElement, Props>(function PageZoomable(
-  { page, mots, actif, zoom, onElement },
+  { page, mots, actif, zoom, onElement, chargerImage },
   refAncreActive,
 ): JSX.Element {
   const bandes = useMemo(() => bandesDeLaPage(page.elements), [page.elements]);
@@ -81,7 +83,7 @@ export const PageZoomable = forwardRef<HTMLSpanElement, Props>(function PageZoom
             {page.titre === undefined ? null : <span className="ln-page__titre">{page.titre}</span>}
           </div>
         ) : (
-          <img className="ln-page__image" src={page.image} alt={enTete(citerPage(mots, page))} />
+          <ImageSure className="ln-page__image" source={page.image} {...(chargerImage === undefined ? {} : { charger: chargerImage })} alt={enTete(citerPage(mots, page))} />
         )}
 
         {bandes.map(({ element, zone }) => (

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { VueBibliotheque } from "@lienotheque/contrats";
 import { Catalogue } from "../src/pages/Catalogue.js";
@@ -57,6 +57,14 @@ describe("OUT-04 : le Lecteur montre les vignettes des pages", () => {
     expect(bande.querySelectorAll("img"), "aucune image").toHaveLength(0);
     expect(bande.querySelectorAll("button"), "mais les pages restent atteignables").toHaveLength(2);
   });
+
+  it("retire proprement une vignette illisible au lieu de laisser l'image cassée", () => {
+    render(<Lecteur vue={vue(true)} page={126} element={ID(20)} onPage={vi.fn()} onElement={vi.fn()} />);
+    const bande = screen.getByRole("navigation", { name: /feuillets du document/i });
+    fireEvent.error(bande.querySelector("img")!);
+    expect(bande.querySelectorAll("img")).toHaveLength(1);
+    expect(bande.querySelectorAll("[data-image-repli]")).toHaveLength(1);
+  });
 });
 
 describe("OUT-04 : le catalogue montre les vignettes des pages", () => {
@@ -67,7 +75,8 @@ describe("OUT-04 : le catalogue montre les vignettes des pages", () => {
     expect(cartes, "une vignette par carte").toHaveLength(2);
     expect(cartes[0]?.getAttribute("src")).toBe("/donnees/pages/vignette-0000.webp");
 
-    const detail = screen.getByRole("img", { name: /feuillet 126/i });
+    const detail = document.querySelector("img.ln-detail__apercu")!;
+    fireEvent.load(detail);
     expect(detail.tagName, "le détail montre la vignette, pas un numéro").toBe("IMG");
   });
 

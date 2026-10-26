@@ -22,6 +22,15 @@ describe("lecture d'une adresse (B4)", () => {
     expect(lireRoute("#lecteur/page=127&element=abc-123")).toEqual({ ecran: "lecteur", page: 127, element: "abc-123" });
   });
 
+  it("conserve la cible exacte d'une recherche, accents et séparateurs compris", () => {
+    const route: Route = {
+      ecran: "lecteur",
+      page: 57,
+      cibleRecherche: { passage: 1, debut: 12, requete: "mémoire & corps/émotion" },
+    };
+    expect(lireRoute(ecrireRoute(route))).toEqual(route);
+  });
+
   it("ramène à l'accueil plutôt que de laisser l'écran vide", () => {
     expect(lireRoute("#inconnu")).toEqual(ACCUEIL);
     expect(lireRoute("#lecteur"), "un Lecteur sans page n'ouvre rien").toEqual(ACCUEIL);
@@ -39,6 +48,7 @@ describe("écriture d'une adresse (B4)", () => {
     { ecran: "catalogue", page: 127 },
     { ecran: "lecteur", page: 127 },
     { ecran: "lecteur", page: 127, element: "abc-123" },
+    { ecran: "lecteur", page: 57, cibleRecherche: { passage: 1, debut: 12, requete: "mémoire & corps/émotion" } },
   ];
 
   it("l'aller-retour est fidèle : ce qu'on écrit se relit à l'identique", () => {

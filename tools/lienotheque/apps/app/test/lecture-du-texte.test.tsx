@@ -39,6 +39,20 @@ const TROIS = [
 ];
 
 describe("un document sans image se lit quand même (RCH-07)", () => {
+  it("surligne exactement l'extrait qui a conduit ici depuis la recherche", () => {
+    render(
+      <LectureDuTexte
+        vue={vueSansPage()}
+        passages={TROIS}
+        page={1}
+        cibleRecherche={{ passage: 0, debut: 15, requete: "ligne lue" }}
+        onPage={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByText("ligne lue", { selector: "mark" })).toHaveLength(2);
+    expect(screen.queryAllByText("Première", { selector: "mark" })).toHaveLength(0);
+  });
+
   it("montre le texte de la page demandée, et non le premier venu", () => {
     render(<LectureDuTexte vue={vueSansPage()} passages={TROIS} page={3} onPage={vi.fn()} />);
     expect(screen.getByText("Texte du rang 2.")).toBeTruthy();

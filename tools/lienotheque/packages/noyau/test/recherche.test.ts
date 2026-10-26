@@ -251,7 +251,14 @@ describe("la recherche lit les passages du document, non une copie dans la vue (
     // imprimé 42. Et le numéro imprimé n'est pas toujours connu : mesuré sur un livre de
     // quatre-vingt-seize pages, sept numéros pour vingt-sept passages.
     const imprime = chercher(SANS_TEXTE, "traumatique", { passages: PASSAGES });
-    expect(imprime.find((g) => g.genre === "page")?.resultats[0]?.cote).toBe("feuillet 42");
+    const resultatImprime = imprime.find((g) => g.genre === "page")?.resultats[0];
+    expect(resultatImprime?.cote).toBe("feuillet 42");
+    expect(resultatImprime?.page, "la navigation emploie le rang réel, pas le numéro imprimé").toBe(57);
+    expect(resultatImprime?.cibleRecherche).toEqual({
+      passage: 1,
+      requete: "traumatique",
+      debut: "La mémoire ".length,
+    });
 
     const sansNumero = chercher(SANS_TEXTE, "fragments", { passages: PASSAGES });
     expect(sansNumero.find((g) => g.genre === "page")?.resultats[0]?.cote).toBe("feuillet 58 du document");

@@ -90,6 +90,7 @@ export function App(): JSX.Element {
    *  tard, tandis que leurs vignettes déjà chargées restaient visibles. Le nom du dérivé reste
    *  ici ; l'adresse, elle, est redemandée pour la seule page effectivement ouverte. */
   const [imagesDePages, setImagesDePages] = useState<ReadonlyMap<number, string>>(new Map());
+  const [versionRegardee, setVersionRegardee] = useState<string | undefined>(undefined);
   // Le texte du document regardé, lu à part de sa vue et jamais recopié dedans.
   const [passages, setPassages] = useState<readonly Passage[]>([]);
   /** Document demandé mais pas encore reçu : l'ancienne vue est masquée pendant cette attente. */
@@ -366,11 +367,18 @@ export function App(): JSX.Element {
   const courante: { readonly racine: string } | undefined =
     creees[creees.length - 1] ?? (lecture !== undefined && administration === undefined ? SERVIE_EN_LIGNE : undefined);
 
-  // L'image de la page qu'on regarde, prise à la demande. Une par une : un livre de trois cents
-  // pages pèse des centaines de mégaoctets, et le Lecteur n'en montre qu'une. Elle remplace
-  // l'adresse que la vue porte, qui ne désigne rien sur le bureau.
+  const chargerImage = useCallback(async (adresse: string): Promise<string | undefined> => {
+    const fichier = adresse.split("/").pop();
+    if (courante === undefined || lecture === undefined || versionRegardee === undefined || fichier === undefined)
+      return undefined;
+    return lecture.imageDePage(courante.racine, versionRegardee, `pages/${fichier}`);
+  }, [courante?.racine, lecture, versionRegardee]);
+
+  // La relecture OCR fine reste un geste du bureau. Les images, elles, gardent ici leur nom
+  // durable : `ImageSure` demande une adresse fraîche au voisinage de l'écran et sait réessayer
+  // sans jamais révéler une image cassée.
   useEffect(() => {
-    if (courante === undefined || lecture === undefined || route.ecran !== "lecteur")
+    if (courante === undefined || lecture === undefined || administration === undefined || route.ecran !== "lecteur")
       return undefined;
     // Par le **rang** : c'est lui que les écrans passent, et le numéro imprimé manque sur
     // tout ouvrage qui ne numérote rien.
@@ -382,44 +390,30 @@ export function App(): JSX.Element {
     let vivant = true;
     if (regarde === undefined) return undefined;
     const passageOcr = passages.find((passage) => passage.page === route.page && passage.source === "ocr");
+    if (passageOcr === undefined) return undefined;
     void lecture.versionActive(courante.racine, regarde)
       .then(async (version) => {
         if (version === undefined) return undefined;
-        const image = await lecture.imageDePage(courante.racine, version, `pages/${fichier}`);
         const langue = creees[creees.length - 1]?.description.schema?.langue ?? "fr";
-        const texte =
-          passageOcr === undefined || administration === undefined
-            ? undefined
-            : await administration.relireTexteDePage(courante.racine, version, fichier, langue).catch(() => undefined);
-        return { image, texte };
+        return administration.relireTexteDePage(courante.racine, version, fichier, langue).catch(() => undefined);
       })
-      .then((relu) => {
-        if (!vivant || relu === undefined || (relu.image === undefined && relu.texte === undefined)) return;
+      .then((texte) => {
+        if (!vivant || texte === undefined || texte === passageOcr.texte) return;
         setVue((avant) =>
           avant === undefined
             ? avant
             : {
                 ...avant,
-                // Par le rang, et jamais par le numéro imprimé : deux pages sans numéro le
-                // portent toutes deux à `undefined`, et `undefined === undefined` est vrai —
-                // l'image d'une page serait recopiée sur toutes les autres.
                 pages: avant.pages.map((autre) =>
                   autre.index === route.page
-                    ? {
-                        ...autre,
-                        ...(relu.image === undefined ? {} : { image: relu.image }),
-                        ...(relu.texte === undefined ? {} : { texte: [relu.texte] }),
-                      }
+                    ? { ...autre, texte: [texte] }
                     : autre,
                 ),
               },
         );
-        if (relu.texte !== undefined && passageOcr !== undefined)
-          setPassages((avant) =>
-            avant.map((passage) =>
-              passage.rang === passageOcr.rang ? { ...passage, texte: relu.texte ?? passage.texte } : passage,
-            ),
-          );
+        setPassages((avant) =>
+          avant.map((passage) => passage.rang === passageOcr.rang ? { ...passage, texte } : passage),
+        );
       })
       .catch(() => {
         // Une image qui manque n'empêche pas de lire : l'écran le dit déjà à sa façon.
@@ -512,6 +506,7 @@ export function App(): JSX.Element {
     setDecisions([]);
     setPassages([]);
     setImagesDePages(new Map());
+    setVersionRegardee(undefined);
     setChargementDocument(documents.find((document) => document.empreinte === regarde)?.nom ?? "ce document");
     // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent le
     // texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
@@ -534,26 +529,13 @@ export function App(): JSX.Element {
           // ligne d'emprunter cette porte ; la grande page n'était par ailleurs jamais résolue.
           let visible = lue;
           const version = await lecture.versionActive(courante.racine, regarde);
+          setVersionRegardee(version);
           if (version !== undefined) {
-            const resoudre = async (adresse: string | undefined): Promise<string | undefined> => {
-              const fichier = adresse?.split("/").pop();
-              if (fichier === undefined) return undefined;
-              try {
-                return await lecture.imageDePage(courante.racine, version, `pages/${fichier}`);
-              } catch {
-                return undefined;
-              }
-            };
             visible = {
               ...lue,
-              pages: await Promise.all(
-                lue.pages.map(async (page) => {
-                  const vignette = await resoudre(page.vignette);
-                  // Une grande page n'est signée qu'au moment où le Lecteur la montre. Garder
-                  // ici une adresse signée condamnait les pages ouvertes après son expiration.
-                  return { ...page, image: undefined, vignette };
-                }),
-              ),
+              // Les deux noms restent durables. La grande page est signée au moment de son
+              // ouverture ; chaque vignette l'est seulement lorsqu'elle approche de l'écran.
+              pages: lue.pages,
             };
           }
           if (!vivant) return;
@@ -980,6 +962,7 @@ export function App(): JSX.Element {
             : { document: documents.find((document) => document.empreinte === regarde)!.nom })}
           passages={passages}
           page={route.page}
+          {...(route.cibleRecherche === undefined ? {} : { cibleRecherche: route.cibleRecherche })}
           imagesPartielles={quelquesImagesSeulement(vue.pages.length, passages.length)}
           onPage={(page) => aller({ ecran: "lecteur", page })}
         />
@@ -996,7 +979,9 @@ export function App(): JSX.Element {
           // La vue porte les repères, les passages portent le texte : sans ce témoin, un
           // document sans page renverrait à une recherche qui ne rendrait rien.
           texteLu={passages.length > 0}
-          textePage={passages.filter((passage) => passage.page === route.page).map((passage) => passage.texte)}
+          passagesPage={passages.filter((passage) => passage.page === route.page)}
+          chargerImage={chargerImage}
+          {...(route.cibleRecherche === undefined ? {} : { cibleRecherche: route.cibleRecherche })}
           {...(lecture === undefined || lecture.traduirePage === undefined || courante === undefined || regarde === undefined
             ? {}
             : {
@@ -1014,6 +999,7 @@ export function App(): JSX.Element {
       return (
         <Catalogue
           vue={vue}
+          chargerImage={chargerImage}
           texteLu={passages.length > 0}
           {...(passages[0] === undefined ? {} : { premierePageTexte: passages[0].page })}
           {...(chargementDocument === undefined ? {} : { chargementDocument })}
@@ -1080,8 +1066,8 @@ export function App(): JSX.Element {
             if (resultat.page !== undefined)
               aller(
                 resultat.element === undefined
-                  ? { ecran: "lecteur", page: resultat.page }
-                  : { ecran: "lecteur", page: resultat.page, element: resultat.element },
+                  ? { ecran: "lecteur", page: resultat.page, ...(resultat.cibleRecherche === undefined ? {} : { cibleRecherche: resultat.cibleRecherche }) }
+                  : { ecran: "lecteur", page: resultat.page, element: resultat.element, ...(resultat.cibleRecherche === undefined ? {} : { cibleRecherche: resultat.cibleRecherche }) },
               );
           }}
           onEcouter={(resultat) => {

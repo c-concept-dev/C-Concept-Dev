@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
-import { ouvrirRenduPdf } from "../src/index.js";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { ouvrirRenduPdf, rendrePagePdf, ressourcesPdfJs } from "../src/index.js";
 
 /** Repli de rendu complet : une page sans JPEG incorporé doit tout de même devenir des pixels.
  *
@@ -38,6 +38,30 @@ function pdfVectoriel(): string {
 }
 
 describe("repli de rendu complet d'une page PDF", () => {
+  it("donne explicitement à pdf.js ses polices et son décodeur JPX", () => {
+    const ressources = ressourcesPdfJs();
+    expect(ressources.wasmUrl.endsWith("/wasm/")).toBe(true);
+    expect(ressources.standardFontDataUrl.endsWith("/standard_fonts/")).toBe(true);
+    expect(ressources.wasmUrl.startsWith("file:")).toBe(false);
+    expect(ressources.standardFontDataUrl.startsWith("file:")).toBe(false);
+    expect(existsSync(join(ressources.wasmUrl, "openjpeg.wasm"))).toBe(true);
+    expect(existsSync(join(ressources.standardFontDataUrl, "LiberationSans-Regular.ttf"))).toBe(true);
+  });
+
+  it("prend les ressources embarquées indiquées par l'hôte", () => {
+    const embarquees = join(bac, "pdfjs-embarque");
+    mkdirSync(join(embarquees, "wasm"), { recursive: true });
+    mkdirSync(join(embarquees, "standard_fonts"), { recursive: true });
+    process.env["LIENOTHEQUE_PDFJS"] = embarquees;
+    try {
+      const ressources = ressourcesPdfJs();
+      expect(ressources.wasmUrl).toContain("pdfjs-embarque/wasm/");
+      expect(ressources.standardFontDataUrl).toContain("pdfjs-embarque/standard_fonts/");
+    } finally {
+      delete process.env["LIENOTHEQUE_PDFJS"];
+    }
+  });
+
   it("rend les opérateurs graphiques d'une page qui ne contient aucun JPEG", async () => {
     const rendu = await ouvrirRenduPdf(pdfVectoriel());
     try {
@@ -52,5 +76,16 @@ describe("repli de rendu complet d'une page PDF", () => {
     } finally {
       await rendu.fermer();
     }
+  });
+
+  it("libère chaque page même quand son rendu échoue", async () => {
+    const cleanup = vi.fn();
+    const page = {
+      getViewport: ({ scale }: { scale: number }) => ({ width: 200 * scale, height: 300 * scale }),
+      render: () => ({ promise: Promise.reject(new Error("rendu interrompu")) }),
+      cleanup,
+    };
+    await expect(rendrePagePdf(page, 400)).rejects.toThrow("rendu interrompu");
+    expect(cleanup).toHaveBeenCalledOnce();
   });
 });

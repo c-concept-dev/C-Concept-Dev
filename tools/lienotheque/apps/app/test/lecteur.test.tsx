@@ -185,6 +185,28 @@ describe("Lecteur : pourquoi ce lien (ANC-02)", () => {
 });
 
 describe("Lecteur : texte de la page (B1)", () => {
+  it("surligne l'extrait exact transmis par la recherche", () => {
+    const passage = {
+      rang: 7,
+      page: 127,
+      texte: "Ces clauses visent une articulation très précise.",
+      source: "couche_texte" as const,
+      lisible: true,
+    };
+    render(
+      <Lecteur
+        vue={VUE}
+        page={127}
+        element=""
+        passagesPage={[passage]}
+        cibleRecherche={{ passage: 7, debut: 24, requete: "articulation" }}
+        onPage={vi.fn()}
+        onElement={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("articulation", { selector: "mark" })).toBeInTheDocument();
+  });
+
   it("se replie et se déplie", async () => {
     poser();
     const entete = screen.getByRole("button", { name: /texte de la page/i });
