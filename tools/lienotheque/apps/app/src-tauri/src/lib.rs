@@ -6,6 +6,7 @@
 //! d'installation moteurs compris. La décision reste à prendre (docs/decisions.md).
 
 pub mod arrivee;
+pub mod archive;
 pub mod captures;
 pub mod depot;
 pub mod doublons;

@@ -7,5 +7,10 @@
   "battementVerrouS": 5,
   "expirationVerrouS": 15,
   "tentativesMax": 3,
-  "delaiEntreTentativesS": 30
+  "delaiEntreTentativesS": 30,
+  "archiveOctetsMax": 2147483648,
+  "archiveEntreesMax": 2048,
+  "archiveEntreeOctetsMax": 2147483648,
+  "archiveTotalOctetsMax": 4294967296,
+  "archiveRapportCompressionMax": 200
 }

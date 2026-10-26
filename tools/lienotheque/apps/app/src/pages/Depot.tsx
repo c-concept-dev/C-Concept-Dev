@@ -146,7 +146,7 @@ export function Depot({
 
       <ZoneDepot
         titre="Déposez vos fichiers ici"
-        aide="Documents, audio, vidéos et images — ensemble ou séparément"
+        aide="Documents, audio, vidéos et images — ou un ZIP contenant un PDF et ses MP3"
         libelleBouton="Parcourir mes fichiers"
         onFichiers={onFichiers}
         {...(onParcourir === undefined ? {} : { onParcourir })}
