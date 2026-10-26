@@ -21,6 +21,16 @@ struct Entree {
     source: PathBuf,
 }
 
+fn travail_a_reprendre(travaux: &[travail::Travail], empreinte: &str) -> Option<String> {
+    travaux
+        .iter()
+        .find(|un| {
+            un.empreinte.as_deref() == Some(empreinte)
+                && !matches!(un.etat.as_str(), "termine" | "annule" | "en_echec_definitif")
+        })
+        .map(|un| un.id.clone())
+}
+
 fn main() -> Result<(), String> {
     let mut arguments = std::env::args().skip(1);
     let racine = PathBuf::from(arguments.next().ok_or("Attendu : <bibliothèque> <manifest.json>")?);
@@ -33,6 +43,8 @@ fn main() -> Result<(), String> {
         .map_err(|e| format!("manifeste JSON : {e}"))?;
     let depot = Depot::ouvrir(&racine).map_err(|e| format!("bibliothèque : {e}"))?;
     fs::create_dir_all(depot.travaux()).map_err(|e| format!("travaux : {e}"))?;
+    let existants = file::charger_tout(&depot.travaux(), &mut |message| eprintln!("file : {message}"))
+        .map_err(|e| format!("file : {e}"))?;
 
     let mut ids = HashSet::new();
     for entree in &entrees {
@@ -48,6 +60,12 @@ fn main() -> Result<(), String> {
         let source_rangee = depot.source(empreinte, extension);
         if !source_rangee.exists() {
             return Err(format!("source rangée absente : {}", source_rangee.display()));
+        }
+
+        if let Some(id) = travail_a_reprendre(&existants, empreinte) {
+            println!("Travail existant repris : {} — {}", &id[..8.min(id.len())], entree.nom);
+            ids.insert(id);
+            continue;
         }
 
         let id = uuid::Uuid::new_v4().to_string();
@@ -100,5 +118,26 @@ fn main() -> Result<(), String> {
         Ok(())
     } else {
         Err(format!("{} échec(s) :\n{}", echecs.len(), echecs.join("\n")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reprend_un_travail_non_terminal_de_la_meme_empreinte() {
+        let mut existant = travail::Travail::neuf("deja-la", "traitement-de-lot", 0);
+        existant.empreinte = Some("a".repeat(64));
+        existant.etat = "en_file".to_owned();
+        assert_eq!(travail_a_reprendre(&[existant], &"a".repeat(64)), Some("deja-la".to_owned()));
+    }
+
+    #[test]
+    fn ne_reprend_pas_un_travail_termine() {
+        let mut existant = travail::Travail::neuf("fini", "traitement-de-lot", 0);
+        existant.empreinte = Some("b".repeat(64));
+        existant.etat = "termine".to_owned();
+        assert_eq!(travail_a_reprendre(&[existant], &"b".repeat(64)), None);
     }
 }

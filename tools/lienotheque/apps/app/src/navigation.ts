@@ -15,7 +15,7 @@ export type Route =
   | { readonly ecran: "depot" }
   | { readonly ecran: "maniere" }
   | { readonly ecran: "catalogue"; readonly page?: number }
-  | { readonly ecran: "lecteur"; readonly page: number; readonly element?: string }
+  | { readonly ecran: "lecteur"; readonly page: number; readonly element?: string; readonly cibleRecherche?: CibleRecherche }
   /** Retirer une bibliothèque : l'oublier, ou la mettre à la corbeille. Un écran à elle seule,
    *  parce qu'une fenêtre de confirmation se ferme d'un clic distrait. */
   | { readonly ecran: "retirer" }
@@ -53,6 +53,20 @@ export function lireRoute(fragment: string): Route {
     const nombre = brut === undefined ? Number.NaN : Number(brut);
     return Number.isInteger(nombre) && nombre > 0 ? nombre : undefined;
   };
+  const entierNulCompris = (clef: string): number | undefined => {
+    const brut = parametres.get(clef);
+    const nombre = brut === undefined ? Number.NaN : Number(brut);
+    return Number.isInteger(nombre) && nombre >= 0 ? nombre : undefined;
+  };
+  const texte = (clef: string): string | undefined => {
+    const brut = parametres.get(clef);
+    if (brut === undefined || brut === "") return undefined;
+    try {
+      return decodeURIComponent(brut);
+    } catch {
+      return undefined;
+    }
+  };
 
   switch (ecran) {
     case "reglages":
@@ -82,8 +96,19 @@ export function lireRoute(fragment: string): Route {
     case "lecteur": {
       const page = entier("page");
       if (page === undefined) return ACCUEIL;
-      const element = parametres.get("element");
-      return element === undefined || element === "" ? { ecran: "lecteur", page } : { ecran: "lecteur", page, element };
+      const element = texte("element");
+      const passage = entierNulCompris("passage");
+      const debut = entierNulCompris("debut");
+      const requete = texte("recherche");
+      const cibleRecherche = passage === undefined || debut === undefined || requete === undefined
+        ? undefined
+        : { passage, debut, requete };
+      return {
+        ecran: "lecteur",
+        page,
+        ...(element === undefined ? {} : { element }),
+        ...(cibleRecherche === undefined ? {} : { cibleRecherche }),
+      };
     }
     default:
       return ACCUEIL;
@@ -116,8 +141,17 @@ export function ecrireRoute(route: Route): string {
     case "catalogue":
       return route.page === undefined ? "#catalogue" : `#catalogue/page=${route.page}`;
     case "lecteur":
-      return route.element === undefined
-        ? `#lecteur/page=${route.page}`
-        : `#lecteur/page=${route.page}&element=${route.element}`;
+      return `#lecteur/${[
+        `page=${route.page}`,
+        ...(route.element === undefined ? [] : [`element=${encodeURIComponent(route.element)}`]),
+        ...(route.cibleRecherche === undefined
+          ? []
+          : [
+              `passage=${route.cibleRecherche.passage}`,
+              `debut=${route.cibleRecherche.debut}`,
+              `recherche=${encodeURIComponent(route.cibleRecherche.requete)}`,
+            ]),
+      ].join("&")}`;
   }
 }
+import type { CibleRecherche } from "@lienotheque/noyau";

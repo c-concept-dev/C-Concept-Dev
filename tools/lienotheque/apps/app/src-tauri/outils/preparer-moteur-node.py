@@ -165,6 +165,22 @@ def poser_module_de_travail(cible: pathlib.Path) -> str:
     return f"{poids(cible / fichier.name):.2f} Mo"
 
 
+def embarquer_pdfjs(cible: pathlib.Path) -> str:
+    """Pose les ressources chargées dynamiquement par pdf.js (JPX et polices standard)."""
+    modules = PROJET / "node_modules" / ".pnpm"
+    source = next(iter(sorted(modules.glob("pdfjs-dist@*/node_modules/pdfjs-dist"))), None)
+    if source is None:
+        raise SystemExit("pdfjs-dist introuvable : lancez pnpm install avant.")
+    shutil.rmtree(cible, ignore_errors=True)
+    cible.mkdir(parents=True, exist_ok=True)
+    for nom in ("wasm", "standard_fonts"):
+        depuis = source / nom
+        if not depuis.exists():
+            raise SystemExit(f"ressource pdf.js absente : {depuis}")
+        shutil.copytree(depuis, cible / nom)
+    return f"{poids(cible):.2f} Mo"
+
+
 def embarquer_codecs(cible: pathlib.Path) -> str:
     """Range les WebAssembly des codecs à côté de la chaîne.
 
@@ -220,6 +236,7 @@ def main() -> int:
     canvas = embarquer_canvas(MOTEURS / "chaine")
     codecs = embarquer_codecs(MOTEURS / "chaine" / "codecs")
     travail = poser_module_de_travail(MOTEURS / "chaine")
+    pdfjs = embarquer_pdfjs(MOTEURS / "chaine" / "pdfjs")
 
     print(f"moteur        : {dit}")
     print(f"binaire annexe: {sidecar.name}")
@@ -227,6 +244,7 @@ def main() -> int:
     print(f"rendu PDF     : {canvas}")
     print(f"codecs        : {codecs}")
     print(f"module travail: {travail}")
+    print(f"ressources PDF : {pdfjs}")
     print(f"total moteurs : {poids(MOTEURS):.0f} Mo")
     return 0
 

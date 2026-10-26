@@ -4,9 +4,11 @@ import {
   enTete,
   nommer,
   type ElementAffiche,
+  type Passage,
   type TraductionDePage,
   type VueBibliotheque,
 } from "@lienotheque/contrats";
+import type { CibleRecherche } from "@lienotheque/noyau";
 import { Bouton, Icone } from "../composants/index.js";
 import { FilAriane } from "../composants/FilAriane.js";
 import { FilVersSegment } from "./lecteur/FilVersSegment.js";
@@ -16,6 +18,7 @@ import { useEcoute } from "../ecoute/useEcoute.js";
 import { TextePage } from "./lecteur/TextePage.js";
 import { LEGENDE, actionDe, tempoSuivant } from "./lecteur/raccourcis.js";
 import { imageAffichable } from "../image-affichable.js";
+import { ImageSure } from "./lecteur/ImageSure.js";
 import "./Lecteur.css";
 
 /** Lecteur (B1 — UX-01, UX-02, ANC-03, ANC-05).
@@ -40,6 +43,9 @@ type Props = {
    *  cette propriété les raccorde au panneau « Texte de la page » sans prétendre qu'ils viennent
    *  des dérivés d'image. */
   readonly textePage?: readonly string[];
+  readonly passagesPage?: readonly Passage[];
+  readonly cibleRecherche?: CibleRecherche | undefined;
+  readonly chargerImage?: (source: string) => Promise<string | undefined>;
   readonly onTraduire?: (page: number) => Promise<TraductionDePage>;
   readonly onPage: (numero: number) => void;
   readonly onElement: (ancreId: string) => void;
@@ -49,7 +55,7 @@ type Props = {
  *  pour dessiner une forme d'onde. Dès que l'une des deux est connue, c'est elle qui vaut. */
 const DUREE_SUPPOSEE = 44;
 
-export function Lecteur({ vue, document, page, element, texteLu = false, textePage, onTraduire, onPage, onElement }: Props): JSX.Element {
+export function Lecteur({ vue, document, page, element, texteLu = false, textePage, passagesPage, cibleRecherche, chargerImage, onTraduire, onPage, onElement }: Props): JSX.Element {
   const [boucle, setBoucle] = useState(false);
   const [tempo, setTempo] = useState(75);
   const [zoom, setZoom] = useState(100);
@@ -215,7 +221,7 @@ export function Lecteur({ vue, document, page, element, texteLu = false, textePa
                   {imageAffichable(p.vignette) === undefined ? (
                     <span className="ln-vignettes__feuille" aria-hidden="true" />
                   ) : (
-                    <img className="ln-vignettes__feuille" src={imageAffichable(p.vignette)} alt="" loading="lazy" decoding="async" />
+                    <ImageSure className="ln-vignettes__feuille" source={p.vignette} {...(chargerImage === undefined ? {} : { charger: chargerImage })} alt="" />
                   )}
                   <span className="ln-vignettes__numero ln-sur-photo">{p.numero}</span>
                   {p.elements.some((e) => e.media !== undefined) ? <span className="ln-vignettes__repere" aria-hidden="true" /> : null}
@@ -227,7 +233,7 @@ export function Lecteur({ vue, document, page, element, texteLu = false, textePa
 
         <div className="ln-lecteur__page">
           {pageCourante === undefined ? null : (
-            <PageZoomable ref={ancreActive} page={pageCourante} mots={vue.mots} actif={actif?.ancreId ?? ""} zoom={zoom} onElement={onElement} />
+            <PageZoomable ref={ancreActive} page={pageCourante} mots={vue.mots} actif={actif?.ancreId ?? ""} zoom={zoom} onElement={onElement} {...(chargerImage === undefined ? {} : { chargerImage })} />
           )}
         </div>
 
@@ -270,7 +276,11 @@ export function Lecteur({ vue, document, page, element, texteLu = false, textePa
           {pageCourante === undefined ? null : (
             <TextePage
               key={pageCourante.index}
-              original={textePage !== undefined && textePage.length > 0 ? textePage : pageCourante.texte}
+              original={passagesPage !== undefined && passagesPage.length > 0
+                ? passagesPage.map((passage) => passage.texte)
+                : textePage !== undefined && textePage.length > 0 ? textePage : pageCourante.texte}
+              {...(passagesPage === undefined ? {} : { rangs: passagesPage.map((passage) => passage.rang) })}
+              {...(cibleRecherche === undefined ? {} : { cibleRecherche })}
               traduction={pageCourante.traduction}
               {...(onTraduire === undefined ? {} : { onTraduire: () => onTraduire(pageCourante.index) })}
             />

@@ -160,6 +160,10 @@ impl Lancement {
         if let Some(codecs) = codecs.filter(|c| c.exists()) {
             environnement.push(("LIENOTHEQUE_CODECS".to_owned(), codecs.to_string_lossy().into_owned()));
         }
+        let pdfjs = script.parent().map(|d| d.join("pdfjs"));
+        if let Some(pdfjs) = pdfjs.filter(|c| c.exists()) {
+            environnement.push(("LIENOTHEQUE_PDFJS".to_owned(), pdfjs.to_string_lossy().into_owned()));
+        }
         environnement.extend(ou_sont_les_moteurs(&node, &script));
         Self {
             programme: node,
@@ -317,6 +321,7 @@ mod tests {
         let moteurs = racine.join("Contents").join("Resources").join("moteurs");
         std::fs::create_dir_all(&macos).expect("MacOS");
         std::fs::create_dir_all(moteurs.join("chaine")).expect("chaîne");
+        std::fs::create_dir_all(moteurs.join("chaine").join("pdfjs")).expect("ressources pdfjs");
         std::fs::create_dir_all(moteurs.join("tessdata")).expect("tessdata");
         (racine, macos.join("node"), moteurs.join("chaine").join("moteur.js"))
     }
@@ -344,6 +349,16 @@ mod tests {
         let modeles = lancement.environnement.iter().find(|(c, _)| c == "TESSDATA_PREFIX");
         assert!(modeles.is_some(), "TESSDATA_PREFIX manque : Tesseract ne trouverait aucune langue");
         assert!(modeles.expect("posé").1.ends_with("tessdata"));
+        let _ = std::fs::remove_dir_all(&racine);
+    }
+
+    #[test]
+    fn le_moteur_recoit_les_ressources_pdfjs_embarquees() {
+        let (racine, node, script) = paquet_en_miniature();
+        let lancement = Lancement::embarque(node, script);
+        let ressources = lancement.environnement.iter().find(|(c, _)| c == "LIENOTHEQUE_PDFJS");
+        assert!(ressources.is_some(), "les images JPX ne doivent pas dépendre de node_modules");
+        assert!(ressources.expect("posé").1.ends_with("pdfjs"));
         let _ = std::fs::remove_dir_all(&racine);
     }
 

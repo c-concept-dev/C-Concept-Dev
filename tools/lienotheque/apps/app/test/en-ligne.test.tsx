@@ -160,14 +160,23 @@ describe("en ligne, c'est le service qui tient la bibliothèque", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("img", { name: /page 1/i })).toHaveAttribute("src", expect.stringContaining("/fichier/vignette.signee"));
-    expect(fichiersDemandes).toEqual(["pages/vignette-0001.webp"]);
+    const vignette = await waitFor(() => {
+      const image = document.querySelector("img.ln-detail__apercu");
+      expect(image).not.toBeNull();
+      return image as HTMLImageElement;
+    });
+    fireEvent.load(vignette);
+    expect(vignette).toHaveAttribute("src", expect.stringContaining("/fichier/vignette.signee"));
+    expect(fichiersDemandes).toEqual(["pages/vignette-0001.webp", "pages/vignette-0001.webp"]);
 
     fireEvent.click(screen.getByRole("button", { name: /ouvrir dans le lecteur/i }));
 
     await waitFor(() =>
-      expect(fichiersDemandes).toEqual(["pages/vignette-0001.webp", "pages/page-0001.webp"]),
+      expect(fichiersDemandes).toEqual(["pages/vignette-0001.webp", "pages/vignette-0001.webp", "pages/vignette-0001.webp", "pages/page-0001.webp"]),
     );
+    const grandePage = document.querySelector("img.ln-page__image");
+    expect(grandePage).not.toBeNull();
+    fireEvent.load(grandePage!);
     expect(screen.getByRole("button", { name: /traduire en français/i })).toBeTruthy();
     expect(
       screen.getAllByRole("img", { name: /page 1/i }).some((image) => image.getAttribute("src")?.includes("/fichier/page.signee")),

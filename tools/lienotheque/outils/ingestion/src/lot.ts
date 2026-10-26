@@ -186,36 +186,11 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
 
   lot.surPhase?.(`images de pages : ${parRang.size} écrite(s)`);
 
-  const vue = construireVue({
-    id: description.id,
-    nom: description.nom,
-    schema: description.schema,
-    mots: description.mots,
-    lignes: resultat.lignes,
-    pagesAbsentes: resultat.pagesAbsentes,
-    association,
-    medias,
-    // Le seuil vient de la recette, qui l'a fixé en même temps que ses règles de lecture. Le
-    // redéclarer ailleurs, c'est se donner deux seuils et finir par en oublier un.
-    seuil: recette.validation.seuil_confiance,
-    // Une page existe parce qu'elle a été lue. Son numéro imprimé la cite quand on le connaît,
-    // il ne décide pas de son existence.
-    pages: resultat.pages.map((page) => {
-      const numero = imprimes.get(page.index);
-      return { index: page.index + PREMIER_RANG, ...(numero === undefined ? {} : { numero }) };
-    }),
-    imageDePage: (rang) => parRang.get(rang),
-    // L'emplacement se résout à la lecture, pas à l'ingestion : la carte ne dit pas où le
-    // fichier habite, elle dit lequel c'est (ANC-05).
-    sourceDuMedia: (media) =>
-      lot.adresseMedias === undefined || media.nom === undefined ? undefined : `${lot.adresseMedias}/${encodeURIComponent(media.nom)}`,
-  });
-
   // Le texte, par la même passe. La recette ne dit pas **si** l'on lit le texte — on le lit
   // toujours, c'est ce qui rend une bibliothèque cherchable — mais elle dit comment la feuille
   // est faite : une feuille à deux pages se coupe avant qu'on en tire des passages, sinon les
   // deux folios se contredisent et le document perd ses numéros imprimés.
-  lot.surPhase?.("vue assemblée ; lecture du texte");
+  lot.surPhase?.("lecture du texte");
 
   // La langue de la reconnaissance vient de la **bibliothèque**, qui la déclare déjà :
   // `SchemaBibliotheque.langue` est obligatoire au contrat. Elle ne venait de nulle part jusqu'au
@@ -246,6 +221,42 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   });
   const passages = enPassages(lu.pages);
   lot.surPhase?.(`texte lu : ${passages.length} passage(s)`);
+
+  // Les recettes de méthodes savent relever des repères métier ; un livre ordinaire n'en porte
+  // souvent aucun. Ses pages existent pourtant : l'export d'images les a rendues, et la lecture
+  // de texte les a parcourues. Limiter la vue à `resultat.pages` produisait donc des centaines de
+  // dérivés inatteignables et rabattait à tort un PDF natif vers le lecteur de texte seul.
+  const pagesParRang = new Map<number, { index: number; numero?: number }>();
+  for (const page of resultat.pages) {
+    const index = page.index + PREMIER_RANG;
+    const numero = imprimes.get(page.index);
+    pagesParRang.set(index, { index, ...(numero === undefined ? {} : { numero }) });
+  }
+  for (const rang of parRang.keys())
+    if (!pagesParRang.has(rang)) pagesParRang.set(rang, { index: rang });
+  for (const page of lu.pages)
+    if (!pagesParRang.has(page.index)) pagesParRang.set(page.index, { index: page.index });
+
+  const vue = construireVue({
+    id: description.id,
+    nom: description.nom,
+    schema: description.schema,
+    mots: description.mots,
+    lignes: resultat.lignes,
+    pagesAbsentes: resultat.pagesAbsentes,
+    association,
+    medias,
+    // Le seuil vient de la recette, qui l'a fixé en même temps que ses règles de lecture. Le
+    // redéclarer ailleurs, c'est se donner deux seuils et finir par en oublier un.
+    seuil: recette.validation.seuil_confiance,
+    pages: [...pagesParRang.values()].sort((a, b) => a.index - b.index),
+    imageDePage: (rang) => parRang.get(rang),
+    // L'emplacement se résout à la lecture, pas à l'ingestion : la carte ne dit pas où le
+    // fichier habite, elle dit lequel c'est (ANC-05).
+    sourceDuMedia: (media) =>
+      lot.adresseMedias === undefined || media.nom === undefined ? undefined : `${lot.adresseMedias}/${encodeURIComponent(media.nom)}`,
+  });
+  lot.surPhase?.("vue assemblée");
 
   return {
     vue,
