@@ -102,6 +102,26 @@ describe("un média qu'aucun élément ne réclame", () => {
   });
 });
 
+describe("une manière de lire qui ne sait interpréter aucun des médias présents", () => {
+  it("s'abstient visiblement au lieu d'afficher les nombres isolés comme des éléments acquis", () => {
+    const vue = construireVue(
+      entreeMinimale({
+        lignes: [ligne(10), ligne(11), ligne(12)],
+        association: {
+          appariements: [],
+          orphelins: [],
+          manquants: [],
+          abstention: { raison: "medias_non_interpretes", combien: 37 },
+        },
+      }),
+    );
+    expect(vue.pages.flatMap((page) => page.elements)).toEqual([]);
+    expect(vue.douteux).toContainEqual(
+      expect.objectContaining({ nature: "information", etat: "maniere_inadaptee", details: expect.arrayContaining([expect.stringMatching(/37/)]) }),
+    );
+  });
+});
+
 describe("suites de nombres consécutifs", () => {
   it("regroupe ce qui se suit, sépare ce qui ne se suit pas", () => {
     expect(suites([93, 94, 95, 96, 97, 98])).toEqual([{ debut: 93, fin: 98 }]);

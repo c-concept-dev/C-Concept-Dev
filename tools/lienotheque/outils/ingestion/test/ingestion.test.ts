@@ -92,16 +92,39 @@ const fichier = (empreinte: string, nom: string): Fichier => ({
   appareilId: identifiantDe("appareil/essai"),
 });
 
-const lot = (sur: Partial<Lot> = {}): Lot => ({
-  document: DOCUMENT,
-  version: VERSION,
-  schema: SCHEMA,
-  fichiers: [fichier(EMPREINTE("a"), "methode.pdf")],
-  lignes: [ligne(1), ligne(2)],
-  association: { appariements: [], orphelins: [], manquants: [] } satisfies Association,
-  medias: [media(1), media(2)],
-  ...sur,
-});
+const lot = (sur: Partial<Lot> = {}): Lot => {
+  const lignes = sur.lignes ?? [ligne(1), ligne(2)];
+  const medias = sur.medias ?? [media(1), media(2)];
+  const association =
+    sur.association ??
+    ({
+      appariements: lignes.flatMap((une) => {
+        const support = medias.find((candidat) => candidat.piste === une.piste && (candidat.disque ?? 1) === une.disque);
+        return support === undefined
+          ? []
+          : [
+              {
+                ligne: une,
+                media: { empreinte: support.empreinte, piste: support.piste, disque: support.disque, nom: support.nom ?? `Media ${support.piste}` },
+                segment: "inconnu" as const,
+                statut: "auto" as const,
+              },
+            ];
+      }),
+      orphelins: [],
+      manquants: [],
+    } satisfies Association);
+  return {
+    document: DOCUMENT,
+    version: VERSION,
+    schema: SCHEMA,
+    fichiers: [fichier(EMPREINTE("a"), "methode.pdf")],
+    lignes,
+    association,
+    medias,
+    ...sur,
+  };
+};
 
 describe("preuve d'un lien (ANC-02, REC-05)", () => {
   it("une pastille lue vaut une lecture", () => {
@@ -158,6 +181,28 @@ describe("ingestion d'un lot (B5)", () => {
     const liens = await depot.liens(identifiantDe(`${DOCUMENT.id}/element-1`));
     expect(liens[0]).toMatchObject({ nature: "piste_de", preuve: "lu", confiance: 1 });
     expect(liens[0]?.auteur).toMatchObject({ type: "outil" });
+  });
+
+  it("ne persiste jamais une proposition à vérifier comme un lien acquis (ANC-02, OUT-10)", async () => {
+    const depot = await depotNeuf();
+    const proposee = ligne(1, { sourcePiste: "sequence", confiance: 0.8 });
+    const support = media(1, { nom: "Media 1" });
+    const association: Association = {
+      appariements: [
+        {
+          ligne: proposee,
+          media: { empreinte: support.empreinte, piste: support.piste, disque: support.disque, nom: support.nom ?? "Media 1" },
+          segment: "inconnu",
+          statut: "a_verifier",
+        },
+      ],
+      orphelins: [],
+      manquants: [],
+    };
+    const bilan = await ingerer(depot, lot({ lignes: [proposee], medias: [support], association }));
+    expect(bilan.ancres, "l'élément reste visible").toBe(1);
+    expect(bilan.liens, "une proposition n'est pas une décision").toBe(0);
+    expect(await depot.liens(identifiantDe(`${DOCUMENT.id}/element-1`))).toEqual([]);
   });
 
   it("dit « séquence » quand la piste vient de la suite et non d'un repère lu", async () => {

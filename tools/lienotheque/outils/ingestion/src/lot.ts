@@ -155,6 +155,10 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   });
 
   lot.surPhase?.(`repères lus : ${resultat.pages.length} page(s), ${resultat.lignes.length} élément(s)`);
+  if (association.abstention !== undefined)
+    lot.surPhase?.(
+      `association abandonnée : ${association.abstention.combien} média(s) présent(s), aucun interprété par cette manière de lire`,
+    );
 
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang
   // dans le document : c'est le décalage lu qui fait le lien entre les deux.

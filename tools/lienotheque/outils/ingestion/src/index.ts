@@ -149,12 +149,19 @@ export async function ingerer(depot: Depot, lot: Lot): Promise<Bilan> {
   await depot.enregistrerVersion(lot.version);
 
   const nommer = lot.ancreDe ?? ((ligne: LigneInterpretee) => identifiant(lot.document.id, `element-${ligne.numero}`));
+  const clefLigne = (ligne: LigneInterpretee): string =>
+    `${ligne.pageImprimee}/${ligne.numero}/${ligne.disque}/${ligne.piste ?? "sans"}`;
+  const automatiques = new Map(
+    lot.association.appariements
+      .filter((appariement) => appariement.statut === "auto" && appariement.media !== undefined)
+      .map((appariement) => [clefLigne(appariement.ligne), appariement] as const),
+  );
   const parMedia = new Map(lot.medias.map((media) => [`${media.disque ?? 1}/${media.piste}`, media]));
 
   // Les éléments d'une même piste, dans l'ordre : leur rang y désigne leur segment.
   const parPiste = new Map<string, LigneInterpretee[]>();
   for (const ligne of lot.lignes) {
-    if (ligne.piste === undefined) continue;
+    if (ligne.piste === undefined || !automatiques.has(clefLigne(ligne))) continue;
     const clef = `${ligne.disque}/${ligne.piste}`;
     parPiste.set(clef, [...(parPiste.get(clef) ?? []), ligne]);
   }
@@ -183,8 +190,12 @@ export async function ingerer(depot: Depot, lot: Lot): Promise<Bilan> {
     }
 
     const clef = `${ligne.disque}/${ligne.piste}`;
-    const media = parMedia.get(clef);
-    if (media === undefined) continue;
+    const appariement = automatiques.get(clefLigne(ligne));
+    const media = appariement === undefined ? undefined : parMedia.get(clef);
+    if (media === undefined) {
+      sansPiste += 1;
+      continue;
+    }
 
     const surLaPiste = parPiste.get(clef) ?? [];
     const rang = surLaPiste.indexOf(ligne);

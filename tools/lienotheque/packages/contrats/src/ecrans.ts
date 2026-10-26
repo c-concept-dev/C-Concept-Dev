@@ -135,6 +135,7 @@ export const EtatDoute = z.enum([
   "segment_inconnu",
   "page_absente",
   "media_orphelin",
+  "maniere_inadaptee",
 ]);
 export type EtatDoute = z.infer<typeof EtatDoute>;
 

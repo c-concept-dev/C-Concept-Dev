@@ -123,23 +123,31 @@ export function valeursDePage(
  *  confiance basse : on a regardé la page, puis deux images différentes du même repère, sans que
  *  deux voix concordent. Il n'y a rien à rattraper automatiquement, et l'écran doit pouvoir le
  *  dire autrement qu'« on n'est pas sûr ». */
-function doute(ligne: LigneInterpretee, seuil: number): CasDouteux["etat"] | undefined {
+function doute(ligne: LigneInterpretee, seuil: number, statut?: "auto" | "a_verifier"): CasDouteux["etat"] | undefined {
   if (ligne.piste === undefined) return undefined;
   if (ligne.relecture === "sans_majorite") return "relecture_sans_majorite";
-  if (ligne.confiance < seuil) return "confiance";
+  if (ligne.confiance < seuil || statut === "a_verifier") return "confiance";
   return undefined;
 }
 
+const clefLigne = (ligne: LigneInterpretee): string =>
+  `${ligne.pageImprimee}/${ligne.numero}/${ligne.disque}/${ligne.piste ?? "sans"}`;
+
 export function construireVue(entree: Entree): VueBibliotheque {
   const parPiste = new Map(entree.medias.map((media) => [`${media.disque ?? 1}/${media.piste}`, media]));
+  const parLigne = new Map(entree.association.appariements.map((appariement) => [clefLigne(appariement.ligne), appariement]));
   const parPage = new Map<number, ElementAffiche[]>();
   const douteux: CasDouteux[] = [];
 
-  for (const ligne of entree.lignes) {
-    const media = ligne.piste === undefined ? undefined : parPiste.get(`${ligne.disque}/${ligne.piste}`);
+  // Une abstention globale conserve le résultat brut dans l'instantané technique, mais ne
+  // transforme pas trois nombres isolés en trois éléments prétendument reconnus à l'écran.
+  const lignes = entree.association.abstention === undefined ? entree.lignes : [];
+  for (const ligne of lignes) {
+    const appariement = parLigne.get(clefLigne(ligne));
+    const media = ligne.piste === undefined || appariement?.media === undefined ? undefined : parPiste.get(`${ligne.disque}/${ligne.piste}`);
     const source = media === undefined ? undefined : entree.sourceDuMedia?.(media);
     const ancreId = identifiantDe(`${entree.id}/element-${ligne.numero}`);
-    const etat = doute(ligne, entree.seuil);
+    const etat = doute(ligne, entree.seuil, appariement?.statut);
 
     const element: ElementAffiche = {
       ancreId,
@@ -192,6 +200,19 @@ export function construireVue(entree: Entree): VueBibliotheque {
         motif: phraseDuLien(ligne, entree.mots).toLowerCase(),
         details: [],
       });
+  }
+
+  if (entree.association.abstention !== undefined) {
+    const combien = entree.association.abstention.combien;
+    douteux.push({
+      id: identifiantDe(`${entree.id}/maniere-inadaptee`),
+      nature: "information",
+      etat: "maniere_inadaptee",
+      libelle: "Lecture non applicable",
+      proposition: "Choisir une autre manière de lire",
+      motif: "aucun des médias présents n’a pu être interprété par cette manière de lire",
+      details: [`${combien} média${combien > 1 ? "s" : ""} présent${combien > 1 ? "s" : ""}, aucun interprété`],
+    });
   }
 
   // Les informations : ce qu'on a constaté et que personne n'a encore regardé (OUT-01, OUT-10).
@@ -296,14 +317,14 @@ export function construireVue(entree: Entree): VueBibliotheque {
     return { cle: axe.cle, nom: axe.nom, valeurs, filtrable: pages.some((page) => (page.valeurs[axe.cle] ?? []).length > 0) };
   });
 
-  const relies = entree.lignes.filter((ligne) => ligne.piste !== undefined).length;
+  const relies = entree.association.appariements.filter((appariement) => appariement.statut === "auto" && appariement.media !== undefined).length;
 
   return VueBibliotheque.parse({
     id: identifiantDe(`bibliotheque/${entree.id}`),
     nom: entree.nom,
     mots: entree.mots,
     compteurs: [
-      { nombre: entree.lignes.length, mot: entree.mots.element.plusieurs },
+      { nombre: lignes.length, mot: entree.mots.element.plusieurs },
       { nombre: relies, mot: "liens" },
       { nombre: pages.length, mot: entree.mots.page.plusieurs },
     ],

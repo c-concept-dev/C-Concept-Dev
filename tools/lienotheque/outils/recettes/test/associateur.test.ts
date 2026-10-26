@@ -2,10 +2,22 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { LigneInterpretee } from "@lienotheque/contrats";
-import { associer, chargerRecette, dureeReliee, lireNomMedia, pisteDuNom, type Media } from "../src/index.js";
+import {
+  associer,
+  chargerRecette,
+  dureeReliee,
+  lireNomMedia,
+  pisteDuNom,
+  qualifierAssociation,
+  type Media,
+} from "../src/index.js";
 
 const RECETTE = chargerRecette(
   JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastille-piste.v2.json"), "utf8")),
+);
+
+const RECETTE_AVEC_INDICES = chargerRecette(
+  JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastilles-cd.v5.json"), "utf8")),
 );
 
 const ligne = (numero: number, piste: number, confiance = 1, disque = 1): LigneInterpretee => ({
@@ -116,6 +128,39 @@ describe("association des médias (OUT-10)", () => {
     expect(association.appariements[0]?.media).toBeUndefined();
     expect(association.appariements[0]?.ligne.piste, "la page garde raison").toBe(2);
     expect(association.manquants).toEqual([2]);
+  });
+});
+
+describe("abstention avant toute association automatique (REC-05, OUT-10)", () => {
+  it("un indice de nom déjà déclaré par la recette corrobore la page, mais une contradiction passe à vérifier", () => {
+    const juste = { ...ligne(488, 54, 0.8, 1), pageImprimee: 144, sourcePiste: "sequence" as const };
+    const faux = { ...ligne(489, 55, 0.8, 1), pageImprimee: 144, sourcePiste: "sequence" as const };
+
+    const qualification = qualifierAssociation(
+      [juste, faux],
+      [
+        { ...media(54, "1-54 exemple - 488 Pg.144.mp3"), disque: 1, element: 488, page: 144 },
+        { ...media(55, "1-55 exemple - 500 Pg.145.mp3"), disque: 1, element: 500, page: 145 },
+      ],
+      RECETTE_AVEC_INDICES,
+      { mediasDisponibles: 2 },
+    );
+
+    expect(qualification.appariements.map((a) => a.statut)).toEqual(["auto", "a_verifier"]);
+  });
+
+  it("s'abstient sur tout le lot quand des médias présents sont tous illisibles par la manière choisie", () => {
+    const qualification = qualifierAssociation([ligne(10, 1), ligne(11, 2), ligne(12, 3)], [], RECETTE_AVEC_INDICES, {
+      mediasDisponibles: 37,
+    });
+    expect(qualification.appariements).toEqual([]);
+    expect(qualification.abstention).toMatchObject({ raison: "medias_non_interpretes", combien: 37 });
+  });
+
+  it("ne change pas le témoin F3 dont la recette ne déclare aucun motif de nom", () => {
+    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, { mediasDisponibles: 1 });
+    expect(qualification.abstention).toBeUndefined();
+    expect(qualification.appariements[0]?.statut).toBe("auto");
   });
 });
 

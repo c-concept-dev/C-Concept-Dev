@@ -12,9 +12,14 @@ export type Media = {
   /** Numéro de piste porté par le média — relevé dans ses métadonnées ou, à défaut, son nom. */
   readonly piste: number;
   /** Support dont il est tiré. Un seul disque par défaut. */
-  readonly disque?: number;
+  readonly disque?: number | undefined;
   readonly nom: string;
   readonly empreinte: string;
+  /** Indices complémentaires que le motif déjà déclaré par la recette a su lire. Ils ne
+   *  décident jamais d'un lien : ils peuvent seulement corroborer, ou contredire, une
+   *  attribution faite depuis la page. */
+  readonly element?: number;
+  readonly page?: number;
   readonly dureeS?: number;
 };
 
@@ -32,6 +37,12 @@ export type Association = {
   readonly orphelins: readonly number[];
   /** Pistes réclamées par la page et qu'aucun média ne porte. */
   readonly manquants: readonly number[];
+  /** Le lot entier ne permet pas d'appliquer honnêtement cette manière de lire. Les lectures
+   *  brutes restent disponibles pour le diagnostic, mais rien n'est présenté comme acquis. */
+  readonly abstention?: {
+    readonly raison: "medias_non_interpretes";
+    readonly combien: number;
+  };
 };
 
 /** Ce qu'un nom de fichier laisse deviner. Rien de plus : c'est un indice de recoupement, jamais
@@ -124,6 +135,44 @@ export function associer(lignes: readonly LigneInterpretee[], medias: readonly M
   );
 
   return { appariements, orphelins, manquants };
+}
+
+/** Qualifie ce que l'associateur propose avant que les écrans ou le dépôt ne le prennent pour
+ *  un fait. Un indice tiré du nom ne crée jamais un lien (REC-05) ; quand la recette en déclare
+ *  explicitement un, il sert uniquement de témoin indépendant pour empêcher une attribution
+ *  séquentielle contradictoire de devenir automatique. */
+export function qualifierAssociation(
+  lignes: readonly LigneInterpretee[],
+  medias: readonly Media[],
+  recette: Recette,
+  options: { readonly mediasDisponibles?: number } = {},
+): Association {
+  const disponibles = options.mediasDisponibles ?? medias.length;
+  if (disponibles > 0 && medias.length === 0 && lignes.length > 0)
+    return {
+      appariements: [],
+      orphelins: [],
+      manquants: [],
+      abstention: { raison: "medias_non_interpretes", combien: disponibles },
+    };
+
+  const association = associer(lignes, medias, recette);
+  const motif = recette.audio?.motif_nom;
+  if (motif === undefined) return association;
+
+  const attendElement = motif.includes("{element}");
+  const attendPage = motif.includes("{page}");
+  if (!attendElement && !attendPage) return association;
+
+  return {
+    ...association,
+    appariements: association.appariements.map((appariement) => {
+      if (appariement.statut !== "auto" || appariement.media === undefined) return appariement;
+      const elementConcorde = !attendElement || appariement.media.element === appariement.ligne.numero;
+      const pageConcorde = !attendPage || appariement.media.page === appariement.ligne.pageImprimee;
+      return elementConcorde && pageConcorde ? appariement : { ...appariement, statut: "a_verifier" as const };
+    }),
+  };
 }
 
 /** Durée totale des médias reliés, en secondes. `undefined` dès qu'une durée manque : une somme

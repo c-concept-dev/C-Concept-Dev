@@ -41,13 +41,16 @@ describe("la lecture d'un lot se fait en flux", () => {
   }, 600_000);
 
   siF3("prépare aussi les pages en flux", async () => {
-    const flux = preparerLot(F3, RECETTE, { pages: 2 });
+    const totaux: number[] = [];
+    const flux = preparerLot(F3, RECETTE, { pages: 2, surTotal: (total) => totaux.push(total) });
     expect(typeof flux[Symbol.asyncIterator]).toBe("function");
     let vues = 0;
     for await (const page of flux) {
       vues += 1;
       expect(page.image.pixels.length).toBeGreaterThan(0);
+      expect(page.total).toBe(2);
     }
     expect(vues).toBeGreaterThan(0);
+    expect(totaux, "une page par feuille garde le total du PDF").toEqual([2]);
   }, 600_000);
 });

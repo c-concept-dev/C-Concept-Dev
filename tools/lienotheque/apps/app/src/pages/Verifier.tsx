@@ -48,6 +48,7 @@ const ETATS: Readonly<Record<EtatDoute, { readonly libelle: string; readonly ico
   segment_inconnu: { libelle: "Segment inconnu", icone: "lien" },
   page_absente: { libelle: "Hors du document", icone: "document" },
   media_orphelin: { libelle: "Aucun lien", icone: "audio" },
+  maniere_inadaptee: { libelle: "Lecture non applicable", icone: "info" },
 };
 
 /** Ce dont parle un cas. Un doute porte sur un élément ; une information porte sur ce que son

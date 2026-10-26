@@ -38,6 +38,34 @@ describe("préparation du lot selon la recette (OUT-03, A2)", () => {
     },
     900_000,
   );
+
+  siF4(
+    "compte les pages logiques produites, jamais seulement les clichés d'origine (JOB-03)",
+    async () => {
+      const totauxAnnonces: number[] = [];
+      const progressions: [number, number][] = [];
+      let faites = 0;
+
+      for await (const page of preparerLot(F4, RECETTE, {
+        pages: 3,
+        surTotal: (total) => totauxAnnonces.push(total),
+      })) {
+        faites += 1;
+        progressions.push([faites, page.total]);
+      }
+
+      expect(totauxAnnonces).toEqual([6]);
+      expect(progressions).toEqual([
+        [1, 6],
+        [2, 6],
+        [3, 6],
+        [4, 6],
+        [5, 6],
+        [6, 6],
+      ]);
+    },
+    900_000,
+  );
 });
 
 describe("lecture d'une double page de F4 (OUT-07, A2)", () => {

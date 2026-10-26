@@ -4779,3 +4779,25 @@ L'audit visuel du même paquet confirme la structure du Lecteur et le son servi.
 défaut distinct : la grande page est visible, mais les vignettes latérales montrent une image
 cassée. Organisation et Dépôt ont été ouverts sur cette bibliothèque temporaire ; ils n'ont pas
 été vérifiés sur le volume des 243 documents, puisqu'il reste absent.
+
+---
+
+## 26 octobre 2026 — dette prioritaire séparée : progression fausse pour les doubles pages
+
+Le dépôt réel de Paul Westwood contient **143 feuilles**, que la recette découpe en **286 pages
+logiques**. Le travail annonce pourtant un total de 143 puis atteint le point de reprise 286 :
+l'interface affiche donc 100 % à mi-parcours. Cette dette concerne uniquement le décompte de
+progression ; elle est distincte de C9.3 et ne doit pas être corrigée pendant la mesure de
+l'association page-piste. Le défaut a été observé sur trois des cinq méthodes de cette campagne
+(il ne s'est pas reproduit sur Bass Play-Along Vol. 5) : ce n'est plus une curiosité isolée. Sa
+correction devient prioritaire après la décision sur C9.3, sans être mêlée aux règles
+d'association page-piste.
+
+**Jour 2 — correction éprouvée.** Le total venait directement du nombre de feuilles du PDF,
+alors que le point de reprise avançait après chaque page logique produite par la recette. La
+préparation convertit désormais ce total dans la même unité : une page par feuille pour une
+recette ordinaire, deux pages par feuille pour une recette de doubles pages. Le test rouge sur
+trois feuilles réelles de Paul Westwood observait `3` pour six pages produites ; il parcourt
+maintenant `1/6` à `6/6`. Le document complet porte toujours 143 feuilles et sa recette déclare
+la double page : le total annoncé est donc 286. Le garde-fou inverse sur F3 confirme que les
+recettes à une page par feuille conservent leur total, et le critère F3 reste à 95/95.

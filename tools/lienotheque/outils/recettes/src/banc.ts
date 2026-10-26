@@ -7,7 +7,7 @@ import { PageLueBrute, ReglagesRedressement, type CotePage, type Recette, type R
 import { noterLesQuatreSens, orientationDuLot, redresser, type OptionsRedressement, type RotationTrouvee } from "@lienotheque/redresseur";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
-import { associer, lireNomMedia, type Association, type Media } from "./associateur.js";
+import { lireNomMedia, qualifierAssociation, type Association, type Media } from "./associateur.js";
 import { interpreter, type LectureParVision, type PageLue, type SupportsPresents, supportsPresents } from "./interprete.js";
 import { lireCoucheTexte, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
 import { texteDePage } from "@lienotheque/contrats";
@@ -66,12 +66,13 @@ export type OptionsBanc = OptionsReperes & {
    *  cent pendant que les dernières pages passent encore à l'OCR serait un mensonge poli. Un lot
    *  servi par le cache ne passe pas par ici — il n'y a rien à suivre. */
   readonly avancement?: (faits: number, total: number) => void;
-  /** Combien de pages le document porte, dit une fois, **avant** la première lecture.
+  /** Combien de pages logiques la recette livrera, dit une fois, **avant** la première lecture.
    *
    *  `avancement` ne parle qu'après une page lue : un document dont aucune page n'est lisible par
    *  la chaîne n'émettait donc aucun nombre, et un résultat vide ne se distinguait pas d'un
    *  document vide. C'est ainsi qu'un ouvrage de neuf cent quatre-vingt-onze pages a été annoncé
-   *  « terminé » avec zéro page. Ce rappel est le seul endroit qui connaisse les deux nombres. */
+   *  « terminé » avec zéro page. Pour une recette de doubles pages, ce total vaut deux fois le
+   *  nombre de feuilles du PDF : l'unité annoncée reste ainsi la même que l'unité parcourue. */
   readonly surTotal?: (total: number) => void;
   /** Rang de la première page lue, à partir de zéro. Avec `pages`, cela fait une tranche : ce
    *  qu'il faut pour essayer une manière de lire là où le document a quelque chose à lire. */
@@ -149,12 +150,17 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
   // nulle part.
   let index = options.depuis ?? 0;
   let total = 0;
+  // `pagesEnGris` compte les feuilles du PDF. La progression, elle, compte ce que la recette
+  // livre réellement au lecteur : deux pages logiques par feuille quand elle déclare une double
+  // page. Sans cette conversion, F4 annonçait 143 au départ puis avançait jusqu'à 286, et la
+  // barre atteignait donc 100 % à mi-parcours.
+  const pagesParFeuille = preparation.double_page === true ? 2 : 1;
   for await (const image of pagesEnGris(
     chemin,
     options.pages,
     (compte) => {
-      total = compte;
-      options.surTotal?.(compte);
+      total = compte * pagesParFeuille;
+      options.surTotal?.(total);
     },
     options.depuis ?? 0,
   )) {
@@ -295,6 +301,8 @@ export async function mediasDuDossier(dossier: string, recette?: Recette, extens
     medias.push({
       piste: indices.piste,
       ...(indices.disque === undefined ? {} : { disque: indices.disque }),
+      ...(indices.element === undefined ? {} : { element: indices.element }),
+      ...(indices.page === undefined ? {} : { page: indices.page }),
       nom: entree.name,
       empreinte: createHash("sha256").update(await readFile(chemin)).digest("hex"),
     });
@@ -333,6 +341,8 @@ export function mediasDeLInventaire(inventaire: readonly MediaInventorie[], rece
     medias.push({
       piste: indices.piste,
       ...(disque === undefined ? {} : { disque }),
+      ...(indices.element === undefined ? {} : { element: indices.element }),
+      ...(indices.page === undefined ? {} : { page: indices.page }),
       nom: entree.nom,
       empreinte: entree.empreinte,
     });
@@ -432,7 +442,14 @@ export async function rejouer(pdf: string, dossierMedias: string, recette: Recet
     supports,
     ...(vision === undefined ? {} : { vision }),
   });
-  return { resultat, association: associer(resultat.lignes, medias, recette), medias };
+  const mediasDisponibles = options.inventaireMedias?.filter((media) => media.nom.toLowerCase().endsWith(".mp3")).length;
+  return {
+    resultat,
+    association: qualifierAssociation(resultat.lignes, medias, recette, {
+      ...(mediasDisponibles === undefined ? {} : { mediasDisponibles }),
+    }),
+    medias,
+  };
 }
 
 /** Ce qu'un rejeu vaut face à une référence : combien d'éléments tombent sur la bonne piste. */

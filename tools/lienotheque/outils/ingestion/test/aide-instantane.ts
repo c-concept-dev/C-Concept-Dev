@@ -71,6 +71,7 @@ export const media = (piste: number): MediaIngere => ({
 
 export const entreeMinimale = (sur: Partial<Entree> = {}): Entree => {
   const lignes = sur.lignes ?? [ligne(1), ligne(2), ligne(3)];
+  const medias = sur.medias ?? [media(1), media(2), media(3)];
   // Les pages par défaut portent les numéros imprimés **des lignes de cette entrée-ci**.
   //
   // Une liste figée serait un piège : toute fixture qui pose ses lignes sur d'autres pages
@@ -85,8 +86,26 @@ export const entreeMinimale = (sur: Partial<Entree> = {}): Entree => {
     lignes,
     pagesAbsentes: [],
     pages: imprimees.map((numero, rang) => ({ index: rang + 1, numero })),
-    association: { appariements: [], orphelins: [], manquants: [] } satisfies Association,
-    medias: [media(1), media(2), media(3)],
+    association:
+      sur.association ??
+      ({
+        appariements: lignes.flatMap((une) => {
+          const support = medias.find((candidat) => candidat.piste === une.piste && (candidat.disque ?? 1) === une.disque);
+          return support === undefined
+            ? []
+            : [
+                {
+                  ligne: une,
+                  media: { empreinte: support.empreinte, piste: support.piste, disque: support.disque, nom: support.nom ?? `Media ${support.piste}` },
+                  segment: "inconnu" as const,
+                  statut: "auto" as const,
+                },
+              ];
+        }),
+        orphelins: [],
+        manquants: [],
+      } satisfies Association),
+    medias,
     seuil: 0.6,
     ...sur,
   };
