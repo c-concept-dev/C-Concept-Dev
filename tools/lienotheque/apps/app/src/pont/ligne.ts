@@ -1,5 +1,6 @@
 import {
   ApercuEnLigne,
+  CorrespondancesBibliotheque,
   PassagesDuDocument,
   TraductionDePage,
   VueBibliotheque,
@@ -13,10 +14,9 @@ import type { PortDeLecture } from "./port.js";
  *  ## Ce qu'il sert, et d'où
  *
  *  La vue **n'est pas rebâtie** : `instantane.ts` la construit à l'ingestion, elle est rangée
- *  comme objet, et le Worker la sert telle quelle. La recherche en ligne fait donc tourner le
- *  **même `chercher` sur la même vue** — les résultats sont identiques par construction, et non
- *  par ressemblance. Une seconde mise en œuvre de la vue serait une seconde vérité, et celle des
- *  deux qui finirait par mentir.
+ *  comme objet, et le Worker la sert telle quelle. La recherche de bibliothèque interroge le
+ *  plein texte D1 et rend le même contrat que l'index SQLite du bureau ; le noyau commun calcule
+ *  ensuite extraits et positions de surlignage.
  *
  *  Trois objets :
  *
@@ -118,6 +118,14 @@ export function pontEnLigne({ base, appeler = fetch }: Adresse): PortDeLecture {
 
   return {
     apercuDeBibliotheque: async (): Promise<readonly ApercuDocument[]> => (await apercu())?.documents ?? [],
+
+    rechercherBibliotheque: async (_racine: string, requete: string, combien = 50) => {
+      const brut = await demander("/recherche-bibliotheque", {
+        method: "POST",
+        body: JSON.stringify({ requete, combien }),
+      });
+      return CorrespondancesBibliotheque.parse(brut ?? []);
+    },
 
     /** La version active d'un document, lue dans l'aperçu.
      *

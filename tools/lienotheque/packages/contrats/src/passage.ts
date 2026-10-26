@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Confiance } from "./commun.js";
+import { Confiance, Empreinte } from "./commun.js";
 import { SourceLecture } from "./lecture.js";
 
 /** Le passage : un morceau de texte cherchable, sur sa vraie page (RCH-07, RCH-09, ANC-01).
@@ -70,6 +70,21 @@ export const Passage = z
   })
   .strict();
 export type Passage = z.infer<typeof Passage>;
+
+/** Un passage retrouvé dans l'ensemble d'une bibliothèque (C10, RCH-07, RCH-09).
+ *
+ * Le passage seul ne suffit pas : ouvrir le résultat exige de savoir quel document et quelle
+ * version active le portent. La version rend aussi un résultat périmé détectable au lieu de le
+ * laisser ouvrir silencieusement une autre édition. */
+export const CorrespondanceBibliotheque = z.object({
+  empreinte: Empreinte,
+  version: z.string().min(1),
+  titre: z.string().min(1),
+  passage: Passage,
+}).strict();
+export type CorrespondanceBibliotheque = z.infer<typeof CorrespondanceBibliotheque>;
+
+export const CorrespondancesBibliotheque = z.array(CorrespondanceBibliotheque);
 
 /** Les passages d'un document, dans l'ordre, sans trou ni doublon.
  *

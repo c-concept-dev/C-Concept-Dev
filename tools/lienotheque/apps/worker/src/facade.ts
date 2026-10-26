@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CorrespondancesBibliotheque, type CorrespondanceBibliotheque } from "@lienotheque/contrats";
 import type { BaseSql } from "./registre.js";
 
 /** La façade de compatibilité (INT-04, RCH-12).
@@ -153,6 +154,41 @@ export async function chercher(
     .bind(mots, combien)
     .all<LigneBrute>();
   return results.map((ligne) => projeter(ligne, correspondance));
+}
+
+/** Forme commune à l'application bureau et en ligne. La première empreinte de la version est
+ * celle du document publié ; elle est la même clé que l'aperçu et les objets de vue emploient. */
+export async function chercherBibliotheque(
+  base: BaseSql,
+  demande: { readonly requete?: unknown; readonly combien?: unknown },
+): Promise<readonly CorrespondanceBibliotheque[]> {
+  const phrase = typeof demande.requete === "string" ? demande.requete : "";
+  const mots = motsPourIndex(phrase);
+  const combien = borner(demande.combien);
+  if (mots === undefined) return [];
+  const { results } = await base.prepare(`
+    SELECT vf.empreinte, v.id AS version, d.titre,
+           p.rang, p.page, p.page_imprimee, p.texte, p.source, p.confiance, p.lisible, p.emplacement
+      FROM passage_texte t
+      JOIN passage p ON p.rowid = t.rowid
+      JOIN version v ON v.id = p.version_id AND v.active = 1
+      JOIN document d ON d.id = v.document_id
+      JOIN version_fichier vf ON vf.version_id = v.id AND vf.rang = 0
+     WHERE passage_texte MATCH ?
+     ORDER BY bm25(passage_texte), d.titre, p.rang LIMIT ?
+  `).bind(mots, combien).all<Record<string, unknown>>();
+  return CorrespondancesBibliotheque.parse(results.map((ligne) => ({
+    empreinte: ligne["empreinte"],
+    version: ligne["version"],
+    titre: ligne["titre"],
+    passage: {
+      rang: ligne["rang"], page: ligne["page"], texte: ligne["texte"], source: ligne["source"],
+      lisible: ligne["lisible"] !== 0,
+      ...(ligne["page_imprimee"] === null ? {} : { pageImprimee: ligne["page_imprimee"] }),
+      ...(ligne["confiance"] === null ? {} : { confiance: ligne["confiance"] }),
+      ...(ligne["emplacement"] === null ? {} : { emplacement: ligne["emplacement"] }),
+    },
+  })));
 }
 
 /** Compte les passages par valeur d'axe, pour les filtres.

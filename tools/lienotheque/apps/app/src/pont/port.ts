@@ -2,6 +2,7 @@ import type {
   ApercuDocument,
   ArriveeDeFichiers,
   ClassementLocal,
+  CorrespondanceBibliotheque,
   DescriptionBibliotheque,
   Doublons,
   Passage,
@@ -44,6 +45,7 @@ export type PortDeLecture = {
   readonly apercuDeBibliotheque: (racine: string) => Promise<readonly ApercuDocument[]>;
   readonly vueDeDocument: (racine: string, empreinte: string) => Promise<VueBibliotheque | undefined>;
   readonly passagesDeDocument: (racine: string, empreinte: string) => Promise<readonly Passage[]>;
+  readonly rechercherBibliotheque: (racine: string, requete: string, combien?: number) => Promise<readonly CorrespondanceBibliotheque[]>;
   readonly versionActive: (racine: string, empreinte: string) => Promise<string | undefined>;
   readonly imageDePage: (racine: string, version: string, fichier: string) => Promise<string | undefined>;
   /** Facultative : le bureau reste local et ne sollicite jamais Workers AI. */
@@ -138,6 +140,7 @@ export const NOMS_DE_LECTURE = [
   "apercuDeBibliotheque",
   "vueDeDocument",
   "passagesDeDocument",
+  "rechercherBibliotheque",
   "versionActive",
   "imageDePage",
   "classementsDeBibliotheque",

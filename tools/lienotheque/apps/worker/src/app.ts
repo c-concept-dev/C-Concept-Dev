@@ -20,7 +20,7 @@ import {
   signer,
   verifier,
 } from "@lienotheque/noyau";
-import { Correspondance, chercher, compter } from "./facade.js";
+import { Correspondance, chercher, chercherBibliotheque, compter } from "./facade.js";
 import { baseDeLaPlace } from "./reserve.js";
 import { laBibliotheque, type BaseSql } from "./registre.js";
 import { Hono } from "hono";
@@ -541,6 +541,13 @@ export function creerApp({
     });
   }
 
+  app.post("/recherche-bibliotheque", async (contexte) => {
+    const ouverte = await ouvrirFacade(contexte);
+    if (ouverte instanceof Response) return ouverte;
+    const corps = await corpsDe(contexte);
+    return contexte.json(await chercherBibliotheque(ouverte.base, { requete: corps["requete"], combien: corps["combien"] }));
+  });
+
   app.post("/library-facets", async (contexte) => {
     const ouverte = await ouvrirFacade(contexte);
     if (ouverte instanceof Response) return ouverte;
@@ -557,8 +564,7 @@ export function creerApp({
    *
    *  **Rien n'est rebâti ici.** `instantane.ts` construit la vue à l'ingestion, et une seconde
    *  mise en œuvre serait une seconde vérité — celle des deux qui finirait par mentir. La
-   *  recherche en ligne fait ensuite tourner le **même** `chercher` sur la **même** vue, de sorte
-   *  que les résultats soient identiques par construction et non par ressemblance.
+   *  recherche globale lit séparément l'index D1 puis rend le contrat commun bureau/en ligne.
    *
    *  Trois objets : l'aperçu de la bibliothèque — sa liste et ses classements, toujours demandés
    *  ensemble —, puis la vue et les passages **de chaque document**, nommés par son empreinte.

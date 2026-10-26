@@ -5,6 +5,7 @@ import {
   ApercuDocument,
   ArriveeDeFichiers,
   ClassementLocal,
+  CorrespondancesBibliotheque,
   DescriptionBibliotheque,
   Doublons,
   Passage,
@@ -292,6 +293,10 @@ export async function passagesDeDocument(racine: string, empreinte: string): Pro
   return brut.map((un) => Passage.parse(un));
 }
 
+export async function rechercherBibliotheque(racine: string, requete: string, combien = 50) {
+  return CorrespondancesBibliotheque.parse(await invoke("rechercher_bibliotheque", { racine, requete, combien }));
+}
+
 /** Range un document sur les axes de sa bibliothèque (CLA-01).
  *
  *  Le classement est vérifié par le noyau avant d'arriver ici : `classerUnDocument` sait lire un
@@ -348,6 +353,7 @@ export const lectureDuBureau: PortDeLecture = {
   apercuDeBibliotheque,
   vueDeDocument,
   passagesDeDocument,
+  rechercherBibliotheque,
   versionActive,
   imageDePage,
   classementsDeBibliotheque,

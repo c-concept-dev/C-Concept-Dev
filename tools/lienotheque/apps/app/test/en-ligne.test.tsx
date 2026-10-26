@@ -121,14 +121,15 @@ describe("en ligne, c'est le service qui tient la bibliothèque", () => {
     });
   });
 
-  it("montre la recherche quand le document en ligne est chargé", async () => {
+  it("annonce la recherche dans la bibliothèque, jamais dans le seul document ouvert", async () => {
     globalThis.history.replaceState({}, "", "/#catalogue");
     const service = serviceAvecUnDocument();
     vi.stubGlobal("fetch", service);
 
     render(<App />);
 
-    expect(await screen.findByLabelText("Rechercher dans le document ouvert")).toBeTruthy();
+    expect(await screen.findByLabelText("Rechercher dans Base de connaissance")).toBeTruthy();
+    expect(screen.queryByText(/document ouvert/i)).toBeNull();
   });
 
   it("ne signe la grande page qu'au moment où le Lecteur l'ouvre", async () => {

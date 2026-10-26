@@ -1,6 +1,6 @@
 import { MIGRATIONS, baseEnMemoire } from "@lienotheque/depot-sqlite";
 import { beforeEach, describe, expect, it } from "vitest";
-import { Correspondance, chercher, compter, motsPourIndex, PLAFOND, projeter } from "../src/facade.js";
+import { Correspondance, chercher, chercherBibliotheque, compter, motsPourIndex, PLAFOND, projeter } from "../src/facade.js";
 
 /** Une vraie bibliothèque en mémoire, avec le vrai schéma et son index plein texte. */
 const bibliothequeEnMemoire = () => baseEnMemoire(MIGRATIONS);
@@ -81,6 +81,27 @@ describe("la projection (RCH-12)", () => {
 });
 
 describe("la recherche plein texte", () => {
+  it("rend la même forme multi-document que le bureau, limitée aux versions actives", async () => {
+    semer(["une articulation précise"]);
+    const empreinte = "f".repeat(64);
+    bib.executer(
+      `INSERT INTO fichier (empreinte, taille, type_mime, nom_origine, ajoute_le, appareil_id)
+       VALUES ('${empreinte}', 12, 'application/pdf', 'premier.pdf', '2026-10-10', 'essai')`,
+    );
+    bib.executer(`INSERT INTO version_fichier (version_id, empreinte, rang) VALUES ('v1', '${empreinte}', 0)`);
+    bib.executer(`UPDATE passage SET page = 7, page_imprimee = 12 WHERE id = 'p0'`);
+
+    expect(await chercherBibliotheque(bib, { requete: "articulation" })).toEqual([{
+      empreinte,
+      version: "v1",
+      titre: "Premier titre",
+      passage: expect.objectContaining({ rang: 0, page: 7, pageImprimee: 12, texte: "une articulation précise" }),
+    }]);
+
+    bib.executer(`UPDATE version SET active = 0 WHERE id = 'v1'`);
+    expect(await chercherBibliotheque(bib, { requete: "articulation" })).toEqual([]);
+  });
+
   it("trouve par un mot, sans tenir compte des accents", async () => {
     semer(["un passage sur la mesure", "un passage sur la mésure accentuée"]);
     expect(await chercher(bib, CORRESPONDANCE, { query: "mesure" })).toHaveLength(2);

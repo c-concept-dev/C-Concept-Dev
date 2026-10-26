@@ -1,4 +1,4 @@
-import { citerPage, type Passage, type VueBibliotheque } from "@lienotheque/contrats";
+import { citerPage, type CorrespondanceBibliotheque, type MotsBibliotheque, type Passage, type VueBibliotheque } from "@lienotheque/contrats";
 
 /** Chercher dans une bibliothèque, sans rien envoyer nulle part (RCH, UX-02).
  *
@@ -47,6 +47,9 @@ export type Resultat = {
   readonly element?: string;
   readonly piste?: number;
   readonly cibleRecherche?: CibleRecherche;
+  /** Document à charger avant d'ouvrir la page, présent pour l'index de bibliothèque. */
+  readonly document?: string;
+  readonly version?: string;
 };
 
 export type Groupe = { readonly genre: GenreResultat; readonly libelle: string; readonly resultats: readonly Resultat[] };
@@ -356,6 +359,43 @@ export function chercher(
     { genre: "action", libelle: "Actions", resultats: actions.slice(0, parGroupe) },
   ];
   return groupes.filter((groupe) => groupe.resultats.length > 0);
+}
+
+/** Transforme les lignes rendues par l'index de bibliothèque avec exactement les mêmes règles
+ * de pliage, d'extrait et de positions originales que la recherche C8 dans un document. */
+export function resultatsDeBibliotheque(
+  correspondances: readonly CorrespondanceBibliotheque[],
+  requete: string,
+  motsPage: MotsBibliotheque["page"],
+): readonly Groupe[] {
+  const { phrase, mots } = morceauxDe(requete);
+  if (phrase === "") return [];
+  const morceaux = mots.length > 1 ? [phrase, ...mots] : mots;
+  const resultats: Resultat[] = [];
+  for (const trouve of correspondances) {
+    const autour = extraireAutour([trouve.passage.texte], morceaux);
+    if (autour === undefined) continue;
+    const page = trouve.passage.page;
+    const numero = trouve.passage.pageImprimee;
+    const cote = numero === undefined
+      ? `${motsPage.un} ${page} du document`
+      : `${motsPage.un} ${numero}`;
+    resultats.push({
+      genre: "page",
+      cle: `bibliotheque:${trouve.empreinte}:${trouve.passage.rang}`,
+      titre: trouve.titre,
+      surlignesTitre: trouver(trouve.titre, morceaux),
+      source: capitaliser(cote),
+      extrait: autour.extrait,
+      surlignesExtrait: autour.surlignes,
+      cote: capitaliser(cote),
+      page,
+      document: trouve.empreinte,
+      version: trouve.version,
+      cibleRecherche: { passage: trouve.passage.rang, debut: autour.debut, requete: requete.trim() },
+    });
+  }
+  return resultats.length === 0 ? [] : [{ genre: "page", libelle: "Documents et pages", resultats }];
 }
 
 /** Tous les résultats à la file, dans l'ordre où l'écran les montre.

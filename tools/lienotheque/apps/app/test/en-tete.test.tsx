@@ -73,6 +73,7 @@ describe("l'en-tête n'annonce que ce qui existe (22 octobre 2026)", () => {
 
   it("dit la portée réelle de sa recherche", () => {
     render(<EnTete theme="light" onThemeChange={vi.fn()} onRecherche={vi.fn()} donnees={GARNIE} />);
-    expect(screen.getByLabelText("Rechercher dans le document ouvert")).toBeInTheDocument();
+    expect(screen.getByLabelText("Rechercher dans Une bibliothèque")).toBeInTheDocument();
+    expect(screen.queryByText(/document ouvert/i)).toBeNull();
   });
 });
