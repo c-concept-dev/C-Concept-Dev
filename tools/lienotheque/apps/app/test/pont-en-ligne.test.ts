@@ -19,6 +19,7 @@ const EMPREINTE = "a3".repeat(32);
 const AUTRE = "b4".repeat(32);
 const CHEMIN_VUE = `/vue/document/${EMPREINTE}`;
 const CHEMIN_PASSAGES = `/vue/document/${EMPREINTE}/passages`;
+const CHEMIN_RECHERCHE = "/recherche-bibliotheque";
 
 const VUE = VueBibliotheque.parse({
   id: "01932f4e-7a1b-7c3d-8e5f-0123456789ab",
@@ -155,6 +156,19 @@ describe("la vue et les passages arrivent du service, séparément", () => {
 });
 
 describe("la recherche en ligne est la même recherche", () => {
+  it("cherche dans toute la bibliothèque par le port commun", async () => {
+    const resultat = {
+      empreinte: EMPREINTE,
+      version: "01932f4e-7a1b-7c3d-8e5f-00000000c001",
+      titre: "Un document",
+      passage: PASSAGES[0],
+    };
+    const { pont: p, appels } = pont({ [CHEMIN_RECHERCHE]: { corps: [resultat] } });
+
+    expect(await p.rechercherBibliotheque("x", "mesure", 20)).toEqual([resultat]);
+    expect(appels[0]).toEqual({ chemin: CHEMIN_RECHERCHE, methode: "POST", temoin: "inclus" });
+  });
+
   it("rend exactement ce que le bureau rendrait, sur les mêmes octets", async () => {
     // Le cœur de l'étape. Le pont ne cherche pas : il apporte la vue et les passages, et
     // `chercher` fait le reste. Les résultats sont donc identiques par **construction**.

@@ -13,7 +13,7 @@ import { NOMS_DE_LECTURE, NOMS_D_ADMINISTRATION } from "../src/pont/port.js";
  */
 
 describe("deux ports, et une frontière qui tient", () => {
-  it("le port de lecture porte exactement les sept fonctions décidées", () => {
+  it("le port de lecture porte exactement les huit fonctions décidées", () => {
     expect([...NOMS_DE_LECTURE].sort()).toEqual(
       [
         "apercuDeBibliotheque",
@@ -21,6 +21,7 @@ describe("deux ports, et une frontière qui tient", () => {
         "classerDocument",
         "imageDePage",
         "passagesDeDocument",
+        "rechercherBibliotheque",
         "versionActive",
         "vueDeDocument",
       ].sort(),

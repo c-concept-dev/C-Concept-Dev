@@ -20,6 +20,7 @@ pub mod ocr;
 pub mod pdf;
 pub mod plateforme;
 pub mod reglages;
+pub mod recherche;
 pub mod roulement;
 pub mod trace;
 pub mod traitement;
@@ -570,6 +571,16 @@ fn passages_de_document(racine: String, empreinte: String) -> Result<Option<serd
     Ok(Some(lu["passages"].clone()))
 }
 
+/// Recherche dans toutes les versions actives de la bibliothèque, jamais dans le seul document
+/// affiché. L'index se réconcilie ici avant la requête : une bibliothèque ancienne devient
+/// cherchable sans réimport, et une activation interrompue ne rend jamais un demi-document.
+#[tauri::command]
+fn rechercher_bibliotheque(racine: String, requete: String, combien: usize) -> Result<serde_json::Value, String> {
+    let (trouves, _) = recherche::chercher(&racine, &requete, combien)
+        .map_err(|e| format!("Recherche dans la bibliothèque impossible : {e}"))?;
+    serde_json::to_value(trouves).map_err(|e| format!("Résultats illisibles : {e}"))
+}
+
 /// Range un document sur les axes de sa bibliothèque (CLA-01, CLA-03).
 ///
 /// Le classement arrive **déjà vérifié** contre le schéma : c'est le noyau qui sait lire un
@@ -1034,6 +1045,7 @@ fn lancer(captures: bool) {
             lire_maniere,
             vue_de_document,
             passages_de_document,
+            rechercher_bibliotheque,
             journal_page,
             classer_document,
             classements_de_bibliotheque,

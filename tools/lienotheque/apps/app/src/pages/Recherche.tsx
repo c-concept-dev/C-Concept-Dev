@@ -1,14 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState, type JSX, type KeyboardEvent } from "react";
-import type { Passage, VueBibliotheque } from "@lienotheque/contrats";
-import { aLaFile, chercher, morceler, type Action, type GenreResultat, type Resultat } from "@lienotheque/noyau";
+import type { CorrespondanceBibliotheque, Passage, VueBibliotheque } from "@lienotheque/contrats";
+import { aLaFile, chercher, morceler, resultatsDeBibliotheque, type Action, type GenreResultat, type Resultat } from "@lienotheque/noyau";
 import { Bouton, Icone, type NomIcone } from "../composants/index.js";
 import { imageAffichable } from "../image-affichable.js";
 import "./Recherche.css";
 
 /** Recherche ⌘K (maquette 5, RCH, UX-02, UX-06).
  *
- *  Un voile, un champ, une liste groupée et un aperçu de ce qui est choisi. Rien ne part de la
- *  machine : la recherche lit la vue qui est déjà là.
+ *  Un voile, un champ, une liste groupée et un aperçu de ce qui est choisi. Le port commun lit
+ *  l'index local au bureau et la base publiée en ligne ; l'écran reçoit la même forme.
  *
  *  Tout se fait au clavier, et le pied le dit — une palette qu'on ne peut conduire qu'à la souris
  *  n'a aucune raison d'exister. */
@@ -34,6 +34,10 @@ type Props = {
   readonly onAction: (cle: string) => void;
   /** Ce qui est déjà tapé à l'ouverture. Sert aux captures, où personne ne tape. */
   readonly requeteInitiale?: string | undefined;
+  /** Présente dans le produit : l'index de toute la bibliothèque. Absente dans les épreuves
+   * historiques C8, qui continuent d'exercer la fonction locale et ses positions exactes. */
+  readonly rechercherBibliotheque?: ((requete: string) => Promise<readonly CorrespondanceBibliotheque[]>) | undefined;
+  readonly nomBibliotheque?: string | undefined;
 };
 
 /** Le texte, ses correspondances marquées. L'écran ne calcule rien : le noyau a déjà découpé. */
@@ -56,19 +60,53 @@ export function Recherche({
   onEcouter,
   onAction,
   requeteInitiale,
+  rechercherBibliotheque,
+  nomBibliotheque,
 }: Props): JSX.Element {
   const [requete, setRequete] = useState(requeteInitiale ?? "");
   const [choisi, setChoisi] = useState(0);
   const base = useId();
   const liste = useRef<HTMLDivElement>(null);
+  const [correspondances, setCorrespondances] = useState<readonly CorrespondanceBibliotheque[]>([]);
+  const [rechercheEnCours, setRechercheEnCours] = useState(false);
+  const [erreurRecherche, setErreurRecherche] = useState(false);
+
+  useEffect(() => {
+    if (rechercherBibliotheque === undefined || requete.trim() === "") {
+      setCorrespondances([]);
+      setRechercheEnCours(false);
+      setErreurRecherche(false);
+      return undefined;
+    }
+    let vivante = true;
+    setRechercheEnCours(true);
+    setErreurRecherche(false);
+    const attente = window.setTimeout(() => {
+      void rechercherBibliotheque(requete).then((trouves) => {
+        if (vivante) setCorrespondances(trouves);
+      }).catch(() => {
+        if (vivante) {
+          setCorrespondances([]);
+          setErreurRecherche(true);
+        }
+      }).finally(() => {
+        if (vivante) setRechercheEnCours(false);
+      });
+    }, 120);
+    return () => {
+      vivante = false;
+      window.clearTimeout(attente);
+    };
+  }, [requete, rechercherBibliotheque]);
 
   const groupes = useMemo(
-    () =>
-      chercher(vue, requete, {
+    () => rechercherBibliotheque === undefined
+      ? chercher(vue, requete, {
         ...(actions === undefined ? {} : { actions }),
         ...(passages === undefined ? {} : { passages }),
-      }),
-    [vue, requete, actions, passages],
+      })
+      : resultatsDeBibliotheque(correspondances, requete, vue.mots.page),
+    [vue, requete, actions, passages, correspondances, rechercherBibliotheque],
   );
   const file = useMemo(() => aLaFile(groupes), [groupes]);
   const actif = file[Math.min(choisi, Math.max(0, file.length - 1))];
@@ -136,7 +174,7 @@ export function Recherche({
         <div className="ln-chercher__champ">
           <Icone nom="recherche" />
           <label className="ln-sr-only" htmlFor={`${base}-champ`}>
-            Rechercher dans {vue.nom}
+            Rechercher dans {nomBibliotheque ?? vue.nom}
           </label>
           <input
             id={`${base}-champ`}
@@ -148,10 +186,10 @@ export function Recherche({
             aria-expanded={file.length > 0}
             aria-controls={`${base}-liste`}
             aria-activedescendant={actif === undefined ? undefined : `${base}-${actif.cle}`}
-            placeholder={`Chercher dans ${vue.nom}`}
+            placeholder={`Chercher dans ${nomBibliotheque ?? vue.nom}`}
             onChange={(evenement) => setRequete(evenement.target.value)}
           />
-          <span className="ln-chercher__portee">{vue.nom}</span>
+          <span className="ln-chercher__portee">{nomBibliotheque ?? vue.nom}</span>
           <Bouton compact icone={<Icone nom="fermer" />} onClick={onFermer}>
             Fermer
           </Bouton>
@@ -164,6 +202,10 @@ export function Recherche({
                 Cherchez un {vue.mots.element.un}, un mot d’une {vue.mots.page.un}, une{" "}
                 {vue.mots.piste.un}.
               </p>
+            ) : erreurRecherche ? (
+              <p className="ln-chercher__vide">La recherche n’a pas pu aboutir. Réessayez.</p>
+            ) : rechercheEnCours ? (
+              <p className="ln-chercher__vide">Recherche dans la bibliothèque…</p>
             ) : file.length === 0 ? (
               <p className="ln-chercher__vide">Rien ici ne correspond à «&nbsp;{requete.trim()}&nbsp;».</p>
             ) : (
@@ -213,6 +255,13 @@ export function Recherche({
               <p className="ln-muted ln-chercher__sans-apercu">
                 Choisissez un résultat&nbsp;: sa {vue.mots.page.un} s’affichera ici.
               </p>
+            ) : actif.document !== undefined ? (
+              <div className="ln-chercher__sans-apercu">
+                <p>{actif.titre}</p>
+                <p className="ln-muted">{actif.cote}</p>
+                {actif.extrait === undefined ? null : <p>« {actif.extrait} »</p>}
+                <Bouton onClick={() => ouvrir(actif)}>Ouvrir cette page</Bouton>
+              </div>
             ) : (
               <Apercu vue={vue} resultat={actif} onOuvrir={() => ouvrir(actif)} onEcouter={() => onEcouter(actif)} />
             )}

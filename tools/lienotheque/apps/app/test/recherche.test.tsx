@@ -78,6 +78,33 @@ describe("ce que la recherche montre avant qu'on tape", () => {
 });
 
 describe("chercher", () => {
+  it("rend plusieurs documents de l'index de bibliothèque et ouvre le bon à sa page (C10)", async () => {
+    const personne = userEvent.setup();
+    const rechercherBibliotheque = vi.fn(async () => [
+      {
+        empreinte: "b".repeat(64), version: "v-b", titre: "Premier document",
+        passage: { rang: 2, page: 7, texte: "Une articulation précise.", source: "couche_texte" as const, lisible: true },
+      },
+      {
+        empreinte: "c".repeat(64), version: "v-c", titre: "Second document",
+        passage: { rang: 4, page: 19, texte: "Cette articulation reste souple.", source: "ocr" as const, lisible: true },
+      },
+    ]);
+    const gestes = poser({ rechercherBibliotheque, nomBibliotheque: "Toute la bibliothèque" });
+    await personne.type(screen.getByRole("combobox"), "articulation");
+
+    expect(await screen.findByRole("group", { name: "Documents et pages" })).toBeInTheDocument();
+    expect(screen.getAllByText("Premier document").length).toBeGreaterThan(0);
+    expect(screen.getByText("Second document")).toBeInTheDocument();
+    expect(screen.getAllByText("articulation", { selector: "mark" })).toHaveLength(2);
+
+    await personne.click(screen.getByText("Second document"));
+    expect(gestes.onOuvrir).toHaveBeenCalledWith(expect.objectContaining({
+      document: "c".repeat(64), page: 19,
+      cibleRecherche: { passage: 4, debut: 6, requete: "articulation" },
+    }));
+  });
+
   it("ne donne pas un chemin interne au navigateur comme s'il s'agissait d'une image", async () => {
     const personne = userEvent.setup();
     const vue = VueBibliotheque.parse({

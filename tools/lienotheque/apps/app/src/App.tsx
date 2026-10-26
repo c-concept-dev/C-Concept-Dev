@@ -367,6 +367,11 @@ export function App(): JSX.Element {
   const courante: { readonly racine: string } | undefined =
     creees[creees.length - 1] ?? (lecture !== undefined && administration === undefined ? SERVIE_EN_LIGNE : undefined);
 
+  const rechercherPartout = useCallback((requete: string) => {
+    if (courante === undefined || lecture === undefined) return Promise.resolve([]);
+    return lecture.rechercherBibliotheque(courante.racine, requete, 50);
+  }, [courante?.racine, lecture]);
+
   const chargerImage = useCallback(async (adresse: string): Promise<string | undefined> => {
     const fichier = adresse.split("/").pop();
     if (courante === undefined || lecture === undefined || versionRegardee === undefined || fichier === undefined)
@@ -1037,7 +1042,7 @@ export function App(): JSX.Element {
         requeteRecherche={requeteRecherche}
         onRequeteRecherche={setRequeteRecherche}
         donnees={aLAccueil}
-        rechercheDisponible={vue !== undefined && chargementDocument === undefined}
+        nomRecherche={documents.length === 0 ? undefined : (derniere?.description.nom ?? "Base de connaissance")}
         enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
       />
       <div className="ln-application__vue">{ecran}</div>
@@ -1056,6 +1061,8 @@ export function App(): JSX.Element {
                 ]
           }
           requeteInitiale={requeteRecherche}
+          rechercherBibliotheque={rechercherPartout}
+          nomBibliotheque={derniere?.description.nom ?? "Base de connaissance"}
           onFermer={() => {
             setCherche(false);
             setRequeteRecherche("");
@@ -1063,6 +1070,7 @@ export function App(): JSX.Element {
           onOuvrir={(resultat) => {
             setCherche(false);
             setRequeteRecherche("");
+            if (resultat.document !== undefined) setRegarde(resultat.document);
             if (resultat.page !== undefined)
               aller(
                 resultat.element === undefined
