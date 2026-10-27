@@ -26,6 +26,7 @@ const RACINE = join(import.meta.dirname, "../../..");
 const CORPUS = process.env["LIENOTHEQUE_CORPUS_MUSICAL"] ?? "/Users/christophebonnet/Music/Basse";
 const RECETTE_PASTILLES = join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json");
 const RECETTE_F3 = join(RACINE, "fixtures/recettes/methode-pastille-piste.v2.json");
+const RECETTE_NUMERO_COMPOSE = join(RACINE, "fixtures/recettes/methode-numero-compose-piste.v1.json");
 const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
 const lectures = coin(cache, "lectures-c9-3");
 const rapports = coin(cache, "rapports-c9-3");
@@ -43,8 +44,8 @@ const CAS: readonly Cas[] = [
   {
     id: "paul-westwood",
     nom: "Paul Westwood — Bass Bible",
-    pdf: join(CORPUS, "Base de connaissances/Methodes/Paul westwood.pdf"),
-    medias: join(CORPUS, "Base de connaissances/Base de connaissances/MP3/Paul westwood MP3"),
+    pdf: join(CORPUS, "Methodes/Paul westwood.pdf"),
+    medias: join(CORPUS, "Paul westwood pdf et MP3"),
     recette: RECETTE_PASTILLES,
     attente: "liens_corroborés",
   },
@@ -53,13 +54,13 @@ const CAS: readonly Cas[] = [
     nom: "Hal Leonard — Funk Fusion Bass",
     pdf: join(CORPUS, "Basse/Funk Fusion Bass (Hal Leonard - Bass Builders) [Book+CD]/Funk Fusion Bass.pdf"),
     medias: join(CORPUS, "Basse/Funk Fusion Bass (Hal Leonard - Bass Builders) [Book+CD]"),
-    recette: RECETTE_PASTILLES,
-    attente: "abstention",
+    recette: RECETTE_NUMERO_COMPOSE,
+    attente: "liens_corroborés",
   },
   {
     id: "bass-aerobics",
     nom: "Jon Liebman — Bass Aerobics",
-    pdf: join(CORPUS, "Basse/Methode Basse - Bass Aerobics/Jon Liebman - Bass Aerobics.pdf"),
+    pdf: join(CORPUS, "Basse/Methode Basse - Bass Aerobics/Bass Aerobics (mp3)/Jon Liebman - Bass Aerobics.pdf"),
     medias: join(CORPUS, "Basse/Methode Basse - Bass Aerobics"),
     recette: RECETTE_PASTILLES,
     attente: "abstention",
@@ -67,7 +68,7 @@ const CAS: readonly Cas[] = [
   {
     id: "aebersold-026",
     nom: "Aebersold 026 — Scale Syllabus",
-    pdf: join(CORPUS, "AEBERSOLDS/Aebersold - 026 - [Scale Syllabus]/Aebersold 026 - [Scale Syllabus].pdf"),
+    pdf: join(CORPUS, "AEBERSOLDS/Aebersold - 026 - [Scale Syllabus]/CD1/Aebersold 026 - [Scale Syllabus].pdf"),
     medias: join(CORPUS, "AEBERSOLDS/Aebersold - 026 - [Scale Syllabus]"),
     recette: RECETTE_PASTILLES,
     attente: "abstention",
@@ -135,8 +136,10 @@ const rejeux = rapport["rejeux"] as unknown[];
 console.log("\nApplicabilité des cinq méthodes");
 for (const cas of CAS) {
   const noms = (await fichiersMp3(cas.medias)).map((chemin) => basename(chemin, ".mp3"));
-  const motif = recette(cas.recette).audio?.motif_nom;
-  const interpretes = noms.filter((nom) => lireNomMedia(nom, motif).piste !== undefined).length;
+  const maniere = recette(cas.recette);
+  const motif = maniere.audio?.motif_nom;
+  const exempleElement = maniere.lectures.find((lecture) => lecture.ancre === "element")?.numero?.exemple;
+  const interpretes = noms.filter((nom) => lireNomMedia(nom, motif, exempleElement).piste !== undefined).length;
   const ligne = { id: cas.id, nom: cas.nom, medias: noms.length, nomsInterpretes: interpretes, attente: cas.attente };
   applicabilite.push(ligne);
   console.log(`- ${cas.nom}: ${interpretes}/${noms.length} noms interprétés`);
@@ -178,6 +181,7 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
     pistesManquantes: bilan.pistesManquantes,
     mediasOrphelins: bilan.mediasOrphelins,
     abstention: joue.association.abstention,
+    elementsLus: joue.resultat.lignes.map((ligne) => ({ numero: ligne.numero, page: ligne.pageImprimee, piste: ligne.piste })),
   };
   rejeux.push(mesure);
   console.log(JSON.stringify(mesure, null, 2));
@@ -191,8 +195,8 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
 // 95 associations exactes.
 if (choisis.has("paul-westwood") || choisis.has("aebersold-026")) {
   console.log("\nTémoin F3 : 70s Funk & Disco Bass");
-  const pdf = join(RACINE, "fixtures/fichiers/F3/'70s Funk & Disco Bass.pdf");
-  const dossier = join(RACINE, "fixtures/fichiers/F3");
+  const pdf = join(CORPUS, "Basse/Funk & Disco Bass/70 Funk & Disco Bass/'70s Funk & Disco Bass.pdf");
+  const dossier = join(CORPUS, "Basse/Funk & Disco Bass/70 Funk & Disco Bass");
   const reference = JSON.parse(readFileSync(join(RACINE, "docs/prototypes/70s_Funk_Disco_appariement_mp3.json"), "utf8")) as {
     appariements: { exercice: number; piste: number }[];
   };

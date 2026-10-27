@@ -8,7 +8,13 @@ const lire = (nom: string): unknown => JSON.parse(readFileSync(join(RECETTES, no
 
 describe("chargement d'une recette (REC-01)", () => {
   it("accepte les recettes prouvées du dépôt", () => {
-    for (const nom of ["methode-pastille-piste.v1.json", "methode-pastille-piste.v2.json", "methode-pastilles-cd.v4.json", "methode-pastilles-cd.v5.json"])
+    for (const nom of [
+      "methode-pastille-piste.v1.json",
+      "methode-pastille-piste.v2.json",
+      "methode-pastilles-cd.v4.json",
+      "methode-pastilles-cd.v5.json",
+      "methode-numero-compose-piste.v1.json",
+    ])
       expect(() => chargerRecette(lire(nom)), nom).not.toThrow();
   });
 

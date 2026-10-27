@@ -291,12 +291,13 @@ export function reperer(pages: readonly PageAlire[], recette: Recette, options: 
 export async function mediasDuDossier(dossier: string, recette?: Recette, extension = ".mp3"): Promise<Media[]> {
   const entrees = await readdir(dossier, { recursive: true, withFileTypes: true });
   const motif = recette?.audio?.motif_nom;
+  const exempleElement = recette?.lectures.find((lecture) => lecture.ancre === "element")?.numero?.exemple;
   const medias: Media[] = [];
 
   for (const entree of entrees) {
     if (!entree.isFile() || !entree.name.toLowerCase().endsWith(extension) || entree.name.startsWith(".")) continue;
     const chemin = join(entree.parentPath, entree.name);
-    const indices = lireNomMedia(basename(entree.name, extension), motif);
+    const indices = lireNomMedia(basename(entree.name, extension), motif, exempleElement);
     if (indices.piste === undefined) continue;
     medias.push({
       piste: indices.piste,
@@ -331,11 +332,12 @@ function disqueDuChemin(nom: string): number | undefined {
  *  que du nom d'origine conservé au dépôt (REC-05). */
 export function mediasDeLInventaire(inventaire: readonly MediaInventorie[], recette?: Recette): Media[] {
   const motif = recette?.audio?.motif_nom;
+  const exempleElement = recette?.lectures.find((lecture) => lecture.ancre === "element")?.numero?.exemple;
   const medias: Media[] = [];
   for (const entree of inventaire) {
     const extension = entree.nom.toLowerCase().endsWith(".mp3") ? ".mp3" : undefined;
     if (extension === undefined) continue;
-    const indices = lireNomMedia(basename(entree.nom, extension), motif);
+    const indices = lireNomMedia(basename(entree.nom, extension), motif, exempleElement);
     if (indices.piste === undefined) continue;
     const disque = disqueDuChemin(entree.nom) ?? indices.disque;
     medias.push({

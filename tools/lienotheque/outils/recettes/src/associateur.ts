@@ -1,4 +1,5 @@
 import type { LigneInterpretee, Recette } from "@lienotheque/contrats";
+import { formeDepuisExemple, rangDuNumero, type FormeDeNumero } from "./numeros.js";
 
 /** Associateur média (OUT-10) : relie les éléments lus aux médias, et dit ce qu'il n'a pas pu
  *  relier.
@@ -61,13 +62,13 @@ const CHAMPS = ["disque", "piste", "element", "page"] as const;
  *  Le motif est écrit en clair — « {disque}-{piste} {style} - {element} Pg.{page} » — et c'est
  *  lui qui dit où sont les nombres. Sans motif, on retombe sur le premier nombre du nom : c'est
  *  tout ce qu'on peut supposer sans rien savoir du document. */
-export function lireNomMedia(nom: string, motif?: string): IndicesDuNom {
+export function lireNomMedia(nom: string, motif?: string, exempleElement?: string): IndicesDuNom {
   if (motif === undefined) {
     const trouve = /(\d+)/.exec(nom);
     return trouve === null ? {} : { piste: Number(trouve[1]) };
   }
 
-  const ordre: string[] = [];
+  const ordre: { champ: string; forme?: FormeDeNumero }[] = [];
   let expression = "";
   let reste = motif;
   while (reste.length > 0) {
@@ -78,8 +79,13 @@ export function lireNomMedia(nom: string, motif?: string): IndicesDuNom {
     }
     expression += reste.slice(0, marque.index).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const champ = marque[1]!;
-    ordre.push(champ);
-    expression += CHAMPS.includes(champ as (typeof CHAMPS)[number]) ? "(\\d+)" : "(.+?)";
+    const forme = champ === "element" && exempleElement !== undefined ? formeDepuisExemple(exempleElement) : undefined;
+    ordre.push({ champ, ...(forme === undefined ? {} : { forme }) });
+    if (forme !== undefined) {
+      const source = forme.motif.source.replace(/^\^/, "").replace(/\$$/, "");
+      const separateurs = forme.separateurs.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      expression += `(${source})(?![\\d${separateurs}])`;
+    } else expression += CHAMPS.includes(champ as (typeof CHAMPS)[number]) ? "(\\d+)" : "(.+?)";
     reste = reste.slice(marque.index + marque[0].length);
   }
 
@@ -87,10 +93,11 @@ export function lireNomMedia(nom: string, motif?: string): IndicesDuNom {
   if (lu === null) return {};
 
   const indices: Record<string, number> = {};
-  ordre.forEach((champ, rang) => {
+  ordre.forEach(({ champ, forme }, rang) => {
     if (!CHAMPS.includes(champ as (typeof CHAMPS)[number])) return;
-    const valeur = Number(lu[rang + 1]);
-    if (Number.isFinite(valeur)) indices[champ] = valeur;
+    const brut = lu[rang + 1]!;
+    const valeur = forme === undefined ? Number(brut) : rangDuNumero(brut, forme);
+    if (valeur !== undefined && Number.isFinite(valeur)) indices[champ] = valeur;
   });
   return indices;
 }

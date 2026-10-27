@@ -62,6 +62,21 @@ describe("ce qu'un nom de fichier laisse deviner (REC-05)", () => {
     const lu = lireNomMedia("1-05 4_4 Blues And R&B - 136 Pg.69", "{disque}-{piste} {style} - {element} Pg.{page}");
     expect(lu).toMatchObject({ disque: 1, piste: 5, element: 136, page: 69 });
   });
+
+  it("lit un numéro hiérarchique selon l'exemple déclaré par la manière de lire", () => {
+    const motif = "{piste}-{description}#{element}";
+
+    expect(lireNomMedia("20-Chapter 5, Groove #5.19", motif, "5.19")).toEqual({ piste: 20, element: 5_019 });
+    expect(lireNomMedia("78-Chapter 6, Lick #6.4", motif, "5.19")).toEqual({ piste: 78, element: 6_004 });
+  });
+
+  it("s'abstient quand le numéro hiérarchique du nom est absent ou ambigu", () => {
+    const motif = "{piste}-{description}#{element}";
+
+    expect(lireNomMedia("01-Introduction", motif, "5.19")).toEqual({});
+    expect(lireNomMedia("20-Chapter 5, Groove #5.19.2", motif, "5.19")).toEqual({});
+    expect(lireNomMedia("20-Chapter 5, Groove #519", motif, "5.19")).toEqual({});
+  });
 });
 
 describe("supports multiples (A3)", () => {

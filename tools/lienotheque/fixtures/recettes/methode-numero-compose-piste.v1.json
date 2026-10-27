@@ -1,0 +1,35 @@
+{
+  "id": "methode-numero-compose-piste",
+  "version": 1,
+  "derivee_de": null,
+  "preparation": { "redressement": "aucun", "double_page": false },
+  "lectures": [
+    { "ancre": "page_imprimee", "zone": { "type": "coins", "bord": "bas" }, "alphabet": "chiffres" },
+    {
+      "ancre": "element",
+      "zone": { "type": "rectangle_rel", "x": 0.04, "y": 0.02, "l": 0.11, "h": 0.94 },
+      "hauteur_rel": { "min": 0.007, "max": 0.028 },
+      "alphabet": "chiffres",
+      "numero": { "exemple": "5.19" }
+    },
+    {
+      "ancre": "piste",
+      "outil": "pastilles",
+      "relatif_a": "element",
+      "position": "droite",
+      "motif": "losange_sombre_chiffres_clairs",
+      "etiquette_disque": false
+    }
+  ],
+  "regles": {
+    "elements": { "ordre": "strictement_croissant", "saut_max": 1000 },
+    "pistes": { "ordre": "croissant", "pas_autorises": [0, 1] },
+    "plusieurs_elements_par_piste": true,
+    "mention_suite": "cont'd"
+  },
+  "audio": {
+    "motif_nom": "{piste}-{description}#{element}",
+    "usage": "indice"
+  },
+  "validation": { "seuil_confiance": 0.6 }
+}
