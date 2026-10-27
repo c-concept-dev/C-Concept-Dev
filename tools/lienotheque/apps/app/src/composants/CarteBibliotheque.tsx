@@ -32,6 +32,8 @@ type Props = {
    *  dans une bibliothèque en regardant les documents d'une autre. Le lien reste un lien — pour
    *  le clavier et le menu contextuel — mais il dit d'abord **laquelle** on ouvre. */
   readonly onOuvrir?: (() => void) | undefined;
+  /** Renomme durablement la bibliothèque. Absent en lecture seule, notamment en ligne. */
+  readonly onRenommer?: (() => void) | undefined;
 };
 
 export function CarteBibliotheque({
@@ -46,6 +48,7 @@ export function CarteBibliotheque({
   ouverte,
   partages,
   onOuvrir,
+  onRenommer,
 }: Props): JSX.Element {
   const bandeau = { "--ln-collection": `var(--ln-collection-${collection})` } as CSSProperties;
   return (
@@ -84,6 +87,11 @@ export function CarteBibliotheque({
         </div>
         <div className="ln-carte__pied">
           <span className="ln-muted">Ouverte {ouverte}</span>
+          {onRenommer === undefined ? null : (
+            <button type="button" className="ln-lien-action" aria-label={`Renommer ${nom}`} onClick={onRenommer}>
+              Renommer
+            </button>
+          )}
           {partages === undefined ? null : (
             <span className="ln-etat ln-muted">
               <Icone nom="personnes" titre="Personnes ayant accès" />

@@ -23,11 +23,13 @@ type Props = {
   /** Ouvrir **cette** bibliothèque, désignée par son identifiant. Sans cela, toutes les cartes
    *  menaient au même écran, qui montrait toujours la même bibliothèque. */
   readonly onOuvrir?: ((id: string) => void) | undefined;
+  /** Renommer la bibliothèque sur le disque. L'Accueil en ligne n'expose pas cette action. */
+  readonly onRenommer?: ((id: string, nom: string) => void | Promise<void>) | undefined;
 };
 
 /** Accueil du CDC : cartes de bibliothèques, « reprendre où vous en étiez », cas à vérifier.
  *  Chaque section n'existe que si elle a du contenu : rien ne s'affiche à vide. */
-export function Accueil({ donnees, onFichiers, onCreer, onOuvrir }: Props): JSX.Element {
+export function Accueil({ donnees, onFichiers, onCreer, onOuvrir, onRenommer }: Props): JSX.Element {
   const { bibliotheques, reprises, aVerifier, traitement } = donnees;
 
   return (
@@ -85,6 +87,15 @@ export function Accueil({ donnees, onFichiers, onCreer, onOuvrir }: Props): JSX.
               <CarteBibliotheque
                 key={bibliotheque.id}
                 {...(onOuvrir === undefined ? {} : { onOuvrir: () => onOuvrir(bibliotheque.id) })}
+                {...(onRenommer === undefined
+                  ? {}
+                  : {
+                      onRenommer: () => {
+                        const propose = globalThis.prompt("Nouveau nom de la bibliothèque", bibliotheque.nom)?.trim();
+                        if (propose !== undefined && propose.length > 0 && propose !== bibliotheque.nom)
+                          void onRenommer(bibliotheque.id, propose);
+                      },
+                    })}
                 nom={bibliotheque.nom}
                 href={bibliotheque.href}
                 collection={bibliotheque.collection}

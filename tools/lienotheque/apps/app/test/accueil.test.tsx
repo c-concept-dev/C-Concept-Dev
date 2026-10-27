@@ -129,6 +129,17 @@ describe("accueil garni : composition des maquettes", () => {
     }
   });
 
+  it("permet de renommer une bibliothèque sans changer celle que l'on ouvre", async () => {
+    const utilisateur = userEvent.setup();
+    const renommer = vi.fn();
+    vi.spyOn(globalThis, "prompt").mockReturnValue("  Bibliothèque musicale  ");
+    render(<Accueil donnees={DEMONSTRATION} onFichiers={vi.fn()} onCreer={vi.fn()} onRenommer={renommer} />);
+
+    await utilisateur.click(screen.getByRole("button", { name: `Renommer ${DEMONSTRATION.bibliotheques[0]!.nom}` }));
+
+    expect(renommer).toHaveBeenCalledWith(DEMONSTRATION.bibliotheques[0]!.id, "Bibliothèque musicale");
+  });
+
   it("rend les positions depuis les sélecteurs d'ancres (ANC-01, ANC-02)", () => {
     garni();
     expect(screen.getByText(/Page 127/)).toBeInTheDocument();

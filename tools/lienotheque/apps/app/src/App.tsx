@@ -224,6 +224,22 @@ export function App(): JSX.Element {
     });
   };
 
+  /** Renomme sans déplacer ni réidentifier : les liens et les sources continuent donc de viser
+   *  exactement la même bibliothèque. Le nom du schéma suit le nom affiché pour ne pas montrer
+   *  deux intitulés différents selon l'écran. */
+  const renommerBibliotheque = async (id: string, nom: string): Promise<void> => {
+    if (administration === undefined) return;
+    const cible = creees.find((autre) => autre.description.id === id);
+    if (cible === undefined) return;
+    const description = {
+      ...cible.description,
+      nom,
+      schema: { ...cible.description.schema, nom },
+    };
+    await administration.ecrireBibliotheque(cible.racine, description);
+    setCreees((anciennes) => anciennes.map((autre) => (autre.description.id === id ? { ...autre, description } : autre)));
+  };
+
   /** Ce que la recherche de doublons a trouvé, et où elle en est (HER-08).
    *
    *  `trouves` absent **n'est pas** « rien trouvé » : c'est « pas encore cherché ». L'écran dit
@@ -881,6 +897,7 @@ export function App(): JSX.Element {
         onFichiers={deposer}
         onCreer={() => aller({ ecran: "creer" })}
         onOuvrir={choisirBibliotheque}
+        onRenommer={renommerBibliotheque}
       />
     );
   };
