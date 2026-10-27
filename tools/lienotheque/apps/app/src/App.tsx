@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import type {
   CasDouteux,
+  ArriveeDeFichiers,
   ApercuDocument,
   ClassementLocal,
   DescriptionBibliotheque,
@@ -17,7 +18,7 @@ import { EnTete } from "./EnTete.js";
 import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } from "./donnees/chargement.js";
 import { chargerPassages, chargerVue } from "./donnees/vue.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
-import { journaliser } from "./pont/bureau.js";
+import { journaliser, observerDepotsDeFichiers } from "./pont/bureau.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
 import { compteursDeBibliotheque, pourLAccueil } from "./donnees/accueil.js";
 import { Accueil } from "./pages/Accueil.js";
@@ -624,14 +625,81 @@ export function App(): JSX.Element {
   const derniere = creees[creees.length - 1];
 
   /** Dépose des fichiers : l'hôte copie les originaux et met la file à jour. */
+  const montrerArrivee = (arrivee: ArriveeDeFichiers): void => {
+    setFile(arrivee.travaux);
+    setAccompagnements((anciens) => [...anciens, ...arrivee.accompagnements]);
+    setRefuses(arrivee.refuses);
+  };
+
+  /** Le paquet reçoit les chemins réels déposés, fichiers comme dossiers récursifs.
+   * La version web garde son dépôt HTML habituel ; aucun faux chemin local n'y est inventé. */
+  useEffect(() => {
+    if (administration === undefined || courante === undefined) return;
+    let arreter: (() => void) | undefined;
+    let abandonne = false;
+    void observerDepotsDeFichiers((chemins) => {
+      void administration
+        .deposer(courante.racine, chemins)
+        .then(montrerArrivee)
+        .catch((erreur: unknown) => setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur)));
+    })
+      .then((retirerEcoute) => {
+        if (abandonne) retirerEcoute();
+        else arreter = retirerEcoute;
+      })
+      .catch((erreur: unknown) =>
+        setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur)),
+      );
+    return () => {
+      abandonne = true;
+      arreter?.();
+    };
+  }, [administration, courante?.racine]);
+
   const deposerDesFichiers = async (racine: string): Promise<void> => {
     if (administration === undefined) return;
     const chemins = await administration.choisirFichiers("Quels fichiers ajouter ?");
     if (chemins.length === 0) return;
-    const arrivee = await administration.deposer(racine, chemins);
-    setFile(arrivee.travaux);
-    setAccompagnements((anciens) => [...anciens, ...arrivee.accompagnements]);
-    setRefuses(arrivee.refuses);
+    montrerArrivee(await administration.deposer(racine, chemins));
+  };
+
+  const importerArchive = async (racine: string): Promise<void> => {
+    if (administration === undefined) return;
+    const chemins = await administration.choisirFichiers("Quel ZIP importer ?");
+    if (chemins.length === 0) return;
+    montrerArrivee(await administration.deposer(racine, chemins));
+  };
+
+  const analyserDesFichiers = async () => {
+    if (administration === undefined) return undefined;
+    const chemins = await administration.choisirFichiers("Quels documents et médias réunir ?");
+    return chemins.length === 0 ? undefined : administration.analyserDepot(chemins);
+  };
+
+  const analyserUnDossier = async () => {
+    if (administration === undefined) return undefined;
+    const chemin = await administration.choisirDossier("Quel dossier analyser récursivement ?");
+    return chemin === undefined ? undefined : administration.analyserDepot([chemin]);
+  };
+
+  const creerArchivePreparee = async (
+    racine: string,
+    analyse: import("@lienotheque/contrats").AnalyseDepot,
+    principal: string,
+    nom: string,
+    deposerApres: boolean,
+  ) => {
+    if (administration === undefined) return undefined;
+    const destination = await administration.choisirDossier("Où enregistrer le ZIP ?");
+    if (destination === undefined) return undefined;
+    const archive = await administration.creerArchive(
+      analyse.fichiers.map((fichier) => fichier.chemin),
+      principal,
+      destination,
+      nom,
+    );
+    if (deposerApres) montrerArrivee(await administration.deposer(racine, [archive.chemin]));
+    return archive;
   };
 
   /** Met un travail en pause, le reprend, ou l'annule. L'hôte décide, l'écran demande. */
@@ -869,6 +937,14 @@ export function App(): JSX.Element {
           accompagnements={accompagnements}
           refuses={refuses}
           onParcourir={administration !== undefined ? () => void deposerDesFichiers(derniere.racine) : undefined}
+          onImporterArchive={administration !== undefined ? () => void importerArchive(derniere.racine) : undefined}
+          onAnalyserFichiers={administration !== undefined ? analyserDesFichiers : undefined}
+          onAnalyserDossier={administration !== undefined ? analyserUnDossier : undefined}
+          onCreerArchive={
+            administration !== undefined
+              ? (analyse, principal, nom, deposerApres) => creerArchivePreparee(derniere.racine, analyse, principal, nom, deposerApres)
+              : undefined
+          }
           onFichiers={deposer}
           onAction={(id, action) => void agir(derniere.racine, id, action)}
           onVerifier={() => aller({ ecran: "verifier" })}

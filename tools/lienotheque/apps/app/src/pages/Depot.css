@@ -33,6 +33,43 @@
   gap: calc(var(--ln-grid) * 1.5);
 }
 
+.ln-assistant-depot,
+.ln-assistant-depot__panneau {
+  display: grid;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-assistant-depot .ln-muted,
+.ln-assistant-depot .ln-section {
+  margin: 0;
+}
+
+.ln-assistant-depot__choix {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ln-grid);
+}
+
+.ln-assistant-depot__panneau {
+  padding-top: calc(var(--ln-grid) * 1.5);
+  border-top: 1px solid var(--ln-border-decorative);
+}
+
+.ln-assistant-depot__documents {
+  display: grid;
+  gap: calc(var(--ln-grid) * 0.75);
+  margin: 0;
+  padding: calc(var(--ln-grid) * 1.5);
+  border: 1px solid var(--ln-border-decorative);
+  border-radius: var(--ln-radius);
+}
+
+.ln-assistant-depot__documents label {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+}
+
 .ln-traitement__barre {
   display: flex;
   flex-wrap: wrap;

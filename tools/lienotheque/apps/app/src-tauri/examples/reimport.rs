@@ -208,6 +208,7 @@ fn main() -> Result<(), String> {
         t.sujet = Some(travail::Sujet {
             nom: source.file_name().ok_or("nom")?.to_string_lossy().into_owned(),
             contenu: "documents".to_owned(),
+            medias_accompagnants: true,
         });
         t.empreinte = Some(empreinte);
         file::enregistrer(&depot.travaux(), &t).map_err(|e| format!("mise en file : {e}"))?;

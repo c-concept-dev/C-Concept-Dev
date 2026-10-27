@@ -1,5 +1,12 @@
-import type { JSX } from "react";
-import type { DescriptionBibliotheque, MotsBibliotheque, Travail, TypeDeContenu } from "@lienotheque/contrats";
+import { useState, type JSX } from "react";
+import type {
+  AnalyseDepot,
+  ArchivePreparee,
+  DescriptionBibliotheque,
+  MotsBibliotheque,
+  Travail,
+  TypeDeContenu,
+} from "@lienotheque/contrats";
 import { Bouton, FilAriane, Icone, Progression, ZoneDepot, type NomIcone } from "../composants/index.js";
 import "../styles/formulaire.css";
 import "./Depot.css";
@@ -69,6 +76,16 @@ type Props = {
   readonly refuses?: readonly { readonly nom: string; readonly raison: string }[] | undefined;
   /** Ouvre le sélecteur de fichiers du système. Absent sur le web, qui n'en a pas. */
   readonly onParcourir?: (() => void) | undefined;
+  readonly onImporterArchive?: (() => void) | undefined;
+  readonly onPreparerEnsemble?: (() => void) | undefined;
+  readonly onAnalyserFichiers?: (() => Promise<AnalyseDepot | undefined>) | undefined;
+  readonly onAnalyserDossier?: (() => Promise<AnalyseDepot | undefined>) | undefined;
+  readonly onCreerArchive?: ((
+    analyse: AnalyseDepot,
+    principal: string,
+    nom: string,
+    deposerApres: boolean,
+  ) => Promise<ArchivePreparee | undefined>) | undefined;
   readonly onFichiers: (fichiers: readonly File[]) => void;
   readonly onAction: (id: string, action: ActionTravail) => void;
   readonly onVerifier: () => void;
@@ -93,6 +110,11 @@ export function Depot({
   accompagnements,
   refuses,
   onParcourir,
+  onImporterArchive,
+  onPreparerEnsemble,
+  onAnalyserFichiers,
+  onAnalyserDossier,
+  onCreerArchive,
   onFichiers,
   onAction,
   onVerifier,
@@ -104,6 +126,47 @@ export function Depot({
 }: Props): JSX.Element {
   const enCours = travaux.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length;
   const enErreur = travaux.filter((travail) => travail.erreur !== undefined).length;
+  const [assistantOuvert, setAssistantOuvert] = useState(false);
+  const [analyse, setAnalyse] = useState<AnalyseDepot | undefined>(undefined);
+  const [principal, setPrincipal] = useState("");
+  const [nomArchive, setNomArchive] = useState("Ensemble");
+  const [archive, setArchive] = useState<ArchivePreparee | undefined>(undefined);
+  const [souciAssistant, setSouciAssistant] = useState<string | undefined>(undefined);
+  const [assistantOccupe, setAssistantOccupe] = useState(false);
+
+  const analyser = async (choisir: (() => Promise<AnalyseDepot | undefined>) | undefined): Promise<void> => {
+    if (choisir === undefined) return;
+    setAssistantOccupe(true);
+    setSouciAssistant(undefined);
+    setArchive(undefined);
+    try {
+      const resultat = await choisir();
+      if (resultat === undefined) return;
+      setAnalyse(resultat);
+      const premier = resultat.fichiers.find((fichier) => fichier.role === "principal")?.chemin ?? "";
+      setPrincipal(premier);
+      const nom = resultat.fichiers.find((fichier) => fichier.chemin === premier)?.nom.replace(/\.[^.]+$/, "");
+      if (nom !== undefined && nom !== "") setNomArchive(nom);
+    } catch (souci) {
+      setSouciAssistant(souci instanceof Error ? souci.message : String(souci));
+    } finally {
+      setAssistantOccupe(false);
+    }
+  };
+
+  const fabriquer = async (deposerApres: boolean): Promise<void> => {
+    if (analyse === undefined || onCreerArchive === undefined || principal === "") return;
+    setAssistantOccupe(true);
+    setSouciAssistant(undefined);
+    try {
+      const creee = await onCreerArchive(analyse, principal, nomArchive, deposerApres);
+      if (creee !== undefined) setArchive(creee);
+    } catch (souci) {
+      setSouciAssistant(souci instanceof Error ? souci.message : String(souci));
+    } finally {
+      setAssistantOccupe(false);
+    }
+  };
 
   return (
     <main id="contenu" className="ln-layout ln-traitement" tabIndex={-1}>
@@ -144,9 +207,88 @@ export function Depot({
         </p>
       </div>
 
+      <section className="ln-assistant-depot ln-panneau-titre" aria-labelledby="choix-depot">
+        <div>
+          <p id="choix-depot" className="ln-section">Comment voulez-vous ajouter cet ensemble&nbsp;?</p>
+          <p className="ln-muted">Les trois chemins produisent la même bibliothèque autonome.</p>
+        </div>
+        <div className="ln-assistant-depot__choix">
+          <button type="button" className="ln-btn ln-btn--secondaire" onClick={onParcourir} disabled={onParcourir === undefined}>
+            Déposer directement
+          </button>
+          <button type="button" className="ln-btn ln-btn--secondaire" onClick={onImporterArchive} disabled={onImporterArchive === undefined}>
+            Importer un ZIP
+          </button>
+          <button
+            type="button"
+            className="ln-btn ln-btn--primaire"
+            onClick={() => {
+              setAssistantOuvert((ouvert) => !ouvert);
+              onPreparerEnsemble?.();
+            }}
+            disabled={onAnalyserFichiers === undefined && onAnalyserDossier === undefined && onPreparerEnsemble === undefined}
+          >
+            Préparer un ensemble
+          </button>
+        </div>
+
+        {!assistantOuvert ? null : (
+          <div className="ln-assistant-depot__panneau">
+            <div className="ln-assistant-depot__choix">
+              <button type="button" className="ln-btn ln-btn--secondaire" onClick={() => void analyser(onAnalyserFichiers)} disabled={assistantOccupe || onAnalyserFichiers === undefined}>
+                Choisir des fichiers
+              </button>
+              <button type="button" className="ln-btn ln-btn--secondaire" onClick={() => void analyser(onAnalyserDossier)} disabled={assistantOccupe || onAnalyserDossier === undefined}>
+                Choisir un dossier
+              </button>
+            </div>
+
+            {analyse === undefined ? (
+              <p className="ln-muted">Les dossiers sont parcourus récursivement. Rien n’est copié avant votre validation.</p>
+            ) : (
+              <>
+                <p className="ln-section">
+                  {analyse.fichiers.length} fichier{analyse.fichiers.length > 1 ? "s" : ""} reconnu{analyse.fichiers.length > 1 ? "s" : ""}
+                  {analyse.doublons.length === 0 ? " · aucun doublon exact" : ` · ${analyse.doublons.length} groupe${analyse.doublons.length > 1 ? "s" : ""} de doublons`}
+                </p>
+                {analyse.avertissements.length === 0 ? null : (
+                  <ul className="ln-traitement__refuses">
+                    {analyse.avertissements.map((avertissement) => <li key={avertissement}><Icone nom="alerte" />{avertissement}</li>)}
+                  </ul>
+                )}
+                <fieldset className="ln-assistant-depot__documents">
+                  <legend>Document principal</legend>
+                  {analyse.fichiers.filter((fichier) => fichier.contenu === "documents").map((fichier) => (
+                    <label key={fichier.chemin}>
+                      <input type="radio" name="document-principal" value={fichier.chemin} checked={principal === fichier.chemin} onChange={() => setPrincipal(fichier.chemin)} />
+                      <span>{fichier.nom}</span>
+                    </label>
+                  ))}
+                </fieldset>
+                <label className="ln-champ">
+                  <span>Nom du ZIP</span>
+                  <input value={nomArchive} onChange={(evenement) => setNomArchive(evenement.currentTarget.value)} />
+                </label>
+                <div className="ln-assistant-depot__choix">
+                  <button type="button" className="ln-btn ln-btn--secondaire" disabled={assistantOccupe || principal === "" || onCreerArchive === undefined} onClick={() => void fabriquer(false)}>
+                    Créer le ZIP
+                  </button>
+                  <button type="button" className="ln-btn ln-btn--primaire" disabled={assistantOccupe || principal === "" || onCreerArchive === undefined} onClick={() => void fabriquer(true)}>
+                    Créer puis déposer
+                  </button>
+                </div>
+              </>
+            )}
+            {assistantOccupe ? <p role="status">Analyse en cours…</p> : null}
+            {souciAssistant === undefined ? null : <p className="ln-message-erreur" role="alert">{souciAssistant}</p>}
+            {archive === undefined ? null : <p className="ln-message-succes" role="status">ZIP créé et vérifié&nbsp;: {archive.chemin}</p>}
+          </div>
+        )}
+      </section>
+
       <ZoneDepot
         titre="Déposez vos fichiers ici"
-        aide="Documents, audio, vidéos et images — ou un ZIP contenant un PDF et ses MP3"
+        aide="Documents, audio, vidéos et images — séparés ou dans un ZIP contenant un PDF et ses MP3, ou d’autres formats reconnus"
         libelleBouton="Parcourir mes fichiers"
         onFichiers={onFichiers}
         {...(onParcourir === undefined ? {} : { onParcourir })}

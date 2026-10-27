@@ -1,4 +1,4 @@
-//! Ouverture bornée d'un ZIP qui réunit un document et ses enregistrements (C9.1).
+//! Ouverture bornée d'un ZIP qui réunit un ou plusieurs documents et leurs enregistrements (C9.1).
 //!
 //! Rien n'entre dans la bibliothèque pendant cette étape. L'archive entière est d'abord inspectée,
 //! puis ouverte dans un espace temporaire. Une entrée invalide refuse donc le lot entier : jamais
@@ -76,8 +76,8 @@ pub fn extraire(chemin: &Path) -> Result<ArchiveExtraite, String> {
     let mut a_ouvrir: Vec<(usize, PathBuf, String)> = Vec::new();
     let mut vus = HashSet::new();
     let mut total = 0_u64;
-    let mut pdf = 0_usize;
-    let mut mp3 = 0_usize;
+    let mut documents = 0_usize;
+    let mut accompagnements = 0_usize;
 
     for rang in 0..archive.len() {
         let entree = archive
@@ -133,25 +133,21 @@ pub fn extraire(chemin: &Path) -> Result<ArchiveExtraite, String> {
         if portable.is_empty() || !vus.insert(portable.to_lowercase()) {
             return Err(format!("Le chemin « {brut} » est vide ou apparaît deux fois. Renommez l'entrée puis recréez le ZIP."));
         }
-        match relatif.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).as_deref() {
-            Some("pdf") => pdf += 1,
-            Some("mp3") => mp3 += 1,
-            _ => {
-                return Err(format!(
-                    "« {portable} » n'est ni un PDF ni un MP3. Retirez ce fichier du ZIP puis réessayez."
-                ))
-            }
+        match crate::arrivee::contenu_de(&portable) {
+            Some("documents") => documents += 1,
+            Some("audio" | "videos" | "images") => accompagnements += 1,
+            _ => return Err(format!(
+                "« {portable} » n'est pas un document ou un média reconnu. Retirez ce fichier puis réessayez."
+            )),
         }
         a_ouvrir.push((rang, relatif, portable));
     }
 
-    if pdf != 1 {
-        return Err(format!(
-            "Ce ZIP contient {pdf} PDF ; il doit contenir un seul PDF et ses MP3. Gardez un seul PDF puis réessayez."
-        ));
+    if documents == 0 {
+        return Err("Ce ZIP ne contient aucun PDF ni autre document reconnu. Ajoutez un document et ses médias puis réessayez.".to_owned());
     }
-    if mp3 == 0 {
-        return Err("Ce ZIP ne contient aucun MP3. Ajoutez les MP3 qui accompagnent le PDF puis réessayez.".to_owned());
+    if accompagnements == 0 {
+        return Err("Ce ZIP ne contient aucun MP3 ni autre média reconnu. Ajoutez les médias qui accompagnent le document puis réessayez.".to_owned());
     }
 
     let temporaire = tempfile::Builder::new()
@@ -176,4 +172,31 @@ pub fn extraire(chemin: &Path) -> Result<ArchiveExtraite, String> {
     }
 
     Ok(ArchiveExtraite { _temporaire: temporaire, fichiers })
+}
+
+#[cfg(test)]
+mod assistant_tests {
+    use super::*;
+    use std::io::Write;
+    use zip::{write::SimpleFileOptions, ZipWriter};
+
+    #[test]
+    fn accepte_un_document_et_plusieurs_familles_d_accompagnement() {
+        let dossier = tempfile::tempdir().expect("dossier");
+        let chemin = dossier.path().join("ensemble.zip");
+        let mut zip = ZipWriter::new(fs::File::create(&chemin).expect("archive"));
+        for (nom, contenu) in [
+            ("document.epub", b"document".as_slice()),
+            ("audio/lecture.m4a", b"audio".as_slice()),
+            ("video/explication.mp4", b"video".as_slice()),
+            ("images/planche.png", b"image".as_slice()),
+        ] {
+            zip.start_file(nom, SimpleFileOptions::default()).expect("entrée");
+            zip.write_all(contenu).expect("contenu");
+        }
+        zip.finish().expect("fin");
+
+        let extraite = extraire(&chemin).expect("archive générique acceptée");
+        assert_eq!(extraite.fichiers.len(), 4);
+    }
 }

@@ -49,6 +49,14 @@ pub struct Verrou {
 pub struct Sujet {
     pub nom: String,
     pub contenu: String,
+    /// Faux pour un PDF complémentaire rangé sous `Supplements/` dans une archive : il reste un
+    /// document lisible, mais le moteur ne doit jamais lui présenter les pistes de la méthode.
+    #[serde(default = "medias_accompagnants_par_defaut")]
+    pub medias_accompagnants: bool,
+}
+
+fn medias_accompagnants_par_defaut() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
@@ -315,7 +323,11 @@ mod tests {
                 t.version_cible = "0190f0a0-0000-7000-8000-0000000000a1".to_owned();
                 t.cree_le = 1_760_000_000;
                 t.maj_le = 1_760_000_000;
-                t.sujet = Some(Sujet { nom: "un-document.pdf".to_owned(), contenu: "documents".to_owned() });
+                t.sujet = Some(Sujet {
+                    nom: "un-document.pdf".to_owned(),
+                    contenu: "documents".to_owned(),
+                    medias_accompagnants: true,
+                });
                 t
             },
             {
@@ -323,7 +335,11 @@ mod tests {
                 let mut t = Travail::neuf("0190f0a0-0000-7000-8000-000000000002", "traitement-de-lot", 286);
                 t.version_cible = "0190f0a0-0000-7000-8000-0000000000a2".to_owned();
                 t.cree_le = 1_760_000_100;
-                t.sujet = Some(Sujet { nom: "un-document.pdf".to_owned(), contenu: "documents".to_owned() });
+                t.sujet = Some(Sujet {
+                    nom: "un-document.pdf".to_owned(),
+                    contenu: "documents".to_owned(),
+                    medias_accompagnants: true,
+                });
                 t.avancer(194, "page");
                 t.battre("0190f0a0-0000-7000-8000-00000000ff01", 1_760_000_500, expiration_secondes());
                 t.maj_le = 1_760_000_500;
@@ -335,7 +351,11 @@ mod tests {
                 t.version_cible = "0190f0a0-0000-7000-8000-0000000000a3".to_owned();
                 t.cree_le = 1_760_000_200;
                 t.maj_le = 1_760_000_900;
-                t.sujet = Some(Sujet { nom: "un-disque.zip".to_owned(), contenu: "audio".to_owned() });
+                t.sujet = Some(Sujet {
+                    nom: "un-disque.zip".to_owned(),
+                    contenu: "audio".to_owned(),
+                    medias_accompagnants: true,
+                });
                 t.avancer(24, "piste");
                 t
             },

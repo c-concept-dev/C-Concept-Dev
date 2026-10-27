@@ -1,5 +1,7 @@
 import type {
   ApercuDocument,
+  AnalyseDepot,
+  ArchivePreparee,
   ArriveeDeFichiers,
   ClassementLocal,
   CorrespondanceBibliotheque,
@@ -73,6 +75,15 @@ export type PortAdministration = {
   /** Désigner sur la machine : ce que la version en ligne ne peut pas faire, et n'a pas à feindre. */
   readonly choisirDossier: (titre: string) => Promise<string | undefined>;
   readonly choisirFichiers: (titre: string) => Promise<readonly string[]>;
+
+  /** Préparer avant de déposer : inventaire récursif, copies exactes et archive portable. */
+  readonly analyserDepot: (chemins: readonly string[]) => Promise<AnalyseDepot>;
+  readonly creerArchive: (
+    chemins: readonly string[],
+    principal: string,
+    destination: string,
+    nom: string,
+  ) => Promise<ArchivePreparee>;
 
   /** La file : la remplir, la faire tourner, la lire, agir dessus. */
   readonly deposer: (racine: string, chemins: readonly string[]) => Promise<ArriveeDeFichiers>;
@@ -157,6 +168,8 @@ export const NOMS_D_ADMINISTRATION = [
   "bibliothequesRetenues",
   "choisirDossier",
   "choisirFichiers",
+  "analyserDepot",
+  "creerArchive",
   "deposer",
   "faireTourner",
   "travauxDe",

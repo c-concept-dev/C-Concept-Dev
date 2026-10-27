@@ -14,6 +14,7 @@ pub mod file;
 pub mod journal;
 pub mod limites;
 pub mod media;
+pub mod preparation;
 pub mod moteur;
 pub mod mesures;
 pub mod ocr;
@@ -147,7 +148,8 @@ pub fn arreter_les_roulements(etat: &Etat) {
 #[tauri::command]
 fn deposer(racine: String, chemins: Vec<String>) -> Result<serde_json::Value, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
-    let origines: Vec<PathBuf> = chemins.iter().map(PathBuf::from).collect();
+    let demandes: Vec<PathBuf> = chemins.iter().map(PathBuf::from).collect();
+    let origines = preparation::fichiers_reconnus(&demandes)?;
     let mut avertissements: Vec<String> = Vec::new();
     let arrivee = arrivee::deposer(&depot, &depot.travaux(), &origines, &mut |texte| avertissements.push(texte))
         .map_err(|e| format!("Dépôt impossible : {e}"))?;
@@ -157,6 +159,22 @@ fn deposer(racine: String, chemins: Vec<String>) -> Result<serde_json::Value, St
         "refuses": arrivee.refuses.iter().map(|(nom, raison)| serde_json::json!({ "nom": nom, "raison": raison })).collect::<Vec<_>>(),
         "avertissements": avertissements,
     }))
+}
+
+#[tauri::command]
+fn analyser_depot(chemins: Vec<String>) -> Result<preparation::AnalyseDepot, String> {
+    preparation::analyser(&chemins.into_iter().map(PathBuf::from).collect::<Vec<_>>())
+}
+
+#[tauri::command]
+fn creer_archive(
+    chemins: Vec<String>,
+    principal: String,
+    destination: String,
+    nom: String,
+) -> Result<preparation::ArchivePreparee, String> {
+    let analyse = preparation::analyser(&chemins.into_iter().map(PathBuf::from).collect::<Vec<_>>())?;
+    preparation::creer_archive(&analyse, &principal, Path::new(&destination), &nom)
 }
 
 /// La file d'une bibliothèque, telle que l'écran de traitement la montre.
@@ -1039,6 +1057,8 @@ fn lancer(captures: bool) {
             oublier_bibliotheque,
             supprimer_bibliotheque,
             deposer,
+            analyser_depot,
+            creer_archive,
             apercu_de_pages,
             essayer_maniere,
             enregistrer_maniere,

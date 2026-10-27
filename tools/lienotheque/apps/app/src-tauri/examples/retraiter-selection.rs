@@ -71,7 +71,11 @@ fn main() -> Result<(), String> {
         let id = uuid::Uuid::new_v4().to_string();
         let mut nouveau = travail::Travail::neuf(&id, "traitement-de-lot", 0);
         nouveau.version_cible = uuid::Uuid::new_v4().to_string();
-        nouveau.sujet = Some(travail::Sujet { nom: entree.nom.clone(), contenu: "documents".to_owned() });
+        nouveau.sujet = Some(travail::Sujet {
+            nom: entree.nom.clone(),
+            contenu: "documents".to_owned(),
+            medias_accompagnants: true,
+        });
         nouveau.empreinte = Some(empreinte.to_owned());
         file::enregistrer(&depot.travaux(), &nouveau).map_err(|e| format!("mise en file : {e}"))?;
         ids.insert(id);

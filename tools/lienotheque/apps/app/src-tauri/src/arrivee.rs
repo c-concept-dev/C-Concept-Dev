@@ -113,7 +113,11 @@ pub fn deposer(
                     let fichiers = extraite
                         .fichiers
                         .iter()
-                        .map(|fichier| FichierPret { chemin: &fichier.chemin, nom: fichier.nom.as_str() })
+                        .map(|fichier| FichierPret {
+                            chemin: &fichier.chemin,
+                            nom: fichier.nom.as_str(),
+                            medias_accompagnants: !est_supplement(&fichier.nom),
+                        })
                         .collect::<Vec<_>>();
                     deposer_prepares(depot, dossier_file, &fichiers, &mut deja, &mut arrivee);
                 }
@@ -125,7 +129,7 @@ pub fn deposer(
         deposer_prepares(
             depot,
             dossier_file,
-            &[FichierPret { chemin: origine, nom: &nom }],
+            &[FichierPret { chemin: origine, nom: &nom, medias_accompagnants: true }],
             &mut deja,
             &mut arrivee,
         );
@@ -137,6 +141,13 @@ pub fn deposer(
 struct FichierPret<'a> {
     chemin: &'a Path,
     nom: &'a str,
+    medias_accompagnants: bool,
+}
+
+fn est_supplement(nom: &str) -> bool {
+    Path::new(nom)
+        .components()
+        .any(|partie| partie.as_os_str().to_str().is_some_and(|texte| texte.eq_ignore_ascii_case("supplements")))
 }
 
 /// Dépose des fichiers déjà validés. Pour un ZIP, cette fonction n'est appelée qu'après que
@@ -169,8 +180,19 @@ fn deposer_prepares(
         };
 
         // Déjà là : on rend le travail existant plutôt que d'en créer un second (JOB-04).
-        if let Some(connu) = deja.iter().find(|t| t.empreinte.as_deref() == Some(empreinte.as_str())) {
-            arrivee.travaux.push(connu.clone());
+        if let Some(index) = deja.iter().position(|t| t.empreinte.as_deref() == Some(empreinte.as_str())) {
+            let mut connu = deja[index].clone();
+            if connu.sujet.as_ref().is_some_and(|sujet| sujet.medias_accompagnants != fichier.medias_accompagnants) {
+                if let Some(sujet) = connu.sujet.as_mut() {
+                    sujet.medias_accompagnants = fichier.medias_accompagnants;
+                }
+                if let Err(e) = travail::enregistrer(&dossier_file.join(format!("{}.json", connu.id)), &connu) {
+                    arrivee.refuses.push((nom_complet, format!("Rôle du document impossible à écrire : {e}")));
+                    continue;
+                }
+                deja[index] = connu.clone();
+            }
+            arrivee.travaux.push(connu);
             continue;
         }
 
@@ -199,7 +221,11 @@ fn deposer_prepares(
         let mut neuf = Travail::neuf(&uuid::Uuid::new_v4().to_string(), "traitement-de-lot", 0);
         neuf.version_cible = uuid::Uuid::new_v4().to_string();
         neuf.empreinte = Some(empreinte);
-        neuf.sujet = Some(Sujet { nom: nom_fichier, contenu: contenu.to_owned() });
+        neuf.sujet = Some(Sujet {
+            nom: nom_fichier,
+            contenu: contenu.to_owned(),
+            medias_accompagnants: fichier.medias_accompagnants,
+        });
 
         // Écrit avant que rien ne commence (JOB-01) : l'application peut être tuée à l'instant
         // d'après, le travail se retrouve au redémarrage.
@@ -315,21 +341,32 @@ mod tests {
     }
 
     #[test]
-    fn c9_1_refuse_plusieurs_pdf_sans_rien_deposer() {
+    fn c9_1_depose_plusieurs_pdf_et_leurs_mp3_dans_un_meme_zip() {
         let racine = bac("zip-deux-pdf");
         let source = bac("zip-deux-pdf-source");
         let origine = archive(
             &source,
-            "deux-documents.zip",
-            &[("Un.pdf", b"un"), ("Deux.pdf", b"deux"), ("Piste 01.mp3", b"audio")],
+            "Methode.zip",
+            &[("Methode/Methode.pdf", b"un"), ("Methode/Supplements/Methode - Supplement.pdf", b"deux"), ("Methode/Piste 01.mp3", b"audio")],
         );
         let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
 
-        let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("refus expliqué");
+        let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("dépôt ZIP");
 
-        assert!(arrivee.refuses[0].1.contains("un seul PDF"));
-        assert_eq!(sources(depot.racine()), 0);
-        assert!(file::charger_tout(&depot.travaux(), &mut |_| {}).expect("file").is_empty());
+        assert!(arrivee.refuses.is_empty());
+        assert_eq!(
+            arrivee
+                .travaux
+                .iter()
+                .filter_map(|travail| travail.sujet.as_ref().map(|sujet| sujet.nom.as_str()))
+                .collect::<Vec<_>>(),
+            vec!["Methode.pdf", "Methode - Supplement.pdf"]
+        );
+        assert!(arrivee.travaux[0].sujet.as_ref().expect("méthode").medias_accompagnants);
+        assert!(!arrivee.travaux[1].sujet.as_ref().expect("supplément").medias_accompagnants);
+        assert_eq!(arrivee.accompagnements, vec![("Methode/Piste 01.mp3".to_owned(), "audio".to_owned())]);
+        assert_eq!(sources(depot.racine()), 3);
+        assert_eq!(file::charger_tout(&depot.travaux(), &mut |_| {}).expect("file").len(), 2);
     }
 
     #[test]
@@ -407,8 +444,8 @@ mod tests {
 
         let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("refus expliqué");
 
-        assert!(arrivee.refuses[0].1.contains("0 PDF"));
-        assert!(arrivee.refuses[0].1.contains("un seul PDF"));
+        assert!(arrivee.refuses[0].1.contains("aucun PDF"));
+        assert!(arrivee.refuses[0].1.contains("Ajoutez"));
         assert_eq!(sources(depot.racine()), 0);
     }
 
@@ -465,6 +502,23 @@ mod tests {
         assert_eq!(arrivee.accompagnements.len(), 99);
         assert_eq!(depot.medias().expect("inventaire").len(), 99);
         assert_eq!(sources(depot.racine()), 100);
+    }
+
+    #[test]
+    #[ignore = "preuve manuelle sur la bibliothèque musicale privée"]
+    fn c9_1_preuve_reelle_depose_deux_archives_multi_pdf() {
+        let racine = PathBuf::from(std::env::var("LIENOTHEQUE_C9_BIBLIOTHEQUE").expect("bibliothèque"));
+        let origines = [
+            PathBuf::from(std::env::var("LIENOTHEQUE_C9_ZIP_021").expect("ZIP 021")),
+            PathBuf::from(std::env::var("LIENOTHEQUE_C9_ZIP_041").expect("ZIP 041")),
+        ];
+        let depot = Depot::ouvrir(racine).expect("dépôt");
+
+        let arrivee = deposer(&depot, &depot.travaux(), &origines, &mut |_| {}).expect("dépôt réel");
+
+        assert!(arrivee.refuses.is_empty(), "refus inattendus : {:?}", arrivee.refuses);
+        assert_eq!(arrivee.travaux.len(), 4, "deux documents par archive");
+        assert_eq!(arrivee.accompagnements.len(), 50, "33 + 17 MP3");
     }
 
     #[test]

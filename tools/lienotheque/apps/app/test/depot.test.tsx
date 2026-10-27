@@ -184,6 +184,18 @@ describe("navigation d'une grande bibliothèque", () => {
 });
 
 describe("ce qui est déposé mais ne se lit pas seul", () => {
+  it("offre séparément le dépôt direct, le ZIP existant et la préparation d'un ZIP", () => {
+    poser({
+      onParcourir: vi.fn(),
+      onImporterArchive: vi.fn(),
+      onPreparerEnsemble: vi.fn(),
+    });
+
+    expect(screen.getByRole("button", { name: "Déposer directement" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Importer un ZIP" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Préparer un ensemble" })).toBeInTheDocument();
+  });
+
   it("annonce le dépôt ZIP PDF et MP3 dans le même geste (C9.1)", () => {
     poser();
     expect(screen.getByText(/ZIP contenant un PDF et ses MP3/)).toBeInTheDocument();

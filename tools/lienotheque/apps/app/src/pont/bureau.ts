@@ -3,6 +3,8 @@ import type { DecisionVerification, PortAdministration, PortDeLecture } from "./
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   ApercuDocument,
+  AnalyseDepot,
+  ArchivePreparee,
   ArriveeDeFichiers,
   ClassementLocal,
   CorrespondancesBibliotheque,
@@ -32,6 +34,22 @@ export function estBureau(): boolean {
   // hôte derrière. Un défaut qui ne se voit que dans le paquet ne se cherche pas autrement — le
   // navigateur ne prend jamais ce chemin, et le paquet n'a pas de console.
   return import.meta.env?.DEV === true && new URLSearchParams(globalThis.location?.search ?? "").has("bureau");
+}
+
+/** Écoute le vrai glisser-déposer de fichiers du paquet Tauri.
+ *
+ * Le DOM d'une WebView ne reçoit pas des chemins exploitables : l'hôte, lui, les connaît. Le
+ * chargement dynamique garde cette dépendance native hors du chemin web et des tests navigateur. */
+export async function observerDepotsDeFichiers(
+  recevoir: (chemins: readonly string[]) => void,
+): Promise<() => void> {
+  if (typeof globalThis === "undefined" || !("__TAURI_INTERNALS__" in globalThis)) return () => undefined;
+  const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+  return getCurrentWebview().onDragDropEvent((evenement) => {
+    if (evenement.payload.type === "drop" && evenement.payload.paths.length > 0) {
+      recevoir(evenement.payload.paths);
+    }
+  });
 }
 
 /** Dit à l'hôte ce que la page affiche, pour qu'il l'écrive à son journal.
@@ -172,6 +190,19 @@ export async function choisirFichiers(titre: string): Promise<readonly string[]>
 /** Dépose des fichiers dans une bibliothèque. L'hôte copie les originaux et met la file à jour. */
 export async function deposer(racine: string, chemins: readonly string[]): Promise<ArriveeDeFichiers> {
   return ArriveeDeFichiers.parse(await invoke("deposer", { racine, chemins: [...chemins] }));
+}
+
+export async function analyserDepot(chemins: readonly string[]): Promise<AnalyseDepot> {
+  return AnalyseDepot.parse(await invoke("analyser_depot", { chemins: [...chemins] }));
+}
+
+export async function creerArchive(
+  chemins: readonly string[],
+  principal: string,
+  destination: string,
+  nom: string,
+): Promise<ArchivePreparee> {
+  return ArchivePreparee.parse(await invoke("creer_archive", { chemins: [...chemins], principal, destination, nom }));
 }
 
 /** Met la file d'une bibliothèque en route. Deux appels pour la même ne font qu'un roulement. */
@@ -385,6 +416,8 @@ export const administrationDuBureau: PortAdministration = {
   bibliothequesRetenues,
   choisirDossier,
   choisirFichiers,
+  analyserDepot,
+  creerArchive,
   deposer,
   faireTourner,
   travauxDe,

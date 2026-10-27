@@ -476,19 +476,22 @@ impl Roulement {
             return Err(Obstacle::Casse("Cette bibliothèque n’a pas de description.".to_owned()));
         }
 
-        let inventaire_medias = self
-            .depot
-            .medias()
-            .map_err(|e| Obstacle::Casse(format!("Inventaire des médias illisible : {e}")))?
-            .into_iter()
-            .filter(|media| media.contenu == "audio")
-            .map(|media| {
-                serde_json::json!({
-                    "nom": media.nom,
-                    "empreinte": media.empreinte,
+        let inventaire_medias = if sujet.medias_accompagnants {
+            self.depot
+                .medias()
+                .map_err(|e| Obstacle::Casse(format!("Inventaire des médias illisible : {e}")))?
+                .into_iter()
+                .filter(|media| media.contenu == "audio")
+                .map(|media| {
+                    serde_json::json!({
+                        "nom": media.nom,
+                        "empreinte": media.empreinte,
+                    })
                 })
-            })
-            .collect::<Vec<_>>();
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
 
         Ok(serde_json::json!({
             "document": document,
@@ -631,7 +634,11 @@ mod tests {
     fn travail_de(nom: &str) -> Travail {
         let mut t = Travail::neuf("0190f0a0-0000-7000-8000-000000000001", "traitement-de-lot", 0);
         t.version_cible = "0190f0a0-0000-7000-8000-0000000000a1".to_owned();
-        t.sujet = Some(crate::travail::Sujet { nom: nom.to_owned(), contenu: "documents".to_owned() });
+        t.sujet = Some(crate::travail::Sujet {
+            nom: nom.to_owned(),
+            contenu: "documents".to_owned(),
+            medias_accompagnants: true,
+        });
         t.empreinte = Some(EMPREINTE.to_owned());
         t
     }
@@ -687,6 +694,33 @@ mod tests {
         for champ in ["document", "medias", "inventaireMedias", "recette", "description", "cache", "images"] {
             assert!(charge.get(champ).is_some(), "{champ} manque");
         }
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    #[test]
+    fn ne_presente_aucun_media_a_un_document_supplementaire() {
+        let racine = bac("supplement-sans-media");
+        let r = roulement(racine.clone());
+        let base = r.depot.racine().join("base");
+        fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
+        fs::create_dir_all(&base).expect("base");
+        poser_source(&r, "pdf");
+        fs::write(base.join(RECETTE), b"{}").expect("recette");
+        fs::write(base.join("bibliotheque.json"), b"{}").expect("description");
+        r.depot
+            .enregistrer_media(crate::depot::MediaDepose {
+                empreinte: "2222222222222222222222222222222222222222222222222222222222222222".to_owned(),
+                nom: "Piste 01.mp3".to_owned(),
+                contenu: "audio".to_owned(),
+                extension: "mp3".to_owned(),
+            })
+            .expect("média");
+
+        let mut supplement = travail_de("Supplement.pdf");
+        supplement.sujet.as_mut().expect("sujet").medias_accompagnants = false;
+        let charge = r.charge_de(&supplement).expect("charge");
+
+        assert_eq!(charge["inventaireMedias"], serde_json::json!([]));
         fs::remove_dir_all(&racine).ok();
     }
 
