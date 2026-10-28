@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { coin, ouvrirCache } from "@lienotheque/cache";
 import {
   chargerRecette,
+  ciblesStructurellesAttendues,
   comparer,
   completerResultatParCiblesValidees,
   integrerCiblesValidees,
@@ -12,6 +13,7 @@ import {
   lireLot,
   mediasDeLInventaire,
   mediasDuDossier,
+  retenirCiblesValidees,
 } from "../src/index.js";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
 import { ResultatRecette } from "@lienotheque/contrats";
@@ -136,6 +138,70 @@ describe("comparateur strict du banc de vérité terrain (OUT-15)", () => {
 });
 
 describe("repli structurel validé", () => {
+  it("ne demande que les trous bornés par deux lectures de la même page", () => {
+    const pages = [
+      {
+        index: 72,
+        elements: [
+          { y: 0.2, numero: 5039, numeroLu: "5.39", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
+          { y: 0.8, numero: 5042, numeroLu: "5.42", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
+        ],
+      },
+      {
+        index: 73,
+        elements: [{ y: 0.2, numero: 5100, numeroLu: "5.100", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }],
+      },
+    ];
+    const medias = new Map([
+      [5040, { piste: 40, disque: 1 }],
+      [5041, { piste: 41, disque: 1 }],
+      [5099, { piste: 99, disque: 1 }],
+    ]);
+
+    expect(ciblesStructurellesAttendues(pages, medias, "5.19", new Set([5039, 5042]))).toEqual([
+      { numero: 5040, numeroLu: "5.40", pagesPdf: [73] },
+      { numero: 5041, numeroLu: "5.41", pagesPdf: [73] },
+    ]);
+  });
+
+  it("s'abstient devant un grand intervalle, un identifiant non structuré ou un média ambigu", () => {
+    const pages = [
+      {
+        index: 1,
+        elements: [
+          { y: 0.2, numero: 5001, numeroLu: "5.1", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
+          { y: 0.8, numero: 5010, numeroLu: "5.10", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
+        ],
+      },
+    ];
+    expect(ciblesStructurellesAttendues(pages, new Map([[5008, { piste: 8, disque: 1 }]]), "5.19", new Set())).toEqual([]);
+    expect(ciblesStructurellesAttendues(pages, new Map([[5008, { piste: 8, disque: 1 }]]), undefined, new Set())).toEqual([]);
+  });
+
+  it("propose les deux pages voisines à une rupture de page et ignore un élément déjà interprété", () => {
+    const pages = [
+      { index: 71, elements: [{ y: 0.8, numero: 5036, numeroLu: "5.36", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }] },
+      { index: 72, elements: [{ y: 0.2, numero: 5038, numeroLu: "5.38", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }] },
+    ];
+    const medias = new Map([[5037, { piste: 37, disque: 1 }]]);
+    expect(ciblesStructurellesAttendues(pages, medias, "5.19", new Set())).toEqual([
+      { numero: 5037, numeroLu: "5.37", pagesPdf: [72, 73] },
+    ]);
+    expect(ciblesStructurellesAttendues(pages, medias, "5.19", new Set([5037]))).toEqual([]);
+  });
+
+  it("rejette toute validation qui ne répond pas exactement à une cible demandée sur sa page", () => {
+    const attendues = [{ numero: 5008, numeroLu: "5.8", pagesPdf: [64, 65] }];
+    const zone = { x: 0.09, y: 0.63, l: 0.04, h: 0.04 };
+    expect(
+      retenirCiblesValidees(attendues, [
+        { numero: 5008, numeroLu: "5.8", pagePdf: 65, zone, confiance: 0.95 },
+        { numero: 5008, numeroLu: "5.8", pagePdf: 66, zone, confiance: 0.99 },
+        { numero: 5009, numeroLu: "5.9", pagePdf: 65, zone, confiance: 0.99 },
+      ]),
+    ).toEqual([{ numero: 5008, numeroLu: "5.8", pagePdf: 65, zone, confiance: 0.95 }]);
+  });
+
   it("ajoute seulement une cible vue avec confiance et corroborée par un média unique", () => {
     const pages = [
       {

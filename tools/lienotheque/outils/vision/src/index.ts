@@ -7,3 +7,4 @@ export * from "./relecture.js";
 export * from "./transport.js";
 export * from "./diagnostic-structurel.js";
 export * from "./coordinateur-lecture-difficile.js";
+export * from "./validation-structurelle.js";

@@ -1,7 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { exporterPages } from "./pages-images.js";
 import { DescriptionBibliotheque, type Passage, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
-import { chargerRecette, rejouer, type Association, type Media, type MediaInventorie, type Relecture } from "@lienotheque/recettes";
+import {
+  chargerRecette,
+  rejouer,
+  type Association,
+  type Media,
+  type MediaInventorie,
+  type Relecture,
+  type ValidationStructurelle,
+} from "@lienotheque/recettes";
 import { type AdresseRecurrente, adressesRecurrentes, enPassages, langueOcr } from "@lienotheque/lecteur-texte";
 import { construireVue } from "./instantane.js";
 import { lireLeTexte } from "./texte.js";
@@ -47,6 +55,8 @@ export type Lot = {
   /** De quoi relire les repères difficiles, quand la recette en déclare une. Passée telle quelle
    *  à la chaîne : l'instantané des écrans vient du même traitement que la mesure. */
   readonly relecture?: Relecture | undefined;
+  /** Validation des rares ruptures structurelles corroborées par les noms de médias. */
+  readonly validationStructurelle?: ValidationStructurelle | undefined;
   /** Appelé après chaque cliché lu, pour dire où en est le traitement (JOB-03). */
   readonly avancement?: ((faits: number, total: number) => void) | undefined;
   /** Combien de pages le document porte, dit une fois avant la première lecture. Sans lui, un
@@ -148,6 +158,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
     ...(lot.cache === undefined ? {} : { cache: lot.cache }),
     ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
+    ...(lot.validationStructurelle === undefined ? {} : { validationStructurelle: lot.validationStructurelle }),
     ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
     ...(lot.surTotal === undefined ? {} : { surTotal: lot.surTotal }),
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),

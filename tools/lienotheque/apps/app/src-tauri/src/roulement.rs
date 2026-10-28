@@ -46,6 +46,10 @@ use std::{
 /// suite, assez rarement pour ne rien coûter quand il n'y a rien à faire.
 const PAS: Duration = Duration::from_millis(1000);
 
+/// Service officiel qui garde les clés des modèles hors de l'application. Sans jeton dans le
+/// trousseau, le moteur continue localement et dit que les validations distantes sont inactives.
+const ADRESSE_RELECTURE: &str = "https://lienotheque-api.11drumboy11.workers.dev";
+
 /// Le nom du fichier qui porte la manière de lire d'une bibliothèque.
 pub const RECETTE: &str = "recette.json";
 
@@ -501,6 +505,7 @@ impl Roulement {
             "description": description,
             "cache": self.cache,
             "images": racine.join(crate::depot::DERIVES).join(&travail.version_cible).join("pages"),
+            "relecture": ADRESSE_RELECTURE,
         }))
     }
 }
@@ -691,9 +696,10 @@ mod tests {
         fs::write(base.join("bibliotheque.json"), b"{}").expect("description");
 
         let charge = r.charge_de(&travail_de("un.pdf")).expect("charge");
-        for champ in ["document", "medias", "inventaireMedias", "recette", "description", "cache", "images"] {
+        for champ in ["document", "medias", "inventaireMedias", "recette", "description", "cache", "images", "relecture"] {
             assert!(charge.get(champ).is_some(), "{champ} manque");
         }
+        assert_eq!(charge["relecture"], serde_json::json!("https://lienotheque-api.11drumboy11.workers.dev"));
         fs::remove_dir_all(&racine).ok();
     }
 

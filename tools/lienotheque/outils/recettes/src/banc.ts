@@ -20,6 +20,7 @@ import { interpreter, type LectureParVision, type PageLue, type SupportsPresents
 import { lireCoucheTexte, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
 import { texteDePage } from "@lienotheque/contrats";
 import { VERSION_LECTURE, consolider, lecturesDePage, lireNumeroPage, type OptionsReperes } from "./reperes.js";
+import { formeDepuisExemple, recomposer, rangDuNumero } from "./numeros.js";
 
 /** Banc d'essai (OUT-15) : rejoue les fixtures après chaque changement d'outil ou de recette.
  *
@@ -64,6 +65,14 @@ export type Relecture = (contexte: {
   readonly options: OptionsBanc;
 }) => Promise<ReadonlyMap<string, LectureParVision>>;
 
+/** Validation ponctuelle de cibles structurelles. Le port reçoit uniquement des ruptures
+ * bornées par la lecture locale ; il localise, ou s'abstient. */
+export type ValidationStructurelle = (contexte: {
+  readonly chemin: string;
+  readonly recette: Recette;
+  readonly cibles: readonly CibleStructurelleAttendue[];
+}) => Promise<readonly CibleStructurelleValidee[]>;
+
 export type OptionsBanc = OptionsReperes & {
   /** Médias déjà inventoriés par l'hôte. Leur nom d'origine sert à lire leur rang ; leur
    *  empreinte évite de relire chaque gros fichier uniquement pour la recalculer. */
@@ -90,6 +99,9 @@ export type OptionsBanc = OptionsReperes & {
   /** Identifiants que le repli structurel a réellement localisés. Ils ne deviennent des
    * éléments que si un média unique et indépendant porte exactement le même identifiant. */
   readonly ciblesValidees?: readonly CibleStructurelleValidee[];
+  /** Repli automatique, appelé seulement pour de petites ruptures corroborées par l'inventaire
+   * des médias. Absent, la chaîne locale reste strictement inchangée. */
+  readonly validationStructurelle?: ValidationStructurelle;
   /** Dossier où garder les lectures. Absent, rien n'est gardé. */
   readonly cache?: string | undefined;
   /** Rend les pages redressées et coupées, mais sans binarisation.
@@ -112,6 +124,105 @@ export type CibleStructurelleValidee = {
   readonly zone: ZoneRelative;
   readonly confiance: number;
 };
+
+export type CibleStructurelleAttendue = {
+  readonly numero: number;
+  readonly numeroLu: string;
+  /** Une rupture entre deux pages peut honnêtement appartenir à l'une ou l'autre. Le valideur
+   * reçoit les deux et doit localiser la cible sur une page réellement transmise. */
+  readonly pagesPdf: readonly number[];
+};
+
+const BASE_GROUPE_NUMERO = 1_000;
+const ECART_MAX_REPLI_STRUCTUREL = 4;
+
+/** Recompose la graphie d'un rang composé sans la deviner depuis le document.
+ *
+ * L'exemple de la recette est la seule autorité sur le nombre de groupes et leurs séparateurs.
+ * La vérification inverse empêche une valeur tronquée ou hors forme de devenir une cible. */
+function numeroLuDepuisRang(numero: number, exemple: string): string | undefined {
+  const forme = formeDepuisExemple(exemple);
+  if (!Number.isSafeInteger(numero) || numero <= 0) return undefined;
+  if (forme.groupes === 1) return forme.motif.test(String(numero)) ? String(numero) : undefined;
+  const groupes = Array.from({ length: forme.groupes }, () => 0);
+  let reste = numero;
+  for (let rang = groupes.length - 1; rang >= 0; rang -= 1) {
+    groupes[rang] = reste % BASE_GROUPE_NUMERO;
+    reste = Math.floor(reste / BASE_GROUPE_NUMERO);
+  }
+  if (reste !== 0 || groupes[0] === 0) return undefined;
+  const lu = recomposer(groupes.map(String), forme);
+  return lu !== undefined && rangDuNumero(lu, forme) === numero ? lu : undefined;
+}
+
+/** Déduit seulement les petites ruptures encadrées par deux lectures voisines.
+ *
+ * Le nom des médias donne des cibles possibles, jamais une preuve. Une cible n'est demandée que
+ * si elle manque entre deux identifiants déjà lus sur la même page ou deux pages consécutives.
+ * Les grands intervalles et les recettes sans forme composée restent en abstention. */
+export function ciblesStructurellesAttendues(
+  pages: readonly PageLue[],
+  mediasParElement: ReadonlyMap<number, { readonly piste: number; readonly disque: number }>,
+  exemple: string | undefined,
+  numerosInterpretes: ReadonlySet<number>,
+): CibleStructurelleAttendue[] {
+  if (exemple === undefined || formeDepuisExemple(exemple).groupes < 2) return [];
+  const parNumero = new Map<number, Set<number>>();
+  for (const page of pages)
+    for (const element of page.elements) {
+      const pagesDeLElement = parNumero.get(element.numero) ?? new Set<number>();
+      pagesDeLElement.add(page.index + 1);
+      parNumero.set(element.numero, pagesDeLElement);
+    }
+  const numerosLus = [...parNumero.keys()].sort((a, b) => a - b);
+  const cibles: CibleStructurelleAttendue[] = [];
+  for (const numero of mediasParElement.keys()) {
+    if (numerosInterpretes.has(numero)) continue;
+    const numeroLu = numeroLuDepuisRang(numero, exemple);
+    if (numeroLu === undefined) continue;
+    const prefixe = Math.floor(numero / BASE_GROUPE_NUMERO);
+    const memeSerie = numerosLus.filter((lu) => Math.floor(lu / BASE_GROUPE_NUMERO) === prefixe);
+    const avant = memeSerie.filter((lu) => lu < numero).at(-1);
+    const apres = memeSerie.find((lu) => lu > numero);
+    if (
+      avant === undefined ||
+      apres === undefined ||
+      numero - avant > ECART_MAX_REPLI_STRUCTUREL / 2 ||
+      apres - numero > ECART_MAX_REPLI_STRUCTUREL / 2
+    )
+      continue;
+    const pagesAvant = [...(parNumero.get(avant) ?? [])];
+    const pagesApres = [...(parNumero.get(apres) ?? [])];
+    const communes = pagesAvant.filter((page) => pagesApres.includes(page));
+    const paires = pagesAvant.flatMap((gauche) => pagesApres.map((droite) => ({ gauche, droite, distance: Math.abs(gauche - droite) })));
+    const distanceMinimale = paires.length === 0 ? Number.POSITIVE_INFINITY : Math.min(...paires.map((paire) => paire.distance));
+    const pagesPdf = (
+      communes.length > 0
+        ? communes
+        : distanceMinimale <= 1
+          ? paires.filter((paire) => paire.distance === distanceMinimale).flatMap((paire) => [paire.gauche, paire.droite])
+          : []
+    ).filter((page, rang, toutes) => toutes.indexOf(page) === rang).sort((a, b) => a - b);
+    if (pagesPdf.length > 0) cibles.push({ numero, numeroLu, pagesPdf });
+  }
+  return cibles.sort((a, b) => a.numero - b.numero).slice(0, 32);
+}
+
+/** Ferme la frontière du port : une réponse ne peut ni changer de page, ni ajouter une cible que
+ * la lecture locale n'avait pas demandée. */
+export function retenirCiblesValidees(
+  attendues: readonly CibleStructurelleAttendue[],
+  rendues: readonly CibleStructurelleValidee[],
+): CibleStructurelleValidee[] {
+  const parClef = new Map(attendues.map((cible) => [`${cible.numero}/${cible.numeroLu}`, new Set(cible.pagesPdf)]));
+  const deja = new Set<string>();
+  return rendues.filter((cible) => {
+    const clef = `${cible.numero}/${cible.numeroLu}`;
+    if (!parClef.get(clef)?.has(cible.pagePdf) || deja.has(clef)) return false;
+    deja.add(clef);
+    return true;
+  });
+}
 
 /** Intègre les seules lectures de repli prouvées par deux sources indépendantes : la cible
  * visible sur la page et un média unique qui porte le même identifiant. Rien n'est ajouté si la
@@ -543,29 +654,45 @@ export async function rejouer(pdf: string, dossierMedias: string, recette: Recet
       }
   }
   const luesBrutes = await lireLot(pdf, recette, options);
-  const lues =
-    recette.audio?.usage === "corroboration_exacte" && options.ciblesValidees !== undefined
-      ? integrerCiblesValidees(luesBrutes, options.ciblesValidees, mediasParElement, recette.validation.seuil_confiance)
-      : luesBrutes;
 
   // La relecture ciblée, quand une est branchée. Elle vient après la lecture et avant
   // l'interprétation : elle ne lit pas à la place du lecteur, elle revient sur ce dont il doute.
   const vision =
     options.relecture === undefined
       ? undefined
-      : await options.relecture({ chemin: pdf, recette, lues, nombreDePistes: medias.length, supports, options });
+      : await options.relecture({ chemin: pdf, recette, lues: luesBrutes, nombreDePistes: medias.length, supports, options });
 
-  const interprete = interpreter(lues, recette, {
+  const optionsInterpretation = {
     nombreDePistes: medias.length,
     supports,
     ...(recette.audio?.usage === "corroboration_exacte" ? { mediasParElement } : {}),
     ...(vision === undefined ? {} : { vision }),
-  });
+  };
+  const premierInterprete = interpreter(luesBrutes, recette, optionsInterpretation);
+  const exempleElement = recette.lectures.find((lecture) => lecture.ancre === "element")?.numero?.exemple;
+  const attendues =
+    recette.audio?.usage === "corroboration_exacte" && options.validationStructurelle !== undefined
+      ? ciblesStructurellesAttendues(
+          luesBrutes,
+          mediasParElement,
+          exempleElement,
+          new Set(premierInterprete.lignes.map((ligne) => ligne.numero)),
+        )
+      : [];
+  const valideesAutomatiques =
+    options.ciblesValidees === undefined && options.validationStructurelle !== undefined && attendues.length > 0
+      ? retenirCiblesValidees(attendues, await options.validationStructurelle({ chemin: pdf, recette, cibles: attendues }))
+      : undefined;
+  const ciblesValidees = options.ciblesValidees ?? valideesAutomatiques;
+  // Ne jamais remettre toute la suite en ordre autour de boîtes Vision, dont la position reste
+  // moins précise que celle du lecteur local. Le complément ci-dessous ajoute les seules cibles
+  // validées au résultat déjà interprété et ne peut donc faire disparaître un repère juste.
+  const interprete = premierInterprete;
   const resultat =
-    recette.audio?.usage === "corroboration_exacte" && options.ciblesValidees !== undefined
+    recette.audio?.usage === "corroboration_exacte" && ciblesValidees !== undefined
       ? completerResultatParCiblesValidees(
           interprete,
-          options.ciblesValidees,
+          ciblesValidees,
           mediasParElement,
           recette.validation.seuil_confiance,
         )

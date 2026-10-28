@@ -7,7 +7,13 @@ import {
   desaccordDeProtocole,
   type MessageVersHote,
 } from "@lienotheque/contrats";
-import { jetonDacces, relectureCiblee, transportVersWorker } from "@lienotheque/vision";
+import {
+  jetonDacces,
+  relectureCiblee,
+  transportValidationCiblesVersWorker,
+  transportVersWorker,
+  validationStructurelleCiblee,
+} from "@lienotheque/vision";
 import { sousDossier } from "@lienotheque/cache";
 import { causeLisible } from "@lienotheque/noyau";
 import { instantaneDeLot, type LotTraite } from "./lot.js";
@@ -126,7 +132,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
     // même : elle ne relit simplement rien.
     const jeton = charge.relecture === undefined ? undefined : jetonDacces();
     if (charge.relecture !== undefined && jeton === undefined)
-      return echec(demande.travailId, "Relecture demandée mais aucun jeton : ni dans l'environnement, ni dans le trousseau.", false);
+      dire("Aucun jeton dans l'environnement ni dans le trousseau : validations distantes inactives.", "avertissement");
 
     dire("Lecture du document");
 
@@ -166,6 +172,10 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
                     `${bilan.depuisLeCache} depuis le cache, ${bilan.cout.toFixed(4)} €`,
                 ),
             }),
+            validationStructurelle: validationStructurelleCiblee(
+              transportValidationCiblesVersWorker(charge.relecture, jeton),
+              charge.cache === undefined ? {} : { cache: sousDossier(charge.cache, "vision-structurelle") },
+            ),
           }),
       // Le point de reprise part à l'hôte, qui le persiste (JOB-03). La reprise effective tient
       // aujourd'hui au cache de lecture : relancer un lot déjà lu ne relit pas ses pages.
