@@ -72,6 +72,10 @@ export type PortAdministration = {
   /** Mettre le dossier à la corbeille, et l'oublier. Rend où il a atterri. */
   readonly supprimerBibliotheque: (racine: string) => Promise<string>;
   readonly bibliothequesRetenues: () => Promise<readonly { racine: string; description: DescriptionBibliotheque }[]>;
+  /** Compare le paquet ouvert à celui de la bibliothèque ; toute écriture exige ensuite un
+   *  second geste explicite. Les données de la bibliothèque ne font pas partie de cette action. */
+  readonly etatApplicationEmbarquee: (racine: string) => Promise<EtatApplicationEmbarquee>;
+  readonly mettreAJourApplicationEmbarquee: (racine: string) => Promise<EtatApplicationEmbarquee>;
 
   /** Désigner sur la machine : ce que la version en ligne ne peut pas faire, et n'a pas à feindre. */
   readonly choisirDossier: (titre: string) => Promise<string | undefined>;
@@ -145,6 +149,14 @@ export type PortAdministration = {
   readonly retirerDocument: (racine: string, empreinte: string) => Promise<RetraitDeDocument>;
 };
 
+export type EtatApplicationEmbarquee = {
+  readonly statut: "absente" | "non_referencee" | "a_jour" | "mise_a_jour_disponible" | "source_plus_ancienne";
+  readonly versionCourante: string;
+  readonly versionEmbarquee: string | null;
+  readonly message: string;
+  readonly actionDisponible: boolean;
+};
+
 export type DecisionVerification = "confirme" | "corrige" | "ignore" | "vu";
 
 /** Les noms de chaque port, pour que le partage soit vérifiable à l'exécution.
@@ -171,6 +183,8 @@ export const NOMS_D_ADMINISTRATION = [
   "oublierBibliotheque",
   "supprimerBibliotheque",
   "bibliothequesRetenues",
+  "etatApplicationEmbarquee",
+  "mettreAJourApplicationEmbarquee",
   "choisirDossier",
   "choisirFichiers",
   "analyserDepot",

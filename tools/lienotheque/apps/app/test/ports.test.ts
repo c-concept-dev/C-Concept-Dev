@@ -53,6 +53,13 @@ describe("deux ports, et une frontière qui tient", () => {
     }
   });
 
+  it("la mise à jour de l'application embarquée exige le port d'administration", () => {
+    for (const geste of ["etatApplicationEmbarquee", "mettreAJourApplicationEmbarquee"]) {
+      expect(NOMS_D_ADMINISTRATION as readonly string[]).toContain(geste);
+      expect(NOMS_DE_LECTURE as readonly string[]).not.toContain(geste);
+    }
+  });
+
   it("aucune fonction n'appartient aux deux ports", () => {
     const communes = (NOMS_DE_LECTURE as readonly string[]).filter((nom) =>
       (NOMS_D_ADMINISTRATION as readonly string[]).includes(nom),

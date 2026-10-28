@@ -267,4 +267,29 @@ describe("tester une copie portable", () => {
     await utilisateur.click(screen.getByRole("button", { name: /Tester temporairement une copie/ }));
     expect(tester).toHaveBeenCalledTimes(1);
   });
+
+  it("annonce une mise à jour embarquée et ne l'applique qu'après un clic explicite", async () => {
+    const utilisateur = userEvent.setup();
+    const mettreAJour = vi.fn();
+    render(
+      <Accueil
+        donnees={DEMONSTRATION}
+        onFichiers={vi.fn()}
+        onCreer={vi.fn()}
+        applicationEmbarquee={{
+          statut: "mise_a_jour_disponible",
+          versionCourante: "0.2.0",
+          versionEmbarquee: "0.1.0",
+          message: "La version 0.2.0 peut remplacer la version 0.1.0.",
+          actionDisponible: true,
+        }}
+        onMettreAJourApplication={mettreAJour}
+      />,
+    );
+
+    expect(mettreAJour).not.toHaveBeenCalled();
+    expect(screen.getByText(/Données de la bibliothèque inchangées/)).toBeInTheDocument();
+    await utilisateur.click(screen.getByRole("button", { name: "Mettre à jour l’application embarquée" }));
+    expect(mettreAJour).toHaveBeenCalledTimes(1);
+  });
 });

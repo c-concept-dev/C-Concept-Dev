@@ -1,5 +1,5 @@
 import { invoke as invoquerSansTrace } from "@tauri-apps/api/core";
-import type { DecisionVerification, PortAdministration, PortDeLecture } from "./port.js";
+import type { DecisionVerification, EtatApplicationEmbarquee, PortAdministration, PortDeLecture } from "./port.js";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   ApercuDocument,
@@ -117,6 +117,29 @@ export async function lireBibliotheque(racine: string): Promise<DescriptionBibli
 /** Réécrit la description d'une bibliothèque qui existe déjà (CLA-03, CLA-08). */
 export async function ecrireBibliotheque(racine: string, description: DescriptionBibliotheque): Promise<void> {
   await invoke("ecrire_bibliotheque", { racine, description: JSON.stringify(description) });
+}
+
+function lireEtatApplicationEmbarquee(brut: unknown): EtatApplicationEmbarquee {
+  if (typeof brut !== "object" || brut === null) throw new Error("État de l'application embarquée invalide.");
+  const objet = brut as Record<string, unknown>;
+  const statuts = ["absente", "non_referencee", "a_jour", "mise_a_jour_disponible", "source_plus_ancienne"] as const;
+  if (
+    !statuts.includes(objet["statut"] as (typeof statuts)[number]) ||
+    typeof objet["versionCourante"] !== "string" ||
+    !(objet["versionEmbarquee"] === null || typeof objet["versionEmbarquee"] === "string") ||
+    typeof objet["message"] !== "string" ||
+    typeof objet["actionDisponible"] !== "boolean"
+  )
+    throw new Error("État de l'application embarquée incomplet.");
+  return objet as EtatApplicationEmbarquee;
+}
+
+export async function etatApplicationEmbarquee(racine: string): Promise<EtatApplicationEmbarquee> {
+  return lireEtatApplicationEmbarquee(await invoke("etat_application_embarquee", { racine }));
+}
+
+export async function mettreAJourApplicationEmbarquee(racine: string): Promise<EtatApplicationEmbarquee> {
+  return lireEtatApplicationEmbarquee(await invoke("mettre_a_jour_application_embarquee", { racine }));
 }
 
 /** Ouvre le sélecteur de dossier du système, et rend le chemin choisi — ou rien si l'on renonce. */
@@ -428,6 +451,8 @@ export const administrationDuBureau: PortAdministration = {
   oublierBibliotheque,
   supprimerBibliotheque,
   bibliothequesRetenues,
+  etatApplicationEmbarquee,
+  mettreAJourApplicationEmbarquee,
   choisirDossier,
   choisirFichiers,
   analyserDepot,

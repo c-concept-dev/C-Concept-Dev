@@ -9,6 +9,7 @@ import {
 } from "../composants/index.js";
 import { decrireCompteur, nombreFrancais, type DonneesAccueil } from "../donnees/modele.js";
 import { decrireParcours, decrirePosition } from "../donnees/positions.js";
+import type { EtatApplicationEmbarquee } from "../pont/port.js";
 import "./Accueil.css";
 
 type Props = {
@@ -27,11 +28,22 @@ type Props = {
   readonly onTesterCopie?: (() => void) | undefined;
   /** Renommer la bibliothèque sur le disque. L'Accueil en ligne n'expose pas cette action. */
   readonly onRenommer?: ((id: string, nom: string) => void | Promise<void>) | undefined;
+  readonly applicationEmbarquee?: EtatApplicationEmbarquee | undefined;
+  readonly onMettreAJourApplication?: (() => void) | undefined;
 };
 
 /** Accueil du CDC : cartes de bibliothèques, « reprendre où vous en étiez », cas à vérifier.
  *  Chaque section n'existe que si elle a du contenu : rien ne s'affiche à vide. */
-export function Accueil({ donnees, onFichiers, onCreer, onOuvrir, onTesterCopie, onRenommer }: Props): JSX.Element {
+export function Accueil({
+  donnees,
+  onFichiers,
+  onCreer,
+  onOuvrir,
+  onTesterCopie,
+  onRenommer,
+  applicationEmbarquee,
+  onMettreAJourApplication,
+}: Props): JSX.Element {
   const { bibliotheques, reprises, aVerifier, traitement } = donnees;
 
   return (
@@ -120,6 +132,27 @@ export function Accueil({ donnees, onFichiers, onCreer, onOuvrir, onTesterCopie,
             ))}
           </div>
         </section>
+
+        {applicationEmbarquee === undefined ? null : (
+          <section className="ln-panneau" aria-labelledby="titre-application-autonome">
+            <h2 id="titre-application-autonome" className="ln-accueil__titre">
+              Application autonome
+            </h2>
+            <p>{applicationEmbarquee.message}</p>
+            <p className="ln-muted">
+              Version ouverte : {applicationEmbarquee.versionCourante}
+              {applicationEmbarquee.versionEmbarquee === null
+                ? " · version embarquée non référencée"
+                : ` · version embarquée : ${applicationEmbarquee.versionEmbarquee}`}
+            </p>
+            <p className="ln-muted">Données de la bibliothèque inchangées : seules les écritures sous applications/ sont autorisées.</p>
+            {!applicationEmbarquee.actionDisponible || onMettreAJourApplication === undefined ? null : (
+              <Bouton variante="secondaire" onClick={onMettreAJourApplication}>
+                Mettre à jour l’application embarquée
+              </Bouton>
+            )}
+          </section>
+        )}
       </div>
 
       {aVerifier === undefined && traitement === undefined && onFichiers === undefined ? null : (

@@ -42,6 +42,7 @@ import { ManiereDeLire, type Essai } from "./pages/ManiereDeLire.js";
 import { Prototype } from "./pages/Prototype.js";
 import { chargerModeles } from "./donnees/modeles.js";
 import { pontDAdministration, pontDeLecture } from "./pont/choix.js";
+import type { EtatApplicationEmbarquee } from "./pont/port.js";
 import { PasIdentifie } from "./pont/ligne.js";
 import { useTheme } from "./theme/useTheme.js";
 import {
@@ -120,6 +121,7 @@ export function App(): JSX.Element {
   const [echecOuverture, setEchecOuverture] = useState<string | undefined>(undefined);
   /** Copie ouverte seulement pour cette session. Jamais écrite dans les réglages de l'hôte. */
   const [racineTemporaire, setRacineTemporaire] = useState<string | undefined>(undefined);
+  const [applicationEmbarquee, setApplicationEmbarquee] = useState<EtatApplicationEmbarquee | undefined>(undefined);
   /** Le service nous connaît-il ? **La page ne peut pas le savoir seule.**
    *
    *  Le témoin de session est `HttpOnly` par conception (LIV-04) : aucun script ne le lit, pas
@@ -394,6 +396,37 @@ export function App(): JSX.Element {
    *  qui répond. */
   const courante: { readonly racine: string } | undefined =
     creees[creees.length - 1] ?? (lecture !== undefined && administration === undefined ? SERVIE_EN_LIGNE : undefined);
+
+  useEffect(() => {
+    let vivant = true;
+    if (administration === undefined || courante === undefined) {
+      setApplicationEmbarquee(undefined);
+      return () => {
+        vivant = false;
+      };
+    }
+    void administration
+      .etatApplicationEmbarquee(courante.racine)
+      .then((etat) => {
+        if (vivant) setApplicationEmbarquee(etat);
+      })
+      .catch(() => {
+        if (vivant) setApplicationEmbarquee(undefined);
+      });
+    return () => {
+      vivant = false;
+    };
+  }, [administration, courante?.racine]);
+
+  const mettreAJourApplication = useCallback(async (): Promise<void> => {
+    if (administration === undefined || courante === undefined || applicationEmbarquee?.actionDisponible !== true) return;
+    const confirme = globalThis.confirm(
+      "Remplacer uniquement l’application sous applications/ ? Les sources, dérivés, index et la base ne seront pas modifiés.",
+    );
+    if (!confirme) return;
+    const etat = await administration.mettreAJourApplicationEmbarquee(courante.racine);
+    setApplicationEmbarquee(etat);
+  }, [administration, applicationEmbarquee?.actionDisponible, courante?.racine]);
 
   const rechercherPartout = useCallback((requete: string) => {
     if (courante === undefined || lecture === undefined) return Promise.resolve([]);
@@ -927,6 +960,8 @@ export function App(): JSX.Element {
         onOuvrir={choisirBibliotheque}
         onTesterCopie={administration !== undefined ? () => void ouvrir("temporaire") : undefined}
         onRenommer={renommerBibliotheque}
+        applicationEmbarquee={applicationEmbarquee}
+        onMettreAJourApplication={() => void mettreAJourApplication()}
       />
     );
   };

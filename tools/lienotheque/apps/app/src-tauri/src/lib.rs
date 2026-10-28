@@ -6,6 +6,7 @@
 //! d'installation moteurs compris. La décision reste à prendre (docs/decisions.md).
 
 pub mod arrivee;
+pub mod application_embarquee;
 pub mod archive;
 pub mod captures;
 pub mod depot;
@@ -964,6 +965,36 @@ fn ecrire_bibliotheque(racine: String, description: String) -> Result<(), String
         .map_err(|e| format!("Description impossible à écrire : {e}"))
 }
 
+fn paquet_macos_courant() -> Result<PathBuf, String> {
+    let executable = std::env::current_exe().map_err(|e| format!("Exécutable introuvable : {e}"))?;
+    executable
+        .ancestors()
+        .find(|chemin| chemin.extension().and_then(|extension| extension.to_str()) == Some("app"))
+        .map(Path::to_path_buf)
+        .ok_or_else(|| "Le paquet macOS courant est introuvable. Cette action exige l'application empaquetée.".to_owned())
+}
+
+#[tauri::command]
+fn etat_application_embarquee(
+    racine: String,
+) -> Result<application_embarquee::EtatApplicationEmbarquee, String> {
+    application_embarquee::etat_application(
+        &paquet_macos_courant()?,
+        Path::new(&racine),
+        env!("CARGO_PKG_VERSION"),
+    )
+}
+
+#[tauri::command]
+fn mettre_a_jour_application_embarquee(
+    racine: String,
+) -> Result<application_embarquee::EtatApplicationEmbarquee, String> {
+    let source = paquet_macos_courant()?;
+    let marqueur = application_embarquee::produire_marqueur(&source, env!("CARGO_PKG_VERSION"))?;
+    application_embarquee::installer_application(&source, Path::new(&racine), &marqueur)?;
+    application_embarquee::etat_application(&source, Path::new(&racine), env!("CARGO_PKG_VERSION"))
+}
+
 #[tauri::command]
 fn ouvrir_pdf(chemin: String) -> Result<pdf::MesurePdf, String> {
     pdf::ouvrir(Path::new(&chemin))
@@ -1064,6 +1095,8 @@ fn lancer(captures: bool) {
             creer_bibliotheque,
             lire_bibliotheque,
             ecrire_bibliotheque,
+            etat_application_embarquee,
+            mettre_a_jour_application_embarquee,
             reglages,
             retenir_bibliotheque,
             oublier_bibliotheque,
