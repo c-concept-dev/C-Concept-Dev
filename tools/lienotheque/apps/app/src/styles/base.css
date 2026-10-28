@@ -354,6 +354,17 @@ textarea {
   flex-direction: column;
 }
 
+.ln-ouverture-temporaire {
+  margin: calc(var(--ln-grid) * 1.5) auto 0;
+  padding: var(--ln-grid) calc(var(--ln-grid) * 2);
+  width: min(calc(100% - var(--ln-grid) * 4), 1200px);
+  border: 1px solid var(--ln-border);
+  border-radius: var(--ln-radius-sm);
+  background: var(--ln-surface-raised);
+  color: var(--ln-text-secondary);
+  font-size: 14px;
+}
+
 .ln-application--pleine {
   height: 100dvh;
   min-height: 0;

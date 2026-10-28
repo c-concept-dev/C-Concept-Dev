@@ -23,13 +23,15 @@ type Props = {
   /** Ouvrir **cette** bibliothèque, désignée par son identifiant. Sans cela, toutes les cartes
    *  menaient au même écran, qui montrait toujours la même bibliothèque. */
   readonly onOuvrir?: ((id: string) => void) | undefined;
+  /** Éprouve une copie portable dans cette session, sans changer les réglages persistants. */
+  readonly onTesterCopie?: (() => void) | undefined;
   /** Renommer la bibliothèque sur le disque. L'Accueil en ligne n'expose pas cette action. */
   readonly onRenommer?: ((id: string, nom: string) => void | Promise<void>) | undefined;
 };
 
 /** Accueil du CDC : cartes de bibliothèques, « reprendre où vous en étiez », cas à vérifier.
  *  Chaque section n'existe que si elle a du contenu : rien ne s'affiche à vide. */
-export function Accueil({ donnees, onFichiers, onCreer, onOuvrir, onRenommer }: Props): JSX.Element {
+export function Accueil({ donnees, onFichiers, onCreer, onOuvrir, onTesterCopie, onRenommer }: Props): JSX.Element {
   const { bibliotheques, reprises, aVerifier, traitement } = donnees;
 
   return (
@@ -77,9 +79,17 @@ export function Accueil({ donnees, onFichiers, onCreer, onOuvrir, onRenommer }: 
               Vos bibliothèques
             </h2>
             {onCreer === undefined ? null : (
-              <Bouton variante="principal" icone={<Icone nom="plus" />} onClick={onCreer}>
-                Nouvelle bibliothèque
-              </Bouton>
+              <div className="ln-accueil__actions">
+                <Bouton variante="principal" icone={<Icone nom="plus" />} onClick={onCreer}>
+                  Nouvelle bibliothèque
+                </Bouton>
+                {onTesterCopie === undefined ? null : (
+                  <button type="button" className="ln-lien-action" onClick={onTesterCopie}>
+                    <Icone nom="ordinateur" />
+                    Tester temporairement une copie
+                  </button>
+                )}
+              </div>
             )}
           </div>
           <div className="ln-grille">

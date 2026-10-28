@@ -96,7 +96,10 @@ export function ManiereDeLire({
       ? `Numéro de ${description.mots.page.un}`
       : `Numéro d’${description.mots.element.un}`;
 
-  const page = pages[Math.min(rang, Math.max(0, pages.length - 1))];
+  // Une erreur appartient au chargement courant. Les pages encore en mémoire appartiennent au
+  // précédent : les montrer sous le nouveau titre ferait passer une ancienne couverture pour la
+  // page du volume déconnecté.
+  const page = echec === undefined ? pages[Math.min(rang, Math.max(0, pages.length - 1))] : undefined;
   const raison = manqueALaManiere(brouillon, {
     element: description.mots.element.un,
     page: description.mots.page.un,

@@ -207,6 +207,12 @@ describe("l'essai et l'enregistrement", () => {
     poser({ echec: "Cette bibliothèque n’a pas de description." });
     expect(screen.getByRole("alert")).toHaveTextContent("n’a pas de description");
   });
+
+  it("ne garde pas l'ancienne page visible quand le volume courant est inaccessible (JOB-05)", () => {
+    poser({ echec: "Bibliothèque déconnectée.", pages: PAGES });
+    expect(screen.queryByRole("img", { name: /feuillet 1/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/bibliothèque déconnectée/i)).toBeInTheDocument();
+  });
 });
 
 /** La planche quand il n'y a rien à poser dessus (22 octobre 2026).

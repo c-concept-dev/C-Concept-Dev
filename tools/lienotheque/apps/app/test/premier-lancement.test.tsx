@@ -25,6 +25,23 @@ describe("quand il n'y a encore rien", () => {
     expect(onOuvrir).toHaveBeenCalledTimes(1);
   });
 
+  it("distingue l'ouverture durable du test temporaire d'une copie", async () => {
+    const personne = userEvent.setup();
+    const onTesterCopie = vi.fn();
+    render(
+      <PremierLancement
+        theme="light"
+        onCreer={vi.fn()}
+        onFichiers={vi.fn()}
+        onOuvrir={vi.fn()}
+        onTesterCopie={onTesterCopie}
+      />,
+    );
+
+    await personne.click(screen.getByRole("button", { name: /Tester temporairement une copie/ }));
+    expect(onTesterCopie).toHaveBeenCalledTimes(1);
+  });
+
   it("dit pourquoi une ouverture n'a mené à rien, au lieu de ne rien faire", () => {
     render(
       <PremierLancement

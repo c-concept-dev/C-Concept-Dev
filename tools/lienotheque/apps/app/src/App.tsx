@@ -43,6 +43,11 @@ import { chargerModeles } from "./donnees/modeles.js";
 import { pontDAdministration, pontDeLecture } from "./pont/choix.js";
 import { PasIdentifie } from "./pont/ligne.js";
 import { useTheme } from "./theme/useTheme.js";
+import {
+  bibliothequesPourSession,
+  ouvrirBibliothequeDepuisDisque,
+  type ModeOuverture,
+} from "./ouverture-bibliotheque.js";
 
 /** La bibliothèque que le service sert, quand c'est lui qui répond.
  *
@@ -111,6 +116,8 @@ export function App(): JSX.Element {
   const modeles = useMemo(() => chargerModeles(), []);
   /** Ce qui s'est passé à la dernière tentative d'ouverture, quand elle n'a mené à rien. */
   const [echecOuverture, setEchecOuverture] = useState<string | undefined>(undefined);
+  /** Copie ouverte seulement pour cette session. Jamais écrite dans les réglages de l'hôte. */
+  const [racineTemporaire, setRacineTemporaire] = useState<string | undefined>(undefined);
   /** Le service nous connaît-il ? **La page ne peut pas le savoir seule.**
    *
    *  Le témoin de session est `HttpOnly` par conception (LIV-04) : aucun script ne le lit, pas
@@ -187,7 +194,7 @@ export function App(): JSX.Element {
     // vers son dossier à chaque lancement.
     if (administration !== undefined)
       void administration.bibliothequesRetenues().then((retenues) => {
-        if (vivant && retenues.length > 0) setCreees(retenues);
+        if (vivant && retenues.length > 0) setCreees(bibliothequesPourSession(retenues));
       });
     void chargerBibliothequeDemonstration(globalThis.location?.search ?? "").then((bibliotheque) => {
       if (!vivant || bibliotheque === undefined) return;
@@ -218,6 +225,7 @@ export function App(): JSX.Element {
    *  toutes les cartes menaient au même écran, qui montrait toujours la même — on se croyait dans
    *  une bibliothèque en lisant les documents d'une autre. */
   const choisirBibliotheque = (id: string): void => {
+    setRacineTemporaire(undefined);
     setCreees((anciennes) => {
       const choisie = anciennes.find((autre) => autre.description.id === id);
       return choisie === undefined ? anciennes : [...anciennes.filter((autre) => autre !== choisie), choisie];
@@ -371,6 +379,7 @@ export function App(): JSX.Element {
       throw new Error("La création d’une bibliothèque demande l’application de bureau : elle seule écrit sur votre disque.");
     await administration.creerBibliotheque(dossier, description);
     await administration.retenirBibliotheque(dossier);
+    setRacineTemporaire(undefined);
     setCreees((anciennes) => [...anciennes, { racine: dossier, description }]);
     aller({ ecran: "organisation" });
   };
@@ -612,21 +621,17 @@ export function App(): JSX.Element {
 
   /** Ouvre une bibliothèque qui existe déjà. L'hôte la retient, pour la retrouver au prochain
    *  lancement ; un dossier qui n'en porte pas le dit, au lieu d'ouvrir un écran vide. */
-  const ouvrir = async (): Promise<void> => {
+  const ouvrir = async (mode: ModeOuverture = "durable"): Promise<void> => {
     if (administration === undefined) return;
     setEchecOuverture(undefined);
-    const racine = await administration.choisirDossier("Quelle bibliothèque ouvrir ?");
-    if (racine === undefined) return;
     try {
-      const description = await administration.lireBibliotheque(racine);
-      if (description === undefined) {
-        setEchecOuverture("Ce dossier ne porte pas de bibliothèque. Choisissez celui que Liénothèque a créé.");
-        return;
-      }
-      await administration.retenirBibliotheque(racine);
+      const ouverte = await ouvrirBibliothequeDepuisDisque(administration, mode);
+      if (ouverte === undefined) return;
+      const { racine, description, temporaire } = ouverte;
       // En queue, jamais en tête : `derniere` est le dernier élément, et une bibliothèque
       // qu'on vient d'ouvrir est celle où l'on veut être.
       setCreees((anciennes) => [...anciennes.filter((autre) => autre.racine !== racine), { racine, description }]);
+      setRacineTemporaire(temporaire ? racine : undefined);
       aller({ ecran: "organisation" });
     } catch (erreur) {
       setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur));
@@ -889,6 +894,7 @@ export function App(): JSX.Element {
         onCreer={() => aller({ ecran: "creer" })}
         onFichiers={deposer}
         onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
+        onTesterCopie={administration !== undefined ? () => void ouvrir("temporaire") : undefined}
         echec={echecOuverture}
       />
     ) : (
@@ -897,6 +903,7 @@ export function App(): JSX.Element {
         onFichiers={deposer}
         onCreer={() => aller({ ecran: "creer" })}
         onOuvrir={choisirBibliotheque}
+        onTesterCopie={administration !== undefined ? () => void ouvrir("temporaire") : undefined}
         onRenommer={renommerBibliotheque}
       />
     );
@@ -921,6 +928,7 @@ export function App(): JSX.Element {
           onCreer={() => aller({ ecran: "creer" })}
           onFichiers={deposer}
           onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
+          onTesterCopie={administration !== undefined ? () => void ouvrir("temporaire") : undefined}
           echec={echecOuverture}
         />
       ) : (
@@ -945,6 +953,7 @@ export function App(): JSX.Element {
           onCreer={() => aller({ ecran: "creer" })}
           onFichiers={deposer}
           onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
+          onTesterCopie={administration !== undefined ? () => void ouvrir("temporaire") : undefined}
           echec={echecOuverture}
         />
       ) : (
@@ -986,6 +995,7 @@ export function App(): JSX.Element {
           onCreer={() => aller({ ecran: "creer" })}
           onFichiers={deposer}
           onOuvrir={administration !== undefined ? () => void ouvrir() : undefined}
+          onTesterCopie={administration !== undefined ? () => void ouvrir("temporaire") : undefined}
           echec={echecOuverture}
         />
       ) : (
@@ -1138,6 +1148,11 @@ export function App(): JSX.Element {
         nomRecherche={documents.length === 0 ? undefined : (derniere?.description.nom ?? "Base de connaissance")}
         enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
       />
+      {racineTemporaire === undefined ? null : (
+        <p className="ln-ouverture-temporaire" role="status">
+          <strong>Copie ouverte temporairement.</strong> Ce chemin ne sera pas mémorisé au prochain lancement.
+        </p>
+      )}
       <div className="ln-application__vue">{ecran}</div>
       {cherche && vue !== undefined ? (
         <Recherche

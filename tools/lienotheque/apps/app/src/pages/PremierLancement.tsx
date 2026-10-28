@@ -12,13 +12,15 @@ type Props = {
   /** Ouvre une bibliothèque qui existe déjà sur le disque. Absent sur le web, qui n'a pas de
    *  disque à parcourir : l'écran n'offre alors pas une action qui ne mènerait nulle part. */
   readonly onOuvrir?: (() => void) | undefined;
+  /** Ouvre une copie pour l'éprouver sans jamais en faire le chemin mémorisé. */
+  readonly onTesterCopie?: (() => void) | undefined;
   /** Ce qui s'est passé à la dernière tentative d'ouverture, quand elle n'a mené à rien. */
   readonly echec?: string | undefined;
 };
 
 /** Premier lancement : aucune bibliothèque, donc aucune section. Une seule chose importante
  *  à l'écran et un seul bouton principal (UX-09) ; le dépôt garde son alternative clavier (UX-06). */
-export function PremierLancement({ theme, onCreer, onFichiers, onOuvrir, echec }: Props): JSX.Element {
+export function PremierLancement({ theme, onCreer, onFichiers, onOuvrir, onTesterCopie, echec }: Props): JSX.Element {
   const logo = theme === "light" ? logoClair : logoSombre;
   return (
     <main id="contenu" className="ln-layout ln-premier" tabIndex={-1}>
@@ -36,6 +38,12 @@ export function PremierLancement({ theme, onCreer, onFichiers, onOuvrir, echec }
           <button type="button" className="ln-lien-action ln-premier__ouvrir" onClick={onOuvrir}>
             <Icone nom="dossier" />
             J’en ai déjà une : l’ouvrir
+          </button>
+        )}
+        {onTesterCopie === undefined ? null : (
+          <button type="button" className="ln-lien-action ln-premier__ouvrir" onClick={onTesterCopie}>
+            <Icone nom="ordinateur" />
+            Tester temporairement une copie
           </button>
         )}
         {echec === undefined ? null : (

@@ -249,3 +249,22 @@ describe("sortir de l'accueil : les deux chemins (UX-01)", () => {
     expect(screen.getByRole("link", { name: /Une bibliothèque/ })).toHaveAttribute("href", "#depot");
   });
 });
+
+describe("tester une copie portable", () => {
+  it("offre un geste distinct qui ne se confond pas avec l'ouverture d'une carte", async () => {
+    const utilisateur = userEvent.setup();
+    const tester = vi.fn();
+    render(
+      <Accueil
+        donnees={DEMONSTRATION}
+        onFichiers={vi.fn()}
+        onCreer={vi.fn()}
+        onOuvrir={vi.fn()}
+        onTesterCopie={tester}
+      />,
+    );
+
+    await utilisateur.click(screen.getByRole("button", { name: /Tester temporairement une copie/ }));
+    expect(tester).toHaveBeenCalledTimes(1);
+  });
+});

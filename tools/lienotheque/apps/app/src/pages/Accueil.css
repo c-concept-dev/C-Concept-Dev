@@ -37,6 +37,20 @@
   margin: 0;
 }
 
+.ln-accueil__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: calc(var(--ln-grid) * 1.5);
+}
+
+.ln-accueil__actions .ln-lien-action {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--ln-grid) * 0.75);
+}
+
 .ln-pile {
   display: grid;
   gap: calc(var(--ln-grid) * 1.5);
