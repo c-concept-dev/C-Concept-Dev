@@ -11,6 +11,13 @@ import { z } from "zod";
 export const Rotation = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]);
 export type Rotation = z.infer<typeof Rotation>;
 
+/** Correction d'affichage décidée par la personne qui lit. Elle ne dit volontairement rien de
+ *  la reconnaissance automatique : les deux mécanismes restent indépendants. */
+export const RotationManuelle = z
+  .object({ page: z.number().int().positive(), rotation: Rotation })
+  .strict();
+export type RotationManuelle = z.infer<typeof RotationManuelle>;
+
 export const CotePage = z.enum(["gauche", "droite"]);
 export type CotePage = z.infer<typeof CotePage>;
 

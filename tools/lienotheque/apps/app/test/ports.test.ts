@@ -46,6 +46,13 @@ describe("deux ports, et une frontière qui tient", () => {
     expect(NOMS_DE_LECTURE as readonly string[]).not.toContain("relireTexteDePage");
   });
 
+  it("la rotation manuelle est mémorisée par le bureau, jamais feinte en ligne", () => {
+    for (const geste of ["rotationsManuelles", "tournerPage"]) {
+      expect(NOMS_D_ADMINISTRATION as readonly string[]).toContain(geste);
+      expect(NOMS_DE_LECTURE as readonly string[]).not.toContain(geste);
+    }
+  });
+
   it("aucune fonction n'appartient aux deux ports", () => {
     const communes = (NOMS_DE_LECTURE as readonly string[]).filter((nom) =>
       (NOMS_D_ADMINISTRATION as readonly string[]).includes(nom),

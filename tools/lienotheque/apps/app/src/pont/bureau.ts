@@ -14,6 +14,7 @@ import {
   Recette,
   ReglagesHote,
   RetraitDeDocument,
+  Rotation,
   Travail,
   VueBibliotheque,
 } from "@lienotheque/contrats";
@@ -346,6 +347,19 @@ export async function classementsDeBibliotheque(racine: string): Promise<Readonl
   return new Map(Object.entries(brut).map(([empreinte, un]) => [empreinte, ClassementLocal.parse(un)]));
 }
 
+/** Corrections visuelles choisies dans le Lecteur. Le contrat est relu à la frontière : un
+ * fichier local abîmé ne doit jamais injecter un angle arbitraire dans la page. */
+export async function rotationsManuelles(racine: string, empreinte: string): Promise<ReadonlyMap<number, Rotation>> {
+  const brut = await invoke<Record<string, unknown>>("rotations_manuelles", { racine, empreinte });
+  return new Map(
+    Object.entries(brut).map(([page, rotation]) => [Number(page), Rotation.parse(rotation)]),
+  );
+}
+
+export async function tournerPage(racine: string, empreinte: string, page: number, rotation: Rotation): Promise<void> {
+  await invoke("tourner_page", { racine, empreinte, page, rotation: Rotation.parse(rotation) });
+}
+
 export async function apercuDeBibliotheque(racine: string): Promise<readonly ApercuDocument[]> {
   const brut = await invoke<unknown[]>("apercu_de_bibliotheque", { racine });
   return brut.map((un) => ApercuDocument.parse(un));
@@ -427,6 +441,8 @@ export const administrationDuBureau: PortAdministration = {
   enregistrerManiere,
   lireManiere,
   relireTexteDePage,
+  rotationsManuelles,
+  tournerPage,
   lireDecisions,
   enregistrerDecision,
   annulerDecision,

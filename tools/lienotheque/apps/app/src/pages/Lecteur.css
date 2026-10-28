@@ -160,6 +160,14 @@
   max-width: 100%;
 }
 
+.ln-page__cadre--quart {
+  position: relative;
+}
+
+.ln-page__cadre--quart .ln-page__feuille {
+  position: absolute;
+}
+
 .ln-page__feuille {
   position: relative;
   border: 1px solid var(--ln-border-decorative);

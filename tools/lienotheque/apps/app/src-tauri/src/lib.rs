@@ -638,6 +638,18 @@ fn annuler_decision(racine: String, empreinte: String, cas: String) -> Result<()
     depot.annuler_decision(&empreinte, &cas).map_err(|e| format!("Décision non annulée : {e}"))
 }
 
+#[tauri::command]
+fn rotations_manuelles(racine: String, empreinte: String) -> Result<std::collections::BTreeMap<u32, u16>, String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    depot.rotations_manuelles(&empreinte).map_err(|e| format!("Rotations manuelles illisibles : {e}"))
+}
+
+#[tauri::command]
+fn tourner_page(racine: String, empreinte: String, page: u32, rotation: u16) -> Result<(), String> {
+    let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
+    depot.tourner_page(&empreinte, page, rotation).map_err(|e| format!("Rotation manuelle non enregistrée : {e}"))
+}
+
 /// Les classements de toute la bibliothèque, en une lecture.
 ///
 /// En une lecture parce que les filtres comptent dessus : demander document par document
@@ -1072,6 +1084,8 @@ fn lancer(captures: bool) {
             lire_decisions,
             enregistrer_decision,
             annuler_decision,
+            rotations_manuelles,
+            tourner_page,
             apercu_de_bibliotheque,
             image_de_page,
             relire_texte_page,

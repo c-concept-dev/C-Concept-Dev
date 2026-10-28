@@ -11,6 +11,7 @@ import type {
   Recette,
   ReglagesHote,
   RetraitDeDocument,
+  Rotation,
   Travail,
   TraductionDePage,
   VueBibliotheque,
@@ -121,6 +122,10 @@ export type PortAdministration = {
    *  s'en sert pour ne pas propager à l'écran un ordre de colonnes manifestement abîmé. */
   readonly relireTexteDePage: (racine: string, version: string, fichier: string, langue: string) => Promise<string | undefined>;
 
+  /** Filet de secours visuel, mémorisé dans la bibliothèque sans réécrire ses dérivés. */
+  readonly rotationsManuelles: (racine: string, empreinte: string) => Promise<ReadonlyMap<number, Rotation>>;
+  readonly tournerPage: (racine: string, empreinte: string, page: number, rotation: Rotation) => Promise<void>;
+
   /** Les décisions de Vérifier vivent dans la bibliothèque, pas dans la page (UX-03, SYN-07). */
   readonly lireDecisions: (racine: string, empreinte: string) => Promise<ReadonlyMap<string, DecisionVerification>>;
   readonly enregistrerDecision: (
@@ -179,6 +184,8 @@ export const NOMS_D_ADMINISTRATION = [
   "enregistrerManiere",
   "lireManiere",
   "relireTexteDePage",
+  "rotationsManuelles",
+  "tournerPage",
   "lireDecisions",
   "enregistrerDecision",
   "annulerDecision",

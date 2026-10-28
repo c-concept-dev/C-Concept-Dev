@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PageRedressee, ReglagesRedressement, Rotation, numeroAttendu } from "../src/index.js";
+import { PageRedressee, ReglagesRedressement, Rotation, RotationManuelle, numeroAttendu } from "../src/index.js";
 
 const page = {
   source: 40,
@@ -18,6 +18,15 @@ describe("rotation (OUT-03)", () => {
     for (const quart of [0, 90, 180, 270]) expect(Rotation.safeParse(quart).success, String(quart)).toBe(true);
     expect(Rotation.safeParse(45).success).toBe(false);
     expect(Rotation.safeParse(360).success).toBe(false);
+  });
+});
+
+describe("rotation manuelle d'une page", () => {
+  it("désigne une page positive et un quart de tour, indépendamment de la source automatique", () => {
+    expect(RotationManuelle.safeParse({ page: 12, rotation: 90 }).success).toBe(true);
+    expect(RotationManuelle.safeParse({ page: 0, rotation: 90 }).success).toBe(false);
+    expect(RotationManuelle.safeParse({ page: 12, rotation: 45 }).success).toBe(false);
+    expect(RotationManuelle.safeParse({ page: 12, rotation: 90, source: "reconnue" }).success).toBe(false);
   });
 });
 

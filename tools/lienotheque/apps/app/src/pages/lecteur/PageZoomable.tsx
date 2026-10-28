@@ -6,6 +6,7 @@ import {
   type ElementAffiche,
   type MotsBibliotheque,
   type PageAffichee,
+  type Rotation,
   type ZoneRelative,
 } from "@lienotheque/contrats";
 import { ImageSure } from "./ImageSure.js";
@@ -27,6 +28,7 @@ type Props = {
   readonly mots: MotsBibliotheque;
   readonly actif: string;
   readonly zoom: number;
+  readonly rotation?: Rotation;
   readonly onElement: (ancreId: string) => void;
   readonly chargerImage?: ((source: string) => Promise<string | undefined>) | undefined;
 };
@@ -66,17 +68,29 @@ export function bandesDeLaPage(elements: readonly ElementAffiche[]): Bande[] {
 }
 
 export const PageZoomable = forwardRef<HTMLSpanElement, Props>(function PageZoomable(
-  { page, mots, actif, zoom, onElement, chargerImage },
+  { page, mots, actif, zoom, rotation = 0, onElement, chargerImage },
   refAncreActive,
 ): JSX.Element {
   const bandes = useMemo(() => bandesDeLaPage(page.elements), [page.elements]);
+  const quartDeTour = rotation === 90 || rotation === 270;
+  const largeur = page.largeur ?? 3;
+  const hauteur = page.hauteur ?? 4;
 
   const nom = (element: ElementAffiche): string =>
     `${nommer(mots.element, element.numero)}${element.titre === undefined ? "" : ` — ${element.titre}`}`;
 
   return (
     <div className="ln-page" style={{ width: `${zoom}%` }}>
-      <div className="ln-page__feuille">
+      <div
+        className={quartDeTour ? "ln-page__cadre ln-page__cadre--quart" : "ln-page__cadre"}
+        style={quartDeTour ? { aspectRatio: `${hauteur} / ${largeur}` } : undefined}
+      >
+      <div
+        className="ln-page__feuille"
+        style={quartDeTour
+          ? { width: `${(largeur / hauteur) * 100}%`, left: "50%", top: "50%", transform: `translate(-50%, -50%) rotate(${rotation}deg)` }
+          : { transform: `rotate(${rotation}deg)` }}
+      >
         {page.image === undefined ? (
           <div className="ln-page__attente" role="img" aria-label={enTete(citerPage(mots, page))}>
             <span className="ln-page__numero">{page.numero ?? page.index}</span>
@@ -118,6 +132,7 @@ export const PageZoomable = forwardRef<HTMLSpanElement, Props>(function PageZoom
             {page.image === undefined ? <span className="ln-page__zone-numero ln-sur-photo">{element.numero}</span> : null}
           </button>
         ))}
+      </div>
       </div>
     </div>
   );

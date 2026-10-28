@@ -56,6 +56,7 @@ const ACTIVE: &str = "active.json";
 /// fois, et un verrou par racine coûterait une table de verrous pour un gain nul.
 static VERROU_ACTIVES: std::sync::Mutex<()> = std::sync::Mutex::new(());
 static VERROU_DECISIONS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static VERROU_ROTATIONS: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Déplace une entrée à la corbeille. La fonction de renommage est injectée pour pouvoir éprouver
 /// le cas EXDEV sans dépendre de la façon dont la machine de test monte ses volumes.
@@ -114,6 +115,8 @@ const ACTIVES: &str = "actives.json";
 const CLASSEMENTS: &str = "classements.json";
 /// Décisions humaines prises sur les cas douteux, par document puis par identifiant de cas.
 const DECISIONS: &str = "decisions.json";
+/// Corrections d'affichage choisies dans le Lecteur, par document puis rang de page.
+const ROTATIONS_MANUELLES: &str = "rotations-pages.json";
 /// Inventaire des fichiers qui accompagnent les documents.
 ///
 /// Leur source est rangée par empreinte, comme tout original. Le nom d'origine reste toutefois
@@ -571,6 +574,44 @@ impl Depot {
             if decisions.is_empty() {
                 table.remove(empreinte);
             }
+        }
+        ecrire_atomique(&chemin, serde_json::to_string_pretty(&table)?.as_bytes())
+    }
+
+    /// Les corrections visuelles d'un document. Elles vivent à côté des décisions humaines,
+    /// jamais dans les dérivés : une nouvelle reconnaissance automatique ne les écrase pas.
+    pub fn rotations_manuelles(&self, empreinte: &str) -> io::Result<BTreeMap<u32, u16>> {
+        let table: BTreeMap<String, BTreeMap<u32, u16>> =
+            match fs::read_to_string(self.racine.join(BASE).join(ROTATIONS_MANUELLES)) {
+                Ok(texte) => serde_json::from_str(&texte).unwrap_or_default(),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => BTreeMap::new(),
+                Err(e) => return Err(e),
+            };
+        Ok(table.get(empreinte).cloned().unwrap_or_default())
+    }
+
+    /// Mémorise un quart de tour pour une page. Revenir à zéro retire la correction : zéro est
+    /// déjà l'état par défaut, et ne doit pas gonfler la table au fil des consultations.
+    pub fn tourner_page(&self, empreinte: &str, page: u32, rotation: u16) -> io::Result<()> {
+        if page == 0 || !matches!(rotation, 0 | 90 | 180 | 270) {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Page ou rotation manuelle invalide"));
+        }
+        let _garde = VERROU_ROTATIONS.lock().map_err(|e| io::Error::other(e.to_string()))?;
+        let chemin = self.racine.join(BASE).join(ROTATIONS_MANUELLES);
+        let mut table: BTreeMap<String, BTreeMap<u32, u16>> = match fs::read_to_string(&chemin) {
+            Ok(texte) => serde_json::from_str(&texte).unwrap_or_default(),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => BTreeMap::new(),
+            Err(e) => return Err(e),
+        };
+        if rotation == 0 {
+            if let Some(pages) = table.get_mut(empreinte) {
+                pages.remove(&page);
+                if pages.is_empty() {
+                    table.remove(empreinte);
+                }
+            }
+        } else {
+            table.entry(empreinte.to_owned()).or_default().insert(page, rotation);
         }
         ecrire_atomique(&chemin, serde_json::to_string_pretty(&table)?.as_bytes())
     }
@@ -1331,6 +1372,20 @@ mod migration {
         rouvert.annuler_decision(A, "cas-2").expect("annulation");
         assert_eq!(rouvert.decisions(A).expect("décisions").get("cas-1").map(String::as_str), Some("confirme"));
         assert!(!rouvert.decisions(A).expect("décisions").contains_key("cas-2"));
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    #[test]
+    fn les_rotations_manuelles_survivent_par_document_et_par_page() {
+        let (depot, racine) = depot_neuf("rotations-manuelles");
+        depot.tourner_page(A, 12, 90).expect("premier quart de tour");
+        depot.tourner_page(A, 13, 270).expect("second quart de tour");
+
+        let rouvert = Depot::ouvrir(&racine).expect("bibliothèque rouverte");
+        let rotations = rouvert.rotations_manuelles(A).expect("rotations relues");
+        assert_eq!(rotations.get(&12), Some(&90));
+        assert_eq!(rotations.get(&13), Some(&270));
+        assert_eq!(rotations.len(), 2, "les pages d'un autre document ne doivent pas entrer ici");
         fs::remove_dir_all(&racine).ok();
     }
 }

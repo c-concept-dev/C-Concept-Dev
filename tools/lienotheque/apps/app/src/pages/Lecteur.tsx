@@ -5,6 +5,7 @@ import {
   nommer,
   type ElementAffiche,
   type Passage,
+  type Rotation,
   type TraductionDePage,
   type VueBibliotheque,
 } from "@lienotheque/contrats";
@@ -47,6 +48,10 @@ type Props = {
   readonly cibleRecherche?: CibleRecherche | undefined;
   readonly chargerImage?: (source: string) => Promise<string | undefined>;
   readonly onTraduire?: (page: number) => Promise<TraductionDePage>;
+  /** Correction visuelle choisie dans le Lecteur. Elle ne réécrit aucun dérivé et ne participe
+   *  pas à la reconnaissance automatique : c'est le filet de secours propre à cette page. */
+  readonly rotation?: Rotation;
+  readonly onTourner?: (page: number, rotation: Rotation) => void;
   readonly onPage: (numero: number) => void;
   readonly onElement: (ancreId: string) => void;
 };
@@ -55,7 +60,7 @@ type Props = {
  *  pour dessiner une forme d'onde. Dès que l'une des deux est connue, c'est elle qui vaut. */
 const DUREE_SUPPOSEE = 44;
 
-export function Lecteur({ vue, document, page, element, texteLu = false, textePage, passagesPage, cibleRecherche, chargerImage, onTraduire, onPage, onElement }: Props): JSX.Element {
+export function Lecteur({ vue, document, page, element, texteLu = false, textePage, passagesPage, cibleRecherche, chargerImage, onTraduire, rotation = 0, onTourner, onPage, onElement }: Props): JSX.Element {
   const [boucle, setBoucle] = useState(false);
   const [tempo, setTempo] = useState(75);
   const [zoom, setZoom] = useState(100);
@@ -233,7 +238,7 @@ export function Lecteur({ vue, document, page, element, texteLu = false, textePa
 
         <div className="ln-lecteur__page">
           {pageCourante === undefined ? null : (
-            <PageZoomable ref={ancreActive} page={pageCourante} mots={vue.mots} actif={actif?.ancreId ?? ""} zoom={zoom} onElement={onElement} {...(chargerImage === undefined ? {} : { chargerImage })} />
+            <PageZoomable ref={ancreActive} page={pageCourante} mots={vue.mots} actif={actif?.ancreId ?? ""} zoom={zoom} rotation={rotation} onElement={onElement} {...(chargerImage === undefined ? {} : { chargerImage })} />
           )}
         </div>
 
@@ -315,6 +320,15 @@ export function Lecteur({ vue, document, page, element, texteLu = false, textePa
           {pageCourante === undefined ? "—" : enTete(citerPage(vue.mots, pageCourante))} sur {vue.pages.length}
         </p>
         <div className="ln-lecteur__zoom" role="group" aria-label="Zoom">
+          {pageCourante === undefined || onTourner === undefined ? null : (
+            <Bouton
+              compact
+              onClick={() => onTourner(pageCourante.index, ((rotation + 90) % 360) as Rotation)}
+              aria-label={`Tourner de 90° — ${enTete(citerPage(vue.mots, pageCourante))}`}
+            >
+              ↻
+            </Bouton>
+          )}
           <Bouton compact icone={<Icone nom="moins" />} onClick={() => setZoom(Math.max(50, zoom - 10))} disabled={zoom <= 50} aria-label="Réduire">
             <span className="ln-sr-only">Réduire</span>
           </Bouton>

@@ -8,6 +8,7 @@ import type {
   DocumentSuspect,
   Doublons as DoublonsTrouves,
   Passage,
+  Rotation,
   SchemaBibliotheque,
   Travail,
   TypeDeContenu,
@@ -97,6 +98,7 @@ export function App(): JSX.Element {
    *  ici ; l'adresse, elle, est redemandée pour la seule page effectivement ouverte. */
   const [imagesDePages, setImagesDePages] = useState<ReadonlyMap<number, string>>(new Map());
   const [versionRegardee, setVersionRegardee] = useState<string | undefined>(undefined);
+  const [rotationsManuelles, setRotationsManuelles] = useState<ReadonlyMap<number, Rotation>>(new Map());
   // Le texte du document regardé, lu à part de sa vue et jamais recopié dedans.
   const [passages, setPassages] = useState<readonly Passage[]>([]);
   /** Document demandé mais pas encore reçu : l'ancienne vue est masquée pendant cette attente. */
@@ -405,6 +407,21 @@ export function App(): JSX.Element {
     return lecture.imageDePage(courante.racine, versionRegardee, `pages/${fichier}`);
   }, [courante?.racine, lecture, versionRegardee]);
 
+  const tournerPageManuellement = useCallback((page: number, rotation: Rotation): void => {
+    if (administration === undefined || courante === undefined || regarde === undefined) return;
+    setRotationsManuelles((avant) => {
+      const apres = new Map(avant);
+      if (rotation === 0) apres.delete(page);
+      else apres.set(page, rotation);
+      return apres;
+    });
+    void administration.tournerPage(courante.racine, regarde, page, rotation).catch(() => {
+      // Le disque tranche : si l'écriture échoue, on relit plutôt que de laisser l'écran
+      // promettre une correction qui ne survivrait pas à la réouverture.
+      void administration.rotationsManuelles(courante.racine, regarde).then(setRotationsManuelles);
+    });
+  }, [administration, courante?.racine, regarde]);
+
   // La relecture OCR fine reste un geste du bureau. Les images, elles, gardent ici leur nom
   // durable : `ImageSure` demande une adresse fraîche au voisinage de l'écran et sait réessayer
   // sans jamais révéler une image cassée.
@@ -527,6 +544,7 @@ export function App(): JSX.Element {
     }
     setDocuments([]);
     setClassements(new Map());
+    setRotationsManuelles(new Map());
   }, [courante?.racine]);
 
   // Le document regardé : sa vue et son texte. À part de la bibliothèque, parce qu'ils changent
@@ -538,18 +556,22 @@ export function App(): JSX.Element {
     setPassages([]);
     setImagesDePages(new Map());
     setVersionRegardee(undefined);
+    setRotationsManuelles(new Map());
     setChargementDocument(documents.find((document) => document.empreinte === regarde)?.nom ?? "ce document");
     // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent le
     // texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
     const decisionsLues = administration?.lireDecisions(courante.racine, regarde) ?? Promise.resolve(new Map());
+    const rotationsLues = administration?.rotationsManuelles(courante.racine, regarde) ?? Promise.resolve(new Map<number, Rotation>());
     void Promise.all([
       lecture.vueDeDocument(courante.racine, regarde),
       lecture.passagesDeDocument(courante.racine, regarde),
       decisionsLues,
+      rotationsLues,
     ])
-      .then(async ([lue, lus, dejaPrises]) => {
+      .then(async ([lue, lus, dejaPrises, rotations]) => {
         if (!vivant) return;
         setPassages(lus);
+        setRotationsManuelles(rotations);
         if (lue !== undefined) {
           setImagesDePages(new Map(
             lue.pages.flatMap((page) => (page.image === undefined ? [] : [[page.index, page.image] as const])),
@@ -1089,6 +1111,8 @@ export function App(): JSX.Element {
           texteLu={passages.length > 0}
           passagesPage={passages.filter((passage) => passage.page === route.page)}
           chargerImage={chargerImage}
+          rotation={rotationsManuelles.get(route.page) ?? 0}
+          {...(administration === undefined ? {} : { onTourner: tournerPageManuellement })}
           {...(route.cibleRecherche === undefined ? {} : { cibleRecherche: route.cibleRecherche })}
           {...(lecture === undefined || lecture.traduirePage === undefined || courante === undefined || regarde === undefined
             ? {}

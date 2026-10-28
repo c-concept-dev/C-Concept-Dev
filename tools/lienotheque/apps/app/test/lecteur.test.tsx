@@ -69,6 +69,39 @@ function poser(element = ID(11)) {
 }
 
 describe("Lecteur : la page et ses éléments (B1, UX-01)", () => {
+  it("tourne manuellement la page par quarts de tour et demande de mémoriser chaque choix", async () => {
+    const onTourner = vi.fn();
+    const { container, rerender } = render(
+      <Lecteur
+        vue={VUE}
+        page={127}
+        element={ID(11)}
+        rotation={0}
+        onTourner={onTourner}
+        onPage={vi.fn()}
+        onElement={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: /tourner de 90° — feuillet 127/i }));
+    expect(onTourner).toHaveBeenLastCalledWith(127, 90);
+
+    rerender(
+      <Lecteur
+        vue={VUE}
+        page={127}
+        element={ID(11)}
+        rotation={270}
+        onTourner={onTourner}
+        onPage={vi.fn()}
+        onElement={vi.fn()}
+      />,
+    );
+    expect(container.querySelector(".ln-page__feuille")).toHaveStyle({ transform: "translate(-50%, -50%) rotate(270deg)" });
+    await userEvent.click(screen.getByRole("button", { name: /tourner de 90° — feuillet 127/i }));
+    expect(onTourner).toHaveBeenLastCalledWith(127, 0);
+  });
+
   it("montre le passage publié même quand la vue graphique ne porte aucun texte", () => {
     render(
       <Lecteur
