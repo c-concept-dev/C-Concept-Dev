@@ -92,6 +92,7 @@ try {
     score.justes !== score.attendus ||
     score.manquants.length > 0 ||
     score.fautifs.length > 0 ||
+    score.supplementaires.length > 0 ||
     bilan.fauxAutomatiques.length > 0
   )
     process.exitCode = 2;

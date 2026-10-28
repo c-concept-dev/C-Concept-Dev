@@ -17,13 +17,10 @@ import {
   chargerRecette,
   comparer,
   lireNomMedia,
-  formeDepuisExemple,
-  rangDuNumero,
   rejouer,
   type MediaInventorie,
   type Recette,
 } from "../src/index.js";
-import { ReponseValidationCibles, type ZoneRelative } from "@lienotheque/contrats";
 
 const RACINE = join(import.meta.dirname, "../../..");
 const CORPUS = process.env["LIENOTHEQUE_CORPUS_MUSICAL"] ?? "/Users/christophebonnet/Music/Basse";
@@ -126,24 +123,6 @@ const choisis = new Set(
     .filter(Boolean),
 );
 
-function ciblesValideesPour(recetteLue: Recette) {
-  const chemins = (process.env["LIENOTHEQUE_VALIDATIONS_CIBLES"] ?? "").split(",").map((chemin) => chemin.trim()).filter(Boolean);
-  const exemple = recetteLue.lectures.find((lecture) => lecture.ancre === "element")?.numero?.exemple;
-  if (chemins.length === 0 || exemple === undefined) return undefined;
-  const forme = formeDepuisExemple(exemple);
-  const uniques = new Map<number, { numero: number; numeroLu: string; pagePdf: number; zone: ZoneRelative; confiance: number }>();
-  for (const chemin of chemins) {
-    const brut = JSON.parse(readFileSync(chemin, "utf8")) as { reponse?: unknown };
-    const reponse = ReponseValidationCibles.parse(brut.reponse);
-    for (const resultat of reponse.resultats) {
-      if (resultat.etat !== "trouve" || resultat.page === undefined || resultat.zone === undefined) continue;
-      const numero = rangDuNumero(resultat.cible, forme);
-      if (numero === undefined) continue;
-      uniques.set(numero, { numero, numeroLu: resultat.cible, pagePdf: resultat.page, zone: resultat.zone, confiance: resultat.confiance });
-    }
-  }
-  return [...uniques.values()];
-}
 for (const id of choisis) if (!CAS.some((cas) => cas.id === id)) throw new Error(`Cas C9.3 inconnu : ${id}`);
 
 const rapport: Record<string, unknown> = {
@@ -177,9 +156,6 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
   const joue = await rejouer(cas.pdf, cas.medias, recetteLue, {
     inventaireMedias: medias,
     cache: lectures,
-    ...(cas.id === "hal-leonard-funk-fusion" && ciblesValideesPour(recetteLue) !== undefined
-      ? { ciblesValidees: ciblesValideesPour(recetteLue) }
-      : {}),
     avancement: (faits, total) => {
       const pourcent = total === 0 ? 0 : Math.floor((faits * 100) / total);
       if (pourcent >= dernier + 5 || faits === total) {
@@ -223,6 +199,7 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
             attendus: scoreOracle.attendus,
             manquants: scoreOracle.manquants,
             fautifs: scoreOracle.fautifs,
+            supplementaires: scoreOracle.supplementaires,
           },
         }),
     elementsLus: joue.resultat.lignes.map((ligne) => ({ numero: ligne.numero, page: ligne.pageImprimee, piste: ligne.piste })),
@@ -233,7 +210,10 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
   if (bilan.fauxAutomatiques.length !== 0) throw new Error(`${cas.nom}: ${bilan.fauxAutomatiques.length} faux lien(s) automatique(s)`);
   if (
     scoreOracle !== undefined &&
-    (scoreOracle.justes !== scoreOracle.attendus || scoreOracle.manquants.length !== 0 || scoreOracle.fautifs.length !== 0)
+    (scoreOracle.justes !== scoreOracle.attendus ||
+      scoreOracle.manquants.length !== 0 ||
+      scoreOracle.fautifs.length !== 0 ||
+      scoreOracle.supplementaires.length !== 0)
   )
     throw new Error(`${cas.nom}: ${scoreOracle.justes}/${scoreOracle.attendus} associations conformes à la vérité terrain`);
   if (cas.attente === "abstention" && (bilan.automatiques !== 0 || joue.association.abstention === undefined))
@@ -254,10 +234,23 @@ if (choisis.has("paul-westwood") || choisis.has("aebersold-026")) {
     joue.resultat.lignes,
     reference.appariements.map((attendu) => ({ numero: attendu.exercice, piste: attendu.piste })),
   );
-  const mesure = { id: "f3-temoin", justes: score.justes, attendus: score.attendus, manquants: score.manquants, fautifs: score.fautifs };
+  const mesure = {
+    id: "f3-temoin",
+    justes: score.justes,
+    attendus: score.attendus,
+    manquants: score.manquants,
+    fautifs: score.fautifs,
+    supplementaires: score.supplementaires,
+  };
   rejeux.push(mesure);
   console.log(JSON.stringify(mesure, null, 2));
-  if (score.justes !== 95 || score.attendus !== 95 || score.manquants.length !== 0 || score.fautifs.length !== 0)
+  if (
+    score.justes !== 95 ||
+    score.attendus !== 95 ||
+    score.manquants.length !== 0 ||
+    score.fautifs.length !== 0 ||
+    score.supplementaires.length !== 0
+  )
     throw new Error(`F3 a régressé : ${score.justes}/${score.attendus}`);
 }
 

@@ -586,26 +586,44 @@ export type Score = {
   readonly justes: number;
   readonly manquants: readonly number[];
   readonly fautifs: readonly { numero: number; attendu: number; obtenu: number }[];
+  readonly supplementaires: readonly { numero: number; piste: number }[];
 };
 
 /** Compare piste à piste, par numéro d'élément. Un élément absent du rejeu compte comme manquant,
- *  jamais comme juste. */
+ *  jamais comme juste. Une association qui n'existe pas dans la référence compte comme
+ *  supplémentaire : couvrir tout l'oracle ne suffit pas si le moteur invente aussi des liens. */
 export function comparer(
   lignes: readonly { numero: number; piste?: number | undefined }[],
   reference: readonly { numero: number; piste: number }[],
 ): Score {
-  const obtenu = new Map(lignes.flatMap((ligne) => (ligne.piste === undefined ? [] : [[ligne.numero, ligne.piste] as const])));
+  const obtenus = lignes.flatMap((ligne) =>
+    ligne.piste === undefined ? [] : [{ numero: ligne.numero, piste: ligne.piste }],
+  );
+  const utilises = new Set<number>();
   const manquants: number[] = [];
   const fautifs: { numero: number; attendu: number; obtenu: number }[] = [];
   let justes = 0;
 
   for (const attendu of reference) {
-    const piste = obtenu.get(attendu.numero);
-    if (piste === undefined) manquants.push(attendu.numero);
-    else if (piste === attendu.piste) justes += 1;
-    else fautifs.push({ numero: attendu.numero, attendu: attendu.piste, obtenu: piste });
+    const exact = obtenus.findIndex(
+      (ligne, index) => !utilises.has(index) && ligne.numero === attendu.numero && ligne.piste === attendu.piste,
+    );
+    if (exact >= 0) {
+      utilises.add(exact);
+      justes += 1;
+      continue;
+    }
+    const memeNumero = obtenus.findIndex(
+      (ligne, index) => !utilises.has(index) && ligne.numero === attendu.numero,
+    );
+    if (memeNumero < 0) manquants.push(attendu.numero);
+    else {
+      utilises.add(memeNumero);
+      fautifs.push({ numero: attendu.numero, attendu: attendu.piste, obtenu: obtenus[memeNumero]!.piste });
+    }
   }
-  return { attendus: reference.length, justes, manquants, fautifs };
+  const supplementaires = obtenus.filter((_, index) => !utilises.has(index));
+  return { attendus: reference.length, justes, manquants, fautifs, supplementaires };
 }
 
 /** Relevé de la couche texte d'un PDF natif, dans la forme exacte des fichiers de référence.

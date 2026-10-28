@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { coin, ouvrirCache } from "@lienotheque/cache";
 import {
   chargerRecette,
+  comparer,
   completerResultatParCiblesValidees,
   integrerCiblesValidees,
   interpreter,
@@ -97,6 +98,40 @@ describe("inventaire portable des médias (REC-05, ANC-05)", () => {
       { piste: 3, disque: 1, nom: "CD1/Piste 03.mp3", empreinte: "a".repeat(64) },
       { piste: 3, disque: 2, nom: "CD2/Piste 03.mp3", empreinte: "b".repeat(64) },
     ]);
+  });
+});
+
+describe("comparateur strict du banc de vérité terrain (OUT-15)", () => {
+  it("signale une association produite en plus de la référence", () => {
+    const score = comparer(
+      [
+        { numero: 1, piste: 10 },
+        { numero: 2, piste: 20 },
+      ],
+      [{ numero: 1, piste: 10 }],
+    );
+
+    expect(score.justes).toBe(1);
+    expect(score.supplementaires).toEqual([{ numero: 2, piste: 20 }]);
+  });
+
+  it("ne masque pas un doublon produit sous le même numéro qu'une association juste", () => {
+    const score = comparer(
+      [
+        { numero: 1, piste: 10 },
+        { numero: 1, piste: 11 },
+      ],
+      [{ numero: 1, piste: 10 }],
+    );
+
+    expect(score.justes).toBe(1);
+    expect(score.supplementaires).toEqual([{ numero: 1, piste: 11 }]);
+  });
+
+  it("interdit l'injection de validations ciblées dans le rejeu C9.3 normal", () => {
+    const banc = readFileSync(join(import.meta.dirname, "../mesures/c9-3-cinq-methodes.ts"), "utf8");
+    expect(banc).not.toContain("LIENOTHEQUE_VALIDATIONS_CIBLES");
+    expect(banc).not.toContain("ciblesValideesPour");
   });
 });
 

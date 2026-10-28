@@ -85,6 +85,7 @@ describe("critère F3 — méthode numérisée, 95 sur 95 (OUT-15, REC-06)", () 
       );
       expect(score.fautifs, "aucun élément relié à la mauvaise piste").toEqual([]);
       expect(score.manquants, "aucun élément perdu").toEqual([]);
+      expect(score.supplementaires, "aucun élément inventé en plus de la vérité terrain").toEqual([]);
       expect(score.justes, `${score.justes}/${score.attendus} éléments à la bonne piste`).toBe(score.attendus);
       expect(score.attendus).toBe(95);
 
