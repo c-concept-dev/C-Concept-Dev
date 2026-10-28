@@ -4,7 +4,7 @@
  *  qui les écoute ne puissent pas diverger. Un raccourci affiché mais inopérant est pire que pas de
  *  raccourci du tout. */
 
-export type Action = "lecture" | "precedent" | "suivant" | "boucle" | "ralentir" | "accelerer" | "distance";
+export type Action = "lecture" | "precedent" | "suivant" | "boucle" | "ralentir" | "accelerer" | "distance" | "rotation";
 
 export type Raccourci = { readonly touches: readonly string[]; readonly libelle: string; readonly action: Action };
 
@@ -16,6 +16,7 @@ export const RACCOURCIS: readonly Raccourci[] = [
   { touches: ["["], libelle: "[", action: "ralentir" },
   { touches: ["]"], libelle: "]", action: "accelerer" },
   { touches: ["d", "D"], libelle: "D", action: "distance" },
+  { touches: ["r", "R"], libelle: "R", action: "rotation" },
 ];
 
 /** Ce que la ligne du bas annonce : les touches groupées par ce qu'elles font. */
@@ -25,6 +26,7 @@ export const LEGENDE: readonly { readonly touches: string; readonly quoi: string
   { touches: "L", quoi: "boucle" },
   { touches: "[ ]", quoi: "tempo" },
   { touches: "D", quoi: "mode à distance" },
+  { touches: "R", quoi: "tourner 90°" },
 ];
 
 /** L'action d'une touche, ou rien. Les touches frappées dans un champ ne comptent pas : on

@@ -112,10 +112,12 @@ export function Lecteur({ vue, document, page, element, texteLu = false, textePa
       if (action === "ralentir") setTempo((avant) => tempoSuivant(avant, -1));
       if (action === "accelerer") setTempo((avant) => tempoSuivant(avant, 1));
       if (action === "distance") setADistance((avant) => !avant);
+      if (action === "rotation" && pageCourante !== undefined && onTourner !== undefined)
+        onTourner(pageCourante.index, ((rotation + 90) % 360) as Rotation);
     };
     globalThis.addEventListener("keydown", ecouter);
     return () => globalThis.removeEventListener("keydown", ecouter);
-  }, [aller, ecoute]);
+  }, [aller, ecoute, onTourner, pageCourante, rotation]);
 
   const dureeS = ecoute.dureeS > 0 ? ecoute.dureeS : DUREE_SUPPOSEE;
 
@@ -319,14 +321,14 @@ export function Lecteur({ vue, document, page, element, texteLu = false, textePa
           <span className="ln-sr-only">Position dans le document : </span>
           {pageCourante === undefined ? "—" : enTete(citerPage(vue.mots, pageCourante))} sur {vue.pages.length}
         </p>
-        <div className="ln-lecteur__zoom" role="group" aria-label="Zoom">
+        <div className="ln-lecteur__zoom" role="group" aria-label="Affichage de la page">
           {pageCourante === undefined || onTourner === undefined ? null : (
             <Bouton
-              compact
               onClick={() => onTourner(pageCourante.index, ((rotation + 90) % 360) as Rotation)}
-              aria-label={`Tourner de 90° — ${enTete(citerPage(vue.mots, pageCourante))}`}
+              aria-label={`Tourner 90° — ${enTete(citerPage(vue.mots, pageCourante))}`}
+              title="Tourner 90°"
             >
-              ↻
+              <span aria-hidden="true">↻</span> Tourner 90°
             </Bouton>
           )}
           <Bouton compact icone={<Icone nom="moins" />} onClick={() => setZoom(Math.max(50, zoom - 10))} disabled={zoom <= 50} aria-label="Réduire">

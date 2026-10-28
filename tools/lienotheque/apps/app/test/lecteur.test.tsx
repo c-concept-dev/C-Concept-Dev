@@ -83,7 +83,10 @@ describe("Lecteur : la page et ses éléments (B1, UX-01)", () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole("button", { name: /tourner de 90° — feuillet 127/i }));
+    const boutonRotation = screen.getByRole("button", { name: /tourner 90° — feuillet 127/i });
+    expect(boutonRotation).toHaveAttribute("title", "Tourner 90°");
+    expect(boutonRotation).toHaveTextContent("Tourner 90°");
+    await userEvent.click(boutonRotation);
     expect(onTourner).toHaveBeenLastCalledWith(127, 90);
 
     rerender(
@@ -98,7 +101,7 @@ describe("Lecteur : la page et ses éléments (B1, UX-01)", () => {
       />,
     );
     expect(container.querySelector(".ln-page__feuille")).toHaveStyle({ transform: "translate(-50%, -50%) rotate(270deg)" });
-    await userEvent.click(screen.getByRole("button", { name: /tourner de 90° — feuillet 127/i }));
+    await userEvent.click(screen.getByRole("button", { name: /tourner 90° — feuillet 127/i }));
     expect(onTourner).toHaveBeenLastCalledWith(127, 0);
   });
 
@@ -287,6 +290,26 @@ describe("Lecteur : raccourcis (B1)", () => {
     expect(screen.getByText(/mode à distance actif/i)).toBeInTheDocument();
   });
 
+  it("R tourne la page et la légende annonce le raccourci", async () => {
+    const onTourner = vi.fn();
+    render(
+      <Lecteur
+        vue={VUE}
+        page={127}
+        element={ID(11)}
+        rotation={90}
+        onTourner={onTourner}
+        onPage={vi.fn()}
+        onElement={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("R")).toBeInTheDocument();
+    expect(screen.getAllByText(/tourner 90°/i)).toHaveLength(2);
+    await userEvent.keyboard("r");
+    expect(onTourner).toHaveBeenCalledWith(127, 180);
+  });
+
   it("ne vole pas les touches de quelqu’un qui écrit une note", async () => {
     poser();
     const note = screen.getByRole("textbox", { name: /note — clause/i });
@@ -300,6 +323,7 @@ describe("raccourcis : les règles, sans écran", () => {
   it("rend l’action d’une touche connue", () => {
     expect(actionDe(" ", null)).toBe("lecture");
     expect(actionDe("L", null)).toBe("boucle");
+    expect(actionDe("R", null)).toBe("rotation");
     expect(actionDe("x", null)).toBeUndefined();
   });
 
