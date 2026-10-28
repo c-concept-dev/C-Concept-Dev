@@ -13,6 +13,11 @@ import { readdir } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 import { coin, ouvrirCache } from "@lienotheque/cache";
 import {
+  jetonDacces,
+  transportValidationCiblesVersWorker,
+  validationStructurelleCiblee,
+} from "../../vision/src/index.js";
+import {
   bilanAssociationCorpus,
   chargerRecette,
   comparer,
@@ -28,9 +33,12 @@ const RECETTE_PASTILLES = join(RACINE, "fixtures/recettes/methode-pastilles-cd.v
 const RECETTE_F3 = join(RACINE, "fixtures/recettes/methode-pastille-piste.v2.json");
 const RECETTE_NUMERO_COMPOSE = join(RACINE, "fixtures/recettes/methode-numero-compose-piste.v2.json");
 const REFERENCE_FUNK_FUSION = join(RACINE, "fixtures/references/funk-fusion-bass-appariement.json");
+const SERVICE_STRUCTUREL =
+  process.env["LIENOTHEQUE_DIAGNOSTIC_URL"] ?? "https://lienotheque-api.11drumboy11.workers.dev";
 const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
 const lectures = coin(cache, "lectures-c9-3");
 const rapports = coin(cache, "rapports-c9-3");
+const validations = coin(cache, "vision-structurelle");
 
 type Cas = {
   readonly id: string;
@@ -125,6 +133,17 @@ const choisis = new Set(
 
 for (const id of choisis) if (!CAS.some((cas) => cas.id === id)) throw new Error(`Cas C9.3 inconnu : ${id}`);
 
+const jetonStructurel = choisis.has("hal-leonard-funk-fusion") ? jetonDacces() : undefined;
+if (choisis.has("hal-leonard-funk-fusion") && jetonStructurel === undefined)
+  throw new Error("Funk Fusion exige le jeton Liénothèque pour sa validation structurelle ciblée");
+const validationStructurelle =
+  jetonStructurel === undefined
+    ? undefined
+    : validationStructurelleCiblee(
+        transportValidationCiblesVersWorker(SERVICE_STRUCTUREL, jetonStructurel),
+        { cache: validations },
+      );
+
 const rapport: Record<string, unknown> = {
   id: randomUUID(),
   produitLe: new Date().toISOString(),
@@ -156,6 +175,9 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
   const joue = await rejouer(cas.pdf, cas.medias, recetteLue, {
     inventaireMedias: medias,
     cache: lectures,
+    ...(cas.id === "hal-leonard-funk-fusion" && validationStructurelle !== undefined
+      ? { validationStructurelle }
+      : {}),
     avancement: (faits, total) => {
       const pourcent = total === 0 ? 0 : Math.floor((faits * 100) / total);
       if (pourcent >= dernier + 5 || faits === total) {
