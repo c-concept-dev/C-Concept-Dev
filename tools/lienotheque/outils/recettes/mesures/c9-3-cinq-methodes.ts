@@ -30,6 +30,7 @@ import {
 const RACINE = join(import.meta.dirname, "../../..");
 const CORPUS = process.env["LIENOTHEQUE_CORPUS_MUSICAL"] ?? "/Users/christophebonnet/Music/Basse";
 const RECETTE_PASTILLES = join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json");
+const RECETTE_PAUL_WESTWOOD = join(RACINE, "fixtures/recettes/methode-paul-westwood.v1.json");
 const RECETTE_F3 = join(RACINE, "fixtures/recettes/methode-pastille-piste.v2.json");
 const RECETTE_NUMERO_COMPOSE = join(RACINE, "fixtures/recettes/methode-numero-compose-piste.v2.json");
 const REFERENCE_FUNK_FUSION = join(RACINE, "fixtures/references/funk-fusion-bass-appariement.json");
@@ -55,7 +56,7 @@ const CAS: readonly Cas[] = [
     nom: "Paul Westwood — Bass Bible",
     pdf: join(CORPUS, "Methodes/Paul westwood.pdf"),
     medias: join(CORPUS, "Paul westwood pdf et MP3"),
-    recette: RECETTE_PASTILLES,
+    recette: RECETTE_PAUL_WESTWOOD,
     attente: "liens_corroborés",
   },
   {

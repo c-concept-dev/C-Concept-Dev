@@ -200,6 +200,22 @@ describe("corroboration exacte par un média nommé", () => {
     ]);
   });
 
+  it("fait primer le support exact du média sur un badge CD mal interprété (REC-05)", () => {
+    const pages = numeroterPages([
+      page(0, 197, [element(718, { pisteLue: 4, accordPiste: 1 })]),
+    ]).pages;
+    const mediasParElement = new Map([[718, { piste: 1, disque: 2 }]]);
+
+    const lignes = sequencer(pages, RECETTE, {
+      supports: new Map([[2, 73]]),
+      mediasParElement,
+    }).lignes;
+
+    expect(lignes).toMatchObject([
+      { numero: 718, piste: 1, disque: 2, sourcePiste: "corroboration_media" },
+    ]);
+  });
+
   it("s'abstient quand aucun média ne porte exactement l'identifiant de l'élément", () => {
     const pages = numeroterPages([
       page(0, 3, [

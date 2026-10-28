@@ -13,6 +13,7 @@ describe("chargement d'une recette (REC-01)", () => {
       "methode-pastille-piste.v2.json",
       "methode-pastilles-cd.v4.json",
       "methode-pastilles-cd.v5.json",
+      "methode-paul-westwood.v1.json",
       "methode-numero-compose-piste.v1.json",
       "methode-numero-compose-piste.v2.json",
     ])

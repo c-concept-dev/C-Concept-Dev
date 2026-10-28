@@ -355,7 +355,10 @@ export function sequencer(
 
     // Un élément d'un support absent ne prend aucune piste, et n'en hérite pas non plus : il n'y
     // a pas d'enregistrement à relier, et en inventer un serait pire que de n'en relier aucun.
-    if (sansSupport.has(rang)) {
+    // Une correspondance média exacte porte aussi son support. Elle doit donc primer sur le
+    // support inféré depuis le badge : ce dernier peut confondre « CD 1 » et le cartouche de
+    // piste, tandis que le média nommé fournit ensemble l'élément, la piste et le disque.
+    if (sansSupport.has(rang) && mediaCorrobore === undefined) {
       lignes.push({
         numero: element.numeroRetenu,
         pageImprimee: element.pageImprimee,
