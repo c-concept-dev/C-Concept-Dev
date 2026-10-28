@@ -367,6 +367,22 @@ export function sequencer(
       return;
     }
 
+    // Quand la recette a demandé une corroboration exacte par le nom des médias, l'absence
+    // d'identifiant correspondant est une information : ce repère n'a pas de piste publiée.
+    // Lui attribuer malgré tout la piste calculée par la suite fabriquerait précisément un faux
+    // lien (par exemple un exercice imprimé 6.2 alors qu'aucun fichier audio ne porte #6.2).
+    if (options.mediasParElement !== undefined && mediaCorrobore === undefined) {
+      lignes.push({
+        numero: element.numeroRetenu,
+        pageImprimee: element.pageImprimee,
+        disque: dernierDisque,
+        ...(element.zone === undefined ? {} : { zone: element.zone }),
+        ...(element.zoneRepere === undefined ? {} : { zoneRepere: element.zoneRepere }),
+        confiance: element.accordNumero,
+      });
+      return;
+    }
+
     if (mediaCorrobore !== undefined) {
       piste = mediaCorrobore.piste;
       disque = mediaCorrobore.disque;

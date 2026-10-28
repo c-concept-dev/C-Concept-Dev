@@ -199,6 +199,28 @@ describe("corroboration exacte par un média nommé", () => {
       { numero: 5002, piste: 3, source: "corroboration_media" },
     ]);
   });
+
+  it("s'abstient quand aucun média ne porte exactement l'identifiant de l'élément", () => {
+    const pages = numeroterPages([
+      page(0, 3, [
+        element(6001, { numeroLu: "6.1", pisteLue: 77, accordPiste: 1 }),
+        element(6002, { numeroLu: "6.2", pisteLue: 78, accordPiste: 1 }),
+        element(6004, { numeroLu: "6.4", pisteLue: 79, accordPiste: 1 }),
+      ]),
+    ]).pages;
+    const mediasParElement = new Map([
+      [6001, { piste: 77, disque: 1 }],
+      [6004, { piste: 78, disque: 1 }],
+    ]);
+
+    const lignes = sequencer(pages, RECETTE, { mediasParElement }).lignes;
+
+    expect(lignes.map((ligne) => ({ numero: ligne.numero, piste: ligne.piste, source: ligne.sourcePiste }))).toEqual([
+      { numero: 6001, piste: 77, source: "corroboration_media" },
+      { numero: 6002, piste: undefined, source: undefined },
+      { numero: 6004, piste: 78, source: "corroboration_media" },
+    ]);
+  });
 });
 
 describe("un numéro relu n'est appliqué que si la suite le confirme (ANC-02, OUT-08)", () => {
