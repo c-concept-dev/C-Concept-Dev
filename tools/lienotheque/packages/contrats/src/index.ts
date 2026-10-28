@@ -23,6 +23,7 @@ export * from "./operation.js";
 export * from "./resultat-outil.js";
 export * from "./service.js";
 export * from "./vision.js";
+export * from "./diagnostic-structurel.js";
 export * from "./identite.js";
 export * from "./traduction.js";
 export * from "./assistant-depot.js";

@@ -17,16 +17,20 @@ import {
   chargerRecette,
   comparer,
   lireNomMedia,
+  formeDepuisExemple,
+  rangDuNumero,
   rejouer,
   type MediaInventorie,
   type Recette,
 } from "../src/index.js";
+import { ReponseValidationCibles, type ZoneRelative } from "@lienotheque/contrats";
 
 const RACINE = join(import.meta.dirname, "../../..");
 const CORPUS = process.env["LIENOTHEQUE_CORPUS_MUSICAL"] ?? "/Users/christophebonnet/Music/Basse";
 const RECETTE_PASTILLES = join(RACINE, "fixtures/recettes/methode-pastilles-cd.v5.json");
 const RECETTE_F3 = join(RACINE, "fixtures/recettes/methode-pastille-piste.v2.json");
-const RECETTE_NUMERO_COMPOSE = join(RACINE, "fixtures/recettes/methode-numero-compose-piste.v1.json");
+const RECETTE_NUMERO_COMPOSE = join(RACINE, "fixtures/recettes/methode-numero-compose-piste.v2.json");
+const REFERENCE_FUNK_FUSION = join(RACINE, "fixtures/references/funk-fusion-bass-appariement.json");
 const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
 const lectures = coin(cache, "lectures-c9-3");
 const rapports = coin(cache, "rapports-c9-3");
@@ -121,6 +125,25 @@ const choisis = new Set(
     .map((id) => id.trim())
     .filter(Boolean),
 );
+
+function ciblesValideesPour(recetteLue: Recette) {
+  const chemins = (process.env["LIENOTHEQUE_VALIDATIONS_CIBLES"] ?? "").split(",").map((chemin) => chemin.trim()).filter(Boolean);
+  const exemple = recetteLue.lectures.find((lecture) => lecture.ancre === "element")?.numero?.exemple;
+  if (chemins.length === 0 || exemple === undefined) return undefined;
+  const forme = formeDepuisExemple(exemple);
+  const uniques = new Map<number, { numero: number; numeroLu: string; pagePdf: number; zone: ZoneRelative; confiance: number }>();
+  for (const chemin of chemins) {
+    const brut = JSON.parse(readFileSync(chemin, "utf8")) as { reponse?: unknown };
+    const reponse = ReponseValidationCibles.parse(brut.reponse);
+    for (const resultat of reponse.resultats) {
+      if (resultat.etat !== "trouve" || resultat.page === undefined || resultat.zone === undefined) continue;
+      const numero = rangDuNumero(resultat.cible, forme);
+      if (numero === undefined) continue;
+      uniques.set(numero, { numero, numeroLu: resultat.cible, pagePdf: resultat.page, zone: resultat.zone, confiance: resultat.confiance });
+    }
+  }
+  return [...uniques.values()];
+}
 for (const id of choisis) if (!CAS.some((cas) => cas.id === id)) throw new Error(`Cas C9.3 inconnu : ${id}`);
 
 const rapport: Record<string, unknown> = {
@@ -150,9 +173,13 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
   const debut = Date.now();
   const medias = await inventaire(cas.medias);
   let dernier = -1;
-  const joue = await rejouer(cas.pdf, cas.medias, recette(cas.recette), {
+  const recetteLue = recette(cas.recette);
+  const joue = await rejouer(cas.pdf, cas.medias, recetteLue, {
     inventaireMedias: medias,
     cache: lectures,
+    ...(cas.id === "hal-leonard-funk-fusion" && ciblesValideesPour(recetteLue) !== undefined
+      ? { ciblesValidees: ciblesValideesPour(recetteLue) }
+      : {}),
     avancement: (faits, total) => {
       const pourcent = total === 0 ? 0 : Math.floor((faits * 100) / total);
       if (pourcent >= dernier + 5 || faits === total) {
@@ -162,6 +189,13 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
     },
   });
   const bilan = bilanAssociationCorpus(joue.association);
+  const oracle =
+    cas.id === "hal-leonard-funk-fusion"
+      ? (JSON.parse(readFileSync(REFERENCE_FUNK_FUSION, "utf8")) as { appariements: [number, number][] }).appariements.map(
+          ([numero, piste]) => ({ numero, piste }),
+        )
+      : undefined;
+  const scoreOracle = oracle === undefined ? undefined : comparer(joue.resultat.lignes, oracle);
   const mesure = {
     id: cas.id,
     nom: cas.nom,
@@ -181,12 +215,27 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
     pistesManquantes: bilan.pistesManquantes,
     mediasOrphelins: bilan.mediasOrphelins,
     abstention: joue.association.abstention,
+    ...(scoreOracle === undefined
+      ? {}
+      : {
+          oracle: {
+            justes: scoreOracle.justes,
+            attendus: scoreOracle.attendus,
+            manquants: scoreOracle.manquants,
+            fautifs: scoreOracle.fautifs,
+          },
+        }),
     elementsLus: joue.resultat.lignes.map((ligne) => ({ numero: ligne.numero, page: ligne.pageImprimee, piste: ligne.piste })),
   };
   rejeux.push(mesure);
   console.log(JSON.stringify(mesure, null, 2));
 
   if (bilan.fauxAutomatiques.length !== 0) throw new Error(`${cas.nom}: ${bilan.fauxAutomatiques.length} faux lien(s) automatique(s)`);
+  if (
+    scoreOracle !== undefined &&
+    (scoreOracle.justes !== scoreOracle.attendus || scoreOracle.manquants.length !== 0 || scoreOracle.fautifs.length !== 0)
+  )
+    throw new Error(`${cas.nom}: ${scoreOracle.justes}/${scoreOracle.attendus} associations conformes à la vérité terrain`);
   if (cas.attente === "abstention" && (bilan.automatiques !== 0 || joue.association.abstention === undefined))
     throw new Error(`${cas.nom}: le moteur ne s'est pas abstenu explicitement`);
 }

@@ -3,7 +3,15 @@ import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync }
 import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { basename, join } from "node:path";
-import { PageLueBrute, ReglagesRedressement, type CotePage, type Recette, type ResultatRecette, type Rotation } from "@lienotheque/contrats";
+import {
+  PageLueBrute,
+  ReglagesRedressement,
+  ResultatRecette,
+  type CotePage,
+  type Recette,
+  type Rotation,
+  type ZoneRelative,
+} from "@lienotheque/contrats";
 import { noterLesQuatreSens, orientationDuLot, redresser, type OptionsRedressement, type RotationTrouvee } from "@lienotheque/redresseur";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
@@ -79,6 +87,9 @@ export type OptionsBanc = OptionsReperes & {
   readonly depuis?: number;
   /** De quoi relire les repères difficiles. Absente, la chaîne ne relit rien et ne change pas. */
   readonly relecture?: Relecture;
+  /** Identifiants que le repli structurel a réellement localisés. Ils ne deviennent des
+   * éléments que si un média unique et indépendant porte exactement le même identifiant. */
+  readonly ciblesValidees?: readonly CibleStructurelleValidee[];
   /** Dossier où garder les lectures. Absent, rien n'est gardé. */
   readonly cache?: string | undefined;
   /** Rend les pages redressées et coupées, mais sans binarisation.
@@ -92,6 +103,94 @@ export type OptionsBanc = OptionsReperes & {
   readonly pages?: number;
   readonly redressement?: OptionsRedressement;
 };
+
+export type CibleStructurelleValidee = {
+  readonly numero: number;
+  readonly numeroLu: string;
+  /** Numéro physique du PDF, à partir de 1. */
+  readonly pagePdf: number;
+  readonly zone: ZoneRelative;
+  readonly confiance: number;
+};
+
+/** Intègre les seules lectures de repli prouvées par deux sources indépendantes : la cible
+ * visible sur la page et un média unique qui porte le même identifiant. Rien n'est ajouté si la
+ * page, le média ou la confiance manque. Le cache brut reste intact. */
+export function integrerCiblesValidees(
+  pages: readonly PageLue[],
+  cibles: readonly CibleStructurelleValidee[],
+  mediasParElement: ReadonlyMap<number, { readonly piste: number; readonly disque: number }>,
+  seuil: number,
+): PageLue[] {
+  const deja = new Set(pages.flatMap((page) => page.elements.map((element) => element.numero)));
+  const parPage = new Map<number, CibleStructurelleValidee[]>();
+  for (const cible of cibles) {
+    if (cible.confiance < seuil || deja.has(cible.numero) || !mediasParElement.has(cible.numero)) continue;
+    const index = cible.pagePdf - 1;
+    if (!pages.some((page) => page.index === index)) continue;
+    parPage.set(index, [...(parPage.get(index) ?? []), cible]);
+    deja.add(cible.numero);
+  }
+  return pages.map((page) => {
+    const ajouts = parPage.get(page.index) ?? [];
+    if (ajouts.length === 0) return { ...page, elements: [...page.elements] };
+    const elements = [
+      ...page.elements,
+      ...ajouts.map((cible) => ({
+        y: Math.min(1, cible.zone.y + cible.zone.h / 2),
+        zone: cible.zone,
+        numero: cible.numero,
+        numeroLu: cible.numeroLu,
+        presencePiste: 0,
+        suite: false,
+        accordNumero: cible.confiance,
+        accordPiste: 0,
+      })),
+    ].sort((a, b) => a.y - b.y || a.numero - b.numero);
+    return { ...page, elements };
+  });
+}
+
+/** Une cible peut avoir été réellement lue puis écartée par la remise en suite, précisément parce
+ * que cette remise en suite préfère perdre un élément plutôt qu'en inventer un. Deux preuves
+ * indépendantes lèvent alors le doute : localisation exacte par Vision et média unique du même
+ * identifiant. Ce complément ne dérive aucune piste et ne s'applique jamais à une cible absente. */
+export function completerResultatParCiblesValidees(
+  resultat: ResultatRecette,
+  cibles: readonly CibleStructurelleValidee[],
+  mediasParElement: ReadonlyMap<number, { readonly piste: number; readonly disque: number }>,
+  seuil: number,
+): ResultatRecette {
+  const presentes = new Set(resultat.lignes.map((ligne) => ligne.numero));
+  const ajouts = cibles.flatMap((cible) => {
+    if (cible.confiance < seuil || presentes.has(cible.numero)) return [];
+    const media = mediasParElement.get(cible.numero);
+    const page = resultat.pages.find((candidate) => candidate.index === cible.pagePdf - 1);
+    if (media === undefined || page?.pageImprimee === undefined) return [];
+    // Si la lecture locale avait vu l'identifiant mais que la remise en suite l'a écarté, sa
+    // boîte mesurée sur les pixels est plus précise que la boîte grossière du repli Vision.
+    const zoneLocale = page.elements.find((element) => element.numero === cible.numero)?.zone;
+    presentes.add(cible.numero);
+    return [
+      {
+        numero: cible.numero,
+        numeroLu: cible.numeroLu,
+        pageImprimee: page.pageImprimee,
+        piste: media.piste,
+        disque: media.disque,
+        sourcePiste: "corroboration_media" as const,
+        zone: zoneLocale ?? cible.zone,
+        confiance: Math.round(cible.confiance * 100) / 100,
+      },
+    ];
+  });
+  return ResultatRecette.parse({
+    ...resultat,
+    lignes: [...resultat.lignes, ...ajouts].sort(
+      (a, b) => a.pageImprimee - b.pageImprimee || (a.zone?.y ?? 0) - (b.zone?.y ?? 0) || a.numero - b.numero,
+    ),
+  });
+}
 
 /** Un cliché sur combien, et combien au plus, pour voter l'orientation du lot.
  *
@@ -430,7 +529,24 @@ export async function rejouer(pdf: string, dossierMedias: string, recette: Recet
   // quels supports sont là : un livre qui couvre deux disques dont on n'a que le premier ne doit
   // pas voir ses derniers éléments forcés dans celui-là.
   const supports = supportsPresents(medias);
-  const lues = await lireLot(pdf, recette, options);
+  const mediasParElement = new Map<number, { piste: number; disque: number }>();
+  if (recette.audio?.usage === "corroboration_exacte") {
+    const groupes = new Map<number, Media[]>();
+    for (const media of medias) {
+      if (media.element === undefined) continue;
+      groupes.set(media.element, [...(groupes.get(media.element) ?? []), media]);
+    }
+    for (const [element, candidats] of groupes)
+      if (candidats.length === 1) {
+        const media = candidats[0]!;
+        mediasParElement.set(element, { piste: media.piste, disque: media.disque ?? 1 });
+      }
+  }
+  const luesBrutes = await lireLot(pdf, recette, options);
+  const lues =
+    recette.audio?.usage === "corroboration_exacte" && options.ciblesValidees !== undefined
+      ? integrerCiblesValidees(luesBrutes, options.ciblesValidees, mediasParElement, recette.validation.seuil_confiance)
+      : luesBrutes;
 
   // La relecture ciblée, quand une est branchée. Elle vient après la lecture et avant
   // l'interprétation : elle ne lit pas à la place du lecteur, elle revient sur ce dont il doute.
@@ -439,11 +555,21 @@ export async function rejouer(pdf: string, dossierMedias: string, recette: Recet
       ? undefined
       : await options.relecture({ chemin: pdf, recette, lues, nombreDePistes: medias.length, supports, options });
 
-  const resultat = interpreter(lues, recette, {
+  const interprete = interpreter(lues, recette, {
     nombreDePistes: medias.length,
     supports,
+    ...(recette.audio?.usage === "corroboration_exacte" ? { mediasParElement } : {}),
     ...(vision === undefined ? {} : { vision }),
   });
+  const resultat =
+    recette.audio?.usage === "corroboration_exacte" && options.ciblesValidees !== undefined
+      ? completerResultatParCiblesValidees(
+          interprete,
+          options.ciblesValidees,
+          mediasParElement,
+          recette.validation.seuil_confiance,
+        )
+      : interprete;
   const mediasDisponibles = options.inventaireMedias?.filter((media) => media.nom.toLowerCase().endsWith(".mp3")).length;
   return {
     resultat,

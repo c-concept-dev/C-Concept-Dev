@@ -37,7 +37,17 @@ const LecturePage = z.object({ ancre: z.literal("page_imprimee"), zone: Zone, al
  *
  *  L'ordre se tient aussi : un numéro à plusieurs groupes se compare groupe par groupe, chacun
  *  comptant pour trois chiffres. « 2.46 » passe avant « 3.3 ». */
-const FormeNumero = z.object({ exemple: z.string().regex(/^\d/, "Un exemple commence par un chiffre").min(1) }).strict();
+const FormeNumero = z
+  .object({
+    exemple: z.string().regex(/^\d/, "Un exemple commence par un chiffre").min(1),
+    /** Certains ouvrages impriment le numéro dans un cadre. Déclarer cette forme permet de
+     *  retirer le trait avant l'OCR ; elle n'est jamais supposée pour les autres recettes. */
+    encadrement: z.literal("rectangle").optional(),
+    /** Familles de numéros que cette manière de lire sait relier aux médias. Un préfixe déclaré
+     *  écarte les autres chapitres avant qu'ils ne puissent consommer une piste. */
+    prefixes: z.array(z.string().min(1)).min(1).optional(),
+  })
+  .strict();
 
 const LectureElement = z
   .object({
@@ -58,6 +68,8 @@ const LecturePiste = z
     position: z.enum(["dessous", "dessus", "gauche", "droite"]),
     motif: z.enum(["bloc_sombre_chiffres_clairs", "losange_sombre_chiffres_clairs"]),
     etiquette_disque: z.boolean(),
+    /** Mesure propre au repère imprimé ; absente, le seuil commun éprouvé reste inchangé. */
+    remplissage_minimal: z.number().gt(0).lt(1).optional(),
   })
   .strict();
 
@@ -104,7 +116,15 @@ export const Recette = z
         mention_suite: z.string().min(1).optional(),
       })
       .strict(),
-    audio: z.object({ motif_nom: z.string().min(1), usage: z.literal("indice") }).strict().optional(),
+    audio: z
+      .object({
+        motif_nom: z.string().min(1),
+        /** `indice` ne décide rien. `corroboration_exacte` exige que l'identifiant lu sur la page
+         * désigne un unique média portant exactement le même identifiant ; sinon abstention. */
+        usage: z.enum(["indice", "corroboration_exacte"]),
+      })
+      .strict()
+      .optional(),
     /** Relecture ciblée des zones que la lecture locale n'a pas rendues (OUT-08).
      *
      *  Facultative — un lot qui se lit entièrement n'en a pas besoin, et la plupart n'en auront

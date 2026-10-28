@@ -211,6 +211,9 @@ export type OptionsSequence = {
   readonly supports?: SupportsPresents;
   /** Ce qu'une relecture ciblée a lu, par clef d'élément. Absent, rien ne change. */
   readonly vision?: ReadonlyMap<string, LectureParVision>;
+  /** Correspondance indépendante et univoque entre l'identifiant lu sur la page et un média.
+   * Construite uniquement quand la recette l'autorise explicitement. */
+  readonly mediasParElement?: ReadonlyMap<number, { readonly piste: number; readonly disque: number }>;
 };
 
 /** Enchaîne les éléments et leurs pistes, selon les règles de la recette.
@@ -226,10 +229,16 @@ export function sequencer(
   options: OptionsSequence = {},
 ): { lignes: LigneInterpretee[]; ecartes: Ecart[] } {
   const places: ElementPlace[] = [];
+  const prefixes = recette.lectures.find((lecture) => lecture.ancre === "element")?.numero?.prefixes;
   for (const page of pages) {
     if (page.pageImprimee === undefined) continue;
-    for (const element of page.elements)
+    for (const element of page.elements) {
+      // Certaines méthodes numérotent plusieurs chapitres, mais seuls certains portent les
+      // repères audio de la recette. Les autres sont hors périmètre, pas des erreurs de lecture :
+      // les écarter ici les empêche de décaler silencieusement toute la suite des pistes.
+      if (prefixes !== undefined && !prefixes.some((prefixe) => element.numeroLu?.startsWith(prefixe))) continue;
       places.push({ ...element, pageImprimee: page.pageImprimee, cliche: page.index, ...(page.cote === undefined ? {} : { cote: page.cote }) });
+    }
   }
 
   const { numerotes, ecartes } = numeroterElements(places, recette.regles.elements.saut_max);
@@ -339,6 +348,7 @@ export function sequencer(
 
   numerotes.forEach((element, rang) => {
     const attribution = parRang.get(rang);
+    const mediaCorrobore = options.mediasParElement?.get(element.numeroRetenu);
     let piste: number | undefined;
     let disque = dernierDisque;
     let sourcePiste: SourcePiste | undefined;
@@ -357,7 +367,11 @@ export function sequencer(
       return;
     }
 
-    if (element.suite && recette.regles.mention_suite !== undefined && dernierePiste > 0) {
+    if (mediaCorrobore !== undefined) {
+      piste = mediaCorrobore.piste;
+      disque = mediaCorrobore.disque;
+      sourcePiste = "corroboration_media";
+    } else if (element.suite && recette.regles.mention_suite !== undefined && dernierePiste > 0) {
       piste = dernierePiste;
       sourcePiste = "suite";
     } else if (attribution !== undefined) {

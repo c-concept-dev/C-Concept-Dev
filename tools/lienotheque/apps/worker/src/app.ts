@@ -1,11 +1,17 @@
 import {
   DemandeTraductionPage,
+  DemandeDiagnosticStructurel,
+  DemandeValidationCibles,
   DemandeVision,
   EstimationVision,
   EtatService,
   ReponseVision,
+  ReponseDiagnosticStructurel,
+  ReponseValidationCibles,
   TraductionDePage,
   reponseRepondA,
+  diagnosticRepondA,
+  validationCiblesRepondA,
   type Capacite,
 } from "@lienotheque/contrats";
 import {
@@ -59,6 +65,12 @@ import {
   type CompteurDeJetons,
   type LecteurDeZones,
 } from "./vision.js";
+import {
+  diagnostiquerParModele,
+  validerCiblesParModele,
+  type Diagnostiqueur,
+  type ValideurCibles,
+} from "./diagnostic-structurel.js";
 import {
   PhraseTropLongue,
   TraductionRefusee,
@@ -141,6 +153,8 @@ type Options = {
    *  conforme est refusée. */
   readonly lecteur?: (cle: string) => LecteurDeZones;
   readonly compteur?: (cle: string) => CompteurDeJetons;
+  readonly diagnostiqueur?: (cle: string) => Diagnostiqueur;
+  readonly valideurCibles?: (cle: string) => ValideurCibles;
   /** Les sessions personnelles sont-elles exigées pour entrer par la façade ?
    *
    *  La valeur vient de `portes.ts` ; cette option existe pour que les tests éprouvent **les deux
@@ -160,6 +174,8 @@ export function creerApp({
   maintenant = () => new Date(),
   lecteur = lireParModele,
   compteur = compterParModele,
+  diagnostiqueur = diagnostiquerParModele,
+  valideurCibles = validerCiblesParModele,
   sessionsExigees = SESSIONS_EXIGEES,
 }: Options = {}): Hono<{
   Bindings: Liaisons;
@@ -241,6 +257,42 @@ export function creerApp({
     return valide.data;
   };
 
+  const diagnosticDe = async (
+    contexte: { req: { json: () => Promise<unknown> } },
+  ): Promise<DemandeDiagnosticStructurel | Response> => {
+    let brut: unknown;
+    try {
+      brut = await contexte.req.json();
+    } catch {
+      return Response.json({ erreur: "Corps illisible" }, { status: 400 });
+    }
+    const valide = DemandeDiagnosticStructurel.safeParse(brut);
+    if (!valide.success)
+      return Response.json(
+        { erreur: "Demande refusée", ecarts: valide.error.issues.map((souci) => `${souci.path.join(".")} : ${souci.message}`) },
+        { status: 400 },
+      );
+    return valide.data;
+  };
+
+  const validationCiblesDe = async (
+    contexte: { req: { json: () => Promise<unknown> } },
+  ): Promise<import("@lienotheque/contrats").DemandeValidationCibles | Response> => {
+    let brut: unknown;
+    try {
+      brut = await contexte.req.json();
+    } catch {
+      return Response.json({ erreur: "Corps illisible" }, { status: 400 });
+    }
+    const valide = DemandeValidationCibles.safeParse(brut);
+    if (!valide.success)
+      return Response.json(
+        { erreur: "Demande refusée", ecarts: valide.error.issues.map((souci) => `${souci.path.join(".")} : ${souci.message}`) },
+        { status: 400 },
+      );
+    return valide.data;
+  };
+
   const repondre = async <T>(travail: () => Promise<T>, valider: (valeur: T) => unknown): Promise<Response> => {
     try {
       return Response.json(valider(await travail()) as Record<string, unknown>);
@@ -267,6 +319,38 @@ export function creerApp({
         const reponse = ReponseVision.parse(brute);
         const ecarts = reponseRepondA(demande, reponse);
         if (ecarts.length > 0) throw new VisionRefusee(502, `La réponse ne répond pas à la demande : ${ecarts.join(", ")}`);
+        return reponse;
+      },
+    );
+  });
+
+  app.post("/vision/structure", async (contexte) => {
+    const refus = laisserEntrer(contexte);
+    if (refus !== undefined) return refus;
+    const demande = await diagnosticDe(contexte);
+    if (demande instanceof Response) return demande;
+    return repondre(
+      () => diagnostiqueur(contexte.env.ANTHROPIC_API_KEY!)(demande),
+      (brute) => {
+        const reponse = ReponseDiagnosticStructurel.parse(brute);
+        const ecarts = diagnosticRepondA(demande, reponse);
+        if (ecarts.length > 0) throw new VisionRefusee(502, `Le diagnostic ne répond pas à la demande : ${ecarts.join(", ")}`);
+        return reponse;
+      },
+    );
+  });
+
+  app.post("/vision/structure/cibles", async (contexte) => {
+    const refus = laisserEntrer(contexte);
+    if (refus !== undefined) return refus;
+    const demande = await validationCiblesDe(contexte);
+    if (demande instanceof Response) return demande;
+    return repondre(
+      () => valideurCibles(contexte.env.ANTHROPIC_API_KEY!)(demande),
+      (brute) => {
+        const reponse = ReponseValidationCibles.parse(brute);
+        const ecarts = validationCiblesRepondA(demande, reponse);
+        if (ecarts.length > 0) throw new VisionRefusee(502, `La validation ciblée ne répond pas à la demande : ${ecarts.join(", ")}`);
         return reponse;
       },
     );

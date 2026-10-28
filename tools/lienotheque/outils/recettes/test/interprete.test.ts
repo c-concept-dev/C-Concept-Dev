@@ -72,6 +72,27 @@ describe("numérotation des pages (OUT-07)", () => {
 describe("enchaînement des éléments et des pistes (REC-02)", () => {
   const numerote = (pages: readonly PageLue[]) => numeroterPages(pages).pages;
 
+  it("écarte avant séquençage les familles hors des préfixes déclarés par la recette", () => {
+    const recette = chargerRecette({
+      ...JSON.parse(JSON.stringify(RECETTE)),
+      lectures: RECETTE.lectures.map((lecture) =>
+        lecture.ancre === "element"
+          ? { ...lecture, numero: { exemple: "5.19", prefixes: ["5.", "6."] } }
+          : lecture,
+      ),
+    });
+    const chapitre5 = numerote([
+      page(0, 3, [
+        element(2001, { numeroLu: "2.1", pisteLue: 2, accordPiste: 1 }),
+        element(5001, { numeroLu: "5.1", pisteLue: 2, accordPiste: 1 }),
+      ]),
+    ]);
+    const chapitre6 = numerote([page(0, 3, [element(6001, { numeroLu: "6.1", pisteLue: 77, accordPiste: 1 })])]);
+
+    expect(sequencer(chapitre5, recette).lignes.map((ligne) => ligne.numero)).toEqual([5001]);
+    expect(sequencer(chapitre6, recette).lignes.map((ligne) => ligne.numero)).toEqual([6001]);
+  });
+
   it("prend la pastille quand son pas est permis", () => {
     const { lignes } = sequencer(numerote([page(0, 3, [element(1, { pisteLue: 1, accordPiste: 1 })])]), RECETTE);
     expect(lignes[0]).toMatchObject({ numero: 1, piste: 1, sourcePiste: "pastille" });
@@ -159,6 +180,24 @@ describe("déterminisme (REC-02)", () => {
       JSON.parse(readFileSync(join(import.meta.dirname, "../../../fixtures/recettes/methode-pastille-piste.v1.json"), "utf8")),
     );
     expect(interpreter(lot, v1).recette.version).toBe(1);
+  });
+});
+
+describe("corroboration exacte par un média nommé", () => {
+  it("remplace une lecture de repère fausse seulement quand l'identifiant du média est unique", () => {
+    const pages = numeroterPages([
+      page(0, 3, [element(5001, { pisteLue: 4, accordPiste: 1 })]),
+      page(1, 4, [element(5002, { pisteLue: 4, accordPiste: 1 })]),
+    ]).pages;
+    const mediasParElement = new Map([
+      [5001, { piste: 2, disque: 1 }],
+      [5002, { piste: 3, disque: 1 }],
+    ]);
+    const lignes = sequencer(pages, RECETTE, { mediasParElement }).lignes;
+    expect(lignes.map((ligne) => ({ numero: ligne.numero, piste: ligne.piste, source: ligne.sourcePiste }))).toEqual([
+      { numero: 5001, piste: 2, source: "corroboration_media" },
+      { numero: 5002, piste: 3, source: "corroboration_media" },
+    ]);
   });
 });
 

@@ -5,3 +5,4 @@ export * from "./marges.js";
 export * from "./recadrage.js";
 export * from "./relecture.js";
 export * from "./transport.js";
+export * from "./diagnostic-structurel.js";

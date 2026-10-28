@@ -7,6 +7,7 @@ import {
   LARGEUR_MINIMALE_REPERE,
   PRESENCE_MINIMALE,
   amorceDeSuite,
+  cadresRectangulaires,
   lireBlocPiste,
   coinsDePage,
   consolider,
@@ -19,6 +20,29 @@ import {
   vote,
   zonePastille,
 } from "../src/index.js";
+
+describe("numéros encadrés d'une manière de lire dédiée (REC-01, OUT-07)", () => {
+  it("isole les cadres de numéros sans prendre une portée pour un cadre", () => {
+    const largeur = 220;
+    const hauteur = 180;
+    const pixels = new Uint8Array(largeur * hauteur).fill(255);
+    const noircir = (x: number, y: number): void => {
+      pixels[y * largeur + x] = 0;
+    };
+    for (let x = 20; x < 76; x += 1) {
+      noircir(x, 30);
+      noircir(x, 51);
+    }
+    for (let y = 30; y <= 51; y += 1) {
+      noircir(20, y);
+      noircir(75, y);
+    }
+    for (let x = 5; x < 210; x += 1) noircir(x, 110);
+
+    expect(cadresRectangulaires({ largeur, hauteur, pixels }, 18, 28)).toEqual([{ x: 20, y: 30, l: 56, h: 22 }]);
+  });
+
+});
 
 describe("motif tiré du libellé de la recette (OUT-07)", () => {
   it("accepte le libellé tel quel, quelle que soit la casse", () => {
@@ -224,6 +248,27 @@ describe("formes candidates d'un repère (OUT-07)", () => {
 
   it("ne propose rien sur une image claire", () => {
     expect(formesCandidates(binaire(() => false), 14)).toEqual([]);
+  });
+
+  it("laisse une recette retenir un losange mesuré moins rempli sans changer le seuil commun", () => {
+    const noircir = (x: number, y: number): boolean => {
+      // Un cadre rempli à 0,4375, plus une barre plus grande que lui : sans seuil mesuré, la
+      // barre est le recours ; avec 0,35, le cadre redevient le premier candidat.
+      const cadre = x >= 20 && x < 40 && y >= 5 && y < 25 && (x < 22 || x >= 38 || y < 7 || y >= 23);
+      const barre = x < 60 && y >= 27 && y < 32;
+      return cadre || barre;
+    };
+    const image = {
+      largeur: 70,
+      hauteur: 40,
+      pixels: Uint8Array.from({ length: 2_800 }, (_, rang) => {
+        const x = rang % 70;
+        const y = Math.floor(rang / 70);
+        return noircir(x, y) ? 0 : 255;
+      }),
+    };
+    expect(formesCandidates(image, 20)[0]?.y).toBe(27);
+    expect(formesCandidates(image, 20, 0.35)[0]).toEqual({ x: 20, y: 5, l: 20, h: 20 });
   });
 });
 

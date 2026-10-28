@@ -72,6 +72,7 @@ describe("recettes (REC-01, REC-06)", () => {
   });
   it("n'utilise les noms de fichiers que comme indices (REC-05)", () => {
     const r = lire("methode-pastilles-cd.v4.json");
+    expect(Recette.safeParse({ ...r, audio: { ...r.audio, usage: "corroboration_exacte" } }).success).toBe(true);
     expect(Recette.safeParse({ ...r, audio: { ...r.audio, usage: "verite" } }).success).toBe(false);
   });
 });

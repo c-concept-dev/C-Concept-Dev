@@ -3,8 +3,17 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { coin, ouvrirCache } from "@lienotheque/cache";
-import { chargerRecette, interpreter, lireLot, mediasDeLInventaire, mediasDuDossier } from "../src/index.js";
+import {
+  chargerRecette,
+  completerResultatParCiblesValidees,
+  integrerCiblesValidees,
+  interpreter,
+  lireLot,
+  mediasDeLInventaire,
+  mediasDuDossier,
+} from "../src/index.js";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
+import { ResultatRecette } from "@lienotheque/contrats";
 
 /** Lire trois cents pages prend un quart d'heure : on garde les lectures entre deux exécutions.
  *  Le cache ne contient que des numéros et des positions — rien du document lui-même. */
@@ -87,6 +96,64 @@ describe("inventaire portable des médias (REC-05, ANC-05)", () => {
     expect(medias).toEqual([
       { piste: 3, disque: 1, nom: "CD1/Piste 03.mp3", empreinte: "a".repeat(64) },
       { piste: 3, disque: 2, nom: "CD2/Piste 03.mp3", empreinte: "b".repeat(64) },
+    ]);
+  });
+});
+
+describe("repli structurel validé", () => {
+  it("ajoute seulement une cible vue avec confiance et corroborée par un média unique", () => {
+    const pages = [
+      {
+        index: 64,
+        elements: [
+          { y: 0.2, numero: 5007, numeroLu: "5.7", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
+          { y: 0.8, numero: 5009, numeroLu: "5.9", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
+        ],
+      },
+    ];
+    const medias = new Map([[5008, { piste: 9, disque: 1 }]]);
+    const completees = integrerCiblesValidees(
+      pages,
+      [
+        { numero: 5008, numeroLu: "5.8", pagePdf: 65, zone: { x: 0.09, y: 0.63, l: 0.04, h: 0.04 }, confiance: 0.95 },
+        { numero: 5010, numeroLu: "5.10", pagePdf: 65, zone: { x: 0.09, y: 0.9, l: 0.04, h: 0.04 }, confiance: 0.99 },
+      ],
+      medias,
+      0.9,
+    );
+    expect(completees[0]!.elements.map((element) => element.numero)).toEqual([5007, 5008, 5009]);
+    expect(completees[0]!.elements[1]).toMatchObject({ numeroLu: "5.8", accordNumero: 0.95 });
+  });
+
+  it("s'abstient si la confiance est insuffisante ou si l'élément existe déjà", () => {
+    const pages = [{ index: 64, elements: [{ y: 0.2, numero: 5008, numeroLu: "5.8", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }] }];
+    const medias = new Map([[5008, { piste: 9, disque: 1 }]]);
+    expect(
+      integrerCiblesValidees(
+        pages,
+        [{ numero: 5008, numeroLu: "5.8", pagePdf: 65, zone: { x: 0.09, y: 0.63, l: 0.04, h: 0.04 }, confiance: 0.4 }],
+        medias,
+        0.9,
+      )[0]!.elements,
+    ).toHaveLength(1);
+  });
+
+  it("rétablit après interprétation une cible exacte que la suite prudente a écartée", () => {
+    const resultat = ResultatRecette.parse({
+      recette: { id: "composee", version: 1 },
+      pages: [{ index: 64, rang: 64, pageImprimee: 65, statut: "deduite", elements: [] }],
+      lignes: [],
+      pagesAbsentes: [],
+      ecartes: [],
+    });
+    const complete = completerResultatParCiblesValidees(
+      resultat,
+      [{ numero: 5008, numeroLu: "5.8", pagePdf: 65, zone: { x: 0.09, y: 0.63, l: 0.04, h: 0.04 }, confiance: 0.95 }],
+      new Map([[5008, { piste: 9, disque: 1 }]]),
+      0.9,
+    );
+    expect(complete.lignes).toEqual([
+      expect.objectContaining({ numero: 5008, numeroLu: "5.8", pageImprimee: 65, piste: 9, sourcePiste: "corroboration_media" }),
     ]);
   });
 });

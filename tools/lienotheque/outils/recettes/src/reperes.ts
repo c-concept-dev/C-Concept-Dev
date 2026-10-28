@@ -277,6 +277,37 @@ export function tonClair(image: ImageGrise, part = 0.9): number {
  *  pourquoi elle est ici : trois copies d'un nombre mesuré finissent par diverger. */
 export const LARGEUR_MINIMALE_REPERE = 0.35;
 
+/** Cadres rectangulaires susceptibles de porter un numéro.
+ *
+ * Cette lecture n'est appelée que lorsqu'une recette déclare explicitement un encadrement. Une
+ * portée traverse la page et une lettre est pleine dans sa boîte ; un cadre, lui, a une largeur
+ * bornée, une faible part d'encre et quatre bords réellement présents. */
+export function cadresRectangulaires(image: ImageGrise, hauteurMin: number, hauteurMax: number): Boite[] {
+  const clair = Math.max(1, tonClair(image));
+  const binaire = seuiller(image, Math.round(clair * 0.62));
+  const sombre = (x: number, y: number): boolean => binaire.pixels[y * binaire.largeur + x]! < 128;
+  return formesSombres(binaire)
+    .filter((forme) => {
+      const { x, y, l, h } = forme.boite;
+      if (h < hauteurMin || h > hauteurMax || l < h * 1.25 || l > h * 4.5) return false;
+      const plein = remplissage(forme);
+      if (plein < 0.06 || plein > 0.48) return false;
+
+      const epaisseur = Math.max(1, Math.round(h * 0.16));
+      let bord = 0;
+      let total = 0;
+      for (let yy = y; yy < y + h; yy += 1)
+        for (let xx = x; xx < x + l; xx += 1)
+          if (yy - y < epaisseur || y + h - 1 - yy < epaisseur || xx - x < epaisseur || x + l - 1 - xx < epaisseur) {
+            total += 1;
+            if (sombre(xx, yy)) bord += 1;
+          }
+      return total > 0 && bord / total >= 0.2;
+    })
+    .map((forme) => forme.boite)
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
 /** À quel point une pastille semble présente sous le numéro, qu'on sache ou non lire son chiffre.
  *
  *  On ne mesure pas la fenêtre de recherche — sa taille est arbitraire et varie d'une recette à
@@ -398,7 +429,11 @@ export const PRESENCE_MINIMALE = 0.25;
  *
  *  Chacune est lue, et c'est le vote qui tranche. Mieux vaut trois lectures dont deux fausses
  *  qu'une seule qui manque. */
-export function formesCandidates(binaire: ImageGrise, hauteurNumero: number): Boite[] {
+export function formesCandidates(
+  binaire: ImageGrise,
+  hauteurNumero: number,
+  remplissageMinimal = REMPLISSAGE_MINIMAL,
+): Boite[] {
   const formes = formesSombres(binaire);
   const candidates: Boite[] = [];
   const ajouter = (boite: Boite | undefined): void => {
@@ -419,7 +454,7 @@ export function formesCandidates(binaire: ImageGrise, hauteurNumero: number): Bo
     // repère, alors que le pavé était là, à côté. Mesuré : cinq premiers éléments perdus sur F4.
     if (l < h * LARGEUR_MINIMALE_REPERE) continue;
     const plein = remplissage(forme);
-    if (plein < REMPLISSAGE_MINIMAL) continue;
+    if (plein < remplissageMinimal) continue;
     if (
       laPlusPleine === undefined ||
       plein > laPlusPleine.plein + 0.05 ||
@@ -449,6 +484,7 @@ export function lireBlocPiste(
   etiquette: boolean,
   options: OptionsReperes = {},
   compte = false,
+  remplissageMinimal = REMPLISSAGE_MINIMAL,
 ): BlocPiste {
   const fenetre = zonePastille(boite, position, marge);
   const zone = recadrer(image, fenetre);
@@ -456,7 +492,7 @@ export function lireBlocPiste(
 
   const clair = Math.max(1, tonClair(zone));
   const binaire = seuiller(zone, Math.round(clair * 0.55));
-  const candidates = formesCandidates(binaire, boite.h);
+  const candidates = formesCandidates(binaire, boite.h, remplissageMinimal);
   const presence = presenceDeForme(zone, candidates[0], boite.h);
   if (presence < PRESENCE_MINIMALE) return { presence, votes: [] };
 
@@ -515,6 +551,7 @@ export function lireBlocPiste(
         }
       }
     }
+
   }
   return {
     presence,
@@ -574,6 +611,38 @@ function relireParGroupes(
   return recomposer(lus, forme);
 }
 
+/** Lit le contenu d'un cadre sans donner son trait à Tesseract. */
+function lireNumeroEncadre(
+  image: ImageGrise,
+  cadre: Boite,
+  forme: FormeDeNumero,
+  acceptes: string | undefined,
+  options: OptionsReperes,
+): string | undefined {
+  const retrait = Math.max(2, Math.round(cadre.h * 0.16));
+  const interieur = recadrer(image, {
+    x: cadre.x + retrait,
+    y: cadre.y + retrait,
+    l: cadre.l - retrait * 2,
+    h: cadre.h - retrait * 2,
+  });
+  if (interieur.largeur === 0 || interieur.hauteur === 0) return undefined;
+
+  const prepare = border(agrandir(interieur, 4), 24);
+  const lus: string[] = [];
+  for (const segmentation of [7, 8, 11] as const) {
+    const texte = ocr(prepare, segmentation, options, acceptes)
+      .map((mot) => mot.texte.trim())
+      .join("")
+      .replace(/\s/g, "");
+    if (rangDuNumero(texte, forme) !== undefined) lus.push(texte);
+  }
+  if (lus.length === 0) return undefined;
+  const comptes = new Map<string, number>();
+  for (const lu of lus) comptes.set(lu, (comptes.get(lu) ?? 0) + 1);
+  return [...comptes.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "fr"))[0]![0];
+}
+
 /** Toutes les lectures d'une page : plusieurs passes, aucune consolidation encore.
  *
  *  Deux façons de repérer un élément, selon ce que la recette déclare. Avec un libellé, on
@@ -623,6 +692,7 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
               lecturePiste.etiquette_disque,
               options,
               compte,
+              lecturePiste.remplissage_minimal,
             );
       const piste = bloc === undefined ? undefined : vote(bloc.votes);
       const chiffresComptes = bloc?.decoupe?.chiffres.length;
@@ -665,6 +735,21 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
         suite: amorce !== undefined && apres.includes(amorce),
       });
     };
+
+    if (lectureElement.numero?.encadrement === "rectangle") {
+      const hauteurMin = agrandie.hauteur * lectureElement.hauteur_rel.min;
+      const hauteurMax = agrandie.hauteur * lectureElement.hauteur_rel.max;
+      for (const cadre of cadresRectangulaires(agrandie, hauteurMin, hauteurMax)) {
+        const commeMot: MotLu = { texte: "", ...cadre };
+        if (!dansLaZone(commeMot, lectureElement.zone, agrandie, options.cote)) continue;
+        const lu = lireNumeroEncadre(agrandie, cadre, forme, acceptes, options);
+        if (lu === undefined) continue;
+        const valeur = rangDuNumero(lu, forme);
+        if (valeur === undefined) continue;
+        retenir(0, valeur, lu, cadre, cadre.y / agrandie.hauteur);
+      }
+      continue;
+    }
 
     if (motif !== undefined) {
       // Le libellé désigne l'élément ; son numéro est le mot qui suit.

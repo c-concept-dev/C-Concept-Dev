@@ -129,7 +129,7 @@ export type PageLueBrute = z.infer<typeof PageLueBrute>;
  *  `sequence` : aucune pastille lisible ici, mais la suite des pistes alentour impose celle-ci. */
 /** D'où vient la piste retenue. `vision` est une relecture ciblée du repère, corroborée par la
  *  suite — jamais appliquée sans elle (ANC-02, OUT-08). */
-export const SourcePiste = z.enum(["pastille", "suite", "numero_element", "sequence", "vision"]);
+export const SourcePiste = z.enum(["pastille", "suite", "numero_element", "sequence", "vision", "corroboration_media"]);
 export type SourcePiste = z.infer<typeof SourcePiste>;
 
 export const LigneInterpretee = z

@@ -14,8 +14,38 @@ describe("chargement d'une recette (REC-01)", () => {
       "methode-pastilles-cd.v4.json",
       "methode-pastilles-cd.v5.json",
       "methode-numero-compose-piste.v1.json",
+      "methode-numero-compose-piste.v2.json",
     ])
       expect(() => chargerRecette(lire(nom)), nom).not.toThrow();
+  });
+
+  it("accepte qu'une manière de lire cible explicitement des numéros encadrés (REC-01)", () => {
+    const recette = lire("methode-numero-compose-piste.v1.json") as {
+      lectures: { ancre: string; numero?: { exemple: string; encadrement?: string } }[];
+    };
+    const element = recette.lectures.find((lecture) => lecture.ancre === "element")!;
+    element.numero = { ...element.numero!, encadrement: "rectangle" };
+
+    expect(() => chargerRecette(recette)).not.toThrow();
+  });
+
+  it("accepte qu'une manière de lire borne explicitement les familles de numéros composés (REC-01)", () => {
+    const recette = lire("methode-numero-compose-piste.v2.json") as {
+      lectures: { ancre: string; numero?: { exemple: string; encadrement?: string; prefixes?: string[] } }[];
+    };
+    const element = recette.lectures.find((lecture) => lecture.ancre === "element")!;
+    element.numero = { ...element.numero!, prefixes: ["5.", "6."] };
+
+    expect(() => chargerRecette(recette)).not.toThrow();
+  });
+
+  it("accepte qu'une manière de lire mesure le remplissage minimal de son repère (REC-01)", () => {
+    const recette = lire("methode-numero-compose-piste.v2.json") as {
+      lectures: { ancre: string; remplissage_minimal?: number }[];
+    };
+    recette.lectures.find((lecture) => lecture.ancre === "piste")!.remplissage_minimal = 0.35;
+
+    expect(() => chargerRecette(recette)).not.toThrow();
   });
 
   it("refuse un paramètre inconnu, et le nomme", () => {
