@@ -192,4 +192,45 @@ describe("pages témoins et compilation", () => {
       motif: "losange_sombre_chiffres_clairs",
     });
   });
+
+  it("compile un cartouche textuel où deux libellés portent le même numéro sans connaître leur vocabulaire", () => {
+    const modele = ModeleStructurelValide.parse({
+      etat: "valide",
+      document: DOCUMENT,
+      pagesObservees: [70, 104],
+      geometrie: { orientation: "portrait", doublePage: false },
+      lectures: [
+        {
+          id: "cartouche-repete",
+          nature: "repere",
+          zone: { x: 0.03, y: 0.02, l: 0.92, h: 0.2 },
+          repetition: "fixe",
+          forme: "rectangle",
+          alphabet: "latin",
+          exemple: "Workout 32 - TRACK 32",
+          confiance: 0.91,
+          observations: [
+            { page: 70, zone: { x: 0.05, y: 0.03, l: 0.88, h: 0.18 }, valeur: "Workout 32 - TRACK 32" },
+            { page: 104, zone: { x: 0.05, y: 0.03, l: 0.88, h: 0.18 }, valeur: "Workout 49 - TRACK 49" },
+          ],
+        },
+      ],
+      relations: [],
+      inconnues: [],
+      validation: { pagesTemoins: [50], ecarts: [], superpositionsApprouvees: true },
+    });
+
+    const recette = compilerRecetteStructurelle(modele, { id: "cartouche-repete", version: 1 });
+    expect(recette.lectures).toEqual([
+      expect.objectContaining({
+        ancre: "element",
+        zone: { type: "rectangle_rel", x: 0.03, y: 0.02, l: 0.92, h: 0.2 },
+        alphabet: "chiffres",
+        libelle: "Workout",
+        numero: { exemple: "32" },
+      }),
+    ]);
+    expect(recette.regles.pistes).toMatchObject({ egale_numero_element: true });
+    expect(recette.regles.plusieurs_elements_par_piste).toBe(false);
+  });
 });

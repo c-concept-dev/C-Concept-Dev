@@ -7,7 +7,7 @@ import {
   type ModeleStructurelValide as ModeleValide,
 } from "@lienotheque/contrats";
 import { formesSombres, type Boite, type ImageGrise } from "@lienotheque/images";
-import { cadresRectangulaires } from "@lienotheque/recettes";
+import { cadresRectangulaires, consolider, lecturesDePage } from "@lienotheque/recettes";
 
 type Lecture = Proposition["lectures"][number];
 
@@ -126,6 +126,42 @@ export function detecterLecturesLocales(
   const formes = formesSombres(image).map((forme) => forme.boite);
   for (const lecture of calibre.lectures) {
     if (lecture.nature === "exclusion") continue;
+    const paireTextuelle = paireTextuelleDe(lecture);
+    if (paireTextuelle !== undefined) {
+      // Le contour d'un cartouche arrondi varie avec le contraste du scan. Ce qui fait foi est
+      // le libellé stable suivi de son numéro, relu localement dans la zone calibrée. Vision a
+      // proposé la structure ; elle ne revient pas lire la page témoin.
+      const hauteurs = lecture.observations.map((observation) => observation.zone.h);
+      const recette = Recette.parse({
+        id: "temoin-paire-textuelle",
+        version: 1,
+        derivee_de: null,
+        preparation: { redressement: "aucun", double_page: calibre.geometrie.doublePage },
+        lectures: [
+          {
+            ancre: "element",
+            zone: { type: "rectangle_rel", ...lecture.zone },
+            hauteur_rel: {
+              min: Math.max(0.0001, Math.min(...hauteurs) * 0.5),
+              max: Math.min(0.9999, Math.max(...hauteurs) * 1.5),
+            },
+            alphabet: "chiffres",
+            libelle: paireTextuelle.libelle,
+            numero: { exemple: paireTextuelle.exemple },
+          },
+        ],
+        regles: {
+          elements: { ordre: "strictement_croissant", saut_max: 1000 },
+          pistes: { ordre: "croissant", pas_autorises: [0, 1], egale_numero_element: true },
+          plusieurs_elements_par_piste: false,
+        },
+        validation: { seuil_confiance: 0.8 },
+      });
+      resultat[lecture.id] = consolider(lecturesDePage(image, recette)).flatMap((element) =>
+        element.zone === undefined ? [] : [element.zone],
+      );
+      continue;
+    }
     const hauteurs = lecture.observations.map((observation) => observation.zone.h * image.hauteur);
     const min = Math.max(2, Math.min(...hauteurs) * 0.55);
     const max = Math.max(min + 1, Math.max(...hauteurs) * 1.8);
@@ -195,6 +231,38 @@ const prefixesDe = (lecture: Lecture): string[] | undefined => {
   return prefixes.length === 0 ? undefined : prefixes;
 };
 
+type PaireTextuelle = { readonly lecture: Lecture; readonly libelle: string; readonly confirmation: string; readonly exemple: string };
+
+/** Deux libellés stables qui portent le même nombre constituent deux témoins sur la page.
+ *
+ * Aucun mot de domaine n'est connu ici : « Workout 32 / TRACK 32 », « Leçon 7 / Audio 7 » ou
+ * « Chapitre 4 / Fichier 4 » ont exactement la même structure. Il faut deux pages distinctes et
+ * les mêmes deux libellés ; un nombre répété par hasard dans une seule page ne suffit pas. */
+function paireTextuelleDe(lecture: Lecture): PaireTextuelle | undefined {
+  const paires = lecture.observations.flatMap((observation) => {
+    const valeur = observation.valeur;
+    if (valeur === undefined) return [];
+    const trouves = [...valeur.matchAll(/([\p{L}][\p{L}\p{N}_-]*)\s*#?\s*(\d{1,4})/gu)];
+    for (let premier = 0; premier < trouves.length; premier += 1)
+      for (let second = premier + 1; second < trouves.length; second += 1) {
+        const un = trouves[premier]!;
+        const deux = trouves[second]!;
+        if (un[2] !== deux[2] || un[1]!.localeCompare(deux[1]!, "fr", { sensitivity: "base" }) === 0) continue;
+        return [{ page: observation.page, libelle: un[1]!, confirmation: deux[1]!, exemple: un[2]! }];
+      }
+    return [];
+  });
+  if (paires.length < 2) return undefined;
+  const premiere = paires[0]!;
+  const stables = paires.filter(
+    (paire) =>
+      paire.libelle.localeCompare(premiere.libelle, "fr", { sensitivity: "base" }) === 0 &&
+      paire.confirmation.localeCompare(premiere.confirmation, "fr", { sensitivity: "base" }) === 0,
+  );
+  if (new Set(stables.map((paire) => paire.page)).size < 2) return undefined;
+  return { lecture, libelle: premiere.libelle, confirmation: premiere.confirmation, exemple: premiere.exemple };
+}
+
 /** Compile uniquement la partie générique que le modèle a établie. Les coordonnées et hauteurs
  * viennent des observations recalibrées ; aucune valeur grossière de Vision n'est reprise. */
 export function compilerRecetteStructurelle(
@@ -205,9 +273,10 @@ export function compilerRecetteStructurelle(
   if (!valide.success) throw new Error("Une recette ne peut être compilée que depuis un modèle structurel validé");
   const structure = valide.data;
   const page = structure.lectures.find((lecture) => lecture.nature === "page_imprimee");
-  const element = structure.lectures.find((lecture) => lecture.nature === "element");
+  const paireTextuelle = structure.lectures.map(paireTextuelleDe).find((paire) => paire !== undefined);
+  const element = paireTextuelle?.lecture ?? structure.lectures.find((lecture) => lecture.nature === "element");
   if (element === undefined) throw new Error("Le modèle validé ne contient aucune lecture d'élément");
-  const repere = structure.lectures.find((lecture) => lecture.nature === "repere");
+  const repere = paireTextuelle === undefined ? structure.lectures.find((lecture) => lecture.nature === "repere") : undefined;
   const hauteurs = element.observations.map((observation) => observation.zone.h);
   const min = Math.max(0.0001, Math.min(...hauteurs) * 0.75);
   const max = Math.min(0.9999, Math.max(...hauteurs) * 1.3);
@@ -227,14 +296,15 @@ export function compilerRecetteStructurelle(
         ancre: "element",
         zone: { type: "rectangle_rel", ...element.zone },
         hauteur_rel: { min, max },
-        alphabet: element.alphabet,
-        ...(element.exemple === undefined
+        alphabet: paireTextuelle === undefined ? element.alphabet : "chiffres",
+        ...(paireTextuelle === undefined ? {} : { libelle: paireTextuelle.libelle }),
+        ...(paireTextuelle === undefined && element.exemple === undefined
           ? {}
           : {
               numero: {
-                exemple: element.exemple,
-                ...(element.forme === "rectangle" ? { encadrement: "rectangle" } : {}),
-                ...(prefixesDe(element) === undefined ? {} : { prefixes: prefixesDe(element) }),
+                exemple: paireTextuelle?.exemple ?? element.exemple!,
+                ...(paireTextuelle === undefined && element.forme === "rectangle" ? { encadrement: "rectangle" } : {}),
+                ...(paireTextuelle === undefined && prefixesDe(element) !== undefined ? { prefixes: prefixesDe(element) } : {}),
               },
             }),
       },
@@ -252,9 +322,16 @@ export function compilerRecetteStructurelle(
           ]),
     ],
     regles: {
-      elements: { ordre: "strictement_croissant", saut_max: element.exemple?.match(/\D/) === null ? 12 : 1000 },
-      ...(repere === undefined ? {} : { pistes: { ordre: "croissant", pas_autorises: [0, 1] } }),
-      plusieurs_elements_par_piste: true,
+      elements: {
+        ordre: "strictement_croissant",
+        saut_max: paireTextuelle === undefined && element.exemple?.match(/\D/) === null ? 12 : 1000,
+      },
+      ...(paireTextuelle !== undefined
+        ? { pistes: { ordre: "croissant", pas_autorises: [0, 1], egale_numero_element: true } }
+        : repere === undefined
+          ? {}
+          : { pistes: { ordre: "croissant", pas_autorises: [0, 1] } }),
+      plusieurs_elements_par_piste: paireTextuelle === undefined,
     },
     validation: { seuil_confiance: 0.8 },
   });
