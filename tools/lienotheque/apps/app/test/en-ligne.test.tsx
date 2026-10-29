@@ -85,6 +85,57 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Enrôler une clé de plus : **le chemin, pas la pièce** (SEC-02).
+ *
+ *  ## Le défaut que ces deux épreuves figent
+ *
+ *  Le 29 octobre 2026, les boutons d'enrôlement étaient écrits, éprouvés, construits et déployés
+ *  — et aucun écran ne les rendait jamais. `Entrer` ne les propose que si on lui passe
+ *  `identifie`, et `App.tsx` ne le passait à aucun de ses deux rendus. Du code mort à l'écran,
+ *  dans un paquet servi en production.
+ *
+ *  Ce n'était pas une régression : l'ancien bouton « Enrôler cet appareil » vivait sous la même
+ *  condition et était tout aussi inatteignable. Personne ne l'avait vu parce que personne
+ *  n'avait eu besoin d'une seconde clé.
+ *
+ *  ## Pourquoi les épreuves d'alors ne pouvaient pas le voir
+ *
+ *  `entrer.test.tsx` rend `<Entrer identifie … />` en posant la propriété à la main. Elle prouve
+ *  que le composant sait afficher le bouton. Elle ne peut rien dire de l'application qui ne le
+ *  lui demande jamais — une épreuve de composant ne voit pas le chemin qui y mène.
+ *
+ *  Celles-ci partent donc de `<App />`, avec une vraie session au sens où l'application l'entend :
+ *  un service qui répond, donc `recuEnLigne` à « oui ». Rien n'est posé à la main.
+ *
+ *  La seconde épreuve n'est pas décorative : sans elle, poser `identifie` en dur ferait passer la
+ *  première, et proposerait d'enrôler à qui n'est pas entré. */
+describe("enrôler une clé de plus, depuis l'application et non depuis le composant", () => {
+  it("propose les deux enrôlements sur #entrer quand le service nous a reçus", async () => {
+    globalThis.history.replaceState({}, "", "/#entrer");
+    vi.stubGlobal("fetch", serviceQuiRepond({ statut: 200, corps: apercuVide }));
+
+    render(<App />);
+
+    // Celui qui donne un second exemplaire, et le seul recours si cette machine disparaît.
+    expect(await screen.findByRole("button", { name: /clé de sécurité/i })).toBeTruthy();
+    // Celui qui remplace la clé de cette machine : il sert à changer de machine, pas à s'ajouter.
+    expect(screen.getByRole("button", { name: /remplacer la clé/i })).toBeTruthy();
+  });
+
+  it("ne les propose pas à qui n'est pas entré, sur la même adresse", async () => {
+    globalThis.history.replaceState({}, "", "/#entrer");
+    vi.stubGlobal("fetch", serviceQuiRepond({ statut: 401 }));
+
+    render(<App />);
+
+    // L'écran lui-même paraît — c'est la cérémonie, elle doit vivre sans session.
+    expect(await screen.findByRole("button", { name: /^entrer$/i })).toBeTruthy();
+    // Mais pas de quoi enrôler : on n'enrôle que pour quelqu'un, et personne n'est identifié.
+    expect(screen.queryByRole("button", { name: /clé de sécurité/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /remplacer la clé/i })).toBeNull();
+  });
+});
+
 describe("en ligne, c'est le service qui tient la bibliothèque", () => {
   it("n'annonce pas une bibliothèque vide tant que la vérification de session n'a pas répondu", () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => undefined)));

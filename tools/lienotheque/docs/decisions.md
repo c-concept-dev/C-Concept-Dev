@@ -4801,3 +4801,36 @@ trois feuilles réelles de Paul Westwood observait `3` pour six pages produites 
 maintenant `1/6` à `6/6`. Le document complet porte toujours 143 feuilles et sa recette déclare
 la double page : le total annoncé est donc 286. Le garde-fou inverse sur F3 confirme que les
 recettes à une page par feuille conservent leur total, et le critère F3 reste à 95/95.
+
+## Dette — « Réglages → mes clés d'accès » (29 octobre 2026)
+
+**Ce qui a été fait ce soir, et ce qui ne l'a pas été.** Les boutons d'enrôlement existaient,
+étaient éprouvés, construits et déployés — et aucun écran ne les rendait jamais : `Entrer` ne les
+propose que si on lui passe `identifie`, et `App.tsx` ne le passait à aucun de ses deux rendus.
+Du code mort à l'écran, dans un paquet servi en production. Ce n'était pas une régression :
+l'ancien bouton « Enrôler cet appareil » vivait sous la même condition depuis le début.
+
+La correction posée est **minimale et assumée comme telle** : la route `#entrer` passe désormais
+`identifie={recuEnLigne === "oui"}`, donc quelqu'un d'entré qui ouvre cette adresse voit les deux
+boutons. Elle débloque l'enrôlement d'une seconde clé le soir même, ce qui était l'urgence — il
+n'existait qu'un seul exemplaire de ce qui ouvre la porte, et l'amorçage est clos pour toujours.
+
+**Ce qu'elle ne fait pas, et qui reste à faire.** Aucun menu ne conduit à `#entrer` : il faut
+taper l'adresse, ce qui est une façon indigne d'atteindre une fonction de sécurité. La bonne
+maison est l'écran Réglages, sous « mes clés d'accès », avec :
+
+- la **liste** des clés enrôlées, leur appareil et leur date ;
+- la **révocation** — `revoquerLaCle` et le droit `revoquer_cle` existent déjà côté service, et
+  aucun écran ne les appelle ;
+- les deux enrôlements, nommés pour ce qu'ils font : *remplacer la clé de cet appareil* n'ajoute
+  rien (un authentificateur intégré ne garde qu'une clé par personne et par domaine), *enrôler
+  une clé de sécurité* est le seul qui donne un second exemplaire.
+
+Il y faudra aussi une route de lecture des clés, que le service n'expose pas encore.
+
+**La leçon de méthode, qui dépasse ce cas.** `entrer.test.tsx` rendait `<Entrer identifie … />`
+en posant la propriété à la main : elle prouvait que le composant sait afficher le bouton, et ne
+pouvait rien dire de l'application qui ne le lui demandait jamais. **Une épreuve de composant ne
+voit pas le chemin qui y mène.** L'épreuve ajoutée part donc de `<App />` avec un service qui
+répond, et une seconde refuse les boutons à qui n'est pas entré — sans quoi poser `identifie` en
+dur ferait passer la première. Les deux ont été vérifiées rouges avant d'être vertes.

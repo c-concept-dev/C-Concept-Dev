@@ -1021,6 +1021,19 @@ export function App(): JSX.Element {
       return (
         <Entrer
           {...(route.invitation === undefined ? {} : { invitation: route.invitation })}
+          // **Sans cette ligne, enrôler une clé de plus était impossible**, et c'est resté vrai
+          // tant que personne n'a essayé : `Entrer` ne propose l'enrôlement que si on lui dit
+          // qu'une session est ouverte, et personne ne le lui disait. Les boutons existaient,
+          // partaient dans le paquet, et aucun écran ne les rendait jamais. Trouvé le 29 octobre
+          // 2026, en cherchant par où cliquer.
+          //
+          // `recuEnLigne` est la seule réponse honnête à « y a-t-il une session ? » : le témoin
+          // est `HttpOnly`, aucun script ne le lit, et l'on ne l'apprend qu'en demandant au
+          // service et en voyant si l'on est reçu. « oui » veut dire reçu.
+          //
+          // L'autre rendu d'`Entrer`, plus haut, reste sans cette propriété : c'est la branche de
+          // qui n'est pas entré, et lui proposer d'enrôler n'aurait aucun sens.
+          identifie={recuEnLigne === "oui"}
           onEntre={() => aller({ ecran: "catalogue" })}
         />
       );
