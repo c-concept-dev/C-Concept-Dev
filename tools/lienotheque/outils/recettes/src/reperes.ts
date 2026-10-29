@@ -486,14 +486,47 @@ export function lireBlocPiste(
   compte = false,
   remplissageMinimal = REMPLISSAGE_MINIMAL,
 ): BlocPiste {
-  const fenetre = zonePastille(boite, position, marge);
+  return lireDansLaFenetre(
+    image,
+    zonePastille(boite, position, marge),
+    boite.h,
+    motif,
+    etiquette,
+    options,
+    compte,
+    remplissageMinimal,
+  );
+}
+
+/** La même lecture, dans une fenêtre qu'on donne au lieu de la déduire d'un élément voisin.
+ *
+ *  ## Pourquoi cette moitié existe à part
+ *
+ *  `lireBlocPiste` suppose qu'on connaît déjà le numéro d'élément et que la recette dit où la
+ *  pastille se tient par rapport à lui. Un détecteur de marques récurrentes, lui, trouve la
+ *  pastille **sans** recette et sans élément : il rend une zone et sa taille typique, et rien
+ *  d'autre. Il lui manquait la moitié de `lireBlocPiste` qui vient après le calcul de la fenêtre.
+ *
+ *  `hauteurNumero` donne l'échelle attendue du pavé : les formes de moins de la moitié ou de plus
+ *  du triple sont écartées. Appelée depuis un détecteur, c'est la hauteur typique de la marque
+ *  trouvée ; appelée depuis `lireBlocPiste`, c'est la hauteur du numéro d'élément, comme avant. */
+export function lireDansLaFenetre(
+  image: ImageGrise,
+  fenetre: Boite,
+  hauteurNumero: number,
+  motif: "bloc_sombre_chiffres_clairs" | "losange_sombre_chiffres_clairs",
+  etiquette: boolean,
+  options: OptionsReperes = {},
+  compte = false,
+  remplissageMinimal = REMPLISSAGE_MINIMAL,
+): BlocPiste {
   const zone = recadrer(image, fenetre);
   if (zone.largeur === 0 || zone.hauteur === 0) return { presence: 0, votes: [] };
 
   const clair = Math.max(1, tonClair(zone));
   const binaire = seuiller(zone, Math.round(clair * 0.55));
-  const candidates = formesCandidates(binaire, boite.h, remplissageMinimal);
-  const presence = presenceDeForme(zone, candidates[0], boite.h);
+  const candidates = formesCandidates(binaire, hauteurNumero, remplissageMinimal);
+  const presence = presenceDeForme(zone, candidates[0], hauteurNumero);
   if (presence < PRESENCE_MINIMALE) return { presence, votes: [] };
 
   // La forme retenue, ramenée dans le repère de l'image sondée. `recadrer` rabote ce qui dépasse,
@@ -509,7 +542,7 @@ export function lireBlocPiste(
   let decoupe: { morceau: ImageGrise; chiffres: readonly Boite[] } | undefined;
 
   for (const forme of candidates) {
-    if (forme.l < boite.h * 0.6) continue;
+    if (forme.l < hauteurNumero * 0.6) continue;
     // Les coins d'un losange sont du fond : les garder mettrait des pointes noires autour des
     // chiffres. Un pavé se prend entier — le rogner fait perdre les chiffres qui touchent sa
     // bordure, et un chiffre de tête perdu reste un appui partiel pour la suite.
