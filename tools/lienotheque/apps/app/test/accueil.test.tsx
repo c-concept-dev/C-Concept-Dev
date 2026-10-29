@@ -184,6 +184,26 @@ describe("accueil garni : composition des maquettes", () => {
     const { container } = garni();
     expect(container.querySelectorAll('[tabindex]:not([tabindex="-1"]):not([tabindex="0"])')).toHaveLength(0);
   });
+
+  it("propose explicitement une bibliothèque avant d'importer un ZIP retenu", async () => {
+    const choisir = vi.fn();
+    render(
+      <Accueil
+        donnees={DEMONSTRATION}
+        onFichiers={vi.fn()}
+        onCreer={vi.fn()}
+        depotEnAttente={["Methode-test.zip"]}
+        onChoisirBibliothequePourDepot={choisir}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Dans quelle bibliothèque l’ajouter ?" })).toBeInTheDocument();
+    expect(screen.getByText("Methode-test.zip")).toBeInTheDocument();
+
+    const cible = DEMONSTRATION.bibliotheques[1]!;
+    await userEvent.click(screen.getByRole("button", { name: `Ajouter à ${cible.nom}` }));
+    expect(choisir).toHaveBeenCalledWith(cible.id);
+  });
 });
 
 describe("le premier lancement n'emprunte pas la mise en page de l'accueil garni", () => {

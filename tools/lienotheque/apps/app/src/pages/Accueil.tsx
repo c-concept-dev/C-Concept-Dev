@@ -17,6 +17,13 @@ type Props = {
   /** Le dépôt n'existe que sur le bureau. L'Accueil en ligne reste un vrai Accueil, sans
    *  peindre une zone qui ne pourrait remettre aucun fichier au navigateur. */
   readonly onFichiers?: ((fichiers: readonly File[]) => void) | undefined;
+  /** Dans le paquet, le sélecteur natif rend des chemins réellement importables. */
+  readonly onParcourir?: (() => void) | undefined;
+  /** Noms des fichiers dont l'accueil attend encore la bibliothèque de destination. */
+  readonly depotEnAttente?: readonly string[] | undefined;
+  readonly onChoisirBibliothequePourDepot?: ((id: string) => void) | undefined;
+  readonly onAnnulerDepot?: (() => void) | undefined;
+  readonly echecDepot?: string | undefined;
   /** Créer une bibliothèque de plus. **Le bouton n'appelait personne** : il s'affichait, se
    *  cliquait, et ne faisait rien — invisible tant qu'on n'avait pas de bibliothèque, puisque
    *  l'écran de premier lancement, lui, était câblé. */
@@ -37,6 +44,11 @@ type Props = {
 export function Accueil({
   donnees,
   onFichiers,
+  onParcourir,
+  depotEnAttente,
+  onChoisirBibliothequePourDepot,
+  onAnnulerDepot,
+  echecDepot,
   onCreer,
   onOuvrir,
   onTesterCopie,
@@ -182,12 +194,43 @@ export function Accueil({
           </section>
         )}
 
+        {depotEnAttente === undefined || depotEnAttente.length === 0 || onChoisirBibliothequePourDepot === undefined ? null : (
+          <section className="ln-panneau ln-accueil__destination" aria-labelledby="titre-destination-depot">
+            <h2 id="titre-destination-depot" className="ln-accueil__titre">
+              Dans quelle bibliothèque l’ajouter ?
+            </h2>
+            <p className="ln-muted">
+              {depotEnAttente.length} fichier{depotEnAttente.length > 1 ? "s" : ""} retenu{depotEnAttente.length > 1 ? "s" : ""} :
+            </p>
+            <ul className="ln-accueil__fichiers-retenus">
+              {depotEnAttente.map((nom, index) => <li key={`${index}-${nom}`}>{nom}</li>)}
+            </ul>
+            <div className="ln-accueil__choix-destination">
+              {bibliotheques.map((bibliotheque) => (
+                <button
+                  key={bibliotheque.id}
+                  type="button"
+                  className="ln-btn ln-btn--secondaire"
+                  onClick={() => onChoisirBibliothequePourDepot(bibliotheque.id)}
+                >
+                  Ajouter à {bibliotheque.nom}
+                </button>
+              ))}
+            </div>
+            {echecDepot === undefined ? null : <p role="alert">{echecDepot}</p>}
+            {onAnnulerDepot === undefined ? null : (
+              <button type="button" className="ln-lien-action" onClick={onAnnulerDepot}>Annuler ce dépôt</button>
+            )}
+          </section>
+        )}
+
         {onFichiers === undefined ? null : (
           <ZoneDepot
             titre="Déposez des fichiers ici"
             aide="Liénothèque proposera la bonne bibliothèque."
             libelleBouton="Choisir des fichiers"
             onFichiers={onFichiers}
+            {...(onParcourir === undefined ? {} : { onParcourir })}
           />
         )}
       </aside>

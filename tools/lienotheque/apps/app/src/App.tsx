@@ -109,6 +109,9 @@ export function App(): JSX.Element {
   const [classements, setClassements] = useState<ReadonlyMap<string, ClassementLocal>>(new Map());
   const [documents, setDocuments] = useState<readonly ApercuDocument[]>([]);
   const [, setDepots] = useState<readonly string[]>([]);
+  /** Chemins natifs retenus à l'accueil, mais encore sans bibliothèque de destination. */
+  const [depotAccueil, setDepotAccueil] = useState<readonly string[]>([]);
+  const [echecDepotAccueil, setEchecDepotAccueil] = useState<string | undefined>(undefined);
   const [route, setRoute] = useState<Route>(() => lireRoute(globalThis.location?.hash ?? ""));
   const [decisions, setDecisions] = useState<readonly { cas: CasDouteux; decision: Decision }[]>([]);
   /** Les bibliothèques que cette session a créées, avec le dossier qui les porte. */
@@ -707,13 +710,43 @@ export function App(): JSX.Element {
     setRefuses(arrivee.refuses);
   };
 
+  const proposerDepotDepuisAccueil = (chemins: readonly string[]): void => {
+    if (chemins.length === 0) return;
+    setEchecDepotAccueil(undefined);
+    setDepotAccueil(chemins);
+  };
+
+  const deposerDepuisAccueil = async (id: string): Promise<void> => {
+    if (administration === undefined || depotAccueil.length === 0) return;
+    const cible = creees.find((bibliotheque) => bibliotheque.description.id === id);
+    if (cible === undefined) {
+      setEchecDepotAccueil("Cette bibliothèque n’est plus disponible.");
+      return;
+    }
+    try {
+      montrerArrivee(await administration.deposer(cible.racine, depotAccueil));
+      setDepotAccueil([]);
+      setEchecDepotAccueil(undefined);
+      setRacineTemporaire(undefined);
+      setCreees((anciennes) => [...anciennes.filter((autre) => autre.racine !== cible.racine), cible]);
+      aller({ ecran: "depot" });
+    } catch (erreur) {
+      setEchecDepotAccueil(erreur instanceof Error ? erreur.message : String(erreur));
+    }
+  };
+
   /** Le paquet reçoit les chemins réels déposés, fichiers comme dossiers récursifs.
    * La version web garde son dépôt HTML habituel ; aucun faux chemin local n'y est inventé. */
   useEffect(() => {
-    if (administration === undefined || courante === undefined) return;
+    if (administration === undefined) return;
     let arreter: (() => void) | undefined;
     let abandonne = false;
     void observerDepotsDeFichiers((chemins) => {
+      if (route.ecran === "accueil") {
+        proposerDepotDepuisAccueil(chemins);
+        return;
+      }
+      if (courante === undefined) return;
       void administration
         .deposer(courante.racine, chemins)
         .then(montrerArrivee)
@@ -730,7 +763,13 @@ export function App(): JSX.Element {
       abandonne = true;
       arreter?.();
     };
-  }, [administration, courante?.racine]);
+  }, [administration, courante?.racine, route.ecran]);
+
+  const choisirFichiersDepuisAccueil = async (): Promise<void> => {
+    if (administration === undefined) return;
+    const chemins = await administration.choisirFichiers("Quels fichiers ajouter ?");
+    proposerDepotDepuisAccueil(chemins);
+  };
 
   const deposerDesFichiers = async (racine: string): Promise<void> => {
     if (administration === undefined) return;
@@ -956,6 +995,14 @@ export function App(): JSX.Element {
       <Accueil
         donnees={aLAccueil}
         onFichiers={deposer}
+        onParcourir={administration !== undefined ? () => void choisirFichiersDepuisAccueil() : undefined}
+        depotEnAttente={depotAccueil.map((chemin) => chemin.split(/[\\/]/).at(-1) ?? chemin)}
+        onChoisirBibliothequePourDepot={(id) => void deposerDepuisAccueil(id)}
+        onAnnulerDepot={() => {
+          setDepotAccueil([]);
+          setEchecDepotAccueil(undefined);
+        }}
+        echecDepot={echecDepotAccueil}
         onCreer={() => aller({ ecran: "creer" })}
         onOuvrir={choisirBibliotheque}
         onTesterCopie={administration !== undefined ? () => void ouvrir("temporaire") : undefined}
