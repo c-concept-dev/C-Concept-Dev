@@ -133,6 +133,7 @@ fn dix_documents_par_la_file() {
             nom: source.file_name().expect("nom").to_string_lossy().into_owned(),
             contenu: "documents".to_owned(),
             medias_accompagnants: true,
+            provenances_medias: Vec::new(),
         });
         t.empreinte = Some(empreinte);
         file::enregistrer(&depot.travaux(), &t).expect("mise en file");

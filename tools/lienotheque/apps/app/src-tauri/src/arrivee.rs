@@ -93,6 +93,7 @@ pub fn deposer(
 ) -> io::Result<Arrivee> {
     let mut deja = file::charger_tout(dossier_file, avertir)?;
     let mut arrivee = Arrivee::default();
+    let provenance_lot = format!("lot:{}", uuid::Uuid::new_v4());
 
     for origine in origines {
         let nom = origine.file_name().and_then(|n| n.to_str()).unwrap_or("").to_owned();
@@ -108,6 +109,16 @@ pub fn deposer(
         };
 
         if contenu == "archive" {
+            let provenance_archive = match empreinte_de(origine) {
+                Ok(empreinte) => format!("zip:{empreinte}"),
+                Err(e) => {
+                    arrivee.refuses.push((
+                        nom,
+                        format!("Archive illisible : {e}. Choisissez de nouveau le fichier ZIP."),
+                    ));
+                    continue;
+                }
+            };
             match archive::extraire(origine) {
                 Ok(extraite) => {
                     let fichiers = extraite
@@ -117,6 +128,7 @@ pub fn deposer(
                             chemin: &fichier.chemin,
                             nom: fichier.nom.as_str(),
                             medias_accompagnants: !est_supplement(&fichier.nom),
+                            provenance: &provenance_archive,
                         })
                         .collect::<Vec<_>>();
                     deposer_prepares(depot, dossier_file, &fichiers, &mut deja, &mut arrivee);
@@ -129,7 +141,12 @@ pub fn deposer(
         deposer_prepares(
             depot,
             dossier_file,
-            &[FichierPret { chemin: origine, nom: &nom, medias_accompagnants: true }],
+            &[FichierPret {
+                chemin: origine,
+                nom: &nom,
+                medias_accompagnants: true,
+                provenance: &provenance_lot,
+            }],
             &mut deja,
             &mut arrivee,
         );
@@ -142,6 +159,7 @@ struct FichierPret<'a> {
     chemin: &'a Path,
     nom: &'a str,
     medias_accompagnants: bool,
+    provenance: &'a str,
 }
 
 fn est_supplement(nom: &str) -> bool {
@@ -182,9 +200,24 @@ fn deposer_prepares(
         // Déjà là : on rend le travail existant plutôt que d'en créer un second (JOB-04).
         if let Some(index) = deja.iter().position(|t| t.empreinte.as_deref() == Some(empreinte.as_str())) {
             let mut connu = deja[index].clone();
-            if connu.sujet.as_ref().is_some_and(|sujet| sujet.medias_accompagnants != fichier.medias_accompagnants) {
+            let doit_actualiser = connu.sujet.as_ref().is_some_and(|sujet| {
+                sujet.medias_accompagnants != fichier.medias_accompagnants
+                    || !sujet
+                        .provenances_medias
+                        .iter()
+                        .any(|provenance| provenance == fichier.provenance)
+            });
+            if doit_actualiser {
                 if let Some(sujet) = connu.sujet.as_mut() {
                     sujet.medias_accompagnants = fichier.medias_accompagnants;
+                    if !sujet
+                        .provenances_medias
+                        .iter()
+                        .any(|provenance| provenance == fichier.provenance)
+                    {
+                        sujet.provenances_medias.push(fichier.provenance.to_owned());
+                        sujet.provenances_medias.sort();
+                    }
                 }
                 if let Err(e) = travail::enregistrer(&dossier_file.join(format!("{}.json", connu.id)), &connu) {
                     arrivee.refuses.push((nom_complet, format!("Rôle du document impossible à écrire : {e}")));
@@ -210,6 +243,7 @@ fn deposer_prepares(
                 nom: nom_complet.clone(),
                 contenu: contenu.to_owned(),
                 extension,
+                provenances: vec![fichier.provenance.to_owned()],
             }) {
                 arrivee.refuses.push((nom_complet, format!("Inventaire impossible à écrire : {e}")));
                 continue;
@@ -225,6 +259,7 @@ fn deposer_prepares(
             nom: nom_fichier,
             contenu: contenu.to_owned(),
             medias_accompagnants: fichier.medias_accompagnants,
+            provenances_medias: vec![fichier.provenance.to_owned()],
         });
 
         // Écrit avant que rien ne commence (JOB-01) : l'application peut être tuée à l'instant
@@ -619,6 +654,12 @@ mod tests {
                 nom: "une-piste.mp3".to_owned(),
                 contenu: "audio".to_owned(),
                 extension: "mp3".to_owned(),
+                provenances: arrivee.travaux[0]
+                    .sujet
+                    .as_ref()
+                    .expect("sujet")
+                    .provenances_medias
+                    .clone(),
             }],
             "le nom d'origine voyage avec la source rangée par empreinte (REC-05, ANC-05)"
         );

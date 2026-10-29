@@ -130,6 +130,10 @@ pub struct MediaDepose {
     pub nom: String,
     pub contenu: String,
     pub extension: String,
+    /// Groupes de dépôt auxquels ce média appartient. Plusieurs groupes sont possibles quand le
+    /// même fichier, reconnu par son empreinte, accompagne plusieurs documents.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provenances: Vec<String>,
 }
 
 /// Le nom du fichier de description, le même que celui du contrat.
@@ -221,10 +225,21 @@ impl Depot {
     pub fn enregistrer_media(&self, media: MediaDepose) -> io::Result<()> {
         let chemin = self.racine.join(BASE).join(MEDIAS);
         let mut inventaire = self.medias()?;
-        if inventaire.iter().any(|connu| connu.empreinte == media.empreinte) {
-            return Ok(());
+        if let Some(connu) = inventaire.iter_mut().find(|connu| connu.empreinte == media.empreinte) {
+            let mut change = false;
+            for provenance in media.provenances {
+                if !connu.provenances.contains(&provenance) {
+                    connu.provenances.push(provenance);
+                    change = true;
+                }
+            }
+            if !change {
+                return Ok(());
+            }
+            connu.provenances.sort();
+        } else {
+            inventaire.push(media);
         }
-        inventaire.push(media);
         inventaire.sort_by(|a, b| a.nom.cmp(&b.nom).then_with(|| a.empreinte.cmp(&b.empreinte)));
         let brut = serde_json::to_vec_pretty(&inventaire).map_err(io::Error::other)?;
         ecrire_atomique(&chemin, &brut)

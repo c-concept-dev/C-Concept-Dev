@@ -53,6 +53,10 @@ pub struct Sujet {
     /// document lisible, mais le moteur ne doit jamais lui présenter les pistes de la méthode.
     #[serde(default = "medias_accompagnants_par_defaut")]
     pub medias_accompagnants: bool,
+    /// Dépôts dont ce document provient. Un ZIP forme un groupe stable ; une sélection directe
+    /// forme un lot. Le roulement ne présente que les médias portant l'un de ces mêmes groupes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provenances_medias: Vec<String>,
 }
 
 fn medias_accompagnants_par_defaut() -> bool {
@@ -327,6 +331,7 @@ mod tests {
                     nom: "un-document.pdf".to_owned(),
                     contenu: "documents".to_owned(),
                     medias_accompagnants: true,
+                    provenances_medias: Vec::new(),
                 });
                 t
             },
@@ -339,6 +344,7 @@ mod tests {
                     nom: "un-document.pdf".to_owned(),
                     contenu: "documents".to_owned(),
                     medias_accompagnants: true,
+                    provenances_medias: Vec::new(),
                 });
                 t.avancer(194, "page");
                 t.battre("0190f0a0-0000-7000-8000-00000000ff01", 1_760_000_500, expiration_secondes());
@@ -355,6 +361,7 @@ mod tests {
                     nom: "un-disque.zip".to_owned(),
                     contenu: "audio".to_owned(),
                     medias_accompagnants: true,
+                    provenances_medias: Vec::new(),
                 });
                 t.avancer(24, "piste");
                 t

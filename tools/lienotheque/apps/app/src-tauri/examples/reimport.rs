@@ -209,6 +209,7 @@ fn main() -> Result<(), String> {
             nom: source.file_name().ok_or("nom")?.to_string_lossy().into_owned(),
             contenu: "documents".to_owned(),
             medias_accompagnants: true,
+            provenances_medias: Vec::new(),
         });
         t.empreinte = Some(empreinte);
         file::enregistrer(&depot.travaux(), &t).map_err(|e| format!("mise en file : {e}"))?;

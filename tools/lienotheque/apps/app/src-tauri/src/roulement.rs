@@ -485,7 +485,13 @@ impl Roulement {
                 .medias()
                 .map_err(|e| Obstacle::Casse(format!("Inventaire des médias illisible : {e}")))?
                 .into_iter()
-                .filter(|media| media.contenu == "audio")
+                .filter(|media| {
+                    media.contenu == "audio"
+                        && media
+                            .provenances
+                            .iter()
+                            .any(|provenance| sujet.provenances_medias.contains(provenance))
+                })
                 .map(|media| {
                     serde_json::json!({
                         "nom": media.nom,
@@ -539,7 +545,8 @@ impl std::fmt::Display for Obstacle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
+    use std::{fs, io::Write};
+    use zip::{write::SimpleFileOptions, ZipWriter};
 
     /// Chaque document reçoit **sa** manière de lire, et jamais celle du voisin.
     ///
@@ -643,6 +650,7 @@ mod tests {
             nom: nom.to_owned(),
             contenu: "documents".to_owned(),
             medias_accompagnants: true,
+            provenances_medias: Vec::new(),
         });
         t.empreinte = Some(EMPREINTE.to_owned());
         t
@@ -653,6 +661,74 @@ mod tests {
         let chemin = r.depot.source(EMPREINTE, extension);
         fs::create_dir_all(chemin.parent().expect("palier")).expect("palier");
         fs::write(chemin, b"x").expect("document");
+    }
+
+    fn archive_methode(
+        dossier: &std::path::Path,
+        nom: &str,
+        racine: &str,
+        pdf: &[u8],
+        piste: &[u8],
+    ) -> PathBuf {
+        let chemin = dossier.join(nom);
+        let mut zip = ZipWriter::new(fs::File::create(&chemin).expect("archive"));
+        for (nom, contenu) in [
+            (format!("{racine}/{racine}.pdf"), pdf),
+            (format!("{racine}/Piste 01.mp3"), piste),
+        ] {
+            zip.start_file(nom, SimpleFileOptions::default()).expect("entrée");
+            zip.write_all(contenu).expect("contenu");
+        }
+        zip.finish().expect("fin d'archive");
+        chemin
+    }
+
+    #[test]
+    fn un_document_ne_recoit_que_les_medias_de_son_zip() {
+        let racine = bac("medias-par-zip");
+        let r = roulement(racine.clone());
+        let base = r.depot.racine().join("base");
+        fs::write(base.join(RECETTE), b"{}").expect("recette");
+        fs::write(base.join("bibliotheque.json"), b"{}").expect("description");
+
+        let sources = racine.join("archives");
+        fs::create_dir_all(&sources).expect("archives");
+        let methode_a = archive_methode(&sources, "methode-a.zip", "Methode A", b"pdf-a", b"audio-a");
+        let methode_b = archive_methode(&sources, "methode-b.zip", "Methode B", b"pdf-b", b"audio-b");
+        let arrivee_a = crate::arrivee::deposer(
+            &r.depot,
+            &r.depot.travaux(),
+            &[methode_a],
+            &mut |_| {},
+        )
+        .expect("dépôt A");
+        let arrivee_b = crate::arrivee::deposer(
+            &r.depot,
+            &r.depot.travaux(),
+            &[methode_b],
+            &mut |_| {},
+        )
+        .expect("dépôt B");
+
+        let charge_a = r.charge_de(&arrivee_a.travaux[0]).expect("charge A");
+        let charge_b = r.charge_de(&arrivee_b.travaux[0]).expect("charge B");
+        assert_eq!(
+            charge_a["inventaireMedias"]
+                .as_array()
+                .expect("inventaire A")
+                .iter()
+                .filter_map(|media| media["nom"].as_str())
+                .collect::<Vec<_>>(),
+            vec!["Methode A/Piste 01.mp3"],
+            "la méthode A ne doit jamais voir la piste du ZIP B"
+        );
+        assert_eq!(
+            charge_b["inventaireMedias"].as_array().map(Vec::len),
+            Some(1),
+            "la méthode B ne doit jamais voir la piste du ZIP A"
+        );
+        assert_eq!(charge_b["inventaireMedias"][0]["nom"], "Methode B/Piste 01.mp3");
+        fs::remove_dir_all(&racine).ok();
     }
 
     #[test]
@@ -719,6 +795,7 @@ mod tests {
                 nom: "Piste 01.mp3".to_owned(),
                 contenu: "audio".to_owned(),
                 extension: "mp3".to_owned(),
+                provenances: vec!["zip:supplement".to_owned()],
             })
             .expect("média");
 

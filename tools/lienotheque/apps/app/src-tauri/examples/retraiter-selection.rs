@@ -31,6 +31,46 @@ fn travail_a_reprendre(travaux: &[travail::Travail], empreinte: &str) -> Option<
         .map(|un| un.id.clone())
 }
 
+fn sujet_pour_retraitement(
+    travaux: &[travail::Travail],
+    empreinte: &str,
+    nom: &str,
+) -> travail::Sujet {
+    let mut provenances_medias = travaux
+        .iter()
+        .filter(|un| un.empreinte.as_deref() == Some(empreinte))
+        .filter_map(|un| un.sujet.as_ref())
+        .flat_map(|sujet| sujet.provenances_medias.iter().cloned())
+        .collect::<Vec<_>>();
+    provenances_medias.sort();
+    provenances_medias.dedup();
+    travail::Sujet {
+        nom: nom.to_owned(),
+        contenu: "documents".to_owned(),
+        medias_accompagnants: true,
+        provenances_medias,
+    }
+}
+
+#[cfg(test)]
+mod provenance_tests {
+    use super::*;
+
+    #[test]
+    fn un_retraitement_conserve_toutes_les_provenances_du_document() {
+        let mut ancien = travail::Travail::neuf("ancien", "traitement-de-lot", 0);
+        ancien.empreinte = Some("empreinte".to_owned());
+        ancien.sujet = Some(travail::Sujet {
+            nom: "ancien.pdf".to_owned(),
+            contenu: "documents".to_owned(),
+            medias_accompagnants: true,
+            provenances_medias: vec!["zip:b".to_owned(), "zip:a".to_owned()],
+        });
+        let sujet = sujet_pour_retraitement(&[ancien], "empreinte", "nouveau.pdf");
+        assert_eq!(sujet.provenances_medias, ["zip:a", "zip:b"]);
+    }
+}
+
 fn main() -> Result<(), String> {
     let mut arguments = std::env::args().skip(1);
     let racine = PathBuf::from(arguments.next().ok_or("Attendu : <bibliothèque> <manifest.json>")?);
@@ -71,11 +111,7 @@ fn main() -> Result<(), String> {
         let id = uuid::Uuid::new_v4().to_string();
         let mut nouveau = travail::Travail::neuf(&id, "traitement-de-lot", 0);
         nouveau.version_cible = uuid::Uuid::new_v4().to_string();
-        nouveau.sujet = Some(travail::Sujet {
-            nom: entree.nom.clone(),
-            contenu: "documents".to_owned(),
-            medias_accompagnants: true,
-        });
+        nouveau.sujet = Some(sujet_pour_retraitement(&existants, empreinte, &entree.nom));
         nouveau.empreinte = Some(empreinte.to_owned());
         file::enregistrer(&depot.travaux(), &nouveau).map_err(|e| format!("mise en file : {e}"))?;
         ids.insert(id);
