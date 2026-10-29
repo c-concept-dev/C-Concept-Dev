@@ -129,12 +129,29 @@ export async function entrer({ appeler = fetch, credentials = globalThis.navigat
  *  pu trancher : la méthode existe sur le Safari livré, nul ne sait encore si elle rend une clé.
  *  On envoie alors `null` au service — explicitement, et non en omettant le champ — pour qu'il
  *  refuse en le nommant. Un champ absent se confondrait avec un bogue de cette page. */
+/** Où la clé doit vivre — et c'est la différence entre avoir un second accès et n'en avoir qu'un.
+ *
+ *  `platform` est le capteur intégré de la machine : Touch ID, Windows Hello. C'était le seul
+ *  choix jusqu'au 29 octobre 2026, et cela rendait **toute seconde clé impossible**. Un
+ *  authentificateur intégré ne détient qu'une clé découvrable par couple domaine + personne :
+ *  en enrôler une seconde sur la même machine **remplace** la première, ce qui laisse au
+ *  registre une ligne qui ne désigne plus rien. Et un second appareil ne peut pas s'enrôler
+ *  depuis le premier, puisque `credentials.create()` s'exécute chez celui qui appelle.
+ *
+ *  `amovible` n'impose rien et laisse l'utilisateur présenter une clé matérielle — USB, NFC.
+ *  C'est un **autre** authentificateur : le même identifiant de personne n'y écrase donc rien,
+ *  et la sémantique de remplacement qui empêche les clés orphelines reste entière là où elle
+ *  sert. C'est le seul chemin vers un exemplaire de secours qu'on range dans un tiroir, et le
+ *  seul recours si la machine disparaît — l'amorçage, lui, est clos pour toujours. */
+export type Attachement = "platform" | "amovible";
+
 async function creerUneCle(
   credentials: CredentialsContainer,
   defi: string,
   domaine: string,
   personne: { readonly id: string; readonly nom: string },
   appareil: string,
+  attachement: Attachement,
 ): Promise<{ readonly corps: Record<string, unknown> } | { readonly mot: string }> {
   let cree: Credential | null;
   try {
@@ -159,7 +176,13 @@ async function creerUneCle(
         },
         pubKeyCredParams: [{ type: "public-key", alg: -7 }],
         authenticatorSelection: {
-          authenticatorAttachment: "platform",
+          // Omis pour une clé amovible : **nommer « platform » l'exclut**, et c'est exactement
+          // ce qui interdisait d'en enrôler une. Ne rien dire laisse le navigateur proposer les
+          // deux, et l'utilisateur choisit celle qu'il présente.
+          ...(attachement === "platform" ? { authenticatorAttachment: "platform" as const } : {}),
+          // Les deux autres ne bougent pas, et une clé FIDO2 à code les satisfait toutes deux.
+          // `residentKey` n'est pas négociable ici : l'entrée appelle `credentials.get` sans
+          // liste de clés permises, donc seule une clé découvrable se présente d'elle-même.
           userVerification: "required",
           residentKey: "required",
         },
@@ -195,6 +218,7 @@ async function creerUneCle(
  *  rendu de clé plutôt que de réessayer sans fin. */
 export async function enrolerCetAppareil(
   nom: string,
+  attachement: Attachement = "platform",
   { appeler = fetch, credentials = globalThis.navigator?.credentials }: Dehors = {},
 ): Promise<Verdict> {
   if (credentials === undefined) return { fait: false, mot: SANS_APPAREIL };
@@ -204,7 +228,14 @@ export async function enrolerCetAppareil(
   if (!demande.ok) return { fait: false, mot: await motDe(demande, "Accès refusé.") };
   const lu = (await demande.json()) as { defi: string; domaine: string; personneId: string; personne: string };
 
-  const faite = await creerUneCle(credentials, lu.defi, lu.domaine, { id: lu.personneId, nom: lu.personne }, nom);
+  const faite = await creerUneCle(
+    credentials,
+    lu.defi,
+    lu.domaine,
+    { id: lu.personneId, nom: lu.personne },
+    nom,
+    attachement,
+  );
   if ("mot" in faite) return { fait: false, mot: faite.mot };
 
   const enrole = await appel("/enrolement", faite.corps);
@@ -243,12 +274,16 @@ export async function amorcer(
   }
 
   const domaine = globalThis.location?.hostname ?? "";
+  // L'amorçage reste sur le capteur intégré : c'est la première clé, sur la machine qu'on a sous
+  // la main, et personne n'a encore de quoi présenter autre chose. Le second exemplaire, lui, se
+  // choisit — voir `Attachement`.
   const faite = await creerUneCle(
     credentials,
     dedans.defi,
     domaine,
     { id: dedans.personneId, nom: dedans.personne },
     appareil,
+    "platform",
   );
   if ("mot" in faite) return { fait: false, mot: faite.mot };
 

@@ -150,18 +150,38 @@ export function Entrer({ invitation, identifie = false, onEntre, gestes }: Props
             </Bouton>
           )}
 
-          {/* Enrôler un appareil de plus demande une session : on ne propose pas un geste qui ne
-              mènerait nulle part. */}
+          {/* Enrôler une clé de plus demande une session : on ne propose pas un geste qui ne
+              mènerait nulle part.
+
+              **Deux boutons, et ce ne sont pas deux façons de faire la même chose.** Le premier
+              enrôle le capteur de cette machine : il **remplace** la clé qu'elle détient déjà,
+              puisqu'un authentificateur intégré n'en garde qu'une par personne et par domaine.
+              Il sert à changer de machine, jamais à se donner un second accès. Le second enrôle
+              une clé matérielle qu'on présente, et c'est le seul qui ajoute vraiment un
+              exemplaire — le seul recours, donc, si cette machine disparaît, puisque l'amorçage
+              est clos pour toujours. */}
           {identifie ? (
-            <Bouton
-              variante="secondaire"
-              icone={<Icone nom="plus" />}
-              onClick={() => void mener("enrolement", () => lesGestes.enroler(nomDeLAppareil()))}
-              chargement={enCours === "enrolement"}
-              disabled={enCours !== undefined || serviceARefuse}
-            >
-              Enrôler cet appareil
-            </Bouton>
+            <>
+              <Bouton
+                variante="secondaire"
+                icone={<Icone nom="plus" />}
+                onClick={() => void mener("enrolement", () => lesGestes.enroler(nomDeLAppareil(), "platform"))}
+                chargement={enCours === "enrolement"}
+                disabled={enCours !== undefined || serviceARefuse}
+              >
+                Remplacer la clé de cet appareil
+              </Bouton>
+
+              <Bouton
+                variante="secondaire"
+                icone={<Icone nom="plus" />}
+                onClick={() => void mener("enrolement", () => lesGestes.enroler(nomDeLAppareil(), "amovible"))}
+                chargement={enCours === "enrolement"}
+                disabled={enCours !== undefined || serviceARefuse}
+              >
+                Enrôler une clé de sécurité
+              </Bouton>
+            </>
           ) : null}
         </div>
 

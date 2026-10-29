@@ -102,13 +102,25 @@ export async function entrer(
 
   // À partir d'ici, un défi valide a été présenté : les refus s'inscrivent au journal.
   const noter = async (pourquoi: string): Promise<Entree> => {
-    await journaliser(registre, {
-      objet: preuve.identifiant,
-      operation: "entree_refusee" satisfies OperationSensible,
-      auteur: "—",
-      detail: pourquoi,
-      faitLe: cadre.maintenant,
-    });
+    // L'écriture est **sous garde**, et le refus sort dans tous les cas. Sans cette garde, une
+    // insertion que la base refuse remonte en exception, traverse la route — qui n'enveloppe
+    // rien — et sort en 500 : une panne annoncée là où il y avait un refus, et un appelant qui
+    // apprend au passage qu'il a franchi une limite de la base.
+    //
+    // Le prix est dit : cette ligne d'audit est alors perdue, et SEC-07 n'aime pas cela. C'est
+    // le moindre des deux maux — un refus qui refuse vaut mieux qu'un refus qui plante — et les
+    // bornes de longueur des preuves rendent le cas improbable plutôt que seulement rattrapé.
+    try {
+      await journaliser(registre, {
+        objet: preuve.identifiant,
+        operation: "entree_refusee" satisfies OperationSensible,
+        auteur: "—",
+        detail: pourquoi,
+        faitLe: cadre.maintenant,
+      });
+    } catch {
+      // Rien à dire ici : le mot rendu est le même, et il l'est déjà.
+    }
     return refus(pourquoi);
   };
 

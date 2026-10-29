@@ -60,6 +60,28 @@ describe("aucun fichier ne peut masquer une route", () => {
     expect(fautives, `ces routes seraient masquées par un fichier : ${fautives.join(", ")}`).toEqual([]);
   });
 
+  /** Ce que la construction a le droit de livrer à la racine, en plus d'index.html.
+   *
+   *  La règle ne change pas — « / » pour index.html, « /assets/… » pour le reste — et ces deux
+   *  entrées sont des exceptions **nommées**, chacune avec sa raison, pas un assouplissement :
+   *
+   *  - « /_headers » n'est pas servi du tout : la couche des ressources le lit, en tire les
+   *    en-têtes qu'elle pose sur les réponses, et ne le rend jamais. Il ne peut donc masquer
+   *    aucune route, et il n'élargit la surface que sur le disque.
+   *  - « /theme.js » est servi, et c'est voulu : le script de thème est sorti d'index.html pour
+   *    qu'une politique de sécurité du contenu puisse rester stricte sur les scripts. C'est donc
+   *    **une** adresse de plus sur la surface livrée — et l'épreuve d'après est là pour ça.
+   *
+   *  Toute autre entrée à la racine reste refusée. */
+  const RACINE_PERMISE = ["/_headers", "/theme.js"];
+
+  it("n'a aucune route que ces fichiers de racine masqueraient", () => {
+    // C'est tout l'intérêt d'avoir dû nommer les exceptions : une adresse ajoutée à la surface
+    // doit être confrontée aux routes, pas seulement autorisée dans une liste.
+    const fautives = routes().filter((chemin) => RACINE_PERMISE.includes(chemin));
+    expect(fautives, `ces routes seraient masquées par un fichier : ${fautives.join(", ")}`).toEqual([]);
+  });
+
   it("ne livre rien hors de « / » et « /assets/ », quand la construction est là", () => {
     // Conditionnel, et dit comme tel : la construction n'existe pas toujours quand les tests
     // tournent. Les deux contrôles ci-dessus, eux, ne dépendent de rien.
@@ -76,7 +98,9 @@ describe("aucun fichier ne peut masquer une route", () => {
     };
     parcourir(dist, "/");
 
-    const inattendus = fichiers.filter((chemin) => chemin !== "/index.html" && !chemin.startsWith("/assets/"));
+    const inattendus = fichiers.filter(
+      (chemin) => chemin !== "/index.html" && !chemin.startsWith("/assets/") && !RACINE_PERMISE.includes(chemin),
+    );
     expect(inattendus, `la construction livre hors de la surface connue : ${inattendus.join(", ")}`).toEqual([]);
   });
 

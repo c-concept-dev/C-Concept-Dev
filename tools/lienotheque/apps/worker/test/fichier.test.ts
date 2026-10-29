@@ -75,6 +75,25 @@ describe("servir un fichier (SEC-05)", () => {
     expect(compart.demandes).toEqual([]);
   });
 
+  it("ne dit pas laquelle des causes a refusé le laissez-passer", async () => {
+    // La raison vit dans le verdict, pour qui met au point, et ne sort pas de la route. La
+    // séparer apprendrait à un inconnu si sa signature était juste, et si le nom de bibliothèque
+    // qu'il a essayé est bien celui qu'on sert. Jusqu'au 29 octobre 2026 elle sortait.
+    const compart = compartiment({ [CLE]: "des octets" });
+    const mots = new Set<string>();
+    for (const jeton of [
+      await signer("un autre secret", { bibliotheque: "essai", cle: CLE, jusqua: dans(60) }),
+      await signer(SECRET, { bibliotheque: "essai", cle: CLE, jusqua: dans(-1) }),
+      await signer(SECRET, { bibliotheque: "essai", cle: cleSource("autre", EMPREINTE), jusqua: dans(60) }),
+      "mal-forme.sans-signature",
+    ]) {
+      const reponse = await app.request(`/fichier/${jeton}`, {}, liaisons(compart));
+      expect(reponse.status).toBe(403);
+      mots.add(((await reponse.json()) as { erreur: string }).erreur);
+    }
+    expect(mots, "un seul mot pour tous les refus").toEqual(new Set(["Accès refusé."]));
+  });
+
   it("distingue un fichier absent d'un laissez-passer refusé par le code, pas par le message", async () => {
     // 404 dit « pas là », 403 dit « pas vous ». Un message qui expliquerait lequel apprendrait
     // ce qui existe à qui n'a pas le droit de le savoir.

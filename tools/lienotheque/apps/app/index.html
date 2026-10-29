@@ -4,18 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Liénothèque</title>
-    <script>
-      // Pose le thème avant le premier rendu : évite un clignotement au démarrage.
-      // Même ordre que themeInitial() dans src/theme/theme.ts : choix mémorisé, puis système.
-      try {
-        var memorise = localStorage.getItem("lienotheque.theme");
-        var systeme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        var theme = ["light", "hybrid", "dark"].indexOf(memorise) >= 0 ? memorise : systeme;
-        document.documentElement.dataset.theme = theme;
-      } catch (erreur) {
-        document.documentElement.dataset.theme = "light";
-      }
-    </script>
+    <!-- Pose le thème avant le premier rendu. Un fichier, et non une balise en ligne, pour
+         qu'une politique de sécurité du contenu puisse rester stricte sur les scripts : voir
+         public/_headers et public/theme.js. Sans « defer » — il doit s'exécuter avant le rendu. -->
+    <script src="/theme.js"></script>
   </head>
   <body>
     <div id="racine"></div>

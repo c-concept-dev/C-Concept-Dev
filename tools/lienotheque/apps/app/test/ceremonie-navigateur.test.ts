@@ -43,6 +43,8 @@ const authentificateur = (
     domaine: string | undefined;
     utilisateur?: string;
     nomAffiche?: string;
+    /** Ce que la cérémonie a imposé — ou non — sur l'endroit où la clé doit vivre. */
+    attachement?: string | undefined;
   }[] = [];
   const enClair = (tampon: ArrayBuffer): string =>
     Buffer.from(new Uint8Array(tampon)).toString("base64url");
@@ -56,6 +58,7 @@ const authentificateur = (
         domaine: pk.rp.id,
         utilisateur: new TextDecoder().decode(pk.user.id as ArrayBuffer),
         nomAffiche: pk.user.name,
+        attachement: pk.authenticatorSelection?.authenticatorAttachment,
       });
       if (options.interrompt === true) return null;
       return {
@@ -162,7 +165,7 @@ describe("enrôler cet appareil", () => {
     // Le contrat de la clé publique exige la base64 ordinaire : « [A-Za-z0-9+/]+={0,2} ». Une
     // variante pour adresses serait refusée par le service, sans que la page sache pourquoi.
     const dehors = service();
-    const verdict = await enrolerCetAppareil("Portable", {
+    const verdict = await enrolerCetAppareil("Portable", "platform", {
       appeler: dehors.appeler,
       credentials: authentificateur().credentials,
     });
@@ -180,7 +183,7 @@ describe("enrôler cet appareil", () => {
     // confondrait avec un bogue de cette page ; un null nommé laisse le service refuser en le
     // disant.
     const dehors = service();
-    await enrolerCetAppareil("Portable", {
+    await enrolerCetAppareil("Portable", "platform", {
       appeler: dehors.appeler,
       credentials: authentificateur({ clePubliqueNulle: true }).credentials,
     });
@@ -192,7 +195,7 @@ describe("enrôler cet appareil", () => {
 
   it("envoie un algorithme nul de la même façon", async () => {
     const dehors = service();
-    await enrolerCetAppareil("Portable", {
+    await enrolerCetAppareil("Portable", "platform", {
       appeler: dehors.appeler,
       credentials: authentificateur({ algorithme: null }).credentials,
     });
@@ -210,7 +213,7 @@ describe("enrôler cet appareil", () => {
         corps: { erreur: "Clé refusée : getPublicKey() n'a pas rendu de clé" },
       },
     });
-    const verdict = await enrolerCetAppareil("Portable", {
+    const verdict = await enrolerCetAppareil("Portable", "platform", {
       appeler: dehors.appeler,
       credentials: authentificateur({ clePubliqueNulle: true }).credentials,
     });
@@ -221,13 +224,45 @@ describe("enrôler cet appareil", () => {
   it("s'arrête si le service refuse le défi, sans rien créer", async () => {
     const dehors = service({ "/enrolement/defi": { statut: 401, corps: { erreur: "Accès refusé." } } });
     const appareil = authentificateur();
-    const verdict = await enrolerCetAppareil("Portable", {
+    const verdict = await enrolerCetAppareil("Portable", "platform", {
       appeler: dehors.appeler,
       credentials: appareil.credentials,
     });
     expect(verdict.fait).toBe(false);
     if (!verdict.fait) expect(verdict.mot).toBe("Accès refusé.");
     expect(appareil.demandes).toEqual([]);
+  });
+
+  /** L'attachement, et pourquoi c'est lui qui décide s'il peut exister un second accès.
+   *
+   *  Jusqu'au 29 octobre 2026 la cérémonie imposait `platform` sans le dire. Les conséquences
+   *  n'étaient pas théoriques : une clé matérielle amovible était **exclue**, et une seconde clé
+   *  sur la même machine **remplaçait** la première, puisqu'un authentificateur intégré ne garde
+   *  qu'une clé découvrable par couple domaine + personne. Il n'existait donc aucun moyen d'avoir
+   *  deux accès, et l'amorçage étant clos pour toujours, perdre la machine perdait le compte.
+   *
+   *  Ce que ces deux épreuves verrouillent : nommer `platform` quand on le veut, et **ne rien
+   *  nommer** quand on veut laisser présenter une clé. La seconde est celle qui compte — c'est
+   *  l'omission, et non une autre valeur, qui ouvre les deux possibilités au navigateur. */
+  it("impose le capteur intégré quand c'est cet appareil qu'on enrôle", async () => {
+    const dehors = service();
+    const appareil = authentificateur();
+    await enrolerCetAppareil("Portable", "platform", {
+      appeler: dehors.appeler,
+      credentials: appareil.credentials,
+    });
+    expect(appareil.demandes.find((une) => une.geste === "create")?.attachement).toBe("platform");
+  });
+
+  it("n'impose aucun attachement pour une clé amovible : c'est l'omission qui l'autorise", async () => {
+    const dehors = service();
+    const appareil = authentificateur();
+    const verdict = await enrolerCetAppareil("Ma clé de secours", "amovible", {
+      appeler: dehors.appeler,
+      credentials: appareil.credentials,
+    });
+    expect(verdict.fait, verdict.fait ? "" : verdict.mot).toBe(true);
+    expect(appareil.demandes.find((une) => une.geste === "create")?.attachement).toBeUndefined();
   });
 });
 

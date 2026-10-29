@@ -371,7 +371,13 @@ export function creerApp({
    *  de l'objet, qu'on ne lit d'ailleurs qu'une fois la signature vérifiée.
    *
    *  Aucune réponse ne dit **ce qui** manque : un fichier absent et un laissez-passer refusé se
-   *  distinguent par leur code, pas par un message qui apprendrait ce qui existe. */
+   *  distinguent par leur code, pas par un message qui apprendrait ce qui existe.
+   *
+   *  Cette phrase a été fausse jusqu'au 29 octobre 2026 : la route rendait `verdict.raison`, qui
+   *  sépare « mal formé », « illisible », « refusée », « périmé » et « n'appartient pas à cette
+   *  bibliothèque ». Un inconnu apprenait donc si sa signature était juste, et si le nom de
+   *  bibliothèque qu'il avait essayé était bien celui qu'on sert. La raison reste dans le
+   *  verdict, pour qui met au point ; elle ne sort plus. */
   app.get("/fichier/:laissez{.+}", async (contexte) => {
     const secret = contexte.env.SECRET_LAISSEZ;
     const compartiment = contexte.env.MEDIAS;
@@ -382,7 +388,7 @@ export function creerApp({
     // s'éprouvent à un instant choisi ; cette route-ci l'ignorait, et c'est le seul endroit qui
     // le faisait. En production la valeur est la même — l'horloge par défaut est l'horloge.
     const verdict = await verifier(secret, contexte.req.param("laissez"), Math.floor(maintenant().getTime() / 1000));
-    if (!verdict.ouvert) return contexte.json({ erreur: verdict.raison }, 403);
+    if (!verdict.ouvert) return contexte.json({ erreur: "Accès refusé." }, 403);
 
     const objet = await compartiment.get(verdict.laissez.cle);
     if (objet === null || objet.body === null) return contexte.json({ erreur: "Fichier absent" }, 404);
@@ -1134,7 +1140,13 @@ export function creerApp({
       maintenant: porte.maintenant,
       auteur: "amorçage",
     });
-    if (!enrole.fait) return contexte.json({ erreur: enrole.raison }, 400);
+    // **Un seul mot ici**, à la différence de `/enrolement` juste au-dessus. La justification
+    // écrite là-bas — l'appelant est une personne identifiée et habilitée, qui doit apprendre que
+    // son navigateur n'a pas rendu de clé — ne transfère pas : sur cette route l'appelant est
+    // anonyme, et seule l'invitation l'a ouverte. Les raisons de `enroler` sépareraient « défi
+    // inconnu », « déjà servi », « périmé » et « émis pour un autre usage », ce qui renseigne qui
+    // a capté un défi sans rien apprendre d'utile à qui en détient un bon.
+    if (!enrole.fait) return contexte.json({ erreur: "Amorçage refusé." }, 400);
     return contexte.json({ enrolee: true });
   });
 

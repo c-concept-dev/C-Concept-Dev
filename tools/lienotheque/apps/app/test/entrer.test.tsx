@@ -135,13 +135,39 @@ describe("l'amorçage, sur invitation", () => {
   });
 });
 
-describe("enrôler un appareil de plus", () => {
-  it("n'est proposé qu'avec une session, et passe le nom", async () => {
+describe("enrôler une clé de plus", () => {
+  /** **Deux boutons, et ce ne sont pas deux façons de faire la même chose.**
+   *
+   *  Le premier enrôle le capteur de cette machine, et il **remplace** la clé qu'elle détient
+   *  déjà : un authentificateur intégré n'en garde qu'une par personne et par domaine. Il sert à
+   *  changer de machine, pas à se donner un second accès.
+   *
+   *  Le second enrôle une clé matérielle qu'on présente. C'est le seul qui ajoute un exemplaire,
+   *  donc le seul recours si cette machine disparaît — l'amorçage, lui, est clos pour toujours.
+   *
+   *  Ces épreuves verrouillent la distinction à l'écran, parce qu'un seul bouton l'avait effacée
+   *  jusqu'au 29 octobre 2026 : il n'y avait alors aucun moyen d'avoir deux accès. */
+  it("n'est proposé qu'avec une session", () => {
+    render(<Entrer onEntre={vi.fn()} gestes={{ enroler: accepte() }} />);
+    expect(screen.queryByRole("button", { name: /clé de sécurité/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /remplacer la clé/i })).toBeNull();
+  });
+
+  it("passe le nom, et le capteur intégré, quand on remplace la clé de cet appareil", async () => {
     const geste = accepte();
     render(<Entrer identifie onEntre={vi.fn()} gestes={{ enroler: geste }} />);
 
     await userEvent.type(screen.getByLabelText(/nom de cet appareil/i), "Bureau");
-    await userEvent.click(screen.getByRole("button", { name: /enrôler/i }));
-    expect(geste).toHaveBeenCalledWith("Bureau");
+    await userEvent.click(screen.getByRole("button", { name: /remplacer la clé/i }));
+    expect(geste).toHaveBeenCalledWith("Bureau", "platform");
+  });
+
+  it("n'impose aucun attachement pour une clé de sécurité : c'est elle qui donne un second accès", async () => {
+    const geste = accepte();
+    render(<Entrer identifie onEntre={vi.fn()} gestes={{ enroler: geste }} />);
+
+    await userEvent.type(screen.getByLabelText(/nom de cet appareil/i), "Ma clé de secours");
+    await userEvent.click(screen.getByRole("button", { name: /clé de sécurité/i }));
+    expect(geste).toHaveBeenCalledWith("Ma clé de secours", "amovible");
   });
 });

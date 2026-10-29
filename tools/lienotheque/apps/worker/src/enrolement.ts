@@ -23,12 +23,22 @@ import { enrolerUneCle, laPersonne, type CleEnrolee } from "./qui-entre.js";
  *  elle rend `null`, **l'enrôlement échoue en le disant**. Jamais de repli sur l'objet
  *  d'attestation : ce serait ramener le CBOR par la petite porte, un jour où personne ne regarde.
  *
- *  ## Il n'y a pas de route ici, et c'est voulu
+ *  ## Les routes existent, et voici ce qui les garde
  *
- *  Ces fonctions existent et sont éprouvées ; aucune n'est exposée sur le réseau. Une route
- *  d'enrôlement que rien ne garde serait exactement la porte ouverte qu'on vient de fermer à
- *  l'étape 4.0 — quiconque la trouverait s'enrôlerait. Elle viendra quand les droits la
- *  garderont (étape 4.6). */
+ *  Il n'y en avait aucune, et c'était voulu : une route d'enrôlement que rien ne garde est la
+ *  porte ouverte qu'on venait de fermer à l'étape 4.0 — quiconque la trouverait s'enrôlerait.
+ *  L'étape 4.6 a posé les droits, et deux routes appellent désormais `enroler` :
+ *
+ *  | route | ce qui la garde |
+ *  |---|---|
+ *  | `/enrolement` | une session, **et** le droit « enroler_cle » sur cette bibliothèque |
+ *  | `/amorce` | l'invitation, **et** aucune clé déjà enrôlée — l'amorçage se clôt pour toujours |
+ *
+ *  La phrase que ces lignes remplacent affirmait qu'aucune de ces fonctions n'était exposée sur
+ *  le réseau. Elle a été vraie, puis fausse, sans que personne la relise — et un lecteur venu
+ *  chercher la porte aurait conclu qu'il n'y en a pas. Un commentaire qui atteste d'une porte
+ *  fermée est une porte de plus à vérifier : si vous ajoutez une route ici, c'est ce tableau
+ *  qu'il faut corriger dans le même geste. */
 
 /** Combien de temps un défi vaut : cinq minutes.
  *

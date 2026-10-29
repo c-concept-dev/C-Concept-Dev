@@ -1,0 +1,45 @@
+# Les en-têtes de la page servie, et la raison de chacun.
+#
+# Ce fichier n'est pas servi : la couche des ressources le lit et applique ses règles aux
+# réponses des fichiers statiques. Il vit dans « public/ », que Vite recopie dans « dist/ »,
+# le dossier déjà déclaré par « [assets] » — donc **aucun changement de configuration**, et
+# rien à soumettre au titre de la règle 7.
+#
+# Mesuré le 29 octobre 2026, avant ce fichier : la page ne portait **aucun** en-tête de
+# sécurité. Elle porte pourtant le témoin de session « ln_session » et c'est sur elle que se
+# mènent les cérémonies d'identité.
+#
+# ## Ce que chacun fait ici, et non en général
+#
+# Content-Security-Policy : « script-src 'self' » est la seule ligne qui protège réellement, et
+#   c'est pour elle que le script de thème est sorti d'index.html vers « /theme.js ». Les styles,
+#   eux, gardent « 'unsafe-inline' », et il faut le dire plutôt que de laisser croire à une
+#   politique stricte : l'application pose des largeurs, des zooms et des rapports d'image en
+#   attribut « style » — une dizaine d'endroits, tous avec une valeur calculée — et les interdire
+#   casserait la page. « frame-ancestors 'none' » interdit d'encadrer la page, ce qui est la vraie
+#   garde ici : le témoin est en « SameSite=Lax », donc l'encadrement menaçait le clic, pas la
+#   session. « connect-src 'self' » suffit parce que le Worker sert la page **et** l'API : c'est
+#   déjà ce que le code suppose.
+# X-Content-Type-Options : qu'une réponse ne soit jamais devinée autrement que ce qu'elle dit.
+# Referrer-Policy : une adresse de cette bibliothèque n'a rien à apprendre à un tiers.
+# Permissions-Policy : les deux dernières entrées **autorisent** explicitement WebAuthn sur sa
+#   propre origine. Les omettre marcherait aussi — le défaut est « self » — mais une cérémonie
+#   d'identité qui dépend d'un défaut non écrit est une cérémonie qu'on casse sans le voir.
+# Cross-Origin-Opener-Policy : une fenêtre ouverte ailleurs ne garde pas la main sur celle-ci.
+# Strict-Transport-Security : sans « preload » ni « includeSubDomains », qui ne nous appartiennent
+#   pas sur un sous-domaine partagé.
+#
+# ## À vérifier après déploiement, pas à supposer
+#
+#     curl -D - -o /dev/null https://lienotheque-api.11drumboy11.workers.dev/
+#
+# Les lignes ci-dessous doivent y paraître. Un rapport public signale que ce fichier est parfois
+# servi au lieu d'être appliqué ; la mesure tranchera, et l'avant est connu — aucun en-tête.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), publickey-credentials-get=(self), publickey-credentials-create=(self)
+  Cross-Origin-Opener-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000

@@ -110,8 +110,10 @@ export type UsageDuDefi = z.infer<typeof UsageDuDefi>;
  *  phrases qui ne disent pas la même chose à qui lit un journal. */
 export const Defi = z
   .object({
-    /** Trente-deux octets de hasard, en base64url. */
-    valeur: z.string().min(1),
+    /** Trente-deux octets de hasard, en base64url : quarante-trois caractères. Borné comme le
+     *  reste, parce que ce contrat relit aussi les lignes de la base, et qu'une ligne de base
+     *  n'est pas une donnée de confiance. */
+    valeur: z.string().min(1).max(64),
     usage: UsageDuDefi,
     /** Nul à l'entrée : c'est la clé présentée qui dira qui. */
     personneId: Identifiant.optional(),
@@ -121,6 +123,43 @@ export const Defi = z
   })
   .strict();
 export type Defi = z.infer<typeof Defi>;
+
+/** Les bornes de longueur des preuves, et pourquoi elles ne sont pas décoratives.
+ *
+ *  Un champ de preuve sans maximum n'est pas seulement laxiste : il devient une **écriture
+ *  d'ampleur choisie par l'appelant**. `entrer` journalise un refus avec `objet:
+ *  preuve.identifiant` ; sans borne, une seule entrée refusée écrit dans le journal d'audit une
+ *  ligne aussi grosse que la limite de ligne de la base — environ deux mégaoctets, contre deux
+ *  cent cinquante octets pour une ligne normale. Mesuré le 29 octobre 2026 : **deux cent
+ *  cinquante requêtes suffisaient à remplir une base de cinq cents mégaoctets**, et le journal
+ *  est précisément la table dont SEC-07 dit que rien ne l'efface.
+ *
+ *  La borne agit **avant** tout le reste : un corps trop long échoue au contrat, donc `entrer`
+ *  n'est pas appelée, donc rien n'est écrit. C'est la raison de la poser ici et non dans la
+ *  route.
+ *
+ *  ## Les chiffres, et de quel côté on se trompe
+ *
+ *  On se trompe **large**, délibérément : une borne trop serrée interdirait à un
+ *  authentificateur réel d'entrer, ce qui serait un dégât bien pire qu'un journal encombré.
+ *
+ *  - `IDENTIFIANT_MAX` : la spécification WebAuthn plafonne un identifiant de clé à 1 023
+ *    octets, soit 1 364 caractères en base64url. En pratique les authentificateurs intégrés en
+ *    rendent de seize à soixante-quatre. On prend le plafond de la spécification, arrondi.
+ *  - `CLE_PUBLIQUE_MAX` : une clé P-256 en SPKI fait quatre-vingt-onze octets, cent
+ *    vingt-quatre en base64. `pubKeyCredParams` ne demande que l'algorithme −7, donc rien de
+ *    plus grand ne peut arriver ; quatre cent quatre-vingt-seize laisse la place à un
+ *    algorithme futur sans tout rouvrir.
+ *  - `DONNEES_MAX` : les données du client portent un type, le défi, l'origine et deux ou trois
+ *    drapeaux — deux cent cinquante octets en usage réel. Celles de l'authentificateur font
+ *    trente-sept octets plus ses extensions. Deux kilooctets sont hors d'atteinte des deux.
+ *  - `SIGNATURE_MAX` : une signature ECDSA P-256 en DER fait soixante-douze octets au plus.
+ *  - `APPAREIL_MAX` : ce champ est le nôtre, pas celui du navigateur ; il porte un nom lisible. */
+export const IDENTIFIANT_MAX = 1_400;
+export const CLE_PUBLIQUE_MAX = 496;
+export const DONNEES_MAX = 2_048;
+export const SIGNATURE_MAX = 512;
+export const APPAREIL_MAX = 120;
 
 /** Ce qu'un navigateur présente pour **enrôler** une clé.
  *
@@ -134,13 +173,13 @@ export type Defi = z.infer<typeof Defi>;
 export const PreuveDEnrolement = z
   .object({
     /** L'identifiant que l'authentificateur donne à la clé, en base64url. */
-    identifiant: z.string().min(1),
+    identifiant: z.string().min(1).max(IDENTIFIANT_MAX),
     /** La clé publique en SPKI et en base64 — ou `null` si le navigateur n'a pas su la rendre. */
-    clePublique: z.string().min(1).nullable(),
+    clePublique: z.string().min(1).max(CLE_PUBLIQUE_MAX).nullable(),
     /** L'algorithme annoncé — ou `null`, pour la même raison. −7 est ECDSA avec SHA-256. */
     algorithme: z.number().int().nullable(),
-    donneesClient: z.string().min(1),
-    appareil: z.string().min(1).optional(),
+    donneesClient: z.string().min(1).max(DONNEES_MAX),
+    appareil: z.string().min(1).max(APPAREIL_MAX).optional(),
   })
   .strict();
 export type PreuveDEnrolement = z.infer<typeof PreuveDEnrolement>;
@@ -154,10 +193,10 @@ export type PreuveDEnrolement = z.infer<typeof PreuveDEnrolement>;
 export const PreuveDEntree = z
   .object({
     /** L'identifiant de la clé, tel que l'authentificateur le rend. */
-    identifiant: z.string().min(1),
-    donneesAuthentificateur: z.string().min(1),
-    donneesClient: z.string().min(1),
-    signature: z.string().min(1),
+    identifiant: z.string().min(1).max(IDENTIFIANT_MAX),
+    donneesAuthentificateur: z.string().min(1).max(DONNEES_MAX),
+    donneesClient: z.string().min(1).max(DONNEES_MAX),
+    signature: z.string().min(1).max(SIGNATURE_MAX),
   })
   .strict();
 export type PreuveDEntree = z.infer<typeof PreuveDEntree>;

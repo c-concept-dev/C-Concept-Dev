@@ -404,7 +404,18 @@ describe("l'amorçage : le jeton de service, et une seule fois", () => {
       {},
     );
     expect(enrole.status).toBe(400);
-    expect(JSON.stringify(await enrole.json())).toContain("inconnu");
+    // Le titre de cette épreuve disait « et n'apprend rien d'autre » ; son assertion exigeait le
+    // contraire — que le corps contienne « inconnu ». Elle verrouillait donc la fuite qu'elle
+    // prétendait interdire, jusqu'au 29 octobre 2026.
+    //
+    // Ce qui sort est un mot, et le même que pour un corps mal formé. Un appelant anonyme
+    // n'apprend donc pas si le défi qu'il a présenté est inconnu, déjà servi, périmé ou émis
+    // pour un autre usage : les quatre se valent de l'extérieur. `/enrolement`, dont l'appelant
+    // est identifié et habilité, continue à dire son motif — c'est une autre route.
+    const corps = JSON.stringify(await enrole.json());
+    expect(corps).toBe(JSON.stringify({ erreur: "Amorçage refusé." }));
+    for (const indice of ["inconnu", "déjà servi", "périmé", "autre usage", "Clé refusée"])
+      expect(corps, indice).not.toContain(indice);
   });
 
   it("garde le jeton sur l'émission de l'invitation", async () => {
