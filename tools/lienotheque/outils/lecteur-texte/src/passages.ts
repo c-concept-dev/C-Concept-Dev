@@ -1,4 +1,4 @@
-import { type PageLue, type Passage, type SourceLecture, texteDePage } from "@lienotheque/contrats";
+import { CONFIANCE_MINIMALE, type PageLue, type Passage, type SourceLecture, texteDePage } from "@lienotheque/contrats";
 
 /** Du texte lu aux passages cherchables (RCH-07, RCH-09, ANC-01).
  *
@@ -105,6 +105,14 @@ export function motsBienFormes(texte: string): number {
  *  jamais seul. */
 export const SEUIL_FORME = 0.6;
 
+/** Assez de mots pour qu'une statistique sur eux veuille dire quelque chose.
+ *
+ *  Les trois indices la partagent, et aucun ne juge en deçà : une page de titre de cinq mots
+ *  n'a ni mots outils, ni forme moyenne, ni confiance représentative. */
+function assezDeMotsPourJuger(texte: string): boolean {
+  return texte.split(/\s+/).filter((mot) => mot !== "").length >= MOTS_MINIMUM;
+}
+
 /** Ce texte est-il illisible ? Les **deux** indices doivent l'accuser (FMT-04).
  *
  *  Peu de mots outils *et* des mots mal formés. Une liste de noms échoue au premier et réussit
@@ -115,8 +123,39 @@ export const SEUIL_FORME = 0.6;
  *  rien dire.
  */
 export function texteIllisible(texte: string): boolean {
-  if (texte.split(/\s+/).filter((mot) => mot !== "").length < MOTS_MINIMUM) return false;
+  if (!assezDeMotsPourJuger(texte)) return false;
   return partDeMotsOutils(texte) < SEUIL_LISIBILITE && motsBienFormes(texte) < SEUIL_FORME;
+}
+
+/** La confiance d'une page : la médiane de celle de ses mots, quand ils en portent une.
+ *
+ *  **Rien quand rien n'est connu**, et c'est le point. Une couche texte ne déclare aucune
+ *  confiance — un PDF natif ne doute pas de lui-même — et lui en prêter une serait affirmer à sa
+ *  place. L'absence est une réponse, et une autre réponse que zéro.
+ *
+ *  La médiane basse quand les mots sont en nombre pair : on retient la valeur telle qu'elle est
+ *  observée plutôt qu'une moyenne de deux voisines, parce que c'est elle que le seuil a vue. */
+export function confianceDeLecture(page: PageLue): number | undefined {
+  const connues = page.mots.map((mot) => mot.confiance).filter((valeur): valeur is number => valeur !== undefined);
+  if (connues.length === 0) return undefined;
+  const triees = [...connues].sort((un, autre) => un - autre);
+  return triees[Math.floor(triees.length / 2)];
+}
+
+/** Celui qui a lu cette page y croyait-il assez pour qu'on la présente sans réserve ? (FMT-04)
+ *
+ *  Le troisième indice. Il accuse **seul**, là où les deux autres s'exigent ensemble, et la
+ *  différence n'est pas une inconséquence : les deux autres devinent, d'après la forme du texte,
+ *  si une lecture a mal tourné ; celui-ci rapporte ce que la reconnaissance a elle-même déclaré.
+ *  Une déclaration ne se corrobore pas, elle s'écoute.
+ *
+ *  Deux abstentions, pour la même raison qu'ailleurs : une lecture sans confiance connue — une
+ *  couche texte — n'est jamais accusée de ce chef, et une page trop courte pour qu'une médiane
+ *  veuille dire quelque chose ne l'est pas non plus. */
+export function lectureIncertaine(texte: string, confiance: number | undefined): boolean {
+  if (confiance === undefined) return false;
+  if (!assezDeMotsPourJuger(texte)) return false;
+  return confiance < CONFIANCE_MINIMALE;
 }
 
 /** Cette page est-elle écrite dans une langue, ou son encodage est-il cassé ?
@@ -320,11 +359,13 @@ export function pageDeTexte(page: PageLue): PageDeTexte {
   // Les mots restent dans l'ordre que la couche donne — l'ordre du contenu du PDF, qui est
   // l'ordre de lecture dans l'immense majorité des cas. Les retrier par position casserait le
   // texte en colonnes, qui se lit colonne par colonne et non ligne par ligne.
+  const confiance = confianceDeLecture(page);
   return {
     index: page.index,
     texte: texteDePage(page),
     source: page.source,
     ...(imprimee === undefined ? {} : { pageImprimee: imprimee }),
+    ...(confiance === undefined ? {} : { confiance }),
   };
 }
 
@@ -347,7 +388,11 @@ export function enPassages(pages: readonly PageDeTexte[]): Passage[] {
       source: page.source,
       // Marqué, jamais écarté (FMT-04). L'écarter le ferait disparaître sans trace, et
       // décalerait en plus tous les rangs suivants.
-      lisible: !texteIllisible(texte),
+      //
+      // Trois indices, pas deux. Les deux premiers jugent le texte rendu et s'exigent ensemble ;
+      // le troisième rapporte ce que la reconnaissance a déclaré, et suffit seul. Sans lui, une
+      // page de charabia fait de suites de lettres passait tous les contrôles.
+      lisible: !texteIllisible(texte) && !lectureIncertaine(texte, page.confiance),
       ...(page.pageImprimee === undefined ? {} : { pageImprimee: page.pageImprimee }),
       ...(page.confiance === undefined ? {} : { confiance: page.confiance }),
       ...(page.emplacement === undefined ? {} : { emplacement: page.emplacement }),

@@ -132,6 +132,30 @@ export function tourner(image: ImageGrise, degres: 0 | 90 | 180 | 270): ImageGri
   return { largeur: l, hauteur: h, pixels: sortie };
 }
 
+/** Même quart de tour, en conservant les quatre canaux de l'image d'affichage. */
+export function tournerRvba(image: ImageRvba, degres: 0 | 90 | 180 | 270): ImageRvba {
+  if (degres === 0) return image;
+  const quartDeTour = degres === 90 || degres === 270;
+  const width = quartDeTour ? image.height : image.width;
+  const height = quartDeTour ? image.width : image.height;
+  const data = new Uint8ClampedArray(image.data.length);
+
+  for (let y = 0; y < image.height; y += 1)
+    for (let x = 0; x < image.width; x += 1) {
+      const [xa, ya] =
+        degres === 90
+          ? [image.height - 1 - y, x]
+          : degres === 180
+            ? [image.width - 1 - x, image.height - 1 - y]
+            : [y, image.width - 1 - x];
+      const source = (y * image.width + x) * 4;
+      const destination = (ya * width + xa) * 4;
+      data.set(image.data.subarray(source, source + 4), destination);
+    }
+
+  return { data, width, height, colorSpace: image.colorSpace };
+}
+
 /** Moyenne des tons d'une colonne. Sert à trouver la pliure d'un livre ouvert : elle est sombre
  *  sur toute la hauteur, là où le papier plonge vers la reliure. */
 export function moyennesParColonne(image: ImageGrise): Float64Array {

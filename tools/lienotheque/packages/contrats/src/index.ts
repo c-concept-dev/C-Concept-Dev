@@ -27,3 +27,4 @@ export * from "./diagnostic-structurel.js";
 export * from "./identite.js";
 export * from "./traduction.js";
 export * from "./assistant-depot.js";
+export * from "./oracle.js";

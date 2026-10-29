@@ -2,12 +2,13 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PageLue, PassagesDuDocument } from "@lienotheque/contrats";
+import { CONFIANCE_MINIMALE, PageLue, PassagesDuDocument } from "@lienotheque/contrats";
 import {
   BANDE_MARGE,
   MOTS_MINIMUM,
   SEUIL_FORME,
   SEUIL_LISIBILITE,
+  confianceDeLecture,
   coucheSuffisante,
   couperEnDeux,
   enPassages,
@@ -16,6 +17,7 @@ import {
   motsBienFormes,
   deuxPagesParFeuille,
   numeroImprime,
+  lectureIncertaine,
   numerosEnMarge,
   pageDeTexte,
   partDeMotsOutils,
@@ -179,6 +181,101 @@ describe("le passage porte son marqueur de qualité (FMT-04)", () => {
     expect(passages.map((p) => p.lisible)).toEqual([true, false]);
     // Et il garde sa place dans la suite des rangs : l'écarter aurait décalé tous les suivants.
     expect(passages.map((p) => p.rang)).toEqual([0, 1]);
+    expect(() => PassagesDuDocument.parse(passages)).not.toThrow();
+  });
+});
+
+/** Ce que la reconnaissance dit d'elle-même, et qu'on jetait (FMT-04).
+ *
+ *  Les deux indices de `texteIllisible` jugent le texte **rendu** : a-t-il des mots outils, ses
+ *  mots sont-ils bien formés ? Ils ne peuvent pas savoir si celui qui l'a lu y croyait. Or
+ *  Tesseract le dit, mot par mot, `analyserTsv` le lit déjà, et `Passage.confiance` l'attend au
+ *  contrat depuis le début sans que personne ne l'ait jamais rempli.
+ *
+ *  Les chiffres de ces contrôles viennent d'un relevé réel du 29 octobre 2026 : les 116 pages
+ *  d'un livre numérisé de la bibliothèque, lues par le binaire embarqué, par le chemin que la
+ *  chaîne emploie pour ce document.
+ */
+describe("la reconnaissance dit à quel point elle est sûre, et on l'écoute (FMT-04)", () => {
+  /** Une page lue par reconnaissance, dont on choisit la confiance de chaque mot. */
+  const lue = (confiances: readonly number[], texte = "mot"): PageLue =>
+    PageLue.parse({
+      index: 1,
+      source: "ocr",
+      unite: "pixel",
+      largeur: 1000,
+      hauteur: 1400,
+      mots: confiances.map((confiance, rang) => ({ texte, x: 10, y: 10 + rang, l: 20, h: 11, confiance })),
+    });
+
+  it("la confiance d'une page est la médiane de celle de ses mots", () => {
+    // La médiane, et non la moyenne : quelques mots ratés au milieu d'une page juste tirent la
+    // moyenne vers le bas sans que la page cesse d'être lisible. La médiane répond à la seule
+    // question qui compte — « la moitié des mots sont au moins aussi sûrs que cela ».
+    expect(confianceDeLecture(lue([0.2, 0.9, 0.95]))).toBeCloseTo(0.9, 5);
+  });
+
+  it("une couche texte n'a pas de confiance, et n'en reçoit pas une inventée", () => {
+    // Un PDF natif ne déclare rien de tel. Lui prêter une confiance serait affirmer à sa place.
+    const couche = page([{ texte: "le", y: 300 }, { texte: "corps", y: 310 }]);
+    expect(confianceDeLecture(couche)).toBeUndefined();
+  });
+
+  it("pageDeTexte porte la confiance jusqu'au passage", () => {
+    expect(pageDeTexte(lue([0.3, 0.3, 0.3])).confiance).toBeCloseTo(0.3, 5);
+  });
+
+  it("une lecture trop peu sûre est signalée, même quand son texte passe les deux indices", () => {
+    // Le cas réel qui a motivé tout ceci. Une liste de pistes, image parfaitement nette, dont la
+    // conduite de points fait dérailler la reconnaissance : elle rend « WOROUES » au lieu de
+    // « Workout 31 ». Ces mots-là sont des suites de lettres, donc « bien formés » — le second
+    // indice acquitte, et la conjonction fait taire le premier. Mesuré sur la vraie page :
+    // mots outils 0,044 (le premier indice accuse), bien formés 0,925 (le second acquitte),
+    // médiane de confiance 0,291.
+    const charabiaBienForme =
+      "CD TRACK LISTING Description Track Page CHAPTER NOTROUEIR WOROUES MNOFROUR MNorKOULS NVOTROUR NOrROUESS NVOIROUE NGTKOUB WOTROUEE NNOTKOUESE NNOTKOUEG MWOrKOUFSG ANOrKOULT NNVOFKOUESRE WorkoutiSst WorkoubSBEs NVOTKOUES NOTKOLDOD";
+    expect(partDeMotsOutils(charabiaBienForme)).toBeLessThan(SEUIL_LISIBILITE);
+    expect(motsBienFormes(charabiaBienForme)).toBeGreaterThan(SEUIL_FORME);
+    expect(texteIllisible(charabiaBienForme), "les deux indices du texte seuls ne l'attrapent pas").toBe(false);
+
+    expect(lectureIncertaine(charabiaBienForme, 0.291)).toBe(true);
+  });
+
+  it("une page lue sûrement n'est jamais accusée", () => {
+    // Relevé sur les pages de prose du même livre : médiane de 0,93 à 0,96, soit trois fois
+    // celle des pages fautives. Le seuil tombe entre les deux sans raser ni l'un ni l'autre.
+    const courant =
+      "Au terme de cette recherche nous avons publié les premiers articles sur nos résultats et réuni des données sur les enfants";
+    expect(lectureIncertaine(courant, 0.93)).toBe(false);
+    expect(CONFIANCE_MINIMALE).toBeGreaterThan(0.52);
+    expect(CONFIANCE_MINIMALE).toBeLessThan(0.62);
+  });
+
+  it("ne juge pas une page trop courte : un titre de trois mots n'a pas de statistique", () => {
+    // Même règle que les deux autres indices. Un en-tête de chapitre rendu à 0,4 ne prouve rien.
+    expect(lectureIncertaine("Chapitre premier", 0.4)).toBe(false);
+  });
+
+  it("une lecture sans confiance connue n'est jamais accusée de ce chef", () => {
+    const encodageCasse = "Xï Œè é }u} ï w Â sèw · ëzè éw ëè è é }° Â »èë s· ëw 0 Hï x} vw é x»è° së} »· é é»ï é sŒ »· é";
+    expect(lectureIncertaine(encodageCasse, undefined)).toBe(false);
+    // Et il reste accusé par les deux indices du texte, qui, eux, ne demandent pas de confiance.
+    expect(texteIllisible(encodageCasse)).toBe(true);
+  });
+
+  it("le passage sort marqué, sans être écarté, et porte sa confiance", () => {
+    const passages = enPassages([
+      {
+        index: 1,
+        texte:
+          "CD TRACK LISTING Description Track Page CHAPTER NOTROUEIR WOROUES MNOFROUR MNorKOULS NVOTROUR NOrROUESS NVOIROUE NGTKOUB WOTROUEE NNOTKOUESE NNOTKOUEG MWOrKOUFSG ANOrKOULT NNVOFKOUESRE WorkoutiSst WorkoubSBEs NVOTKOUES NOTKOLDOD",
+        source: "ocr",
+        confiance: 0.291,
+      },
+    ]);
+    expect(passages).toHaveLength(1);
+    expect(passages[0]!.lisible, "une lecture à 0,29 de confiance est passée pour lisible").toBe(false);
+    expect(passages[0]!.confiance).toBeCloseTo(0.291, 5);
     expect(() => PassagesDuDocument.parse(passages)).not.toThrow();
   });
 });

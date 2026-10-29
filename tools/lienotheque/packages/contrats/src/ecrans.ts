@@ -124,9 +124,15 @@ export type NatureDoute = z.infer<typeof NatureDoute>;
  *  et deux relectures d'images différentes n'ont pas donné deux voix concordantes. Il n'y a rien à
  *  rattraper automatiquement — c'est exactement le cas où un œil décide mieux qu'une règle.
  *
- *  Les deux derniers ne sont pas des décisions à prendre mais des faits à connaître : une page que
- *  la numérotation donne pour sautée, un média qu'aucun élément ne réclame. Ils
- *  n'attendent qu'un œil, pas un arbitrage — d'où « information » comme nature. */
+ *  « page_en_double » est le jumeau de « a_rattacher » : celui-là disait qu'aucune page ne porte
+ *  le numéro d'un élément, celui-ci dit que deux pages le portent. Les deux viennent de la même
+ *  cause — la numérotation imprimée n'a pas été lue partout — et aucun des deux ne se répare en
+ *  silence. Ce qui se pose sur une page ainsi revendiquée se pose aussi sur l'autre, et l'une des
+ *  deux images n'a rien à voir avec ce qui a été mesuré.
+ *
+ *  Les trois derniers ne sont pas des décisions à prendre mais des faits à connaître : une page que
+ *  la numérotation donne pour sautée, un média qu'aucun élément ne réclame, un numéro porté deux
+ *  fois. Ils n'attendent qu'un œil, pas un arbitrage — d'où « information » comme nature. */
 export const EtatDoute = z.enum([
   "confiance",
   "relecture_sans_majorite",
@@ -136,6 +142,7 @@ export const EtatDoute = z.enum([
   "page_absente",
   "media_orphelin",
   "maniere_inadaptee",
+  "page_en_double",
 ]);
 export type EtatDoute = z.infer<typeof EtatDoute>;
 

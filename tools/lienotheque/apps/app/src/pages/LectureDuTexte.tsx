@@ -1,5 +1,5 @@
 import { useCallback, useEffect, type JSX } from "react";
-import { citerPage, enTete, type Passage, type VueBibliotheque } from "@lienotheque/contrats";
+import { CONFIANCE_MINIMALE, citerPage, enTete, type Passage, type VueBibliotheque } from "@lienotheque/contrats";
 import type { CibleRecherche } from "@lienotheque/noyau";
 import { Bouton, Icone } from "../composants/index.js";
 import { FilAriane } from "../composants/FilAriane.js";
@@ -89,6 +89,12 @@ export function LectureDuTexte({ vue, document, passages, page, imagesPartielles
       </main>
     );
 
+  /** Deux pannes distinctes sous un même marqueur : ou rien n'a été lu, ou ce qui a été lu
+   *  n'est pas sûr. La seconde se reconnaît à ce que la reconnaissance a déclaré d'elle-même, et
+   *  elle ne se dit pas comme la première — l'une demande une autre source, l'autre demande de
+   *  se méfier du texte affiché juste en dessous. */
+  const lectureTropIncertaine = courant.confiance !== undefined && courant.confiance < CONFIANCE_MINIMALE;
+
   const citation = enTete(citerPage(vue.mots, { index: courant.page, numero: courant.pageImprimee }));
   const paragraphes = enParagraphes(courant.texte);
 
@@ -123,7 +129,15 @@ export function LectureDuTexte({ vue, document, passages, page, imagesPartielles
           </p>
         ) : null}
 
-        {courant.lisible ? null : (
+        {courant.lisible ? null : lectureTropIncertaine ? (
+          <p className="ln-texte-lu__avis ln-texte-lu__avis--reserve">
+            <Icone nom="alerte" />
+            La moitié des mots de cette {vue.mots.page.un} ont été reconnus à moins de{" "}
+            {Math.round((courant.confiance ?? 0) * 100)} % de certitude. Le texte ci-dessous est bien celui qui a
+            été lu, mais il ne reproduit probablement pas ce qui est imprimé : ne le citez pas sans avoir regardé
+            la {vue.mots.page.un} elle-même.
+          </p>
+        ) : (
           <p className="ln-texte-lu__avis ln-texte-lu__avis--reserve">
             <Icone nom="alerte" />
             Rien de lisible n’a été tiré de cette {vue.mots.page.un} : ni la couche de texte du document, ni la

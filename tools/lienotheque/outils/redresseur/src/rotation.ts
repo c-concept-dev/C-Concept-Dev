@@ -46,6 +46,14 @@ const REDUCTION_PAR_DEFAUT = 2;
  *  et l'on préfère le dire que de choisir à pile ou face. */
 const ECART_DECISIF = 0.25;
 
+/** Matière minimale avant de croire l'écart relatif.
+ *
+ * Une portée musicale produit parfois cinq ou six fragments alphanumériques dans un sens et
+ * presque rien dans les trois autres. L'écart est alors spectaculaire, mais il ne constitue pas
+ * une lecture : une page peu textuelle aurait été tournée sur 5,4 points contre 1,3. Deux pages
+ * réellement couchées donnent respectivement 96 et 73 points. */
+const NOTE_MINIMALE_POUR_TRANCHER = 10;
+
 /** Lit la réponse de Tesseract en mode orientation. `undefined` s'il ne se prononce pas. */
 export function rotationDansOsd(sortie: string): Rotation | undefined {
   const trouve = /^Rotate:\s*(\d+)/m.exec(sortie);
@@ -116,9 +124,30 @@ export function noterLesQuatreSens(image: ImageGrise, options: OptionsRotation =
 /** Vrai quand la meilleure note se détache assez pour qu'on la suive. */
 export function lectureTranche(notes: readonly { note: number }[]): boolean {
   const [meilleure, seconde] = notes;
-  if (meilleure === undefined || meilleure.note <= 0) return false;
+  if (meilleure === undefined || meilleure.note < NOTE_MINIMALE_POUR_TRANCHER) return false;
   if (seconde === undefined) return true;
   return (meilleure.note - seconde.note) / meilleure.note >= ECART_DECISIF;
+}
+
+/** Confirme l'avis d'orientation par un gain de lecture, plutôt que par le classement brut des
+ * quatre sens. Tesseract arrive parfois à relire une page retournée à 180° : ce sens peut alors
+ * talonner, voire dépasser, le sens visuellement droit. L'OSD choisit le sens ; la lecture ne
+ * fait que vérifier que ce choix apporte une matière nette par rapport à l'image non tournée. */
+export function rotationConfirmeeParLecture(
+  proposee: Rotation | undefined,
+  notes: readonly { readonly rotation: Rotation; readonly note: number }[],
+): Rotation | undefined {
+  if (proposee === undefined || proposee === 0) return undefined;
+  const candidate = notes.find((note) => note.rotation === proposee)?.note ?? 0;
+  const originale = notes.find((note) => note.rotation === 0)?.note ?? 0;
+  if (candidate < NOTE_MINIMALE_POUR_TRANCHER) return undefined;
+  return (candidate - originale) / candidate >= ECART_DECISIF ? proposee : undefined;
+}
+
+/** Orientation page par page, uniquement quand les deux lectures indépendantes convergent. */
+export function rotationDePageFiable(image: ImageGrise, options: OptionsRotation = {}): Rotation | undefined {
+  const proposee = rotationParOsd(image, options);
+  return rotationConfirmeeParLecture(proposee, noterLesQuatreSens(image, options));
 }
 
 /** L'avis de Tesseract, quand il se prononce. */

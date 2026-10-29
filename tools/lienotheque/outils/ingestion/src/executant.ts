@@ -48,10 +48,16 @@ export const ChargeTraitement = z
           .object({
             nom: z.string().min(1),
             empreinte: z.string().regex(/^[a-f0-9]{64}$/),
+            /** Groupes de dépôt du média. Absents chez un hôte antérieur au bornage : le vivier
+             *  ne pourra alors rien prouver, et rien ne sera publié. */
+            provenances: z.array(z.string().min(1)).optional(),
           })
           .strict(),
       )
       .optional(),
+    /** Groupes de dépôt dont le document provient. Sans eux, le vivier ne peut rien prouver et la
+     *  chaîne ne publie aucune association : c'est voulu. */
+    provenancesMedias: z.array(z.string().min(1)).optional(),
     recette: z.string().min(1),
     description: z.string().min(1),
     /** Racine du cache de travail. L'exécutant y prend ses coins ; l'hôte n'a qu'à dire où. */
@@ -151,6 +157,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
       pdf: charge.document,
       medias: charge.medias,
       ...(charge.inventaireMedias === undefined ? {} : { inventaireMedias: charge.inventaireMedias }),
+      ...(charge.provenancesMedias === undefined ? {} : { provenancesMedias: charge.provenancesMedias }),
       recette: charge.recette,
       description: charge.description,
       ...(charge.cache === undefined ? {} : { cache: sousDossier(charge.cache, "lectures") }),

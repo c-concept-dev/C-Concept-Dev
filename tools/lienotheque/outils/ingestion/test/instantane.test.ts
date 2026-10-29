@@ -31,6 +31,71 @@ describe("la preuve d'un lien relu (ANC-02)", () => {
   });
 });
 
+/** Un numéro de page revendiqué par deux pages (OUT-15).
+ *
+ *  Le jumeau de « à rattacher ». Celui-là disait « aucune page ne porte ce numéro » ; celui-ci
+ *  dit « deux pages le portent », et il était tu. Relevé le 29 octobre 2026 sur la vraie base :
+ *  un document sur 250, un numéro, deux pages — la table des matières d'un recueil et sa page 66.
+ *  Les deux montraient le même repère, relié au même enregistrement, annoncé « Confiance haute ».
+ *  L'une des deux images n'avait rien à voir avec ce qui avait été mesuré.
+ *
+ *  La pose reste inchangée — on ne cache jamais un élément, c'est la règle depuis OUT-15 — mais
+ *  elle cesse d'être silencieuse.
+ */
+describe("deux pages ne peuvent pas porter le même numéro imprimé (OUT-15)", () => {
+  const deuxPagesCentieme = () =>
+    construireVue(
+      entree({
+        lignes: [ligne(1)],
+        pages: [{ index: 1, numero: 100 }, { index: 2, numero: 100 }, { index: 3, numero: 101 }],
+      }),
+    );
+
+  it("laisse l'élément visible sur les deux : le cacher le ferait disparaître sans trace", () => {
+    const portant = deuxPagesCentieme().pages.filter((page) => page.elements.length > 0);
+    expect(portant.map((page) => page.index)).toEqual([1, 2]);
+  });
+
+  it("marque à vérifier ce qui se pose sur une page dont le numéro est revendiqué deux fois", () => {
+    const portant = deuxPagesCentieme().pages.filter((page) => page.elements.length > 0);
+    expect(
+      portant.every((page) => page.elements.every((element) => element.aVerifier)),
+      "un élément posé sur une page en double passait pour sûr",
+    ).toBe(true);
+  });
+
+  it("le dit, et nomme les pages concernées", () => {
+    const cas = deuxPagesCentieme().douteux.find((doute) => doute.etat === "page_en_double");
+    expect(cas, "la collision n'a été signalée nulle part").toBeDefined();
+    expect(cas!.motif).toContain("100");
+    expect(cas!.details).toHaveLength(2);
+    // Aucun jargon, et aucun accord de genre : les mots de la page viennent du schéma.
+    expect(cas!.libelle).not.toMatch(/index|collision|doublon/i);
+  });
+
+  it("ne dit rien quand chaque numéro n'est porté que par une page", () => {
+    const vue = construireVue(
+      entree({
+        lignes: [ligne(1)],
+        pages: [{ index: 1, numero: 100 }, { index: 2, numero: 101 }],
+      }),
+    );
+    expect(vue.douteux.some((doute) => doute.etat === "page_en_double")).toBe(false);
+    expect(vue.pages.flatMap((page) => page.elements).every((element) => !element.aVerifier)).toBe(true);
+  });
+
+  it("n'accuse pas les pages sans numéro imprimé, si nombreuses soient-elles", () => {
+    // Une page sans numéro n'en revendique aucun : deux absences ne sont pas un double.
+    const vue = construireVue(
+      entree({
+        lignes: [ligne(1)],
+        pages: [{ index: 1, numero: 100 }, { index: 2 }, { index: 3 }],
+      }),
+    );
+    expect(vue.douteux.some((doute) => doute.etat === "page_en_double")).toBe(false);
+  });
+});
+
 describe("instantané pour les écrans (B5)", () => {
   it("suit le contrat de vue", () => {
     expect(VueBibliotheque.safeParse(construireVue(entree())).success).toBe(true);

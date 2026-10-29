@@ -66,7 +66,11 @@ try {
   const recette = compilerRecetteStructurelle(valide, { id: "methode-cartouche-double-identifiant", version: 1 });
 
   const medias = await mediasDuDossier(MEDIAS);
-  const joue = await rejouer(PDF, MEDIAS, recette, { cache: coin(cache, "lectures-c9-3") });
+  const joue = await rejouer(PDF, MEDIAS, recette, {
+    cache: coin(cache, "lectures-c9-3"),
+    // Banc de mesure : le dossier de médias est désigné ici, pour ce document seul.
+    vivierAffirmeParLAppelant: true,
+  });
   const oracle = Array.from({ length: 52 }, (_, rang) => ({ numero: rang + 1, piste: rang + 1 }));
   const score = comparer(joue.resultat.lignes, oracle);
   const bilan = bilanAssociationCorpus(joue.association);

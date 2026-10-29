@@ -17,6 +17,33 @@ import { SourceLecture } from "./lecture.js";
  *  vérifiable (RCH-09), et c'est la seule chose dont la façade a besoin pour rendre un `content`
  *  avec sa référence.
  */
+/** En deçà de quelle confiance déclarée une lecture n'est plus présentable sans réserve.
+ *
+ *  Le troisième indice de FMT-04, et le seul qui ne juge pas le texte rendu mais **celui qui
+ *  l'a lu**. Les deux autres demandent au texte s'il ressemble à du langage ; celui-ci demande
+ *  à la reconnaissance si elle y croyait. Tesseract répond mot par mot, la chaîne le lit depuis
+ *  toujours, et personne ne s'en servait.
+ *
+ *  Pourquoi il fallait un troisième. Les deux premiers s'exigent **ensemble**, et c'est
+ *  volontaire — une liste de noms propres échoue au premier sans être illisible pour autant.
+ *  Mais « bien formé » veut dire *suite de lettres*, rien de plus : `WOROUES`, `MNOFROUR`,
+ *  `NVOTROUR` sont bien formés. Sur une liste de pistes réelle, à l'image parfaitement nette,
+ *  le premier indice accusait (0,044) et le second acquittait (0,925) : la page est entrée dans
+ *  la bibliothèque annoncée lisible, et elle ne l'était pas du tout.
+ *
+ *  **Soixante pour cent, et c'est mesuré.** Les 116 pages d'un livre numérisé du corpus relues
+ *  le 29 octobre 2026 par le binaire embarqué : les pages de prose se tiennent entre 0,93 et
+ *  0,96, les deux pages fautives à 0,286 et 0,291. Entre les deux, onze pages sous 0,60 — toutes
+ *  relues à l'œil, toutes inutilisables : des portées musicales dont la reconnaissance a fait
+ *  des mots. La première page au-dessus du seuil est à 0,624, et sa phrase se lit. Le creux est
+ *  là, il a été regardé, il n'est pas supposé.
+ *
+ *  Il porte sur la **médiane**, non sur la moyenne : quelques mots ratés au milieu d'une page
+ *  juste tirent la moyenne vers le bas sans que la page cesse de se lire. La médiane répond à la
+ *  seule question qui compte — « la moitié des mots sont au moins aussi sûrs que cela ». Sur les
+ *  mêmes pages, elle sépare trois fois plus nettement. */
+export const CONFIANCE_MINIMALE = 0.6;
+
 export const Passage = z
   .object({
     /** Ordre de lecture dans le document, à partir de zéro. La table le tient unique par
@@ -56,6 +83,15 @@ export const Passage = z
      *  déclarer au-delà de son numéro, et un champ qui dirait « je sais » sans rien savoir
      *  vaudrait moins que son absence. */
     emplacement: z.string().trim().min(1).optional(),
+    /** À quel point la lecture se croyait sûre, quand elle le sait (FMT-04).
+     *
+     *  La médiane de la confiance que la reconnaissance déclare pour chaque mot de la page.
+     *  **Absente pour une couche texte** : un PDF natif ne doute pas de lui-même, et lui prêter
+     *  un chiffre serait affirmer à sa place.
+     *
+     *  Elle ne sert pas qu'à décider : elle se montre. « La moitié des mots de cette page ont
+     *  été reconnus à moins de soixante pour cent de certitude » est une phrase qu'un lecteur
+     *  peut peser lui-même, là où un marqueur binaire lui demande de croire sur parole. */
     confiance: Confiance.optional(),
     /** Ce texte se lit-il ? (FMT-04)
      *

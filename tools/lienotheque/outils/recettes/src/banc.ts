@@ -15,7 +15,14 @@ import {
 import { noterLesQuatreSens, orientationDuLot, redresser, type OptionsRedressement, type RotationTrouvee } from "@lienotheque/redresseur";
 import { objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
-import { lireNomMedia, qualifierAssociation, type Association, type Media } from "./associateur.js";
+import {
+  borneDuVivier,
+  corroborationDesLignes,
+  lireNomMedia,
+  qualifierAssociation,
+  type Association,
+  type Media,
+} from "./associateur.js";
 import { interpreter, type LectureParVision, type PageLue, type SupportsPresents, supportsPresents } from "./interprete.js";
 import { lireCoucheTexte, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
 import { texteDePage } from "@lienotheque/contrats";
@@ -77,6 +84,21 @@ export type OptionsBanc = OptionsReperes & {
   /** Médias déjà inventoriés par l'hôte. Leur nom d'origine sert à lire leur rang ; leur
    *  empreinte évite de relire chaque gros fichier uniquement pour la recalculer. */
   readonly inventaireMedias?: readonly MediaInventorie[];
+  /** Groupes de dépôt dont le document provient. Confrontés à ceux de chaque média présenté, ils
+   *  prouvent — ou non — que le vivier lui est borné. Sans eux, rien n'est publié. */
+  readonly provenancesMedias?: readonly string[] | undefined;
+  /** Le vivier vient d'un dossier choisi par l'appelant, qui affirme lui-même qu'il n'appartient
+   *  qu'à ce document. Rien ici ne permet de le vérifier : à n'employer que dans un banc de
+   *  mesure, jamais sur une voie qui publie. Le nom est long exprès — on doit le voir. */
+  readonly vivierAffirmeParLAppelant?: true | undefined;
+  /** Quelqu'un a vérifié **ce document-ci** et l'a consigné (OUT-10).
+   *
+   *  Ce n'est pas un interrupteur de confort : c'est la deuxième des trois voies de publication,
+   *  et elle ne vaut qu'**à côté** d'au moins une lecture. Un document dont aucune lecture
+   *  n'appuie les liens reste en abstention, vérifié ou non — c'est ce qui distingue un recueil
+   *  dont les pastilles ont été lues et les liens écoutés d'un recueil où la recette a simplement
+   *  posé en règle que la piste valait le numéro. */
+  readonly verifieParUnHumain?: boolean | undefined;
   /** Appelé après chaque cliché lu, pour que l'appelant dise où il en est (JOB-03).
    *
    *  Après la lecture, pas après le décodage : c'est la lecture qui coûte, et annoncer cent pour
@@ -524,6 +546,9 @@ export async function mediasDuDossier(dossier: string, recette?: Recette, extens
 export type MediaInventorie = {
   readonly nom: string;
   readonly empreinte: string;
+  /** Groupes de dépôt dont ce média provient. C'est ce qui permet de prouver qu'il appartient au
+   *  document, au lieu de le supposer parce qu'il était là. */
+  readonly provenances?: readonly string[] | undefined;
 };
 
 /** Support porté par un dossier CD1, CD 2, Disque3… dans une archive. Le chemin reste une donnée
@@ -698,46 +723,171 @@ export async function rejouer(pdf: string, dossierMedias: string, recette: Recet
         )
       : interprete;
   const mediasDisponibles = options.inventaireMedias?.filter((media) => media.nom.toLowerCase().endsWith(".mp3")).length;
+  // Sur quoi le vivier est borné, décidé ici une fois pour toutes. Un vivier venu d'un dossier ne
+  // porte aucun groupe de dépôt : il ne peut donc rien prouver, et seule une affirmation explicite
+  // de l'appelant le laisse passer.
+  const borne =
+    options.vivierAffirmeParLAppelant === true
+      ? {
+          presentes: medias.length,
+          horsBornes: 0,
+          sansGroupe: 0,
+          bornee: true,
+          pourquoi: "Vivier affirmé par l'appelant : un banc de mesure, pas une publication.",
+        }
+      : borneDuVivier(options.provenancesMedias ?? [], options.inventaireMedias ?? medias.map(() => ({})));
+  // Sur quelles lectures ces liens reposent-ils, et quelqu'un a-t-il vérifié ce document ?
+  // La question se pose ici, une fois, sur les lignes réellement produites — et non sur ce que
+  // la recette déclarait vouloir faire. Une recette peut déclarer lire une pastille et n'en lire
+  // aucune : c'est le résultat qui compte, pas l'intention.
+  const corroboration = corroborationDesLignes(resultat.lignes, {
+    ...(options.verifieParUnHumain === undefined ? {} : { preuveHumaine: options.verifieParUnHumain }),
+  });
   return {
     resultat,
     association: qualifierAssociation(resultat.lignes, medias, recette, {
+      borne,
+      corroboration,
       ...(mediasDisponibles === undefined ? {} : { mediasDisponibles }),
     }),
     medias,
   };
 }
 
-/** Ce qu'un rejeu vaut face à une référence : combien d'éléments tombent sur la bonne piste. */
+/** Sur quoi repose la numérotation d'un document : des folios lus, ou des folios supposés.
+ *
+ *  `ancree` est la seule chose qui compte, et elle est vraie dès qu'**un** folio a été lu. Un
+ *  numéro lu rattache la suite à la réalité du livre ; aucun ne la rattache à rien. */
+export type FondDesPages = {
+  readonly pages: number;
+  readonly lues: number;
+  readonly deduites: number;
+  readonly couvertures: number;
+  readonly ancree: boolean;
+  readonly pourquoi: string;
+};
+
+/** Ce qu'une numérotation vaut **avant** qu'on compare quoi que ce soit (OUT-15).
+ *
+ *  ## Le défaut que ce garde-fou attrape
+ *
+ *  Mesuré le 29 octobre 2026. Un recueil de cinquante-deux éléments n'avait **pas un seul folio
+ *  lu** : cent quatorze pages sur cent quinze étaient `deduite`, par la règle la plus naïve qui
+ *  soit — « la page imprimée vaut l'index du cliché ». Le livre portant deux feuillets avant son
+ *  folio 1, toute la numérotation était fausse d'une page, et chaque lien audio tombait une page
+ *  trop tôt.
+ *
+ *  L'oracle ne pouvait pas le voir : il comparait la page **déclarée** à la page attendue, et les
+ *  deux parlaient la numérotation inventée par la chaîne. Cinquante et un justes sur cinquante-deux.
+ *  Un score peut être exact et ne rien prouver.
+ *
+ *  ## D'où la règle
+ *
+ *  **Une numérotation que rien n'ancre ne prouve rien sur les pages**, quel que soit le score.
+ *  Un document dont aucun folio n'a été lu se déclare non vérifié, et non prouvé — c'est une
+ *  abstention, pas un échec, et elle se dit.
+ *
+ *  Un seul folio lu suffit à ancrer la suite, parce que le reste s'en déduit par incrément. Ce
+ *  n'est pas une garantie que la lecture soit juste : c'est le minimum sans lequel il n'y a
+ *  rien à vérifier. La part réellement lue est rendue pour qui veut être plus exigeant. */
+export function fondDesPages(
+  pages: readonly { statut: string; pageLue?: number | undefined }[],
+): FondDesPages {
+  const couvertures = pages.filter((page) => page.statut === "couverture").length;
+  const lues = pages.filter((page) => page.pageLue !== undefined).length;
+  const deduites = pages.filter((page) => page.statut === "deduite").length;
+  const ancree = lues > 0;
+  return {
+    pages: pages.length,
+    lues,
+    deduites,
+    couvertures,
+    ancree,
+    pourquoi: ancree
+      ? `${lues} folio(s) lu(s) sur ${pages.length} page(s) : la numérotation est ancrée.`
+      : `Aucun folio lu sur ${pages.length} page(s) : la numérotation est supposée, et rien ne la rattache au livre.`,
+  };
+}
+
+/** Ce qu'un rejeu vaut face à une référence : combien d'éléments tombent sur la bonne piste,
+ *  **et sur la bonne page**. */
 export type Score = {
   readonly attendus: number;
   readonly justes: number;
   readonly manquants: readonly number[];
   readonly fautifs: readonly { numero: number; attendu: number; obtenu: number }[];
+  /** Bon numéro, bonne piste, mauvaise page : le lien existe et il est posé ailleurs.
+   *
+   *  Une catégorie à part, et non un `fautif`, parce que le remède n'est pas le même : un fautif
+   *  demande de corriger la lecture du numéro, un décalé de corriger l'ancrage. */
+  readonly decales: readonly { numero: number; piste: number; attendue: number; obtenue?: number }[];
   readonly supplementaires: readonly { numero: number; piste: number }[];
 };
 
-/** Compare piste à piste, par numéro d'élément. Un élément absent du rejeu compte comme manquant,
- *  jamais comme juste. Une association qui n'existe pas dans la référence compte comme
- *  supplémentaire : couvrir tout l'oracle ne suffit pas si le moteur invente aussi des liens. */
+/** Compare piste à piste et page à page, par numéro d'élément.
+ *
+ *  Un élément absent du rejeu compte comme manquant, jamais comme juste. Une association qui
+ *  n'existe pas dans la référence compte comme supplémentaire : couvrir tout l'oracle ne suffit
+ *  pas si le moteur invente aussi des liens.
+ *
+ *  ## Pourquoi la page, depuis le 29 octobre 2026
+ *
+ *  Cette fonction ne regardait que le numéro et la piste. Sur un recueil de cinquante-deux
+ *  éléments, ceux-ci portaient le bon numéro et la bonne piste **et tombaient tous une page trop
+ *  tôt** : la page qui ouvre un élément, et qui porte sa pastille, n'avait aucun son, tandis que
+ *  la suivante — encore le même élément — renvoyait à la piste du suivant.
+ *  L'oracle annonçait cinquante-deux sur cinquante-deux, et il avait raison sur ce qu'il mesurait.
+ *
+ *  C'est la deuxième fois de la semaine qu'un score vrai se révèle sans valeur : la première, il
+ *  mesurait la concordance des numéros sur le mauvais corpus audio. Un oracle ne prouve que ce
+ *  qu'il compare, et ce qu'il ne compare pas peut être faux en silence.
+ *
+ *  ## Ce que l'absence de page veut dire, des deux côtés
+ *
+ *  Une **référence** sans page ne juge pas la page : les oracles anciens, écrits en paires
+ *  numéro-piste, gardent exactement le sens qu'ils avaient. Mais une **ligne** sans page ne
+ *  satisfait pas une référence qui en nomme une — on ne sait pas où elle est tombée, et « on ne
+ *  sait pas » n'est pas « c'est juste ». */
 export function comparer(
-  lignes: readonly { numero: number; piste?: number | undefined }[],
-  reference: readonly { numero: number; piste: number }[],
+  lignes: readonly { numero: number; piste?: number | undefined; pageImprimee?: number | undefined }[],
+  reference: readonly { numero: number; piste: number; pageImprimee?: number | undefined }[],
 ): Score {
   const obtenus = lignes.flatMap((ligne) =>
-    ligne.piste === undefined ? [] : [{ numero: ligne.numero, piste: ligne.piste }],
+    ligne.piste === undefined
+      ? []
+      : [{ numero: ligne.numero, piste: ligne.piste, pageImprimee: ligne.pageImprimee }],
   );
   const utilises = new Set<number>();
   const manquants: number[] = [];
   const fautifs: { numero: number; attendu: number; obtenu: number }[] = [];
+  const decales: { numero: number; piste: number; attendue: number; obtenue?: number }[] = [];
   let justes = 0;
 
   for (const attendu of reference) {
-    const exact = obtenus.findIndex(
-      (ligne, index) => !utilises.has(index) && ligne.numero === attendu.numero && ligne.piste === attendu.piste,
-    );
+    const memeNumeroEtPiste = (ligne: (typeof obtenus)[number], index: number): boolean =>
+      !utilises.has(index) && ligne.numero === attendu.numero && ligne.piste === attendu.piste;
+    // La page ne départage que si la référence en nomme une. Sinon, on ne sait rien d'elle et on
+    // ne prétend rien.
+    const surLaBonnePage = (ligne: (typeof obtenus)[number]): boolean =>
+      attendu.pageImprimee === undefined || ligne.pageImprimee === attendu.pageImprimee;
+
+    const exact = obtenus.findIndex((ligne, index) => memeNumeroEtPiste(ligne, index) && surLaBonnePage(ligne));
     if (exact >= 0) {
       utilises.add(exact);
       justes += 1;
+      continue;
+    }
+    // Le lien existe, avec la bonne piste, mais ailleurs que là où la référence l'attend.
+    const decale = obtenus.findIndex(memeNumeroEtPiste);
+    if (decale >= 0) {
+      utilises.add(decale);
+      const obtenue = obtenus[decale]!.pageImprimee;
+      decales.push({
+        numero: attendu.numero,
+        piste: attendu.piste,
+        attendue: attendu.pageImprimee!,
+        ...(obtenue === undefined ? {} : { obtenue }),
+      });
       continue;
     }
     const memeNumero = obtenus.findIndex(
@@ -749,8 +899,8 @@ export function comparer(
       fautifs.push({ numero: attendu.numero, attendu: attendu.piste, obtenu: obtenus[memeNumero]!.piste });
     }
   }
-  const supplementaires = obtenus.filter((_, index) => !utilises.has(index));
-  return { attendus: reference.length, justes, manquants, fautifs, supplementaires };
+  const supplementaires = obtenus.filter((_, index) => !utilises.has(index)).map(({ numero, piste }) => ({ numero, piste }));
+  return { attendus: reference.length, justes, manquants, fautifs, decales, supplementaires };
 }
 
 /** Relevé de la couche texte d'un PDF natif, dans la forme exacte des fichiers de référence.

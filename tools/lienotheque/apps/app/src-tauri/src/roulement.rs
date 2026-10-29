@@ -496,6 +496,9 @@ impl Roulement {
                     serde_json::json!({
                         "nom": media.nom,
                         "empreinte": media.empreinte,
+                        // La chaîne ne doit pas croire ce filtre : elle le refait. Pour cela il
+                        // lui faut les groupes, pas seulement le résultat du tri.
+                        "provenances": media.provenances,
                     })
                 })
                 .collect::<Vec<_>>()
@@ -507,6 +510,7 @@ impl Roulement {
             "document": document,
             "medias": racine.join(crate::depot::SOURCES),
             "inventaireMedias": inventaire_medias,
+            "provenancesMedias": sujet.provenances_medias,
             "recette": recette,
             "description": description,
             "cache": self.cache,

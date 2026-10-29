@@ -1,7 +1,15 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { MotLu, Rotation } from "@lienotheque/contrats";
-import { lectureTranche, noteDeLecture, orientationDuLot, poidsDuVote, rotationDansOsd, rotationDeForme } from "../src/index.js";
+import {
+  lectureTranche,
+  noteDeLecture,
+  orientationDuLot,
+  poidsDuVote,
+  rotationConfirmeeParLecture,
+  rotationDansOsd,
+  rotationDeForme,
+} from "../src/index.js";
 
 /** Trouver dans quel sens une photo a été prise (OUT-03).
  *
@@ -10,6 +18,7 @@ import { lectureTranche, noteDeLecture, orientationDuLot, poidsDuVote, rotationD
  *  regardait pas plus loin — et une page mal tournée ne donne plus rien à lire. */
 
 const mot = (texte: string, confiance?: number): MotLu => ({ texte, x: 0, y: 0, l: 10, h: 10, ...(confiance === undefined ? {} : { confiance }) });
+const notes = (...valeurs: number[]) => valeurs.map((note, rang) => ({ rotation: (rang * 90) as Rotation, note }));
 
 describe("ce qu'une image donne à lire, en un nombre", () => {
   it("compte les mots sûrs plus que les mots douteux", () => {
@@ -31,8 +40,6 @@ describe("ce qu'une image donne à lire, en un nombre", () => {
 });
 
 describe("la lecture ne tranche que si elle se détache", () => {
-  const notes = (...valeurs: number[]) => valeurs.map((note, rang) => ({ rotation: (rang * 90) as Rotation, note }));
-
   it("tranche quand le meilleur sens domine nettement", () => {
     expect(lectureTranche(notes(255, 107, 9, 2))).toBe(true);
   });
@@ -45,6 +52,26 @@ describe("la lecture ne tranche que si elle se détache", () => {
   it("ne tranche pas quand rien n'a été lu", () => {
     expect(lectureTranche(notes(0, 0, 0, 0))).toBe(false);
     expect(lectureTranche([])).toBe(false);
+  });
+
+  it("ne prend pas quelques fragments de partition pour une orientation certaine (OUT-03)", () => {
+    // Aebersold 002, page 18 : le meilleur sens ne lit que 5,4 points. L'écart relatif est
+    // grand, mais la matière lue est trop maigre pour tourner une vraie page sur cette seule foi.
+    expect(lectureTranche(notes(5.4, 1.3, 0.8, 0.2))).toBe(false);
+  });
+});
+
+describe("l'orientation annoncée doit améliorer réellement la lecture", () => {
+  it("confirme le quart de tour d'Aebersold 002", () => {
+    expect(rotationConfirmeeParLecture(90, notes(28, 84, 82, 24))).toBe(90);
+  });
+
+  it("refuse une page de partition trop pauvre", () => {
+    expect(rotationConfirmeeParLecture(90, notes(1.3, 5.4, 0.8, 0.2))).toBeUndefined();
+  });
+
+  it("refuse une orientation qui n'améliore presque rien", () => {
+    expect(rotationConfirmeeParLecture(90, notes(85, 90, 88, 80))).toBeUndefined();
   });
 });
 

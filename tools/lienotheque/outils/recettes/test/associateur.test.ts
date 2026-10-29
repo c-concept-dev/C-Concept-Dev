@@ -4,11 +4,14 @@ import { describe, expect, it } from "vitest";
 import type { LigneInterpretee } from "@lienotheque/contrats";
 import {
   associer,
+  borneDuVivier,
   chargerRecette,
+  corroborationDesLignes,
   dureeReliee,
   lireNomMedia,
   pisteDuNom,
   qualifierAssociation,
+  type BorneDuVivier,
   type Media,
 } from "../src/index.js";
 
@@ -28,6 +31,12 @@ const ligne = (numero: number, piste: number, confiance = 1, disque = 1): LigneI
   sourcePiste: "pastille",
   confiance,
 });
+
+/** Le cas normal : chaque média présenté porte le groupe de dépôt du document. On le construit
+ *  par la vraie fonction, pour que les épreuves qui s'en servent l'éprouvent aussi. */
+const GROUPE = "depot:0000";
+const borneDe = (medias: readonly Media[]): BorneDuVivier =>
+  borneDuVivier([GROUPE], medias.map(() => ({ provenances: [GROUPE] })));
 
 const media = (piste: number, nom: string, dureeS?: number): Media => ({
   piste,
@@ -158,7 +167,20 @@ describe("abstention avant toute association automatique (REC-05, OUT-10)", () =
         { ...media(55, "1-55 exemple - 500 Pg.145.mp3"), disque: 1, element: 500, page: 145 },
       ],
       RECETTE_AVEC_INDICES,
-      { mediasDisponibles: 2 },
+      {
+        mediasDisponibles: 2,
+        borne: borneDe([media(54, "a"), media(55, "b")]),
+        // Ce contrôle porte sur les indices tirés des noms, pas sur la corroboration. Ses
+        // lignes sont des déductions — zéro lecture — et la règle les refuserait à juste titre.
+        // On déclare donc la corroboration tenue, en toutes lettres plutôt qu'en la dérivant,
+        // pour que personne ne lise ce contrôle comme une permission de publier sans lecture.
+        corroboration: {
+          signaux: ["corroboration_media", "pastille"],
+          preuveHumaine: false,
+          suffisante: true,
+          pourquoi: "Déclarée tenue par ce contrôle, qui éprouve les indices de nom.",
+        },
+      },
     );
 
     expect(qualification.appariements.map((a) => a.statut)).toEqual(["auto", "a_verifier"]);
@@ -167,15 +189,166 @@ describe("abstention avant toute association automatique (REC-05, OUT-10)", () =
   it("s'abstient sur tout le lot quand des médias présents sont tous illisibles par la manière choisie", () => {
     const qualification = qualifierAssociation([ligne(10, 1), ligne(11, 2), ligne(12, 3)], [], RECETTE_AVEC_INDICES, {
       mediasDisponibles: 37,
+      borne: borneDe([]),
+      corroboration: corroborationDesLignes([], { preuveHumaine: true }),
     });
     expect(qualification.appariements).toEqual([]);
     expect(qualification.abstention).toMatchObject({ raison: "medias_non_interpretes", combien: 37 });
   });
 
   it("ne change pas le témoin F3 dont la recette ne déclare aucun motif de nom", () => {
-    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, { mediasDisponibles: 1 });
+    // Ce témoin est devenu la preuve vivante de la deuxième voie. Ce recueil n'a qu'une seule
+    // lecture — la pastille ; ses enregistrements s'appellent « Track 01 » et ne portent aucun
+    // identifiant d'élément à corroborer. Il publie parce que quelqu'un l'a vérifié, et pas
+    // autrement : retirez la vérification, il s'abstient.
+    const avecOeil = {
+      mediasDisponibles: 1,
+      borne: borneDe([media(1, "Track 01.mp3")]),
+      corroboration: corroborationDesLignes([ligne(1, 1)], { preuveHumaine: true }),
+    };
+    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, avecOeil);
     expect(qualification.abstention).toBeUndefined();
     expect(qualification.appariements[0]?.statut).toBe("auto");
+
+    const sansOeil = { ...avecOeil, corroboration: corroborationDesLignes([ligne(1, 1)]) };
+    const sansPersonne = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, sansOeil);
+    expect(sansPersonne.abstention?.raison).toBe("corroboration_insuffisante");
+  });
+});
+
+/** Un lien ne se publie pas sur un seul décret (OUT-10).
+ *
+ *  Le principe, posé le 29 octobre 2026 après inventaire des signaux réellement disponibles :
+ *  publier demande **deux lectures indépendantes qui s'accordent**, ou **une lecture et une
+ *  vérification humaine enregistrée**. Faute de l'un et de l'autre, on s'abstient.
+ *
+ *  Ce qui compte comme lecture, et ce qui n'en est pas une : une pastille lue sur la page, un
+ *  identifiant lu dans le nom d'un enregistrement, une relecture ciblée sont des **lectures** —
+ *  quelque chose a été vu quelque part. `sequence`, `suite` et `numero_element` sont des
+ *  **déductions** : la recette décrète, rien n'a été lu. Confondre les deux est exactement ce qui
+ *  a permis de publier 52 liens sur un document dont pas un repère n'avait été lu.
+ *
+ *  Les deux cas qui départagent la règle sont réels, et mesurés sur la vraie bibliothèque : un
+ *  recueil publie 89 liens de source `pastille` et a été vérifié à l'oreille ; un autre publie
+ *  52 liens de source `numero_element`, et porte pourtant le même marqueur « vérifié », posé à la
+ *  main à une époque où ses liens pointaient sur l'audio d'un troisième recueil.
+ */
+describe("publier demande deux lectures, ou une lecture et un œil (OUT-10)", () => {
+  const litPar = (numero: number, sourcePiste: LigneInterpretee["sourcePiste"]): LigneInterpretee => ({
+    ...ligne(numero, numero),
+    ...(sourcePiste === undefined ? {} : { sourcePiste }),
+  });
+  const deuxMedias = [media(1, "un.mp3"), media(2, "deux.mp3")];
+
+  it("compte les lectures et ignore les déductions", () => {
+    const corroboration = corroborationDesLignes([
+      litPar(1, "pastille"),
+      litPar(2, "pastille"),
+      litPar(3, "sequence"),
+      litPar(4, "suite"),
+    ]);
+    expect(corroboration.signaux).toEqual(["pastille"]);
+  });
+
+  it("deux lectures indépendantes suffisent, sans personne pour regarder", () => {
+    const corroboration = corroborationDesLignes([litPar(1, "pastille"), litPar(2, "corroboration_media")]);
+    expect(corroboration.signaux).toHaveLength(2);
+    expect(corroboration.suffisante).toBe(true);
+  });
+
+  it("une seule lecture ne suffit pas à elle seule", () => {
+    const corroboration = corroborationDesLignes([litPar(1, "pastille"), litPar(2, "pastille")]);
+    expect(corroboration.suffisante).toBe(false);
+    expect(corroboration.pourquoi).toMatch(/une seule/i);
+  });
+
+  it("une seule lecture plus un œil suffit — le recueil vérifié à l'oreille", () => {
+    const corroboration = corroborationDesLignes([litPar(1, "pastille"), litPar(2, "pastille")], {
+      preuveHumaine: true,
+    });
+    expect(corroboration.suffisante).toBe(true);
+  });
+
+  it("un œil sans aucune lecture ne suffit pas — le recueil décrété", () => {
+    const corroboration = corroborationDesLignes([litPar(1, "numero_element"), litPar(2, "numero_element")], {
+      preuveHumaine: true,
+    });
+    expect(corroboration.signaux).toHaveLength(0);
+    expect(corroboration.suffisante, "un marqueur posé à la main a suffi à publier").toBe(false);
+    expect(corroboration.pourquoi).toMatch(/aucune lecture/i);
+  });
+
+  it("s'abstient au lieu de publier, et dit ce qui manquait", () => {
+    const decretees = [litPar(1, "numero_element"), litPar(2, "numero_element")];
+    const association = qualifierAssociation(decretees, deuxMedias, RECETTE, {
+      borne: borneDe(deuxMedias),
+      corroboration: corroborationDesLignes(decretees),
+    });
+    expect(association.appariements, "des liens ont été publiés sans aucune lecture").toEqual([]);
+    expect(association.abstention?.raison).toBe("corroboration_insuffisante");
+    expect(association.abstention?.pourquoi).toMatch(/aucune lecture/i);
+  });
+
+  it("publie quand la corroboration tient", () => {
+    const lues = [litPar(1, "pastille"), litPar(2, "corroboration_media")];
+    const association = qualifierAssociation(lues, deuxMedias, RECETTE, {
+      borne: borneDe(deuxMedias),
+      corroboration: corroborationDesLignes(lues),
+    });
+    expect(association.abstention).toBeUndefined();
+    expect(association.appariements).toHaveLength(2);
+  });
+});
+
+describe("le vivier présenté doit être borné au document avant toute publication (OUT-10)", () => {
+  it("borne le vivier quand chaque média porte un groupe de dépôt du document", () => {
+    const borne = borneDuVivier(["depot:a"], [{ provenances: ["depot:a"] }, { provenances: ["depot:a", "depot:b"] }]);
+    expect(borne.bornee, borne.pourquoi).toBe(true);
+    expect(borne.presentes).toBe(2);
+    expect(borne.horsBornes).toBe(0);
+  });
+
+  it("refuse de borner quand un média vient d'ailleurs, et dit combien", () => {
+    const borne = borneDuVivier(["depot:a"], [{ provenances: ["depot:a"] }, { provenances: ["depot:b"] }]);
+    expect(borne.bornee).toBe(false);
+    expect(borne.horsBornes, "le média étranger est compté").toBe(1);
+  });
+
+  it("refuse de borner quand un média ne dit pas d'où il vient", () => {
+    const borne = borneDuVivier(["depot:a"], [{ provenances: ["depot:a"] }, {}]);
+    expect(borne.bornee).toBe(false);
+    expect(borne.sansGroupe).toBe(1);
+  });
+
+  it("refuse de borner un document dont on ignore la provenance, même si tout concorde par ailleurs", () => {
+    const borne = borneDuVivier([], [{ provenances: ["depot:a"] }]);
+    expect(borne.bornee, "ne rien savoir n'est pas une preuve").toBe(false);
+  });
+
+  it("borne un document sans aucun média : il n'y a rien à déborder", () => {
+    expect(borneDuVivier(["depot:a"], []).bornee).toBe(true);
+  });
+
+  it("s'abstient sur tout le lot quand le vivier n'est pas borné, même si chaque lien concorde", () => {
+    // Tout est par ailleurs parfait : la page lit la piste 1, et un média porte la piste 1. Seul
+    // le bornage manque — et cela suffit à ne rien publier.
+    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, {
+      mediasDisponibles: 1,
+      borne: borneDuVivier(["depot:a"], [{ provenances: ["depot:b"] }]),
+      // La corroboration tient : c'est bien le bornage, et lui seul, qui fait tout arrêter.
+      corroboration: corroborationDesLignes([ligne(1, 1)], { preuveHumaine: true }),
+    });
+    expect(qualification.appariements, "rien n'est présenté").toEqual([]);
+    expect(qualification.abstention?.raison).toBe("vivier_non_borne");
+  });
+
+  it("ne publie rien non plus quand personne n'a dit sur quoi le vivier est borné", () => {
+    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, {
+      mediasDisponibles: 1,
+      borne: borneDuVivier([], [{}]),
+      corroboration: corroborationDesLignes([ligne(1, 1)], { preuveHumaine: true }),
+    });
+    expect(qualification.abstention?.raison).toBe("vivier_non_borne");
   });
 });
 

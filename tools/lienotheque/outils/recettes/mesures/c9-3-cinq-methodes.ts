@@ -174,6 +174,8 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
   let dernier = -1;
   const recetteLue = recette(cas.recette);
   const joue = await rejouer(cas.pdf, cas.medias, recetteLue, {
+    // Banc de mesure : le dossier de médias est désigné ici, pour ce document seul.
+    vivierAffirmeParLAppelant: true,
     inventaireMedias: medias,
     cache: lectures,
     ...(cas.id === "hal-leonard-funk-fusion" && validationStructurelle !== undefined
@@ -200,6 +202,14 @@ for (const cas of CAS.filter((candidat) => choisis.has(candidat.id))) {
     nom: cas.nom,
     dureeSecondes: Math.round((Date.now() - debut) / 1000),
     mediasDisponibles: medias.length,
+    // Banc de mesure : le dossier de médias est choisi par ce banc pour ce document seul.
+    borne: {
+      presentes: medias.length,
+      horsBornes: 0,
+      sansGroupe: 0,
+      bornee: true,
+      pourquoi: "Vivier affirmé par ce banc de mesure.",
+    },
     mediasInterpretes: joue.medias.length,
     lignes: joue.resultat.lignes.length,
     automatiques: bilan.automatiques,
@@ -252,7 +262,11 @@ if (choisis.has("paul-westwood") || choisis.has("aebersold-026")) {
   const reference = JSON.parse(readFileSync(join(RACINE, "docs/prototypes/70s_Funk_Disco_appariement_mp3.json"), "utf8")) as {
     appariements: { exercice: number; piste: number }[];
   };
-  const joue = await rejouer(pdf, dossier, recette(RECETTE_F3), { cache: lectures });
+  const joue = await rejouer(pdf, dossier, recette(RECETTE_F3), {
+    cache: lectures,
+    // Banc de mesure : le dossier de médias est désigné ici, pour ce document seul.
+    vivierAffirmeParLAppelant: true,
+  });
   const score = comparer(
     joue.resultat.lignes,
     reference.appariements.map((attendu) => ({ numero: attendu.exercice, piste: attendu.piste })),

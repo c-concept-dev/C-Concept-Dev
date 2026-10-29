@@ -204,14 +204,33 @@ export function construireVue(entree: Entree): VueBibliotheque {
 
   if (entree.association.abstention !== undefined) {
     const combien = entree.association.abstention.combien;
+    // Deux causes bien distinctes, et les confondre égare : soit la manière de lire ne sait rien
+    // faire des médias présents, soit ces médias n'ont pas été prouvés appartenir au document.
+    // Dans le second cas il n'y a pas d'autre manière à choisir — c'est le dépôt qu'il faut refaire.
+    const nonBorne = entree.association.abstention.raison === "vivier_non_borne";
+    const sansLecture = entree.association.abstention.raison === "corroboration_insuffisante";
     douteux.push({
       id: identifiantDe(`${entree.id}/maniere-inadaptee`),
       nature: "information",
       etat: "maniere_inadaptee",
-      libelle: "Lecture non applicable",
-      proposition: "Choisir une autre manière de lire",
-      motif: "aucun des médias présents n’a pu être interprété par cette manière de lire",
-      details: [`${combien} média${combien > 1 ? "s" : ""} présent${combien > 1 ? "s" : ""}, aucun interprété`],
+      libelle: sansLecture
+        ? "Rien n’a été lu sur ces pages pour appuyer ces liens"
+        : nonBorne
+          ? "Rien ne prouve à qui appartiennent ces enregistrements"
+          : "Lecture non applicable",
+      proposition: sansLecture
+        ? "Vérifier ce document, ou lui donner une manière de lire qui lise vraiment ses pages"
+        : nonBorne
+          ? "Déposer ce document avec ses propres enregistrements"
+          : "Choisir une autre manière de lire",
+      motif:
+        entree.association.abstention.pourquoi ??
+        "aucun des médias présents n’a pu être interprété par cette manière de lire",
+      details: sansLecture
+        ? [`${combien} lien${combien > 1 ? "s" : ""} retenu${combien > 1 ? "s" : ""} sans qu’aucune lecture ne l’appuie`]
+        : nonBorne
+          ? [`${combien} enregistrement${combien > 1 ? "s" : ""} dont l’appartenance n’est pas établie`]
+          : [`${combien} média${combien > 1 ? "s" : ""} présent${combien > 1 ? "s" : ""}, aucun interprété`],
     });
   }
 
@@ -262,13 +281,37 @@ export function construireVue(entree: Entree): VueBibliotheque {
     });
   }
 
+  // Un numéro imprimé revendiqué par deux pages (OUT-15).
+  //
+  // Les éléments se posent par numéro imprimé : c'est le seul lien qu'ils aient avec une page.
+  // Quand deux pages déclarent le même, le même élément se pose sur les deux, et l'une des deux
+  // images n'a rien à voir avec ce qui a été mesuré. Mesuré le 29 octobre 2026 sur la vraie
+  // base : un document sur 250, où la table des matières d'un recueil se déclarait page 66 et
+  // montrait, « Confiance haute », le repère de la vraie page 66.
+  //
+  // On ne choisit pas entre les deux — rien ici ne permet de savoir laquelle a raison — et on
+  // n'en cache aucune. On cesse seulement de les présenter comme sûres.
+  const combienParNumero = new Map<number, number>();
+  for (const page of entree.pages)
+    if (page.numero !== undefined) combienParNumero.set(page.numero, (combienParNumero.get(page.numero) ?? 0) + 1);
+  const numerosEnDouble = new Map(
+    [...combienParNumero].filter(([, combien]) => combien > 1).map(([numero, combien]) => [numero, combien]),
+  );
+
   // Une page par page lue, dans l'ordre de lecture. Les éléments viennent s'y poser par leur
   // numéro imprimé — c'est le seul lien qu'ils aient avec une page — et une page qui n'en porte
   // aucun reste une page.
   const pages: PageAffichee[] = [...entree.pages]
     .sort((un, autre) => un.index - autre.index)
     .map((page) => {
-      const elements = page.numero === undefined ? [] : (parPage.get(page.numero) ?? []);
+      const poses = page.numero === undefined ? [] : (parPage.get(page.numero) ?? []);
+      // Sur une page dont le numéro est revendiqué deux fois, rien n'est sûr d'être au bon
+      // endroit. Une copie : les deux pages partagent le même tableau, et marquer l'un
+      // marquerait l'autre sans qu'on l'ait demandé.
+      const elements =
+        page.numero !== undefined && numerosEnDouble.has(page.numero)
+          ? poses.map((element) => ({ ...element, aVerifier: true }))
+          : poses;
       const titre = page.numero === undefined ? undefined : entree.titreDePage?.(page.numero);
       const vue = entree.imageDePage?.(page.index);
       return {
@@ -282,6 +325,27 @@ export function construireVue(entree: Entree): VueBibliotheque {
         valeurs: valeursDePage(entree.schema, elements),
       };
     });
+
+  // Et on le dit, une fois par numéro, en nommant les pages qui se le disputent.
+  for (const [numero, combien] of numerosEnDouble) {
+    const concernees = pages.filter((page) => page.numero === numero);
+    douteux.push({
+      id: identifiantDe(`${entree.id}/page-en-double-${numero}`),
+      nature: "information",
+      etat: "page_en_double",
+      // Aucun accord de genre : les mots de la page viennent du schéma, et « portée » ne vaut
+      // que pour un mot féminin. « Le numéro N est porté » marcherait, mais c'est le numéro qui
+      // est en double, pas la page — et c'est ainsi qu'il faut le dire.
+      libelle: `Numéro ${numero} en double`,
+      proposition: `Vérifier quelle ${entree.mots.page.un} porte vraiment le numéro ${numero}`,
+      motif: `${combien} ${entree.mots.page.plusieurs} du document déclarent le numéro ${numero}`,
+      details: concernees.map(
+        (page) =>
+          `${entree.mots.page.un} ${page.index} du document` +
+          (page.elements.length === 0 ? "" : ` — ${page.elements.length} ${page.elements.length > 1 ? entree.mots.element.plusieurs : entree.mots.element.un}`),
+      ),
+    });
+  }
 
   // Un élément dont aucune page lue ne porte le numéro imprimé n'a nulle part où se poser.
   //

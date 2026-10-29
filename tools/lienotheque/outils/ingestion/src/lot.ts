@@ -40,6 +40,8 @@ export type Lot = {
   readonly medias: string;
   /** Inventaire de l'hôte, quand les sources sont rangées par empreinte. */
   readonly inventaireMedias?: readonly MediaInventorie[] | undefined;
+  /** Groupes de dépôt du document, qui bornent son vivier. */
+  readonly provenancesMedias?: readonly string[] | undefined;
   /** Recette qui dit comment lire ce document. */
   readonly recette: string;
   readonly description: string;
@@ -156,6 +158,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // mesure, sans quoi ce qu'on mesure n'est pas ce qu'on montre.
   const { resultat, association, medias } = await rejouer(lot.pdf, lot.medias, recette, {
     ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
+    ...(lot.provenancesMedias === undefined ? {} : { provenancesMedias: lot.provenancesMedias }),
     ...(lot.cache === undefined ? {} : { cache: lot.cache }),
     ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
     ...(lot.validationStructurelle === undefined ? {} : { validationStructurelle: lot.validationStructurelle }),
@@ -168,7 +171,8 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   lot.surPhase?.(`repères lus : ${resultat.pages.length} page(s), ${resultat.lignes.length} élément(s)`);
   if (association.abstention !== undefined)
     lot.surPhase?.(
-      `association abandonnée : ${association.abstention.combien} média(s) présent(s), aucun interprété par cette manière de lire`,
+      association.abstention.pourquoi ??
+        `association abandonnée : ${association.abstention.combien} média(s) présent(s), aucun interprété par cette manière de lire`,
     );
 
   // Les images, une par une, écrites au passage. Le numéro imprimé d'une page n'est pas son rang

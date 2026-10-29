@@ -13,8 +13,9 @@ import {
   TAILLE_ENTETE,
 } from "@lienotheque/formats";
 import { decalageDominant } from "@lienotheque/recettes";
-import { decoderJpeg, enGris, versPgm } from "@lienotheque/images";
+import { decoderJpeg, enGris, sansConduitesDePoints, tournerRvba, versPgm, type ImageRvba } from "@lienotheque/images";
 import { causeLisible } from "@lienotheque/noyau";
+import { rotationDePageFiable } from "@lienotheque/redresseur";
 import {
   type PageDeTexte,
   couperEnDeux,
@@ -100,6 +101,8 @@ export type OptionsTexte = {
   readonly tessdata?: string | undefined;
   /** Une panne locale reste attachée à sa page, même quand le repli permet de continuer. */
   readonly surAvertissement?: ((message: string) => void) | undefined;
+  /** Qualification bornée de l'orientation, désactivée hors des rejeux explicitement mesurés. */
+  readonly redresser?: boolean | undefined;
 };
 
 export type TexteDuDocument = {
@@ -508,7 +511,26 @@ async function ocrDuJpeg(jpeg: Buffer, rang: number, dossier: string, options: O
 }
 
 async function ocrDesPixels(imageRendue: PageRendue, rang: number, dossier: string, options: OptionsTexte): Promise<PageLue> {
-  const image = enGris(imageRendue);
+  let pixels: ImageRvba = imageRendue;
+  if (options.redresser === true) {
+    const rotation = rotationDePageFiable(enGris(pixels), {
+      ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
+      ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
+    });
+    if (rotation !== undefined) pixels = tournerRvba(pixels, rotation);
+  }
+  // Les conduites de points effacées **avant** la reconnaissance (FMT-04).
+  //
+  // Une file de points qui relie un intitulé à son numéro ne porte aucune information : elle
+  // guide l'œil. Tesseract, lui, l'agglomère au mot voisin et rend un jeton que plus aucun
+  // modèle ne reconnaît — « Workout 6 » devenait « WIGHKOU OSS aa BP ee, » sur une image
+  // parfaitement nette. Ici, et nulle part ailleurs : c'est le seul point par où passent les
+  // deux chemins de la reconnaissance de page, le JPEG isolé comme le rendu complet.
+  //
+  // Les dimensions ne bougent pas, et les boîtes de mots que Tesseract rendra restent donc dans
+  // les coordonnées de l'image d'origine. Une page sans conduite est rendue telle quelle, sans
+  // même être recopiée.
+  const image = sansConduitesDePoints(enGris(pixels));
   const chemin = join(dossier, `page-${rang}.pgm`);
   writeFileSync(chemin, versPgm(image));
   try {

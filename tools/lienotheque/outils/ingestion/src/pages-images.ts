@@ -2,10 +2,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { causeJpegNonDirect, empreinteDe, objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
-import { decoderJpeg, encoderWebp, redimensionner, type ImageRvba } from "@lienotheque/images";
+import { decoderJpeg, encoderWebp, enGris, redimensionner, tournerRvba, type ImageRvba } from "@lienotheque/images";
 import { vignette } from "@lienotheque/optimiseur";
 import { causeLisible } from "@lienotheque/noyau";
 import { ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
+import { rotationDePageFiable } from "@lienotheque/redresseur";
 
 /** Images de page pour les écrans, écrites au fil de l'eau (correction 8).
  *
@@ -59,7 +60,17 @@ export type OptionsExport = {
   readonly qualite?: number;
   /** Produire la vignette de chaque page. Vrai par défaut. */
   readonly vignettes?: boolean;
+  /** Qualification bornée : essayer les quatre sens et ne tourner que si une vraie lecture les
+   * départage. Désactivé tant que l'échantillon privé complet n'est pas qualifié. */
+  readonly redresser?: boolean;
 };
+
+function redresserSiProuve(image: ImageRvba, actif: boolean): ImageRvba {
+  if (!actif) return image;
+  const rotation = rotationDePageFiable(enGris(image));
+  if (rotation === undefined) return image;
+  return rotation === 0 ? image : tournerRvba(image, rotation);
+}
 
 /** Pourquoi la première image d'une page n'est pas la page, quand elle ne l'est pas.
  *
@@ -138,14 +149,17 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
         }
       }
 
-      let reduite: ImageRvba;
-      if (directe !== undefined) reduite = await aLaLargeur(directe, largeurVoulue);
+      let preparee: ImageRvba;
+      if (directe !== undefined) preparee = directe;
       else
         try {
           // Une page est une composition, pas nécessairement un JPEG. Le rendu complet couvre
           // Flate, JPX, plusieurs images, graphismes et JPEG que le codec direct refuse.
           renduComplet ??= await ouvrirRenduPdf(pdf);
-          reduite = await renduComplet.page(index + 1, largeurVoulue);
+          // La décision d'orientation demande davantage de matière que l'image d'écran. À
+          // À 1 240 px, une page de l'échantillon hésite entre les deux quarts de tour ; à
+          // 1 800 px, l'OSD et la lecture convergent sur le sens qui rend le texte lisible.
+          preparee = await renduComplet.page(index + 1, options.redresser === true ? Math.max(1800, largeurVoulue) : largeurVoulue);
         } catch (causeRendu) {
           const directeDite =
             causeDirecte === undefined
@@ -157,6 +171,9 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
           refusees.push({ index, cause: "rendu_impossible" });
           continue;
         }
+
+      preparee = redresserSiProuve(preparee, options.redresser === true);
+      const reduite = await aLaLargeur(preparee, largeurVoulue);
 
       const nom = `page-${String(index).padStart(4, "0")}.webp`;
       // Écrite tout de suite : la page suivante ne doit pas attendre que celle-ci soit retenue.

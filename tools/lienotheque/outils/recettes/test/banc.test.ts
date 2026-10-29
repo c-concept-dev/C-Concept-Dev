@@ -8,6 +8,7 @@ import {
   ciblesStructurellesAttendues,
   comparer,
   completerResultatParCiblesValidees,
+  fondDesPages,
   integrerCiblesValidees,
   interpreter,
   lireLot,
@@ -128,6 +129,100 @@ describe("comparateur strict du banc de vérité terrain (OUT-15)", () => {
 
     expect(score.justes).toBe(1);
     expect(score.supplementaires).toEqual([{ numero: 1, piste: 11 }]);
+  });
+
+  /** Un lien peut être juste par le numéro et faux par la page (OUT-15).
+   *
+   *  Mesuré le 29 octobre 2026 sur un recueil de cinquante-deux éléments. Ceux-ci portaient le
+   *  bon numéro et la bonne piste, et tombaient tous **une page trop tôt** : la page qui ouvre un
+   *  élément et porte sa pastille n'avait aucun son, et la suivante — encore le même élément —
+   *  renvoyait à la piste du suivant. L'oracle annonçait cinquante-deux sur cinquante-deux.
+   *
+   *  Il l'annonçait de bonne foi : il comparait le numéro à la piste, et cette correspondance-là
+   *  était exacte. Ce qu'il ne regardait pas, c'est **où** le lien était posé. Un oracle aveugle à
+   *  la page ne peut pas voir un décalage de page, et le score reste vert pendant que le produit
+   *  renvoie au mauvais exercice. */
+  it("OUT-15 : un élément posé sur la mauvaise page ne compte pas comme juste", () => {
+    const score = comparer(
+      [{ numero: 3, piste: 3, pageImprimee: 9 }],
+      [{ numero: 3, piste: 3, pageImprimee: 10 }],
+    );
+
+    expect(score.justes).toBe(0);
+    expect(score.decales).toEqual([{ numero: 3, piste: 3, attendue: 10, obtenue: 9 }]);
+  });
+
+  it("OUT-15 : le même élément sur la bonne page compte comme juste", () => {
+    const score = comparer(
+      [{ numero: 3, piste: 3, pageImprimee: 10 }],
+      [{ numero: 3, piste: 3, pageImprimee: 10 }],
+    );
+
+    expect(score.justes).toBe(1);
+    expect(score.decales).toEqual([]);
+  });
+
+  /** Une référence qui ne nomme pas de page ne juge pas la page : les oracles anciens, écrits en
+   *  paires numéro-piste, gardent exactement le sens qu'ils avaient. */
+  it("OUT-15 : une référence sans page ne juge pas la page", () => {
+    const score = comparer([{ numero: 3, piste: 3, pageImprimee: 9 }], [{ numero: 3, piste: 3 }]);
+
+    expect(score.justes).toBe(1);
+    expect(score.decales).toEqual([]);
+  });
+
+  /** En revanche, une référence qui nomme une page face à un rejeu qui n'en porte aucune ne peut
+   *  pas être déclarée juste : on ne sait pas. Et « on ne sait pas » n'est pas « c'est bon ». */
+  it("OUT-15 : une ligne sans page ne satisfait pas une référence qui en nomme une", () => {
+    const score = comparer([{ numero: 3, piste: 3 }], [{ numero: 3, piste: 3, pageImprimee: 10 }]);
+
+    expect(score.justes).toBe(0);
+  });
+
+  /** Un score ne vaut que le terrain sur lequel il repose (OUT-15).
+   *
+   *  Relevé du 29 octobre 2026, sur deux documents de la même bibliothèque :
+   *
+   *  | | folios lus | statuts |
+   *  |---|---:|---|
+   *  | un recueil de vingt-neuf pages | **29 sur 29** | 26 lues, 2 déduites |
+   *  | un recueil de cinquante-deux éléments | **0 sur 115** | 114 déduites |
+   *
+   *  Le second annonçait cinquante-deux associations justes sur cinquante-deux. Il n'avait pas lu
+   *  un seul numéro de page. */
+  it("OUT-15 : une numérotation sans un seul folio lu n'est pas ancrée", () => {
+    const fond = fondDesPages([
+      { statut: "couverture" },
+      ...Array.from({ length: 114 }, () => ({ statut: "deduite" })),
+    ]);
+
+    expect(fond.ancree).toBe(false);
+    expect(fond.lues).toBe(0);
+    expect(fond.deduites).toBe(114);
+    expect(fond.pourquoi).toContain("supposée");
+  });
+
+  it("OUT-15 : un seul folio lu ancre la numérotation", () => {
+    const fond = fondDesPages([
+      { statut: "couverture" },
+      { statut: "lue", pageLue: 8 },
+      { statut: "deduite" },
+    ]);
+
+    expect(fond.ancree).toBe(true);
+    expect(fond.lues).toBe(1);
+  });
+
+  it("OUT-15 : la part réellement lue est rendue, pour qui veut être plus exigeant", () => {
+    const fond = fondDesPages([
+      { statut: "lue", pageLue: 1 },
+      { statut: "lue", pageLue: 2 },
+      { statut: "deduite" },
+    ]);
+
+    expect(fond.lues).toBe(2);
+    expect(fond.pages).toBe(3);
+    expect(fond.pourquoi).toContain("ancrée");
   });
 
   it("interdit l'injection de validations ciblées dans le rejeu C9.3 normal", () => {

@@ -78,6 +78,8 @@ for (const volume of VOLUMES) {
   const debut = Date.now();
   let dernier = -1;
   const joue = await rejouer(volume.pdf, RACINE_PAUL_WESTWOOD, recette, {
+    // Banc de mesure : le dossier de médias est désigné ici, pour ce document seul.
+    vivierAffirmeParLAppelant: true,
     inventaireMedias,
     cache: coin(cache, "lectures-c9-3"),
     avancement: (faits, total) => {

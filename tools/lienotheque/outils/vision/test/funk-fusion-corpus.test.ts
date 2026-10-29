@@ -31,6 +31,8 @@ describe("Funk Fusion avec le repli structurel réel", () => {
         readFileSync(join(racine, "fixtures/references/funk-fusion-bass-appariement.json"), "utf8"),
       ) as { appariements: [number, number][] };
       const joue = await rejouer(pdf!, medias!, recette, {
+        // Épreuve de corpus : le dossier de médias est désigné ici, pour ce document seul.
+        vivierAffirmeParLAppelant: true,
         cache: process.env["LIENOTHEQUE_CACHE_LECTURES"],
         validationStructurelle: validationStructurelleCiblee(
           transportValidationCiblesVersWorker(base!, jeton!),

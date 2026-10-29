@@ -307,6 +307,24 @@ fn apercu_de_pages(racine: String, empreinte: String, nom: String, depuis: u32, 
     })
 }
 
+/// Les groupes de dépôt d'un document, relevés dans la file.
+///
+/// C'est le dépôt qui sait d'où vient un document : il l'inscrit dans le travail qu'il met en
+/// file. Sans cette information, on ne peut pas dire quels enregistrements lui appartiennent — et
+/// ne pas pouvoir le dire doit conduire à s'abstenir, jamais à tout présenter.
+fn groupes_du_document(depot: &depot::Depot, empreinte: &str) -> Vec<String> {
+    let mut groupes: Vec<String> = file::charger_tout(&depot.travaux(), &mut |_| {})
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|travail| travail.empreinte.as_deref() == Some(empreinte))
+        .filter_map(|travail| travail.sujet)
+        .flat_map(|sujet| sujet.provenances_medias)
+        .collect();
+    groupes.sort();
+    groupes.dedup();
+    groupes
+}
+
 /// Essaie une manière de lire sur quelques pages, sans rien enregistrer (REC-07).
 ///
 /// Le brouillon est écrit à côté de la bibliothèque, dans un fichier qui porte ce nom : on
@@ -345,6 +363,8 @@ fn essayer_maniere(
         return Err("Cette bibliothèque n’a pas de description.".to_owned());
     }
 
+    let groupes = groupes_du_document(&depot, &empreinte);
+
     // Le brouillon s'écrit avant d'être essayé : le moteur lit des fichiers, pas des messages.
     let brouillon = base.join("brouillon-recette.json");
     std::fs::create_dir_all(&base).map_err(|e| format!("Dossier impossible à préparer : {e}"))?;
@@ -359,14 +379,23 @@ fn essayer_maniere(
         "charge": {
             "document": document,
             "medias": depot.racine().join(depot::SOURCES),
+            // Cet essai présentait TOUTE la médiathèque de la bibliothèque, sans regarder d'où
+            // venait quoi. L'écran sur lequel on juge une manière de lire montrait donc un score
+            // calculé dans le vivier de tous les documents réunis — celui où le premier recueil
+            // venu remporte chaque rang demandé. On borne ici comme la file le fait.
             "inventaireMedias": depot.medias().map_err(|e| format!("Inventaire des médias illisible : {e}"))?
                 .into_iter()
-                .filter(|media| media.contenu == "audio")
+                .filter(|media| {
+                    media.contenu == "audio"
+                        && media.provenances.iter().any(|groupe| groupes.contains(groupe))
+                })
                 .map(|media| serde_json::json!({
                     "nom": media.nom,
                     "empreinte": media.empreinte,
+                    "provenances": media.provenances,
                 }))
                 .collect::<Vec<_>>(),
+            "provenancesMedias": groupes,
             "recette": brouillon,
             "description": description,
             "depuis": depuis,

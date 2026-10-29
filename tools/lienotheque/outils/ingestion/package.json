@@ -22,6 +22,7 @@
     "@lienotheque/noyau": "workspace:*",
     "@lienotheque/optimiseur": "workspace:*",
     "@lienotheque/recettes": "workspace:*",
+    "@lienotheque/redresseur": "workspace:*",
     "@lienotheque/vision": "workspace:*",
     "zod": "^4.6.5"
   },

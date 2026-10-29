@@ -373,7 +373,7 @@ export function sequencer(
     // Quand la recette a demandé une corroboration exacte par le nom des médias, l'absence
     // d'identifiant correspondant est une information : ce repère n'a pas de piste publiée.
     // Lui attribuer malgré tout la piste calculée par la suite fabriquerait précisément un faux
-    // lien (par exemple un exercice imprimé 6.2 alors qu'aucun fichier audio ne porte #6.2).
+    // lien (par exemple un repère imprimé 6.2 alors qu'aucun fichier audio ne porte #6.2).
     if (options.mediasParElement !== undefined && mediaCorrobore === undefined) {
       lignes.push({
         numero: element.numeroRetenu,
