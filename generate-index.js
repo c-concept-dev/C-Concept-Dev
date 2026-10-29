@@ -12,6 +12,25 @@ console.log('Generation de l\'index C Concept&Dev en cours...\n');
 
 // Configuration
 const ROOT_DIR = process.cwd();
+/** Les pages de Liénothèque admises dans l'index, nommées une par une.
+ *
+ *  Le dossier « tools/lienotheque » ne se parcourt pas : c'est une application, et la parcourir
+ *  ferait entrer dans l'index les index.html de Vite, le catalogue du kit et les maquettes de
+ *  travail — c'est précisément ce que l'exclusion existe pour empêcher.
+ *
+ *  Mais le projet abrite aussi des outils autonomes d'un seul fichier, qui s'ouvrent dans un
+ *  navigateur comme n'importe quel autre outil du dépôt. Sans la liste ci-dessous, ils restent
+ *  servis à leur adresse et **aucun lien n'y conduit** : en ligne, mais introuvables.
+ *
+ *  Nommées plutôt que déduites, et c'est le point : une règle qui dirait « tout fichier .html à
+ *  la racine du projet » rouvrirait la porte au premier fichier qu'on y poserait sans y penser.
+ *  Allonger cette liste est une décision, pas un effet de bord.
+ *
+ *  Les chemins sont relatifs à « tools/lienotheque », en séparateurs POSIX. */
+const PAGES_DE_LIENOTHEQUE_ADMISES = [
+  'zip-methodes-multi-dossiers.html'
+];
+
 const IGNORE_PATTERNS = [
   /node_modules/,
   /\.git/,
@@ -55,8 +74,28 @@ function scanDirectory(dir, baseDir = ROOT_DIR) {
         continue;
       }
 
-      // Liénothèque est une application, pas une page du site.
+      // Liénothèque est une application, pas une page du site : son dossier ne se parcourt
+      // pas. On y prélève seulement les pages nommées dans PAGES_DE_LIENOTHEQUE_ADMISES, puis
+      // on s'arrête là — la récursion n'entre jamais dans le projet.
       if (relativePath === path.join('tools', 'lienotheque')) {
+        for (const admise of PAGES_DE_LIENOTHEQUE_ADMISES) {
+          const cheminAdmis = path.join(fullPath, ...admise.split('/'));
+          if (!fs.existsSync(cheminAdmis)) {
+            // Dit, plutôt que tu : une page retirée ou renommée doit se voir dans le journal du
+            // robot, pas disparaître de l'index sans un mot.
+            console.warn('Page admise introuvable, ignorée : ' + admise);
+            continue;
+          }
+          const statsAdmise = fs.statSync(cheminAdmis);
+          if (!structure.files) structure.files = [];
+          structure.files.push({
+            name: path.basename(cheminAdmis),
+            path: path.relative(baseDir, cheminAdmis).replace(/\\/g, '/'),
+            title: extractTitle(cheminAdmis),
+            size: statsAdmise.size,
+            modified: statsAdmise.mtime
+          });
+        }
         continue;
       }
 
