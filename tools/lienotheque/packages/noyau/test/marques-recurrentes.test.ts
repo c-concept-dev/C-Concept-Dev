@@ -1,0 +1,161 @@
+import { describe, expect, it } from "vitest";
+import { Observation } from "@lienotheque/contrats";
+import {
+  observationsDesMarques,
+  zonesAExaminer,
+  zonesRecurrentes,
+  type FormeObservee,
+} from "../src/index.js";
+
+/** Trouver où sont les marques, sans manière de lire (OUT-10).
+ *
+ *  Les deux régularités que le socle doit savoir reconnaître, les quatre pièges où il ne doit pas
+ *  tomber — grain de numérisation, bloc de texte, forme qui ne revient pas, tailles inégales — et
+ *  le piège qui l'a réellement fait échouer : une marque posée juste à côté de son libellé.
+ */
+
+const forme = (page: number, x: number, y: number, taille = 0.012): FormeObservee => ({
+  page,
+  x,
+  y,
+  l: taille,
+  h: taille,
+});
+
+describe("une marque qui revient au même endroit (OUT-10)", () => {
+  it("la trouve, et dit sur combien de pages", () => {
+    const formes = [1, 2, 3, 4, 5, 6].map((page) => forme(page, 0.9, 0.95));
+    const [zone] = zonesRecurrentes(formes, 6);
+    expect(zone?.repetition).toBe("fixe");
+    expect(zone?.pages).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  it("ne la retient pas si elle ne revient que sur une page sur quatre", () => {
+    const formes = [forme(1, 0.9, 0.95), forme(2, 0.9, 0.95)];
+    expect(zonesRecurrentes(formes, 8), "deux pages sur huit n’est pas une régularité").toEqual([]);
+  });
+});
+
+describe("une marque qui descend la page, une fois par élément (OUT-10)", () => {
+  /** Le cas réel : une marque dans la marge, répétée à chaque élément. */
+  const enColonne: FormeObservee[] = [];
+  for (const page of [1, 2, 3, 4]) for (const y of [0.2, 0.4, 0.6, 0.8]) enColonne.push(forme(page, 0.07, y));
+
+  it("la reconnaît comme verticale, et ne la coupe pas en quatre endroits", () => {
+    const zones = zonesRecurrentes(enColonne, 4);
+    expect(zones).toHaveLength(1);
+    expect(zones[0]?.repetition).toBe("verticale");
+    expect(zones[0]?.apparitions).toHaveLength(16);
+  });
+
+  it("rend une boîte qui couvre toute la bande où la marque apparaît", () => {
+    const [zone] = zonesRecurrentes(enColonne, 4);
+    expect(zone!.y).toBeCloseTo(0.2, 2);
+    expect(zone!.y + zone!.h, "du premier au dernier").toBeCloseTo(0.812, 2);
+  });
+});
+
+describe("une marque collée à son libellé (OUT-10)", () => {
+  /** Le piège qui a réellement fait échouer la première version, mesuré sur les vraies pages de
+   *  F3 : par élément, une marque de 4,3 % × 3,2 % à 18 % de la largeur, et dix lettres de 0,6 %
+   *  à 1 % de 8 % à 17 %. Groupées par abscisse voisine, les onze formes se soudent en une bande
+   *  de 10 % de large dont les tailles vont du simple au septuple — et la marque disparaît. */
+  const commeF3: FormeObservee[] = [];
+  for (const page of [1, 2, 3, 4]) {
+    for (const y of [0.05, 0.28, 0.52, 0.76]) {
+      commeF3.push({ page, x: 0.18, y, l: 0.043, h: 0.032 });
+      for (let lettre = 0; lettre < 10; lettre += 1)
+        commeF3.push({ page, x: 0.08 + lettre * 0.009, y: y + 0.01, l: 0.008, h: 0.009 });
+    }
+  }
+
+  it("rend la marque à sa propre taille, pas une bande qui l’englobe avec le libellé", () => {
+    const zones = zonesRecurrentes(commeF3, 4);
+    const marque = zones.find((zone) => zone.taille.l > 0.02);
+    expect(marque, "la marque est trouvée, distincte des lettres").toBeDefined();
+    expect(marque!.taille.l, "à sa propre taille").toBeCloseTo(0.043, 3);
+    expect(marque!.l, "sa boîte ne traverse pas la marge").toBeLessThan(0.06);
+    expect(marque!.repetition).toBe("verticale");
+    expect(marque!.apparitions, "une fois par élément, sur quatre pages").toHaveLength(16);
+  });
+
+  it("ne confond pas la marque avec les lettres de son libellé", () => {
+    for (const zone of zonesRecurrentes(commeF3, 4))
+      expect(zone.taille.l, "aucune zone ne mélange deux tailles").not.toBeCloseTo(0.025, 2);
+  });
+
+  /** Le second défaut, trouvé par la même mesure : la marque passe **après** les lettres au tri,
+   *  parce qu'elle apparaît moins souvent qu'elles. Un plafond sur le nombre de zones proposées
+   *  l'écarte donc exactement elle. Mesuré sur 29 pages réelles : la marque est cinquième sur six. */
+  it("ne laisse pas un plafond écarter la marque parce qu’elle apparaît moins que les lettres", () => {
+    const zones = zonesRecurrentes(commeF3, 4);
+    const marque = zones.findIndex((zone) => zone.taille.l > 0.02);
+    expect(marque, "elle n’est pas première au tri").toBeGreaterThan(0);
+    expect(
+      zonesAExaminer(zones).some((zone) => zone.taille.l > 0.02),
+      "et elle est tout de même proposée à la lecture",
+    ).toBe(true);
+    expect(zonesAExaminer(zones), "sans plafond, toutes les zones passent").toHaveLength(zones.length);
+  });
+});
+
+describe("ce qu’il doit ignorer (OUT-10)", () => {
+  it("le grain de numérisation : trop petit pour désigner quoi que ce soit", () => {
+    const grain = [1, 2, 3, 4].map((page) => ({ ...forme(page, 0.5, 0.5), l: 0.002, h: 0.002 }));
+    expect(zonesRecurrentes(grain, 4)).toEqual([]);
+  });
+
+  it("un bloc de texte : trop grand pour être un repère", () => {
+    const bloc = [1, 2, 3, 4].map((page) => ({ ...forme(page, 0.1, 0.1), l: 0.8, h: 0.4 }));
+    expect(zonesRecurrentes(bloc, 4)).toEqual([]);
+  });
+
+  it("une forme qui ne revient pas, si grosse soit-elle", () => {
+    const unique = [forme(1, 0.3, 0.3), forme(2, 0.7, 0.7), forme(3, 0.5, 0.1)];
+    expect(zonesRecurrentes(unique, 3)).toEqual([]);
+  });
+
+  it("des tailles qui vont du simple au quadruple font deux signes, pas un seul instable", () => {
+    const inegales = [
+      forme(1, 0.5, 0.2, 0.01),
+      forme(2, 0.5, 0.2, 0.01),
+      forme(3, 0.5, 0.2, 0.038),
+      forme(4, 0.5, 0.2, 0.04),
+    ];
+    const zones = zonesRecurrentes(inegales, 4);
+    expect(zones, "deux signes distincts").toHaveLength(2);
+    for (const zone of zones)
+      expect(zone.pages.length, "et aucun ne prétend couvrir les quatre pages").toBe(2);
+  });
+});
+
+describe("il compte les pages regardées, pas celles où il a trouvé (OUT-10)", () => {
+  it("quatre pages sur six est une régularité, quatre sur deux cents n’en est pas une", () => {
+    const quatre = [1, 2, 3, 4].map((page) => forme(page, 0.9, 0.95));
+    expect(zonesRecurrentes(quatre, 6).length).toBeGreaterThan(0);
+    expect(zonesRecurrentes(quatre, 200), "compter les trouvailles fausserait dans le sens rassurant").toEqual([]);
+  });
+
+  it("ne rend rien quand on n’a regardé aucune page", () => {
+    expect(zonesRecurrentes([forme(1, 0.5, 0.5)], 0)).toEqual([]);
+  });
+});
+
+describe("ce qu’il en dit (OUT-10)", () => {
+  it("chaque observation suit le contrat, dit où regarder et à quelle taille", () => {
+    const formes = [1, 2, 3, 4].map((page) => forme(page, 0.07, 0.3));
+    const observations = observationsDesMarques(zonesAExaminer(zonesRecurrentes(formes, 4)), 4);
+    expect(observations.length).toBeGreaterThan(0);
+    for (const observation of observations) {
+      expect(() => Observation.parse(observation)).not.toThrow();
+      expect(observation.ou).toMatch(/% de la largeur/);
+      expect(observation.constat, "la taille du signe est dite").toMatch(/% de la page revient/);
+    }
+  });
+
+  it("dit aussi quand il n’a rien vu, au lieu de se taire", () => {
+    const [observation] = observationsDesMarques([], 12);
+    expect(observation?.constat).toMatch(/Aucune forme sombre ne revient/);
+    expect(observation?.constat).toMatch(/12 pages/);
+  });
+});
