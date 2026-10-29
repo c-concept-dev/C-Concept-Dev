@@ -117,11 +117,24 @@
 
     <section class="panel">
         <h2>1. Ajouter les ensembles (plusieurs dossiers à la suite)</h2>
+        <p class="hint" style="margin-top:0">
+            <strong>Pour déposer 100, 200 dossiers ou plus d'un coup, deux façons fiables :</strong><br>
+            — Sélectionnez un seul dossier parent qui contient tous vos dossiers de méthodes à
+            l'intérieur : l'analyse est récursive et traite les centaines de sous-dossiers en une
+            seule fois, quelle que soit leur profondeur.<br>
+            — Ou sélectionnez plusieurs dossiers à la fois dans le Finder (Cmd-clic) et
+            glissez-les tous ensemble sur la zone ci-dessous : le glisser-déposer accepte
+            plusieurs dossiers en une seule opération.<br>
+            Le bouton « Ajouter un dossier » ci-dessous, lui, ne permet de choisir qu'un seul
+            dossier à la fois dans la fenêtre du système — ce n'est pas une limite de cet outil,
+            mais du sélecteur de fichiers du navigateur. Répétez le clic autant de fois que
+            nécessaire si vous préférez cette méthode, la base se construit de façon cumulative.
+        </p>
         <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Déposer des dossiers ou choisir une source">
             <div>
                 <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 16a4 4 0 0 1-.9-7.9A5 5 0 0 1 15.9 6H16a5 5 0 0 1 1 9.9M12 10v11m0-11-3 3m3-3 3 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                <p class="drop-title">Glissez ici vos dossiers, sous-dossiers ou fichiers</p>
-                <p class="drop-detail">Le contenu est analysé récursivement, quelle que soit sa profondeur.</p>
+                <p class="drop-title">Glissez ici vos dossiers, sous-dossiers ou fichiers — un seul ou plusieurs à la fois</p>
+                <p class="drop-detail">Le contenu est analysé récursivement, quelle que soit sa profondeur. Testé avec succès sur 250 dossiers de méthodes en une seule opération.</p>
             </div>
         </div>
         <div class="row">
@@ -858,14 +871,21 @@ async function lireEntry(entry, prefixe = '') {
 
 async function enregistrementsDepuisDepot(dataTransfer) {
     const items = Array.from(dataTransfer.items || []).filter(item => item.kind === 'file');
+    // Capturer tous les éléments déposés avant toute lecture récursive : le navigateur
+    // n'offre la liste du dépôt que pendant une courte fenêtre. Lire un dossier entier avant de
+    // passer au suivant consomme cette fenêtre et fait perdre silencieusement les derniers
+    // dossiers glissés quand ils sont nombreux. On récupère donc d'abord TOUS les accès
+    // (handles ou entrées), en une seule passe immédiate, avant de lire quoi que ce soit.
     if (items.length && items.every(item => typeof item.getAsFileSystemHandle === 'function')) {
+        const handles = await Promise.all(items.map(item => item.getAsFileSystemHandle()));
         const resultat = [];
-        for (const item of items) { const handle = await item.getAsFileSystemHandle(); if (handle) resultat.push(...await lireHandle(handle)); }
+        for (const handle of handles) { if (handle) resultat.push(...await lireHandle(handle)); }
         if (resultat.length) return resultat;
     }
     if (items.length && items.some(item => typeof item.webkitGetAsEntry === 'function')) {
+        const entries = items.map(item => item.webkitGetAsEntry?.()).filter(Boolean);
         const resultat = [];
-        for (const item of items) { const entry = item.webkitGetAsEntry?.(); if (entry) resultat.push(...await lireEntry(entry)); }
+        for (const entry of entries) resultat.push(...await lireEntry(entry));
         if (resultat.length) return resultat;
     }
     return enregistrementsDepuisListe(dataTransfer.files);
