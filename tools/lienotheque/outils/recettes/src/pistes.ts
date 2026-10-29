@@ -46,6 +46,19 @@ const ACCORD_SUR = 0.5;
 /** Prime donnée à une attribution qui finit sur la dernière piste disponible : un disque se
  *  termine, et une suite qui s'arrête à mi-chemin explique moins bien le lot. */
 const PRIME_DERNIERE = 2;
+/** Ce que coûte d'enjamber, quand plusieurs lectures concordantes le demandent.
+ *
+ *  Autant qu'une piste sautée que la recette déclare — 1,5 dans l'échelle du prototype. Enjamber
+ *  n'est donc jamais gratuit : il faut une lecture franche pour le payer. Une lecture juste au
+ *  seuil de franchise vaut 0,5 × 4 = 2 ; elle paie 1,5 et l'emporte encore, mais de peu. C'est la
+ *  forme voulue — le seuil de franchise et le prix du saut se tiennent.
+ *
+ *  Son plafond est mesuré : au-delà de 3,56 — ce que vaut la lecture réelle qui a motivé cette
+ *  règle, accord 0,89 — le saut ne se paierait plus sur le cas qui existe. Son plancher, lui,
+ *  n'est contraint par aucun cas réel : le corpus ne porte pas encore deux lectures fausses et
+ *  concordantes placées là où la suite devrait continuer. Le jour où il en portera, c'est ici
+ *  qu'il faudra revenir, et avec une mesure. */
+const PENALITE_SAUT_CORROBORE = 1.5;
 
 /** Appui d'une lecture pour une piste donnée.
  *
@@ -160,6 +173,66 @@ export function changementDeSupport(lectures: readonly LecturePiste[], regles: R
   return undefined;
 }
 
+/** Une lecture est-elle corroborée au point de l'emporter sur l'attente de régularité ?
+ *
+ *  ## Le principe, et pourquoi il n'est pas écrit pour un document
+ *
+ *  L'ajustement de la suite suppose une numérotation continue. Cette continuité n'a **jamais été
+ *  garantie nulle part** : un recueil peut sauter des numéros parce qu'il en a toujours sauté,
+ *  parce que plusieurs éléments partagent une piste, ou parce qu'une partie du document manque.
+ *  L'attente de régularité est donc une commodité, pas un fait — et une commodité ne doit pas
+ *  écraser une preuve.
+ *
+ *  La règle est donc celle-ci, et elle vaut pour tout document : **une lecture que plusieurs
+ *  observations distinctes confirment l'emporte sur l'attente de continuité, quelle que soit
+ *  l'ampleur du saut qu'elle demande.** Ce qui la paie n'est pas la taille du saut, c'est le
+ *  nombre d'observations qui la soutiennent.
+ *
+ *  ## Ce qui vaut corroboration, et ce qui n'en vaut pas
+ *
+ *  Corrobore : une lecture **voisine, franche, et compatible** avec celle-ci sous les pas
+ *  ordinaires. Trois éléments lus 99, 99, 99 se corroborent l'un l'autre sous le pas 0 ; trois
+ *  éléments lus 40, 41, 42 se corroborent sous le pas 1. Ce sont des repères différents, lus
+ *  séparément : leur accord est une information.
+ *
+ *  Ne corrobore pas : le même repère relu plusieurs fois par le même moyen. Mesuré le 29 octobre
+ *  2026 sur un recueil réel, les lectures d'une même marque alternent par segmentation —
+ *  `[10, 40, 10, 40, 10, 40, 12, 40]` — et un biais systématique s'y compte quatre fois. Répéter
+ *  une mesure ne la confirme pas, cela la répète. L'accord est la preuve, pas la coexistence.
+ *
+ *  ## Ce que la règle continue de signaler
+ *
+ *  Une partie du document réellement absente ne produit **aucune** lecture là où elle manque :
+ *  rien ne vient alors corroborer quoi que ce soit, l'attente de continuité garde la main, et le
+ *  manque reste visible comme un manque. La règle ne lève pas l'alerte, elle l'empêche seulement
+ *  d'effacer une lecture qui, elle, est confirmée.
+ *
+ *  Une lecture isolée et fausse — un chiffre mal reconnu au milieu de voisins réguliers — n'est
+ *  corroborée par personne : la suite la redresse comme avant. C'est la protection essentielle,
+ *  et c'est elle qui empêche cette règle de devenir une permission de sauter. */
+function lectureCorroboree(
+  lectures: readonly LecturePiste[],
+  rang: number,
+  regles: ReglesPistes,
+): boolean {
+  const ici = lectures[rang];
+  if (ici?.pisteLue === undefined || ici.accordPiste < ACCORD_SUR) return false;
+
+  // On regarde vers l'aval : l'amont est de l'autre côté du saut, il ne peut rien confirmer.
+  // Deux rangs au plus, pour qu'un repère illisible entre les deux ne rompe pas la corroboration.
+  for (const apres of [rang + 1, rang + 2]) {
+    const voisine = lectures[apres];
+    if (voisine === undefined) break;
+    if (voisine.pisteLue === undefined || voisine.accordPiste < ACCORD_SUR) continue;
+    const ecart = voisine.pisteLue - ici.pisteLue;
+    const portee = apres - rang;
+    // Compatible sous les pas ordinaires : de zéro à `portee` fois le plus grand pas autorisé.
+    if (ecart < 0) continue;
+    if (regles.pasAutorises.some((pas) => ecart <= pas * portee)) return true;
+  }
+  return false;
+}
+
 const AUCUN = Number.NEGATIVE_INFINITY;
 
 /** La suite de pistes qui explique le mieux les lectures, sous les pas que la recette autorise.
@@ -196,12 +269,29 @@ export function attribuerPistes(lectures: readonly LecturePiste[], regles: Regle
         sauts.set(iciNumero - avantNumero, 0);
     }
 
+    // Une lecture corroborée l'emporte sur l'attente de régularité, quelle que soit l'ampleur du
+    // saut qu'elle demande. Voir `lectureCorroboree` pour ce qui vaut corroboration — et pour ce
+    // qui n'en vaut pas.
+    const avantIci = lectures[rang - 1]!;
+    const ici = lectures[rang]!;
+    if (
+      ici.pisteLue !== undefined &&
+      avantIci.pisteLue !== undefined &&
+      avantIci.accordPiste >= ACCORD_SUR &&
+      lectureCorroboree(lectures, rang, regles)
+    ) {
+      const saut = ici.pisteLue - avantIci.pisteLue;
+      // Vers l'avant seulement : une numérotation qui recule n'est pas un saut, c'est un autre
+      // support — et c'est `changementDeSupport` qui en décide, sur d'autres indices.
+      if (saut > 0 && !sauts.has(saut)) sauts.set(saut, PENALITE_SAUT_CORROBORE);
+    }
+
     for (let piste = 1; piste <= N; piste += 1) {
-      const ici = score(lectures[rang]!, piste, regles.egaleNumeroElement);
+      const gain = score(lectures[rang]!, piste, regles.egaleNumeroElement);
       for (const [saut, penalite] of sauts) {
         const precedente = piste - saut;
         if (precedente < 1 || total[rang - 1]![precedente] === AUCUN) continue;
-        const candidat = total[rang - 1]![precedente]! - penalite + ici;
+        const candidat = total[rang - 1]![precedente]! - penalite + gain;
         if (candidat > total[rang]![piste]!) {
           total[rang]![piste] = candidat;
           avant[rang]![piste] = precedente;

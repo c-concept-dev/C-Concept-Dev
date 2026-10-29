@@ -133,6 +133,73 @@ describe("attribution des pistes (REC-02, A3)", () => {
   });
 });
 
+/** La preuve répétée l'emporte sur l'attente de régularité (REC-02).
+ *
+ *  Mesuré le 29 octobre 2026 sur un recueil réel : trois éléments consécutifs portent la même
+ *  marque, lue **99**, avec des accords de 0,89, 1,00 et 0,90 — et l'ajustement de la suite les
+ *  écrasait en 93, 94, 95, parce qu'un pas de sept n'est pas dans les pas autorisés : non pas
+ *  pénalisé, mais **inatteignable**. Trois lectures justes perdues pour faire tenir une
+ *  continuité que rien ne garantit.
+ *
+ *  La règle ne connaît aucun document : elle ne demande ni fait extérieur ni déclaration, mais
+ *  des **observations distinctes qui concordent**. Et elle garde l'alerte intacte là où rien ne
+ *  vient la contredire. */
+describe("une lecture corroborée contre l’attente de régularité (REC-02)", () => {
+  /** Un lot qui commence au début, comme un vrai lot : sur trois éléments partant de 91, le coût
+   *  d'un départ lointain pèse plus que les lectures elles-mêmes, et ce comportement-là est
+   *  antérieur à cette règle — `[91, 92, 93]` rend déjà `[1, 2, 3]` sans elle. */
+  const jusqua = (combien: number): LecturePiste[] =>
+    Array.from({ length: combien }, (_, place) => lu(place + 1));
+
+  it("enjambe quand plusieurs éléments voisins lisent la même chose", () => {
+    const lectures = [...jusqua(8), lu(15), lu(15), lu(15)];
+    expect(attribuerPistes(lectures, regles({ nombreDePistes: 99 }))).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 15, 15, 15,
+    ]);
+  });
+
+  it("enjambe aussi quand les lectures d’après se suivent au lieu de se répéter", () => {
+    const lectures = [...jusqua(8), lu(40), lu(41), lu(42)];
+    expect(attribuerPistes(lectures, regles({ nombreDePistes: 99 }))).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 40, 41, 42,
+    ]);
+  });
+
+  it("redresse une lecture isolée que personne ne corrobore — la protection essentielle", () => {
+    // Un chiffre mal reconnu au milieu de voisins réguliers n'ouvre rien.
+    const lectures = [...jusqua(8), lu(73), lu(10), lu(11)];
+    expect(attribuerPistes(lectures, regles({ nombreDePistes: 99 }))).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
+    ]);
+  });
+
+  it("n’enjambe pas sur des lectures hésitantes, si concordantes soient-elles", () => {
+    const lectures = [...jusqua(8), lu(15, 0.3), lu(15, 0.3), lu(15, 0.3)];
+    const pistes = attribuerPistes(lectures, regles({ nombreDePistes: 99 }));
+    expect(pistes[8]! - pistes[7]!, "l’hésitation ne vaut pas preuve").toBeLessThanOrEqual(1);
+  });
+
+  it("laisse le manque visible quand rien n’est lu là où la suite s’interrompt", () => {
+    // Le cas d'une partie réellement absente : aucune lecture ne vient corroborer quoi que ce
+    // soit, l'attente de continuité garde la main, et le trou reste un trou.
+    const lectures = [...jusqua(8), lu(undefined), lu(undefined), lu(undefined)];
+    const pistes = attribuerPistes(lectures, regles({ nombreDePistes: 99 }));
+    expect(pistes.slice(8), "la suite continue sagement, sans inventer de saut").toEqual([9, 10, 11]);
+  });
+
+  it("ne recule jamais : un saut corroboré va vers l’avant, pas vers l’arrière", () => {
+    const lectures = [...jusqua(8), lu(3), lu(3), lu(3)];
+    const pistes = attribuerPistes(lectures, regles({ nombreDePistes: 99 }));
+    expect(pistes[8]!, "revenir en arrière n’est pas un saut").toBeGreaterThanOrEqual(pistes[7]!);
+  });
+
+  it("n’ouvre rien pour une lecture franche que rien ne suit", () => {
+    const lectures = [...jusqua(8), lu(40)];
+    const pistes = attribuerPistes(lectures, regles({ nombreDePistes: 99 }));
+    expect(pistes[8]! - pistes[7]!, "seule, une lecture ne se corrobore pas").toBeLessThanOrEqual(1);
+  });
+});
+
 describe("changement de support (A3)", () => {
   const avecChangement = regles({ changementDisque: { lecturesSuresConsecutives: 3, valeurMax: 5 } });
 
