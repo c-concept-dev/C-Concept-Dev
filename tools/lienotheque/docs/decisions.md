@@ -4834,3 +4834,42 @@ pouvait rien dire de l'application qui ne le lui demandait jamais. **Une épreuv
 voit pas le chemin qui y mène.** L'épreuve ajoutée part donc de `<App />` avec un service qui
 répond, et une seconde refuse les boutons à qui n'est pas entré — sans quoi poser `identifie` en
 dur ferait passer la première. Les deux ont été vérifiées rouges avant d'être vertes.
+
+## Dette — le job « Rendu » de l'intégration continue n'a jamais abouti (29 octobre 2026)
+
+**Constat, mesuré et non supposé.** Le job « Rendu (Chromium, Firefox, WebKit) » de
+`lienotheque-ci.yml` échoue à l'étape « Mesurer le rendu ». Quatre passages examinés — 26, 28 et
+29 octobre — et **aucun n'a jamais abouti, pas une seule fois depuis la création du job**. Ce
+n'est donc pas une régression à bissecter : il n'a jamais fonctionné.
+
+**Ce que dit le journal.** L'étape `playwright install-deps chromium firefox webkit` s'exécute,
+puis chaque lancement de navigateur rend :
+
+    Error: browserType.launch: Target page, context or browser has been closed
+    - [pid=NNNN] exception while trying to kill process: Error: kill ESRCH
+
+Le navigateur n'est donc pas *absent* — un exécutable manquant dirait « Executable doesn't
+exist ». Il démarre et meurt. Piste à éprouver le jour venu, et non à tenir pour acquise :
+`install-deps` pose les bibliothèques du système mais **pas les navigateurs eux-mêmes**, qui
+viennent de `playwright install` ; selon l'ordre des étapes et la façon dont le cache est
+restauré, les deux peuvent se désaccorder. La mémoire de l'exécutant est l'autre suspect
+ordinaire d'un navigateur qui meurt au lancement.
+
+**Pourquoi ce n'est pas urgent.** Ce job ne garde rien qui soit éprouvé ailleurs : les trois
+jobs « Vérification » couvrent le typage et les tests sur les trois systèmes. Tant que « Rendu »
+est rouge, il ne masque donc aucune régression — il ne dit simplement rien.
+
+**Pourquoi il faut quand même y revenir.** Un job rouge en permanence éteint la valeur du rouge :
+le jour où « Vérification » tombera pour une vraie raison, personne ne le verra au milieu d'une
+intégration continue déjà rouge. C'est le coût réel de cette dette, et il grandit.
+
+**À ne pas confondre avec les deux autres échecs du même workflow**, tous deux élucidés le
+29 octobre au soir :
+
+- **CLA-01**, du 28 octobre 20:27 à aujourd'hui : le mot « exercice » dans un commentaire de
+  `outils/recettes/src/interprete.ts`, introduit par `59968260`. Le garde-fou a raison — la règle
+  interdit les mots de domaine jusque dans les commentaires. **Se résout tout seul** : le mot a
+  déjà disparu du travail en cours sur ce fichier, CLA-01 repassera au vert à son commit.
+- **Tesseract**, du 26 au 27 octobre : `test/aucune-page-lue.test.ts` rendait
+  `spawnSync tesseract ENOENT` sur un exécutant qui n'a délibérément pas Tesseract. **Cause
+  disparue** : zéro occurrence dans le passage du 29 octobre.
