@@ -157,8 +157,9 @@ describe("un document sans manière de lire (OUT-10)", () => {
     async () => {
       // Huit marques nettes, lues sans hésiter, et des noms qui ne portent que le rang : une
       // seule façon de lire. Aucun réglage ne doit permettre de publier cela — mesuré le 30
-      // octobre 2026, c'est ainsi que 40 liens tous faux ont été publiés sur un document réel,
-      // en empruntant la vérification d'une lecture antérieure que personne n'avait refaite.
+      // octobre 2026, c'est ainsi que 40 liens ont été publiés sur un document réel en empruntant
+      // la vérification d'une lecture antérieure que personne n'avait refaite. Qu'ils aient été
+      // justes pour la plupart ne change rien : rien dans la chaîne ne le savait.
       const pages = [0, 1, 2, 3].map((rang) =>
         [marque(70, 620, rang * 2 + 1), marque(70, 320, rang * 2 + 2), prose(760)].join("\n"),
       );

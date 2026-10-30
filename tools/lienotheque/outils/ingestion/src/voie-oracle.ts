@@ -481,9 +481,10 @@ export async function rejouerParOracle(
   // document par une vérification faite une fois sur une autre.
   //
   // Mesuré le 30 octobre 2026, et c'est pour cela que ce verrou existe : sur le seul document du
-  // corpus dont les liens sont vérifiés à l'oreille, cette voie a proposé 40 liens, **tous faux**,
-  // et les a publiés en héritant de cette vérification. La page porte deux numérotations côte à
-  // côte — celle des éléments et la pastille des pistes — et la voie a élu la première.
+  // corpus dont les liens sont vérifiés à l'oreille, cette voie a publié 40 liens en héritant de
+  // cette vérification — sans qu'aucune des deux lectures en présence n'ait été revue. Ce que ce
+  // verrou refuse n'est pas un taux d'erreur, c'est l'emprunt : **35 de ces 40 liens étaient
+  // justes**, et ils auraient été publiés de la même façon s'ils avaient tous été faux.
   //
   // Elle doit donc gagner ses deux signaux elle-même. Un œil humain a sa place ici, mais sur
   // `appariements[].statut`, lien par lien, et non sur le document entier.
