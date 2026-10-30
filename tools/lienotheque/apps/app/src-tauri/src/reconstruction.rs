@@ -15,6 +15,32 @@ use std::{
 
 const MARQUEUR: &str = "reconstruction-en-attente.json";
 const RAPPORT: &str = "rapport-reconstruction.json";
+const DOSSIERS_DE_BIBLIOTHEQUE: [&str; 7] = [
+    "applications",
+    "base",
+    "cache",
+    "derives",
+    "sauvegardes",
+    "sources",
+    "travaux",
+];
+
+/// Les familles réellement déposables d'un corpus qui peut aussi être une ancienne bibliothèque.
+///
+/// Les dossiers structurels ne sont jamais des familles : redéposer `sources/` réunirait dans un
+/// seul lot les médias que les dépôts d'origine avaient précisément séparés.
+pub fn dossiers_de_familles(corpus: &Path) -> io::Result<Vec<PathBuf>> {
+    let mut dossiers: Vec<PathBuf> = fs::read_dir(corpus)?
+        .flatten()
+        .map(|entree| entree.path())
+        .filter(|chemin| chemin.is_dir())
+        .filter(|chemin| {
+            !DOSSIERS_DE_BIBLIOTHEQUE.contains(&chemin.file_name().and_then(|nom| nom.to_str()).unwrap_or(""))
+        })
+        .collect();
+    dossiers.sort();
+    Ok(dossiers)
+}
 
 #[derive(Debug)]
 pub struct PlanReconstruction {
@@ -225,5 +251,21 @@ mod tests {
         assert!(depot.racine().join(crate::depot::DERIVES).is_dir());
         let marqueur = fs::read_to_string(depot.racine().join(BASE).join(MARQUEUR)).expect("marqueur");
         assert!(marqueur.contains("construction"));
+    }
+
+    #[test]
+    fn le_corpus_ne_redepose_jamais_les_dossiers_de_la_bibliotheque() {
+        let temporaire = TempDir::new().expect("temporaire");
+        let corpus = corpus(&temporaire);
+        for structure in ["sources", "base", "derives", "cache", "applications", "sauvegardes"] {
+            fs::create_dir(corpus.join(structure)).expect("structure témoin");
+        }
+        fs::create_dir(corpus.join("une-famille")).expect("famille");
+
+        let dossiers = dossiers_de_familles(&corpus).expect("corpus lisible");
+        assert_eq!(
+            dossiers.iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect::<Vec<_>>(),
+            vec!["une-famille"],
+        );
     }
 }

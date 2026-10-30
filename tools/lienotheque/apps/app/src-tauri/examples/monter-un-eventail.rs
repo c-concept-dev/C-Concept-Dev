@@ -21,7 +21,7 @@ use lienotheque_bureau::{
     arrivee,
     depot::Depot,
     file,
-    reconstruction::PlanReconstruction,
+    reconstruction::{dossiers_de_familles, PlanReconstruction},
     roulement::Roulement,
     traitement::Emplacements,
 };
@@ -86,18 +86,13 @@ fn main() -> ExitCode {
     }
 
     // Un dépôt par famille : chacune forme son lot, donc son vivier.
-    let mut dossiers: Vec<PathBuf> = match fs::read_dir(plan.corpus()) {
-        Ok(entrees) => entrees
-            .flatten()
-            .map(|e| e.path())
-            .filter(|c| c.is_dir())
-            .collect(),
+    let dossiers = match dossiers_de_familles(plan.corpus()) {
+        Ok(dossiers) => dossiers,
         Err(e) => {
             eprintln!("Dossier des familles illisible : {e}");
             return ExitCode::from(1);
         }
     };
-    dossiers.sort();
 
     let mut deposes = 0;
     for famille in &dossiers {
