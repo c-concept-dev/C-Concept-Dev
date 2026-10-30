@@ -26,6 +26,7 @@ use crate::{
     file,
     journal::{Journal, Ligne},
     limites::LIMITES,
+    memoire,
     moteur::{Lancement, Message, Session},
     traitement::Emplacements,
     travail::{self, Travail},
@@ -163,6 +164,20 @@ impl Roulement {
 
             let Some(prochain) = file::prochain(&candidats, maintenant) else { return Ok(()) };
             if !file::peut_partir(prochain, occupees) {
+                return Ok(());
+            }
+
+            // Et la mémoire, la porte-t-on ? Les places du contrat disent combien de moteurs on
+            // accepte de faire tourner ; elles ne disent rien de ce que la machine peut donner.
+            // Le 30 octobre 2026, deux moteurs à 2 048 Mo sont partis sur une machine qui n'avait
+            // plus de quoi, V8 n'a pas pu réserver son tas, et dix-sept documents sains sont
+            // passés en échec définitif en soixante secondes. Une file un peu plus lente vaut
+            // mieux qu'un document qui échoue pour la faute d'un autre.
+            if prochain.poids != "leger" && memoire::moteurs_de_plus(memoire::disponible_mo(), occupees) == 0 {
+                eprintln!(
+                    "roulement : « {} » attend son tour, la mémoire ne porte pas un moteur de plus",
+                    prochain.id
+                );
                 return Ok(());
             }
 
