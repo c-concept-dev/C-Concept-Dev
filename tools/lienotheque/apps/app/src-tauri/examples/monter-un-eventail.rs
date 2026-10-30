@@ -120,6 +120,14 @@ fn main() -> ExitCode {
     }
     println!("\n{deposes} travail(aux) en file, {} famille(s)\n", dossiers.len());
 
+    // Déposer et s'arrêter là, sur demande : c'est l'état exact qu'une application doit savoir
+    // reprendre au démarrage — une file pleine, rien de traité. Sans cette halte, l'outil vide la
+    // file lui-même, et il ne reste plus rien à éprouver dans le paquet livré.
+    if std::env::var_os("LIENOTHEQUE_DEPOSER_SEULEMENT").is_some() {
+        println!("Halte demandée : aucun travail n'est traité ici.");
+        return ExitCode::SUCCESS;
+    }
+
     let emplacements = match std::env::current_exe().ok().and_then(|exe| Emplacements::depuis_executable(&exe)) {
         Some(e) => e,
         None => {
