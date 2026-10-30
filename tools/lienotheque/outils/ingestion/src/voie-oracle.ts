@@ -1,6 +1,9 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { LigneInterpretee, PageReperee, ResultatRecette } from "@lienotheque/contrats";
 import { enGris, formesSombres, type Boite, type ImageGrise } from "@lienotheque/images";
-import { lireCoucheTexte, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
+import { coucheSuffisante, lireCoucheTexte, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
 import {
   COTE_MAXIMAL,
   COTE_MINIMAL,
@@ -30,6 +33,7 @@ import {
   type ReglesPistes,
 } from "@lienotheque/recettes";
 import { coordonnerLectureDifficile, type LectureTentative } from "@lienotheque/vision";
+import { ocrDUnePageGrise } from "./texte.js";
 
 /** Lire un document sans manière de lire écrite à la main (OUT-10).
  *
@@ -322,20 +326,54 @@ export async function rejouerParOracle(
 
   // ── 5. Le second signal : ce que les noms du vivier disent des pages ───────────────────
   //
-  // La marque désigne un enregistrement par son **rang**, depuis des pixels reconnus. Le nom le
-  // désigne par son **nom**, depuis la couche texte. Quand les deux tombent sur le même
-  // enregistrement, deux lectures indépendantes s'accordent ; quand elles tombent sur deux
-  // différents, elles se contredisent, et une contradiction doit faire reculer.
+  // La marque désigne un enregistrement par son **rang**, lu dans une fenêtre de quelques
+  // dizaines de pixels. Le nom le désigne par son **nom**, retrouvé dans le texte courant de la
+  // page — sa couche quand elle rend quelque chose de lisible, sa reconnaissance sinon. Les deux
+  // lectures restent indépendantes : ni les mêmes pixels, ni la même chose cherchée, ni le même
+  // fait extérieur confronté — un rang contre une suite de rangs, un intitulé contre un nom de
+  // fichier. C'est pourquoi elles peuvent se contredire — et c'est ce qui donne du prix à leur
+  // accord : deux lectures qui ne pourraient pas se démentir ne prouveraient rien ensemble.
+  // Quand les deux tombent sur le même enregistrement, elles s'accordent ; quand elles tombent
+  // sur deux différents, elles se contredisent, et une contradiction doit faire reculer.
   // La page et la piste ensemble : une clef composée par calcul se confondrait avec une autre
   // sur un document assez fourni, et fabriquerait une confirmation qui n'a jamais eu lieu.
   const clefDeLAccord = (page: number, piste: number): string => `${page}\u0000${piste}`;
   const confirmees = new Set<string>();
   let contredites = 0;
+  let ocerisees = 0;
   try {
-    const texte = await lireCoucheTexte(pdf);
-    const contenus = texte.pages
-      .filter((page) => page.index <= combienDePages)
-      .map((page) => ({ page: page.index, texte: page.mots.map((mot) => mot.texte).join(" ") }));
+    // Seules les pages qui portent une marque peuvent recevoir une confirmation : ailleurs, un
+    // nom retrouvé ne confirme ni ne contredit rien. On ne lit donc que celles-là — sur un
+    // recueil de trois cents pages, c'est la différence entre quelques lectures et toutes.
+    const aMarque = [...new Set(marques.map((marque) => marque.rangDePage))].sort((un, autre) => un - autre);
+    const couche = await lireCoucheTexte(pdf);
+    const parRang = new Map(couche.pages.map((page) => [page.index, page]));
+    const bac = mkdtempSync(join(tmpdir(), "lienotheque-oracle-"));
+    const contenus: { page: number; texte: string }[] = [];
+    try {
+      for (const rang of aMarque) {
+        const deLaCouche = parRang.get(rang);
+        // Le même juge que le chemin du texte : une couche abondante mais illisible ne vaut pas
+        // mieux qu'aucune couche, et c'est elle qu'il faut alors écarter.
+        let page = deLaCouche !== undefined && coucheSuffisante(deLaCouche) ? deLaCouche : undefined;
+        const image = images.get(rang);
+        if (page === undefined && image !== undefined) {
+          page = ocrDUnePageGrise(image, rang, bac, {
+            ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
+            ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
+            ...(options.langue === undefined ? {} : { langue: options.langue }),
+          });
+          ocerisees += 1;
+        }
+        if (page !== undefined) contenus.push({ page: rang, texte: page.mots.map((mot) => mot.texte).join(" ") });
+      }
+    } finally {
+      rmSync(bac, { recursive: true, force: true });
+    }
+    if (ocerisees > 0)
+      dire(
+        `${ocerisees} page(s) sur ${aMarque.length} relues par reconnaissance : leur couche texte ne rend rien.`,
+      );
     const accords = accordsNomContenu(
       marquesDesNoms(medias.map((media) => media.nom)),
       contenus,
@@ -357,12 +395,12 @@ export async function rejouerParOracle(
     }
     dire(
       contenus.every(({ texte: brut }) => brut.trim() === "")
-        ? "Les noms du vivier n'ont rien à confronter : ce document n'a pas de couche texte."
+        ? "Les noms du vivier n'ont rien à confronter : aucun texte n'a pu être tiré de ces pages."
         : `${accords.length} page(s) où le nom d'un seul enregistrement se retrouve imprimé : ` +
             `${confirmees.size} confirme(nt) la marque, ${contredites} la contredise(nt).`,
     );
   } catch (echec) {
-    dire(`La couche texte n'a pas pu être lue : ${echec instanceof Error ? echec.message : String(echec)}`);
+    dire(`Le texte des pages n'a pas pu être lu : ${echec instanceof Error ? echec.message : String(echec)}`);
   }
   // Un second signal qui se trompe plus souvent qu'il ne confirme n'est pas un second signal :
   // le revendiquer alors serait prendre un désaccord pour une preuve.

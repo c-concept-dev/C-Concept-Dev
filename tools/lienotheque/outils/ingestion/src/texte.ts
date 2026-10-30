@@ -13,7 +13,15 @@ import {
   TAILLE_ENTETE,
 } from "@lienotheque/formats";
 import { decalageDominant } from "@lienotheque/recettes";
-import { decoderJpeg, enGris, sansConduitesDePoints, tournerRvba, versPgm, type ImageRvba } from "@lienotheque/images";
+import {
+  decoderJpeg,
+  enGris,
+  sansConduitesDePoints,
+  tournerRvba,
+  versPgm,
+  type ImageGrise,
+  type ImageRvba,
+} from "@lienotheque/images";
 import { causeLisible } from "@lienotheque/noyau";
 import { rotationDePageFiable } from "@lienotheque/redresseur";
 import {
@@ -530,7 +538,27 @@ async function ocrDesPixels(imageRendue: PageRendue, rang: number, dossier: stri
   // Les dimensions ne bougent pas, et les boîtes de mots que Tesseract rendra restent donc dans
   // les coordonnées de l'image d'origine. Une page sans conduite est rendue telle quelle, sans
   // même être recopiée.
-  const image = sansConduitesDePoints(enGris(pixels));
+  return ocrDUnePageGrise(enGris(pixels), rang, dossier, options);
+}
+
+/** Océrise une page entière déjà en gris, et rend ses mots avec leurs boîtes (OUT-05).
+ *
+ *  **Partagée, parce que deux chemins en ont besoin et qu'un seul la portait.** Le chemin du
+ *  texte la tient depuis ses pixels rendus ; la voie sans manière de lire, elle, garde déjà ses
+ *  pages en gris pour y chercher des formes, et n'avait aucun moyen d'en lire le texte. Elle
+ *  interrogeait donc la couche ou rien — et sur un corpus entièrement numérisé, « rien » était
+ *  la seule réponse possible : relevé le 30 octobre 2026 sur dix-sept documents dont aucun ne
+ *  porte un seul caractère de couche.
+ *
+ *  Tout ce qui précède ici — redressement, décodage — travaille sur les couleurs ; tout ce qui
+ *  suit n'a besoin que du gris. La frontière est donc posée exactement là. */
+export function ocrDUnePageGrise(
+  grise: ImageGrise,
+  rang: number,
+  dossier: string,
+  options: OptionsTexte = {},
+): PageLue {
+  const image = sansConduitesDePoints(grise);
   const chemin = join(dossier, `page-${rang}.pgm`);
   writeFileSync(chemin, versPgm(image));
   try {
