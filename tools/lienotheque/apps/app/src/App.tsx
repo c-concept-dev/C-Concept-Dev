@@ -702,6 +702,32 @@ export function App(): JSX.Element {
    *  celle-là n'a pas de description à organiser. Les écrans de construction demandent la
    *  description ; ils ne s'ouvrent que sur ce que cette session a créé. */
   const derniere = creees[creees.length - 1];
+  /** Le catalogue appartient à la bibliothèque, pas à son premier document.
+   *
+   *  Une bibliothèque vide n'a, par définition, aucune `vueDeDocument` à charger. La traiter
+   *  comme une vue absente renvoyait pourtant `#catalogue` vers l'accueil : le lien changeait
+   *  bien l'adresse, mais l'écran mentait sur la destination. Cette vue vide ne prétend rien
+   *  avoir lu ; elle porte seulement les mots et le nom réels de la bibliothèque ouverte.
+   *
+   *  **Le bureau seul.** `derniere` ne vaut que pour une bibliothèque ouverte dans cette session,
+   *  et la version en ligne n'en ouvre aucune : `courante` y désigne celle que le service sert,
+   *  qui ne porte qu'une racine, sans nom ni mots. En ligne, une bibliothèque sans rien à montrer
+   *  retombe donc encore sur l'accueil depuis `#catalogue`. Y remédier demande une description
+   *  servie par le service, c'est-à-dire une donnée de plus, pas une réparation d'ici. */
+  const vueDuCatalogue: VueBibliotheque | undefined =
+    vue ??
+    (route.ecran === "catalogue" && derniere !== undefined
+      ? {
+          id: derniere.description.id,
+          nom: derniere.description.nom,
+          mots: derniere.description.mots,
+          compteurs: [],
+          aVerifier: 0,
+          filtres: [],
+          pages: [],
+          douteux: [],
+        }
+      : undefined);
 
   /** Dépose des fichiers : l'hôte copie les originaux et met la file à jour. */
   const montrerArrivee = (arrivee: ArriveeDeFichiers): void => {
@@ -1165,6 +1191,32 @@ export function App(): JSX.Element {
           }
         />
       );
+    if (route.ecran === "catalogue")
+      return vueDuCatalogue === undefined ? (
+        sansRienAMontrer()
+      ) : (
+        <Catalogue
+          vue={vueDuCatalogue}
+          chargerImage={chargerImage}
+          texteLu={passages.length > 0}
+          {...(passages[0] === undefined ? {} : { premierePageTexte: passages[0].page })}
+          {...(chargementDocument === undefined ? {} : { chargementDocument })}
+          {...(derniere?.description.schema === undefined ? {} : { schema: derniere.description.schema })}
+          {...(regarde === undefined ? {} : { empreinte: regarde })}
+          {...(regarde === undefined || classements.get(regarde) === undefined
+            ? {}
+            : { classement: classements.get(regarde) })}
+          onClasser={classer}
+          documents={documents}
+          classements={classements}
+          onDocument={setRegarde}
+          {...(route.page === undefined ? {} : { page: route.page })}
+          onPage={(page) => aller({ ecran: "catalogue", page })}
+          onLecteur={(page, element) => aller({ ecran: "lecteur", page, element })}
+          {...(administration === undefined ? {} : { onDoublons: () => aller({ ecran: "doublons" }) })}
+          {...(administration === undefined ? {} : { onAjouter: () => aller(ACCUEIL) })}
+        />
+      );
     if (vue === undefined || restants === undefined) return sansRienAMontrer();
     if (route.ecran === "verifier")
       return (
@@ -1221,30 +1273,6 @@ export function App(): JSX.Element {
               })}
           onPage={(page) => aller({ ecran: "lecteur", page })}
           onElement={(element) => aller({ ecran: "lecteur", page: route.page, element })}
-        />
-      );
-    if (route.ecran === "catalogue")
-      return (
-        <Catalogue
-          vue={vue}
-          chargerImage={chargerImage}
-          texteLu={passages.length > 0}
-          {...(passages[0] === undefined ? {} : { premierePageTexte: passages[0].page })}
-          {...(chargementDocument === undefined ? {} : { chargementDocument })}
-          {...(derniere?.description.schema === undefined ? {} : { schema: derniere.description.schema })}
-          {...(regarde === undefined ? {} : { empreinte: regarde })}
-          {...(regarde === undefined || classements.get(regarde) === undefined
-            ? {}
-            : { classement: classements.get(regarde) })}
-          onClasser={classer}
-          documents={documents}
-          classements={classements}
-          onDocument={setRegarde}
-          {...(route.page === undefined ? {} : { page: route.page })}
-          onPage={(page) => aller({ ecran: "catalogue", page })}
-          onLecteur={(page, element) => aller({ ecran: "lecteur", page, element })}
-          {...(administration === undefined ? {} : { onDoublons: () => aller({ ecran: "doublons" }) })}
-          {...(administration === undefined ? {} : { onAjouter: () => aller(ACCUEIL) })}
         />
       );
     return sansRienAMontrer();

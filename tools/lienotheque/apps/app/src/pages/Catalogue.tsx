@@ -406,7 +406,11 @@ export function Catalogue({
               </label>
             </div>
             {documentsRetenus.length === 0 ? (
-              <p className="ln-muted">Aucun document ne porte ce classement.</p>
+              <p className="ln-muted">
+                {documents.length === 0 && choisis.size === 0
+                  ? "Aucun document dans cette bibliothèque."
+                  : "Aucun document ne porte ce classement."}
+              </p>
             ) : (
               <ul aria-labelledby="titre-documents" className="ln-catalogue__documents-liste">
                 {documentsTries.map((document) => (
