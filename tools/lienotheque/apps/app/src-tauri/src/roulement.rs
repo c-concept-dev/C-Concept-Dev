@@ -862,6 +862,9 @@ mod tests {
         let racine = bac("sans-recette");
         let r = roulement(racine.clone());
         fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
+        // Sans elle, le travail ne part pas du tout : l'épreuve échouait sur « Cette
+        // bibliothèque n'a pas de description » et ne disait donc rien de la seconde voie.
+        fs::write(r.depot.racine().join("base").join("bibliotheque.json"), b"{}").expect("description");
         poser_source(&r, "pdf");
 
         let charge = r.charge_de(&travail_de("un.pdf")).expect("le travail doit pouvoir partir");
@@ -869,6 +872,48 @@ mod tests {
         assert!(charge["document"].is_string(), "le document est là : {charge}");
         // Et la question que la chaîne ne peut pas trancher seule voyage avec la charge.
         assert!(charge["verifieParUnHumain"].is_boolean(), "la vérification humaine est dite : {charge}");
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// La charge porte exactement les champs que la porte de la chaîne accepte (JOB-01, PLT-02).
+    ///
+    /// Les deux bouts vivaient sans se parler. L'hôte a appris le 30 octobre 2026 à partir sans
+    /// manière de lire et à dire si quelqu'un avait vérifié le document ; le contrat de la porte
+    /// n'a bougé pour ni l'un ni l'autre. Mesuré sur la vraie application : **aucun document ne
+    /// passait**, avec ou sans manière de lire, et les travaux mouraient en échec définitif sans
+    /// qu'une page soit lue. Rien ne pouvait le voir — les épreuves de l'hôte regardent l'hôte,
+    /// celles de la chaîne regardent la chaîne.
+    ///
+    /// `fixtures/charge-de-l-hote.json` est le point de rendez-vous : cette épreuve dit que
+    /// l'hôte envoie ces champs-là, celle de `outils/ingestion` dit que la porte les accepte.
+    /// Ajouter un champ ici sans l'ouvrir là-bas rougit l'autre.
+    #[test]
+    fn la_charge_porte_exactement_les_champs_que_la_porte_accepte() {
+        let racine = bac("champs-de-la-charge");
+        let r = roulement(racine.clone());
+        fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
+        fs::write(r.depot.racine().join("base").join("bibliotheque.json"), b"{}").expect("description");
+        poser_source(&r, "pdf");
+        let charge = r.charge_de(&travail_de("un.pdf")).expect("le travail doit pouvoir partir");
+
+        let attendu: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/charge-de-l-hote.json"),
+            )
+            .expect("la fixture du rendez-vous"),
+        )
+        .expect("fixture lisible");
+
+        let noms = |valeur: &serde_json::Value| {
+            let mut v: Vec<String> = valeur.as_object().expect("un objet").keys().cloned().collect();
+            v.sort();
+            v
+        };
+        assert_eq!(
+            noms(&charge),
+            noms(&attendu["sansManiereDeLire"]),
+            "la charge de l'hôte et la fixture que la porte éprouve ont divergé",
+        );
         fs::remove_dir_all(&racine).ok();
     }
 

@@ -1,0 +1,26 @@
+{
+  "sansManiereDeLire": {
+    "document": "/B/sources/aa/aa0000.pdf",
+    "medias": "/B/sources",
+    "inventaireMedias": [],
+    "provenancesMedias": ["lot:00000000-0000-4000-8000-000000000000"],
+    "recette": null,
+    "verifieParUnHumain": false,
+    "description": "/B/base/bibliotheque.json",
+    "cache": "/B/cache",
+    "images": "/B/derives/00000000-0000-4000-8000-000000000001/pages",
+    "relecture": "https://exemple.invalid/relire"
+  },
+  "avecManiereDeLire": {
+    "document": "/B/sources/aa/aa0000.pdf",
+    "medias": "/B/sources",
+    "inventaireMedias": [],
+    "provenancesMedias": ["lot:00000000-0000-4000-8000-000000000000"],
+    "recette": "/B/base/recette.json",
+    "verifieParUnHumain": true,
+    "description": "/B/base/bibliotheque.json",
+    "cache": "/B/cache",
+    "images": "/B/derives/00000000-0000-4000-8000-000000000001/pages",
+    "relecture": "https://exemple.invalid/relire"
+  }
+}

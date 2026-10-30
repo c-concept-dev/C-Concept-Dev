@@ -43,19 +43,6 @@ export type Lot = {
   readonly inventaireMedias?: readonly MediaInventorie[] | undefined;
   /** Groupes de dépôt du document, qui bornent son vivier. */
   readonly provenancesMedias?: readonly string[] | undefined;
-  /** Quelqu'un a-t-il vérifié ce document, et l'a-t-on enregistré ?
-   *
-   *  L'hôte le sait — il tient le classement — et la chaîne ne peut pas le deviner.
-   *
-   *  **Il ne va plus à la seconde voie, et c'est voulu.** Une vérification enregistrée sur un
-   *  document porte sur les liens que quelqu'un a vus ; la seconde voie produit une lecture neuve
-   *  que personne n'a vue. Le 30 octobre 2026, lui passer ce drapeau a publié 40 liens tous faux
-   *  sur le document témoin. Elle gagne ses deux signaux elle-même, ou s'abstient.
-   *
-   *  Il reste ici parce que l'hôte l'envoie et qu'un champ qu'on jette en silence vaut mieux
-   *  qu'un hôte qui mentirait sur ce qu'il sait. Le jour où un œil humain confirmera des liens
-   *  un par un, c'est `appariements[].statut` qui le portera, pas ce booléen. */
-  readonly verifieParUnHumain?: boolean | undefined;
   /** Manière de lire qui dit comment lire ce document.
    *
    *  **Absente, la chaîne prend la seconde voie** : elle cherche elle-même une régularité dans les

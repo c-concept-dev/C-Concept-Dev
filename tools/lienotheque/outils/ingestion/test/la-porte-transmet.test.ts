@@ -1,10 +1,10 @@
 // @vitest-environment node
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { chargeOuEchec, demandeDeTraitement, executerTravail } from "../src/index.js";
+import { ChargeTraitement, chargeOuEchec, demandeDeTraitement, executerTravail } from "../src/index.js";
 
 /** Ce que la manière de lire transmet à la lecture, éprouvé **par la porte** (REC-01, JOB-05)
  *
@@ -116,6 +116,53 @@ async function parLaPorte(options: { langue?: string; doublePage?: boolean } = {
   );
   return { passages: chargeOuEchec(message).passages.length, journal };
 }
+
+/** La charge que l'hôte envoie franchit-elle la porte ? (JOB-01, JOB-05, PLT-02)
+ *
+ *  Quatrième cas de la même famille, et le plus coûteux : le 30 octobre 2026, l'hôte a appris à
+ *  partir **sans manière de lire** — c'est la seconde voie, et 248 documents sur 250 de la
+ *  bibliothèque réelle l'attendaient. Il a appris le même jour à dire si quelqu'un a vérifié ce
+ *  document. Les deux sont écrits, éprouvés côté hôte, et **le contrat de la porte n'a bougé ni
+ *  pour l'un ni pour l'autre**. Résultat mesuré sur la vraie application : aucun document ne
+ *  passe, avec ou sans manière de lire — « recette » est en cause, et `verifieParUnHumain` est
+ *  une clé que le contrat strict ne connaît pas. Les travaux meurent en échec définitif à la
+ *  porte, sans qu'une seule page soit lue.
+ *
+ *  Le contrat se modifie avant le code (règle 2) : il ne l'avait pas été.
+ *
+ *  `fixtures/charge-de-l-hote.json` tient les deux bouts. L'hôte a son épreuve Rust qui vérifie
+ *  que la charge qu'il construit porte **exactement** ces champs ; celle-ci vérifie que la porte
+ *  les accepte. Changer l'un sans l'autre rougit l'une des deux.
+ */
+describe("la charge que l'hôte envoie franchit la porte (JOB-01, PLT-02)", () => {
+  const variantes = JSON.parse(readFileSync(join(RACINE, "fixtures/charge-de-l-hote.json"), "utf8")) as Record<
+    string,
+    unknown
+  >;
+
+  for (const [quoi, charge] of Object.entries(variantes)) {
+    it(`l'accepte : ${quoi}`, () => {
+      const lue = ChargeTraitement.safeParse(charge);
+      const refus = lue.success
+        ? ""
+        : lue.error.issues.map((souci) => `« ${souci.path.join(".") || "la charge entière"} » : ${souci.message}`).join(" · ");
+      expect(refus, "la porte refuse ce que l'hôte envoie").toBe("");
+    });
+  }
+
+  it("prend la seconde voie quand aucune manière de lire n'est annoncée (REC-01)", () => {
+    const lue = ChargeTraitement.parse(variantes["sansManiereDeLire"]);
+    expect(lue.recette ?? undefined, "sans manière de lire, la chaîne ne doit pas en charger une").toBeUndefined();
+  });
+
+  it("jette la vérification humaine à la porte plutôt que de la transmettre (REC-02)", () => {
+    const lue = ChargeTraitement.parse(variantes["avecManiereDeLire"]) as Record<string, unknown>;
+    expect(
+      "verifieParUnHumain" in lue && lue["verifieParUnHumain"] !== undefined,
+      "une vérification enregistrée porte sur des liens vus, jamais sur une lecture neuve",
+    ).toBe(false);
+  });
+});
 
 describe("la double page passe par la porte, déclarée ou tue (REC-01)", () => {
   siNatif(

@@ -58,7 +58,25 @@ export const ChargeTraitement = z
     /** Groupes de dépôt dont le document provient. Sans eux, le vivier ne peut rien prouver et la
      *  chaîne ne publie aucune association : c'est voulu. */
     provenancesMedias: z.array(z.string().min(1)).optional(),
-    recette: z.string().min(1),
+    /** La manière de lire, **ou son absence**.
+     *
+     *  `null` n'est pas une charge mal formée : c'est ce que l'hôte envoie pour un document
+     *  qu'aucune manière de lire ne couvre, et la chaîne prend alors sa seconde voie. Exiger ici
+     *  une chaîne de caractères a tué tous ces travaux à la porte, en échec **définitif**, sans
+     *  qu'une page soit lue — 248 documents sur 250 de la bibliothèque réelle. */
+    recette: z.string().min(1).nullable().optional(),
+    /** Ce que l'hôte sait d'une vérification humaine. **Accepté ici, et jeté ici.**
+     *
+     *  Accepté, parce qu'un hôte qui tait ce qu'il sait est pire qu'un champ inutile, et parce
+     *  qu'un contrat strict qui l'ignore refuse toute la charge. Jeté, parce qu'une vérification
+     *  enregistrée porte sur les liens que quelqu'un a vus, jamais sur une lecture neuve : le
+     *  30 octobre 2026, le transmettre a publié quarante liens sur le document témoin au lieu de
+     *  s'abstenir. Le jour où un œil humain confirmera des liens un par un, c'est
+     *  `appariements[].statut` qui le portera.
+     *
+     *  Il est retiré **au contrat**, et non plus loin : ainsi rien en aval ne peut le recevoir,
+     *  et personne n'a à se souvenir de ne pas le passer. */
+    verifieParUnHumain: z.boolean().optional(),
     description: z.string().min(1),
     /** Racine du cache de travail. L'exécutant y prend ses coins ; l'hôte n'a qu'à dire où. */
     cache: z.string().min(1).optional(),
@@ -72,7 +90,8 @@ export const ChargeTraitement = z
     /** Rang de la première page lue : les dix premières d'un document n'ont souvent rien à lire. */
     depuis: z.number().int().nonnegative().optional(),
   })
-  .strict();
+  .strict()
+  .transform(({ verifieParUnHumain: _jete, ...reste }) => reste);
 export type ChargeTraitement = z.infer<typeof ChargeTraitement>;
 
 /** Ce que le travail rend. L'hôte en est le seul écrivain : c'est une proposition, jamais une
@@ -158,7 +177,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
       medias: charge.medias,
       ...(charge.inventaireMedias === undefined ? {} : { inventaireMedias: charge.inventaireMedias }),
       ...(charge.provenancesMedias === undefined ? {} : { provenancesMedias: charge.provenancesMedias }),
-      recette: charge.recette,
+      ...(charge.recette == null ? {} : { recette: charge.recette }),
       description: charge.description,
       ...(charge.cache === undefined ? {} : { cache: sousDossier(charge.cache, "lectures") }),
       ...(charge.images === undefined ? {} : { images: charge.images }),
