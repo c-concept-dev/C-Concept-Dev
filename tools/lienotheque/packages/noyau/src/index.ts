@@ -21,3 +21,4 @@ export * from "./table.js";
 export * from "./moteur-oracle.js";
 export * from "./vision-une-fois.js";
 export * from "./marques-recurrentes.js";
+export * from "./accord-nom-contenu.js";
