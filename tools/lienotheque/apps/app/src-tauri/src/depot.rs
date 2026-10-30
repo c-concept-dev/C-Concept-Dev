@@ -160,16 +160,28 @@ pub struct Depot {
 }
 
 impl Depot {
-    /// Ouvre — ou crée — le dossier d'une bibliothèque.
+    /// Ouvre une bibliothèque existante, sans jamais transformer le dossier qu'on examine.
     ///
-    /// Créer les trois dossiers d'emblée plutôt qu'à la première écriture : un dossier vide se
-    /// copie et s'inspecte, et son absence ne se découvre pas au pire moment.
+    /// La création est un geste distinct, explicite, porté par [`Self::creer`]. Cette séparation
+    /// est indispensable au sélecteur « ouvrir une bibliothèque » : lire un dossier arbitraire
+    /// ne doit y semer ni `sources/`, ni `derives/`, ni `base/versions/`.
     pub fn ouvrir(racine: impl Into<PathBuf>) -> io::Result<Self> {
         let racine = racine.into();
-        for dossier in [SOURCES, DERIVES, BASE] {
-            fs::create_dir_all(racine.join(dossier))?;
+        if !racine.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("Dossier de bibliothèque introuvable : {}", racine.display()),
+            ));
         }
-        fs::create_dir_all(racine.join(BASE).join(VERSIONS))?;
+        for dossier in [SOURCES, DERIVES, BASE] {
+            let chemin = racine.join(dossier);
+            if !chemin.is_dir() {
+                return Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("Structure de bibliothèque incomplète : {} manque", chemin.display()),
+                ));
+            }
+        }
         let depot = Self { racine };
 
         // La table des actives se rattrape à l'ouverture, depuis les travaux.
@@ -183,6 +195,20 @@ impl Depot {
         // qu'une bibliothèque dont la table attendra le prochain lancement.
         let _ = depot.migrer_les_actives();
         Ok(depot)
+    }
+
+    /// Crée la structure d'une nouvelle bibliothèque.
+    ///
+    /// Cette fonction seule a le droit de préparer les quatre dossiers structurels. Les autres
+    /// chemins commencent par [`Self::ouvrir`] et refusent donc un dossier qui n'est pas déjà une
+    /// bibliothèque.
+    pub fn creer(racine: impl Into<PathBuf>) -> io::Result<Self> {
+        let racine = racine.into();
+        for dossier in [SOURCES, DERIVES, BASE] {
+            fs::create_dir_all(racine.join(dossier))?;
+        }
+        fs::create_dir_all(racine.join(BASE).join(VERSIONS))?;
+        Ok(Self { racine })
     }
 
     pub fn racine(&self) -> &Path {
@@ -747,10 +773,29 @@ fn ecrire_atomique(chemin: &Path, contenu: &[u8]) -> io::Result<()> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn ouvrir_un_dossier_quelconque_ne_le_transforme_pas_en_bibliotheque() {
+        let racine = std::env::temp_dir().join(format!(
+            "lienotheque-depot-lecture-sans-effet-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&racine);
+        fs::create_dir_all(&racine).expect("dossier témoin");
+
+        assert!(Depot::ouvrir(&racine).is_err(), "un dossier vide n'est pas une bibliothèque");
+        assert_eq!(
+            fs::read_dir(&racine).expect("dossier relu").count(),
+            0,
+            "lire un dossier arbitraire ne doit y créer aucune entrée",
+        );
+
+        fs::remove_dir_all(&racine).ok();
+    }
+
     fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
         let racine = std::env::temp_dir().join(format!("lienotheque-depot-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
-        (Depot::ouvrir(&racine).expect("dépôt ouvert"), racine)
+        (Depot::creer(&racine).expect("dépôt créé"), racine)
     }
 
 
@@ -1000,7 +1045,7 @@ mod actives {
     fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
         let racine = std::env::temp_dir().join(format!("lienotheque-actives-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
-        (Depot::ouvrir(&racine).expect("dépôt ouvert"), racine)
+        (Depot::creer(&racine).expect("dépôt créé"), racine)
     }
 
     const A: &str = "aaaa000000000000000000000000000000000000000000000000000000000000";
@@ -1185,7 +1230,7 @@ mod classement {
     fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
         let racine = std::env::temp_dir().join(format!("lienotheque-classement-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
-        (Depot::ouvrir(&racine).expect("dépôt ouvert"), racine)
+        (Depot::creer(&racine).expect("dépôt créé"), racine)
     }
 
     const A: &str = "aaaa000000000000000000000000000000000000000000000000000000000000";
@@ -1246,7 +1291,7 @@ mod migration {
     fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
         let racine = std::env::temp_dir().join(format!("lienotheque-migration-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
-        (Depot::ouvrir(&racine).expect("dépôt ouvert"), racine)
+        (Depot::creer(&racine).expect("dépôt créé"), racine)
     }
 
     const A: &str = "aaaa000000000000000000000000000000000000000000000000000000000000";

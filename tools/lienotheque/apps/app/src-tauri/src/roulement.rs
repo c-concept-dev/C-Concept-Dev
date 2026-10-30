@@ -659,7 +659,7 @@ mod tests {
 
     fn roulement(racine: PathBuf) -> Roulement {
         Roulement {
-            depot: Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt"),
+            depot: Depot::creer(racine.join("bibliotheque")).expect("dépôt"),
             emplacements: Emplacements { node: PathBuf::from("node"), chaine: PathBuf::from("moteur.js") },
             appareil: "0190f0a0-0000-7000-8000-00000000ff01".to_owned(),
             cache: racine.join("cache"),

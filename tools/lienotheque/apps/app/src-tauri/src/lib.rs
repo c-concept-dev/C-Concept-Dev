@@ -23,6 +23,7 @@ pub mod pdf;
 pub mod plateforme;
 pub mod reglages;
 pub mod recherche;
+pub mod reconstruction;
 pub mod roulement;
 pub mod trace;
 pub mod traitement;
@@ -90,7 +91,7 @@ pub struct Etat {
 fn creer_bibliotheque(racine: String, description: String) -> Result<String, String> {
     trace::ecrire(&format!("hôte · creer_bibliotheque « {racine} » ({} octets de description)", description.len()));
     let rendu = (|| {
-        let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Dossier impossible à préparer : {e}"))?;
+        let depot = depot::Depot::creer(&racine).map_err(|e| format!("Dossier impossible à préparer : {e}"))?;
         if depot.deja_une_bibliotheque() {
             return Err("Une bibliothèque occupe déjà ce dossier. Ouvrez-la, ou choisissez-en un autre.".to_owned());
         }
@@ -1261,12 +1262,14 @@ mod greffe {
 #[cfg(test)]
 mod relecture_ocr {
     use super::{relire_page, Moteurs};
+    use crate::depot::Depot;
     use std::{fs, path::Path};
 
     #[test]
     fn une_image_de_page_est_relue_par_le_moteur_embarque() {
         let racine = std::env::temp_dir().join(format!("lienotheque-relecture-{}", std::process::id()));
         fs::remove_dir_all(&racine).ok();
+        Depot::creer(&racine).expect("bibliothèque d'épreuve");
         let pages = racine.join("derives").join("version-test").join("pages");
         fs::create_dir_all(&pages).expect("pages");
         fs::copy(

@@ -192,7 +192,7 @@ mod tests {
     #[test]
     fn cherche_dans_245_documents_et_remplace_une_version_atomiquement() {
         let racine = tempdir().expect("dossier");
-        let depot = Depot::ouvrir(racine.path()).expect("dépôt");
+        let depot = Depot::creer(racine.path()).expect("dépôt");
         for rang in 0..245 {
             let empreinte = format!("{rang:064x}");
             let version_id = format!("v-{rang}");

@@ -243,7 +243,7 @@ mod epreuves {
     fn bibliotheque(nom: &str, textes: &[(&str, &str)]) -> (Depot, PathBuf) {
         let racine = std::env::temp_dir().join(format!("lienotheque-doublons-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
-        let depot = Depot::ouvrir(&racine).expect("dépôt ouvert");
+        let depot = Depot::creer(&racine).expect("dépôt créé");
         depot.ecrire_description(r#"{"nom":"Essai"}"#).expect("description");
         for (rang, (empreinte_courte, texte)) in textes.iter().enumerate() {
             let empreinte = format!("{empreinte_courte}{}", "0".repeat(64 - empreinte_courte.len()));

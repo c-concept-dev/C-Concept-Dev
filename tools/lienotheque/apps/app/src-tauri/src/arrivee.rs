@@ -338,7 +338,7 @@ mod tests {
             &[("Méthode.pdf", b"pdf"), ("CD1/Piste 01.mp3", b"un"), ("CD2/Piste 01.mp3", b"deux")],
         );
         let avant = fs::read(&origine).expect("original");
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[origine.clone()], &mut |_| {}).expect("dépôt ZIP");
 
@@ -365,7 +365,7 @@ mod tests {
         let racine = bac("zip-incomplet");
         let source = bac("zip-incomplet-source");
         let origine = archive(&source, "sans-audio.zip", &[("Méthode.pdf", b"pdf")]);
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("refus expliqué");
 
@@ -384,7 +384,7 @@ mod tests {
             "Methode.zip",
             &[("Methode/Methode.pdf", b"un"), ("Methode/Supplements/Methode - Supplement.pdf", b"deux"), ("Methode/Piste 01.mp3", b"audio")],
         );
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("dépôt ZIP");
 
@@ -413,7 +413,7 @@ mod tests {
             "dangereux.zip",
             &[("Méthode.pdf", b"pdf"), ("../hors.mp3", b"audio")],
         );
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("refus expliqué");
 
@@ -431,7 +431,7 @@ mod tests {
             "avec-inconnu.zip",
             &[("Méthode.pdf", b"pdf"), ("Piste 01.mp3", b"audio"), ("lisez-moi.exe", b"non")],
         );
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("refus expliqué");
 
@@ -446,7 +446,7 @@ mod tests {
         let racine = bac("zip-idempotent");
         let source = bac("zip-idempotent-source");
         let origine = archive(&source, "methode.zip", &[("Méthode.pdf", b"pdf"), ("Piste 01.mp3", b"audio")]);
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let premier = deposer(&depot, &depot.travaux(), &[origine.clone()], &mut |_| {}).expect("premier");
         let second = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("second");
@@ -461,7 +461,7 @@ mod tests {
         let racine = bac("zip-corrompu");
         let source = bac("zip-corrompu-source");
         let origine = fichier(&source, "corrompu.zip", b"ceci n'est pas un zip");
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("refus expliqué");
 
@@ -475,7 +475,7 @@ mod tests {
         let racine = bac("zip-sans-pdf");
         let source = bac("zip-sans-pdf-source");
         let origine = archive(&source, "sans-pdf.zip", &[("Piste 01.mp3", b"audio")]);
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("refus expliqué");
 
@@ -496,7 +496,7 @@ mod tests {
         zip.start_file("Piste 01.mp3", options).expect("mp3");
         zip.write_all(b"audio").expect("audio");
         zip.finish().expect("fin");
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[chemin], &mut |_| {}).expect("refus expliqué");
 
@@ -514,7 +514,7 @@ mod tests {
             zip.start_file(format!("Piste {rang}.mp3"), SimpleFileOptions::default()).expect("entrée");
         }
         zip.finish().expect("fin");
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[chemin], &mut |_| {}).expect("refus expliqué");
 
@@ -528,7 +528,7 @@ mod tests {
     fn c9_1_preuve_reelle_un_pdf_et_quatre_vingt_dix_neuf_mp3() {
         let origine = PathBuf::from(std::env::var("LIENOTHEQUE_C9_ZIP").expect("LIENOTHEQUE_C9_ZIP"));
         let racine = bac("zip-reel");
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &[origine], &mut |_| {}).expect("dépôt réel");
 
@@ -547,7 +547,7 @@ mod tests {
             PathBuf::from(std::env::var("LIENOTHEQUE_C9_ZIP_021").expect("ZIP 021")),
             PathBuf::from(std::env::var("LIENOTHEQUE_C9_ZIP_041").expect("ZIP 041")),
         ];
-        let depot = Depot::ouvrir(racine).expect("dépôt");
+        let depot = Depot::creer(racine).expect("dépôt");
 
         let arrivee = deposer(&depot, &depot.travaux(), &origines, &mut |_| {}).expect("dépôt réel");
 
@@ -561,7 +561,7 @@ mod tests {
         let racine = bac("depot");
         let source = bac("source");
         let origine = fichier(&source, "un-document.pdf", b"des octets");
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
         let dossier_file = racine.join("file");
 
         let arrivee = deposer(&depot, &dossier_file, &[origine.clone()], &mut |_| {}).expect("dépôt");
@@ -590,7 +590,7 @@ mod tests {
     fn redeposer_le_meme_contenu_ne_cree_pas_un_second_travail() {
         let racine = bac("idempotence");
         let source = bac("idempotence-source");
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
         let dossier_file = racine.join("file");
 
         let premier = fichier(&source, "un-document.pdf", b"les memes octets");
@@ -611,7 +611,7 @@ mod tests {
     fn un_fichier_refuse_n_empeche_pas_les_autres_d_entrer() {
         let racine = bac("refus");
         let source = bac("refus-source");
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
         let dossier_file = racine.join("file");
 
         let bon = fichier(&source, "un-document.pdf", b"des octets");
@@ -631,7 +631,7 @@ mod tests {
     fn un_media_est_copie_mais_ne_fait_pas_un_travail_a_lui_seul() {
         let racine = bac("deux");
         let source = bac("deux-source");
-        let depot = Depot::ouvrir(racine.join("bibliotheque")).expect("dépôt");
+        let depot = Depot::creer(racine.join("bibliotheque")).expect("dépôt");
         let dossier_file = racine.join("file");
 
         let un = fichier(&source, "un-document.pdf", b"premiers octets");
