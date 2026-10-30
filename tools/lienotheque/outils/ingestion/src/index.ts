@@ -259,3 +259,4 @@ export * from "./lot.js";
 export * from "./pages-images.js";
 export * from "./texte.js";
 export * from "./importer-classements.js";
+export * from "./voie-oracle.js";

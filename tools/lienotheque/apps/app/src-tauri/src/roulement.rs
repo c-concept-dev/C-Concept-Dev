@@ -468,13 +468,32 @@ impl Roulement {
         if !document.exists() {
             return Err(Obstacle::Casse(format!("Le fichier « {} » n’est plus dans la bibliothèque.", sujet.nom)));
         }
-        let recette = self.maniere_de(empreinte);
-        if !recette.exists() {
-            return Err(Obstacle::PasPret(
-                "Cette bibliothèque n’a pas encore de manière de lire. Ouvrez ce document pour en apprendre une, puis reprenez ce travail."
-                    .to_owned(),
-            ));
-        }
+        // Une manière de lire, si la bibliothèque en a une pour ce document. Sinon rien, et la
+        // chaîne prend sa seconde voie : elle cherche elle-même une régularité dans les pages.
+        //
+        // Jusqu'au 30 octobre 2026, l'absence arrêtait le travail. Un document sans manière de
+        // lire restait en pause indéfiniment — 248 documents sur 250 de la bibliothèque réelle
+        // étaient dans ce cas, et aucun ne rendait rien, pas même une abstention motivée.
+        // L'attente d'une manière de lire écrite à la main n'est plus une condition pour
+        // commencer : c'en est une pour certains résultats, pas pour l'essai.
+        let maniere = self.maniere_de(empreinte);
+        let recette = if maniere.exists() { Some(maniere) } else { None };
+
+        // Quelqu'un a-t-il vérifié ce document ? L'hôte tient le classement ; la chaîne ne peut
+        // pas le deviner, et sans cette réponse un seul type de lecture ne publie jamais.
+        let verifie_par_un_humain = self
+            .depot
+            .classement(empreinte)
+            .ok()
+            .flatten()
+            .and_then(|rang| {
+                rang.get("axes")?
+                    .get("etat-audio")?
+                    .get("valeurs")?
+                    .as_array()
+                    .map(|valeurs| valeurs.iter().any(|v| v.as_str() == Some("automatique-prouve")))
+            })
+            .unwrap_or(false);
         let description = racine.join("base").join("bibliotheque.json");
         if !description.exists() {
             return Err(Obstacle::Casse("Cette bibliothèque n’a pas de description.".to_owned()));
@@ -512,6 +531,7 @@ impl Roulement {
             "inventaireMedias": inventaire_medias,
             "provenancesMedias": sujet.provenances_medias,
             "recette": recette,
+            "verifieParUnHumain": verifie_par_un_humain,
             "description": description,
             "cache": self.cache,
             "images": racine.join(crate::depot::DERIVES).join(&travail.version_cible).join("pages"),
@@ -533,6 +553,12 @@ impl Roulement {
 /// | `Casse` — le fichier ou la base manque | en échec définitif | il n'y a rien à reprendre |
 #[derive(Debug)]
 enum Obstacle {
+    /// Plus personne ne le construit depuis le 30 octobre 2026 : le seul réglage dont l'absence
+    /// arrêtait un travail — la manière de lire — ne l'arrête plus, la chaîne ayant sa seconde
+    /// voie. La mise en pause reprenable reste câblée et vérifiée : c'est le bon traitement pour
+    /// le prochain réglage manquant, et le reconstruire le jour venu coûterait plus que de le
+    /// garder.
+    #[allow(dead_code)]
     PasPret(String),
     Casse(String),
 }
@@ -746,21 +772,28 @@ mod tests {
         fs::remove_dir_all(&racine).ok();
     }
 
+    /// Sans manière de lire, le travail **part quand même**, par la seconde voie.
+    ///
+    /// Jusqu'au 30 octobre 2026, il s'arrêtait là et attendait qu'on lui en écrive une. C'était
+    /// mieux que de mourir — le 22 octobre, trois dépôts d'une méthode étaient morts en échec
+    /// définitif pour ce seul motif — mais ce n'était pas assez : 248 documents sur 250 de la
+    /// bibliothèque réelle attendaient ainsi, et aucun ne rendait quoi que ce soit, pas même une
+    /// abstention motivée.
+    ///
+    /// La chaîne sait désormais chercher une régularité par elle-même. L'absence de manière de
+    /// lire n'est donc plus un réglage manquant : c'est simplement l'autre voie.
     #[test]
-    fn dit_qu_il_manque_une_maniere_de_lire_plutot_que_d_echouer_trois_minutes_plus_tard() {
+    fn part_sans_maniere_de_lire_au_lieu_d_attendre_qu_on_lui_en_ecrive_une() {
         let racine = bac("sans-recette");
         let r = roulement(racine.clone());
         fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
         poser_source(&r, "pdf");
 
-        let erreur = r.charge_de(&travail_de("un.pdf")).expect_err("doit refuser");
-        assert!(erreur.to_string().contains("manière de lire"), "{erreur}");
-        // **Et c'est tout l'enjeu** : le travail attend, il ne meurt pas. Le 22 octobre 2026,
-        // trois dépôts d'une méthode — un PDF et quatre-vingt-dix-neuf pistes — sont morts en
-        // échec définitif pour ce seul motif, et la seule issue offerte était de tout redéposer.
-        assert!(matches!(erreur, Obstacle::PasPret(_)), "une manière de lire absente est un réglage, pas une panne");
-        // Elle dit aussi où aller la chercher : constater sans orienter laisse sur place.
-        assert!(erreur.to_string().contains("Ouvrez ce document"), "{erreur}");
+        let charge = r.charge_de(&travail_de("un.pdf")).expect("le travail doit pouvoir partir");
+        assert!(charge["recette"].is_null(), "aucune manière de lire n'est annoncée : {charge}");
+        assert!(charge["document"].is_string(), "le document est là : {charge}");
+        // Et la question que la chaîne ne peut pas trancher seule voyage avec la charge.
+        assert!(charge["verifieParUnHumain"].is_boolean(), "la vérification humaine est dite : {charge}");
         fs::remove_dir_all(&racine).ok();
     }
 

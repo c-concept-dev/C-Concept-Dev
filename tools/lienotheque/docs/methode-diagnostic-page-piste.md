@@ -88,7 +88,7 @@ cela, et rien d'autre, qui les sépare. Un œil **confirme** une lecture ; il ne
 Un type n'est **actif** que lorsqu'il a produit un résultat juste sur un document réel. Écrit et
 compilé ne veut pas dire prouvé.
 
-| type de signal | nature | état au 29 octobre 2026 | ce qui l'établit |
+| type de signal | nature | état au 30 octobre 2026 | ce qui l'établit |
 |---|---|---|---|
 | Pastille lue sur la page | lecture | **prouvé** | 89 liens publiés sur un recueil, vérifiés à l'oreille |
 | Folio imprimé lu | lecture | **prouvé, fragile** | 26 folios sur 29 pour un recueil ; la même lecture déclarée sur un autre rend 0 sur 96 |
@@ -97,6 +97,7 @@ compilé ne veut pas dire prouvé.
 | Relecture ciblée d'une image | lecture | **écrit, jamais déclaré** | aucune recette ne porte de budget de relecture |
 | Table imprimée explicite | lecture | **écrit, mesuré, non publié** | 35 rangées justes sur 52 d'une vraie table ; 17 rangées abandonnées plutôt que 4 fausses de plus |
 | Zone de marque trouvée sans manière de lire | lecture | **prouvé** | sur un recueil : marque de 4,3 × 3,2 % de la page retrouvée seule sur 8 pages sur 8, puis 21 lectures sur 21 conformes aux liens vérifiés à l'oreille |
+| Intitulé du nom du fichier retrouvé imprimé sur la page | lecture | **écrit, éprouvé sur fixture, pas encore sur le corpus** | `accord-nom-contenu.ts` : ce qu'un nom a de distinctif dans son vivier, confronté à la couche texte. Couvre 11 familles de l'éventail d'essai sur 17 ; la famille 03 par un nombre composé (« 6.21 »), les autres par un intitulé |
 | Mention de la piste en clair dans le texte de la page | lecture | **observé, rien de câblé** | relevé le 29 octobre sur deux familles : « TRACK 12 » sur une cinquantaine de pages d'un recueil, sur cinq pages d'un autre |
 | Folio imprimé porté par le nom du fichier | lecture | **observé, rien de câblé** | 165 enregistrements nommés « … - 123 Pg.67.mp3 » ; le folio du document correspondant n'a jamais été lu, donc rien n'a pu être confronté |
 | Champ du nom qui **joint** au lieu d'ordonner | lecture | **manquant** | sur 165 enregistrements, un champ porte 165 valeurs distinctes de 123 à 1005 : une clef de jointure parfaite, qu'aucun détecteur ne sait employer — celui des noms ne cherche qu'un **ordre** et s'abstient |
@@ -144,6 +145,18 @@ compte pour un seul signal et exige donc une vérification humaine, là où la p
 suffirait. C'est une prudence excessive, pas un trou : elle fait abstenir, jamais publier à faux.
 Rien n'a été changé — le jour où une famille en dépendra, il faudra affiner la provenance plutôt
 que relâcher la règle.
+
+#### Pourquoi le rang écrit dans un nom ne corrobore rien
+
+Noté ici parce que c'est le piège le plus tentant de toute cette page. Un nom qui commence par
+« 07 » ne confirme **pas** une marque lue « 7 ». Dans un vivier de N enregistrements, tout nombre
+de 1 à N trouve un fichier : l'accord est une tautologie, et le compter pour un second signal
+revient à publier sur une seule lecture en croyant en avoir deux. Quatre familles de l'éventail
+d'essai — celles dont les noms sont « Track 51 » ou « Workout #37 » — n'ont donc **aucun** second
+signal disponible, et ne peuvent honnêtement publier qu'avec une vérification humaine enregistrée.
+
+De même, une page de sommaire porte tous les intitulés du vivier : elle n'en désigne aucun. Un
+accord n'est rendu que lorsqu'**un seul** nom se retrouve sur la page.
 
 ### Comment on ajoute un type
 
@@ -234,3 +247,37 @@ elle fait le plus de dégâts : dans le jugement humain.
 cliché. Sur un document comportant deux feuillets de garde, tout est décalé d'un rang — et le
 score sur les numéros reste parfait, parce qu'il ne regarde pas la page. D'où le comparateur qui
 juge la page, et le garde-fou qui refuse de parler de pages non ancrées.
+
+### Élire un endroit parce qu'il « se lit » — 30 octobre 2026
+
+Le détecteur de marques récurrentes rend une poignée d'endroits où une même forme revient ; il
+fallait choisir lequel porte la marque. La règle posée était **la part de l'échantillon qui se
+lit**. Elle a élu la bonne zone sur le document témoin, et une **forme de notation** sur huit
+familles de l'éventail d'essai sur dix-huit : 699 marques proposées là où le vivier n'a que 99
+enregistrements, 113 là où il en a 9, 169 là où il en a 37.
+
+La cause n'est pas un seuil mal réglé. La règle ne pesait pas **ce qui est lu**, seulement **que
+ça se lit** — et la reconnaissance, avec une liste blanche de chiffres, rend un chiffre de presque
+n'importe quelle forme sombre.
+
+Deux fausses pistes écartées par la mesure avant de trouver la vraie :
+
+- **Le remplissage de la forme.** La vraie marque remplit sa boîte à 0,39–0,47 ; les formes de
+  notation à 0,41–0,63. Le seuil en place est 0,45 : il écarte la marque avant les imposteurs.
+- **L'avance de la suite lue.** Une forme que la reconnaissance lit « 7 » partout ne recule
+  jamais : elle vaut 1,00. La vraie marque vaut 0,91, parce que sa première apparition est sur une
+  page de garde.
+
+Ce qui sépare est la conjonction de trois mesures, et aucune ne suffit seule :
+
+```
+vraie marque   →  5 3 15 23 29 43 52 58 64 72 78 85     12 lues, 12 distinctes, avance 91 %  → 91 %
+forme lue 7    →  7 7 7 7 · 7 · 7 7 7 7 ·                9 lues,  2 distinctes, avance 100 % → 17 %
+forme bruyante →  4 1 7 1 · 7 7 7 7 1 4 7               11 lues,  3 distinctes, avance  70 % → 17 %
+lit à peine    →  · 7 · · · · 6 4 · · · ·                3 lues,  3 distinctes               → < 20 %
+```
+
+**Une marque qui désigne un enregistrement est une numérotation : elle se lit, elle nomme une
+chose différente à chaque fois, et elle avance. Une forme est une forme.** Sur les douze mesures
+du document témoin, les onze imposteurs plafonnent à 25 % et la marque atteint 91 % : le seuil de
+50 % tombe au milieu d'un vide.

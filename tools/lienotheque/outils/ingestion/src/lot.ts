@@ -13,6 +13,7 @@ import {
 import { type AdresseRecurrente, adressesRecurrentes, enPassages, langueOcr } from "@lienotheque/lecteur-texte";
 import { construireVue } from "./instantane.js";
 import { lireLeTexte } from "./texte.js";
+import { rejouerParOracle, SEUIL_SANS_MANIERE_DE_LIRE } from "./voie-oracle.js";
 import { causeLisible } from "@lienotheque/noyau";
 
 /** D'un lot réel à l'instantané que lisent les écrans (correction 8).
@@ -42,8 +43,20 @@ export type Lot = {
   readonly inventaireMedias?: readonly MediaInventorie[] | undefined;
   /** Groupes de dépôt du document, qui bornent son vivier. */
   readonly provenancesMedias?: readonly string[] | undefined;
-  /** Recette qui dit comment lire ce document. */
-  readonly recette: string;
+  /** Quelqu'un a-t-il vérifié ce document, et l'a-t-on enregistré ?
+   *
+   *  C'est la deuxième voie de la règle de corroboration : un seul type de lecture ne publie que
+   *  si une vérification humaine le soutient. L'hôte le sait — il tient le classement — et la
+   *  chaîne ne peut pas le deviner. Absent, il vaut « non », et l'abstention est la réponse. */
+  readonly verifieParUnHumain?: boolean | undefined;
+  /** Manière de lire qui dit comment lire ce document.
+   *
+   *  **Absente, la chaîne prend la seconde voie** : elle cherche elle-même une régularité dans les
+   *  pages plutôt que de se faire dire où regarder. C'est ce qui permet à un document qu'aucune
+   *  manière de lire ne couvre de rendre quelque chose — un lien prouvé, ou une abstention qui
+   *  dit pourquoi — au lieu de rester en pause indéfiniment. Sur la base réelle, 248 documents
+   *  sur 250 sont dans ce cas. */
+  readonly recette?: string | undefined;
   readonly description: string;
   /** Dossier où garder les lectures, pour ne pas repayer l'OCR. */
   readonly cache?: string | undefined;
@@ -150,23 +163,37 @@ export type LotTraite = {
 /** Traite un lot et rend l'instantané que les écrans liront. */
 export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   const description = lireDescription(JSON.parse(await readFile(lot.description, "utf8")));
-  const recette = chargerRecette(JSON.parse(await readFile(lot.recette, "utf8")));
+  const recette =
+    lot.recette === undefined ? undefined : chargerRecette(JSON.parse(await readFile(lot.recette, "utf8")));
 
   // La chaîne, et rien d'autre. Elle réimplémentait ici lecture, interprétation et association —
   // un second chemin de code qui avait déjà divergé : l'inventaire des supports présents, ajouté à
   // la chaîne, n'arrivait jamais aux écrans. Un instantané doit venir du même traitement que la
   // mesure, sans quoi ce qu'on mesure n'est pas ce qu'on montre.
-  const { resultat, association, medias } = await rejouer(lot.pdf, lot.medias, recette, {
-    ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
-    ...(lot.provenancesMedias === undefined ? {} : { provenancesMedias: lot.provenancesMedias }),
-    ...(lot.cache === undefined ? {} : { cache: lot.cache }),
-    ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
-    ...(lot.validationStructurelle === undefined ? {} : { validationStructurelle: lot.validationStructurelle }),
-    ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
-    ...(lot.surTotal === undefined ? {} : { surTotal: lot.surTotal }),
-    ...(lot.pages === undefined ? {} : { pages: lot.pages }),
-    ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
-  });
+  // Sans manière de lire, la seconde voie : elle cherche la régularité elle-même. Les deux
+  // rendent la même forme — c'est ce qui permet à tout ce qui suit de ne pas savoir laquelle a
+  // tourné, et aux écrans de n'avoir rien à apprendre.
+  const { resultat, association, medias } =
+    recette === undefined
+      ? await rejouerParOracle(lot.pdf, lot.medias, {
+          ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
+          ...(lot.provenancesMedias === undefined ? {} : { provenancesMedias: lot.provenancesMedias }),
+          ...(lot.verifieParUnHumain === undefined ? {} : { verifieParUnHumain: lot.verifieParUnHumain }),
+          ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
+          ...(lot.surPhase === undefined ? {} : { surPhase: lot.surPhase }),
+          ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+        })
+      : await rejouer(lot.pdf, lot.medias, recette, {
+          ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
+          ...(lot.provenancesMedias === undefined ? {} : { provenancesMedias: lot.provenancesMedias }),
+          ...(lot.cache === undefined ? {} : { cache: lot.cache }),
+          ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
+          ...(lot.validationStructurelle === undefined ? {} : { validationStructurelle: lot.validationStructurelle }),
+          ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
+          ...(lot.surTotal === undefined ? {} : { surTotal: lot.surTotal }),
+          ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+          ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
+        });
 
   lot.surPhase?.(`repères lus : ${resultat.pages.length} page(s), ${resultat.lignes.length} élément(s)`);
   if (association.abstention !== undefined)
@@ -233,7 +260,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // dans les bancs, qui appellent `lireLeTexte` sans option. Troisième mécanisme juste rendu
   // inatteignable depuis la porte réelle en deux jours ; voir `docs/decisions.md`.
   const lu = await lireLeTexte(lot.pdf, {
-    ...(recette.preparation.double_page === undefined ? {} : { doublePage: recette.preparation.double_page }),
+    ...(recette?.preparation.double_page === undefined ? {} : { doublePage: recette.preparation.double_page }),
     ...(langue === undefined ? {} : { langue }),
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),
     ...(lot.surPhase === undefined ? {} : { surAvertissement: lot.surPhase }),
@@ -267,7 +294,10 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     medias,
     // Le seuil vient de la recette, qui l'a fixé en même temps que ses règles de lecture. Le
     // redéclarer ailleurs, c'est se donner deux seuils et finir par en oublier un.
-    seuil: recette.validation.seuil_confiance,
+    // Sans manière de lire, le seuil est celui que la seconde voie a réellement fait franchir
+    // à chaque lecture : se donner un autre chiffre ici reviendrait à juger sur une barre que
+    // personne n'a eu à passer.
+    seuil: recette?.validation.seuil_confiance ?? SEUIL_SANS_MANIERE_DE_LIRE,
     pages: [...pagesParRang.values()].sort((a, b) => a.index - b.index),
     imageDePage: (rang) => parRang.get(rang),
     // L'emplacement se résout à la lecture, pas à l'ingestion : la carte ne dit pas où le
