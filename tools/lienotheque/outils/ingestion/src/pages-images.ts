@@ -134,7 +134,20 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
   mkdirSync(dossier, { recursive: true });
 
   const objets = objetsPdf(await readFile(pdf));
-  const pages = pagesPdf(objets);
+  let pages = pagesPdf(objets);
+  let renduComplet: Awaited<ReturnType<typeof ouvrirRenduPdf>> | undefined;
+  // Certains PDF réels portent une table de pages que le lecteur structurel minimal ne sait pas
+  // traverser. Zéro ici ne signifie donc pas zéro dans le document : pdf.js est le second lecteur
+  // indépendant qui donne le vrai nombre et rend chaque composition entière.
+  if (pages.length === 0) {
+    renduComplet = await ouvrirRenduPdf(pdf);
+    pages = Array.from({ length: renduComplet.nombreDePages }, (_, index) => ({
+      index,
+      numero: index + 1,
+      images: [],
+      couchTexte: false,
+    }));
+  }
   const depuis = options.depuis ?? 0;
   const retenues = pages.slice(depuis, options.pages === undefined ? undefined : depuis + options.pages);
 
@@ -144,7 +157,6 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
 
   const exportees: PageExportee[] = [];
   const refusees: PageRefusee[] = [];
-  let renduComplet: Awaited<ReturnType<typeof ouvrirRenduPdf>> | undefined;
   try {
     for (const [rangDansLaTranche, page] of retenues.entries()) {
       // Le rang dans le document, et non dans la tranche : une page exportée seule doit porter le
