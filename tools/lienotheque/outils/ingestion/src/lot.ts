@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { exporterPages } from "./pages-images.js";
+import { ErreurExportPagesVide, exporterPages } from "./pages-images.js";
 import { DescriptionBibliotheque, type Passage, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
 import {
   chargerRecette,
@@ -229,6 +229,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
           ...(page.vignette === undefined ? {} : { vignette: `${adresse}/${page.vignette}` }),
         });
     } catch (cause) {
+      if (cause instanceof ErreurExportPagesVide) throw cause;
       // Une image et sa vignette sont des dérivés : leur absence ne retire jamais le texte du
       // document. C'était pourtant ce qui arrivait au réimport réel — 242 368 mots déjà présents
       // dans la couche disparaissaient parce qu'un codec de vignette refusait une page.

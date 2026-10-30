@@ -11,7 +11,10 @@ const doubles = vi.hoisted(() => ({
   construireVue: vi.fn(),
 }));
 
-vi.mock("../src/pages-images.js", () => ({ exporterPages: doubles.exporterPages }));
+vi.mock("../src/pages-images.js", async (importe) => ({
+  ...(await importe<typeof import("../src/pages-images.js")>()),
+  exporterPages: doubles.exporterPages,
+}));
 vi.mock("../src/texte.js", () => ({ lireLeTexte: doubles.lireLeTexte }));
 vi.mock("../src/instantane.js", () => ({ construireVue: doubles.construireVue }));
 vi.mock("@lienotheque/recettes", async (importe) => {
@@ -21,6 +24,7 @@ vi.mock("@lienotheque/recettes", async (importe) => {
 
 import { demandeDeTraitement, executerTravail } from "../src/executant.js";
 import { instantaneDeLot } from "../src/lot.js";
+import { ErreurExportPagesVide } from "../src/pages-images.js";
 
 const RACINE = join(import.meta.dirname, "../../..");
 const DESCRIPTION = join(RACINE, "fixtures/bibliotheques/F3.json");
@@ -60,6 +64,20 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
 
     expect(traite.passages).toHaveLength(1);
     expect(traite.passages[0]?.texte).toContain("intact");
+  });
+
+  it("OUT-04 — ne transforme pas zéro page exportée en traitement réussi", async () => {
+    doubles.exporterPages.mockRejectedValue(new ErreurExportPagesVide(12, 0));
+
+    await expect(
+      instantaneDeLot({
+        pdf: join(RACINE, "fixtures/fichiers/inexistant-mais-double.pdf"),
+        medias: RACINE,
+        recette: RECETTE,
+        description: DESCRIPTION,
+        images: join(RACINE, ".cache-images-test"),
+      }),
+    ).rejects.toThrow(/aucune page exploitable/i);
   });
 
   it("rend accessibles les pages du PDF ordinaire même sans repère métier", async () => {

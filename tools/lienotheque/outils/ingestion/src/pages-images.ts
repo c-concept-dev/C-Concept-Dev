@@ -50,6 +50,20 @@ export type PageRefusee = { readonly index: number; readonly cause: CauseDeRefus
  *  préparées » à quelqu'un qui attendra pour rien. */
 export type Export = { readonly pages: readonly PageExportee[]; readonly refusees: readonly PageRefusee[] };
 
+/** L'export a terminé sans produire une seule page utilisable.
+ *
+ *  Ce n'est pas une dégradation de vignette : sans page, le Lecteur n'a rien de réel à montrer.
+ *  Le type distinct permet à la chaîne de laisser vivre un texte lorsqu'une page isolée échoue,
+ *  tout en refusant de transformer l'absence totale de pages en succès apparent. */
+export class ErreurExportPagesVide extends Error {
+  constructor(readonly pagesExaminees: number, readonly pagesRefusees: number) {
+    super(
+      `Aucune page exploitable produite (${pagesExaminees} page(s) examinée(s), ${pagesRefusees} refusée(s))`,
+    );
+    this.name = "ErreurExportPagesVide";
+  }
+}
+
 export type OptionsExport = {
   readonly largeur?: number;
   /** Ne traiter que les premières pages : pour un essai rapide. */
@@ -204,5 +218,6 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
   } finally {
     await renduComplet?.fermer();
   }
+  if (exportees.length === 0) throw new ErreurExportPagesVide(retenues.length, refusees.length);
   return { pages: exportees, refusees };
 }
