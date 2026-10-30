@@ -218,7 +218,12 @@ describe("les transitions", () => {
               ? annuler(travail, T0)
               : echouer(
                   travail,
-                  { cause: "volume démonté", elements: [], reprisePossible: cas.action === "echouerRecuperable" },
+                  {
+                    cause: "volume démonté",
+                    elements: [],
+                    reprisePossible: cas.action === "echouerRecuperable" || cas.action === "echouerSansPreuve",
+                    sansPreuve: cas.action === "echouerSansPreuve",
+                  },
                   T0,
                 );
 

@@ -89,7 +89,13 @@ export function avancer(travail: Travail, valeur: number, unite: "page" | "lot" 
 /** Une erreur n'est jamais avalée : elle est enregistrée avec sa cause et ce qu'elle a touché (JOB-05). */
 export function echouer(
   travail: Travail,
-  erreur: { cause: string; elements: readonly string[]; reprisePossible: boolean },
+  erreur: {
+    cause: string;
+    elements: readonly string[];
+    reprisePossible: boolean;
+    /** Le moteur est-il mort sans avoir dit un mot ? Alors il n'a rien éprouvé du document. */
+    readonly sansPreuve?: boolean | undefined;
+  },
   maintenant: Date,
 ): Travail {
   const { verrou: _bail, ...sansBail } = travail;
@@ -97,7 +103,16 @@ export function echouer(
     ...sansBail,
     // Récupérable n'a de sens que s'il reste une tentative : au-delà, l'échec est définitif, et
     // le dire franchement vaut mieux qu'une file qui tourne en cachant la panne (JOB-05).
-    etat: erreur.reprisePossible && tentativeRestante(travail.tentative) ? "en_echec_recuperable" : "en_echec_definitif",
+    //
+    // Sauf si le moteur est mort sans un mot : il n'a alors rien éprouvé du document, et le
+    // travail se met **en pause** — reprenable sans consommer de tentative — au lieu d'être
+    // condamné. Condamner un document pour une condition de la machine oblige à tout redéposer.
+    etat:
+      erreur.reprisePossible && tentativeRestante(travail.tentative)
+        ? "en_echec_recuperable"
+        : erreur.sansPreuve === true
+          ? "en_pause"
+          : "en_echec_definitif",
     erreur: { cause: erreur.cause, elements: [...erreur.elements], reprisePossible: erreur.reprisePossible },
     majLe: horodatage(maintenant),
   };

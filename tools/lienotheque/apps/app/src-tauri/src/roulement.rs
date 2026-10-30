@@ -335,7 +335,14 @@ impl Roulement {
                 dernier.as_deref().unwrap_or("aucun"),
             );
             noter("erreur", &raison);
-            self.conclure(&chemin, &courant, "echouerRecuperable", Some(raison));
+            // Rien dit du tout, ou tu après avoir travaillé : ce ne sont pas les mêmes faits.
+            //
+            // Un moteur qui n'a pas même salué n'a rien éprouvé du document ; le condamner au
+            // bout de ses trois tentatives revient à condamner un fichier pour l'état de la
+            // machine. Un moteur qui s'est tu après avoir parlé, lui, a bien buté sur quelque
+            // chose, et l'échec définitif garde son sens.
+            let action = echec_selon_ce_qui_fut_dit(vus);
+            self.conclure(&chemin, &courant, action, Some(raison));
             return;
         };
 
@@ -398,7 +405,8 @@ impl Roulement {
     /// La question n'est posée que sur le chemin de l'échec : un travail qui s'est terminé l'a
     /// fait pour de bon, et l'on n'a pas à interroger le disque pour l'écrire.
     fn conclure(&self, chemin: &std::path::Path, courant: &Travail, action: &str, cause: Option<String>) {
-        let echoue = action == "echouerRecuperable" || action == "echouerDefinitif";
+        let echoue =
+            action == "echouerRecuperable" || action == "echouerDefinitif" || action == "echouerSansPreuve";
         if echoue {
             if let Presence::Absent(pourquoi) = self.presence() {
                 self.suspendu.store(true, Ordering::Relaxed);
@@ -540,6 +548,15 @@ impl Roulement {
     }
 }
 
+/// Quelle sorte d'échec, selon que le moteur ait parlé ou non (JOB-05).
+///
+/// Rien dit du tout, ou tu après avoir travaillé : ce ne sont pas les mêmes faits. Un moteur qui
+/// n'a pas même salué n'a rien éprouvé du document, et le condamner au bout de ses trois
+/// tentatives revient à condamner un fichier pour l'état de la machine.
+fn echec_selon_ce_qui_fut_dit(messages_vus: usize) -> &'static str {
+    if messages_vus == 0 { "echouerSansPreuve" } else { "echouerRecuperable" }
+}
+
 /// Ce qui empêche un travail de partir, et qui ne se répare pas de la même façon.
 ///
 /// La distinction a été payée le 22 octobre 2026 : trois dépôts d'une méthode — un PDF et
@@ -655,6 +672,49 @@ mod tests {
         assert!(relu.cause.unwrap_or_default().contains("volume absent"), "la cause ne dit pas pourquoi");
         assert!(roul.suspendu(), "le roulement devrait s'être suspendu");
         std::fs::remove_dir_all(&bac).ok();
+    }
+
+    /// Un moteur mort sans un mot ne condamne pas le document (JOB-05).
+    ///
+    /// Mesuré le 30 octobre 2026 sur la bibliothèque d'essai : dix-sept documents en échec
+    /// définitif, `reprise_possible: false`, en soixante et une à quatre-vingt-une secondes, tous
+    /// sur « moteur arrêté par le signal 5, après 0 message(s) ». Le rapport d'arrêt du noyau
+    /// nomme le signal : `Heap::SetUp` → `FatalProcessOutOfMemory` → `OS::Abort()`. V8 n'avait
+    /// pas pu réserver son tas, faute de mémoire sur la machine. Aucun de ces dix-sept documents
+    /// n'avait été lu, ni même ouvert.
+    #[test]
+    fn un_moteur_mort_sans_un_mot_laisse_le_travail_reprenable_job_05() {
+        let bac = bac("muet");
+        let roul = roulement(bac.clone());
+        assert!(roul.presence().est_la(), "le dépôt doit être joignable pour cette mesure");
+
+        let a_bout = |action: &str| {
+            let mut travail = Travail::neuf("t-muet", "traitement-de-lot", 0);
+            travail.etat = "en_cours".to_owned();
+            travail.tentative = crate::limites::LIMITES.tentatives_max;
+            let chemin = bac.join(format!("t-muet-{action}.json"));
+            travail::enregistrer(&chemin, &travail).expect("travail posé");
+            roul.conclure(&chemin, &travail, action, Some("après 0 message(s)".to_owned()));
+            travail::charger(&chemin).expect("lecture").expect("travail relu")
+        };
+
+        let muet = a_bout("echouerSansPreuve");
+        assert_eq!(muet.etat, "en_pause", "un moteur qui n'a rien dit n'a rien éprouvé du document");
+        assert!(muet.reprise_possible, "une pause qui ne s'annonce pas reprenable vaut un échec définitif");
+
+        // Et la distinction tient : un moteur qui avait parlé garde son échec définitif.
+        let parlant = a_bout("echouerRecuperable");
+        assert_eq!(parlant.etat, "en_echec_definitif", "un moteur qui a travaillé puis buté a bien échoué");
+        assert!(!parlant.reprise_possible, "un échec définitif ne se reprend pas");
+
+        std::fs::remove_dir_all(&bac).ok();
+    }
+
+    #[test]
+    fn le_silence_et_le_dire_ne_menent_pas_au_meme_echec_job_05() {
+        assert_eq!(echec_selon_ce_qui_fut_dit(0), "echouerSansPreuve", "un moteur muet n'a rien éprouvé");
+        assert_eq!(echec_selon_ce_qui_fut_dit(1), "echouerRecuperable", "une salutation suffit à dire qu'il a vécu");
+        assert_eq!(echec_selon_ce_qui_fut_dit(300), "echouerRecuperable", "un moteur qui a longtemps parlé a bien buté");
     }
 
     fn roulement(racine: PathBuf) -> Roulement {

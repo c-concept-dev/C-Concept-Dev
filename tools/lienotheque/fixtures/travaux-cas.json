@@ -416,6 +416,27 @@
       "vers": "en_echec_definitif",
       "bailApres": false,
       "tentativeApresRelative": "tentativesMax"
+    },
+    {
+      "nom": "un moteur mort sans un mot garde sa tentative comme n'importe quel échec récupérable",
+      "exigence": "JOB-05",
+      "depuis": "en_cours",
+      "avecBail": true,
+      "action": "echouerSansPreuve",
+      "vers": "en_echec_recuperable",
+      "bailApres": false,
+      "tentativeApres": 1
+    },
+    {
+      "nom": "un moteur mort sans un mot, à bout de tentatives, met le travail en pause au lieu de le condamner : il n'a rien éprouvé du document, et condamner oblige à tout redéposer",
+      "exigence": "JOB-05",
+      "depuis": "en_cours",
+      "avecBail": true,
+      "tentativeAvantRelative": "tentativesMax",
+      "action": "echouerSansPreuve",
+      "vers": "en_pause",
+      "bailApres": false,
+      "tentativeApresRelative": "tentativesMax"
     }
   ]
 }

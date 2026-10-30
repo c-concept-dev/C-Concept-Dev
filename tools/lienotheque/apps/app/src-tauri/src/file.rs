@@ -116,6 +116,24 @@ pub fn appliquer(travail: &Travail, action: &str, maintenant: u64) -> Option<Tra
             t.etat = if tentative_restante(t.tentative) { "en_echec_recuperable" } else { "en_echec_definitif" }.to_owned();
             t.verrou = None;
         }
+        "echouerSansPreuve" => {
+            // Un moteur mort sans un mot n'a rien éprouvé du document.
+            //
+            // Mesuré le 30 octobre 2026 : dix-sept documents en échec **définitif**, non
+            // reprenables, en soixante secondes, tous sur « moteur arrêté par le signal 5, après
+            // 0 message(s) ». La pile du rapport d'arrêt dit ce qu'était ce signal :
+            // `Heap::SetUp` → `FatalProcessOutOfMemory` → `OS::Abort()`, qui se compile en `brk`
+            // sur arm64. V8 n'avait pas pu réserver son tas — une condition de la machine, pas du
+            // fichier. Le document était condamné pour la famine de mémoire d'un autre, et la
+            // seule issue offerte était de tout redéposer.
+            //
+            // À bout de tentatives, le travail se met donc **en pause** plutôt qu'en échec
+            // définitif : une pause s'annonce reprenable, et une reprise de pause ne consomme
+            // aucune tentative. C'est le même raisonnement que « volume absent » un peu plus
+            // loin — ce qui relève de la machine ne se compte pas contre le document.
+            t.etat = if tentative_restante(t.tentative) { "en_echec_recuperable" } else { "en_pause" }.to_owned();
+            t.verrou = None;
+        }
         "echouerDefinitif" => {
             t.etat = "en_echec_definitif".to_owned();
             t.verrou = None;
