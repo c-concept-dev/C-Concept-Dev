@@ -361,3 +361,69 @@ Reste le constat le plus lourd : **la famille 03 porte 99 noms distinctifs sur 9
 marque** — sa numérotation est imprimée en texte, pas en pastille. Le signal le plus fort de tout
 l'éventail est inaccessible parce que toute la voie commence par trouver une marque. Un document
 entièrement déterminé par ses noms ne peut pas être lu par un chemin qui exige une pastille.
+
+## Le témoin a publié quarante liens, tous faux — 30 octobre 2026
+
+C'est le résultat le plus important de la passe, et il a fallu aller jusqu'à la preuve pour le
+voir. Publier n'est pas prouver.
+
+Le document témoin a ses liens vérifiés à l'oreille : 95 liens dans la vraie base. Passé par la
+seconde voie avec sa vérification, il a proposé 40 liens sur un extrait de douze pages. Comparés
+page par page aux 95 vérifiés, en remontant les pages de l'extrait vers celles du livre :
+
+```
+page du livre    proposé                vérifié à l'oreille
+      3          5, 6, 7, 8             1, 2, 3, 4
+      5          18, 19, 20, 21         9, 10, 11, 12
+      7          22, 22, 23, 24         17, 18, 19, 20
+      9          28, 29, 30             25, 26, 27
+     15          42, 43, 44, 45, 46     39, 40, 41
+     17          52, 53, 54             47, 48, 49, 50, 51
+     19          58, 59, 60             55, 56, 57
+     21          64, 65, 66             61, 62, 63
+     23          71, 72, 73, 74         67, 68, 69, 70
+     25          78, 79, 80             75, 76, 77
+     27          85, 86, 87, 88         81, 82, 83, 84
+
+0 juste sur 40.
+```
+
+### Deux numérotations côte à côte, et la règle élit la mauvaise
+
+La manière de lire de ce document déclare **deux** lectures sur la même page : une ancre
+d'élément dans les marges extérieures, et l'ancre de piste — la pastille — **à droite de
+l'élément**. La seconde voie, elle, élit **un** endroit et appelle ses chiffres « piste ». Elle a
+élu celui des éléments.
+
+Ce n'est pas de la malchance : **la règle préfère systématiquement le mauvais des deux.** Une
+piste peut porter plusieurs éléments, donc sa numérotation se répète et perd de la variété, là où
+celle des éléments est strictement croissante. Mesuré sur les 95 liens vérifiés :
+
+| numérotation | variété | avance | produit |
+|---|---|---|---|
+| celle des pistes | 0,98 | 0,99 | 0,97 |
+| celle des éléments | 1,00 | 0,99 | **0,99** |
+
+S'ajoute que les chiffres d'élément sont posés en clair dans la marge, tandis que la pastille
+porte des chiffres clairs sur fond sombre : la part qui se lit favorise aussi le mauvais.
+
+**« Un endroit qui numérote » n'est pas « l'endroit qui numérote les pistes ».** La correction du
+matin — élire ce qui numérote plutôt que ce qui se lit — était nécessaire et reste juste ; elle ne
+suffit pas. Ce défaut reste **ouvert** : rien dans les pixels seuls ne dit laquelle des deux
+numérotations désigne des enregistrements.
+
+### Une vérification humaine ne se prête pas
+
+Le second défaut est le plus grave, et c'est lui qui a transformé une erreur de lecture en 40 liens
+publiés. Le drapeau disait « ce document est vérifié ». La voie a produit une lecture **neuve et
+différente**, et en a hérité la confiance. Une vérification faite une fois validait ainsi toute
+lecture automatique future du même document — la règle « zéro faux lien » mise en défaut par un
+réglage, pas par un bogue.
+
+Verrou posé : cette voie n'accepte plus de vérification empruntée, et l'option est **retirée du
+type** pour qu'on ne puisse plus la passer. Le typage a désigné les trois appels qui s'en
+servaient. Une vérification humaine a sa place ici, mais sur le statut de chaque appariement,
+lien par lien — jamais sur le document entier.
+
+Le verrou ne réduit que ce qui peut être publié : il ne peut donc pas créer de faux lien. La voie
+publie encore, mais seulement sur deux lectures indépendantes, et son contrat le prouve.

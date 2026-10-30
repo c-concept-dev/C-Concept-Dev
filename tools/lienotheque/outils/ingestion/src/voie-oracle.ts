@@ -105,8 +105,9 @@ type Gabarit = { readonly taille: { readonly l: number; readonly h: number }; re
 export type OptionsVoieOracle = {
   readonly inventaireMedias?: readonly MediaInventorie[] | undefined;
   readonly provenancesMedias?: readonly string[] | undefined;
-  /** Quelqu'un a-t-il vérifié ce document ? Sans cela, un seul type de lecture ne publie pas. */
-  readonly verifieParUnHumain?: boolean | undefined;
+  /** **Pas de vérification humaine empruntée ici.** Elle porterait sur une lecture antérieure, et
+   *  non sur celle que cette voie vient de produire : voir le verrou au pas 7. Cette voie publie
+   *  sur deux lectures indépendantes, ou s'abstient. */
   readonly binaire?: string | undefined;
   readonly tessdata?: string | undefined;
   readonly langue?: string | undefined;
@@ -473,9 +474,20 @@ export async function rejouerParOracle(
   // abstention plutôt qu'en invention. C'est le garde-fou de publication, et il joue ici comme
   // partout ailleurs — un dossier de fichiers ne dit pas à quel document ils appartiennent.
   const borne = borneDuVivier(options.provenancesMedias ?? [], options.inventaireMedias ?? medias.map(() => ({})));
-  const corroboration = corroborationDesLignes(lignes, {
-    ...(options.verifieParUnHumain === undefined ? {} : { preuveHumaine: options.verifieParUnHumain }),
-  });
+  // Une vérification humaine porte sur **les liens qu'elle a vus**, jamais sur le document.
+  //
+  // Cette voie produit une lecture neuve, que personne n'a jamais vue. Lui laisser emprunter la
+  // vérification d'une lecture antérieure, c'est blanchir n'importe quelle lecture future du même
+  // document par une vérification faite une fois sur une autre.
+  //
+  // Mesuré le 30 octobre 2026, et c'est pour cela que ce verrou existe : sur le seul document du
+  // corpus dont les liens sont vérifiés à l'oreille, cette voie a proposé 40 liens, **tous faux**,
+  // et les a publiés en héritant de cette vérification. La page porte deux numérotations côte à
+  // côte — celle des éléments et la pastille des pistes — et la voie a élu la première.
+  //
+  // Elle doit donc gagner ses deux signaux elle-même. Un œil humain a sa place ici, mais sur
+  // `appariements[].statut`, lien par lien, et non sur le document entier.
+  const corroboration = corroborationDesLignes(lignes, {});
   dire(
     `corroboration : ${corroboration.signaux.length} signal/signaux [${corroboration.signaux.join(", ")}]` +
       `${corroboration.preuveHumaine ? ", vérification humaine enregistrée" : ""} — ${corroboration.pourquoi}`,

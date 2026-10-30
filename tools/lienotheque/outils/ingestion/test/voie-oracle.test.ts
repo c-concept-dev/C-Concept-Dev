@@ -82,7 +82,6 @@ describe("un document sans manière de lire (OUT-10)", () => {
     const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
       inventaireMedias: inventaire,
       provenancesMedias: ["lot:epreuve"],
-      verifieParUnHumain: true,
     });
 
     expect(rejeu.resultat.lignes.length, "huit marques, huit lignes").toBe(8);
@@ -111,7 +110,6 @@ describe("un document sans manière de lire (OUT-10)", () => {
       // Un inventaire sans provenance : rien ne dit que ces pistes appartiennent à ce document.
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         inventaireMedias: [{ nom: "a.mp3", empreinte: "a".repeat(64) }],
-        verifieParUnHumain: true,
       });
       expect(rejeu.association.abstention?.raison).toBe("vivier_non_borne");
       expect(rejeu.association.appariements).toEqual([]);
@@ -146,11 +144,37 @@ describe("un document sans manière de lire (OUT-10)", () => {
           provenances: ["lot:epreuve"],
         })),
         provenancesMedias: ["lot:epreuve"],
-        verifieParUnHumain: true,
       });
 
       expect(rejeu.association.appariements, "aucun lien tiré d'une forme qui ne numérote pas").toEqual([]);
       expect(rejeu.journal.join(" ")).toMatch(/ne porte une numérotation/);
+    },
+  );
+
+  siTesseract(
+    "ne publie pas sur une seule lecture, quelle que soit la confiance (REC-02, CDC §0 bis)",
+    { timeout: 180_000 },
+    async () => {
+      // Huit marques nettes, lues sans hésiter, et des noms qui ne portent que le rang : une
+      // seule façon de lire. Aucun réglage ne doit permettre de publier cela — mesuré le 30
+      // octobre 2026, c'est ainsi que 40 liens tous faux ont été publiés sur un document réel,
+      // en empruntant la vérification d'une lecture antérieure que personne n'avait refaite.
+      const pages = [0, 1, 2, 3].map((rang) =>
+        [marque(70, 620, rang * 2 + 1), marque(70, 320, rang * 2 + 2), prose(760)].join("\n"),
+      );
+      const pdf = pdfDePages("une-seule-lecture.pdf", pages);
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
+        inventaireMedias: Array.from({ length: 8 }, (_, place) => ({
+          nom: `${String(place + 1).padStart(2, "0")}.mp3`,
+          empreinte: `${place}`.repeat(64).slice(0, 64),
+          provenances: ["lot:epreuve"],
+        })),
+        provenancesMedias: ["lot:epreuve"],
+      });
+
+      expect(rejeu.resultat.lignes.length, "les lectures existent").toBe(8);
+      expect(rejeu.association.abstention?.raison).toBe("corroboration_insuffisante");
+      expect(rejeu.association.appariements, "et rien n'est publié").toEqual([]);
     },
   );
 
