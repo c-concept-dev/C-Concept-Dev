@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { LigneInterpretee } from "@lienotheque/contrats";
 import {
   associer,
+  demandeDeLaRecette,
   borneDuVivier,
   chargerRecette,
   corroborationDesLignes,
@@ -91,14 +92,14 @@ describe("ce qu'un nom de fichier laisse deviner (REC-05)", () => {
 describe("supports multiples (A3)", () => {
   it("la piste 3 du disque 2 n'est pas la piste 3 du disque 1", () => {
     const medias = [media(3, "disque1.mp3"), { ...media(3, "disque2.mp3"), disque: 2 }];
-    const association = associer([ligne(1, 3, 1, 1), ligne(2, 3, 1, 2)], medias, RECETTE);
+    const association = associer([ligne(1, 3, 1, 1), ligne(2, 3, 1, 2)], medias, demandeDeLaRecette(RECETTE));
     expect(association.appariements[0]?.media?.nom).toBe("disque1.mp3");
     expect(association.appariements[1]?.media?.nom).toBe("disque2.mp3");
     expect(association.orphelins).toEqual([]);
   });
 
   it("un élément d'un support dont on n'a pas le média reste sans média", () => {
-    const association = associer([ligne(1, 3, 1, 2)], [media(3, "disque1.mp3")], RECETTE);
+    const association = associer([ligne(1, 3, 1, 2)], [media(3, "disque1.mp3")], demandeDeLaRecette(RECETTE));
     expect(association.appariements[0]?.media).toBeUndefined();
     expect(association.orphelins, "le média du disque 1 n'est réclamé par personne").toEqual([3]);
     expect(association.manquants).toEqual([3]);
@@ -107,48 +108,48 @@ describe("supports multiples (A3)", () => {
 
 describe("association des médias (OUT-10)", () => {
   it("relie chaque élément au média qui porte sa piste", () => {
-    const association = associer([ligne(1, 1), ligne(2, 2)], [media(1, "Track 01.mp3"), media(2, "Track 02.mp3")], RECETTE);
+    const association = associer([ligne(1, 1), ligne(2, 2)], [media(1, "Track 01.mp3"), media(2, "Track 02.mp3")], demandeDeLaRecette(RECETTE));
     expect(association.appariements.map((a) => a.media?.nom)).toEqual(["Track 01.mp3", "Track 02.mp3"]);
     expect(association.appariements.every((a) => a.statut === "auto")).toBe(true);
   });
 
   it("ne fabrique aucune position : faute de segment vérifié, la paire est inconnue (ANC-03)", () => {
-    const association = associer([ligne(1, 1)], [media(1, "Track 01.mp3", 180)], RECETTE);
+    const association = associer([ligne(1, 1)], [media(1, "Track 01.mp3", 180)], demandeDeLaRecette(RECETTE));
     expect(association.appariements[0]?.segment).toBe("inconnu");
   });
 
   it("signale les médias qu'aucun élément ne réclame", () => {
-    const association = associer([ligne(1, 1)], [media(1, "a.mp3"), media(7, "b.mp3"), media(5, "c.mp3")], RECETTE);
+    const association = associer([ligne(1, 1)], [media(1, "a.mp3"), media(7, "b.mp3"), media(5, "c.mp3")], demandeDeLaRecette(RECETTE));
     expect(association.orphelins).toEqual([5, 7]);
   });
 
   it("signale les pistes que la page réclame et qu'aucun média ne porte", () => {
-    const association = associer([ligne(1, 1), ligne(2, 9)], [media(1, "a.mp3")], RECETTE);
+    const association = associer([ligne(1, 1), ligne(2, 9)], [media(1, "a.mp3")], demandeDeLaRecette(RECETTE));
     expect(association.manquants).toEqual([9]);
     expect(association.appariements[1]?.statut).toBe("a_verifier");
   });
 
   it("met à vérifier ce qui passe sous le seuil de la recette", () => {
-    const association = associer([ligne(1, 1, 0.4)], [media(1, "a.mp3")], RECETTE);
+    const association = associer([ligne(1, 1, 0.4)], [media(1, "a.mp3")], demandeDeLaRecette(RECETTE));
     expect(RECETTE.validation.seuil_confiance).toBe(0.6);
     expect(association.appariements[0]?.statut).toBe("a_verifier");
   });
 
   it("plusieurs éléments peuvent pointer la même piste", () => {
-    const association = associer([ligne(1, 1), ligne(2, 1)], [media(1, "a.mp3")], RECETTE);
+    const association = associer([ligne(1, 1), ligne(2, 1)], [media(1, "a.mp3")], demandeDeLaRecette(RECETTE));
     expect(association.appariements.map((a) => a.media?.nom)).toEqual(["a.mp3", "a.mp3"]);
     expect(association.orphelins).toEqual([]);
   });
 
   it("à deux médias pour une piste, choisit par le nom : deux exécutions, un même résultat", () => {
     const medias = [media(1, "b.mp3"), media(1, "a.mp3")];
-    expect(associer([ligne(1, 1)], medias, RECETTE).appariements[0]?.media?.nom).toBe("a.mp3");
-    expect(associer([ligne(1, 1)], [...medias].reverse(), RECETTE).appariements[0]?.media?.nom).toBe("a.mp3");
+    expect(associer([ligne(1, 1)], medias, demandeDeLaRecette(RECETTE)).appariements[0]?.media?.nom).toBe("a.mp3");
+    expect(associer([ligne(1, 1)], [...medias].reverse(), demandeDeLaRecette(RECETTE)).appariements[0]?.media?.nom).toBe("a.mp3");
   });
 
   it("un nom de fichier ne contredit jamais une piste lue sur la page (REC-05)", () => {
     // La page a lu la piste 2 ; le seul média disponible s'appelle « Track 99 ».
-    const association = associer([ligne(1, 2)], [media(99, "Track 99.mp3")], RECETTE);
+    const association = associer([ligne(1, 2)], [media(99, "Track 99.mp3")], demandeDeLaRecette(RECETTE));
     expect(association.appariements[0]?.media).toBeUndefined();
     expect(association.appariements[0]?.ligne.piste, "la page garde raison").toBe(2);
     expect(association.manquants).toEqual([2]);
@@ -166,7 +167,7 @@ describe("abstention avant toute association automatique (REC-05, OUT-10)", () =
         { ...media(54, "1-54 exemple - 488 Pg.144.mp3"), disque: 1, element: 488, page: 144 },
         { ...media(55, "1-55 exemple - 500 Pg.145.mp3"), disque: 1, element: 500, page: 145 },
       ],
-      RECETTE_AVEC_INDICES,
+      demandeDeLaRecette(RECETTE_AVEC_INDICES),
       {
         mediasDisponibles: 2,
         borne: borneDe([media(54, "a"), media(55, "b")]),
@@ -187,7 +188,7 @@ describe("abstention avant toute association automatique (REC-05, OUT-10)", () =
   });
 
   it("s'abstient sur tout le lot quand des médias présents sont tous illisibles par la manière choisie", () => {
-    const qualification = qualifierAssociation([ligne(10, 1), ligne(11, 2), ligne(12, 3)], [], RECETTE_AVEC_INDICES, {
+    const qualification = qualifierAssociation([ligne(10, 1), ligne(11, 2), ligne(12, 3)], [], demandeDeLaRecette(RECETTE_AVEC_INDICES), {
       mediasDisponibles: 37,
       borne: borneDe([]),
       corroboration: corroborationDesLignes([], { preuveHumaine: true }),
@@ -206,12 +207,12 @@ describe("abstention avant toute association automatique (REC-05, OUT-10)", () =
       borne: borneDe([media(1, "Track 01.mp3")]),
       corroboration: corroborationDesLignes([ligne(1, 1)], { preuveHumaine: true }),
     };
-    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, avecOeil);
+    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], demandeDeLaRecette(RECETTE), avecOeil);
     expect(qualification.abstention).toBeUndefined();
     expect(qualification.appariements[0]?.statut).toBe("auto");
 
     const sansOeil = { ...avecOeil, corroboration: corroborationDesLignes([ligne(1, 1)]) };
-    const sansPersonne = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, sansOeil);
+    const sansPersonne = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], demandeDeLaRecette(RECETTE), sansOeil);
     expect(sansPersonne.abstention?.raison).toBe("corroboration_insuffisante");
   });
 });
@@ -280,7 +281,7 @@ describe("publier demande deux lectures, ou une lecture et un œil (OUT-10)", ()
 
   it("s'abstient au lieu de publier, et dit ce qui manquait", () => {
     const decretees = [litPar(1, "numero_element"), litPar(2, "numero_element")];
-    const association = qualifierAssociation(decretees, deuxMedias, RECETTE, {
+    const association = qualifierAssociation(decretees, deuxMedias, demandeDeLaRecette(RECETTE), {
       borne: borneDe(deuxMedias),
       corroboration: corroborationDesLignes(decretees),
     });
@@ -291,7 +292,7 @@ describe("publier demande deux lectures, ou une lecture et un œil (OUT-10)", ()
 
   it("publie quand la corroboration tient", () => {
     const lues = [litPar(1, "pastille"), litPar(2, "corroboration_media")];
-    const association = qualifierAssociation(lues, deuxMedias, RECETTE, {
+    const association = qualifierAssociation(lues, deuxMedias, demandeDeLaRecette(RECETTE), {
       borne: borneDe(deuxMedias),
       corroboration: corroborationDesLignes(lues),
     });
@@ -332,7 +333,7 @@ describe("le vivier présenté doit être borné au document avant toute publica
   it("s'abstient sur tout le lot quand le vivier n'est pas borné, même si chaque lien concorde", () => {
     // Tout est par ailleurs parfait : la page lit la piste 1, et un média porte la piste 1. Seul
     // le bornage manque — et cela suffit à ne rien publier.
-    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, {
+    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], demandeDeLaRecette(RECETTE), {
       mediasDisponibles: 1,
       borne: borneDuVivier(["depot:a"], [{ provenances: ["depot:b"] }]),
       // La corroboration tient : c'est bien le bornage, et lui seul, qui fait tout arrêter.
@@ -343,7 +344,7 @@ describe("le vivier présenté doit être borné au document avant toute publica
   });
 
   it("ne publie rien non plus quand personne n'a dit sur quoi le vivier est borné", () => {
-    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], RECETTE, {
+    const qualification = qualifierAssociation([ligne(1, 1)], [media(1, "Track 01.mp3")], demandeDeLaRecette(RECETTE), {
       mediasDisponibles: 1,
       borne: borneDuVivier([], [{}]),
       corroboration: corroborationDesLignes([ligne(1, 1)], { preuveHumaine: true }),
@@ -354,10 +355,10 @@ describe("le vivier présenté doit être borné au document avant toute publica
 
 describe("durée reliée", () => {
   it("compte chaque piste une fois, même citée plusieurs fois", () => {
-    expect(dureeReliee(associer([ligne(1, 1), ligne(2, 1), ligne(3, 2)], [media(1, "a.mp3", 100), media(2, "b.mp3", 50)], RECETTE))).toBe(150);
+    expect(dureeReliee(associer([ligne(1, 1), ligne(2, 1), ligne(3, 2)], [media(1, "a.mp3", 100), media(2, "b.mp3", 50)], demandeDeLaRecette(RECETTE)))).toBe(150);
   });
 
   it("ne rend rien plutôt qu'une somme incomplète", () => {
-    expect(dureeReliee(associer([ligne(1, 1)], [media(1, "a.mp3")], RECETTE))).toBeUndefined();
+    expect(dureeReliee(associer([ligne(1, 1)], [media(1, "a.mp3")], demandeDeLaRecette(RECETTE)))).toBeUndefined();
   });
 });

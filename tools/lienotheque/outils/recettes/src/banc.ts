@@ -18,6 +18,7 @@ import { decoderJpeg, enGris, type ImageGrise } from "@lienotheque/images";
 import {
   borneDuVivier,
   corroborationDesLignes,
+  demandeDeLaRecette,
   lireNomMedia,
   qualifierAssociation,
   type Association,
@@ -745,7 +746,7 @@ export async function rejouer(pdf: string, dossierMedias: string, recette: Recet
   });
   return {
     resultat,
-    association: qualifierAssociation(resultat.lignes, medias, recette, {
+    association: qualifierAssociation(resultat.lignes, medias, demandeDeLaRecette(recette), {
       borne,
       corroboration,
       ...(mediasDisponibles === undefined ? {} : { mediasDisponibles }),

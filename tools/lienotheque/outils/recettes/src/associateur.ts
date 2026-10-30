@@ -115,12 +115,37 @@ export function pisteDuNom(nom: string): number | undefined {
  *  disque 1. */
 const clef = (disque: number | undefined, piste: number): string => `${disque ?? 1}/${piste}`;
 
-export function associer(lignes: readonly LigneInterpretee[], medias: readonly Media[], recette: Recette): Association {
+/** Ce dont l'association a besoin, et rien de plus.
+ *
+ *  Elle demandait une manière de lire entière alors qu'elle n'en lisait que deux valeurs. Cela
+ *  fermait la porte à tout appelant qui n'en a pas — un moteur qui trouve ses repères lui-même,
+ *  par exemple. Lui fabriquer une manière de lire de façade serait pire que de changer ceci :
+ *  la façade déclarerait un seuil et un motif que rien n'a établi, et le moteur hériterait
+ *  d'affirmations qu'il n'a pas constatées. */
+export type CeQueLAssociationDemande = {
+  /** En deçà, une ligne est douteuse plutôt qu'appariée. */
+  readonly seuilConfiance: number;
+  /** Le motif que les noms de média suivent, quand une manière de lire en déclare un. Un moteur
+   *  qui lit les noms sans motif déclaré n'en a pas, et c'est une absence, pas un défaut. */
+  readonly motifNom?: string | undefined;
+};
+
+/** Ce que l'association demande, tiré d'une manière de lire. */
+export const demandeDeLaRecette = (recette: Recette): CeQueLAssociationDemande => ({
+  seuilConfiance: recette.validation.seuil_confiance,
+  ...(recette.audio?.motif_nom === undefined ? {} : { motifNom: recette.audio.motif_nom }),
+});
+
+export function associer(
+  lignes: readonly LigneInterpretee[],
+  medias: readonly Media[],
+  attendu: CeQueLAssociationDemande,
+): Association {
   const parPiste = new Map<string, Media>();
   for (const media of [...medias].sort((a, b) => a.nom.localeCompare(b.nom, "fr")))
     if (!parPiste.has(clef(media.disque, media.piste))) parPiste.set(clef(media.disque, media.piste), media);
 
-  const seuil = recette.validation.seuil_confiance;
+  const seuil = attendu.seuilConfiance;
   // Un élément sans piste n'est pas un appariement douteux : il n'y a rien à apparier.
   const avecPiste = lignes.filter((ligne): ligne is LigneInterpretee & { piste: number } => ligne.piste !== undefined);
   const appariements: Appariement[] = avecPiste.map((ligne) => {
@@ -284,7 +309,7 @@ export function borneDuVivier(
 export function qualifierAssociation(
   lignes: readonly LigneInterpretee[],
   medias: readonly Media[],
-  recette: Recette,
+  attendu: CeQueLAssociationDemande,
   options: { readonly borne: BorneDuVivier; readonly corroboration: Corroboration; readonly mediasDisponibles?: number },
 ): Association {
   // Avant toute autre question, et avant même de regarder si cette manière de lire s'applique :
@@ -329,8 +354,8 @@ export function qualifierAssociation(
     };
 
 
-  const association = associer(lignes, medias, recette);
-  const motif = recette.audio?.motif_nom;
+  const association = associer(lignes, medias, attendu);
+  const motif = attendu.motifNom;
   if (motif === undefined) return association;
 
   const attendElement = motif.includes("{element}");
