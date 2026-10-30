@@ -13,6 +13,34 @@
   border-radius: var(--ln-radius);
 }
 
+/* Un trait indéterminé ne doit jamais ressembler à un trait plein.
+ *
+ * Sans largeur, un div de bloc remplit sa piste : mesuré au navigateur le 30 octobre 2026, le
+ * trait « indéterminé » faisait 420 px sur une piste de 420 — plus long qu'un vrai 50 %, qui en
+ * faisait 210. L'écran montrait donc une barre d'apparence complète sous la mention « Progression
+ * non mesurable », soit l'apparence trompeuse qu'on voulait retirer, privée du chiffre qu'on
+ * pouvait au moins mettre en doute.
+ *
+ * Un segment court qui va et vient dit la seule chose vraie : ça travaille, on ne sait pas où ça
+ * en est. Sous « mouvement réduit », `base.css` coupe l'animation et le segment reste court et à
+ * gauche — ni vide, ni plein. */
+.ln-progression__trait--indetermine {
+  width: 30%;
+  animation: ln-va-et-vient 1.4s ease-in-out infinite;
+}
+
+@keyframes ln-va-et-vient {
+  from {
+    margin-inline-start: 0;
+  }
+  50% {
+    margin-inline-start: 70%;
+  }
+  to {
+    margin-inline-start: 0;
+  }
+}
+
 .ln-progression__legende {
   margin: 0;
 }

@@ -31,9 +31,20 @@ const ICONES: Readonly<Record<TypeDeContenu, NomIcone>> = {
  *
  *  L'unité comptée vient du point de reprise, donc la phrase suit ce que le moteur lit vraiment :
  *  « Lecture des pages » quand il lit des pages, « Lecture des pistes » quand il lit des pistes. */
+function analyseEnCours(travail: Travail): boolean {
+  const total = travail.sujet?.total;
+  return (
+    (travail.etat === "en_cours" || travail.etat === "verrouille") &&
+    total !== undefined &&
+    total > 0 &&
+    (travail.pointReprise?.valeur ?? 0) >= total
+  );
+}
+
 export function ouEnEst(travail: Travail, mots: MotsBibliotheque): { readonly phrase: string; readonly icone: NomIcone } {
   if (travail.etat === "termine" && travail.erreur !== undefined)
     return { phrase: "Terminé avec erreur", icone: "alerte" };
+  if (analyseEnCours(travail)) return { phrase: "Analyse et association", icone: "document" };
   const unite = travail.pointReprise?.unite;
   const lu = unite === "piste" ? mots.piste.plusieurs : unite === "image" ? "images" : mots.page.plusieurs;
   switch (travail.etat) {
@@ -320,7 +331,8 @@ export function Depot({
         <ul className="ln-file" aria-label="Fichiers déposés">
           {travaux.map((travail) => {
             const etat = ouEnEst(travail, description.mots);
-            const sur = compte(travail);
+            const apresLecture = analyseEnCours(travail);
+            const sur = apresLecture ? undefined : compte(travail);
             const enPanne = travail.erreur !== undefined;
             return (
               <li key={travail.id} className={`ln-ligne${enPanne ? " ln-ligne--alerte" : ""}`}>
@@ -378,6 +390,7 @@ export function Depot({
                   <Progression
                     valeur={travail.progression}
                     etiquette={`Avancement de ${travail.sujet?.nom ?? "ce travail"}`}
+                    indetermine={apresLecture}
                     {...(sur === undefined ? {} : { complement: sur })}
                   />
                 </div>

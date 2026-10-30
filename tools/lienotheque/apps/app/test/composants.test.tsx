@@ -214,6 +214,26 @@ describe("progression (JOB-03, UX-07 : pourcentage écrit et liseré)", () => {
     expect(screen.getByText("60 % · environ 4 min")).toBeInTheDocument();
   });
 
+  /// Un trait indéterminé ne ressemble jamais à un trait plein (UX-07).
+  ///
+  /// Sans largeur, un div de bloc remplit sa piste : mesuré au navigateur le 30 octobre 2026, le
+  /// trait « indéterminé » faisait 420 px sur une piste de 420, soit plus long qu'un vrai 50 %.
+  /// Le jsdom ne met rien en page, donc on éprouve ici ce qui décide de cette largeur — la classe
+  /// qui la pose — et non le pixel.
+  it("marque un trait indéterminé au lieu de le laisser remplir sa piste (UX-07)", () => {
+    const { container, rerender } = render(<Progression valeur={1} etiquette="Lecture" indetermine />);
+    const trait = container.querySelector(".ln-progression__trait");
+    expect(trait).toHaveClass("ln-progression__trait--indetermine");
+    expect(trait).not.toHaveAttribute("style");
+    expect(screen.getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
+    expect(screen.getByText("Progression non mesurable")).toBeInTheDocument();
+
+    rerender(<Progression valeur={1} etiquette="Lecture" />);
+    const mesure = container.querySelector(".ln-progression__trait");
+    expect(mesure).not.toHaveClass("ln-progression__trait--indetermine");
+    expect(mesure).toHaveStyle({ width: "100%" });
+  });
+
   it("borne les valeurs hors plage plutôt que de les afficher", () => {
     const { rerender } = render(<Progression valeur={-1} etiquette="Lecture" />);
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");

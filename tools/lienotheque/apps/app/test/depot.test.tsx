@@ -73,6 +73,22 @@ describe("ce que la file montre (maquette 3)", () => {
     expect(screen.getByText("68 % · 194 / 286")).toBeInTheDocument();
   });
 
+  it("UX-03 — quitte la lecture à 100 % pendant l'analyse et l'association", () => {
+    poser({
+      travaux: [
+        travail(1, {
+          progression: 1,
+          pointReprise: { unite: "page", valeur: 286 },
+        }),
+      ],
+    });
+
+    expect(screen.getByText("Analyse et association")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Avancement de document-1.pdf" })).not.toHaveAttribute("aria-valuenow");
+    expect(screen.getByText("Progression non mesurable")).toBeInTheDocument();
+    expect(screen.queryByText(/100 %/)).not.toBeInTheDocument();
+  });
+
   it("n'écrit pas de taille tant qu'elle est inconnue, plutôt que d'en inventer une", () => {
     poser({ travaux: [travail(1, { sujet: { nom: "document-1.pdf", contenu: "documents" }, pointReprise: undefined, progression: 0 })] });
     expect(screen.getByText("Taille encore inconnue")).toBeInTheDocument();
