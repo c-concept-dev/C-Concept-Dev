@@ -264,25 +264,39 @@ export function allureDeLaSuite(lectures: readonly (number | undefined)[]): Allu
     lues: lues.length,
     distinctes,
     variete: distinctes / lues.length,
-    // Une seule lecture n'avance ni ne recule : elle ne prouve rien, et vaut donc zéro.
-    avance: couples === 0 ? 0 : sansRecul / couples,
+    // L'avance est comptée sur ses couples **plus un**, et non sur ses couples.
+    //
+    // « Ne recule pas » est une preuve d'autant plus forte qu'il y avait d'occasions de reculer.
+    // Un taux sur les seuls couples jette ce compte : avec deux lectures, un unique couple, « ne
+    // recule pas » vaut 1,00 et ne montre rien — c'est un tirage à pile ou face. Le plancher de
+    // la numérotation devenait alors atteignable par pure arithmétique, et une ligne plate du
+    // bord d'une page, lue 3 fois sur 6, a été élue sur une famille de l'éventail d'essai.
+    //
+    // Le cas d'une lecture unique n'a plus besoin d'être écrit : zéro couple donne 0 / 1 = 0,
+    // soit exactement « elle ne prouve rien, et vaut donc zéro ». Ce qui était une exception est
+    // devenu une conséquence — et c'est ce qui dit que la forme est juste, non qu'elle est réglée.
+    avance: sansRecul / (couples + 1),
   };
 }
 
 /** Ce qu'il faut atteindre, sur les trois mesures à la fois, pour tenir un endroit pour une
  *  numérotation. Plus souvent que pas, sur chacune — c'est tout ce que ce nombre dit.
  *
- *  Mesuré le 30 octobre 2026 sur deux documents de l'éventail d'essai, 69 endroits proposés par la
- *  régularité des formes, douze apparitions lues à chacun :
+ *  Mesuré le 30 octobre 2026 sur **1 606 endroits** proposés par la régularité des formes, dix-huit
+ *  documents de l'éventail d'essai :
  *
  *  | endroit | part lue | variété | avance | produit |
  *  |---|---|---|---|---|
- *  | la marque qui désigne vraiment les enregistrements | 1,00 | 1,00 | 0,91 | **0,91** |
- *  | une forme de notation lue « 7 » partout | 0,75 | 0,22 | 1,00 | 0,17 |
- *  | une autre, lue « 7 » presque partout | 0,92 | 0,27 | 0,70 | 0,17 |
- *  | un endroit qui ne se lit que trois fois sur douze | 0,25 | 1,00 | — | < 0,20 |
+ *  | la marque qui désigne vraiment les enregistrements | 1,00 | 1,00 | 0,83 | **0,83** |
+ *  | une marque tenue sur un autre document | 1,00 | 1,00 | 0,64 | 0,64 |
+ *  | une forme de notation lue « 7 » partout | 0,75 | 0,22 | 0,89 | 0,15 |
+ *  | une autre, lue « 7 » presque partout | 0,92 | 0,27 | 0,64 | 0,16 |
+ *  | une ligne plate du bord de la page, lue 3 fois sur 6 | 0,50 | 1,00 | 0,67 | 0,33 |
  *
- *  Le seuil tombe au milieu d'un vide : rien entre 0,20 et 0,91. */
+ *  Sur ces 1 606 endroits, **quatre** atteignent le seuil. Le vide au-dessous de lui s'étend
+ *  jusqu'à 0,43 ; au-dessus, un endroit s'y pose exactement — 0,500 sur un document dont les
+ *  douze lectures sont toutes distinctes mais dont cinq couples sur onze reculent. Celui-là n'est
+ *  pas tranché par ce nombre, et il ne faut pas faire croire qu'il l'est. */
 export const NUMEROTATION_PROBABLE = 0.5;
 
 /** Dans quelle mesure une suite de lectures se comporte comme une numérotation (REC-02, OUT-10).
@@ -297,8 +311,8 @@ export const NUMEROTATION_PROBABLE = 0.5;
  *    l'éventail, elle a élu une tête de note avec 699 apparitions là où le vivier n'a que 99
  *    enregistrements.
  *  - **L'avance** ne sépare rien seule : une forme lue « 7 » partout ne recule jamais, et vaut
- *    donc 1,00 — mieux que la vraie marque, qui vaut 0,91 parce que sa première apparition est
- *    sur une page de garde.
+ *    donc presque son plafond — mieux que la vraie marque, qui perd un point parce que sa
+ *    première apparition est sur une page de garde.
  *  - **La variété** sépare bien, mais un endroit qui ne se lit que trois fois sur douze rend
  *    trois valeurs différentes et vaut 1,00 sans rien désigner.
  *

@@ -168,13 +168,18 @@ describe("l'allure d'une suite de lectures (REC-02, OUT-10)", () => {
     // La suite relevée sur le témoin, à l'endroit qui porte vraiment la marque.
     const allure = allureDeLaSuite([5, 3, 15, 23, 29, 43, 52, 58, 64, 72, 78, 85]);
     expect(allure.variete).toBe(1);
-    expect(allure.avance).toBeCloseTo(10 / 11, 2);
+    expect(allure.avance).toBeCloseTo(10 / 12, 2);
   });
 
   it("ne tient pas pour une numérotation un même chiffre lu partout", () => {
     // Ce que la reconnaissance rend dans une forme de notation : toujours la même valeur.
     const allure = allureDeLaSuite([1, 7, 7, 7, undefined, 7, undefined, 7, 7, 7, 7, undefined]);
-    expect(allure.avance, "elle ne recule jamais, et pourtant elle ne numérote rien").toBe(1);
+    // Comparée à une suite qui monte vraiment, aux mêmes endroits lus : même avance, donc
+    // l'avance ne les sépare pas. C'est la variété qui le fait, et elle seule.
+    const quiMonte = allureDeLaSuite([1, 2, 3, 4, undefined, 5, undefined, 6, 7, 8, 9, undefined]);
+    expect(allure.avance, "elle ne recule jamais, et pourtant elle ne numérote rien").toBe(
+      quiMonte.avance,
+    );
     expect(allure.variete).toBeLessThan(0.3);
   });
 
@@ -185,7 +190,7 @@ describe("l'allure d'une suite de lectures (REC-02, OUT-10)", () => {
   });
 
   it("compte un numéro qui court sur deux pages comme une avance, non un recul", () => {
-    expect(allureDeLaSuite([4, 5, 5, 6, 7]).avance).toBe(1);
+    expect(allureDeLaSuite([4, 5, 5, 6, 7]).avance).toBe(allureDeLaSuite([4, 5, 6, 7, 8]).avance);
   });
 
   it("ne conclut rien d'une seule lecture", () => {
@@ -236,5 +241,28 @@ describe("reconnaître une numérotation plutôt qu'une forme (REC-02, OUT-10)",
 
   it("ne rend rien quand rien n'a été regardé", () => {
     expect(partDeNumerotation(allureDeLaSuite([]), 0)).toBe(0);
+  });
+});
+
+describe("l'avance est comptée sur ses occasions de reculer (REC-02, OUT-10)", () => {
+  it("ne laisse pas un unique couple valoir une régularité entière (REC-02)", () => {
+    // Deux lectures, un seul couple : « ne recule pas » est un tirage à pile ou face.
+    expect(allureDeLaSuite([3, 8]).avance).toBe(0.5);
+    // Onze couples sans recul : la même affirmation, mais onze fois éprouvée.
+    expect(allureDeLaSuite([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).avance).toBeCloseTo(11 / 12, 3);
+  });
+
+  it("tient une lecture unique pour une conséquence, non pour un cas à part (REC-02)", () => {
+    // Zéro couple donne 0 / 1 : rien à écrire pour l'obtenir.
+    expect(allureDeLaSuite([7]).avance).toBe(0);
+    expect(allureDeLaSuite([7, undefined, undefined]).avance).toBe(0);
+  });
+
+  it("met hors de portée du plancher un endroit lu trois fois sur six (REC-02)", () => {
+    // La ligne plate du bord de la page, relevée le 30 octobre 2026 : trois lectures distinctes
+    // qui ne reculent pas, sur six apparitions regardées. Elle atteignait exactement 0,50.
+    const allure = allureDeLaSuite([2, undefined, 5, undefined, 9, undefined]);
+    expect(allure.avance).toBeCloseTo(2 / 3, 3);
+    expect(partDeNumerotation(allure, 6)).toBeLessThan(NUMEROTATION_PROBABLE);
   });
 });
