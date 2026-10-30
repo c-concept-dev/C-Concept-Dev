@@ -45,9 +45,16 @@ export type Lot = {
   readonly provenancesMedias?: readonly string[] | undefined;
   /** Quelqu'un a-t-il vérifié ce document, et l'a-t-on enregistré ?
    *
-   *  C'est la deuxième voie de la règle de corroboration : un seul type de lecture ne publie que
-   *  si une vérification humaine le soutient. L'hôte le sait — il tient le classement — et la
-   *  chaîne ne peut pas le deviner. Absent, il vaut « non », et l'abstention est la réponse. */
+   *  L'hôte le sait — il tient le classement — et la chaîne ne peut pas le deviner.
+   *
+   *  **Il ne va plus à la seconde voie, et c'est voulu.** Une vérification enregistrée sur un
+   *  document porte sur les liens que quelqu'un a vus ; la seconde voie produit une lecture neuve
+   *  que personne n'a vue. Le 30 octobre 2026, lui passer ce drapeau a publié 40 liens tous faux
+   *  sur le document témoin. Elle gagne ses deux signaux elle-même, ou s'abstient.
+   *
+   *  Il reste ici parce que l'hôte l'envoie et qu'un champ qu'on jette en silence vaut mieux
+   *  qu'un hôte qui mentirait sur ce qu'il sait. Le jour où un œil humain confirmera des liens
+   *  un par un, c'est `appariements[].statut` qui le portera, pas ce booléen. */
   readonly verifieParUnHumain?: boolean | undefined;
   /** Manière de lire qui dit comment lire ce document.
    *
@@ -178,7 +185,6 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
       ? await rejouerParOracle(lot.pdf, lot.medias, {
           ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
           ...(lot.provenancesMedias === undefined ? {} : { provenancesMedias: lot.provenancesMedias }),
-          ...(lot.verifieParUnHumain === undefined ? {} : { verifieParUnHumain: lot.verifieParUnHumain }),
           ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
           ...(lot.surPhase === undefined ? {} : { surPhase: lot.surPhase }),
           ...(lot.pages === undefined ? {} : { pages: lot.pages }),
