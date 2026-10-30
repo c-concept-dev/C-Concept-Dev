@@ -143,6 +143,66 @@ describe("une association en abstention", () => {
       nombre: entree.association.appariements.length,
       mot: "propositions non vérifiées",
     });
+    expect(vue.douteux.flatMap((doute) => doute.details)).toContain(
+      `${entree.association.appariements.length} propositions non vérifiées, appuyées par une seule lecture`,
+    );
+    expect(vue.douteux.flatMap((doute) => doute.details).join(" ")).not.toMatch(/liens? retenus?/i);
+  });
+
+  /// Le cas réel, que le précédent ne pouvait pas voir (UX-03).
+  ///
+  /// L'épreuve ci-dessus posait `combien` **égal** au nombre d'appariements : les deux nombres
+  /// disaient forcément la même chose, et leur désaccord restait invisible. Or quand la
+  /// corroboration manque, la confrontation ne garde aucun appariement — mesuré le 30 octobre
+  /// 2026 sur quatre documents réels de la bibliothèque d'essai : `appariements` vide et
+  /// `abstention.combien` à 40, 15, 14 et 10. L'écran annonçait alors « aucune proposition » dans
+  /// son compteur et « 40 » dans sa ligne de détail, au même instant, pour la même chose.
+  it("UX-03 — dit le même nombre partout quand la confrontation n’a gardé aucun appariement", () => {
+    const vue = construireVue(
+      entreeMinimale({
+        association: {
+          appariements: [],
+          orphelins: [],
+          manquants: [],
+          abstention: {
+            raison: "corroboration_insuffisante",
+            combien: 40,
+            pourquoi: "Une seule façon de savoir appuie ces liens (pastille), et personne n’a encore vérifié ce conteneur.",
+          },
+        },
+      }),
+    );
+
+    expect(vue.compteurs).toContainEqual({ nombre: 0, mot: "liens" });
+    expect(vue.compteurs).toContainEqual({ nombre: 40, mot: "propositions non vérifiées" });
+    expect(vue.douteux.flatMap((doute) => doute.details)).toContain("40 propositions non vérifiées, appuyées par une seule lecture");
+  });
+
+  /// Ne jamais dire qu'aucune lecture n'appuie des liens qu'une lecture appuie (UX-03, REC-02).
+  ///
+  /// `corroboration_insuffisante` est émis par la confrontation quand **une** façon de savoir
+  /// appuie ces liens et qu'aucun œil ne les a vérifiés. L'écran écrivait pourtant « Rien n'a été
+  /// lu sur ces pages pour appuyer ces liens », et proposait « une manière de lire qui lise
+  /// vraiment ses pages » — juste au-dessus du motif du moteur, qui disait l'inverse.
+  it("UX-03 — n’annonce pas qu’aucune lecture n’appuie des liens qu’une lecture appuie", () => {
+    const vue = construireVue(
+      entreeMinimale({
+        association: {
+          appariements: [],
+          orphelins: [],
+          manquants: [],
+          abstention: { raison: "corroboration_insuffisante", combien: 40, pourquoi: "Une seule façon de savoir appuie ces liens." },
+        },
+      }),
+    );
+
+    const dit = vue.douteux
+      .flatMap((doute) => [doute.libelle ?? "", doute.proposition ?? "", ...doute.details])
+      .join(" ");
+    expect(dit).not.toMatch(/rien n’a été lu/i);
+    expect(dit).not.toMatch(/aucune lecture/i);
+    expect(dit).not.toMatch(/lise vraiment/i);
+    expect(dit).toMatch(/un seul appui|une seule lecture/i);
   });
 });
 

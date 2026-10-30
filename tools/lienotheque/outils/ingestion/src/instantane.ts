@@ -208,26 +208,36 @@ export function construireVue(entree: Entree): VueBibliotheque {
     // faire des médias présents, soit ces médias n'ont pas été prouvés appartenir au document.
     // Dans le second cas il n'y a pas d'autre manière à choisir — c'est le dépôt qu'il faut refaire.
     const nonBorne = entree.association.abstention.raison === "vivier_non_borne";
-    const sansLecture = entree.association.abstention.raison === "corroboration_insuffisante";
+    // `corroboration_insuffisante` ne veut **pas** dire que rien n'a été lu : la confrontation
+    // l'émet précisément quand *une* façon de savoir appuie ces liens et qu'aucun œil ne les a
+    // vérifiés (`confrontation.ts`). Cette branche s'appelait `sansLecture` et écrivait « Rien
+    // n'a été lu sur ces pages » juste à côté du motif du moteur, qui disait l'inverse : « Une
+    // seule façon de savoir appuie ces liens ». Mesuré le 30 octobre 2026 sur quatre documents
+    // réels de la bibliothèque d'essai.
+    const appuiUnique = entree.association.abstention.raison === "corroboration_insuffisante";
     douteux.push({
       id: identifiantDe(`${entree.id}/maniere-inadaptee`),
       nature: "information",
       etat: "maniere_inadaptee",
-      libelle: sansLecture
-        ? "Rien n’a été lu sur ces pages pour appuyer ces liens"
+      libelle: appuiUnique
+        ? "Ces liens n’ont qu’un seul appui"
         : nonBorne
           ? "Rien ne prouve à qui appartiennent ces enregistrements"
           : "Lecture non applicable",
-      proposition: sansLecture
-        ? "Vérifier ce document, ou lui donner une manière de lire qui lise vraiment ses pages"
+      proposition: appuiUnique
+        ? "Vérifier ce document, ou lui apporter un second signal indépendant"
         : nonBorne
           ? "Déposer ce document avec ses propres enregistrements"
           : "Choisir une autre manière de lire",
       motif:
         entree.association.abstention.pourquoi ??
         "aucun des médias présents n’a pu être interprété par cette manière de lire",
-      details: sansLecture
-        ? [`${combien} lien${combien > 1 ? "s" : ""} retenu${combien > 1 ? "s" : ""} sans qu’aucune lecture ne l’appuie`]
+      details: appuiUnique
+        ? [
+            `${combien} proposition${combien > 1 ? "s" : ""} non vérifiée${combien > 1 ? "s" : ""}, ${
+              combien > 1 ? "appuyées" : "appuyée"
+            } par une seule lecture`,
+          ]
         : nonBorne
           ? [`${combien} enregistrement${combien > 1 ? "s" : ""} dont l’appartenance n’est pas établie`]
           : [`${combien} média${combien > 1 ? "s" : ""} présent${combien > 1 ? "s" : ""}, aucun interprété`],
@@ -384,7 +394,18 @@ export function construireVue(entree: Entree): VueBibliotheque {
   // Une abstention peut conserver les appariements techniques pour expliquer ce qui a été lu.
   // Ils ne sont pourtant pas publiés : les compter comme « liens » transforme une hypothèse en
   // résultat acquis. On sépare donc le nombre actif du nombre proposé, jusque dans l'écran.
-  const propositionsNonVerifiees = entree.association.abstention === undefined ? 0 : entree.association.appariements.length;
+  //
+  // Mais le nombre proposé ne se lit pas toujours au même endroit, et c'est ce qui restait faux.
+  // Quand la corroboration manque, la confrontation ne garde **aucun** appariement : mesuré le
+  // 30 octobre 2026 sur quatre documents réels, `appariements` était vide et `abstention.combien`
+  // valait 40, 15, 14 et 10. Le compteur annonçait donc « aucune proposition » tandis que la
+  // ligne de détail en annonçait quarante, au même instant, pour la même chose.
+  const propositionsNonVerifiees =
+    entree.association.abstention === undefined
+      ? 0
+      : entree.association.abstention.raison === "corroboration_insuffisante"
+        ? entree.association.abstention.combien
+        : entree.association.appariements.length;
   const relies =
     entree.association.abstention === undefined
       ? entree.association.appariements.filter((appariement) => appariement.statut === "auto" && appariement.media !== undefined).length
