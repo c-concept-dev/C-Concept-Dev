@@ -281,3 +281,83 @@ lit à peine    →  · 7 · · · · 6 4 · · · ·                3 lues,  3 
 chose différente à chaque fois, et elle avance. Une forme est une forme.** Sur les douze mesures
 du document témoin, les onze imposteurs plafonnent à 25 % et la marque atteint 91 % : le seuil de
 50 % tombe au milieu d'un vide.
+
+## L'éventail entier, et les trois défauts qu'il a montrés — 30 octobre 2026
+
+Dix-sept familles passées par la seconde voie, dix-huit documents, 1 606 endroits mesurés. Aucune
+publication, et trois défauts génériques dont deux fabriquaient des liens.
+
+### Le second signal ne lisait qu'une couche texte, et le corpus n'en a aucune
+
+Mesuré : **zéro caractère de couche sur les dix-sept familles.** Elles sont toutes numérisées. Un
+signal qui ne consulte que la couche était donc du code mort en production, et le journal le disait
+dix-sept fois sans que rien ne s'en alarme.
+
+Le socle savait déjà faire : `ocrDUnePageGrise` existait dans le chemin du texte, conduites de
+points effacées comprises (FMT-04), et n'était pas partagée. La voie garde déjà ses pages en gris
+pour y chercher des formes ; elle les lui passe désormais, et **seulement pour les pages qui
+portent une marque** — ailleurs un nom retrouvé ne confirme ni ne contredit rien.
+
+### Un nombre composé est un rang quand il est en tête du nom
+
+La règle gardait les nombres composés au motif qu'ils « ne se confondent pas avec un rang ».
+Relevé sur deux lots de 92 et 73 enregistrements : ils se nomment « 1-01 », « 1-02 », « 2-01 » —
+un support et une place. **165 noms passaient pour distinctifs en ne portant que leur propre
+position**, et il suffisait qu'une page imprime « 1.01 » pour fabriquer une confirmation.
+
+Ce qui sépare n'est pas la forme mais la place : une numérotation est en tête, le contenu suit. On
+ne lit donc un nom qu'à partir de sa première lettre. « 1-01 12_8 … Pg.67 » ne rend plus rien, et
+c'est juste — son signal est ailleurs. « 02-… #5.1 » garde « 5.1 », qui est bien ce que ce nom
+désigne.
+
+| | avant | après |
+|---|---|---|
+| noms tenus pour distinctifs, deux lots | 165 / 165 | 0 |
+| noms distinctifs ailleurs | inchangés | inchangés |
+
+### Une régularité montrée sur deux lectures est gratuite
+
+`avance` était un taux sur ses couples : avec deux lectures, un seul couple, « ne recule pas »
+vaut 1,00 sans rien prouver. Le plancher de 50 % devenait alors atteignable par pure arithmétique
+— deux lectures sur quatre, deux valeurs distinctes, un couple croissant font exactement 0,50.
+C'est ainsi qu'une **ligne plate du bord droit de la page**, 6,6 × 0,8 % et lue 3 fois sur 6, a été
+élue sur une famille et a rempli six attributions par déduction.
+
+Le code portait déjà la bonne phrase : « une seule lecture n'avance ni ne recule : elle ne prouve
+rien, et vaut donc zéro ». Il suffisait de la porter jusqu'au bout — `sansRecul / (couples + 1)`
+plutôt que `sansRecul / couples`. Le cas particulier d'une lecture unique **disparaît** : il
+devient une conséquence (0 / 1 = 0) au lieu d'une exception, et c'est le signe que la forme est la
+bonne et non un réglage.
+
+Sur les 1 606 endroits mesurés, les neuf qui atteignaient le plancher se réduisent à quatre :
+
+```
+01  marque prouvée   12/12   91 % → 83 %   gardée
+09                   10/10   71 % → 64 %   gardée
+04                    8/12   67 % → 58 %   gardée
+08                   12/12   55 % → 50,0 % sur le fil, et il faut le dire
+14                     5/7   54 % → 43 %   écartée
+17                     6/8   50 % → 42 %   écartée
+11                     3/6   50 % → 33 %   écartée
+14                     2/4   50 % → 25 %   écartée
+```
+
+### Ce que l'éventail dit du matériau, et qui n'est pas un défaut
+
+| Ce que les noms portent | Familles | Second signal |
+|---|---|---|
+| le rang seul | 01, 04, 05, 07 | **aucun** — « Track 01 », « Workout #1 » |
+| un titre | 02, 06, 10, 11 à 17 | oui |
+| un numéro composé après la première lettre | 03 | oui, 99 / 99 |
+| un titre et la page imprimée | 08, 09 | **pas encore lu** — « Pg.67 » |
+
+Quatre familles ne peuvent pas publier sans oreille humaine, et c'est juste : leurs noms ne
+portent que le rang, donc un seul type de lecture existe dans la matière. Deux familles portent
+leur page imprimée dans leur nom — un lien page-vers-enregistrement plus direct qu'une
+corroboration — et aucun mécanisme ne la lit encore. C'est la pièce suivante, nommée, pas un
+échec.
+
+Reste le constat le plus lourd : **la famille 03 porte 99 noms distinctifs sur 99 et aucune
+marque** — sa numérotation est imprimée en texte, pas en pastille. Le signal le plus fort de tout
+l'éventail est inaccessible parce que toute la voie commence par trouver une marque. Un document
+entièrement déterminé par ses noms ne peut pas être lu par un chemin qui exige une pastille.
