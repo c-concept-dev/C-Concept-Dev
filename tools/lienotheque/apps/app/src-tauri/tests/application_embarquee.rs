@@ -99,3 +99,38 @@ fn copie_le_vrai_paquet_sans_briser_sa_signature() {
         );
     }
 }
+
+#[test]
+#[ignore = "qualification locale du paquet macOS construit"]
+fn le_node_du_paquet_garde_ses_droits_jit_et_demarre() {
+    let paquet = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("target/release/bundle/macos/Liénothèque.app");
+    let node = paquet.join("Contents/MacOS/node");
+    assert!(node.is_file(), "le paquet construit doit contenir le moteur Node");
+
+    let droits = Command::new("codesign")
+        .args(["-d", "--entitlements", ":-"])
+        .arg(&node)
+        .output()
+        .expect("lire les droits du moteur empaqueté");
+    let texte = format!(
+        "{}{}",
+        String::from_utf8_lossy(&droits.stdout),
+        String::from_utf8_lossy(&droits.stderr),
+    );
+    assert!(
+        texte.contains("com.apple.security.cs.allow-jit"),
+        "le paquet a retiré allow-jit du moteur Node : {texte}"
+    );
+
+    let demarrage = Command::new(&node)
+        .args(["--max-old-space-size=2048", "-e", "console.log('moteur du paquet vivant')"])
+        .output()
+        .expect("lancer le moteur du paquet");
+    assert!(
+        demarrage.status.success(),
+        "le moteur du paquet ne démarre pas : statut {:?}\n{}",
+        demarrage.status,
+        String::from_utf8_lossy(&demarrage.stderr),
+    );
+}

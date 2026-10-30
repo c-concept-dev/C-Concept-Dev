@@ -25,7 +25,8 @@ Pour l'application elle-même :
 
 ```sh
 pnpm --filter @lienotheque/app tauri dev      # fenêtre de développement
-pnpm --filter @lienotheque/app tauri build    # paquet mesurable
+pnpm --filter @lienotheque/app tauri build    # construit le paquet
+pnpm --filter @lienotheque/app tauri:finaliser:macos # rétablit les droits JIT de Node et éprouve son démarrage
 ```
 
 Le panneau « Prototype bureau » n'apparaît que dans la fenêtre de bureau, jamais sur la page web.

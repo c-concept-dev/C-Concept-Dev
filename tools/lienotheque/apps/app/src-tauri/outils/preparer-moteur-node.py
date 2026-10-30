@@ -26,6 +26,34 @@ MOTEURS = RACINE / "moteurs"
 PROJET = RACINE.parents[2]
 
 
+
+DROITS = pathlib.Path(__file__).resolve().parent.parent / "moteur.entitlements"
+
+
+def signer(binaire) -> None:
+    """Signe le moteur **avec ses droits d'exécution**, et pas seulement avec une signature.
+
+    `moteur.entitlements` dit depuis le lot D2 pourquoi : « allow-jit : V8 compile le JavaScript
+    en code machine à l'exécution. Sans ce droit, le moteur ne démarre pas du tout. » Le fichier
+    était écrit, `tauri.conf.json` le déclarait — et aucun script ne l'appliquait à `node`, qui
+    sortait d'ici signé ad hoc, sans runtime renforcé ni droits.
+
+    **Ce que ce correctif ne répare pas.** Il a d'abord été posé en croyant tenir la cause des
+    « signal 5 » du 30 octobre 2026. C'était faux, et la mesure l'a dit le lendemain : les
+    binaires `node` déposés, droits compris, exécutent du JIT sans broncher, et la pile des
+    rapports d'arrêt donne `Heap::SetUp` → `FatalProcessOutOfMemory` → `OS::Abort()` — une famine
+    de mémoire de la machine, traitée dans le roulement et non ici. Un trente-cinquième rapport,
+    enfanté par un simple `zsh`, suffisait d'ailleurs à défaire l'idée d'une restriction héritée
+    de l'application.
+
+    Ce qu'il répare est plus simple : un binaire sans runtime renforcé n'est pas restreint, mais
+    il n'est pas non plus conforme à ce que le paquet déclare de lui-même, et `codesign --verify`
+    sur l'ensemble s'en plaint. Le sidecar reçoit le même traitement, et c'est pourquoi le moteur
+    traverse `tauri build` avec ses droits intacts.
+    """
+    executer("codesign", "--force", "--sign", "-", "--options", "runtime", "--entitlements", str(DROITS), str(binaire))
+
+
 def executer(*commande: str, dans: pathlib.Path | None = None) -> str:
     fait = subprocess.run(commande, capture_output=True, text=True, cwd=dans)
     if fait.returncode != 0:
@@ -67,7 +95,7 @@ def embarquer_node(cible: pathlib.Path) -> str:
         executer("strip", "-S", str(cible))
         # Toute modification invalide la signature sur arm64, et un binaire dont la signature est
         # invalide ne démarre pas du tout : on resigne avant même d'essayer de le lancer.
-        executer("codesign", "--force", "--sign", "-", str(cible))
+        signer(cible)
     cible.chmod(0o755)
 
     version = executer(str(cible), "--version").strip()
@@ -230,7 +258,7 @@ def main() -> int:
     sidecar.chmod(0o755)
     if sys.platform == "darwin":
         # Signature sur place : toute modification d'un binaire invalide sa signature sur arm64.
-        executer("codesign", "--force", "--sign", "-", str(sidecar))
+        signer(sidecar)
 
     chaine = rassembler_chaine(MOTEURS / "chaine")
     canvas = embarquer_canvas(MOTEURS / "chaine")

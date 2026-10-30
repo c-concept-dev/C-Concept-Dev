@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "tauri": "tauri",
+    "tauri:finaliser:macos": "python3 src-tauri/outils/finaliser-paquet-macos.py",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --maxWorkers=2",
