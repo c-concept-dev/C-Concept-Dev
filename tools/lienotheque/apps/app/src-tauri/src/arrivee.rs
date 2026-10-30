@@ -95,7 +95,21 @@ pub fn deposer(
     let mut arrivee = Arrivee::default();
     let provenance_lot = format!("lot:{}", uuid::Uuid::new_v4());
 
-    for origine in origines {
+    // Un dépôt direct PDF + médias est lui aussi un seul geste. Les chemins arrivent dans
+    // l'ordre choisi par l'hôte, qui peut placer le document en tête comme le faisait le ZIP
+    // mesuré. On inventorie donc d'abord tous les accompagnements du lot avant de rendre un
+    // travail de document visible. Les archives gardent leur provenance propre et appliquent
+    // la même règle à leurs entrées dans `deposer_prepares`.
+    let mut origines_ordonnees = origines.iter().collect::<Vec<_>>();
+    origines_ordonnees.sort_by_key(|origine| {
+        origine
+            .file_name()
+            .and_then(|nom| nom.to_str())
+            .and_then(contenu_de)
+            == Some("documents")
+    });
+
+    for origine in origines_ordonnees {
         let nom = origine.file_name().and_then(|n| n.to_str()).unwrap_or("").to_owned();
         if nom.is_empty() {
             arrivee.refuses.push((origine.display().to_string(), "Ce chemin ne désigne pas un fichier.".to_owned()));
@@ -177,7 +191,22 @@ fn deposer_prepares(
     deja: &mut Vec<Travail>,
     arrivee: &mut Arrivee,
 ) {
-    for fichier in fichiers {
+    // Un ZIP est un seul geste : son travail ne doit devenir visible qu'une fois tous ses médias
+    // inventoriés. Le préparateur écrit naturellement le PDF avant les MP3 ; en suivant cet ordre,
+    // le roulement pouvait prendre le travail pendant que cette boucle copiait encore les pistes.
+    // La charge restait alors figée sur un vivier partiel (7 sur 45 dans la mesure réelle), même
+    // quand l'inventaire finissait ensuite. On dépose donc tout ce qui accompagne avant d'écrire
+    // le moindre travail de document. Le tri stable garde l'ordre interne des deux familles.
+    let mut ordonnes = fichiers.iter().collect::<Vec<_>>();
+    ordonnes.sort_by_key(|fichier| {
+        let nom = Path::new(fichier.nom)
+            .file_name()
+            .and_then(|nom| nom.to_str())
+            .unwrap_or(fichier.nom);
+        contenu_de(nom) == Some("documents")
+    });
+
+    for fichier in ordonnes {
         let nom_complet = fichier.nom.to_owned();
         let nom_fichier = Path::new(fichier.nom)
             .file_name()
@@ -662,6 +691,86 @@ mod tests {
                     .clone(),
             }],
             "le nom d'origine voyage avec la source rangée par empreinte (REC-05, ANC-05)"
+        );
+
+        fs::remove_dir_all(&racine).ok();
+        fs::remove_dir_all(&source).ok();
+    }
+
+    #[test]
+    fn job_01_un_zip_ne_rend_son_travail_visible_qu_apres_son_inventaire_media_complet() {
+        let racine = bac("archive-atomique");
+        let source = bac("archive-atomique-source");
+        let bibliotheque = racine.join("bibliotheque");
+        let depot = Depot::creer(&bibliotheque).expect("dépôt");
+        let dossier_file = racine.join("file");
+        fs::create_dir_all(&dossier_file).expect("file");
+
+        // Le document vient volontairement en premier, comme dans le ZIP produit par le vrai
+        // préparateur. Les pistes assez grandes laissent au roulement le temps de voir un travail
+        // prématuré : c'est précisément la course mesurée avec 7 médias sur 45.
+        //
+        // **Les octets doivent être incompressibles.** La première écriture de ce test remplissait
+        // les pistes d'un seul octet répété ; le ZIP les réduisait de mille pour un et le garde-fou
+        // de décompression anormale refusait l'archive avant la moindre écriture. Aucun travail
+        // n'apparaissait jamais, le test échouait sur « le travail n'est jamais devenu visible »
+        // — à l'identique avec et sans le correctif. Il n'éprouvait donc rien. Avec du bruit, ôter
+        // le tri ci-dessus rend bien `0` média au lieu de `3`.
+        let bruit = |mut etat: u64| {
+            (0..1024 * 1024)
+                .map(|_| {
+                    etat ^= etat << 13;
+                    etat ^= etat >> 7;
+                    etat ^= etat << 17;
+                    etat as u8
+                })
+                .collect::<Vec<_>>()
+        };
+        let piste_1 = bruit(1);
+        let piste_2 = bruit(2);
+        let piste_3 = bruit(3);
+        let ensemble = archive(
+            &source,
+            "methode.zip",
+            &[
+                ("methode/methode.pdf", b"%PDF-1.7"),
+                ("methode/Piste 01.mp3", piste_1.as_slice()),
+                ("methode/Piste 02.mp3", piste_2.as_slice()),
+                ("methode/Piste 03.mp3", piste_3.as_slice()),
+            ],
+        );
+
+        let file_observee = dossier_file.clone();
+        let inventaire = bibliotheque.join("base").join("medias.json");
+        let (pret_a_observer, commencer) = std::sync::mpsc::channel();
+        let observation = std::thread::spawn(move || {
+            pret_a_observer.send(()).expect("observateur prêt");
+            let limite = std::time::Instant::now() + std::time::Duration::from_secs(30);
+            loop {
+                let travail_visible = fs::read_dir(&file_observee)
+                    .into_iter()
+                    .flatten()
+                    .flatten()
+                    .any(|entree| entree.path().extension().and_then(|e| e.to_str()) == Some("json"));
+                if travail_visible {
+                    let medias = fs::read_to_string(&inventaire)
+                        .ok()
+                        .and_then(|brut| serde_json::from_str::<serde_json::Value>(&brut).ok())
+                        .and_then(|valeur| valeur.as_array().map(Vec::len))
+                        .unwrap_or(0);
+                    return medias;
+                }
+                assert!(std::time::Instant::now() < limite, "le travail n'est jamais devenu visible");
+                std::thread::yield_now();
+            }
+        });
+        commencer.recv().expect("observateur lancé");
+
+        deposer(&depot, &dossier_file, &[ensemble], &mut |_| {}).expect("dépôt du ZIP");
+        assert_eq!(
+            observation.join().expect("observation"),
+            3,
+            "le roulement ne doit jamais pouvoir ouvrir une charge avant la fin de l'inventaire du ZIP"
         );
 
         fs::remove_dir_all(&racine).ok();
