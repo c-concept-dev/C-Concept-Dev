@@ -31,6 +31,13 @@ type Props = {
   /** Ouvrir **cette** bibliothèque, désignée par son identifiant. Sans cela, toutes les cartes
    *  menaient au même écran, qui montrait toujours la même bibliothèque. */
   readonly onOuvrir?: ((id: string) => void) | undefined;
+  /** Ouvrir une bibliothèque qui est sur le disque mais pas dans cette liste, et la retenir.
+   *
+   *  Le geste n'existait que sur l'écran de premier lancement : dès qu'on avait une
+   *  bibliothèque, cet écran disparaissait et il n'y avait plus aucun chemin vers un dossier
+   *  qu'on n'avait pas ouvert sur cet ordinateur — un dossier posé là par une sauvegarde, une
+   *  copie, un autre appareil restait invisible pour toujours. */
+  readonly onOuvrirUnDossier?: (() => void) | undefined;
   /** Éprouve une copie portable dans cette session, sans changer les réglages persistants. */
   readonly onTesterCopie?: (() => void) | undefined;
   /** Renommer la bibliothèque sur le disque. L'Accueil en ligne n'expose pas cette action. */
@@ -51,6 +58,7 @@ export function Accueil({
   echecDepot,
   onCreer,
   onOuvrir,
+  onOuvrirUnDossier,
   onTesterCopie,
   onRenommer,
   applicationEmbarquee,
@@ -107,6 +115,12 @@ export function Accueil({
                 <Bouton variante="principal" icone={<Icone nom="plus" />} onClick={onCreer}>
                   Nouvelle bibliothèque
                 </Bouton>
+                {onOuvrirUnDossier === undefined ? null : (
+                  <button type="button" className="ln-lien-action" onClick={onOuvrirUnDossier}>
+                    <Icone nom="dossier" />
+                    Ouvrir une bibliothèque du disque
+                  </button>
+                )}
                 {onTesterCopie === undefined ? null : (
                   <button type="button" className="ln-lien-action" onClick={onTesterCopie}>
                     <Icone nom="ordinateur" />

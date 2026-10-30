@@ -118,6 +118,40 @@ describe("chaque section n'apparaît qu'avec son contenu", () => {
   });
 });
 
+/** Un dossier de bibliothèque posé là par une sauvegarde, une copie ou un autre appareil doit
+ *  rester atteignable (LIV-07).
+ *
+ *  Le geste existait, il était écrit, il était éprouvé — et **aucun bouton ne l'appelait** dès
+ *  qu'on avait une bibliothèque : l'écran de premier lancement, seul à le porter, disparaissait
+ *  alors pour de bon. Une bibliothèque jamais ouverte sur cet ordinateur était donc invisible
+ *  pour toujours, quoi qu'il y eût sur le disque. Le filet des portes peintes ne voit pas ce
+ *  défaut-là : il juge les boutons présents, pas ceux qui manquent.
+ */
+describe("ouvrir une bibliothèque qui n'est pas dans la liste (LIV-07)", () => {
+  it("l'accueil garni le propose, et appelle son geste", async () => {
+    const utilisateur = userEvent.setup();
+    const ouvrirUnDossier = vi.fn();
+    render(
+      <Accueil
+        donnees={DEMONSTRATION}
+        onFichiers={vi.fn()}
+        onCreer={vi.fn()}
+        onOuvrirUnDossier={ouvrirUnDossier}
+      />,
+    );
+
+    await utilisateur.click(screen.getByRole("button", { name: /Ouvrir une bibliothèque du disque/ }));
+
+    expect(ouvrirUnDossier).toHaveBeenCalledTimes(1);
+  });
+
+  it("ne peint pas le bouton quand l'hôte n'offre pas de sélecteur de dossier", () => {
+    render(<Accueil donnees={DEMONSTRATION} onFichiers={vi.fn()} onCreer={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: /Ouvrir une bibliothèque du disque/ })).toBeNull();
+  });
+});
+
 describe("accueil garni : composition des maquettes", () => {
   const garni = () => render(<Accueil donnees={DEMONSTRATION} onFichiers={vi.fn()} onCreer={vi.fn()} />);
 

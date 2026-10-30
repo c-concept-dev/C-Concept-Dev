@@ -1005,6 +1005,7 @@ export function App(): JSX.Element {
         echecDepot={echecDepotAccueil}
         onCreer={() => aller({ ecran: "creer" })}
         onOuvrir={choisirBibliotheque}
+        onOuvrirUnDossier={administration !== undefined ? () => void ouvrir() : undefined}
         onTesterCopie={administration !== undefined ? () => void ouvrir("temporaire") : undefined}
         onRenommer={renommerBibliotheque}
         applicationEmbarquee={applicationEmbarquee}
@@ -1264,7 +1265,7 @@ export function App(): JSX.Element {
         requeteRecherche={requeteRecherche}
         onRequeteRecherche={setRequeteRecherche}
         donnees={aLAccueil}
-        nomRecherche={documents.length === 0 ? undefined : (derniere?.description.nom ?? "Base de connaissance")}
+        nomRecherche={derniere?.description.nom ?? (administration === undefined && lecture !== undefined ? "Base de connaissance" : undefined)}
         enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
       />
       {racineTemporaire === undefined ? null : (
