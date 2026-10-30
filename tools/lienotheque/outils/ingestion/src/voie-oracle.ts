@@ -506,6 +506,15 @@ export async function rejouerParOracle(
       ? `${association.appariements.length} lien(s) proposé(s)`
       : `abstention : ${association.abstention.raison} — ${association.abstention.pourquoi ?? "sans détail"}`,
   );
+  // Le « pourquoi » partagé parle d'une vérification du document, qui vaut pour une manière de
+  // lire écrite à la main. Ici elle ne vaut pas, et laisser croire le contraire enverrait
+  // quelqu'un vérifier un document pour débloquer une publication qui ne se débloquera pas.
+  if (association.abstention?.raison === "corroboration_insuffisante")
+    dire(
+      "Sur cette voie, vérifier le document ne suffit pas : la vérification porterait sur une " +
+        "autre lecture que celle-ci. Il faut un second signal — un nom du vivier retrouvé " +
+        "imprimé sur la page — ou la confirmation de ces liens un par un.",
+    );
 
   return { resultat, association, medias, journal };
 }
