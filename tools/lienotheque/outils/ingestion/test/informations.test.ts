@@ -122,6 +122,30 @@ describe("une manière de lire qui ne sait interpréter aucun des médias prése
   });
 });
 
+describe("une association en abstention", () => {
+  it("UX-03 — compte les propositions comme non vérifiées, jamais comme des liens actifs", () => {
+    const entree = entreeMinimale();
+    const vue = construireVue(
+      entreeMinimale({
+        association: {
+          ...entree.association,
+          abstention: {
+            raison: "corroboration_insuffisante",
+            combien: entree.association.appariements.length,
+            pourquoi: "une seule lecture ne suffit pas",
+          },
+        },
+      }),
+    );
+
+    expect(vue.compteurs).toContainEqual({ nombre: 0, mot: "liens" });
+    expect(vue.compteurs).toContainEqual({
+      nombre: entree.association.appariements.length,
+      mot: "propositions non vérifiées",
+    });
+  });
+});
+
 describe("suites de nombres consécutifs", () => {
   it("regroupe ce qui se suit, sépare ce qui ne se suit pas", () => {
     expect(suites([93, 94, 95, 96, 97, 98])).toEqual([{ debut: 93, fin: 98 }]);

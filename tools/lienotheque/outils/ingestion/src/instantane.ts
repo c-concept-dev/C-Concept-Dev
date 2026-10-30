@@ -381,7 +381,14 @@ export function construireVue(entree: Entree): VueBibliotheque {
     return { cle: axe.cle, nom: axe.nom, valeurs, filtrable: pages.some((page) => (page.valeurs[axe.cle] ?? []).length > 0) };
   });
 
-  const relies = entree.association.appariements.filter((appariement) => appariement.statut === "auto" && appariement.media !== undefined).length;
+  // Une abstention peut conserver les appariements techniques pour expliquer ce qui a été lu.
+  // Ils ne sont pourtant pas publiés : les compter comme « liens » transforme une hypothèse en
+  // résultat acquis. On sépare donc le nombre actif du nombre proposé, jusque dans l'écran.
+  const propositionsNonVerifiees = entree.association.abstention === undefined ? 0 : entree.association.appariements.length;
+  const relies =
+    entree.association.abstention === undefined
+      ? entree.association.appariements.filter((appariement) => appariement.statut === "auto" && appariement.media !== undefined).length
+      : 0;
 
   return VueBibliotheque.parse({
     id: identifiantDe(`bibliotheque/${entree.id}`),
@@ -390,6 +397,9 @@ export function construireVue(entree: Entree): VueBibliotheque {
     compteurs: [
       { nombre: lignes.length, mot: entree.mots.element.plusieurs },
       { nombre: relies, mot: "liens" },
+      ...(propositionsNonVerifiees === 0
+        ? []
+        : [{ nombre: propositionsNonVerifiees, mot: "propositions non vérifiées" }]),
       { nombre: pages.length, mot: entree.mots.page.plusieurs },
     ],
     aVerifier: douteux.length,
