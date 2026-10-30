@@ -231,3 +231,81 @@ export function observationsDesMarques(
     confiance: zone.pages.length / pagesRegardees,
   }));
 }
+
+/** Ce qu'une suite de lectures dit de l'endroit d'où elle vient (REC-02, OUT-10).
+ *
+ *  `variete` : combien de valeurs différentes, sur le nombre de lectures. Une numérotation
+ *  désigne une chose différente à chaque fois ; elle vaut 1 quand aucune valeur ne se répète.
+ *  `avance` : la part des couples de lectures voisines qui ne reculent pas. Une numérotation
+ *  monte, dans l'ordre où les pages se présentent ; un même numéro qui court sur deux pages ne
+ *  recule pas non plus, et c'est pourquoi on compte les égalités avec les montées. */
+export type Allure = {
+  readonly lues: number;
+  readonly distinctes: number;
+  readonly variete: number;
+  readonly avance: number;
+};
+
+/** Mesure l'allure d'une suite de lectures, les absences comprises comme des trous.
+ *
+ *  Les trous ne coupent pas la suite : deux lectures séparées par une page illisible restent
+ *  voisines. Couper reviendrait à juger un endroit sur ses seuls passages faciles. */
+export function allureDeLaSuite(lectures: readonly (number | undefined)[]): Allure {
+  const lues = lectures.filter((valeur): valeur is number => valeur !== undefined);
+  if (lues.length === 0) return { lues: 0, distinctes: 0, variete: 0, avance: 0 };
+  const distinctes = new Set(lues).size;
+  let couples = 0;
+  let sansRecul = 0;
+  for (let rang = 1; rang < lues.length; rang += 1) {
+    couples += 1;
+    if (lues[rang]! >= lues[rang - 1]!) sansRecul += 1;
+  }
+  return {
+    lues: lues.length,
+    distinctes,
+    variete: distinctes / lues.length,
+    // Une seule lecture n'avance ni ne recule : elle ne prouve rien, et vaut donc zéro.
+    avance: couples === 0 ? 0 : sansRecul / couples,
+  };
+}
+
+/** Ce qu'il faut atteindre, sur les trois mesures à la fois, pour tenir un endroit pour une
+ *  numérotation. Plus souvent que pas, sur chacune — c'est tout ce que ce nombre dit.
+ *
+ *  Mesuré le 30 octobre 2026 sur deux documents de l'éventail d'essai, 69 endroits proposés par la
+ *  régularité des formes, douze apparitions lues à chacun :
+ *
+ *  | endroit | part lue | variété | avance | produit |
+ *  |---|---|---|---|---|
+ *  | la marque qui désigne vraiment les enregistrements | 1,00 | 1,00 | 0,91 | **0,91** |
+ *  | une forme de notation lue « 7 » partout | 0,75 | 0,22 | 1,00 | 0,17 |
+ *  | une autre, lue « 7 » presque partout | 0,92 | 0,27 | 0,70 | 0,17 |
+ *  | un endroit qui ne se lit que trois fois sur douze | 0,25 | 1,00 | — | < 0,20 |
+ *
+ *  Le seuil tombe au milieu d'un vide : rien entre 0,20 et 0,91. */
+export const NUMEROTATION_PROBABLE = 0.5;
+
+/** Dans quelle mesure une suite de lectures se comporte comme une numérotation (REC-02, OUT-10).
+ *
+ *  ## Pourquoi les trois mesures, et pas une
+ *
+ *  Chacune se fait berner seule, et c'est mesuré, pas supposé.
+ *
+ *  - **La part qui se lit** était l'unique critère jusqu'au 30 octobre 2026. Elle ne juge pas *ce
+ *    qui est lu*, seulement *que ça se lit* — et la reconnaissance, avec une liste blanche de
+ *    chiffres, rend un chiffre de presque n'importe quelle forme sombre. Sur un document de
+ *    l'éventail, elle a élu une tête de note avec 699 apparitions là où le vivier n'a que 99
+ *    enregistrements.
+ *  - **L'avance** ne sépare rien seule : une forme lue « 7 » partout ne recule jamais, et vaut
+ *    donc 1,00 — mieux que la vraie marque, qui vaut 0,91 parce que sa première apparition est
+ *    sur une page de garde.
+ *  - **La variété** sépare bien, mais un endroit qui ne se lit que trois fois sur douze rend
+ *    trois valeurs différentes et vaut 1,00 sans rien désigner.
+ *
+ *  Ensemble, elles disent la seule chose qui compte : cet endroit porte-t-il une **numérotation**
+ *  — quelque chose qui se lit, qui nomme une chose différente à chaque fois, et qui avance dans
+ *  l'ordre où les pages se présentent ? Une forme de notation se lit ; elle ne numérote rien. */
+export function partDeNumerotation(allure: Allure, apparitionsRegardees: number): number {
+  if (apparitionsRegardees === 0 || allure.lues === 0) return 0;
+  return (allure.lues / apparitionsRegardees) * allure.variete * allure.avance;
+}

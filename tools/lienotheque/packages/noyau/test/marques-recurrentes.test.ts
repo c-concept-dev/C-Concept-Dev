@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { Observation } from "@lienotheque/contrats";
 import {
+  NUMEROTATION_PROBABLE,
+  allureDeLaSuite,
+  partDeNumerotation,
   observationsDesMarques,
   zonesAExaminer,
   zonesRecurrentes,
@@ -157,5 +160,81 @@ describe("ce qu’il en dit (OUT-10)", () => {
     const [observation] = observationsDesMarques([], 12);
     expect(observation?.constat).toMatch(/Aucune forme sombre ne revient/);
     expect(observation?.constat).toMatch(/12 pages/);
+  });
+});
+
+describe("l'allure d'une suite de lectures (REC-02, OUT-10)", () => {
+  it("tient une numérotation qui monte pour une numérotation", () => {
+    // La suite relevée sur le témoin, à l'endroit qui porte vraiment la marque.
+    const allure = allureDeLaSuite([5, 3, 15, 23, 29, 43, 52, 58, 64, 72, 78, 85]);
+    expect(allure.variete).toBe(1);
+    expect(allure.avance).toBeCloseTo(10 / 11, 2);
+  });
+
+  it("ne tient pas pour une numérotation un même chiffre lu partout", () => {
+    // Ce que la reconnaissance rend dans une forme de notation : toujours la même valeur.
+    const allure = allureDeLaSuite([1, 7, 7, 7, undefined, 7, undefined, 7, 7, 7, 7, undefined]);
+    expect(allure.avance, "elle ne recule jamais, et pourtant elle ne numérote rien").toBe(1);
+    expect(allure.variete).toBeLessThan(0.3);
+  });
+
+  it("ne tient pas pour une numérotation des valeurs variées mais en désordre", () => {
+    const allure = allureDeLaSuite([14, 4, 2, 4, undefined, 4, 6, 4, 7]);
+    expect(allure.variete, "cinq valeurs sur huit lectures").toBeGreaterThan(0.5);
+    expect(allure.avance, "mais elle recule une fois sur deux").toBeLessThan(0.75);
+  });
+
+  it("compte un numéro qui court sur deux pages comme une avance, non un recul", () => {
+    expect(allureDeLaSuite([4, 5, 5, 6, 7]).avance).toBe(1);
+  });
+
+  it("ne conclut rien d'une seule lecture", () => {
+    expect(allureDeLaSuite([undefined, 12, undefined])).toEqual({
+      lues: 1,
+      distinctes: 1,
+      variete: 1,
+      avance: 0,
+    });
+  });
+
+  it("ne conclut rien d'aucune lecture", () => {
+    expect(allureDeLaSuite([undefined, undefined])).toEqual({ lues: 0, distinctes: 0, variete: 0, avance: 0 });
+  });
+});
+
+describe("reconnaître une numérotation plutôt qu'une forme (REC-02, OUT-10)", () => {
+  /** Les suites relevées sur l'éventail d'essai le 30 octobre 2026. */
+  const relevees = {
+    marque: [5, 3, 15, 23, 29, 43, 52, 58, 64, 72, 78, 85],
+    noteEnSept: [7, 7, 7, 7, undefined, 7, undefined, 7, 7, 7, 7, undefined],
+    noteBruyante: [4, 1, 7, 1, undefined, 7, 7, 7, 7, 1, 4, 7],
+    quiLitAPeine: [undefined, 7, undefined, undefined, undefined, undefined, 6, 4, undefined, undefined, undefined, undefined],
+  } as const;
+
+  it("tient la marque pour une numérotation", () => {
+    expect(partDeNumerotation(allureDeLaSuite(relevees.marque), 12)).toBeGreaterThan(NUMEROTATION_PROBABLE);
+  });
+
+  it("ne tient pas pour une numérotation une forme que la reconnaissance lit toujours pareil", () => {
+    expect(partDeNumerotation(allureDeLaSuite(relevees.noteEnSept), 12)).toBeLessThan(NUMEROTATION_PROBABLE);
+    expect(partDeNumerotation(allureDeLaSuite(relevees.noteBruyante), 12)).toBeLessThan(NUMEROTATION_PROBABLE);
+  });
+
+  it("ne tient pas pour une numérotation un endroit qui ne se lit presque pas, même varié", () => {
+    const allure = allureDeLaSuite(relevees.quiLitAPeine);
+    expect(allure.variete, "trois lectures, trois valeurs").toBe(1);
+    expect(partDeNumerotation(allure, 12), "et pourtant il ne désigne rien").toBeLessThan(NUMEROTATION_PROBABLE);
+  });
+
+  it("classe la marque loin devant tous les autres endroits du même document", () => {
+    const marque = partDeNumerotation(allureDeLaSuite(relevees.marque), 12);
+    const autres = [relevees.noteEnSept, relevees.noteBruyante, relevees.quiLitAPeine].map((suite) =>
+      partDeNumerotation(allureDeLaSuite(suite), 12),
+    );
+    expect(marque, "plus du double du meilleur imposteur").toBeGreaterThan(Math.max(...autres) * 2);
+  });
+
+  it("ne rend rien quand rien n'a été regardé", () => {
+    expect(partDeNumerotation(allureDeLaSuite([]), 0)).toBe(0);
   });
 });
