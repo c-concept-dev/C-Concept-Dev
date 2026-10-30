@@ -200,6 +200,38 @@ describe("une lecture corroborée contre l’attente de régularité (REC-02)", 
   });
 });
 
+describe("une marque mal lue ne réécrit pas ses voisines (REC-02, OUT-10)", () => {
+  /** Relevé le 30 octobre 2026 sur le document témoin, dont les 95 liens sont vérifiés à
+   *  l'oreille. Ses marques se lisent 37 fois sur 40 ; les trois erreurs sont des confusions d'un
+   *  seul chiffre. Avant cette règle, l'une d'elles réécrivait **huit** marques lues correctement
+   *  sur les deux pages voisines — parce que le saut autorisé se mesurait entre deux lectures
+   *  brutes, et qu'une valeur fausse y fabriquait un pas inexistant dans le document. */
+  it("mesure le saut depuis ce que la suite amont annonce, non depuis la dernière valeur brute (REC-02)", () => {
+    // Quatre lectures qui s'enchaînent, dont la dernière est mal lue — « 8 » rendu « 3 » —,
+    // puis une page qui reprend à 13. La suite amont annonce 8 : le saut vaut donc 5, et non 10.
+    const lectures = [lu(5), lu(6), lu(7), lu(3), lu(13), lu(14), lu(15), lu(16)];
+    expect(attribuerPistes(lectures, regles({ nombreDePistes: 99 }))).toEqual([
+      5, 6, 7, 8, 13, 14, 15, 16,
+    ]);
+  });
+
+  it("laisse intacte une suite déjà juste (REC-02)", () => {
+    const lectures = [lu(5), lu(6), lu(7), lu(8), lu(13), lu(14), lu(15), lu(16)];
+    expect(attribuerPistes(lectures, regles({ nombreDePistes: 99 }))).toEqual([
+      5, 6, 7, 8, 13, 14, 15, 16,
+    ]);
+  });
+
+  it("ne fabrique pas de saut depuis une suite amont qui n'en est pas une (REC-02)", () => {
+    // Des lectures qui ne s'enchaînent sous aucun pas ordinaire n'annoncent rien : la suite
+    // garde la main, et le manque reste visible comme un manque.
+    const lectures = [lu(5), lu(40), lu(7), lu(60)];
+    const rendu = attribuerPistes(lectures, regles({ nombreDePistes: 99 }));
+    expect(rendu.length).toBe(4);
+    expect(rendu[3]).not.toBe(60);
+  });
+});
+
 describe("changement de support (A3)", () => {
   const avecChangement = regles({ changementDisque: { lecturesSuresConsecutives: 3, valeurMax: 5 } });
 

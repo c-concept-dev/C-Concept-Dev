@@ -362,68 +362,102 @@ marque** — sa numérotation est imprimée en texte, pas en pastille. Le signal
 l'éventail est inaccessible parce que toute la voie commence par trouver une marque. Un document
 entièrement déterminé par ses noms ne peut pas être lu par un chemin qui exige une pastille.
 
-## Le témoin a publié quarante liens, tous faux — 30 octobre 2026
+## Le témoin, repris jusqu'au bout — 30 octobre 2026
 
-C'est le résultat le plus important de la passe, et il a fallu aller jusqu'à la preuve pour le
-voir. Publier n'est pas prouver.
+### D'abord une erreur de mesure, et elle était de moi
 
-Le document témoin a ses liens vérifiés à l'oreille : 95 liens dans la vraie base. Passé par la
-seconde voie avec sa vérification, il a proposé 40 liens sur un extrait de douze pages. Comparés
-page par page aux 95 vérifiés, en remontant les pages de l'extrait vers celles du livre :
+Passé par la seconde voie, le témoin a proposé 40 liens sur un extrait de douze pages. Comparés
+aux 95 liens vérifiés à l'oreille, j'ai conclu **0 juste sur 40** et j'ai écrit ici que le
+mécanisme d'élection confondait deux numérotations voisines.
+
+**C'était faux, et sur les deux points.**
+
+Le folio imprimé « 4 » au bas de la **troisième** page du PDF prouve un décalage de +1 entre page
+du PDF et page imprimée. Ma comparaison alignait les deux sans ce décalage. Avec le bon
+alignement : **35 justes sur 40**.
+
+Et la cause supposée n'existe pas davantage. En rendant la page et en la regardant :
 
 ```
-page du livre    proposé                vérifié à l'oreille
-      3          5, 6, 7, 8             1, 2, 3, 4
-      5          18, 19, 20, 21         9, 10, 11, 12
-      7          22, 22, 23, 24         17, 18, 19, 20
-      9          28, 29, 30             25, 26, 27
-     15          42, 43, 44, 45, 46     39, 40, 41
-     17          52, 53, 54             47, 48, 49, 50, 51
-     19          58, 59, 60             55, 56, 57
-     21          64, 65, 66             61, 62, 63
-     23          71, 72, 73, 74         67, 68, 69, 70
-     25          78, 79, 80             75, 76, 77
-     27          85, 86, 87, 88         81, 82, 83, 84
-
-0 juste sur 40.
+Pattern 13  ◆13        Pattern 14  ◆14        Pattern 15  ◆15
 ```
 
-### Deux numérotations côte à côte, et la règle élit la mauvaise
+Les deux numérotations portent **la même valeur**. Il n'y a pas deux numérotations concurrentes à
+départager. Le tableau « 0,99 contre 0,97 » comparait deux suites de la vraie base qui se suivent
+presque partout ; je lui ai fait dire une causalité qu'il ne portait pas. L'élection avait choisi
+la bonne zone — la pastille — depuis le début.
 
-La manière de lire de ce document déclare **deux** lectures sur la même page : une ancre
-d'élément dans les marges extérieures, et l'ancre de piste — la pastille — **à droite de
-l'élément**. La seconde voie, elle, élit **un** endroit et appelle ses chiffres « piste ». Elle a
-élu celui des éléments.
+**Leçon de méthode, la même que la veille et dans l'autre sens** : une mesure qui accuse doit être
+vérifiée aussi scrupuleusement qu'une mesure qui rassure. Un « 0 sur 40 » est un résultat trop
+spectaculaire pour être cru sans regarder les pixels.
 
-Ce n'est pas de la malchance : **la règle préfère systématiquement le mauvais des deux.** Une
-piste peut porter plusieurs éléments, donc sa numérotation se répète et perd de la variété, là où
-celle des éléments est strictement croissante. Mesuré sur les 95 liens vérifiés :
+### Le vrai défaut : une erreur de lecture réécrit ses voisines
 
-| numérotation | variété | avance | produit |
+Lectures brutes du témoin, marque par marque : **37 justes sur 40**, trois confusions d'un seul
+chiffre — `8` lu `3`, `21` lu `24`, `79` lu `73`. L'attribution, elle, nourrie de lectures
+parfaites, les rend intactes. Mais nourrie des lectures réelles :
+
+| | page 2 | page 3 | total |
 |---|---|---|---|
-| celle des pistes | 0,98 | 0,99 | 0,97 |
-| celle des éléments | 1,00 | 0,99 | **0,99** |
+| lectures réelles | juste | **réécrite** 18-21 | 5 faux |
+| la seule erreur de la page 2 réparée | **réécrite** 15-18 | **réécrite** 19-22 | 9 faux |
+| la seule erreur de la page 4 réparée | **réécrite** 1,2,3,3 | juste | 4 faux |
+| les deux réparées | juste | juste | **0 faux** |
 
-S'ajoute que les chiffres d'élément sont posés en clair dans la marge, tandis que la pastille
-porte des chiffres clairs sur fond sombre : la part qui se lit favorise aussi le mauvais.
+Une seule marque mal lue corrompt jusqu'à **huit** marques lues correctement, en arrière. Et
+l'attribution sait produire la bonne suite — sauts de 5, 8 et 12 compris — dès que les lectures
+sont justes : les sauts ne sont pas en cause.
 
-**« Un endroit qui numérote » n'est pas « l'endroit qui numérote les pistes ».** La correction du
-matin — élire ce qui numérote plutôt que ce qui se lit — était nécessaire et reste juste ; elle ne
-suffit pas. Ce défaut reste **ouvert** : rien dans les pixels seuls ne dit laquelle des deux
-numérotations désigne des enregistrements.
+**La cause exacte.** Le saut autorisé se calcule sur `ici.pisteLue - avantIci.pisteLue`, donc sur
+les lectures **brutes**. La dernière marque de la page 2 étant lue `3` au lieu de `8`, le saut
+enregistré vaut 13 − 3 = **10** — un pas qui n'existe nulle part dans le document — et la sortie
+l'emprunte : 8 → 18, entraînant toute la page suivante.
 
-### Une vérification humaine ne se prête pas
+Le commentaire du code annonçait pourtant la bonne protection : « une lecture isolée et fausse
+n'est corroborée par personne : la suite la redresse comme avant ». Elle redresse bien la
+**valeur** fausse. Elle ne protège pas la **grammaire des pas** que cette valeur a contribué à
+former.
 
-Le second défaut est le plus grave, et c'est lui qui a transformé une erreur de lecture en 40 liens
-publiés. Le drapeau disait « ce document est vérifié ». La voie a produit une lecture **neuve et
-différente**, et en a hérité la confiance. Une vérification faite une fois validait ainsi toute
-lecture automatique future du même document — la règle « zéro faux lien » mise en défaut par un
-réglage, pas par un bogue.
+### Deux règles candidates, et la première a échoué
 
-Verrou posé : cette voie n'accepte plus de vérification empruntée, et l'option est **retirée du
-type** pour qu'on ne puisse plus la passer. Le typage a désigné les trois appels qui s'en
-servaient. Une vérification humaine a sa place ici, mais sur le statut de chaque appariement,
-lien par lien — jamais sur le document entier.
+**Candidate 1 — exiger que le départ du saut soit corroboré, comme son arrivée.** Symétrique,
+principielle, et **pire** : 5 faux → 9. Abandonnée. Refuser un mauvais pas ne sert à rien si le
+bon n'a jamais été proposé : avec `3` au départ, le pas 5 n'existe tout simplement pas.
 
-Le verrou ne réduit que ce qui peut être publié : il ne peut donc pas créer de faux lien. La voie
-publie encore, mais seulement sur deux lectures indépendantes, et son contrat le prouve.
+**Candidate 2 — dériver le saut de la projection de la suite amont.** Plusieurs lectures voisines
+qui s'enchaînent sous les pas ordinaires sont une observation ; la dernière valeur brute, seule,
+n'en est pas une. 5, 6, 7 annonce 8 même si la quatrième marque est mal lue, et le saut se mesure
+depuis là.
+
+| | en place | candidate 2 |
+|---|---|---|
+| lectures réelles du témoin | 5 faux | **1 faux** |
+| lecture parfaite | 0 | 0 |
+| page 2 réparée | 9 | 1 |
+| page 4 réparée | 4 | 0 |
+
+C'est l'application directe du principe que le code portait déjà : « ce qui la paie n'est pas la
+taille du saut, c'est le nombre d'observations qui la soutiennent ».
+
+### Le garde-fou du CDC, atteint
+
+Document entier, 29 pages, sans l'ancienne recette, la correction en place :
+
+```
+95 apparitions trouvées — exactement les 95 liens de la vérité
+94 marques retenues sur 95
+95 / 95 pistes identiques, dans l'ordre
+0 lien publié — abstention corroboration_insuffisante
+```
+
+**95/95.** Et la voie s'abstient quand même, faute de second signal : la justesse et la prudence
+sont indépendantes, ce qui est exactement la forme voulue. Le témoin publiera le jour où un œil
+humain confirmera ces liens un par un — pas en prêtant la vérification d'une autre lecture.
+
+### Ce que devient le verrou de la veille
+
+Son principe tient, et cette mesure le renforce plutôt que de l'affaiblir : la lecture de la
+seconde voie et celle de la recette sont deux lectures distinctes, et publier l'une sur la foi de
+la vérification de l'autre reste illégitime. Mais le chiffre qui le justifiait ici était faux. Sur
+l'extrait, publier aurait posé **5 faux liens**, non 40 ; sur le document entier, **zéro** — ce
+qui ne rend pas le prêt licite pour autant, puisque rien ne le garantissait d'avance.

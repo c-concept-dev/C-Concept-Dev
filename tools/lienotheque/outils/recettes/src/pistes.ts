@@ -233,6 +233,26 @@ function lectureCorroboree(
   return false;
 }
 
+/** Ce que la suite amont annonce pour la lecture de départ d'un saut.
+ *
+ *  Plusieurs lectures voisines qui s'enchaînent sous les pas ordinaires sont une observation ;
+ *  la dernière valeur brute, seule, n'en est pas une — elle peut être le chiffre mal reconnu.
+ *  On projette donc la suite jusqu'au rang de départ, et le saut se mesure depuis là. */
+function departsProjetes(lectures: readonly LecturePiste[], rang: number, regles: ReglesPistes): number[] {
+  const projetes: number[] = [];
+  const pasMax = Math.max(...regles.pasAutorises);
+  for (const debut of [rang - 1, rang - 2, rang - 3]) {
+    const a = lectures[debut];
+    const b = lectures[debut + 1];
+    if (a?.pisteLue === undefined || b?.pisteLue === undefined) continue;
+    if (a.accordPiste < ACCORD_SUR || b.accordPiste < ACCORD_SUR) continue;
+    const pas = b.pisteLue - a.pisteLue;
+    if (pas < 0 || pas > pasMax) continue;
+    projetes.push(b.pisteLue + pas * (rang - debut - 1));
+  }
+  return projetes;
+}
+
 const AUCUN = Number.NEGATIVE_INFINITY;
 
 /** La suite de pistes qui explique le mieux les lectures, sous les pas que la recette autorise.
@@ -280,10 +300,15 @@ export function attribuerPistes(lectures: readonly LecturePiste[], regles: Regle
       avantIci.accordPiste >= ACCORD_SUR &&
       lectureCorroboree(lectures, rang, regles)
     ) {
-      const saut = ici.pisteLue - avantIci.pisteLue;
-      // Vers l'avant seulement : une numérotation qui recule n'est pas un saut, c'est un autre
-      // support — et c'est `changementDeSupport` qui en décide, sur d'autres indices.
-      if (saut > 0 && !sauts.has(saut)) sauts.set(saut, PENALITE_SAUT_CORROBORE);
+      // Le départ du saut est ce que la suite amont annonce, et non la dernière valeur brute :
+      // celle-ci peut être le chiffre mal reconnu, et le saut qu'elle implique n'existe alors
+      // nulle part dans le document.
+      for (const depart of new Set([avantIci.pisteLue, ...departsProjetes(lectures, rang - 1, regles)])) {
+        const saut = ici.pisteLue - depart;
+        // Vers l'avant seulement : une numérotation qui recule n'est pas un saut, c'est un autre
+        // support — et c'est `changementDeSupport` qui en décide, sur d'autres indices.
+        if (saut > 0 && !sauts.has(saut)) sauts.set(saut, PENALITE_SAUT_CORROBORE);
+      }
     }
 
     for (let piste = 1; piste <= N; piste += 1) {
