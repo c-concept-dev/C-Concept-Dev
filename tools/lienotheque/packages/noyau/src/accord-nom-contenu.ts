@@ -17,9 +17,19 @@ import { corpsDuNom } from "./detecteurs-de-noms.js";
  *  Le **rang** écrit dans le nom n'en est pas un. Un nom qui commence par « 07 » ne confirme rien
  *  d'une marque lue « 7 » : dans un vivier de N enregistrements, tout nombre de 1 à N trouve un
  *  fichier, et l'accord est alors une tautologie, pas une preuve. Les suites de chiffres seules
- *  sont donc écartées. Un nombre composé — deux groupes séparés par un point ou un tiret — est
- *  gardé : il ne se confond pas avec un rang, et l'on vérifie qu'il n'appartient qu'à un nom, comme
- *  pour un mot.
+ *  sont donc écartées.
+ *
+ *  **Un nombre composé n'y échappe pas davantage, et c'était l'erreur.** « Deux groupes séparés
+ *  par un point ou un tiret ne se confondent pas avec un rang » : relevé le 30 octobre 2026, deux
+ *  lots de 92 et 73 enregistrements nomment chacun des leurs « 1-01 », « 1-02 », « 2-01 » — un
+ *  support et une place, c'est-à-dire un rang écrit en deux groupes. Cent soixante-cinq noms
+ *  passaient ainsi pour distinctifs alors qu'ils ne portaient que leur propre position, et il
+ *  suffisait qu'une page imprime « 1.01 » quelque part pour fabriquer une confirmation.
+ *
+ *  Ce qui les sépare n'est pas leur forme mais **leur place dans le nom** : une numérotation est
+ *  en tête, et le contenu suit. On ne lit donc un nom qu'à partir de sa première lettre. Sur les
+ *  mêmes lots, « 1-01 12_8 … Pg.67 » n'a plus aucun jeton — c'est la bonne réponse, son signal
+ *  est ailleurs — tandis que « 02-… #5.1 » garde « 5.1 », qui est bien ce que ce nom désigne.
  *
  *  ## Ce qui rend un jeton recevable
  *
@@ -57,9 +67,18 @@ const normaliser = (texte: string): string =>
 
 const NOMBRE_COMPOSE = /\b\d{1,3}[.-]\d{1,3}\b/gu;
 
+/** Ce qu'un nom dit de son contenu : ce qui suit sa première lettre.
+ *
+ *  Tout ce qui précède est une adresse — un rang, un support, les deux. Un nom sans aucune lettre
+ *  n'est qu'une adresse, et ne rend donc rien. */
+export const apresLAdresse = (corps: string): string => {
+  const lettre = corps.search(/\p{L}/u);
+  return lettre === -1 ? "" : corps.slice(lettre);
+};
+
 /** Les jetons d'un nom, avant qu'on éprouve s'ils n'appartiennent qu'à lui. */
 function jetonsDuNom(nom: string): readonly string[] {
-  const corps = corpsDuNom(nom);
+  const corps = apresLAdresse(corpsDuNom(nom));
   const composes = (corps.match(NOMBRE_COMPOSE) ?? []).map((brut) => brut.replace("-", "."));
   const mots = normaliser(corps)
     .split(" ")

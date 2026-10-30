@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { accordsNomContenu, marquesDesNoms } from "../src/index.js";
+import { accordsNomContenu, apresLAdresse, marquesDesNoms } from "../src/index.js";
 
 /** Le second signal : le nom d'un enregistrement retrouvé imprimé sur une page (REC-02, OUT-10).
  *
@@ -65,5 +65,36 @@ describe("l'accord entre un nom et le contenu d'une page (REC-02)", () => {
     const composes = marquesDesNoms(["93 - Lick 6.21.mp3", "94 - Lick 6.22.mp3"]);
     const accords = accordsNomContenu(composes, [{ page: 12, texte: "Lick 6.21 — tempo libre" }]);
     expect(accords).toEqual([{ page: 12, rang: 0, jetons: ["6.21"] }]);
+  });
+});
+
+describe("l'adresse d'un nom n'est pas son contenu (REC-02)", () => {
+  // Les noms sont ceux de deux lots du corpus, relevés le 30 octobre 2026 : c'est sur eux que le
+  // nombre composé s'est révélé n'être qu'un rang écrit en deux groupes.
+  it("écarte un rang écrit en deux groupes, support et place (REC-02)", () => {
+    const noms = [
+      "1-01 12_8 Blues And R&B - 123 Pg.67.mp3",
+      "1-02 12_8 Blues And R&B - 126 Pg.67.mp3",
+      "2-01 Mali - 718 Pg.197.mp3",
+    ];
+    // « blues » et « mali » reviennent ou non, mais aucun nom ne doit garder sa propre place.
+    for (const marque of marquesDesNoms(noms)) expect(marque.jetons).not.toContain("1.01");
+    expect(marquesDesNoms(noms).flatMap((marque) => marque.jetons)).not.toContain("2.01");
+  });
+
+  it("garde un nombre composé que le nom porte après sa première lettre (REC-02)", () => {
+    const noms = ["02-Chapter 5, Groove #5.1.mp3", "03-Chapter 5, Groove #5.2.mp3"];
+    expect(marquesDesNoms(noms)[0]!.jetons).toContain("5.1");
+    expect(marquesDesNoms(noms)[1]!.jetons).toContain("5.2");
+  });
+
+  it("ne rend rien d'un nom qui n'est qu'une adresse (REC-02)", () => {
+    expect(apresLAdresse("1-01")).toBe("");
+    expect(marquesDesNoms(["1-01.mp3", "1-02.mp3"]).flatMap((marque) => marque.jetons)).toEqual([]);
+  });
+
+  it("laisse intact un intitulé qui commence par une lettre (REC-02)", () => {
+    expect(apresLAdresse("Doxy")).toBe("Doxy");
+    expect(marquesDesNoms(["01 - Doxy.mp3", "02 - St. Thomas.mp3"])[0]!.jetons).toContain("doxy");
   });
 });
