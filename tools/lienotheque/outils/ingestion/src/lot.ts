@@ -1,9 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { ErreurExportPagesVide, exporterPages } from "./pages-images.js";
-import { DescriptionBibliotheque, type Passage, type ResultatRecette, VueBibliotheque } from "@lienotheque/contrats";
+import {
+  type AcquisDeLecture,
+  DescriptionBibliotheque,
+  type Passage,
+  type ResultatRecette,
+  VueBibliotheque,
+} from "@lienotheque/contrats";
 import {
   chargerRecette,
   rejouer,
+  type Rejeu,
   type Association,
   type Media,
   type MediaInventorie,
@@ -13,7 +20,7 @@ import {
 import { type AdresseRecurrente, adressesRecurrentes, enPassages, langueOcr } from "@lienotheque/lecteur-texte";
 import { construireVue } from "./instantane.js";
 import { lireLeTexte } from "./texte.js";
-import { rejouerParOracle, SEUIL_SANS_MANIERE_DE_LIRE } from "./voie-oracle.js";
+import { rejouerParOracle, SEUIL_SANS_MANIERE_DE_LIRE, type RejeuParOracle } from "./voie-oracle.js";
 import { causeLisible } from "@lienotheque/noyau";
 
 /** D'un lot réel à l'instantané que lisent les écrans (correction 8).
@@ -51,6 +58,12 @@ export type Lot = {
    *  dit pourquoi — au lieu de rester en pause indéfiniment. Sur la base réelle, 248 documents
    *  sur 250 sont dans ce cas. */
   readonly recette?: string | undefined;
+  /** Ce qu'une lecture antérieure de ce document a appris, quand l'hôte en garde un.
+   *
+   *  Il n'a de sens que pour la seconde voie : une manière de lire écrite à la main sait déjà où
+   *  regarder, et n'a rien à retrouver. La voie générique, elle, cherche — et sans mémoire elle
+   *  recherche chaque fois ce qu'elle a déjà trouvé. */
+  readonly acquis?: AcquisDeLecture | undefined;
   readonly description: string;
   /** Dossier où garder les lectures, pour ne pas repayer l'OCR. */
   readonly cache?: string | undefined;
@@ -152,7 +165,21 @@ export type LotTraite = {
    *  et un pied de page portant l'adresse de l'auteur est un tampon qu'on veut peut-être garder
    *  (FMT-04). */
   readonly filigranes: readonly AdresseRecurrente[];
+  /** Ce que cette lecture a appris du document, quand il y a quelque chose à retenir.
+   *
+   *  Rendu à l'hôte, qui le rangera avec la version : c'est lui qui a le document et son
+   *  empreinte, et c'est donc lui qui peut le rendre à la lecture suivante. */
+  readonly acquis?: AcquisDeLecture | undefined;
 };
+
+/** Ce que la lecture a appris, quand elle en est capable.
+ *
+ *  Seule la voie générique apprend quelque chose : une manière de lire écrite à la main sait
+ *  d'avance où regarder, et n'a donc rien à retrouver. Les deux voies rendant la même forme à un
+ *  champ près, c'est ce champ qui les distingue — et le distinguer ici évite que tout ce qui suit
+ *  ait à savoir laquelle a tourné. */
+const acquisRendu = (issu: Rejeu | RejeuParOracle): AcquisDeLecture | undefined =>
+  "acquis" in issu ? issu.acquis : undefined;
 
 /** Traite un lot et rend l'instantané que les écrans liront. */
 export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
@@ -167,7 +194,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // Sans manière de lire, la seconde voie : elle cherche la régularité elle-même. Les deux
   // rendent la même forme — c'est ce qui permet à tout ce qui suit de ne pas savoir laquelle a
   // tourné, et aux écrans de n'avoir rien à apprendre.
-  const { resultat, association, medias } =
+  const issu =
     recette === undefined
       ? await rejouerParOracle(lot.pdf, lot.medias, {
           ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
@@ -175,6 +202,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
           ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
           ...(lot.surPhase === undefined ? {} : { surPhase: lot.surPhase }),
           ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+          ...(lot.acquis === undefined ? {} : { acquis: lot.acquis }),
         })
       : await rejouer(lot.pdf, lot.medias, recette, {
           ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
@@ -187,6 +215,8 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
           ...(lot.pages === undefined ? {} : { pages: lot.pages }),
           ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
         });
+  const { resultat, association, medias } = issu;
+  const acquis = acquisRendu(issu);
 
   lot.surPhase?.(`repères lus : ${resultat.pages.length} page(s), ${resultat.lignes.length} élément(s)`);
   if (association.abstention !== undefined)
@@ -309,5 +339,6 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     passages,
     lecture: { parLaCouche: lu.parLaCouche, parOcr: lu.parOcr, sansTexte: lu.sansTexte },
     filigranes: adressesRecurrentes(passages),
+    ...(acquis === undefined ? {} : { acquis }),
   };
 }

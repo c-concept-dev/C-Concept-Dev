@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  AcquisDeLecture,
   Demande,
   Echec,
   Resultat,
@@ -65,6 +66,17 @@ export const ChargeTraitement = z
      *  une chaîne de caractères a tué tous ces travaux à la porte, en échec **définitif**, sans
      *  qu'une page soit lue — 248 documents sur 250 de la bibliothèque réelle. */
     recette: z.string().min(1).nullable().optional(),
+    /** Ce qu'une lecture antérieure de ce document a appris, si l'hôte en garde un.
+     *
+     *  Validé ici par son propre contrat, et non cru sur parole : la voie recalculera en plus
+     *  l'empreinte du document pour vérifier qu'il s'agit bien du même. Absent, la lecture repart
+     *  de zéro — ce qui est correct, seulement plus long.
+     *
+     *  **`null` est accepté, comme pour `recette`.** Un hôte qui n'a rien appris de ce document
+     *  l'annonce ainsi, et un contrat strict qui ne l'accepterait pas refuserait toute la charge :
+     *  c'est très exactement ce qui a tué 248 travaux à la porte le 30 octobre 2026, sans qu'une
+     *  page soit lue. Le refus n'aurait pas protégé la lecture, il l'aurait empêchée. */
+    acquis: AcquisDeLecture.nullable().optional(),
     /** Ce que l'hôte sait d'une vérification humaine. **Accepté ici, et jeté ici.**
      *
      *  Accepté, parce qu'un hôte qui tait ce qu'il sait est pire qu'un champ inutile, et parce
@@ -178,6 +190,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
       ...(charge.inventaireMedias === undefined ? {} : { inventaireMedias: charge.inventaireMedias }),
       ...(charge.provenancesMedias === undefined ? {} : { provenancesMedias: charge.provenancesMedias }),
       ...(charge.recette == null ? {} : { recette: charge.recette }),
+      ...(charge.acquis == null ? {} : { acquis: charge.acquis }),
       description: charge.description,
       ...(charge.cache === undefined ? {} : { cache: sousDossier(charge.cache, "lectures") }),
       ...(charge.images === undefined ? {} : { images: charge.images }),

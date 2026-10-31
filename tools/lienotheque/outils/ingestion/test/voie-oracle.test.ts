@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
-import { BUDGET_EXPLORATION, rejouerParOracle } from "../src/index.js";
+import { BUDGET_EXPLORATION, VERSION_DE_LA_VOIE, rejouerParOracle } from "../src/index.js";
 
 /** Lire un document sans manière de lire écrite à la main (OUT-10, REC-02).
  *
@@ -272,3 +272,117 @@ describe("un document sans manière de lire (OUT-10)", () => {
   );
 });
 
+
+describe("ce que la voie retient d'un document, pour ne pas l'apprendre deux fois (OUT-10, REC-02)", () => {
+  const vivier = Array.from({ length: 8 }, (_, place) => ({
+    nom: `${String(place + 1).padStart(2, "0")}.mp3`,
+    empreinte: `${place}`.repeat(64).slice(0, 64),
+    provenances: ["lot:epreuve"],
+  }));
+  const commun = { inventaireMedias: vivier, provenancesMedias: ["lot:epreuve"] } as const;
+
+  siTesseract(
+    "retrouve l'endroit qu'elle avait trouvé, et n'éprouve plus aucun autre (OUT-10)",
+    { timeout: 360_000 },
+    async () => {
+      const pages = [0, 1, 2, 3].map((rang) =>
+        [marque(70, 620, rang * 2 + 1), marque(70, 320, rang * 2 + 2), prose(760)].join("\n"),
+      );
+      const pdf = pdfDePages("acquis-endroit.pdf", pages);
+
+      const premier = await rejouerParOracle(pdf, dossierSansPiste, commun);
+      expect(premier.acquis?.etat, "une lecture qui trouve retient ce qu'elle a trouvé").toBe("endroit_trouve");
+
+      const second = await rejouerParOracle(pdf, dossierSansPiste, { ...commun, acquis: premier.acquis });
+      const dit = second.journal.join(" ");
+      expect(dit, "l'endroit est reconnu, pas recherché").toMatch(/endroit déjà connu de ce document/);
+      expect(dit, "et plus aucun essai n'est mené").not.toMatch(/essai\(s\) éprouvé\(s\)/);
+      expect(
+        second.resultat.lignes.map((ligne) => ligne.piste),
+        "et la seconde lecture dit exactement la même chose que la première",
+      ).toEqual(premier.resultat.lignes.map((ligne) => ligne.piste));
+    },
+  );
+
+  siTesseract(
+    "ne refait pas l'exploration d'un document dont il est établi qu'aucun endroit ne numérote (OUT-10)",
+    { timeout: 360_000 },
+    async () => {
+      // Le cas qui pèse le plus : seize documents sur vingt mesurés. La seconde lecture ne doit
+      // rendre aucune page, ne chercher aucune forme et ne lancer aucune reconnaissance.
+      const pages = [0, 1, 2, 3].map(() => [marque(70, 620, 7), marque(70, 320, 7), prose(760)].join("\n"));
+      const pdf = pdfDePages("acquis-aucun-endroit.pdf", pages);
+
+      const premier = await rejouerParOracle(pdf, dossierSansPiste, commun);
+      expect(premier.acquis?.etat).toBe("aucun_endroit");
+
+      const second = await rejouerParOracle(pdf, dossierSansPiste, { ...commun, acquis: premier.acquis });
+      const dit = second.journal.join(" ");
+      expect(dit, "pas une page regardée").not.toMatch(/page\(s\) regardée\(s\)/);
+      expect(dit, "pas un endroit proposé").not.toMatch(/endroit\(s\) proposé\(s\)/);
+      expect(second.journal.at(-1), "et la conclusion se dit retrouvée, non refaite").toMatch(
+        /Conclusion retrouvée, non refaite/,
+      );
+      expect(second.resultat.pages.length, "le document garde pourtant toutes ses pages").toBe(
+        premier.resultat.pages.length,
+      );
+      expect(second.acquis, "et l'acquis repart avec la nouvelle version").toEqual(premier.acquis);
+    },
+  );
+
+  siTesseract(
+    "écarte un acquis formé sur un autre document, quoi qu'en dise l'appelant (REC-02)",
+    { timeout: 360_000 },
+    async () => {
+      // Le garde-fou le plus important de cette mémoire : l'empreinte est recalculée ici. Une
+      // erreur de clé chez l'appelant appliquerait l'endroit d'un document à un autre, et
+      // produirait des liens faux et réguliers — exactement ce que tout le reste empêche.
+      const pdf = pdfDePages("acquis-etranger.pdf", [prose(700), prose(500), prose(300), prose(200)]);
+      const menteur = {
+        etat: "aucun_endroit" as const,
+        conteneur: "f".repeat(64),
+        voie: { id: "voie-sans-maniere-de-lire", version: VERSION_DE_LA_VOIE },
+        pagesRegardees: 4,
+        etabliLe: 1793500000,
+        endroitsProposes: 56,
+        essaisEprouves: 112,
+        borneLaPlusHaute: 0.486,
+      };
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, { ...commun, acquis: menteur });
+      expect(rejeu.journal.join(" ")).toMatch(/acquis écarté : il a été formé sur un autre document/);
+      expect(rejeu.journal.join(" "), "et le document est bel et bien relu").toMatch(/page\(s\) regardée\(s\)/);
+    },
+  );
+
+  siTesseract(
+    "écarte un acquis que la lecture a périmé depuis (OUT-10)",
+    { timeout: 360_000 },
+    async () => {
+      // Sans ce contrôle, améliorer la lecture laisserait les documents déjà vus sur les
+      // conclusions de l'ancienne, pour toujours et sans que rien ne le dise.
+      const pdf = pdfDePages("acquis-perime.pdf", [prose(700), prose(500), prose(300), prose(200)]);
+      const premier = await rejouerParOracle(pdf, dossierSansPiste, commun);
+      expect(premier.acquis).toBeDefined();
+      const vieilli = { ...premier.acquis!, voie: { id: "voie-sans-maniere-de-lire", version: VERSION_DE_LA_VOIE + 1 } };
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, { ...commun, acquis: vieilli });
+      expect(rejeu.journal.join(" ")).toMatch(/acquis écarté : il vient de .* et la lecture a changé depuis/);
+    },
+  );
+
+  siTesseract(
+    "ne retient rien d'une exploration arrêtée par son budget (REC-02)",
+    { timeout: 360_000 },
+    async () => {
+      // Se souvenir de « je n'ai pas fini » autoriserait plus tard à conclure de ce qu'on n'a pas
+      // vu. Le filet ne doit donc jamais produire d'acquis, même quand il s'est refermé près du but.
+      const pages = [0, 1, 2, 3].map(() => [marque(70, 620, 7), marque(70, 320, 7), prose(760)].join("\n"));
+      const pdf = pdfDePages("acquis-budget.pdf", pages);
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
+        ...commun,
+        budgetExploration: { paires: 1, secondes: 3600 },
+      });
+      expect(rejeu.journal.join(" ")).toMatch(/exploration arrêtée/);
+      expect(rejeu.acquis, "rien n'est retenu d'une exploration qui n'a pas conclu").toBeUndefined();
+    },
+  );
+});

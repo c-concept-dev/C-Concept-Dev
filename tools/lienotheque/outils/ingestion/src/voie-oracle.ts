@@ -1,7 +1,8 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createReadStream, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { LigneInterpretee, PageReperee, ResultatRecette } from "@lienotheque/contrats";
+import { AcquisDeLecture, type LigneInterpretee, type PageReperee, type ResultatRecette } from "@lienotheque/contrats";
 import { enGris, formesSombres, type Boite, type ImageGrise } from "@lienotheque/images";
 import { coucheSuffisante, lireCoucheTexte, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
 import {
@@ -70,6 +71,17 @@ import { ocrDUnePageGrise } from "./texte.js";
  *
  *  Aucun regard distant n'y est branché. Le port existe dans le coordinateur ; cette voie lui
  *  répond franchement qu'il n'y a personne au bout, plutôt que de feindre une relecture. */
+
+/** Comment cette façon de lire se nomme, et dans quelle version.
+ *
+ *  La version n'est pas décorative : c'est elle qui périme les acquis. Elle monte dès que change
+ *  **ce qui propose les endroits, ce qui les juge, ou ce qui les lit** — sans quoi une amélioration
+ *  de la lecture laisserait les documents déjà vus sur les conclusions de l'ancienne. Elle ne
+ *  monte pas quand seul le coût change : l'élagage du 31 octobre 2026 rend les mêmes endroits, au
+ *  centième, et n'a donc rien périmé. */
+export const ID_DE_LA_VOIE = "voie-sans-maniere-de-lire";
+export const VERSION_DE_LA_VOIE = 1;
+const LA_VOIE = { id: ID_DE_LA_VOIE, version: VERSION_DE_LA_VOIE } as const;
 
 /** La largeur à laquelle les pages sont rendues. La même que la chaîne de texte : deux largeurs
  *  différentes donneraient deux jeux de formes, et deux résultats pour un même document. */
@@ -143,6 +155,14 @@ export type OptionsVoieOracle = {
   readonly pages?: number | undefined;
   /** Jusqu'où chercher un endroit qui porte la numérotation. Voir `BUDGET_EXPLORATION`. */
   readonly budgetExploration?: BudgetExploration | undefined;
+  /** Ce qu'une lecture antérieure de **ce** document a appris, s'il y en a une.
+   *
+   *  Rien n'est cru sur parole : l'empreinte du document est recalculée ici et comparée à celle
+   *  que l'acquis porte, la version de la voie doit être la nôtre, et le nombre de pages
+   *  regardées doit être le même. Un acquis qui échoue à l'un de ces trois contrôles est ignoré,
+   *  et le journal le dit — plutôt que de laisser une conclusion s'appliquer à ce qu'elle n'a
+   *  jamais vu. */
+  readonly acquis?: AcquisDeLecture | undefined;
 };
 
 export type RejeuParOracle = {
@@ -151,7 +171,48 @@ export type RejeuParOracle = {
   readonly medias: readonly Media[];
   /** Ce que la voie a vu et décidé, en clair : de quoi expliquer un résultat sans relire le code. */
   readonly journal: readonly string[];
+  /** Ce que cette lecture a appris, à garder pour ne pas l'apprendre deux fois.
+   *
+   *  Absent quand il n'y a rien à retenir : une exploration arrêtée par son budget n'a rien
+   *  conclu, et se souvenir de « je n'ai pas fini » autoriserait plus tard à conclure de ce qu'on
+   *  n'a pas vu. */
+  readonly acquis?: AcquisDeLecture | undefined;
 };
+
+/** L'empreinte du document, calculée ici et non reçue.
+ *
+ *  Le garde-fou le plus important de cette mémoire. Si la vérification était laissée à qui
+ *  appelle, une erreur de clé appliquerait l'endroit d'un document à un autre — et produirait des
+ *  liens faux et réguliers, exactement ce que tout le reste existe pour empêcher. Lue en flux :
+ *  un document de cinq cents pages ne doit pas tenir en mémoire pour être empreint. */
+async function empreinteDuFichier(chemin: string): Promise<string> {
+  const condensat = createHash("sha256");
+  for await (const morceau of createReadStream(chemin)) condensat.update(morceau as Buffer);
+  return condensat.digest("hex");
+}
+
+/** L'acquis est-il celui de ce document, de cette voie, et de cette étendue de lecture ? */
+function acquisUtilisable(
+  acquis: AcquisDeLecture | undefined,
+  empreinte: string,
+  combienDePages: number,
+  dire: (message: string) => void,
+): AcquisDeLecture | undefined {
+  if (acquis === undefined) return undefined;
+  const refus =
+    acquis.conteneur !== empreinte
+      ? "il a été formé sur un autre document"
+      : acquis.voie.id !== ID_DE_LA_VOIE || acquis.voie.version !== VERSION_DE_LA_VOIE
+        ? `il vient de ${acquis.voie.id} version ${acquis.voie.version}, et la lecture a changé depuis`
+        : acquis.pagesRegardees !== combienDePages
+          ? `il a été formé sur ${acquis.pagesRegardees} page(s), et l'on en regarde ${combienDePages}`
+          : undefined;
+  if (refus !== undefined) {
+    dire(`acquis écarté : ${refus}. Ce document est relu depuis le début.`);
+    return undefined;
+  }
+  return acquis;
+}
 
 const boiteDeLApparition = (apparition: FormeObservee, image: ImageGrise): Boite => {
   const l = apparition.l * image.largeur;
@@ -208,9 +269,32 @@ export async function rejouerParOracle(
       : mediasDeLInventaire(options.inventaireMedias);
   dire(`${medias.length} enregistrement(s) dans le vivier de ce document`);
 
+  const empreinte = await empreinteDuFichier(pdf);
+
   // ── 1. Les formes sombres de chaque page ───────────────────────────────────────────────
   const rendu = await ouvrirRenduPdf(pdf);
   const combienDePages = Math.min(rendu.nombreDePages, options.pages ?? Number.POSITIVE_INFINITY);
+  const acquis = acquisUtilisable(options.acquis, empreinte, combienDePages, dire);
+
+  // Un document dont il est **déjà établi** qu'aucun endroit n'y porte de numérotation n'a rien à
+  // relire : ni ses pages, ni ses formes, ni une seule reconnaissance. C'est là qu'est l'essentiel
+  // du gain — mesuré le 31 octobre 2026, seize documents sur vingt sont dans ce cas, et ce sont
+  // eux qui coûtent le plus cher : jusqu'à 182 essais et 839 s pour conclure qu'il n'y a rien.
+  if (acquis?.etat === "aucun_endroit") {
+    await rendu.fermer();
+    return sansLien(
+      medias,
+      options,
+      journal,
+      combienDePages,
+      `Aucun des ${acquis.endroitsProposes} endroits de ce document ne porte une numérotation : ` +
+        `établi par ${acquis.essaisEprouves} essai(s), le plus prometteur ne pouvant pas dépasser ` +
+        `${(acquis.borneLaPlusHaute * 100).toFixed(0)} % là où il en faut ` +
+        `${(NUMEROTATION_PROBABLE * 100).toFixed(0)} %. Conclusion retrouvée, non refaite.`,
+      acquis,
+    );
+  }
+
   const images = new Map<number, ImageGrise>();
   const formes: FormeObservee[] = [];
   try {
@@ -244,7 +328,23 @@ export async function rejouerParOracle(
   const proposees = zonesAExaminer(zonesRecurrentes(formes, combienDePages));
   dire(`${proposees.length} endroit(s) proposé(s) par la régularité des formes`);
   if (proposees.length === 0)
-    return sansLien(medias, options, journal, combienDePages, "Aucune forme ne revient régulièrement sur ces pages.");
+    return sansLien(
+      medias,
+      options,
+      journal,
+      combienDePages,
+      "Aucune forme ne revient régulièrement sur ces pages.",
+      AcquisDeLecture.parse({
+        etat: "aucun_endroit",
+        conteneur: empreinte,
+        voie: LA_VOIE,
+        pagesRegardees: combienDePages,
+        etabliLe: Math.floor(Date.now() / 1000),
+        endroitsProposes: 0,
+        essaisEprouves: 0,
+        borneLaPlusHaute: 0,
+      }),
+    );
 
   const budget = options.budgetExploration ?? BUDGET_EXPLORATION;
   const departExploration = Date.now();
@@ -263,9 +363,44 @@ export async function rejouerParOracle(
   // Pourquoi l'exploration s'est arrêtée avant d'avoir tout essayé, ou rien si elle est allée au
   // bout. C'est cette phrase, et non le seul décompte, qui rend l'abstention lisible.
   let renoncement: string | undefined;
-  let retenu: { zone: ZoneRecurrente; motif: Motif; part: number } | undefined;
+  let retenu:
+    | { zone: ZoneRecurrente; motif: Motif; part: number; echantillon: readonly FormeObservee[]; suite: readonly (number | undefined)[] }
+    | undefined;
+
+  // L'endroit déjà connu de ce document. On garde la détection des formes — elle ne coûte aucune
+  // reconnaissance et c'est elle qui rend les apparitions à lire — et l'on saute le jugement, qui
+  // est la dépense. Si la boîte de l'endroit ne se retrouve pas à l'identique, c'est que ce qui
+  // propose les endroits a changé : on explore de nouveau plutôt que de forcer un rapprochement.
+  if (acquis?.etat === "endroit_trouve") {
+    const memeEndroit = proposees.find(
+      (zone) =>
+        Math.abs(zone.x - acquis.endroit.x) < 1e-9 &&
+        Math.abs(zone.y - acquis.endroit.y) < 1e-9 &&
+        Math.abs(zone.l - acquis.endroit.l) < 1e-9 &&
+        Math.abs(zone.h - acquis.endroit.h) < 1e-9,
+    );
+    const facon = MOTIFS.find((connu) => connu === acquis.motif);
+    if (memeEndroit === undefined || facon === undefined)
+      dire("acquis écarté : son endroit ne se retrouve pas dans ce document. Les endroits sont éprouvés de nouveau.");
+    else {
+      retenu = {
+        zone: memeEndroit,
+        motif: facon,
+        part: acquis.part,
+        echantillon: echantillonner(memeEndroit, APPARITIONS_POUR_JUGER),
+        suite: acquis.echantillon.map((apparition) => apparition.valeur),
+      };
+      dire(
+        `endroit déjà connu de ce document : numérotation ${(acquis.part * 100).toFixed(0)} %, ` +
+          `${acquis.echantillon.length} lecture(s) et ${acquis.temoins.length} témoin(s) à l'appui. ` +
+          "Aucun endroit n'est éprouvé de nouveau.",
+      );
+    }
+  }
+
+  const venuDeLAcquis = retenu !== undefined;
   for (const zone of proposees) {
-    if (renoncement !== undefined) break;
+    if (venuDeLAcquis || renoncement !== undefined) break;
     const echantillon = echantillonner(zone, APPARITIONS_POUR_JUGER);
     for (const motif of MOTIFS) {
       const secondes = (Date.now() - departExploration) / 1000;
@@ -331,13 +466,14 @@ export async function rejouerParOracle(
           `${allure.distinctes} valeur(s) distincte(s), avance ${(allure.avance * 100).toFixed(0)} % ` +
           `→ numérotation ${(part * 100).toFixed(0)} %`,
       );
-      if (retenu === undefined || part > retenu.part) retenu = { zone, motif, part };
+      if (retenu === undefined || part > retenu.part) retenu = { zone, motif, part, echantillon, suite };
     }
   }
-  dire(
-    `${eprouvees} essai(s) éprouvé(s), ${reconnaissances} lecture(s) là où les lire tous ` +
-      `entièrement en aurait demandé ${reconnaissancesSansElagage}`,
-  );
+  if (!venuDeLAcquis)
+    dire(
+      `${eprouvees} essai(s) éprouvé(s), ${reconnaissances} lecture(s) là où les lire tous ` +
+        `entièrement en aurait demandé ${reconnaissancesSansElagage}`,
+    );
   if (renoncement !== undefined)
     dire(`exploration arrêtée après ${eprouvees} essai(s) sur ${possibles} possibles : ${renoncement}`);
   // Un endroit n'est retenu que s'il a passé le seuil : la borne l'abandonne sinon, à sa dernière
@@ -356,6 +492,21 @@ export async function rejouerParOracle(
           `faut ${(NUMEROTATION_PROBABLE * 100).toFixed(0)} %`;
     // Deux abstentions, et non une : « j'ai tout essayé, rien ne numérote » et « je me suis
     // arrêtée avant d'avoir tout essayé » ne disent pas la même chose à qui lira ce document.
+    // Une exploration qui a conclu se retient ; une exploration arrêtée par son budget, jamais.
+    // Se souvenir de « je n'ai pas fini » autoriserait plus tard à conclure de ce qu'on n'a pas vu.
+    const aRetenir =
+      renoncement === undefined
+        ? AcquisDeLecture.parse({
+            etat: "aucun_endroit",
+            conteneur: empreinte,
+            voie: LA_VOIE,
+            pagesRegardees: combienDePages,
+            etabliLe: Math.floor(Date.now() / 1000),
+            endroitsProposes: proposees.length,
+            essaisEprouves: eprouvees,
+            borneLaPlusHaute: borneLaPlusHaute,
+          })
+        : undefined;
     return sansLien(
       medias,
       options,
@@ -366,6 +517,7 @@ export async function rejouerParOracle(
         : `Aucun endroit fiable trouvé : exploration arrêtée après ${eprouvees} essai(s) sur les ` +
           `${possibles} qu'offrent ${proposees.length} endroit(s), ${renoncement}. ` +
           `${insuffisant[0]!.toUpperCase()}${insuffisant.slice(1)}.`,
+      aRetenir,
     );
   }
   dire(
@@ -416,6 +568,47 @@ export async function rejouerParOracle(
 
   const retenues = coordonne.pages.filter((decision) => decision.etat === "retenue").length;
   dire(`${retenues} marque(s) retenue(s) sur ${marques.length}, ${marques.length - retenues} à vérifier`);
+
+  // ── Ce que cette lecture a appris de ce document ───────────────────────────────────────
+  //
+  // L'échantillon est celui qui a formé l'hypothèse ; les témoins sont les autres apparitions,
+  // relues une à une par le coordinateur — donc éprouvées hors de ce qui a formé l'hypothèse,
+  // comme le contrat l'exige. Les témoins gardés sont un échantillon réparti : un recueil de cinq
+  // cents pages en porte des milliers, et les recopier tous gonflerait l'acquis sans rien prouver
+  // de plus. Leurs décomptes réels voyagent avec, pour qu'il ne se vante pas.
+  const formeDeLEchantillon = new Set(retenu.echantillon.map((apparition) => `${apparition.page}:${apparition.y}`));
+  const luePourLaMarque = new Map(
+    coordonne.pages.map((decision) => [decision.page, decision.etat === "retenue" ? decision.valeur : undefined]),
+  );
+  const temoinsTous = marques
+    .filter((marque) => !formeDeLEchantillon.has(`${marque.rangDePage}:${marque.y}`))
+    .map((marque) => {
+      const valeur = luePourLaMarque.get(marque.numero);
+      return { rang: marque.rangDePage, y: marque.y, ...(valeur === undefined ? {} : { valeur }) };
+    });
+  const TEMOINS_GARDES = 32;
+  const pasDesTemoins = temoinsTous.length / TEMOINS_GARDES;
+  const acquisDeCetteLecture = AcquisDeLecture.parse({
+    etat: "endroit_trouve",
+    conteneur: empreinte,
+    voie: LA_VOIE,
+    pagesRegardees: combienDePages,
+    etabliLe: Math.floor(Date.now() / 1000),
+    endroit: { x: retenu.zone.x, y: retenu.zone.y, l: retenu.zone.l, h: retenu.zone.h },
+    motif: retenu.motif,
+    part: retenu.part,
+    echantillon: retenu.echantillon.map((apparition, place) => ({
+      rang: apparition.page,
+      y: apparition.y,
+      ...(retenu.suite[place] === undefined ? {} : { valeur: retenu.suite[place] }),
+    })),
+    temoins:
+      temoinsTous.length <= TEMOINS_GARDES
+        ? temoinsTous
+        : Array.from({ length: TEMOINS_GARDES }, (_, place) => temoinsTous[Math.floor(place * pasDesTemoins)]!),
+    temoinsEprouves: temoinsTous.length,
+    temoinsDAccord: temoinsTous.filter((temoin) => temoin.valeur !== undefined).length,
+  });
 
   // ── 4. L'attribution, règles génériques seules ─────────────────────────────────────────
   const lectures: LecturePiste[] = coordonne.pages.map((decision) => ({
@@ -569,7 +762,7 @@ export async function rejouerParOracle(
   });
 
   const resultat: ResultatRecette = {
-    recette: { id: "voie-sans-maniere-de-lire", version: 1 },
+    recette: LA_VOIE,
     pages,
     lignes,
     pagesAbsentes: [],
@@ -624,7 +817,7 @@ export async function rejouerParOracle(
         "imprimé sur la page — ou la confirmation de ces liens un par un.",
     );
 
-  return { resultat, association, medias, journal };
+  return { resultat, association, medias, journal, acquis: acquisDeCetteLecture };
 }
 
 /** Ce qu'on rend quand il n'y a rien à lire : un résultat vide et une raison, jamais un lien. */
@@ -634,12 +827,13 @@ function sansLien(
   journal: string[],
   combienDePages: number,
   pourquoi: string,
+  acquis?: AcquisDeLecture,
 ): RejeuParOracle {
   journal.push(pourquoi);
   options.surPhase?.(pourquoi);
   return {
     resultat: {
-      recette: { id: "voie-sans-maniere-de-lire", version: 1 },
+      recette: LA_VOIE,
       pages: Array.from({ length: combienDePages }, (_, place) => ({
         index: place,
         rang: place,
@@ -659,5 +853,6 @@ function sansLien(
     },
     medias,
     journal,
+    ...(acquis === undefined ? {} : { acquis }),
   };
 }

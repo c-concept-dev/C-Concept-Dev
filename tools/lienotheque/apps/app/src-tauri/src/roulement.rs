@@ -550,6 +550,7 @@ impl Roulement {
 
         Ok(serde_json::json!({
             "document": document,
+            "acquis": self.acquis_connu(empreinte),
             "medias": racine.join(crate::depot::SOURCES),
             "inventaireMedias": inventaire_medias,
             "provenancesMedias": sujet.provenances_medias,
@@ -560,6 +561,25 @@ impl Roulement {
             "images": racine.join(crate::depot::DERIVES).join(&travail.version_cible).join("pages"),
             "relecture": ADRESSE_RELECTURE,
         }))
+    }
+
+    /// Ce qu'une lecture antérieure de ce document a appris, lu dans sa version active.
+    ///
+    /// **Rangé avec la version, et non dans un fichier à part.** La version porte déjà tout ce
+    /// qu'une lecture a produit, et l'hôte l'écrit d'un seul geste : un second fichier
+    /// introduirait deux écritures à tenir d'accord, donc un état où l'une a réussi et l'autre
+    /// non. L'hôte n'a donc rien à écrire de plus — il n'a qu'à relire.
+    ///
+    /// Rien ici n'est une panne. Pas de version active, version illisible, acquis absent ou d'une
+    /// forme que la chaîne refusera : dans tous les cas la lecture repart de zéro, ce qui est
+    /// correct et seulement plus long. C'est la chaîne qui valide cet acquis par son contrat, et
+    /// la voie qui recalcule l'empreinte du document pour vérifier qu'il s'agit bien du même —
+    /// l'hôte ne fait que transporter, et ne doit donc rien trancher.
+    fn acquis_connu(&self, empreinte: &str) -> Option<serde_json::Value> {
+        let pointeur = self.depot.version_active(empreinte).ok().flatten()?;
+        let brut = self.depot.lire_version(&pointeur.version).ok().flatten()?;
+        let charge: serde_json::Value = serde_json::from_str(&brut).ok()?;
+        charge.get("acquis").filter(|acquis| !acquis.is_null()).cloned()
     }
 }
 
@@ -933,6 +953,59 @@ mod tests {
             assert!(charge.get(champ).is_some(), "{champ} manque");
         }
         assert_eq!(charge["relecture"], serde_json::json!("https://lienotheque-api.11drumboy11.workers.dev"));
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Ce que la lecture précédente a appris repart avec la suivante (OUT-10, REC-02).
+    ///
+    /// Sans cela, chaque retraitement recherche l'endroit qu'il a déjà trouvé — mesuré le
+    /// 31 octobre 2026 : 64 reconnaissances pour le témoin vérifié à l'oreille, 789 pour un
+    /// document qui finit par s'abstenir, et la même dépense à chaque passage.
+    #[test]
+    fn rend_a_la_chaine_ce_que_la_version_active_a_appris() {
+        let racine = bac("acquis-transmis");
+        let r = roulement(racine.clone());
+        let base = r.depot.racine().join("base");
+        fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
+        fs::create_dir_all(&base).expect("base");
+        poser_source(&r, "pdf");
+        fs::write(base.join("bibliotheque.json"), b"{}").expect("description");
+
+        // Rien d'appris encore : le champ part tout de même, à `null`. L'omettre serait pire —
+        // un hôte qui tait ce qu'il sait oblige l'autre bout à deviner.
+        let avant = r.charge_de(&travail_de("un.pdf")).expect("charge");
+        assert!(avant["acquis"].is_null(), "rien n'a encore été appris : {avant}");
+
+        // Une version active qui porte un acquis.
+        let version = "0190f0a0-0000-7000-8000-0000000000b1";
+        r.depot
+            .ecrire_version(version, r#"{"resultat":{},"acquis":{"etat":"aucun_endroit","endroitsProposes":56}}"#)
+            .expect("version écrite");
+        r.depot.activer(EMPREINTE, version, 1).expect("activée");
+
+        let apres = r.charge_de(&travail_de("un.pdf")).expect("charge");
+        assert_eq!(apres["acquis"]["etat"], serde_json::json!("aucun_endroit"), "{apres}");
+        assert_eq!(apres["acquis"]["endroitsProposes"], serde_json::json!(56), "{apres}");
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Une version active sans acquis ne doit pas devenir un acquis vide.
+    #[test]
+    fn ne_fabrique_pas_un_acquis_depuis_une_version_qui_n_en_porte_pas() {
+        let racine = bac("acquis-absent");
+        let r = roulement(racine.clone());
+        let base = r.depot.racine().join("base");
+        fs::create_dir_all(r.depot.racine().join(crate::depot::SOURCES)).expect("sources");
+        fs::create_dir_all(&base).expect("base");
+        poser_source(&r, "pdf");
+        fs::write(base.join("bibliotheque.json"), b"{}").expect("description");
+
+        let version = "0190f0a0-0000-7000-8000-0000000000b2";
+        r.depot.ecrire_version(version, r#"{"resultat":{},"acquis":null}"#).expect("version écrite");
+        r.depot.activer(EMPREINTE, version, 1).expect("activée");
+
+        let charge = r.charge_de(&travail_de("un.pdf")).expect("charge");
+        assert!(charge["acquis"].is_null(), "un acquis nul reste nul : {charge}");
         fs::remove_dir_all(&racine).ok();
     }
 
