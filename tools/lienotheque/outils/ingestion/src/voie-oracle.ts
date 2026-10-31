@@ -78,6 +78,31 @@ export const LARGEUR_DE_RENDU = 1800;
  *  « toutes se lisent » de « une sur deux », pas assez pour coûter une passe entière. */
 export const APPARITIONS_POUR_JUGER = 12;
 
+/** Ce que l'exploration des endroits se permet au plus, avant de renoncer et de le dire.
+ *
+ *  Ce n'est pas la réparation d'une fuite. Mesurée sur vingt documents réels, l'exploration
+ *  s'arrête d'elle-même, bornée par le contenu : de 4 à 182 essais « endroit × façon de lire »,
+ *  tous menés à leur terme, aucun en cours à la fin. C'est un filet pour ce qui n'a pas été
+ *  mesuré — vingt documents ne sont pas deux cent cinquante.
+ *
+ *  Les deux chiffres sortent des mêmes mesures. 256 essais valent 1,4 fois le maximum observé
+ *  (182, sur 91 endroits — et l'endroit retenu s'y trouvait au 123ᵉ essai, ce qui interdit de
+ *  couper court en espérant que les premiers suffisent). 2 700 secondes valent ces 256 essais au
+ *  rythme le plus lent observé (10,2 s l'essai ; l'ordinaire va de 4,3 à 7,7 s) : une machine
+ *  lente n'y tombe pas sans y avoir vraiment passé quarante-cinq minutes. La plus longue
+ *  exploration réellement observée en a pris 947.
+ *
+ *  Quand le filet se referme, la voie ne devine rien. Elle garde l'endroit qui a prouvé sa
+ *  numérotation s'il y en a un — ses marques sont toutes relues ensuite, et la publication
+ *  demande toujours deux signaux indépendants —, et sinon elle s'abstient en disant combien
+ *  d'essais ont été faits, sur combien de possibles, et pourquoi elle s'est arrêtée. */
+export const BUDGET_EXPLORATION: BudgetExploration = { paires: 256, secondes: 2700 };
+
+/** De quoi borner l'exploration autrement : une épreuve qui veut voir le filet se refermer, un
+ *  essai qui n'a pas quarante minutes à donner. Les deux bornes se donnent ensemble — une borne
+ *  à moitié remplacée serait une limite que personne n'a choisie. */
+export type BudgetExploration = { readonly paires: number; readonly secondes: number };
+
 /** En deçà, le coordinateur ne retient pas une lecture. C'est le même seuil que celui sur lequel
  *  un changement de support se fonde : une marque dont la majorité de ses propres lectures ne
  *  s'accordent pas n'est pas une lecture franche. */
@@ -115,6 +140,8 @@ export type OptionsVoieOracle = {
   readonly surPhase?: ((message: string) => void) | undefined;
   /** N'en lire que les premières pages : pour essayer, ou pour éprouver. */
   readonly pages?: number | undefined;
+  /** Jusqu'où chercher un endroit qui porte la numérotation. Voir `BUDGET_EXPLORATION`. */
+  readonly budgetExploration?: BudgetExploration | undefined;
 };
 
 export type RejeuParOracle = {
@@ -218,10 +245,28 @@ export async function rejouerParOracle(
   if (proposees.length === 0)
     return sansLien(medias, options, journal, combienDePages, "Aucune forme ne revient régulièrement sur ces pages.");
 
+  const budget = options.budgetExploration ?? BUDGET_EXPLORATION;
+  const departExploration = Date.now();
+  const possibles = proposees.length * MOTIFS.length;
+  let eprouvees = 0;
+  // Pourquoi l'exploration s'est arrêtée avant d'avoir tout essayé, ou rien si elle est allée au
+  // bout. C'est cette phrase, et non le seul décompte, qui rend l'abstention lisible.
+  let renoncement: string | undefined;
   let retenu: { zone: ZoneRecurrente; motif: Motif; part: number } | undefined;
   for (const zone of proposees) {
+    if (renoncement !== undefined) break;
     const echantillon = echantillonner(zone, APPARITIONS_POUR_JUGER);
     for (const motif of MOTIFS) {
+      const secondes = (Date.now() - departExploration) / 1000;
+      if (eprouvees >= budget.paires) {
+        renoncement = `le budget n'en porte pas plus de ${budget.paires}`;
+        break;
+      }
+      if (secondes >= budget.secondes) {
+        renoncement = `les ${budget.secondes} s du budget sont écoulées`;
+        break;
+      }
+      eprouvees += 1;
       // Les valeurs lues, dans l'ordre des pages, et non leur seul décompte : c'est ce qui est lu
       // qui dit si cet endroit porte une numérotation ou une forme que la reconnaissance habille
       // toujours du même chiffre.
@@ -249,18 +294,32 @@ export async function rejouerParOracle(
       if (retenu === undefined || part > retenu.part) retenu = { zone, motif, part };
     }
   }
-  if (retenu === undefined || retenu.part < NUMEROTATION_PROBABLE)
+  if (renoncement !== undefined)
+    dire(`exploration arrêtée après ${eprouvees} essai(s) sur ${possibles} possibles : ${renoncement}`);
+  if (retenu === undefined || retenu.part < NUMEROTATION_PROBABLE) {
+    // Dire que rien ne numérote, et non que rien ne se lit : la reconnaissance lit des chiffres
+    // dans bien des formes, et c'est précisément l'erreur dans laquelle il ne faut pas tomber.
+    // Sans un seul essai, il n'y a pas de « meilleur » : le dire à 0 % laisserait croire qu'un
+    // endroit a été jugé et recalé. Ce n'est vrai que si la boucle a tourné au moins une fois.
+    const insuffisant =
+      retenu === undefined
+        ? "aucun essai n'a été fait"
+        : `le meilleur n'atteint que ${(retenu.part * 100).toFixed(0)} % là où il en faut ` +
+          `${(NUMEROTATION_PROBABLE * 100).toFixed(0)} %`;
+    // Deux abstentions, et non une : « j'ai tout essayé, rien ne numérote » et « je me suis
+    // arrêtée avant d'avoir tout essayé » ne disent pas la même chose à qui lira ce document.
     return sansLien(
       medias,
       options,
       journal,
       combienDePages,
-      // Dire que rien ne numérote, et non que rien ne se lit : la reconnaissance lit des chiffres
-      // dans bien des formes, et c'est précisément l'erreur dans laquelle il ne faut pas tomber.
-      `Aucun des ${proposees.length} endroits trouvés ne porte une numérotation : ` +
-        `le meilleur n'atteint que ${((retenu?.part ?? 0) * 100).toFixed(0)} % là où il en faut ` +
-        `${(NUMEROTATION_PROBABLE * 100).toFixed(0)} %.`,
+      renoncement === undefined
+        ? `Aucun des ${proposees.length} endroits trouvés ne porte une numérotation : ${insuffisant}.`
+        : `Aucun endroit fiable trouvé : exploration arrêtée après ${eprouvees} essai(s) sur les ` +
+          `${possibles} qu'offrent ${proposees.length} endroit(s), ${renoncement}. ` +
+          `${insuffisant[0]!.toUpperCase()}${insuffisant.slice(1)}.`,
     );
+  }
   dire(
     `endroit retenu : un signe de ${(retenu.zone.taille.l * 100).toFixed(1)} × ` +
       `${(retenu.zone.taille.h * 100).toFixed(1)} % de la page, numérotation ${(retenu.part * 100).toFixed(0)} %, ` +

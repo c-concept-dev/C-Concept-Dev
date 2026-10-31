@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
-import { rejouerParOracle } from "../src/index.js";
+import { BUDGET_EXPLORATION, rejouerParOracle } from "../src/index.js";
 
 /** Lire un document sans manière de lire écrite à la main (OUT-10, REC-02).
  *
@@ -176,6 +176,66 @@ describe("un document sans manière de lire (OUT-10)", () => {
       expect(rejeu.resultat.lignes.length, "les lectures existent").toBe(8);
       expect(rejeu.association.abstention?.raison).toBe("corroboration_insuffisante");
       expect(rejeu.association.appariements, "et rien n'est publié").toEqual([]);
+    },
+  );
+
+  it("garde un budget d'exploration au-dessus de tout ce qui a été mesuré (REC-02)", () => {
+    // Le filet ne vaut que s'il ne se referme pas sur un succès réel. Sur vingt documents, la
+    // plus longue exploration menée à terme a éprouvé 182 essais « endroit × façon de lire »,
+    // au rythme le plus lent de 10,2 s l'essai. Baisser l'une de ces bornes sous la réalité
+    // mesurée transformerait des lectures justes en abstentions : que cela se voie ici.
+    expect(BUDGET_EXPLORATION.paires, "au-dessus des 182 essais mesurés").toBeGreaterThan(182);
+    expect(BUDGET_EXPLORATION.secondes, "de quoi mener ces essais au rythme le plus lent observé").toBeGreaterThanOrEqual(
+      BUDGET_EXPLORATION.paires * 10.2,
+    );
+  });
+
+  siTesseract(
+    "renonce quand le budget d'essais est épuisé, et dit après combien d'essais (REC-02)",
+    { timeout: 180_000 },
+    async () => {
+      // Des formes qui reviennent et se lisent, mais ne numérotent rien : aucun endroit ne peut
+      // qualifier, quel que soit le nombre d'essais. Avec un budget d'un seul essai, la voie doit
+      // s'arrêter avant d'avoir tout vu — et le dire autrement que « j'ai tout essayé ».
+      const pages = [0, 1, 2, 3].map(() => [marque(70, 620, 7), marque(70, 320, 7), prose(760)].join("\n"));
+      const pdf = pdfDePages("budget-epuise.pdf", pages);
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
+        inventaireMedias: [{ nom: "a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
+        provenancesMedias: ["lot:epreuve"],
+        budgetExploration: { paires: 1, secondes: 3600 },
+      });
+
+      const dit = rejeu.journal.join(" ");
+      expect(dit, "l'arrêt est dit, avec son décompte").toMatch(
+        /exploration arrêtée après 1 essai\(s\) sur \d+ possibles : le budget n'en porte pas plus de 1/,
+      );
+      expect(rejeu.journal.at(-1), "et l'abstention dit combien d'essais sur combien de possibles").toMatch(
+        /exploration arrêtée après 1 essai\(s\) sur les \d+ qu'offrent \d+ endroit\(s\)/,
+      );
+      expect(rejeu.association.appariements, "jamais un lien pour éviter d'attendre").toEqual([]);
+    },
+  );
+
+  siTesseract(
+    "renonce aussi sur le temps écoulé, sans tenter de lecture (REC-02)",
+    { timeout: 180_000 },
+    async () => {
+      // Le décompte d'essais ne borne le temps que si chaque essai coûte ce qu'on croit. La
+      // seconde borne est une horloge : avec zéro seconde accordée, pas une reconnaissance ne
+      // doit être lancée, et l'abstention doit le dire.
+      const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
+      const pdf = pdfDePages("budget-horloge.pdf", pages);
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
+        inventaireMedias: [{ nom: "a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
+        provenancesMedias: ["lot:epreuve"],
+        budgetExploration: { paires: 256, secondes: 0 },
+      });
+
+      expect(rejeu.journal.join(" "), "l'horloge, et non le décompte").toMatch(
+        /exploration arrêtée après 0 essai\(s\) sur \d+ possibles : les 0 s du budget sont écoulées/,
+      );
+      expect(rejeu.journal.at(-1)).toMatch(/après 0 essai\(s\)/);
+      expect(rejeu.association.appariements).toEqual([]);
     },
   );
 
