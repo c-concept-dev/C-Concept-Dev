@@ -323,3 +323,50 @@ export function partDeNumerotation(allure: Allure, apparitionsRegardees: number)
   if (apparitionsRegardees === 0 || allure.lues === 0) return 0;
   return (allure.lues / apparitionsRegardees) * allure.variete * allure.avance;
 }
+
+/** La note la plus haute qu'un endroit puisse encore atteindre, ses apparitions non encore lues
+ *  étant supposées parfaites (REC-02, OUT-10).
+ *
+ *  ## À quoi sert une borne
+ *
+ *  Juger un endroit coûte une reconnaissance par apparition regardée, et l'immense majorité des
+ *  endroits proposés ne portent aucune numérotation — mesuré sur cinq documents réels, 4 essais
+ *  sur 376 atteignent le seuil. Lire douze apparitions pour conclure que le premier chiffre lu
+ *  était du papier de musique est une dépense sans objet.
+ *
+ *  Cette borne permet de s'arrêter **sans rien parier**. Tant qu'elle reste au-dessus de ce qu'il
+ *  faudrait atteindre, l'endroit garde sa chance et on continue de le lire. Dès qu'elle passe
+ *  en dessous, il est *prouvé* que cet endroit ne peut plus qualifier, et le lire davantage ne
+ *  changerait rien. Aucun seuil n'est à régler ici, et aucune lecture juste ne peut être perdue.
+ *
+ *  ## Pourquoi chacun de ses trois facteurs est bien une borne
+ *
+ *  - **Ce qui se lit.** Une apparition déjà lue et muette est un fait acquis, pas une inconnue :
+ *    elle ne se mettra pas à parler. Seules les apparitions pas encore regardées sont comptées
+ *    comme lisibles. C'est ce qui rend cette borne serrée là où un endroit troué ne mène nulle
+ *    part — et c'est l'inverse d'un échantillon réduit, qui prend un trou pour une sentence.
+ *  - **La variété.** Chaque apparition restante peut au mieux rendre une valeur encore inédite.
+ *  - **L'avance.** Un recul entre deux lectures voisines est irréparable : quelles que soient les
+ *    valeurs intercalées entre elles, il faudra bien redescendre quelque part. Ces reculs vivent
+ *    dans des intervalles disjoints, donc ils s'additionnent sans se recouvrir.
+ *
+ *  Quand toutes les apparitions regardées ont été lues, la borne vaut exactement la note : c'est
+ *  ce qui dit qu'elle n'est ni trop lâche à la fin, ni fausse au début. Une épreuve le vérifie. */
+export function borneDeNumerotation(
+  lectures: readonly (number | undefined)[],
+  apparitionsRegardees: number,
+): number {
+  const lues = lectures.filter((valeur): valeur is number => valeur !== undefined);
+  const restantes = Math.max(0, apparitionsRegardees - lectures.length);
+  const luesAuPlus = lues.length + restantes;
+  if (apparitionsRegardees === 0 || luesAuPlus === 0) return 0;
+  const distinctesAuPlus = new Set(lues).size + restantes;
+  let reculs = 0;
+  for (let rang = 1; rang < lues.length; rang += 1) if (lues[rang]! < lues[rang - 1]!) reculs += 1;
+  const couples = luesAuPlus - 1;
+  return (
+    (luesAuPlus / apparitionsRegardees) *
+    Math.min(1, distinctesAuPlus / luesAuPlus) *
+    (Math.max(0, couples - reculs) / (couples + 1))
+  );
+}

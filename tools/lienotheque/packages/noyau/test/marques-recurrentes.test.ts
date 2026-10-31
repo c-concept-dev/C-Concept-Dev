@@ -3,6 +3,7 @@ import { Observation } from "@lienotheque/contrats";
 import {
   NUMEROTATION_PROBABLE,
   allureDeLaSuite,
+  borneDeNumerotation,
   partDeNumerotation,
   observationsDesMarques,
   zonesAExaminer,
@@ -264,5 +265,64 @@ describe("l'avance est comptée sur ses occasions de reculer (REC-02, OUT-10)", 
     const allure = allureDeLaSuite([2, undefined, 5, undefined, 9, undefined]);
     expect(allure.avance).toBeCloseTo(2 / 3, 3);
     expect(partDeNumerotation(allure, 6)).toBeLessThan(NUMEROTATION_PROBABLE);
+  });
+});
+
+describe("la borne qui permet d'abandonner un endroit sans rien parier (REC-02, OUT-10)", () => {
+  /** Les suites sur lesquelles la garantie est éprouvée. Les deux dernières sont les lectures
+   *  réellement obtenues sur deux documents du corpus, dont l'une porte quatre apparitions
+   *  muettes avant la première lisible : c'est le cas qui disqualifie tout jugement sur un
+   *  échantillon réduit, et celui que cette borne doit traverser sans broncher. */
+  const suites: readonly (number | undefined)[][] = [
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7],
+    [undefined, undefined, 7, 7, undefined, 7, undefined, undefined, undefined, 5, undefined, 1],
+    [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+    [5, 3, 15, 23, 29, 43, 52, 58, 64, 72, 78, 85],
+    [undefined, undefined, undefined, undefined, 9, 10, 38, 39, 41, 42, 43, 77],
+  ];
+
+  it("ne sous-estime jamais la note finale, à aucun moment de la lecture (REC-02)", () => {
+    // La seule propriété qui compte : si la borne passait un instant sous la note finale, on
+    // abandonnerait un endroit qui aurait qualifié — et ce serait une lecture juste perdue sans
+    // que rien ne le dise. Éprouvé sur chaque préfixe de chaque suite, et non sur un cas choisi.
+    for (const suite of suites) {
+      const finale = partDeNumerotation(allureDeLaSuite(suite), suite.length);
+      for (let lues = 1; lues <= suite.length; lues += 1)
+        expect(
+          borneDeNumerotation(suite.slice(0, lues), suite.length),
+          `après ${lues} lecture(s) de ${JSON.stringify(suite)}`,
+        ).toBeGreaterThanOrEqual(finale - 1e-9);
+    }
+  });
+
+  it("vaut exactement la note quand plus rien n'est inconnu (REC-02)", () => {
+    // Trop lâche à la fin, elle n'arrêterait jamais rien : la borne doit se refermer sur la note.
+    for (const suite of suites)
+      expect(borneDeNumerotation(suite, suite.length)).toBeCloseTo(
+        partDeNumerotation(allureDeLaSuite(suite), suite.length),
+        9,
+      );
+  });
+
+  it("tombe assez tôt pour que l'abandon serve à quelque chose (REC-02)", () => {
+    // Une forme de notation lue du même chiffre partout : la borne la condamne à la septième
+    // lecture, cinq avant le terme. C'est là qu'est l'économie, et elle est prouvée, pas parieuse.
+    const notation = [7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7];
+    expect(borneDeNumerotation(notation.slice(0, 6), 12)).toBeGreaterThanOrEqual(NUMEROTATION_PROBABLE);
+    expect(borneDeNumerotation(notation.slice(0, 7), 12)).toBeLessThan(NUMEROTATION_PROBABLE);
+    // Un endroit dont les six premières apparitions sont muettes ne peut plus atteindre le seuil,
+    // même si les six dernières étaient parfaites : six lectures suffisent à le prouver.
+    expect(borneDeNumerotation(Array.from({ length: 6 }, () => undefined), 12)).toBeLessThan(NUMEROTATION_PROBABLE);
+  });
+
+  it("garde sa chance à l'endroit dont les premières apparitions sont muettes (REC-02)", () => {
+    // Le gagnant mesuré sur un document réel : quatre apparitions muettes, puis une numérotation
+    // franche. Aucun abandon ne doit survenir avant la fin, puisqu'il finit par qualifier.
+    const tardif = [undefined, undefined, undefined, undefined, 9, 10, 38, 39, 41, 42, 43, 77];
+    for (let lues = 1; lues <= tardif.length; lues += 1)
+      expect(borneDeNumerotation(tardif.slice(0, lues), 12), `après ${lues} lecture(s)`).toBeGreaterThanOrEqual(
+        NUMEROTATION_PROBABLE,
+      );
   });
 });
