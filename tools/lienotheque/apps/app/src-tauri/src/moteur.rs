@@ -315,8 +315,15 @@ mod tests {
 
     /// Un paquet en miniature : `MacOS/node` à côté des binaires, `Resources/moteurs/…` pour le
     /// reste. C'est l'agencement réel, et c'est de lui que les deux réglages se déduisent.
-    fn paquet_en_miniature() -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
-        let racine = std::env::temp_dir().join(format!("lienotheque-moteur-{}", std::process::id()));
+    ///
+    /// **Un décor par épreuve, nommé par elle.** Le numéro du processus seul le faisait partager
+    /// par les quatre épreuves qui l'emploient — et l'une d'elles retire exprès le dossier des
+    /// modèles de langue, puisque c'est son objet. Elle défaisait donc le décor de celle qui
+    /// exige qu'il soit là, et comme `TESSDATA_PREFIX` n'est posé que si le dossier existe, cette
+    /// dernière constatait son absence et accusait le produit. Chacune seule passait ; ensemble,
+    /// l'une des deux perdait la course, une fois sur deux environ — constaté le 31 octobre 2026.
+    fn paquet_en_miniature(nom: &str) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
+        let racine = std::env::temp_dir().join(format!("lienotheque-moteur-{}-{nom}", std::process::id()));
         let macos = racine.join("Contents").join("MacOS");
         let moteurs = racine.join("Contents").join("Resources").join("moteurs");
         std::fs::create_dir_all(&macos).expect("MacOS");
@@ -328,7 +335,7 @@ mod tests {
 
     #[test]
     fn le_moteur_recoit_le_dossier_de_ses_binaires_en_tete_du_chemin() {
-        let (racine, node, script) = paquet_en_miniature();
+        let (racine, node, script) = paquet_en_miniature("chemin");
         let lancement = Lancement::embarque(node.clone(), script);
         let chemin = lancement
             .environnement
@@ -344,7 +351,7 @@ mod tests {
 
     #[test]
     fn le_moteur_recoit_ou_sont_les_modeles_de_langue() {
-        let (racine, node, script) = paquet_en_miniature();
+        let (racine, node, script) = paquet_en_miniature("langues");
         let lancement = Lancement::embarque(node, script);
         let modeles = lancement.environnement.iter().find(|(c, _)| c == "TESSDATA_PREFIX");
         assert!(modeles.is_some(), "TESSDATA_PREFIX manque : Tesseract ne trouverait aucune langue");
@@ -354,7 +361,7 @@ mod tests {
 
     #[test]
     fn le_moteur_recoit_les_ressources_pdfjs_embarquees() {
-        let (racine, node, script) = paquet_en_miniature();
+        let (racine, node, script) = paquet_en_miniature("pdfjs");
         let lancement = Lancement::embarque(node, script);
         let ressources = lancement.environnement.iter().find(|(c, _)| c == "LIENOTHEQUE_PDFJS");
         assert!(ressources.is_some(), "les images JPX ne doivent pas dépendre de node_modules");
@@ -364,7 +371,7 @@ mod tests {
 
     #[test]
     fn sans_dossier_de_modeles_on_ne_promet_rien() {
-        let (racine, node, script) = paquet_en_miniature();
+        let (racine, node, script) = paquet_en_miniature("sans-langues");
         std::fs::remove_dir_all(script.parent().and_then(Path::parent).expect("moteurs").join("tessdata"))
             .expect("retiré");
         let lancement = Lancement::embarque(node, script);
