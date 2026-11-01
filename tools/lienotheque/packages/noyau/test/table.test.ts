@@ -6,6 +6,7 @@ import {
   lignesDeMots,
   lireLaTable,
   observationsDeLaTable,
+  panneauxDeColonnes,
   rangeesDeTable,
 } from "../src/index.js";
 
@@ -228,5 +229,87 @@ describe("le verdict de la table (OUT-10)", () => {
   it("dit aussi quand il n’y a pas de table, au lieu de se taire", () => {
     const observations = observationsDeLaTable(lireLaTable([mot("rien", 10, 10)]), "rang 2");
     expect(observations[0]?.constat).toMatch(/Pas de table/);
+  });
+});
+
+/** Une table imprimée en deux panneaux côte à côte (OUT-10).
+ *
+ *  Les abscisses sont celles relevées le 1er novembre 2026 sur la table réelle « CD Track
+ *  Listing » : colonnes vers 307, 705, 817 pour le panneau gauche, 1132, 1525, 1639 pour le
+ *  droit, et une ligne d'en-tête qui répète ses trois libellés.
+ */
+describe("une table imprimée en deux panneaux (OUT-10)", () => {
+  const enTete = [
+    mot("Description", 127, 268),
+    mot("Track", 678, 268),
+    mot("Page", 790, 268),
+    mot("Description", 953, 268),
+    mot("Track", 1504, 268),
+    mot("Page", 1616, 268),
+  ];
+
+  /** Une rangée réelle : à gauche l'enregistrement `gauche`, à droite `droite`. */
+  const rangee = (y: number, gauche: readonly [number, number, number], droite: readonly [number, number, number]) => [
+    mot("Workout", 170, y),
+    mot(String(gauche[0]), 307, y),
+    mot(String(gauche[1]), 718, y),
+    mot(String(gauche[2]), 835, y),
+    mot("Workout", 996, y),
+    mot(String(droite[0]), 1132, y),
+    mot(String(droite[1]), 1525, y),
+    mot(String(droite[2]), 1643, y),
+  ];
+
+  const deuxPanneaux = [
+    ...enTete,
+    ...Array.from({ length: 10 }, (_, rang) =>
+      rangee(
+        407 + rang * 61,
+        [1 + rang, 1 + rang, 6 + rang * 2] as const,
+        [31 + rang, 31 + rang, 66 + rang * 2] as const,
+      ),
+    ).flat(),
+  ];
+
+  it("trouve deux panneaux de trois colonnes, et non six colonnes", () => {
+    const lignes = lignesDeMots(deuxPanneaux);
+    const panneaux = panneauxDeColonnes(lignes, colonnesDeNombres(lignes));
+    expect(panneaux.length, "deux panneaux").toBe(2);
+    expect(panneaux.map((panneau) => panneau.length), "trois colonnes chacun").toEqual([3, 3]);
+  });
+
+  it("rend une rangée par enregistrement, et non une rangée pour deux", () => {
+    const table = lireLaTable(deuxPanneaux);
+    expect(table.panneaux).toBe(2);
+    expect(table.colonnes.length, "une rangée porte trois cellules, pas six").toBe(3);
+    // Dix rangées à gauche, dix à droite : vingt enregistrements, pas dix rangées de six cellules.
+    expect(table.utilisables.length).toBe(20);
+    const valeurs = table.utilisables.map((place) => table.rangees[place]!.cellules);
+    expect(valeurs, "le premier enregistrement du panneau gauche").toContainEqual([1, 1, 6]);
+    expect(valeurs, "et le premier du panneau droit, intact").toContainEqual([31, 31, 66]);
+  });
+
+  it("ne prête à un panneau que l'intitulé qui est le sien", () => {
+    const table = lireLaTable(deuxPanneaux);
+    // Sans borne à gauche, l'intitulé du panneau droit ramassait tout le panneau gauche.
+    for (const place of table.utilisables)
+      expect(table.rangees[place]!.intitule, "un seul intitulé par rangée").toBe("Workout");
+  });
+
+  it("refuse de découper une géométrie périodique que le document ne déclare pas", () => {
+    // Même géométrie, même périodicité des écarts — mais aucune ligne ne répète ses libellés.
+    // Une périodicité peut arriver par hasard ; couper alors inventerait des enregistrements.
+    const sansEnTete = deuxPanneaux.filter((mot) => mot.y !== 268);
+    const lignes = lignesDeMots(sansEnTete);
+    const panneaux = panneauxDeColonnes(lignes, colonnesDeNombres(lignes));
+    expect(panneaux.length, "un seul panneau : le document ne dit pas qu'il y en a deux").toBe(1);
+    expect(lireLaTable(sansEnTete).panneaux).toBe(1);
+  });
+
+  it("ne voit qu'un panneau dans une table ordinaire à deux colonnes", () => {
+    const ordinaire = table(Array.from({ length: 8 }, (_, rang) => [rang + 1, 6 + rang * 2] as const));
+    const lignes = lignesDeMots(ordinaire);
+    expect(panneauxDeColonnes(lignes, colonnesDeNombres(lignes)).length).toBe(1);
+    expect(lireLaTable(ordinaire).panneaux).toBe(1);
   });
 });

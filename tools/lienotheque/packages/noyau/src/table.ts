@@ -127,6 +127,95 @@ export function colonnesDeNombres(lignes: readonly LigneDeTable[]): readonly Col
 }
 
 /** Une rangée : ce qui précède la première colonne, puis une cellule par colonne. */
+/** De combien deux écarts peuvent différer et rester le même écart.
+ *
+ *  Mesuré sur la table réelle imprimée en deux panneaux : ses écarts intra-panneau valent 398 et
+ *  112 à gauche, 393 et 114 à droite — soit 1,3 % et 1,8 % de différence. Un dixième laisse
+ *  passer cela largement sans confondre pour autant un écart intra-panneau (112) avec celui qui
+ *  sépare les panneaux (315). */
+const ECART_RELATIF_TOLERE = 0.1;
+
+/** Les panneaux d'une table imprimée en colonnes répétées (OUT-10).
+ *
+ *  ## Le défaut que cette fonction existe pour empêcher
+ *
+ *  Une table peut être imprimée en deux blocs côte à côte pour tenir sur une page. Les colonnes
+ *  trouvées sont alors celles des deux blocs à la fois, et les rangées — groupées par leur hauteur,
+ *  ce qui est juste — portent **deux enregistrements chacune**. Géométriquement exact, et faux dès
+ *  qu'on lit une rangée comme un enregistrement.
+ *
+ *  Mesuré le 1er novembre 2026 sur une table réelle : six colonnes, dont une rangée donne
+ *  « 2, 2, 8 » à gauche et « 32, 82, 68 » à droite. Qui lit les six comme un tout n'obtient rien
+ *  de ce que la page dit.
+ *
+ *  ## Deux lectures indépendantes, et pas une
+ *
+ *  **La géométrie** d'abord : les écarts entre colonnes se répètent avec une période. Sur la table
+ *  réelle, 398 et 112, puis 393 et 114. Attention, la frontière entre panneaux n'est **pas** le
+ *  plus grand écart — elle vaut 315 là où deux écarts intra-panneau valent près de 400. Couper au
+ *  plus grand trou aurait donné un découpage faux.
+ *
+ *  **Ce que le document déclare** ensuite : une table en panneaux répète son en-tête, et c'est son
+ *  auteur qui l'écrit. Sur la table réelle, une ligne porte « Description Track Page Description
+ *  Track Page » — la séquence de libellés se répète deux fois, et dit donc elle-même qu'il y a
+ *  deux panneaux de trois colonnes.
+ *
+ *  Le découpage n'est adopté que si **les deux s'accordent sur le même compte**. Une périodicité
+ *  des écarts peut arriver par hasard sur une table ordinaire ; couper alors inventerait des
+ *  enregistrements, ce qui est exactement ce qu'il ne faut jamais faire. Exiger que le document
+ *  l'ait écrit coûte peu et ferme cette porte. */
+export function panneauxDeColonnes(
+  lignes: readonly LigneDeTable[],
+  colonnes: readonly Colonne[],
+): readonly (readonly Colonne[])[] {
+  const entier = [colonnes];
+  if (colonnes.length < 4) return entier;
+  const ecarts = colonnes.slice(1).map((colonne, rang) => colonne.x - colonnes[rang]!.x);
+  const memeEcart = (un: number, autre: number): boolean =>
+    Math.abs(un - autre) <= Math.max(un, autre) * ECART_RELATIF_TOLERE;
+
+  // Du découpage le plus fin au plus grossier : deux panneaux de trois valent mieux que trois de
+  // deux si les deux tiennent, parce que le plus fin décrit mieux ce qui se répète.
+  for (let large = 2; large <= colonnes.length / 2; large += 1) {
+    if (colonnes.length % large !== 0) continue;
+    const combien = colonnes.length / large;
+    // La géométrie : chaque panneau doit porter la même suite d'écarts internes.
+    const interne = (place: number): readonly number[] =>
+      ecarts.slice(place * large, place * large + large - 1);
+    const premier = interne(0);
+    const geometrie = Array.from({ length: combien - 1 }, (_, place) => interne(place + 1)).every(
+      (suite) => suite.length === premier.length && suite.every((ecart, rang) => memeEcart(ecart, premier[rang]!)),
+    );
+    if (!geometrie) continue;
+    // Ce que le document déclare : une ligne dont les libellés répètent `combien` fois la même
+    // séquence de `large` mots.
+    if (!uneLigneRepeteSesLibelles(lignes, large, combien)) continue;
+    return Array.from({ length: combien }, (_, place) => colonnes.slice(place * large, place * large + large));
+  }
+  return entier;
+}
+
+/** Une ligne de la table répète-t-elle `combien` fois une séquence de `large` libellés ?
+ *
+ *  Les libellés sont les mots qui ne sont pas des nombres : un en-tête de colonne se nomme, il ne
+ *  se chiffre pas. La comparaison ignore la casse et les signes, parce qu'une reconnaissance rend
+ *  « Page » et « Page. » pour le même mot. */
+function uneLigneRepeteSesLibelles(lignes: readonly LigneDeTable[], large: number, combien: number): boolean {
+  for (const ligne of lignes) {
+    const libelles = ligne.mots
+      .filter((mot) => valeurDe(mot.texte) === undefined)
+      .map((mot) => mot.texte.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""))
+      .filter((mot) => mot.length > 0);
+    if (libelles.length !== large * combien) continue;
+    const motif = libelles.slice(0, large);
+    const repete = Array.from({ length: combien - 1 }, (_, place) =>
+      libelles.slice((place + 1) * large, (place + 2) * large),
+    ).every((suite) => suite.every((libelle, rang) => libelle === motif[rang]));
+    if (repete) return true;
+  }
+  return false;
+}
+
 export type RangeeDeTable = {
   readonly y: number;
   readonly intitule: string;
@@ -142,6 +231,12 @@ export type RangeeDeTable = {
 export function rangeesDeTable(
   lignes: readonly LigneDeTable[],
   colonnes: readonly Colonne[],
+  /** À partir d'où les mots appartiennent à ces colonnes.
+   *
+   *  Sans cette borne, l'intitulé d'un panneau ramasse tout ce qui est à gauche de sa première
+   *  colonne — donc le panneau précédent en entier. Les cellules, elles, étaient déjà protégées
+   *  par la distance tolérée. */
+  depuisX = Number.NEGATIVE_INFINITY,
 ): readonly RangeeDeTable[] {
   if (colonnes.length === 0) return [];
   const premiere = colonnes[0]!.x;
@@ -154,7 +249,7 @@ export function rangeesDeTable(
     for (const mot of ligne.mots) {
       const valeur = valeurDe(mot.texte);
       if (valeur === undefined) {
-        if (mot.x < premiere) avant.push(mot.texte);
+        if (mot.x >= depuisX && mot.x < premiere) avant.push(mot.texte);
         continue;
       }
       let meilleure = -1;
@@ -167,7 +262,7 @@ export function rangeesDeTable(
         }
       }
       if (meilleure >= 0 && distance <= tolerance && cellules[meilleure] === undefined) cellules[meilleure] = valeur;
-      else if (mot.x < premiere) avant.push(mot.texte);
+      else if (mot.x >= depuisX && mot.x < premiere) avant.push(mot.texte);
     }
     return { y: ligne.y, intitule: avant.join(" ").trim(), cellules };
   });
@@ -317,7 +412,14 @@ export function cellulesSuspectes(rangees: readonly RangeeDeTable[], colonnes: r
 }
 
 export type TableLue = {
+  /** Les colonnes **d'une rangée**. Quand la table est imprimée en panneaux, ce sont celles d'un
+   *  panneau : chaque rangée rendue porte un enregistrement, pas deux. Voir `panneaux`. */
   readonly colonnes: readonly Colonne[];
+  /** Combien de panneaux ont été lus. Un, pour une table ordinaire.
+   *
+   *  Il est dit plutôt que tu : qui lit cette table doit pouvoir savoir que ses rangées viennent
+   *  de deux blocs d'une même page, et non d'une page deux fois plus longue. */
+  readonly panneaux: number;
   readonly rangees: readonly RangeeDeTable[];
   /** Les rangées dont toutes les cellules ont été lues et dont aucune n'est suspecte. */
   readonly utilisables: readonly number[];
@@ -333,9 +435,29 @@ export const RANGEES_POUR_UNE_TABLE = 4;
 
 export function lireLaTable(mots: readonly MotLu[]): TableLue {
   const lignes = lignesDeMots(mots);
-  const colonnes = colonnesDeNombres(lignes);
-  const rangees = rangeesDeTable(lignes, colonnes);
-  const suspectes = cellulesSuspectes(rangees, colonnes);
+  const toutes = colonnesDeNombres(lignes);
+  // Chaque panneau est lu **comme sa propre table** : ses rangées, ses colonnes, ses cellules
+  // suspectes. Les coudre après coup serait plus court et faux — une valeur n'est aberrante que
+  // par rapport à la colonne dont elle vient, et les colonnes d'un panneau ne sont pas celles de
+  // l'autre. Les rangées des panneaux se suivent ensuite dans une seule liste, parce que ce sont
+  // tous des enregistrements de même forme.
+  const panneaux = panneauxDeColonnes(lignes, toutes);
+  const rangees: RangeeDeTable[] = [];
+  const suspectes: CelluleSuspecte[] = [];
+  for (const [place, panneau] of panneaux.entries()) {
+    // La borne est le **milieu** entre deux panneaux, et non le centre de la dernière colonne du
+    // précédent : les valeurs d'une colonne s'impriment un peu à droite de son centre, et prendre
+    // ce centre pour borne faisait entrer le dernier nombre du panneau précédent dans l'intitulé
+    // du suivant — « 6 Workout » au lieu de « Workout ».
+    const precedent = panneaux[place - 1]?.at(-1)?.x;
+    const depuis = precedent === undefined ? Number.NEGATIVE_INFINITY : (precedent + panneau[0]!.x) / 2;
+    const siennes = rangeesDeTable(lignes, panneau, depuis);
+    const decalage = rangees.length;
+    for (const suspecte of cellulesSuspectes(siennes, panneau))
+      suspectes.push({ ...suspecte, rangee: suspecte.rangee + decalage });
+    rangees.push(...siennes);
+  }
+  const colonnes = panneaux[0] ?? [];
   const douteuses = new Set(suspectes.map((suspecte) => suspecte.rangee));
 
   const utilisables: number[] = [];
@@ -351,6 +473,7 @@ export function lireLaTable(mots: readonly MotLu[]): TableLue {
 
   return {
     colonnes,
+    panneaux: panneaux.length,
     rangees,
     utilisables,
     incompletes,
