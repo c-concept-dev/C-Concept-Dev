@@ -157,10 +157,28 @@ export function dictionnaireApres(texte: string, cle: string): string | undefine
 }
 
 function ressourcesDe(page: ObjetPdf, objets: Map<number, ObjetPdf>): string {
-  const direct = dictionnaireApres(page.dictionnaire, "Resources");
-  if (direct !== undefined) return direct;
-  const indirect = references(page.dictionnaire, "Resources")[0];
-  return indirect === undefined ? "" : (objets.get(indirect)?.dictionnaire ?? "");
+  // `/Resources` est **héritable** : une page qui n'en porte pas le reçoit d'un nœud ancêtre, et
+  // la spécification l'autorise expressément. Ne regarder que la page faisait manquer toutes les
+  // images de ces pages-là — mesuré le 1er novembre 2026 : un document sur 250, 33 pages sur
+  // 11 035. Trouvé en comparant un extrait à son original : l'extrait rendait 396 images là où
+  // l'original en rendait zéro, parce que la copie aplatit l'héritage. Un extrait plus lisible
+  // que son original est un signe à suivre, pas une bonne nouvelle.
+  //
+  // On remonte par `/Parent`, avec un jeu de vus : un arbre de pages abîmé peut boucler, et un
+  // lecteur qui tourne en rond est pire qu'un lecteur qui ne trouve pas.
+  const vus = new Set<number>([page.numero]);
+  let courant: ObjetPdf | undefined = page;
+  while (courant !== undefined) {
+    const direct = dictionnaireApres(courant.dictionnaire, "Resources");
+    if (direct !== undefined) return direct;
+    const indirect = references(courant.dictionnaire, "Resources")[0];
+    if (indirect !== undefined) return objets.get(indirect)?.dictionnaire ?? "";
+    const parent = references(courant.dictionnaire, "Parent")[0];
+    if (parent === undefined || vus.has(parent)) return "";
+    vus.add(parent);
+    courant = objets.get(parent);
+  }
+  return "";
 }
 
 /** Numéros des objets déclarés dans /XObject, que le dictionnaire soit écrit sur place ou
