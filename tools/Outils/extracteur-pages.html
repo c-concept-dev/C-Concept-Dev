@@ -1203,7 +1203,16 @@ input[type=file] { display: none; }
             copiees.forEach(page => nouveau.addPage(page));
 
             updateProgress(70, 'Enregistrement…');
-            const octets = await nouveau.save();
+            // **Sans flux d'objets.** pdf-lib écrirait sinon une table de références croisées
+            // compressée et rangerait les dictionnaires de page dans un flux d'objets
+            // (`/ObjStm`, PDF 1.5+). Un extrait ainsi écrit reste visuellement juste, mais la
+            // lecture de structure de la Liénothèque — qui cherche « N G obj » dans les octets
+            // bruts — n'y voit plus aucune page ni aucune image : mesuré le 1er novembre 2026,
+            // zéro page sur les dix-sept extraits qui servaient à tous les essais, là où les
+            // originaux les rendent toutes. Six modules de la chaîne s'appuient sur cette lecture
+            // et voyaient donc un document vide. Avec cette option, l'extrait se lit comme un
+            // document de ce nombre de pages — vérifié sur quarante documents réels.
+            const octets = await nouveau.save({ useObjectStreams: false });
             const blob = new Blob([octets], { type: 'application/pdf' });
 
             splitResults.push({ name: nomDeSortie(pagesChoisies), blob, size: blob.size });
@@ -1226,7 +1235,8 @@ input[type=file] { display: none; }
 
                 pages.forEach(page => newPdf.addPage(page));
 
-                const pdfBytes = await newPdf.save();
+                // Sans flux d'objets : voir le commentaire de la première extraction.
+                const pdfBytes = await newPdf.save({ useObjectStreams: false });
                 const blob = new Blob([pdfBytes], { type: 'application/pdf' });
 
                 splitResults.push({
@@ -1266,7 +1276,8 @@ input[type=file] { display: none; }
 
                 pages.forEach(page => newPdf.addPage(page));
 
-                const pdfBytes = await newPdf.save();
+                // Sans flux d'objets : voir le commentaire de la première extraction.
+                const pdfBytes = await newPdf.save({ useObjectStreams: false });
                 const blob = new Blob([pdfBytes], { type: 'application/pdf' });
 
                 splitResults.push({
@@ -1286,7 +1297,8 @@ input[type=file] { display: none; }
                 Array.from({length: estimatedEndPage - startPage + 1}, (_, j) => startPage + j));
             pages.forEach(page => testPdf.addPage(page));
 
-            const testBytes = await testPdf.save();
+            // Sans flux d'objets : voir le commentaire de la première extraction.
+            const testBytes = await testPdf.save({ useObjectStreams: false });
 
             if (testBytes.length <= maxSize) {
                 return estimatedEndPage;
