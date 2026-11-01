@@ -20,6 +20,14 @@ export type RenduPdf = {
   readonly fermer: () => Promise<void>;
 };
 
+/** La lecture de structure n'a-t-elle rien vu d'un document que pdf.js sait pourtant ouvrir ?
+ *
+ *  Pure, et donc éprouvable sans document : la règle est « zéro page d'un côté, au moins une de
+ *  l'autre ». Un document réellement vide n'est pas un désaccord, et un document que pdf.js ne
+ *  sait pas ouvrir non plus. */
+export const structureMuette = (parLaStructure: number, parLeRendu: number): boolean =>
+  parLaStructure === 0 && parLeRendu > 0;
+
 /** Ressources distribuées avec la même version de pdf.js que le moteur chargé.
  *
  * Sans ces adresses explicites, Node tente un import nommé `nullopenjpeg…` pour les images JPX
@@ -82,7 +90,8 @@ export async function ouvrirRenduPdf(chemin: string): Promise<RenduPdf> {
   // font quitter le processus. On ne le désactive que si le document porte précisément une des
   // signatures fatales mesurées ; les autres gardent le rendu le plus fidèle.
   const objets = objetsPdf(Buffer.from(donnees));
-  const jpegFatal = pagesPdf(objets).some((page) =>
+  const pagesStructurelles = pagesPdf(objets);
+  const jpegFatal = pagesStructurelles.some((page) =>
     page.images.some((image) => {
       const extrait = octetsImage(objets, image.numero);
       return extrait?.extension === "jpg" && causeJpegFatalAvantDecodage(extrait.octets) !== undefined;
@@ -99,6 +108,25 @@ export async function ouvrirRenduPdf(chemin: string): Promise<RenduPdf> {
     useWasm: !jpegFatal,
     isImageDecoderSupported: false,
   }).promise;
+
+  // **Un garde-fou qui n'a rien pu lire le dit.**
+  //
+  // `jpegFatal` se décide sur la structure du PDF, lue sans pdf.js. Quand cette lecture ne rend
+  // aucune page alors que pdf.js en trouve, la décision est prise sur rien : elle vaut « garder le
+  // WebAssembly » par défaut d'information, et non par constat. Le silence rendait cela
+  // indiscernable d'un document franchement sans image.
+  //
+  // Mesuré le 1er novembre 2026 : sur 24 documents de la bibliothèque réelle, la structure est lue
+  // sur **tous** et le garde-fou se déclenche sur **douze** — il porte donc la moitié du corpus.
+  // Sur les 17 extraits de douze pages qui servent à tous les essais, elle ne rend **jamais** une
+  // page ni une image : le garde-fou y est muet, et le chemin de rendu éprouvé n'est pas celui de
+  // la vraie bibliothèque. C'est une validité de mesure, pas une panne — et c'est précisément ce
+  // qu'il faut savoir avant de conclure d'un essai.
+  if (structureMuette(pagesStructurelles.length, document.numPages))
+    console.warn(
+      `Structure PDF illisible : ${document.numPages} page(s) vues par le rendu, aucune par la ` +
+        `lecture de structure. Le garde-fou des images ne peut pas se prononcer sur ce document.`,
+    );
 
   return {
     nombreDePages: document.numPages,

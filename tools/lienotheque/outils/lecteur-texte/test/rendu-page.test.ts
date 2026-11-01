@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { ouvrirRenduPdf, rendrePagePdf, ressourcesPdfJs } from "../src/index.js";
+import { ouvrirRenduPdf, rendrePagePdf, ressourcesPdfJs, structureMuette } from "../src/index.js";
 
 /** Repli de rendu complet : une page sans JPEG incorporé doit tout de même devenir des pixels.
  *
@@ -87,5 +87,34 @@ describe("repli de rendu complet d'une page PDF", () => {
     };
     await expect(rendrePagePdf(page, 400)).rejects.toThrow("rendu interrompu");
     expect(cleanup).toHaveBeenCalledOnce();
+  });
+});
+
+describe("un garde-fou qui n'a rien pu lire le dit (FMT-01)", () => {
+  /** Le défaut, mesuré le 1er novembre 2026.
+   *
+   *  `jpegFatal` — qui écarte le décodeur WebAssembly devant un JPEG qui fait quitter le
+   *  processus — se décide sur la structure du PDF, lue sans pdf.js. Sur les 17 extraits de douze
+   *  pages qui servent à tous les essais, cette lecture ne rend **jamais** une page ni une image :
+   *  la décision était donc prise par défaut d'information, en silence, et indiscernable d'un
+   *  document franchement sans image.
+   *
+   *  Sur la bibliothèque réelle, la même lecture réussit sur les 24 documents mesurés et le
+   *  garde-fou se déclenche sur **douze** d'entre eux. Le corpus d'essai n'exerçait donc pas le
+   *  chemin de rendu de la vraie bibliothèque, et rien ne le disait. */
+  it("se tait quand les deux lectures s'accordent", () => {
+    expect(structureMuette(12, 12), "d'accord, rien à dire").toBe(false);
+    expect(structureMuette(1, 1)).toBe(false);
+  });
+
+  it("se tait devant un document que le rendu n'ouvre pas non plus", () => {
+    // Zéro de part et d'autre n'est pas un désaccord : c'est un document qu'on ne lit pas, et
+    // c'est une autre histoire, déjà racontée ailleurs.
+    expect(structureMuette(0, 0)).toBe(false);
+  });
+
+  it("prévient quand la structure ne voit rien d'un document que le rendu ouvre", () => {
+    expect(structureMuette(0, 12), "le cas des extraits d'essai").toBe(true);
+    expect(structureMuette(0, 1)).toBe(true);
   });
 });
