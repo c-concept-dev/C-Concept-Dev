@@ -948,7 +948,11 @@ export function App(): JSX.Element {
           bibliotheques: [
             {
               id: "bibliotheque-en-ligne",
-              nom: "Base de connaissance",
+              // **Son nom, et non un mot écrit ici.** La vue d'un document porte `nom` et `mots`
+              // de la bibliothèque, construits à l'ingestion et publiés tels quels : le service
+              // expose donc son identité depuis toujours, et il suffisait de la lire. Tant
+              // qu'aucune vue n'est arrivée, on la **désigne** sans prétendre la nommer.
+              nom: vue?.nom ?? "Bibliothèque en ligne",
               href: "#catalogue",
               collection: "research",
               icones: ["livre"],
@@ -1192,8 +1196,14 @@ export function App(): JSX.Element {
         />
       );
     if (route.ecran === "catalogue")
+      // Le catalogue d'une bibliothèque dont on connaît les documents mais pas encore la vue
+      // n'est pas « rien à montrer » : c'est « pas encore montré ». L'application sélectionne
+      // d'elle-même le document le plus récemment activé dès que l'aperçu arrive, et la vue suit
+      // — mais entre les deux, `sansRienAMontrer` rendait l'**accueil**. Un écran juste, et pas
+      // celui qu'on avait demandé : qui tape `#catalogue` se retrouvait à l'accueil sans qu'un
+      // mot l'explique.
       return vueDuCatalogue === undefined ? (
-        sansRienAMontrer()
+        documents.length > 0 ? <RienAMontrer theme={theme} etat="ouverture" /> : sansRienAMontrer()
       ) : (
         <Catalogue
           vue={vueDuCatalogue}
@@ -1293,7 +1303,7 @@ export function App(): JSX.Element {
         requeteRecherche={requeteRecherche}
         onRequeteRecherche={setRequeteRecherche}
         donnees={aLAccueil}
-        nomRecherche={derniere?.description.nom ?? (administration === undefined && lecture !== undefined ? "Base de connaissance" : undefined)}
+        nomRecherche={derniere?.description.nom ?? vue?.nom}
         enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
         // Les deux états d'échec, et non le seul définitif : un échec reprenable attend lui aussi
         // qu'on le regarde, et le distinguer ici obligerait à expliquer la nuance dans un badge.
@@ -1324,7 +1334,9 @@ export function App(): JSX.Element {
           }
           requeteInitiale={requeteRecherche}
           rechercherBibliotheque={rechercherPartout}
-          nomBibliotheque={derniere?.description.nom ?? "Base de connaissance"}
+          // Rien à mettre quand on ne sait pas : `Recherche` retombe sur `vue.nom`, qui est le
+          // nom réel. Lui donner un mot de remplacement l'empêchait de le trouver.
+          {...(derniere === undefined ? {} : { nomBibliotheque: derniere.description.nom })}
           onFermer={() => {
             setCherche(false);
             setRequeteRecherche("");

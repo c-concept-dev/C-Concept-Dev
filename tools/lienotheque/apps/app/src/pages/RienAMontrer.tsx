@@ -7,7 +7,12 @@ import "./PremierLancement.css";
 
 type Props = {
   readonly theme: Theme;
-  readonly etat: "verification" | "vide";
+  /** `ouverture` : l'accès est acquis, les documents sont connus, et la vue de l'un d'eux arrive.
+   *
+   *  Cet état manquait, et c'est pourquoi l'écran du catalogue montrait l'**accueil** pendant ce
+   *  temps-là — un écran juste, mais pas celui qu'on avait demandé. Dire « Vérification de votre
+   *  accès… » aurait menti : l'accès est déjà vérifié à ce moment. */
+  readonly etat: "verification" | "ouverture" | "vide";
 };
 
 /** La bibliothèque en ligne n'a encore rien de publié.
@@ -43,7 +48,9 @@ export function RienAMontrer({ theme, etat }: Props): JSX.Element {
           <Icone nom="info" />
           {etat === "verification"
             ? "Vérification de votre accès…"
-            : "Vous êtes bien entré. Cette bibliothèque n’a encore rien à montrer : aucun document n’y a été publié."}
+            : etat === "ouverture"
+              ? "Ouverture de la bibliothèque…"
+              : "Vous êtes bien entré. Cette bibliothèque n’a encore rien à montrer : aucun document n’y a été publié."}
         </p>
       </div>
     </main>

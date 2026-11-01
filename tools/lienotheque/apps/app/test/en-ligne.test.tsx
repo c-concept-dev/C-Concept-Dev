@@ -39,7 +39,11 @@ const apercuAvecDocument = {
 };
 const vuePubliee = {
   id: "01932f4e-7a1b-7c3d-8e5f-00000000d001",
-  nom: "Document réellement publié",
+  // `VueBibliotheque.nom` est le nom de la **bibliothèque**, pas du document : la fixture
+  // nommait « Document réellement publié » ce que le contrat appelle la bibliothèque, et
+  // l'épreuve ci-dessous — « la recherche nomme la bibliothèque, jamais le document ouvert » —
+  // ne pouvait donc pas être vérifiée pour la bonne raison.
+  nom: "Collection publiée",
   mots: {
     element: { un: "élément", plusieurs: "éléments" },
     piste: { un: "piste", plusieurs: "pistes" },
@@ -179,7 +183,10 @@ describe("en ligne, c'est le service qui tient la bibliothèque", () => {
 
     render(<App />);
 
-    expect(await screen.findByLabelText("Rechercher dans Base de connaissance")).toBeTruthy();
+    // Le nom vient de la vue publiée, qui porte celui de la bibliothèque. Il était écrit en dur
+    // dans l'application — « Base de connaissance » pour toute bibliothèque servie en ligne — et
+    // cette épreuve verrouillait ce mot-là.
+    expect(await screen.findByLabelText("Rechercher dans Collection publiée")).toBeTruthy();
     expect(screen.queryByText(/document ouvert/i)).toBeNull();
   });
 
@@ -245,10 +252,15 @@ describe("en ligne, c'est le service qui tient la bibliothèque", () => {
     expect(screen.queryByRole("button", { name: /nouvelle bibliothèque/i })).toBeNull();
     expect(screen.queryByText(/déposez des fichiers ici/i)).toBeNull();
 
-    fireEvent.click(screen.getByRole("link", { name: /ouvrir la bibliothèque base de connaissance/i }));
+    // La carte prend le nom de la bibliothèque dès que sa vue arrive. Avant cela elle se
+    // **désigne** sans se nommer, et l'attente porte précisément sur ce passage-là.
+    fireEvent.click(await screen.findByRole("link", { name: /ouvrir la bibliothèque collection publiée/i }));
     expect(globalThis.location.hash).toBe("#catalogue");
 
-    expect(await screen.findByRole("heading", { name: "Document réellement publié" })).toBeTruthy();
+    // Le titre du catalogue est le nom de la **bibliothèque**, que la vue porte. L'ancienne
+    // fixture l'appelant « Document réellement publié », cette assertion se lisait juste et
+    // vérifiait autre chose que ce qu'elle disait.
+    expect(await screen.findByRole("heading", { name: "Collection publiée" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /ajouter des fichiers/i })).toBeNull();
 
     fireEvent.click(screen.getByRole("link", { name: /^accueil$/i }));
