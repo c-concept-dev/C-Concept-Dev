@@ -8,6 +8,7 @@ Aucune œuvre sous droits (CLAUDE.md, règle 5) : tout est synthétique et rég�
 Produit :
   500-pages.pdf        PDF natif de 500 pages, une ligne de texte par page
   500-pages-scan.pdf   PDF de 500 pages numérisées (JPEG gris 100 ppp) — cas réel du CDC (F2)
+  double-page-scan.pdf 6 feuilles numérisées portant chacune deux pages et deux folios
   couche-fautive.pdf   8 pages portant **une image ET une couche texte sans accents** — le cas
                        que l'inversion de BAS-02 doit corriger, et le seul que les fixtures
                        existantes ne savaient pas poser
@@ -267,6 +268,70 @@ def pdf_500_pages_scan(chemin: pathlib.Path) -> None:
     chemin.write_bytes(_assembler(objets, catalogue))
 
 
+def pdf_double_page_scan(chemin: pathlib.Path) -> None:
+    """Six feuilles sans couche texte, chacune photographiant deux pages côte à côte.
+
+    Les folios consécutifs sont le signe que la lecture générique sait déjà reconnaître. Cette
+    fixture vérifie qu'elle le consulte aussi quand ce signe vient de l'OCR, et pas seulement
+    d'une couche texte préexistante.
+    """
+    import random
+
+    from PIL import Image, ImageDraw
+
+    largeur_page, hauteur = 827, 1169
+    largeur = largeur_page * 2
+    police = _police(32)
+    police_folio = _police(72)
+    objets: list[bytes] = [b"", b""]
+    catalogue, racine_pages = 1, 2
+
+    def ajouter(contenu: bytes) -> int:
+        objets.append(contenu)
+        return len(objets)
+
+    alea = random.Random(20261101)
+    ids_pages: list[int] = []
+    for feuille in range(6):
+        image = Image.new("L", (largeur, hauteur), color=248)
+        dessin = ImageDraw.Draw(image)
+        for cote in range(2):
+            origine = cote * largeur_page
+            folio = feuille * 2 + cote + 1
+            x_folio = origine + 70 if cote == 0 else origine + largeur_page - 150
+            dessin.text((x_folio, 28), str(folio), fill=10, font=police_folio)
+            for ligne in range(18):
+                mots = "Une phrase claire accompagne la page " + "".join(alea.choices("abcdefghijklmnopqrstuvwxyz", k=8))
+                dessin.text((origine + 70, 150 + ligne * 48), mots, fill=35, font=police)
+        dessin.line((largeur_page, 0, largeur_page, hauteur), fill=185, width=12)
+
+        tampon = io.BytesIO()
+        image.save(tampon, format="JPEG", quality=72)
+        jpeg = tampon.getvalue()
+        id_image = ajouter(
+            b"<< /Type /XObject /Subtype /Image /Width %d /Height %d /ColorSpace /DeviceGray "
+            b"/BitsPerComponent 8 /Filter /DCTDecode /Length %d >>\nstream\n" % (largeur, hauteur, len(jpeg))
+            + jpeg
+            + b"\nendstream"
+        )
+        flux = zlib.compress(b"q %d 0 0 %d 0 0 cm /Im0 Do Q\n" % (largeur, hauteur))
+        id_flux = ajouter(b"<< /Length %d /Filter /FlateDecode >>\nstream\n" % len(flux) + flux + b"\nendstream")
+        ids_pages.append(
+            ajouter(
+                b"<< /Type /Page /Parent %d 0 R /MediaBox [0 0 %d %d] "
+                b"/Resources << /XObject << /Im0 %d 0 R >> >> /Contents %d 0 R >>"
+                % (racine_pages, largeur, hauteur, id_image, id_flux)
+            )
+        )
+
+    objets[catalogue - 1] = b"<< /Type /Catalog /Pages %d 0 R >>" % racine_pages
+    objets[racine_pages - 1] = b"<< /Type /Pages /Count %d /Kids [%s] >>" % (
+        len(ids_pages),
+        b" ".join(b"%d 0 R" % i for i in ids_pages),
+    )
+    chemin.write_bytes(_assembler(objets, catalogue))
+
+
 # Une vraie police vectorielle, sinon les fixtures ne valent rien : avec la police bitmap de
 # repli de Pillow, l'image d'OCR devient illisible et les pages numérisées pèsent trois fois moins.
 POLICES = (
@@ -342,6 +407,7 @@ def main() -> int:
     taches = (
         ("500-pages.pdf", pdf_500_pages),
         ("500-pages-scan.pdf", pdf_500_pages_scan),
+        ("double-page-scan.pdf", pdf_double_page_scan),
         ("couche-fautive.pdf", pdf_couche_fautive),
         ("page-ocr.png", image_ocr),
         ("piste.mp3", mp3_trois_minutes),

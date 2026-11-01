@@ -115,6 +115,14 @@ export type OptionsTexte = {
 
 export type TexteDuDocument = {
   readonly pages: readonly PageDeTexte[];
+  /** La lecture a-t-elle établi que chaque feuille porte deux pages logiques ? */
+  readonly doublePage: boolean;
+  /** Le vote à l'échelle du document a-t-il réellement établi un décalage de folio ?
+   *
+   *  `pageImprimee` peut aussi venir d'une lecture locale isolée quand le vote se tait. Ce booléen
+   *  permet à un appelant qui publie des liens d'exiger la preuve documentaire, au lieu de
+   *  prendre un nombre aperçu dans la marge pour une pagination. */
+  readonly foliosEtablis: boolean;
   /** Combien de pages la couche a servies. */
   readonly parLaCouche: number;
   /** Combien ont demandé l'OCR. */
@@ -174,8 +182,6 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
    *
    *  Sous `forcerOcr`, la couche n'est pas lue et il n'y a rien à regarder : on s'en remet alors
    *  à l'appelant, faute de mieux, plutôt que de prétendre avoir vu. */
-  const doublePage = options.doublePage ?? (couche.length > 0 && deuxPagesParFeuille(couche));
-
   // Le document parsé **une fois**, et réutilisé.
   //
   // `objetsPdf` monte une table de tous les objets du PDF, flux d'images compris. L'appeler dans
@@ -196,10 +202,10 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
 
   let dossier: string | undefined;
   let renduComplet: Awaited<ReturnType<typeof ouvrirRenduPdf>> | undefined;
-  const pages: PageDeTexte[] = [];
-  /** Les nombres de la marge de chaque page, dans l'ordre des pages. Une page seule ne sait pas
-   *  lequel est son folio ; le document, lui, le sait. */
-  const candidats: (readonly number[])[] = [];
+  // Les feuilles restent sous forme de mots jusqu'à ce que toutes aient été lues. Sur un scan,
+  // le signe « deux folios consécutifs » n'existe qu'après l'OCR : décider avant la boucle
+  // condamnait la détection automatique à ne fonctionner que sur les PDF ayant déjà une couche.
+  const feuilles: { readonly rang: number; readonly page: PageLue }[] = [];
   let parLaCouche = 0;
   let parOcr = 0;
   let sansTexte = 0;
@@ -294,22 +300,31 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
         continue;
       }
 
-      // La coupe vient **après** la lecture et avant le découpage : chaque moitié lit alors son
-      // propre folio, là où les deux se contredisaient sur la feuille entière.
-      const moities = doublePage ? couperEnDeux(lue) : [lue];
-      moities.forEach((moitie, cote) => {
-        const index = doublePage ? (rang - 1) * 2 + cote + 1 : rang;
-        pages.push({ ...pageDeTexte(moitie), index });
-        // Les candidats de la marge, gardés dans le même ordre que les pages : c'est tout ce
-        // qu'il faut pour trancher ensuite, et cela ne retient aucun pixel.
-        candidats.push(numerosEnMarge(moitie));
-      });
+      feuilles.push({ rang, page: lue });
 
       options.avancement?.(rang, total);
     }
   } finally {
     await renduComplet?.fermer();
     if (dossier !== undefined) rmSync(dossier, { recursive: true, force: true });
+  }
+
+  // Une déclaration explicite garde le dernier mot. Sans elle, le document répond après lecture :
+  // la couche quand elle existe, l'OCR sinon. Les pages ne retiennent ici que des mots et leurs
+  // positions, jamais les pixels ; attendre la fin ne fait donc pas croître la mémoire comme les
+  // images du document.
+  const doublePage = options.doublePage ?? deuxPagesParFeuille(feuilles.map(({ page }) => page));
+  const pages: PageDeTexte[] = [];
+  /** Les nombres de la marge de chaque page, dans l'ordre des pages. Une page seule ne sait pas
+   *  lequel est son folio ; le document, lui, le sait. */
+  const candidats: (readonly number[])[] = [];
+  for (const feuille of feuilles) {
+    const moities = doublePage ? couperEnDeux(feuille.page) : [feuille.page];
+    moities.forEach((moitie, cote) => {
+      const index = doublePage ? (feuille.rang - 1) * 2 + cote + 1 : feuille.rang;
+      pages.push({ ...pageDeTexte(moitie), index });
+      candidats.push(numerosEnMarge(moitie));
+    });
   }
 
   // Le folio, tranché sur tout le document plutôt que page par page.
@@ -332,7 +347,7 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
         return folio === undefined ? sansNumero : { ...sansNumero, pageImprimee: folio };
       });
 
-  return { pages: numerotees, parLaCouche, parOcr, sansTexte };
+  return { pages: numerotees, doublePage, foliosEtablis: voteAParle, parLaCouche, parOcr, sansTexte };
 }
 
 /** En deçà de quelle part des mots de la couche une reconnaissance n'a **pas vraiment lu**.
@@ -381,7 +396,7 @@ async function lireUnEpub(chemin: string): Promise<TexteDuDocument> {
     emplacement: feuillet.chapitre,
     mots: [],
   }));
-  return { pages, parLaCouche: pages.length, parOcr: 0, sansTexte: 0 };
+  return { pages, doublePage: false, foliosEtablis: false, parLaCouche: pages.length, parOcr: 0, sansTexte: 0 };
 }
 
 /** Sous combien de pages un décalage ne se vote pas.

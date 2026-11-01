@@ -24,9 +24,11 @@ it("une référence bibliographique ne masque pas une page image encore riche", 
 const RACINE = join(import.meta.dirname, "../../..");
 const NATIF = join(RACINE, "fixtures/fichiers/500-pages.pdf");
 const SCAN = join(RACINE, "fixtures/fichiers/500-pages-scan.pdf");
+const DOUBLE_SCAN = join(RACINE, "fixtures/fichiers/double-page-scan.pdf");
 
 const siNatif = existsSync(NATIF) ? it : it.skip;
 const siScan = existsSync(SCAN) && tesseractDisponible() ? it : it.skip;
+const siDoubleScan = existsSync(DOUBLE_SCAN) && tesseractDisponible() ? it : it.skip;
 
 describe("un document natif se lit par sa couche, sans aucun OCR (OUT-05)", () => {
   siNatif(
@@ -119,6 +121,21 @@ describe("de deux lectures, laquelle gagne (étape 3)", () => {
 });
 
 describe("une feuille qui porte deux pages rend deux pages de texte (OUT-03)", () => {
+  siDoubleScan(
+    "détecte la double page après OCR quand le scan n'a aucune couche texte",
+    async () => {
+      const lu = await lireLeTexte(DOUBLE_SCAN);
+      expect(lu.parLaCouche, "la décision ne vient pas d'une couche cachée").toBe(0);
+      expect(lu.parOcr).toBe(6);
+      expect(lu.doublePage).toBe(true);
+      expect(lu.foliosEtablis, "les folios consécutifs doivent établir la pagination").toBe(true);
+      expect(lu.pages, "six feuilles doivent devenir douze pages logiques").toHaveLength(12);
+      expect(lu.pages.map((page) => page.index)).toEqual(Array.from({ length: 12 }, (_, place) => place + 1));
+      expect(lu.pages.map((page) => page.pageImprimee)).toEqual(Array.from({ length: 12 }, (_, place) => place + 1));
+    },
+    600_000,
+  );
+
   siNatif(
     "double le nombre de pages et ramène chaque moitié à son origine",
     async () => {
