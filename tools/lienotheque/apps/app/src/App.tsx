@@ -1295,6 +1295,12 @@ export function App(): JSX.Element {
         donnees={aLAccueil}
         nomRecherche={derniere?.description.nom ?? (administration === undefined && lecture !== undefined ? "Base de connaissance" : undefined)}
         enTraitement={file.filter((travail) => travail.etat === "en_cours" || travail.etat === "verrouille").length}
+        // Les deux états d'échec, et non le seul définitif : un échec reprenable attend lui aussi
+        // qu'on le regarde, et le distinguer ici obligerait à expliquer la nuance dans un badge.
+        enEchec={
+          file.filter((travail) => travail.etat === "en_echec_definitif" || travail.etat === "en_echec_recuperable")
+            .length
+        }
       />
       {racineTemporaire === undefined ? null : (
         <p className="ln-ouverture-temporaire" role="status">

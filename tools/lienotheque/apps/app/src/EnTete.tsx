@@ -23,6 +23,15 @@ type Props = {
    *  code, qui disait toujours la même chose et ne disait donc rien. Absent ou nul, le bandeau
    *  disparaît : il n'y a alors rien à annoncer. */
   readonly enTraitement?: number | undefined;
+  /** Combien de fichiers ont échoué, et attendent qu'on les regarde.
+   *
+   *  Mesuré le 1er novembre 2026 sur la bibliothèque réelle : un `.txt` y est classé à la main,
+   *  son travail est bien en échec définitif avec une cause claire, et **aucun écran ne le dit**.
+   *  Le catalogue ne liste que les documents portant une version active, donc pas lui ; son échec
+   *  ne se lit que sur l'écran d'ajout de fichiers, parmi deux cent cinquante-trois dépôts. Un
+   *  document pouvait donc disparaître sans un mot. L'en-tête est le seul endroit que l'on voit
+   *  depuis tous les écrans : c'est là que la nouvelle doit se trouver. */
+  readonly enEchec?: number | undefined;
 };
 
 /** Barre permanente : chaque commande y garde sa place (UX-09), mais n'apparaît que si elle a
@@ -30,7 +39,17 @@ type Props = {
  *  Le thème se règle dans les réglages, pas ici : la barre ne le montre qu'en développement, où
  *  l'on bascule sans cesse entre les trois variantes.
  *  Le logo est le vectoriel validé du kit ; l'hybride garde la barre graphite, donc l'emblème sombre. */
-export function EnTete({ theme, onThemeChange, onRecherche, requeteRecherche, onRequeteRecherche, donnees, nomRecherche, enTraitement }: Props): JSX.Element {
+export function EnTete({
+  theme,
+  onThemeChange,
+  onRecherche,
+  requeteRecherche,
+  onRequeteRecherche,
+  donnees,
+  nomRecherche,
+  enTraitement,
+  enEchec,
+}: Props): JSX.Element {
   const embleme = theme === "light" ? emblemeClair : emblemeSombre;
   const garnie = donnees.bibliotheques.length > 0 || nomRecherche !== undefined;
 
@@ -57,6 +76,14 @@ export function EnTete({ theme, onThemeChange, onRecherche, requeteRecherche, on
       <div className="ln-shell__etats">
         {enTraitement === undefined || enTraitement === 0 ? null : (
           <Etat enCours>{`${enTraitement} traitement${enTraitement > 1 ? "s" : ""} en cours`}</Etat>
+        )}
+        {/* L'échec se dit **à côté** du traitement en cours, et non à sa place : les deux peuvent
+            être vrais en même temps, et taire l'un pour montrer l'autre rendrait l'en-tête
+            trompeur de la même façon qu'avant. Zéro échec ne s'annonce pas — une étiquette
+            « 0 fichier en échec » sur chaque écran userait l'attention qu'on veut garder pour
+            le jour où elle dira un. */}
+        {enEchec === undefined || enEchec === 0 ? null : (
+          <Etat icone="alerte">{`${enEchec} fichier${enEchec > 1 ? "s" : ""} en échec`}</Etat>
         )}
         {/* **Plus de « Synchronisé »** : rien ne synchronisait, et l'étiquette le promettait
             depuis l'origine. Elle disait une capacité de la phase 2 sur une application qui

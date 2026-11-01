@@ -77,3 +77,38 @@ describe("l'en-tête n'annonce que ce qui existe (22 octobre 2026)", () => {
     expect(screen.queryByText(/document ouvert/i)).toBeNull();
   });
 });
+
+describe("un échec se voit là où l'on regarde, et non dans une liste de deux cent cinquante dépôts", () => {
+  /** Le défaut, mesuré le 1er novembre 2026 sur la bibliothèque réelle.
+   *
+   *  Un `.txt` déposé y est **classé à la main**, son travail est bien en échec définitif avec une
+   *  cause claire — et il n'apparaît nulle part : le catalogue ne liste que les documents portant
+   *  une version active, donc pas lui, et son échec ne se lit que sur l'écran d'ajout de fichiers,
+   *  noyé parmi deux cent cinquante-trois dépôts. L'en-tête, lui, ne comptait que les traitements
+   *  **en cours**. Un document pouvait donc disparaître sans qu'un seul écran le dise. */
+  it("annonce les travaux en échec, pas seulement ceux qui tournent", () => {
+    render(
+      <EnTete theme="light" onThemeChange={vi.fn()} onRecherche={vi.fn()} donnees={GARNIE} enTraitement={0} enEchec={1} />,
+    );
+    expect(screen.getByText(/1 fichier en échec/i)).toBeDefined();
+  });
+
+  it("accorde le pluriel, et se tait quand il n'y a rien à dire", () => {
+    const { rerender } = render(
+      <EnTete theme="light" onThemeChange={vi.fn()} onRecherche={vi.fn()} donnees={GARNIE} enTraitement={0} enEchec={3} />,
+    );
+    expect(screen.getByText(/3 fichiers en échec/i)).toBeDefined();
+    rerender(
+      <EnTete theme="light" onThemeChange={vi.fn()} onRecherche={vi.fn()} donnees={GARNIE} enTraitement={0} enEchec={0} />,
+    );
+    expect(screen.queryByText(/en échec/i), "zéro échec ne s'annonce pas").toBeNull();
+  });
+
+  it("dit les deux à la fois quand les deux sont vrais", () => {
+    render(
+      <EnTete theme="light" onThemeChange={vi.fn()} onRecherche={vi.fn()} donnees={GARNIE} enTraitement={2} enEchec={1} />,
+    );
+    expect(screen.getByText(/2 traitements en cours/i)).toBeDefined();
+    expect(screen.getByText(/1 fichier en échec/i)).toBeDefined();
+  });
+});

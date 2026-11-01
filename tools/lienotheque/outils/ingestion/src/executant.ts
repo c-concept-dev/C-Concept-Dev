@@ -17,6 +17,7 @@ import {
 } from "@lienotheque/vision";
 import { sousDossier } from "@lienotheque/cache";
 import { causeLisible } from "@lienotheque/noyau";
+import { FormatNonLu } from "./texte.js";
 import { instantaneDeLot, type LotTraite } from "./lot.js";
 
 /** La porte de la chaîne : une demande entre, un message sort (JOB-01 à JOB-09, PLT-02).
@@ -273,9 +274,15 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
     return Resultat.parse({ type: "resultat", protocole: VERSION_PROTOCOLE, travailId: demande.travailId, charge: traite });
   } catch (cause) {
     // Reprenable : ce qui a déjà été lu l'est pour de bon, et une relance repartira de là.
+    //
+    // **Sauf un format que la chaîne ne sait pas lire.** Celui-là ne se lira pas davantage au
+    // deuxième essai : l'annoncer reprenable fait payer trois tentatives pour obtenir, par
+    // épuisement des essais, un échec définitif que le premier avait déjà établi. Mesuré le
+    // 1er novembre 2026 sur le dépôt réel d'un `.txt` : trois tentatives, soixante-cinq secondes,
+    // et deux relances dont personne n'attendait rien. Le constat vaut mieux que l'épuisement.
     const texte = causeLisible(cause);
     dire(texte, "erreur");
-    return echec(demande.travailId, texte, true);
+    return echec(demande.travailId, texte, !(cause instanceof FormatNonLu));
   }
 }
 

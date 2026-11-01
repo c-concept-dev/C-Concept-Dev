@@ -3,6 +3,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { VERSION_PROTOCOLE } from "@lienotheque/contrats";
+import { executerTravail } from "../src/executant.js";
 import { FormatNonLu, lireLeTexte } from "../src/texte.js";
 
 /** Un format qu'on ne sait pas lire **se dit**, il ne plante pas (FMT-01).
@@ -81,5 +83,71 @@ describe("un EPUB n'est plus refusé — et une archive abîmée n'accuse jamais
     const chemin = commeUnEpub();
     await expect(lireLeTexte(chemin)).rejects.toThrow(/archive/i);
     await expect(lireLeTexte(chemin), "le message accuse encore le PDF").rejects.not.toThrow(/PDF structure/);
+  });
+});
+
+describe("un format illisible ne se retente pas trois fois (JOB-05, FMT-01)", () => {
+  /** La porte, telle que l'hôte l'appelle : une demande, une réponse. */
+  const demander = async (document: string) =>
+    executerTravail({
+      type: "demande",
+      protocole: VERSION_PROTOCOLE,
+      travailId: "00000000-0000-4000-8000-0000000000aa",
+      outil: { nom: "traitement-de-lot", version: "1.0.0" },
+      versionCible: "00000000-0000-4000-8000-0000000000bb",
+      charge: {
+        document,
+        medias: dossier,
+        inventaireMedias: [],
+        provenancesMedias: ["lot:epreuve"],
+        recette: null,
+        description: join(dossier, "bibliotheque.json"),
+      },
+    });
+
+  it("dit qu'une relance n'y changera rien", async () => {
+    // Mesuré le 1er novembre 2026 sur un dépôt réel de `.txt` : trois tentatives, soixante-cinq
+    // secondes, et le travail fini en échec définitif par épuisement des essais plutôt que par
+    // constat. Or un format que la chaîne ne lit pas ne se mettra pas à se lire au deuxième essai :
+    // la porte le savait et l'annonçait quand même reprenable, parce que son unique `catch`
+    // suppose qu'une lecture interrompue a laissé du travail utile derrière elle.
+    writeFileSync(
+      join(dossier, "bibliotheque.json"),
+      JSON.stringify({
+        id: "essai-du-format",
+        nom: "Essai",
+        mots: {
+          element: { un: "élément", plusieurs: "éléments" },
+          piste: { un: "piste", plusieurs: "pistes" },
+          page: { un: "page", plusieurs: "pages" },
+        },
+        schema: {
+          cle: "essai",
+          nom: "Essai",
+          langue: "fr",
+          version: 1,
+          axes: [
+            {
+              cle: "un-axe",
+              nom: "Un axe",
+              nature: "referentiel",
+              cardinalite: "une",
+              structure: "plat",
+              obligatoire: false,
+              alias: [],
+              valeurs: [{ cle: "une", nom: "Une valeur", alias: [], synonymes: [], retiree: false }],
+            },
+          ],
+        },
+      }),
+    );
+    const chemin = join(dossier, "Les modes.txt");
+    writeFileSync(chemin, "Ionien, dorien, phrygien.\n");
+
+    const reponse = await demander(chemin);
+    expect(reponse.type, "la porte répond un échec").toBe("echec");
+    if (reponse.type !== "echec") return;
+    expect(reponse.cause, "et le nomme sans accuser le document").toMatch(/ne sait pas encore lire/i);
+    expect(reponse.reprisePossible, "une relance n'y changera rien").toBe(false);
   });
 });
