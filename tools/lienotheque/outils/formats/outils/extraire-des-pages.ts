@@ -33,6 +33,30 @@
  *  | extrait d'avant | **0** | 6 | **0** | muet |
  *  | extrait d'ici | **6** | 6 | **6** | **se déclenche** |
  *
+ *  ## Ce que vaut la fidélité, mesuré
+ *
+ *  Les dix-sept familles de la bibliothèque d'essai, reconstruites le 1er novembre 2026 depuis
+ *  leurs originaux, puis comparées à eux sur quatre axes indépendants :
+ *
+ *  | | avant | après |
+ *  |---|---:|---:|
+ *  | pages vues par la lecture de structure | 0 sur 18 | **18 sur 18** |
+ *  | avertissement « structure muette » | 18 fois | **0 fois** |
+ *  | images comptées, contre l'original sur le même intervalle | 0 | **identiques, 18 sur 18** |
+ *  | verdict du garde-fou de décodage, contre l'original | muet | **identique, 18 sur 18** |
+ *  | page 1 et page 6 rendues, octets de pixels | — | **identiques, 18 sur 18** |
+ *
+ *  La dernière ligne est la seule qui ne puisse pas se tromper en silence : elle compare les
+ *  pixels, pas un décompte. Le garde-fou a été éprouvé en plus sur un document où il se déclenche
+ *  vraiment — un JPEG à quatre composantes, le cas qui rend le moteur à `exit(1)` : « 1× JPEG à 4
+ *  composantes colorimétriques » de part et d'autre.
+ *
+ *  Un avertissement sur la comparaison de corpus : les extraits d'avant **ne commençaient pas
+ *  page 1**. Mesuré sur deux familles, leur page 1 rendue ne porte ni la géométrie ni les pixels
+ *  de la page 1 de l'original (600×839 contre 600×776 ; 600×774 contre 600×773). Leur structure
+ *  étant illisible, d'où ils partaient n'est pas retrouvable. Les mesures prises sur l'ancien
+ *  corpus portent donc sur d'autres pages que celles du corpus reconstruit.
+ *
  *  Écrire soi-même un PDF aurait été plus risqué, pas plus fidèle : les attributs hérités
  *  — `/MediaBox`, `/Resources`, `/Rotate` — vivent sur les nœuds intermédiaires de l'arbre des
  *  pages, et les reconstruire à la main est une occasion de les perdre. `copyPages` les porte.
