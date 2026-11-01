@@ -211,6 +211,32 @@ const mediane = (valeurs: readonly number[]): number => {
  *  silence — elle met en abstention un document qui n'avait rien. */
 const ECARTS_TOLERES = 8;
 
+/** Les places qui tiennent dans la plus longue montée stricte de la suite.
+ *
+ *  C'est ce qui permet de nommer une faute **sans la comparer à une autre faute**. Comparer
+ *  chaque valeur à ses voisines immédiates se mord la queue : un creux fait passer ses deux
+ *  voisines pour des bosses, et sur la vraie table quatre accusations sur huit refermaient le
+ *  garde-fou du tiers — plus rien n'était signalé. Mesuré le 1er novembre 2026.
+ *
+ *  La plus longue montée, elle, ne suppose rien : elle est ce que la colonne dit d'elle-même.
+ *  Ce qui en sort est ce qui ne peut pas y tenir. */
+function placesDeLaPlusLongueMontee(valeurs: readonly number[]): ReadonlySet<number> {
+  if (valeurs.length === 0) return new Set();
+  const longueur = valeurs.map(() => 1);
+  const precedente = valeurs.map(() => -1);
+  for (const [place, valeur] of valeurs.entries())
+    for (let avant = 0; avant < place; avant += 1)
+      if (valeurs[avant]! < valeur && longueur[avant]! + 1 > longueur[place]!) {
+        longueur[place] = longueur[avant]! + 1;
+        precedente[place] = avant;
+      }
+  let fin = 0;
+  for (const [place, combien] of longueur.entries()) if (combien > longueur[fin]!) fin = place;
+  const gardees = new Set<number>();
+  for (let place = fin; place !== -1; place = precedente[place]!) gardees.add(place);
+  return gardees;
+}
+
 export function cellulesSuspectes(rangees: readonly RangeeDeTable[], colonnes: readonly Colonne[]): readonly CelluleSuspecte[] {
   const suspectes: CelluleSuspecte[] = [];
   for (const [rangColonne] of colonnes.entries()) {
@@ -242,42 +268,50 @@ export function cellulesSuspectes(rangees: readonly RangeeDeTable[], colonnes: r
         }
     }
 
-    // Second signe : un creux. Une valeur plus petite que ses deux voisines, dans une colonne
-    // qui monte dès qu'on retire ces creux-là. Le détour par le retrait est nécessaire : deux
-    // fautes suffisent à faire perdre sa monotonie à une colonne courte, et le signe le plus
-    // utile s'éteindrait justement quand il y a le plus à trouver.
+    // Second signe : une rupture de la montée, **dans les deux sens**. Dans une colonne qui monte,
+    // une valeur juste se tient entre ses deux voisines ; elle peut donc faillir par le dessous
+    // — un creux — comme par le dessus — une bosse.
+    //
+    // Seul le creux était cherché, et c'était une asymétrie sans raison : une reconnaissance qui
+    // lit trop haut (un chiffre de plus, 3 pris pour 8, 1 pour 7) est aussi fréquente qu'une qui
+    // lit trop bas. Mesuré le 1er novembre 2026 sur la vraie table « CD Track Listing » : la
+    // colonne des pistes du panneau droit lit 31, **82**, 33, 34… — et cette rangée était rendue
+    // **utilisable**, donc digne de confiance. Le premier signe ne la voyait pas non plus : la
+    // colonne allant de 31 à 52, sa dispersion médiane d'environ 6 laisse passer un écart de 41
+    // sous une limite de 48. C'est précisément le « quatre fausses indiscernables des
+    // trente-cinq justes » que ce module existe pour empêcher.
+    //
+    // Le détour par le retrait est nécessaire : deux fautes suffisent à faire perdre sa monotonie
+    // à une colonne courte, et le signe le plus utile s'éteindrait justement quand il y a le plus
+    // à trouver.
     //
     // Les valeurs déjà reconnues aberrantes sont mises de côté avant ce second examen : une
     // valeur dont on sait qu'elle est fausse ne doit pas servir à juger si la colonne est
     // ordonnée. Mesuré sur la table réelle — un 248 isolé au milieu d'une colonne de rangs
     // suffisait à la déclarer désordonnée, et les deux creux voisins passaient alors inaperçus.
-    const creux = new Set<number>();
-    for (let rang = 1; rang < presentes.length - 1; rang += 1) {
-      if (aberrantes.has(rang)) continue;
-      const avantCe = presentes.slice(0, rang).filter((_, place) => !aberrantes.has(place)).pop();
-      const apresCe = presentes.slice(rang + 1).find((_, place) => !aberrantes.has(rang + 1 + place));
-      if (avantCe === undefined || apresCe === undefined) continue;
-      if (presentes[rang]!.valeur < avantCe.valeur && presentes[rang]!.valeur < apresCe.valeur) creux.add(rang);
-    }
-    if (creux.size > 0 && creux.size <= presentes.length / 3) {
-      const sansCreux = presentes
-        .filter((_, rang) => !creux.has(rang) && !aberrantes.has(rang))
-        .map((entree) => entree.valeur);
-      const monte = sansCreux.every((valeur, rang) => rang === 0 || valeur > sansCreux[rang - 1]!);
-      if (monte)
-        for (const rang of creux) {
-          const entree = presentes[rang]!;
-          if (suspectes.some((suspecte) => suspecte.rangee === entree.rang && suspecte.colonne === rangColonne)) continue;
-          const avantCe = presentes.slice(0, rang).filter((_, place) => !aberrantes.has(place)).pop();
-          const apresCe = presentes.slice(rang + 1).find((_, place) => !aberrantes.has(rang + 1 + place));
-          suspectes.push({
-            rangee: entree.rang,
-            colonne: rangColonne,
-            valeur: entree.valeur,
-            pourquoi: `rompt la montée de la colonne, entre ${avantCe?.valeur} et ${apresCe?.valeur}`,
-          });
-        }
-    }
+    // Une valeur déjà reconnue aberrante ne doit pas servir à juger si la colonne est ordonnée :
+    // on la met de côté avant cet examen. Mesuré sur la table réelle — un 248 isolé au milieu
+    // d'une colonne de rangs suffisait à la déclarer désordonnée, et les creux voisins passaient
+    // alors inaperçus.
+    const examinees = presentes.filter((_, rang) => !aberrantes.has(rang));
+    const dansLaMontee = placesDeLaPlusLongueMontee(examinees.map((entree) => entree.valeur));
+    const ruptures = examinees.map((entree, place) => ({ entree, place })).filter(({ place }) => !dansLaMontee.has(place));
+    // Au-delà d'un tiers hors de la montée, ce n'est plus une colonne ordonnée avec quelques
+    // fautes : c'est une colonne qui n'est pas ordonnée, et l'accuser n'apprendrait rien.
+    if (ruptures.length > 0 && ruptures.length <= examinees.length / 3)
+      for (const { entree, place } of ruptures) {
+        if (suspectes.some((suspecte) => suspecte.rangee === entree.rang && suspecte.colonne === rangColonne)) continue;
+        // Les bornes sont prises **dans la montée**, et non chez les voisins immédiats : dire
+        // « entre 24 et 26 » quand le voisin de gauche est lui-même fautif désignerait mal.
+        const avantCe = examinees.filter((_, autre) => autre < place && dansLaMontee.has(autre)).pop();
+        const apresCe = examinees.find((_, autre) => autre > place && dansLaMontee.has(autre));
+        suspectes.push({
+          rangee: entree.rang,
+          colonne: rangColonne,
+          valeur: entree.valeur,
+          pourquoi: `rompt la montée de la colonne, entre ${avantCe?.valeur} et ${apresCe?.valeur}`,
+        });
+      }
   }
   return suspectes;
 }

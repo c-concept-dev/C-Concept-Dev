@@ -148,6 +148,30 @@ describe("les quatre vraies erreurs d’une lecture de table (OUT-10)", () => {
     expect(suspectes.find((un) => un.valeur === 20)?.pourquoi).toMatch(/montée/);
   });
 
+  it("attrape une valeur lue trop haut, qui rompt la montée par le dessus", () => {
+    // La faute relevée le 1er novembre 2026 sur la vraie table « CD Track Listing » : la colonne
+    // des pistes du panneau droit lit 31, **82**, 33, 34… — un 3 pris pour un 8. Elle n'était
+    // attrapée par aucun des deux signes : ce n'est pas un creux, c'est une bosse, et la colonne
+    // allant de 31 à 52, sa dispersion médiane d'environ 6 laissait passer un écart de 41 sous
+    // une limite de 48. La rangée était donc rendue **utilisable**, donc digne de confiance.
+    //
+    // Une reconnaissance qui lit trop haut — un chiffre de plus, 3 pour 8, 1 pour 7 — est aussi
+    // fréquente qu'une qui lit trop bas. L'asymétrie n'avait aucune raison d'être.
+    // La colonne **entière** du panneau droit, vingt-deux rangées : c'est sa longueur qui fait le
+    // défaut. Sur huit rangées la dispersion est si serrée que le premier signe attrape la bosse ;
+    // sur vingt-deux, la colonne allant de 31 à 52, elle passe dessous. Un cas d'essai plus court
+    // aurait verrouillé une fausse réussite.
+    const bosse = Array.from({ length: 22 }, (_, rang) =>
+      rang === 1 ? ([82, 68] as const) : ([31 + rang, 66 + rang * 2] as const),
+    );
+    const lignes = lignesDeMots(table(bosse));
+    const colonnes = colonnesDeNombres(lignes);
+    const suspectes = cellulesSuspectes(rangeesDeTable(lignes, colonnes), colonnes);
+    const valeurs = suspectes.map((suspecte) => suspecte.valeur);
+    expect(valeurs, "la bosse doit être nommée comme le creux l'est").toContain(82);
+    expect(suspectes.find((un) => un.valeur === 82)?.pourquoi).toMatch(/montée/);
+  });
+
   it("n’accuse pas une colonne qui franchit naturellement une dizaine ou une centaine", () => {
     const franchit = Array.from({ length: 10 }, (_, rang) => [95 + rang, 6 + rang * 2] as const);
     const lignes = lignesDeMots(table(franchit));
