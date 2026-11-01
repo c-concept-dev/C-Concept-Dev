@@ -2,7 +2,12 @@ import { createHash } from "node:crypto";
 import { createReadStream, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AcquisDeLecture, type LigneInterpretee, type PageReperee, type ResultatRecette } from "@lienotheque/contrats";
+import {
+  AcquisDeLecture,
+  type LigneInterpretee,
+  type PageReperee,
+  type ResultatRecette,
+} from "@lienotheque/contrats";
 import { enGris, formesSombres, type Boite, type ImageGrise } from "@lienotheque/images";
 import { coucheSuffisante, lireCoucheTexte, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
 import {
@@ -18,6 +23,7 @@ import {
   zonesRecurrentes,
   type FormeObservee,
   type ZoneRecurrente,
+  type ContenuDePage,
 } from "@lienotheque/noyau";
 import {
   attribuerPistes,
@@ -153,6 +159,11 @@ export type OptionsVoieOracle = {
   readonly surPhase?: ((message: string) => void) | undefined;
   /** N'en lire que les premières pages : pour essayer, ou pour éprouver. */
   readonly pages?: number | undefined;
+  /** Texte déjà lu par la chaîne, une seule fois pour les passages et la corroboration.
+   *
+   *  Absent, la voie reste utilisable seule et relit le document. Présent — même vide — il fait
+   *  foi pour cette passe : réocériser ici contredirait la lecture que la bibliothèque publie. */
+  readonly texteDesPages?: readonly ContenuDePage[] | undefined;
   /** Jusqu'où chercher un endroit qui porte la numérotation. Voir `BUDGET_EXPLORATION`. */
   readonly budgetExploration?: BudgetExploration | undefined;
   /** Ce qu'une lecture antérieure de **ce** document a appris, s'il y en a une.
@@ -270,10 +281,21 @@ export async function rejouerParOracle(
   dire(`${medias.length} enregistrement(s) dans le vivier de ce document`);
 
   const empreinte = await empreinteDuFichier(pdf);
-
   // ── 1. Les formes sombres de chaque page ───────────────────────────────────────────────
   const rendu = await ouvrirRenduPdf(pdf);
   const combienDePages = Math.min(rendu.nombreDePages, options.pages ?? Number.POSITIVE_INFINITY);
+  const texteAligne =
+    options.texteDesPages !== undefined &&
+    options.texteDesPages.length === combienDePages &&
+    options.texteDesPages.every((page, place) => page.page === place + 1)
+      ? options.texteDesPages
+      : undefined;
+  if (options.texteDesPages !== undefined && texteAligne === undefined)
+    dire(
+      `texte déjà lu écarté : ses ${options.texteDesPages.length} page(s) ne correspondent pas ` +
+        `aux ${combienDePages} feuille(s) rendues. Aucun second signal n'en sera tiré : ` +
+        `les candidats resteront à vérifier.`,
+    );
   const acquis = acquisUtilisable(options.acquis, empreinte, combienDePages, dire);
 
   // Un document dont il est **déjà établi** qu'aucun endroit n'y porte de numérotation n'a rien à
@@ -647,34 +669,45 @@ export async function rejouerParOracle(
     // nom retrouvé ne confirme ni ne contredit rien. On ne lit donc que celles-là — sur un
     // recueil de trois cents pages, c'est la différence entre quelques lectures et toutes.
     const aMarque = [...new Set(marques.map((marque) => marque.rangDePage))].sort((un, autre) => un - autre);
-    const couche = await lireCoucheTexte(pdf);
-    const parRang = new Map(couche.pages.map((page) => [page.index, page]));
-    const bac = mkdtempSync(join(tmpdir(), "lienotheque-oracle-"));
     const contenus: { page: number; texte: string }[] = [];
-    try {
+    if (texteAligne !== undefined) {
+      const parRang = new Map(texteAligne.map((page) => [page.page, page.texte]));
       for (const rang of aMarque) {
-        const deLaCouche = parRang.get(rang);
-        // Le même juge que le chemin du texte : une couche abondante mais illisible ne vaut pas
-        // mieux qu'aucune couche, et c'est elle qu'il faut alors écarter.
-        let page = deLaCouche !== undefined && coucheSuffisante(deLaCouche) ? deLaCouche : undefined;
-        const image = images.get(rang);
-        if (page === undefined && image !== undefined) {
-          page = ocrDUnePageGrise(image, rang, bac, {
-            ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
-            ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
-            ...(options.langue === undefined ? {} : { langue: options.langue }),
-          });
-          ocerisees += 1;
-        }
-        if (page !== undefined) contenus.push({ page: rang, texte: page.mots.map((mot) => mot.texte).join(" ") });
+        const texte = parRang.get(rang);
+        if (texte !== undefined) contenus.push({ page: rang, texte });
       }
-    } finally {
-      rmSync(bac, { recursive: true, force: true });
+      dire(`${contenus.length} page(s) à marque confrontée(s) au texte déjà lu par la chaîne.`);
+    } else if (options.texteDesPages === undefined) {
+      const couche = await lireCoucheTexte(pdf);
+      const parRang = new Map(couche.pages.map((page) => [page.index, page]));
+      const bac = mkdtempSync(join(tmpdir(), "lienotheque-oracle-"));
+      try {
+        for (const rang of aMarque) {
+          const deLaCouche = parRang.get(rang);
+          // Le même juge que le chemin du texte : une couche abondante mais illisible ne vaut pas
+          // mieux qu'aucune couche, et c'est elle qu'il faut alors écarter.
+          let page = deLaCouche !== undefined && coucheSuffisante(deLaCouche) ? deLaCouche : undefined;
+          const image = images.get(rang);
+          if (page === undefined && image !== undefined) {
+            page = ocrDUnePageGrise(image, rang, bac, {
+              ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
+              ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
+              ...(options.langue === undefined ? {} : { langue: options.langue }),
+            });
+            ocerisees += 1;
+          }
+          if (page !== undefined) contenus.push({ page: rang, texte: page.mots.map((mot) => mot.texte).join(" ") });
+        }
+      } finally {
+        rmSync(bac, { recursive: true, force: true });
+      }
+      if (ocerisees > 0)
+        dire(
+          `${ocerisees} page(s) sur ${aMarque.length} relues par reconnaissance : leur couche texte ne rend rien.`,
+        );
+    } else {
+      dire("Confrontation par les noms suspendue : les index du texte et du rendu ne s'accordent pas.");
     }
-    if (ocerisees > 0)
-      dire(
-        `${ocerisees} page(s) sur ${aMarque.length} relues par reconnaissance : leur couche texte ne rend rien.`,
-      );
     const accords = accordsNomContenu(
       marquesDesNoms(medias.map((media) => media.nom)),
       contenus,
@@ -831,16 +864,63 @@ function sansLien(
 ): RejeuParOracle {
   journal.push(pourquoi);
   options.surPhase?.(pourquoi);
+  const texteAligne =
+    options.texteDesPages !== undefined &&
+    options.texteDesPages.length === combienDePages &&
+    options.texteDesPages.every((page, place) => page.page === place + 1)
+      ? options.texteDesPages
+      : undefined;
+  const accords =
+    texteAligne === undefined ? [] : accordsNomContenu(marquesDesNoms(medias.map((media) => media.nom)), texteAligne);
+  const parMedia = new Map<number, typeof accords>();
+  for (const accord of accords) parMedia.set(accord.rang, [...(parMedia.get(accord.rang) ?? []), accord]);
+  const lignes: LigneInterpretee[] = [...parMedia.entries()]
+    .filter(([, trouves]) => trouves.length === 1)
+    .map(([rang, trouves]) => {
+      const media = medias[rang]!;
+      return {
+        numero: rang + 1,
+        pageImprimee: trouves[0]!.page,
+        piste: media.piste,
+        disque: media.disque ?? 1,
+        sourcePiste: "corroboration_media" as const,
+        confiance: 1,
+      };
+    })
+    .sort((un, autre) => un.pageImprimee - autre.pageImprimee || un.numero - autre.numero);
+  const pages = Array.from({ length: combienDePages }, (_, place) => ({
+    index: place,
+    rang: place,
+    pageImprimee: place + 1,
+    statut: "deduite" as const,
+    elements: [],
+  }));
+  if (lignes.length > 0) {
+    const borne = borneDuVivier(options.provenancesMedias ?? [], options.inventaireMedias ?? medias.map(() => ({})));
+    const corroboration = corroborationDesLignes(lignes, {});
+    const association = qualifierAssociation(
+      lignes,
+      medias,
+      { seuilConfiance: ACCORD_RETENU },
+      { borne, corroboration, mediasDisponibles: medias.length },
+    );
+    const message =
+      `${lignes.length} proposition(s) tirée(s) des noms restent visibles pour vérification humaine ; ` +
+      `ce signal unique ne publie aucun lien.`;
+    journal.push(message);
+    options.surPhase?.(message);
+    return {
+      resultat: { recette: LA_VOIE, pages, lignes, pagesAbsentes: [], ecartes: [] },
+      association,
+      medias,
+      journal,
+      ...(acquis === undefined ? {} : { acquis }),
+    };
+  }
   return {
     resultat: {
       recette: LA_VOIE,
-      pages: Array.from({ length: combienDePages }, (_, place) => ({
-        index: place,
-        rang: place,
-        pageImprimee: place + 1,
-        statut: "deduite" as const,
-        elements: [],
-      })),
+      pages,
       lignes: [],
       pagesAbsentes: [],
       ecartes: [],

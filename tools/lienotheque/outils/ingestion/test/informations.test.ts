@@ -123,6 +123,34 @@ describe("une manière de lire qui ne sait interpréter aucun des médias prése
 });
 
 describe("une association en abstention", () => {
+  it("REC-02 — montre les candidats à appui unique pour vérification, sans en publier aucun", () => {
+    const candidate = ligne(1, { piste: 1, sourcePiste: "corroboration_media", confiance: 0.99 });
+    const vue = construireVue(
+      entreeMinimale({
+        lignes: [candidate],
+        medias: [media(1)],
+        association: {
+          appariements: [],
+          orphelins: [],
+          manquants: [],
+          abstention: {
+            raison: "corroboration_insuffisante",
+            combien: 1,
+            pourquoi: "Une seule façon de savoir appuie ce lien.",
+          },
+        },
+      }),
+    );
+
+    expect(vue.compteurs).toContainEqual({ nombre: 0, mot: "liens" });
+    expect(vue.pages.flatMap((page) => page.elements)).toContainEqual(
+      expect.objectContaining({ numero: String(candidate.numero), aVerifier: true, media: expect.objectContaining({ piste: 1 }) }),
+    );
+    expect(vue.douteux).toContainEqual(
+      expect.objectContaining({ nature: "lien", proposition: expect.stringMatching(/1.*→.*1/) }),
+    );
+  });
+
   it("UX-03 — compte les propositions comme non vérifiées, jamais comme des liens actifs", () => {
     const entree = entreeMinimale();
     const vue = construireVue(

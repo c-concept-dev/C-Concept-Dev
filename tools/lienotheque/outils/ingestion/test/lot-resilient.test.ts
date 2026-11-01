@@ -8,6 +8,7 @@ const doubles = vi.hoisted(() => ({
   exporterPages: vi.fn(),
   lireLeTexte: vi.fn(),
   rejouer: vi.fn(),
+  rejouerParOracle: vi.fn(),
   construireVue: vi.fn(),
 }));
 
@@ -21,6 +22,10 @@ vi.mock("@lienotheque/recettes", async (importe) => {
   const vrai = await importe<typeof import("@lienotheque/recettes")>();
   return { ...vrai, rejouer: doubles.rejouer };
 });
+vi.mock("../src/voie-oracle.js", async (importe) => ({
+  ...(await importe<typeof import("../src/voie-oracle.js")>()),
+  rejouerParOracle: doubles.rejouerParOracle,
+}));
 
 import { demandeDeTraitement, executerTravail } from "../src/executant.js";
 import { instantaneDeLot } from "../src/lot.js";
@@ -32,11 +37,19 @@ const RECETTE = join(RACINE, "fixtures/recettes/methode-pastille-piste.v2.json")
 
 describe("un dérivé ne détruit jamais un texte déjà lu", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Les épreuves changent aussi l'ordre des appels. Une implémentation ponctuelle qui n'est pas
+    // consommée parce qu'un appel arrive trop tard ne doit jamais contaminer l'épreuve suivante.
+    vi.resetAllMocks();
     doubles.rejouer.mockResolvedValue({
       resultat: { pages: [], lignes: [], pagesAbsentes: [] },
       association: { appariements: [], manquants: [], orphelins: [] },
       medias: [],
+    });
+    doubles.rejouerParOracle.mockResolvedValue({
+      resultat: { pages: [], lignes: [], pagesAbsentes: [] },
+      association: { appariements: [], manquants: [], orphelins: [] },
+      medias: [],
+      journal: [],
     });
     doubles.construireVue.mockReturnValue({ id: "f3", nom: "F3", pages: [], aVerifier: 0 });
     doubles.lireLeTexte.mockImplementation(async (_pdf: string, options: { surAvertissement?: (message: string) => void }) => {
@@ -48,6 +61,37 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
         sansTexte: 0,
       };
     });
+  });
+
+  it("REC-02 — lit le texte avant l'oracle et lui transmet cette lecture", async () => {
+    const ordre: string[] = [];
+    doubles.lireLeTexte.mockImplementationOnce(async () => {
+      ordre.push("texte");
+      return {
+        pages: [{ index: 1, texte: "Un intitulé distinctif.", source: "couche_texte", mots: [] }],
+        parLaCouche: 1,
+        parOcr: 0,
+        sansTexte: 0,
+      };
+    });
+    doubles.rejouerParOracle.mockImplementationOnce(async (_pdf, _medias, options) => {
+      ordre.push("oracle");
+      expect(options.texteDesPages).toEqual([{ page: 1, texte: "Un intitulé distinctif." }]);
+      return {
+        resultat: { pages: [], lignes: [], pagesAbsentes: [] },
+        association: { appariements: [], manquants: [], orphelins: [] },
+        medias: [],
+        journal: [],
+      };
+    });
+
+    await instantaneDeLot({
+      pdf: join(RACINE, "fixtures/fichiers/inexistant-mais-double.pdf"),
+      medias: RACINE,
+      description: DESCRIPTION,
+    });
+
+    expect(ordre).toEqual(["texte", "oracle"]);
   });
 
   it("rend les passages même si l'export de la page échoue", async () => {

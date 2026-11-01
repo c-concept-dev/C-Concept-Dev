@@ -139,15 +139,22 @@ export function construireVue(entree: Entree): VueBibliotheque {
   const parPage = new Map<number, ElementAffiche[]>();
   const douteux: CasDouteux[] = [];
 
-  // Une abstention globale conserve le résultat brut dans l'instantané technique, mais ne
-  // transforme pas trois nombres isolés en trois éléments prétendument reconnus à l'écran.
-  const lignes = entree.association.abstention === undefined ? entree.lignes : [];
+  // Une abstention ordinaire conserve seulement le résultat brut : trois nombres isolés ne
+  // deviennent pas trois éléments reconnus. `corroboration_insuffisante` est différente : les
+  // lignes portent de vrais candidats, appuyés par une lecture. Ils restent visibles et
+  // écoutables pour vérification humaine, mais toujours marqués à vérifier et jamais comptés
+  // comme liens publiés.
+  const abstentionAAppuiUnique = entree.association.abstention?.raison === "corroboration_insuffisante";
+  const lignes = entree.association.abstention === undefined || abstentionAAppuiUnique ? entree.lignes : [];
   for (const ligne of lignes) {
     const appariement = parLigne.get(clefLigne(ligne));
-    const media = ligne.piste === undefined || appariement?.media === undefined ? undefined : parPiste.get(`${ligne.disque}/${ligne.piste}`);
+    const media =
+      ligne.piste === undefined || (!abstentionAAppuiUnique && appariement?.media === undefined)
+        ? undefined
+        : parPiste.get(`${ligne.disque}/${ligne.piste}`);
     const source = media === undefined ? undefined : entree.sourceDuMedia?.(media);
     const ancreId = identifiantDe(`${entree.id}/element-${ligne.numero}`);
-    const etat = doute(ligne, entree.seuil, appariement?.statut);
+    const etat = abstentionAAppuiUnique ? "confiance" : doute(ligne, entree.seuil, appariement?.statut);
 
     const element: ElementAffiche = {
       ancreId,

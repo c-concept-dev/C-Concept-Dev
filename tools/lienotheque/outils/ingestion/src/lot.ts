@@ -187,6 +187,31 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   const recette =
     lot.recette === undefined ? undefined : chargerRecette(JSON.parse(await readFile(lot.recette, "utf8")));
 
+  // Le texte se lit avant toute manière de relier. Il sert à la recherche, mais aussi au second
+  // signal de la voie générique : le relire dans l'oracle réocérisait les mêmes pages une seconde
+  // fois. Une seule lecture produit désormais les passages et nourrit la confrontation.
+  lot.surPhase?.("lecture du texte");
+
+  // La langue de la reconnaissance vient de la **bibliothèque**, qui la déclare déjà :
+  // `SchemaBibliotheque.langue` est obligatoire au contrat. Une langue inconnue se dit au lieu
+  // d'être remplacée en silence.
+  const langue = langueOcr(description.schema.langue);
+  if (langue === undefined)
+    lot.surPhase?.(
+      `langue « ${description.schema.langue} » inconnue de la reconnaissance : elle lira avec son modèle par défaut`,
+    );
+
+  // La double page seulement si la manière de lire l'a déclarée. Sans déclaration, le document
+  // répond lui-même ; c'est le comportement éprouvé par la porte réelle.
+  const lu = await lireLeTexte(lot.pdf, {
+    ...(recette?.preparation.double_page === undefined ? {} : { doublePage: recette.preparation.double_page }),
+    ...(langue === undefined ? {} : { langue }),
+    ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+    ...(lot.surPhase === undefined ? {} : { surAvertissement: lot.surPhase }),
+  });
+  const passages = enPassages(lu.pages);
+  lot.surPhase?.(`texte lu : ${passages.length} passage(s)`);
+
   // La chaîne, et rien d'autre. Elle réimplémentait ici lecture, interprétation et association —
   // un second chemin de code qui avait déjà divergé : l'inventaire des supports présents, ajouté à
   // la chaîne, n'arrivait jamais aux écrans. Un instantané doit venir du même traitement que la
@@ -203,6 +228,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
           ...(lot.surPhase === undefined ? {} : { surPhase: lot.surPhase }),
           ...(lot.pages === undefined ? {} : { pages: lot.pages }),
           ...(lot.acquis === undefined ? {} : { acquis: lot.acquis }),
+          texteDesPages: lu.pages.map((page) => ({ page: page.index, texte: page.texte })),
         })
       : await rejouer(lot.pdf, lot.medias, recette, {
           ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
@@ -255,42 +281,6 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   }
 
   lot.surPhase?.(`images de pages : ${parRang.size} écrite(s)`);
-
-  // Le texte, par la même passe. La recette ne dit pas **si** l'on lit le texte — on le lit
-  // toujours, c'est ce qui rend une bibliothèque cherchable — mais elle dit comment la feuille
-  // est faite : une feuille à deux pages se coupe avant qu'on en tire des passages, sinon les
-  // deux folios se contredisent et le document perd ses numéros imprimés.
-  lot.surPhase?.("lecture du texte");
-
-  // La langue de la reconnaissance vient de la **bibliothèque**, qui la déclare déjà :
-  // `SchemaBibliotheque.langue` est obligatoire au contrat. Elle ne venait de nulle part jusqu'au
-  // 20 octobre 2026, et la reconnaissance partait donc sur l'anglais : sur un corpus français,
-  // **un accent sur six était perdu** — 284 contre 337, mesuré sur six feuilles. C'est exactement
-  // ce que l'inversion de la couche venait de gagner.
-  //
-  // Une langue que la table ne connaît pas **se dit** au lieu de se remplacer en silence : la
-  // reconnaissance partira sur son propre défaut, et le journal du traitement portera pourquoi.
-  const langue = langueOcr(description.schema.langue);
-  if (langue === undefined)
-    lot.surPhase?.(
-      `langue « ${description.schema.langue} » inconnue de la reconnaissance : elle lira avec son modèle par défaut`,
-    );
-
-  // La double page **seulement si la manière de lire l'a déclarée**.
-  //
-  // Elle était transmise toujours, et `double_page` étant obligatoire au contrat, la valeur était
-  // toujours définie : le `??` de `lireLeTexte` ne tombait jamais et la détection automatique ne
-  // s'exécutait **jamais par ce chemin** — celui que l'application emprunte. Elle ne tournait que
-  // dans les bancs, qui appellent `lireLeTexte` sans option. Troisième mécanisme juste rendu
-  // inatteignable depuis la porte réelle en deux jours ; voir `docs/decisions.md`.
-  const lu = await lireLeTexte(lot.pdf, {
-    ...(recette?.preparation.double_page === undefined ? {} : { doublePage: recette.preparation.double_page }),
-    ...(langue === undefined ? {} : { langue }),
-    ...(lot.pages === undefined ? {} : { pages: lot.pages }),
-    ...(lot.surPhase === undefined ? {} : { surAvertissement: lot.surPhase }),
-  });
-  const passages = enPassages(lu.pages);
-  lot.surPhase?.(`texte lu : ${passages.length} passage(s)`);
 
   // Les recettes de méthodes savent relever des repères métier ; un livre ordinaire n'en porte
   // souvent aucun. Ses pages existent pourtant : l'export d'images les a rendues, et la lecture

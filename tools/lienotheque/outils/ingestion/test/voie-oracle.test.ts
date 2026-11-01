@@ -102,6 +102,42 @@ describe("un document sans manière de lire (OUT-10)", () => {
   });
 
   siTesseract(
+    "montre les candidats nommés sans jamais les publier quand aucun second signal n'existe (REC-02)",
+    { timeout: 180_000 },
+    async () => {
+      // Aucune marque ne revient dans ce document. Le texte déjà lu retrouve pourtant deux noms
+      // du vivier, chacun sur une seule page : ce sont des pistes de vérification humaine, pas
+      // deux preuves. Elles doivent donc rester visibles tout en laissant zéro lien actif.
+      const pdf = pdfDePages("noms-seuls.pdf", [prose(700), prose(500), prose(300), prose(200)]);
+      const noms = ["01 - Doxy.mp3", "02 - Autre chose.mp3", "03 - Encore autre.mp3", "04 - Solitude.mp3"];
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
+        inventaireMedias: noms.map((nom, place) => ({
+          nom,
+          empreinte: `${place}`.repeat(64).slice(0, 64),
+          provenances: ["lot:epreuve"],
+        })),
+        provenancesMedias: ["lot:epreuve"],
+        texteDesPages: [
+          { page: 1, texte: "Doxy" },
+          { page: 2, texte: "" },
+          { page: 3, texte: "" },
+          { page: 4, texte: "Solitude" },
+        ],
+      });
+
+      expect(rejeu.resultat.lignes.map((ligne) => ligne.piste), "les deux propositions restent visibles").toEqual([1, 4]);
+      expect(new Set(rejeu.resultat.lignes.map((ligne) => ligne.sourcePiste))).toEqual(
+        new Set(["corroboration_media"]),
+      );
+      expect(rejeu.association.abstention?.raison, "un nom seul n'est jamais une publication").toBe(
+        "corroboration_insuffisante",
+      );
+      expect(rejeu.association.abstention?.combien).toBe(2);
+      expect(rejeu.association.appariements, "zéro lien actif").toEqual([]);
+    },
+  );
+
+  siTesseract(
     "ne publie pas sur un vivier que rien ne borne, même en ayant lu (REC-02)",
     { timeout: 180_000 },
     async () => {
@@ -174,7 +210,10 @@ describe("un document sans manière de lire (OUT-10)", () => {
       });
 
       expect(rejeu.resultat.lignes.length, "les lectures existent").toBe(8);
+      expect(rejeu.resultat.lignes.every((ligne) => ligne.piste !== undefined), "les candidats gardent leur piste").toBe(true);
+      expect(new Set(rejeu.resultat.lignes.map((ligne) => ligne.sourcePiste))).toEqual(new Set(["pastille"]));
       expect(rejeu.association.abstention?.raison).toBe("corroboration_insuffisante");
+      expect(rejeu.association.abstention?.combien, "les candidats restent comptés pour la vérification humaine").toBe(8);
       expect(rejeu.association.appariements, "et rien n'est publié").toEqual([]);
     },
   );
@@ -240,7 +279,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
   );
 
   siTesseract(
-    "publie sans œil humain quand les noms du vivier se retrouvent imprimés (REC-02, CDC §0 bis)",
+    "s'abstient quand le texte transmis ne correspond pas aux feuilles rendues (REC-02, CDC §0 bis)",
     { timeout: 180_000 },
     async () => {
       // Quatre pages, une marque par page, et sur deux d'entre elles l'intitulé d'un
@@ -261,13 +300,51 @@ describe("un document sans manière de lire (OUT-10)", () => {
           provenances: ["lot:epreuve"],
         })),
         provenancesMedias: ["lot:epreuve"],
+        // Une lecture décalée ne doit jamais confirmer une autre feuille. Le PDF porte pourtant
+        // les vrais intitulés : si la voie le relisait comme un repli, elle fabriquerait un second
+        // signal après avoir constaté que la lecture publiée et le rendu ne s'alignent pas.
+        texteDesPages: [{ page: 99, texte: "Doxy Solitude" }],
       });
 
       const sources = new Set(rejeu.resultat.lignes.map((ligne) => ligne.sourcePiste));
-      expect(sources, "deux façons de lire, et non une").toContain("corroboration_media");
-      expect(sources).toContain("pastille");
-      expect(rejeu.association.abstention, "aucune abstention : deux signaux suffisent").toBeUndefined();
+      expect(sources, "les candidats visuels restent disponibles").toEqual(new Set(["pastille"]));
+      expect(rejeu.resultat.lignes.every((ligne) => ligne.piste !== undefined), "les candidats gardent leur piste").toBe(true);
+      expect(rejeu.association.abstention?.raison).toBe("corroboration_insuffisante");
+      expect(rejeu.association.abstention?.combien, "les candidats restent nommés pour la vérification humaine").toBeGreaterThan(0);
+      expect(rejeu.association.appariements, "aucun lien n'est publié après un désalignement").toEqual([]);
+      expect(rejeu.journal.join(" ")).toMatch(/texte déjà lu écarté/i);
+    },
+  );
+
+  siTesseract(
+    "réutilise le texte déjà lu par la chaîne au lieu de réocériser l'étape 5 (REC-02)",
+    { timeout: 180_000 },
+    async () => {
+      // Le PDF ne porte volontairement aucun des deux intitulés. Ils arrivent de la lecture faite
+      // en amont par `instantaneDeLot` : si la voie relit le document au lieu de réutiliser cette
+      // donnée, elle ne trouvera aucun second signal et devra s'abstenir.
+      const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
+      const pdf = pdfDePages("texte-deja-lu.pdf", pages);
+      const noms = ["01 - Doxy.mp3", "02 - Autre chose.mp3", "03 - Encore autre.mp3", "04 - Solitude.mp3"];
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
+        inventaireMedias: noms.map((nom, place) => ({
+          nom,
+          empreinte: `${place}`.repeat(64).slice(0, 64),
+          provenances: ["lot:epreuve"],
+        })),
+        provenancesMedias: ["lot:epreuve"],
+        texteDesPages: [
+          { page: 1, texte: "Doxy" },
+          { page: 2, texte: "" },
+          { page: 3, texte: "" },
+          { page: 4, texte: "Solitude" },
+        ],
+      });
+
+      expect(new Set(rejeu.resultat.lignes.map((ligne) => ligne.sourcePiste))).toContain("corroboration_media");
+      expect(rejeu.association.abstention).toBeUndefined();
       expect(rejeu.association.appariements.length).toBeGreaterThan(0);
+      expect(rejeu.journal.join(" ")).toMatch(/texte déjà lu/i);
     },
   );
 });
