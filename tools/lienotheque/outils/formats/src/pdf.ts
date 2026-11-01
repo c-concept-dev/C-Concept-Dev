@@ -40,6 +40,13 @@ export function objetsPdf(donnees: Buffer): Map<number, ObjetPdf> {
   const texte = donnees.toString("latin1");
   const debutObjet = /(\d+)\s+\d+\s+obj\b/g;
   let marque: RegExpExecArray | null;
+  // Les flux sont découpés **après** le premier passage.
+  //
+  // Un PDF peut écrire la longueur d'un flux par référence — `/Length 229 0 R`, « voir l'objet
+  // 229 » — et les producteurs qui écrivent le flux avant d'en connaître la taille le font
+  // couramment. L'objet référencé peut venir plus loin dans le fichier : on ne peut donc pas
+  // découper en lisant, il faut avoir tout vu d'abord.
+  const aDecouper: { numero: number; depart: number; apresDict: number }[] = [];
 
   while ((marque = debutObjet.exec(texte)) !== null) {
     const numero = Number(marque[1]);
@@ -58,11 +65,39 @@ export function objetsPdf(donnees: Buffer): Map<number, ObjetPdf> {
     let depart = debutFlux + "stream".length;
     if (texte[depart] === "\r") depart += 1;
     if (texte[depart] === "\n") depart += 1;
-    const longueur = entier(dictionnaire, "Length");
+    objets.set(numero, { numero, dictionnaire });
+    aDecouper.push({ numero, depart, apresDict: depuis });
+  }
+
+  for (const { numero, depart } of aDecouper) {
+    const objet = objets.get(numero);
+    if (objet === undefined) continue;
+    const longueur = longueurDuFlux(objet.dictionnaire, objets);
     const finFlux = longueur === undefined ? texte.indexOf("endstream", depart) : depart + longueur;
-    objets.set(numero, { numero, dictionnaire, flux: donnees.subarray(depart, finFlux) });
+    objets.set(numero, { ...objet, flux: donnees.subarray(depart, finFlux) });
   }
   return objets;
+}
+
+/** La longueur d'un flux, qu'elle soit écrite en clair ou portée par un autre objet.
+ *
+ *  Le défaut qu'elle corrige, mesuré le 1er novembre 2026 sur la bibliothèque réelle : lire le
+ *  premier nombre après `/Length` prend **229** dans `/Length 229 0 R`, soit le numéro de l'objet
+ *  au lieu de la longueur qu'il contient. Une image de 533 135 octets était alors rendue sur 229,
+ *  et un JPEG tronqué paraît toujours incomplet — c'est ainsi que le garde-fou du décodeur
+ *  WebAssembly se déclenchait sur la moitié des documents réels, pour un mal qu'il fabriquait.
+ *
+ *  Sans résolution possible, on rend `undefined` : l'appelant cherche alors `endstream`, ce qu'il
+ *  faisait déjà, plutôt que de découper sur un nombre faux. */
+function longueurDuFlux(dictionnaire: string, objets: Map<number, ObjetPdf>): number | undefined {
+  const indirecte = /\/Length\s+(\d+)\s+\d+\s+R\b/.exec(dictionnaire);
+  if (indirecte !== null) {
+    const porteuse = objets.get(Number(indirecte[1]));
+    if (porteuse === undefined) return undefined;
+    const valeur = /^\s*(\d+)/.exec(porteuse.dictionnaire);
+    return valeur === null ? undefined : Number(valeur[1]);
+  }
+  return entier(dictionnaire, "Length");
 }
 
 const references = (dictionnaire: string, cle: string): readonly number[] => {
