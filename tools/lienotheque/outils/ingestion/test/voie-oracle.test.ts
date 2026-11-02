@@ -1,7 +1,8 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
 import { BUDGET_EXPLORATION, MOTIFS, VERSION_DE_LA_VOIE, autourDeLaMarque, rejouerParOracle } from "../src/index.js";
@@ -15,6 +16,12 @@ import { BUDGET_EXPLORATION, MOTIFS, VERSION_DE_LA_VOIE, autourDeLaMarque, rejou
 
 const bac = mkdtempSync(join(tmpdir(), "lienotheque-voie-"));
 afterAll(() => rmSync(bac, { recursive: true, force: true }));
+
+it("le vivier ne peut pas abaisser le plancher tant que les petits échantillons ne sont pas robustes (OUT-10)", () => {
+  const source = readFileSync(fileURLToPath(new URL("../src/voie-oracle.ts", import.meta.url)), "utf8");
+  expect(source).toContain("zonesRecurrentes(formes, combienDePages)");
+  expect(source).not.toMatch(/zonesRecurrentes\(formes, combienDePages,\s*medias\.length\)/u);
+});
 
 /** Un PDF dont chaque page porte le contenu donné, en coordonnées PDF (origine en bas à gauche). */
 function pdfDePages(
