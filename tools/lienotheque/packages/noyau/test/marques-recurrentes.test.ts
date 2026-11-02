@@ -182,6 +182,63 @@ describe("on ne demande pas à une marque d’être plus nombreuse que ce qu’e
   });
 });
 
+describe("un groupe est ce que trois fenêtres retiennent, pas la boule d’une forme (OUT-10)", () => {
+  /** Le cas réel du 2 novembre 2026, réduit à ce qui le fait échouer.
+   *
+   *  Une marque de 2,5 % de large paraît une fois par page, son abscisse dérivant de deux points
+   *  et demi d'une page à l'autre. À côté d'elle se presse une foule de formes de tailles
+   *  voisines, plus nombreuses qu'elle : c'est l'une d'elles qui a le plus de semblables, et
+   *  c'est donc elle qui sert d'ancre.
+   *
+   *  Groupée comme la boule de cette ancre, la marque se dilue : la boule admet d'un bord à
+   *  l'autre le carré du rapport, elle emporte la foule, et son centre — imposé par l'ancre —
+   *  laisse dehors les apparitions les plus à gauche. Sur le recueil mesuré, seize apparitions
+   *  sur vingt-deux étaient retenues, noyées parmi quarante-sept formes étrangères. */
+  const marque = Array.from({ length: 12 }, (_, rang) => ({
+    page: rang + 1,
+    x: 0.131 + (rang % 5) * 0.006,
+    y: 0.12,
+    l: 0.026,
+    h: 0.021,
+  }));
+  // La foule : des formes franchement plus petites que la marque — un rapport de 1,53, au-delà
+  // de ce qu'une fenêtre admet — et, entre les deux, une taille intermédiaire. C'est elle qui a
+  // le plus de semblables, et sa boule atteint les deux bords alors qu'aucune fenêtre ne le peut.
+  const foule = [
+    ...Array.from({ length: 12 }, (_, rang) =>
+      [0, 1, 2].map((rangee) => ({ page: rang + 1, x: 0.15 + rangee * 0.006, y: 0.3, l: 0.017, h: 0.014 })),
+    ).flat(),
+    ...Array.from({ length: 12 }, (_, rang) =>
+      [0, 1].map((rangee) => ({ page: rang + 1, x: 0.152 + rangee * 0.008, y: 0.5, l: 0.021, h: 0.017 })),
+    ).flat(),
+  ];
+  const zoneDeLaMarque = (zones: ReturnType<typeof zonesRecurrentes>) =>
+    zones.find((zone) => zone.apparitions.some((apparition) => apparition.l === 0.026));
+
+  it("réunit les apparitions de la marque, ancre ou pas (OUT-10)", () => {
+    const zone = zoneDeLaMarque(zonesRecurrentes([...marque, ...foule], 12, 12));
+    expect(zone?.apparitions.length, "les douze apparitions de la marque sont ensemble").toBe(12);
+  });
+
+  it("n’emporte pas avec elle les formes d’une autre taille (OUT-10)", () => {
+    const zone = zoneDeLaMarque(zonesRecurrentes([...marque, ...foule], 12, 12));
+    const etrangeres = zone?.apparitions.filter((apparition) => apparition.l !== 0.026) ?? [];
+    expect(etrangeres, "aucune forme de la foule dans la zone de la marque").toEqual([]);
+  });
+
+  it("la taille annoncée est celle du signe, non celle de son voisinage (OUT-10)", () => {
+    const zone = zoneDeLaMarque(zonesRecurrentes([...marque, ...foule], 12, 12));
+    expect(zone?.taille).toEqual({ l: 0.026, h: 0.021 });
+  });
+
+  it("une marque seule au monde est groupée comme avant (OUT-10)", () => {
+    // Le cas de référence depuis le 29 octobre : rien autour d’elle, rien ne doit changer.
+    const [zone] = zonesRecurrentes(marque, 12, 12);
+    expect(zone?.apparitions.length).toBe(12);
+    expect(zone?.pages).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  });
+});
+
 describe("ce qu’il en dit (OUT-10)", () => {
   it("chaque observation suit le contrat, dit où regarder et à quelle taille", () => {
     const formes = [1, 2, 3, 4].map((page) => forme(page, 0.07, 0.3));

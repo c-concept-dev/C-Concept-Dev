@@ -33,8 +33,15 @@ import type { Observation } from "@lienotheque/contrats";
  *
  *  D'où l'ordre retenu : « le même signe répété » se juge d'abord **sur la taille**. Une forme de
  *  4,3 % et une forme de 0,6 % ne sont pas le même signe, quelle que soit leur abscisse. On part
- *  donc de la forme qui a le plus de semblables — même taille *et* même abscisse —, on en fait un
- *  groupe, on le retire, et on recommence. Pas d'enchaînement, donc pas de soudure.
+ *  donc de la forme qui a le plus de semblables — même taille *et* même abscisse —, on cherche
+ *  autour d'elle le groupe le plus fourni, on le retire, et on recommence. Pas d'enchaînement,
+ *  donc pas de soudure.
+ *
+ *  Deuxième version, et la faute qu'elle corrige, mesurée le 2 novembre 2026 : ce groupe était la
+ *  **boule** de cette forme-là, et une boule est à la fois trop large — d'un bord à l'autre, le
+ *  carré du rapport admis — et mal placée, puisque son centre est imposé par la forme au lieu
+ *  d'être cherché. Le groupe est désormais ce que trois fenêtres retiennent, chacune posée là où
+ *  elle contient le plus : `groupeAutour` dit ce que cela change, et sur quoi c'est mesuré.
  *
  *  ## Ce qu'il ne fait pas
  *
@@ -144,6 +151,47 @@ const memeTaille = (un: FormeObservee, autre: FormeObservee): boolean =>
 const memeSigne = (un: FormeObservee, autre: FormeObservee): boolean =>
   memeTaille(un, autre) && Math.abs(un.x - autre.x) <= MEME_ABSCISSE;
 
+/** Les formes rangées par colonne d'abscisse, pour ne comparer que ce qui peut se ressembler.
+ *
+ *  Deux formes séparées de plus d'une colonne ne sont jamais le même signe : parcourir le
+ *  document entier pour chaque forme coûterait, sur un recueil de trente-cinq mille formes, mille
+ *  deux cents millions de comparaisons dont une sur douze seulement a une chance d'aboutir. */
+const parColonnes = (formes: readonly FormeObservee[]): Map<number, FormeObservee[]> => {
+  const colonnes = new Map<number, FormeObservee[]>();
+  for (const forme of formes) {
+    const clef = Math.floor(forme.x / MEME_ABSCISSE);
+    const colonne = colonnes.get(clef);
+    if (colonne === undefined) colonnes.set(clef, [forme]);
+    else colonne.push(forme);
+  }
+  return colonnes;
+};
+const voisines = (colonnes: Map<number, FormeObservee[]>, forme: FormeObservee): readonly FormeObservee[] => {
+  const clef = Math.floor(forme.x / MEME_ABSCISSE);
+  return [...(colonnes.get(clef - 1) ?? []), ...(colonnes.get(clef) ?? []), ...(colonnes.get(clef + 1) ?? [])];
+};
+
+/** Où poser une fenêtre de largeur donnée pour qu'elle contienne le plus de valeurs possible.
+ *
+ *  `bout` dit comment la fenêtre s'étend depuis son début : par un rapport quand il s'agit d'une
+ *  taille, par une addition quand il s'agit d'une abscisse. Les valeurs sont triées, puis la
+ *  fenêtre les parcourt d'un bout à l'autre — l'optimum est forcément atteint quand son bord bas
+ *  touche une valeur, puisqu'on peut toujours l'y pousser sans rien perdre. */
+function fenetreLaPlusFournie(valeurs: readonly number[], bout: (debut: number) => number): number {
+  const triees = [...valeurs].sort((un, autre) => un - autre);
+  let depart = triees[0] ?? 0;
+  let combien = 0;
+  let debut = 0;
+  for (let fin = 0; fin < triees.length; fin += 1) {
+    while (triees[fin]! > bout(triees[debut]!)) debut += 1;
+    if (fin - debut + 1 > combien) {
+      depart = triees[debut]!;
+      combien = fin - debut + 1;
+    }
+  }
+  return depart;
+}
+
 /** Combien d'endroits distincts, en hauteur, un groupe occupe. */
 const endroits = (groupe: readonly FormeObservee[]): number => {
   let combien = 0;
@@ -159,6 +207,95 @@ const mediane = (valeurs: readonly number[]): number => {
   const triees = [...valeurs].sort((un, autre) => un - autre);
   return triees[Math.floor(triees.length / 2)] ?? 0;
 };
+
+/** De combien de départs la recherche du groupe est tentée, de la fenêtre centrée sur l'ancre à
+ *  celle qui la prend pour bord haut.
+ *
+ *  Le glissement s'arrête au premier endroit où plus aucune fenêtre ne bouge, et cet endroit
+ *  dépend d'où l'on part : mesuré le 2 novembre 2026 sur deux recueils, un départ centré réunit
+ *  les quatre-vingt-quinze apparitions du premier et **aucune** des vingt-deux du second, tandis
+ *  qu'un départ par le bord haut les réunit toutes deux. Aucun des deux n'a de raison d'être le
+ *  bon. On les essaie donc tous, et c'est le groupe le plus fourni qui est retenu — ce qui ôte du
+ *  résultat un choix qui n'avait rien pour le justifier. */
+const DEPARTS = [1, Math.sqrt(RAPPORT_DE_TAILLE), RAPPORT_DE_TAILLE] as const;
+
+/** Combien de fois chaque fenêtre est repassée avant qu'on tienne le groupe pour établi.
+ *
+ *  Un tour qui ne déplace aucune des trois arrête la boucle de lui-même : ce plafond ne sert qu'à
+ *  borner le cas où deux fenêtres se repousseraient sans fin, et non à régler quoi que ce soit. */
+const TOURS_DE_GLISSEMENT = 10;
+
+/** Le groupe le plus fourni autour d'une forme : trois fenêtres cherchées chacune pour elle-même.
+ *
+ *  ## Pourquoi « autour d'une forme » ne suffit pas
+ *
+ *  « Même signe » pose trois fenêtres — une sur la largeur, une sur la hauteur, une sur
+ *  l'abscisse — et la première version les accrochait toutes les trois à une forme particulière :
+ *  le groupe était sa boule. Deux défauts en découlent, et tous deux sont mesurés.
+ *
+ *  La boule est **trop large** : d'un bord à l'autre, elle admet le carré du rapport, 2,25 au
+ *  lieu de 1,5. Sur un recueil, le groupe qui porte la marque comptait ainsi 63 apparitions dont
+ *  **47 étrangères** — et la reconnaissance, envoyée sur ces 63 endroits, lisait surtout autre
+ *  chose.
+ *
+ *  Et son centre est **imposé** par la forme choisie, non cherché. Sur le même recueil, la marque
+ *  paraît entre 13,1 et 16,0 % de la largeur ; la boule retenue allait de 15,1 à 20,8 %, et six
+ *  des vingt-deux apparitions tombaient hors d'elle. Elles n'étaient pas mal lues : elles
+ *  n'étaient pas regardées.
+ *
+ *  ## Ce qui est fait à la place
+ *
+ *  Aucune fenêtre n'est accrochée à une forme. On part de l'ancre, puis on fait glisser chaque
+ *  fenêtre à son tour — sur ce que les **deux autres** retiennent, et non sur la sélection
+ *  courante, sinon elle ne pourrait jamais atteindre une forme qu'elle-même exclut. Chaque
+ *  glissement ne peut qu'augmenter le compte, donc cela s'arrête.
+ *
+ *  ## Ce que cela change, mesuré
+ *
+ *  | recueil | apparitions du signe réunies, avant | après |
+ *  |---|---|---|
+ *  | celui qui sert de référence depuis le 29 octobre | 95 sur 95 | 95 sur 95 |
+ *  | celui dont la marque était diluée | 16 sur 22, dans un groupe de 63 | **21 sur 22**, dans un groupe de 51 |
+ *
+ *  Le premier ne bouge pas d'une apparition — c'est ce qu'on lui demandait. Le second gagne cinq
+ *  apparitions et perd seize formes étrangères.
+ *
+ *  Il en coûte des endroits à examiner : de 6 à 11 sur l'un, de 24 à 39 sur l'autre. Les groupes
+ *  étant plus serrés, il en faut davantage pour couvrir les mêmes formes — et c'est le prix d'un
+ *  groupe qui porte un signe plutôt qu'un voisinage. */
+function groupeAutour(ancre: FormeObservee, restantes: readonly FormeObservee[]): readonly FormeObservee[] {
+  let meilleur: readonly FormeObservee[] = [];
+  for (const depart of DEPARTS) {
+    let basL = ancre.l / depart;
+    let basH = ancre.h / depart;
+    let basX = ancre.x - MEME_ABSCISSE;
+    const tientEnL = (forme: FormeObservee): boolean => forme.l >= basL && forme.l <= basL * RAPPORT_DE_TAILLE;
+    const tientEnH = (forme: FormeObservee): boolean => forme.h >= basH && forme.h <= basH * RAPPORT_DE_TAILLE;
+    const tientEnX = (forme: FormeObservee): boolean => forme.x >= basX && forme.x <= basX + MEME_ABSCISSE * 2;
+
+    for (let tour = 0; tour < TOURS_DE_GLISSEMENT; tour += 1) {
+      const avant = `${basL} ${basH} ${basX}`;
+      const parRapport = (debut: number): number => debut * RAPPORT_DE_TAILLE;
+      basL = fenetreLaPlusFournie(
+        restantes.filter((forme) => tientEnH(forme) && tientEnX(forme)).map((forme) => forme.l),
+        parRapport,
+      );
+      basH = fenetreLaPlusFournie(
+        restantes.filter((forme) => tientEnL(forme) && tientEnX(forme)).map((forme) => forme.h),
+        parRapport,
+      );
+      basX = fenetreLaPlusFournie(
+        restantes.filter((forme) => tientEnL(forme) && tientEnH(forme)).map((forme) => forme.x),
+        (debut) => debut + MEME_ABSCISSE * 2,
+      );
+      if (`${basL} ${basH} ${basX}` === avant) break;
+    }
+
+    const abouti = restantes.filter((forme) => tientEnL(forme) && tientEnH(forme) && tientEnX(forme));
+    if (abouti.length > meilleur.length) meilleur = abouti;
+  }
+  return meilleur;
+}
 
 /** Les endroits où un même signe revient, page après page.
  *
@@ -179,20 +316,24 @@ export function zonesRecurrentes(
   const minimum = pagesPourUneMarque(pagesRegardees, aDesigner);
   const zones: ZoneRecurrente[] = [];
 
-  // On part à chaque tour de la forme qui a le plus de semblables, on en fait un groupe, on le
-  // retire, et on recommence. Dès que la meilleure n'a plus assez de semblables pour couvrir le
-  // minimum de pages, aucune des suivantes ne pourra : on s'arrête là.
+  // On part à chaque tour de la forme qui a le plus de semblables, on cherche autour d'elle le
+  // groupe le plus fourni, on le retire, et on recommence. Dès que la meilleure n'a plus assez de
+  // semblables pour couvrir le minimum de pages, aucune des suivantes ne pourra : on s'arrête là.
   while (restantes.length >= minimum) {
-    let graine: FormeObservee | undefined;
-    let meilleur: FormeObservee[] = [];
+    const colonnes = parColonnes(restantes);
+    let ancre: FormeObservee | undefined;
+    let entourage = 0;
     for (const candidate of restantes) {
-      const semblables = restantes.filter((forme) => memeSigne(candidate, forme));
-      if (semblables.length > meilleur.length) {
-        graine = candidate;
-        meilleur = semblables;
+      const semblables = voisines(colonnes, candidate).filter((forme) => memeSigne(candidate, forme)).length;
+      if (semblables > entourage) {
+        ancre = candidate;
+        entourage = semblables;
       }
     }
-    if (graine === undefined || meilleur.length < minimum) break;
+    if (ancre === undefined || entourage < minimum) break;
+
+    const meilleur = groupeAutour(ancre, restantes);
+    if (meilleur.length < minimum) break;
 
     const sesPages = [...new Set(meilleur.map((forme) => forme.page))].sort((un, autre) => un - autre);
     const retire = new Set(meilleur);
