@@ -96,6 +96,7 @@
   </style>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script defer src="assets-compresseur/jspeg-lossless.min.js"></script>
 </head>
 <body>
   <div class="shell">
@@ -103,7 +104,7 @@
       <div>
         <div class="brandline"><span class="logo" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 3h13l5 5v21H7z"/><path d="M20 3v6h5M11 14h10M11 19h10M11 24h7"/></svg></span> Outil documentaire</div>
         <h1>Compresser sans effacer l’essentiel.</h1>
-        <p class="lede">Optimisez la structure de vos PDF scannés tout en gardant les images et la couche OCR intactes.</p>
+        <p class="lede">Optimisez la structure et les images JPEG de vos PDF scannés tout en gardant les pixels et la couche OCR intacts.</p>
       </div>
       <svg class="hero-art" viewBox="0 0 260 220" fill="none" aria-hidden="true">
         <rect x="65" y="28" width="136" height="172" rx="10" fill="currentColor" opacity=".10"/>
@@ -148,11 +149,11 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h10l4 4v14H5zM15 3v5h4M9 12h6M9 16h5"/></svg>
           <div>
             <strong>Images et texte conservés</strong>
-            <p>L’outil réorganise les objets PDF compressibles. Il ne réduit ni la résolution des scans, ni la qualité JPEG. Il vérifie les flux, la géométrie et le texte OCR avant de proposer le fichier.</p>
+            <p>L’outil réorganise les objets PDF et le codage des JPEG compatibles, sans réduire la résolution ni changer les pixels. Il vérifie les images, la géométrie et le texte OCR avant de proposer le fichier.</p>
           </div>
         </div>
         <div class="method-photo" aria-hidden="true"></div>
-        <p class="notice warning">Un scan déjà optimisé peut ne pas devenir plus petit sans réencoder ses images. Dans ce cas, gardez l’original.</p>
+        <p class="notice warning">Un scan déjà bien compressé peut rester volumineux : une réduction plus forte demanderait de diminuer la définition ou d’accepter une perte visuelle. Dans ce cas, gardez l’original.</p>
         <div class="button-row">
           <button class="button" id="compressBtn" type="button" disabled>Analyser et optimiser</button>
           <button class="button secondary" id="resetBtn" type="button" hidden>Choisir un autre PDF</button>
@@ -244,15 +245,65 @@
     }
     return streams;
   }
-  function sameStreams(original, candidate) {
-    const a = rawStreams(original), b = rawStreams(candidate);
+  function sameStreams(a, candidate, replacements) {
+    const b = rawStreams(candidate);
     if (a.size !== b.size) return false;
     for (const [ref, left] of a) {
       const right = b.get(ref);
-      if (!right || left.length !== right.length) return false;
-      for (let i = 0; i < left.length; i++) if (left[i] !== right[i]) return false;
+      const expected = replacements.get(ref) || left;
+      if (!right || expected.length !== right.length) return false;
+      for (let i = 0; i < expected.length; i++) if (expected[i] !== right[i]) return false;
     }
     return true;
+  }
+  async function sameDecodedPixels(leftBytes, rightBytes) {
+    const left = await createImageBitmap(new Blob([leftBytes], { type: "image/jpeg" }));
+    let right;
+    try {
+      right = await createImageBitmap(new Blob([rightBytes], { type: "image/jpeg" }));
+      if (left.width !== right.width || left.height !== right.height) return false;
+      const canvas = document.createElement("canvas");
+      canvas.width = left.width; canvas.height = left.height;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return false;
+      context.drawImage(left, 0, 0);
+      const a = new Uint32Array(context.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(right, 0, 0);
+      const b = new Uint32Array(context.getImageData(0, 0, canvas.width, canvas.height).data.buffer);
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+      return true;
+    } finally { left.close(); right?.close(); }
+  }
+  async function optimizeJpegImages(doc) {
+    const { PDFRawStream, PDFName, PDFNumber } = PDFLib;
+    const refs = doc.context.enumerateIndirectObjects().filter(([, obj]) =>
+      obj instanceof PDFRawStream &&
+      obj.dict.get(PDFName.of("Subtype"))?.toString() === "/Image" &&
+      obj.dict.get(PDFName.of("Filter"))?.toString() === "/DCTDecode" &&
+      obj.dict.get(PDFName.of("ColorSpace"))?.toString() === "/DeviceGray" &&
+      obj.dict.get(PDFName.of("BitsPerComponent"))?.toString() === "8" &&
+      !obj.dict.get(PDFName.of("SMask")) && !obj.dict.get(PDFName.of("Mask")));
+    const replacements = new Map();
+    for (let i = 0; i < refs.length; i++) {
+      const [ref, image] = refs[i];
+      try {
+        const optimized = JsPeg.optimize(image.contents, { strip: false, progressive: true });
+        if (optimized.length < image.contents.length && await sameDecodedPixels(image.contents, optimized)) {
+          const dict = image.dict.clone(doc.context);
+          dict.set(PDFName.of("Length"), PDFNumber.of(optimized.length));
+          doc.context.assign(ref, PDFRawStream.of(dict, optimized));
+          replacements.set(ref.toString(), optimized);
+        }
+      } catch (error) {
+        // Une image non compatible reste intacte ; les autres peuvent être optimisées.
+        console.warn("Image JPEG conservée : optimisation sans perte indisponible.", ref.toString(), error);
+      }
+      status(`Images vérifiées : ${i + 1}/${refs.length}`, 5 + Math.round((i + 1) / refs.length * 58));
+      await new Promise(requestAnimationFrame);
+    }
+    return { replacements, eligible: refs.length };
   }
   function resetState() {
     if (state.working) return;
@@ -282,7 +333,7 @@
     if (state.working) return;
     resetState();
     if (!file || !/\.pdf$/i.test(file.name)) return error("Choisissez un fichier PDF.");
-    if (typeof pdfjsLib === "undefined" || typeof PDFLib === "undefined") return error("Les bibliothèques PDF ne sont pas chargées. Vérifiez votre connexion et réessayez.");
+    if (typeof pdfjsLib === "undefined" || typeof PDFLib === "undefined" || typeof JsPeg === "undefined") return error("Les bibliothèques PDF ne sont pas chargées. Vérifiez votre connexion et réessayez.");
     state.working = true;
     input.disabled = true;
     $("progressCard").hidden = false;
@@ -323,15 +374,17 @@
     if (!state.file || state.working) return;
     state.working = true; compress.disabled = true; reset.disabled = true; input.disabled = true;
     clearError(); $("results").hidden = true; $("downloadBtn").hidden = true; $("progressCard").hidden = false;
-    status("Réorganisation sans réencodage des pages…", 5);
+    status("Préparation de l’optimisation sans perte…", 5);
     try {
       const original = await PDFLib.PDFDocument.load(state.sourceBytes, { throwOnInvalidObject: true });
+      const beforeStreams = rawStreams(original);
+      const { replacements, eligible } = await optimizeJpegImages(original);
       const candidateBytes = await original.save({ useObjectStreams: true, updateFieldAppearances: false });
-      status("Contrôle des images, polices et flux PDF…", 45);
+      status("Contrôle des images, polices et flux PDF…", 68);
       const candidate = await PDFLib.PDFDocument.load(candidateBytes, { throwOnInvalidObject: true });
-      if (candidate.getPageCount() !== state.pageInfo.length || !sameStreams(original, candidate))
-        throw new Error("Les flux du document ne sont pas identiques. Aucun PDF modifié ne sera proposé.");
-      const checked = await parseWithPdfJs(candidateBytes, (i, total) => status(`Vérification OCR : page ${i}/${total}`, 48 + Math.round(i / total * 50)));
+      if (candidate.getPageCount() !== state.pageInfo.length || !sameStreams(beforeStreams, candidate, replacements))
+        throw new Error("Un flux du document a changé de façon inattendue. Aucun PDF modifié ne sera proposé.");
+      const checked = await parseWithPdfJs(candidateBytes, (i, total) => status(`Vérification OCR : page ${i}/${total}`, 70 + Math.round(i / total * 29)));
       if (!comparePages(state.pageInfo, checked.pages) ||
           !state.sourceText.every((text, i) => text === checked.texts[i]))
         throw new Error("La géométrie ou le texte OCR a changé. Aucun PDF modifié ne sera proposé.");
@@ -342,8 +395,8 @@
       $("savings").textContent = smaller ? Math.round((1 - candidateBytes.length / state.sourceBytes.length) * 1000) / 10 + " %" : "0 %";
       $("resultTitle").textContent = smaller ? "PDF optimisé et vérifié" : "Original déjà aussi compact";
       $("resultNote").textContent = smaller
-        ? "Toutes les pages, les flux d’images et le texte OCR ont été vérifiés. Le fichier optimisé est prêt."
-        : "La réécriture ne réduit pas ce document. L’original reste le meilleur choix sans perte de qualité.";
+        ? `${replacements.size} image(s) JPEG optimisée(s) sans perte sur ${eligible} admissible(s). Images et texte OCR vérifiés. Le fichier est prêt.`
+        : "Aucun gain sans perte sur ce document. L’original reste le meilleur choix pour préserver sa qualité.";
       $("downloadBtn").hidden = !smaller;
       $("results").hidden = false;
       status("Contrôle terminé.", 100);
