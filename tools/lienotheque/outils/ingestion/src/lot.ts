@@ -228,7 +228,13 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
           ...(lot.surPhase === undefined ? {} : { surPhase: lot.surPhase }),
           ...(lot.pages === undefined ? {} : { pages: lot.pages }),
           ...(lot.acquis === undefined ? {} : { acquis: lot.acquis }),
-          texteDesPages: lu.pages.map((page) => ({ page: page.index, texte: page.texte })),
+          doublePage: lu.doublePage,
+          foliosEtablis: lu.foliosEtablis,
+          texteDesPages: lu.pages.map((page) => ({
+            page: page.index,
+            ...(page.pageImprimee === undefined ? {} : { pageImprimee: page.pageImprimee }),
+            texte: page.texte,
+          })),
         })
       : await rejouer(lot.pdf, lot.medias, recette, {
           ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
@@ -264,7 +270,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   if (lot.images !== undefined) {
     const adresse = lot.adresseImages ?? "/donnees/pages";
     try {
-      for (const page of (await exporterPages(lot.pdf, lot.images)).pages)
+      for (const page of (await exporterPages(lot.pdf, lot.images, { doublePage: lu.doublePage })).pages)
         parRang.set(page.index + PREMIER_RANG, {
           image: `${adresse}/${page.fichier}`,
           largeur: page.largeur,

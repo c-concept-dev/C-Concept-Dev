@@ -56,6 +56,8 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
       options.surAvertissement?.("JPEG incomplet ; rendu complet essayé");
       return {
         pages: [{ index: 1, texte: "Un texte intact et cherchable.", source: "couche_texte", mots: [] }],
+        doublePage: false,
+        foliosEtablis: false,
         parLaCouche: 1,
         parOcr: 0,
         sansTexte: 0,
@@ -68,7 +70,9 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
     doubles.lireLeTexte.mockImplementationOnce(async () => {
       ordre.push("texte");
       return {
-        pages: [{ index: 1, texte: "Un intitulé distinctif.", source: "couche_texte", mots: [] }],
+        pages: [{ index: 1, pageImprimee: 17, texte: "Un intitulé distinctif.", source: "couche_texte", mots: [] }],
+        doublePage: true,
+        foliosEtablis: true,
         parLaCouche: 1,
         parOcr: 0,
         sansTexte: 0,
@@ -76,7 +80,9 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
     });
     doubles.rejouerParOracle.mockImplementationOnce(async (_pdf, _medias, options) => {
       ordre.push("oracle");
-      expect(options.texteDesPages).toEqual([{ page: 1, texte: "Un intitulé distinctif." }]);
+      expect(options.texteDesPages).toEqual([{ page: 1, pageImprimee: 17, texte: "Un intitulé distinctif." }]);
+      expect(options.doublePage).toBe(true);
+      expect(options.foliosEtablis).toBe(true);
       return {
         resultat: { pages: [], lignes: [], pagesAbsentes: [] },
         association: { appariements: [], manquants: [], orphelins: [] },
@@ -125,6 +131,14 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
   });
 
   it("rend accessibles les pages du PDF ordinaire même sans repère métier", async () => {
+    doubles.lireLeTexte.mockResolvedValueOnce({
+      pages: [{ index: 1, texte: "Première page logique.", source: "ocr", mots: [] }],
+      doublePage: true,
+      foliosEtablis: false,
+      parLaCouche: 0,
+      parOcr: 1,
+      sansTexte: 0,
+    });
     doubles.exporterPages.mockResolvedValue({
       pages: [{ index: 0, fichier: "page-0000.webp", largeur: 800, hauteur: 1200, vignette: "vignette-0000.webp" }],
       refusees: [],
@@ -147,6 +161,11 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
     const entree = doubles.construireVue.mock.calls[0]?.[0] as { imageDePage?: (rang: number) => unknown };
     expect(entree.imageDePage?.(1)).toEqual(
       expect.objectContaining({ image: "/donnees/pages/page-0000.webp", vignette: "/donnees/pages/vignette-0000.webp" }),
+    );
+    expect(doubles.exporterPages).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ doublePage: true }),
     );
   });
 

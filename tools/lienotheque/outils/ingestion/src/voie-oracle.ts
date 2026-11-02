@@ -41,6 +41,7 @@ import {
   type ReglesPistes,
 } from "@lienotheque/recettes";
 import { coordonnerLectureDifficile, type LectureTentative } from "@lienotheque/vision";
+import { couperDoublePage } from "@lienotheque/redresseur";
 import { ocrDUnePageGrise } from "./texte.js";
 
 /** Lire un document sans manière de lire écrite à la main (OUT-10).
@@ -71,9 +72,9 @@ import { ocrDUnePageGrise } from "./texte.js";
  *
  *  ## Ce qu'elle ne fait pas, et le dit
  *
- *  Elle ne lit aucun folio imprimé. Les pages sont donc **déduites**, et le garde-fou OUT-15 le
- *  verra : un document dont aucun folio n'a été lu ne prouve rien sur ses pages. C'est voulu — la
- *  lecture de folio viendra, et d'ici là l'abstention est la bonne réponse, pas un échec.
+ *  Elle reçoit de la lecture commune les folios établis à l'échelle du document. Faute de ce vote,
+ *  les pages restent **déduites** et le garde-fou OUT-15 interdit toute publication : un nombre
+ *  aperçu seul dans une marge n'est pas une pagination.
  *
  *  Aucun regard distant n'y est branché. Le port existe dans le coordinateur ; cette voie lui
  *  répond franchement qu'il n'y a personne au bout, plutôt que de feindre une relecture. */
@@ -86,7 +87,7 @@ import { ocrDUnePageGrise } from "./texte.js";
  *  monte pas quand seul le coût change : l'élagage du 31 octobre 2026 rend les mêmes endroits, au
  *  centième, et n'a donc rien périmé. */
 export const ID_DE_LA_VOIE = "voie-sans-maniere-de-lire";
-export const VERSION_DE_LA_VOIE = 1;
+export const VERSION_DE_LA_VOIE = 2;
 const LA_VOIE = { id: ID_DE_LA_VOIE, version: VERSION_DE_LA_VOIE } as const;
 
 /** La largeur à laquelle les pages sont rendues. La même que la chaîne de texte : deux largeurs
@@ -159,11 +160,15 @@ export type OptionsVoieOracle = {
   readonly surPhase?: ((message: string) => void) | undefined;
   /** N'en lire que les premières pages : pour essayer, ou pour éprouver. */
   readonly pages?: number | undefined;
+  /** Une feuille rendue porte-t-elle deux pages logiques, gauche puis droite ? */
+  readonly doublePage?: boolean | undefined;
+  /** Le vote documentaire a-t-il établi les folios, au-delà d'une lecture locale isolée ? */
+  readonly foliosEtablis?: boolean | undefined;
   /** Texte déjà lu par la chaîne, une seule fois pour les passages et la corroboration.
    *
    *  Absent, la voie reste utilisable seule et relit le document. Présent — même vide — il fait
    *  foi pour cette passe : réocériser ici contredirait la lecture que la bibliothèque publie. */
-  readonly texteDesPages?: readonly ContenuDePage[] | undefined;
+  readonly texteDesPages?: readonly (ContenuDePage & { readonly pageImprimee?: number | undefined })[] | undefined;
   /** Jusqu'où chercher un endroit qui porte la numérotation. Voir `BUDGET_EXPLORATION`. */
   readonly budgetExploration?: BudgetExploration | undefined;
   /** Ce qu'une lecture antérieure de **ce** document a appris, s'il y en a une.
@@ -283,19 +288,37 @@ export async function rejouerParOracle(
   const empreinte = await empreinteDuFichier(pdf);
   // ── 1. Les formes sombres de chaque page ───────────────────────────────────────────────
   const rendu = await ouvrirRenduPdf(pdf);
-  const combienDePages = Math.min(rendu.nombreDePages, options.pages ?? Number.POSITIVE_INFINITY);
+  const combienDeFeuilles = Math.min(rendu.nombreDePages, options.pages ?? Number.POSITIVE_INFINITY);
+  const combienDePages = combienDeFeuilles * (options.doublePage === true ? 2 : 1);
   const texteAligne =
     options.texteDesPages !== undefined &&
     options.texteDesPages.length === combienDePages &&
     options.texteDesPages.every((page, place) => page.page === place + 1)
       ? options.texteDesPages
       : undefined;
+  const foliosEtablis =
+    options.foliosEtablis === true &&
+    texteAligne !== undefined &&
+    texteAligne.every((page) => page.pageImprimee !== undefined);
+  const folioParRang = new Map<number, number>(
+    foliosEtablis
+      ? texteAligne!.map((page) => [page.page, page.pageImprimee!] as const)
+      : [],
+  );
   if (options.texteDesPages !== undefined && texteAligne === undefined)
     dire(
       `texte déjà lu écarté : ses ${options.texteDesPages.length} page(s) ne correspondent pas ` +
-        `aux ${combienDePages} feuille(s) rendues. Aucun second signal n'en sera tiré : ` +
+        `aux ${combienDePages} page(s) logique(s) rendues depuis ${combienDeFeuilles} feuille(s). ` +
+        `Aucun second signal n'en sera tiré : ` +
         `les candidats resteront à vérifier.`,
     );
+  if (options.foliosEtablis === true && !foliosEtablis)
+    dire(
+      "folios écartés : la lecture dit les avoir établis, mais toutes les pages logiques n'en portent pas un. " +
+        "Les candidats resteront à vérifier.",
+    );
+  else if (!foliosEtablis)
+    dire("aucun folio établi à l'échelle du document : les candidats resteront à vérifier.");
   const acquis = acquisUtilisable(options.acquis, empreinte, combienDePages, dire);
 
   // Un document dont il est **déjà établi** qu'aucun endroit n'y porte de numérotation n'a rien à
@@ -320,31 +343,41 @@ export async function rejouerParOracle(
   const images = new Map<number, ImageGrise>();
   const formes: FormeObservee[] = [];
   try {
-    for (let rang = 1; rang <= combienDePages; rang += 1) {
-      const image = enGris(await rendu.page(rang, LARGEUR_DE_RENDU));
-      images.set(rang, image);
-      for (const forme of formesSombres(image)) {
-        const observee: FormeObservee = {
-          page: rang,
-          x: forme.boite.x / image.largeur,
-          y: forme.boite.y / image.hauteur,
-          l: forme.boite.l / image.largeur,
-          h: forme.boite.h / image.hauteur,
-        };
-        if (
-          observee.l >= COTE_MINIMAL &&
-          observee.h >= COTE_MINIMAL &&
-          observee.l <= COTE_MAXIMAL &&
-          observee.h <= COTE_MAXIMAL
-        )
-          formes.push(observee);
+    for (let feuille = 1; feuille <= combienDeFeuilles; feuille += 1) {
+      const imageDeLaFeuille = enGris(await rendu.page(feuille, LARGEUR_DE_RENDU));
+      const pagesLogiques =
+        options.doublePage === true
+          ? (({ gauche, droite }) => [gauche, droite] as const)(couperDoublePage(imageDeLaFeuille))
+          : [imageDeLaFeuille];
+      for (const [cote, image] of pagesLogiques.entries()) {
+        const rang = options.doublePage === true ? (feuille - 1) * 2 + cote + 1 : feuille;
+        images.set(rang, image);
+        for (const forme of formesSombres(image)) {
+          const observee: FormeObservee = {
+            page: rang,
+            x: forme.boite.x / image.largeur,
+            y: forme.boite.y / image.hauteur,
+            l: forme.boite.l / image.largeur,
+            h: forme.boite.h / image.hauteur,
+          };
+          if (
+            observee.l >= COTE_MINIMAL &&
+            observee.h >= COTE_MINIMAL &&
+            observee.l <= COTE_MAXIMAL &&
+            observee.h <= COTE_MAXIMAL
+          )
+            formes.push(observee);
+        }
       }
-      options.avancement?.(rang, combienDePages);
+      options.avancement?.(feuille, combienDeFeuilles);
     }
   } finally {
     await rendu.fermer();
   }
-  dire(`${combienDePages} page(s) regardée(s), ${formes.length} forme(s) dans les bornes d'une marque`);
+  dire(
+    `${combienDePages} page(s) regardée(s) depuis ${combienDeFeuilles} feuille(s), ` +
+      `${formes.length} forme(s) dans les bornes d'une marque`,
+  );
 
   // ── 2. Les endroits où un même signe revient, et celui qui se lit ──────────────────────
   const proposees = zonesAExaminer(zonesRecurrentes(formes, combienDePages));
@@ -750,8 +783,9 @@ export async function rejouerParOracle(
       accordTenu && piste !== undefined && confirmees.has(clefDeLAccord(marque.rangDePage, piste));
     return {
       numero: marque.numero,
-      // Aucun folio n'a été lu : la page imprimée vaut le rang, et la page le dira « déduite ».
-      pageImprimee: marque.rangDePage,
+      // Sans vote documentaire, le rang reste visible mais demeure explicitement « déduit ».
+      // Avec lui, la ligne porte le folio réellement lu par le socle commun.
+      pageImprimee: folioParRang.get(marque.rangDePage) ?? marque.rangDePage,
       ...(piste === undefined ? {} : { piste }),
       disque: 1,
       ...(decision.etat === "retenue"
@@ -767,18 +801,21 @@ export async function rejouerParOracle(
     };
   });
 
-  const parPage = new Map<number, LigneInterpretee[]>();
-  for (const ligne of lignes) parPage.set(ligne.pageImprimee, [...(parPage.get(ligne.pageImprimee) ?? []), ligne]);
+  const parRang = new Map<number, LigneInterpretee[]>();
+  lignes.forEach((ligne, place) => {
+    const rang = marques[place]!.rangDePage;
+    parRang.set(rang, [...(parRang.get(rang) ?? []), ligne]);
+  });
   const pages: PageReperee[] = Array.from({ length: combienDePages }, (_, place) => {
     const rang = place + 1;
     return {
       index: place,
       rang: place,
-      pageImprimee: rang,
-      // « Déduite », et non « lue » : rien n'a lu de folio sur cette voie. Le garde-fou OUT-15
-      // s'appuie là-dessus pour refuser de tenir la numérotation pour prouvée.
-      statut: "deduite" as const,
-      elements: (parPage.get(rang) ?? []).map((ligne) => ({
+      pageImprimee: folioParRang.get(rang) ?? rang,
+      // « Lue » seulement si le vote documentaire a établi tous les folios. Une lecture locale
+      // isolée ne doit jamais suffire à changer ce statut ni à autoriser la publication.
+      statut: foliosEtablis ? ("lue" as const) : ("deduite" as const),
+      elements: (parRang.get(rang) ?? []).map((ligne) => ({
         numero: ligne.numero,
         y: ligne.zoneRepere?.y ?? 0,
         // Aucun numéro d'élément n'est lu sur cette voie : le numéro est le rang de la marque,
@@ -821,7 +858,16 @@ export async function rejouerParOracle(
   //
   // Elle doit donc gagner ses deux signaux elle-même. Un œil humain a sa place ici, mais sur
   // `appariements[].statut`, lien par lien, et non sur le document entier.
-  const corroboration = corroborationDesLignes(lignes, {});
+  const corroborationLue = corroborationDesLignes(lignes, {});
+  const corroboration = foliosEtablis
+    ? corroborationLue
+    : {
+        ...corroborationLue,
+        suffisante: false,
+        pourquoi:
+          "Les lectures peuvent s'accorder sur une piste, mais aucun folio n'est établi à l'échelle du document : " +
+          "les pages ne peuvent pas encore porter un lien automatique.",
+      };
   dire(
     `corroboration : ${corroboration.signaux.length} signal/signaux [${corroboration.signaux.join(", ")}]` +
       `${corroboration.preuveHumaine ? ", vérification humaine enregistrée" : ""} — ${corroboration.pourquoi}`,
@@ -870,6 +916,15 @@ function sansLien(
     options.texteDesPages.every((page, place) => page.page === place + 1)
       ? options.texteDesPages
       : undefined;
+  const foliosEtablis =
+    options.foliosEtablis === true &&
+    texteAligne !== undefined &&
+    texteAligne.every((page) => page.pageImprimee !== undefined);
+  const folioParRang = new Map<number, number>(
+    foliosEtablis
+      ? texteAligne!.map((page) => [page.page, page.pageImprimee!] as const)
+      : [],
+  );
   const accords =
     texteAligne === undefined ? [] : accordsNomContenu(marquesDesNoms(medias.map((media) => media.nom)), texteAligne);
   const parMedia = new Map<number, typeof accords>();
@@ -880,7 +935,7 @@ function sansLien(
       const media = medias[rang]!;
       return {
         numero: rang + 1,
-        pageImprimee: trouves[0]!.page,
+        pageImprimee: folioParRang.get(trouves[0]!.page) ?? trouves[0]!.page,
         piste: media.piste,
         disque: media.disque ?? 1,
         sourcePiste: "corroboration_media" as const,
@@ -891,8 +946,8 @@ function sansLien(
   const pages = Array.from({ length: combienDePages }, (_, place) => ({
     index: place,
     rang: place,
-    pageImprimee: place + 1,
-    statut: "deduite" as const,
+    pageImprimee: folioParRang.get(place + 1) ?? place + 1,
+    statut: foliosEtablis ? ("lue" as const) : ("deduite" as const),
     elements: [],
   }));
   if (lignes.length > 0) {

@@ -6,7 +6,7 @@ import { decoderJpeg, encoderWebp, enGris, redimensionner, tournerRvba, type Ima
 import { vignette } from "@lienotheque/optimiseur";
 import { causeLisible } from "@lienotheque/noyau";
 import { ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
-import { rotationDePageFiable } from "@lienotheque/redresseur";
+import { couperDoublePage, rotationDePageFiable } from "@lienotheque/redresseur";
 
 /** Images de page pour les écrans, écrites au fil de l'eau (correction 8).
  *
@@ -77,6 +77,9 @@ export type OptionsExport = {
   /** Qualification bornée : essayer les quatre sens et ne tourner que si une vraie lecture les
    * départage. Désactivé tant que l'échantillon privé complet n'est pas qualifié. */
   readonly redresser?: boolean;
+  /** Une feuille du PDF porte deux pages du livre. Le rendu PDF est alors obligatoire : lui
+   * seul applique la rotation déclarée par la page avant que la planche soit coupée. */
+  readonly doublePage?: boolean;
 };
 
 function redresserSiProuve(image: ImageRvba, actif: boolean): ImageRvba {
@@ -127,6 +130,29 @@ async function aLaLargeur(image: ImageRvba, largeur: number): Promise<ImageRvba>
   return redimensionner(image, largeur, Math.max(1, Math.round((image.height * largeur) / image.width)));
 }
 
+/** Recadre l'image d'affichage aux mêmes bornes que le lecteur en niveaux de gris. */
+function recadrerRvba(image: ImageRvba, x: number, largeur: number): ImageRvba {
+  const gauche = Math.max(0, Math.min(image.width, Math.round(x)));
+  const l = Math.max(1, Math.min(image.width - gauche, Math.round(largeur)));
+  const data = new Uint8ClampedArray(l * image.height * 4);
+  for (let y = 0; y < image.height; y += 1) {
+    const debut = (y * image.width + gauche) * 4;
+    data.set(image.data.subarray(debut, debut + l * 4), y * l * 4);
+  }
+  return { data, width: l, height: image.height, colorSpace: image.colorSpace };
+}
+
+/** Coupe une planche rendue dans son orientation PDF, sans inventer une seconde gouttière. */
+function couperPlanche(image: ImageRvba): readonly [ImageRvba, ImageRvba] {
+  const { x } = couperDoublePage(enGris(image));
+  const retrait = Math.round(image.width * 0.005);
+  const droite = Math.min(image.width - 1, x + retrait);
+  return [
+    recadrerRvba(image, 0, Math.max(1, x - retrait)),
+    recadrerRvba(image, droite, image.width - droite),
+  ];
+}
+
 /** Exporte les pages d'un document numérisé, une à la fois, et rend ce qui a été écrit. */
 export async function exporterPages(pdf: string, dossier: string, options: OptionsExport = {}): Promise<Export> {
   const largeurVoulue = options.largeur ?? LARGEUR_PAR_DEFAUT;
@@ -165,7 +191,7 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
       const refusDirect = pourquoiPasLaPage(objets, page);
       let directe: ImageRvba | undefined;
       let causeDirecte: unknown;
-      if (refusDirect === undefined) {
+      if (options.doublePage !== true && refusDirect === undefined) {
         const image = page.images[0]!;
         const octets = octetsImage(objets, image.numero)!;
         try {
@@ -185,7 +211,11 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
           // La décision d'orientation demande davantage de matière que l'image d'écran. À
           // À 1 240 px, une page de l'échantillon hésite entre les deux quarts de tour ; à
           // 1 800 px, l'OSD et la lecture convergent sur le sens qui rend le texte lisible.
-          preparee = await renduComplet.page(index + 1, options.redresser === true ? Math.max(1800, largeurVoulue) : largeurVoulue);
+          const largeurDeRendu = options.doublePage === true ? largeurVoulue * 2 : largeurVoulue;
+          preparee = await renduComplet.page(
+            index + 1,
+            options.redresser === true ? Math.max(1800, largeurDeRendu) : largeurDeRendu,
+          );
         } catch (causeRendu) {
           const directeDite =
             causeDirecte === undefined
@@ -199,33 +229,36 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
         }
 
       preparee = redresserSiProuve(preparee, options.redresser === true);
-      const reduite = await aLaLargeur(preparee, largeurVoulue);
+      const logiques = options.doublePage === true ? couperPlanche(preparee) : [preparee];
+      for (const [cote, logique] of logiques.entries()) {
+        const indexLogique = options.doublePage === true ? index * 2 + cote : index;
+        const reduite = await aLaLargeur(logique, largeurVoulue);
+        const nom = `page-${String(indexLogique).padStart(4, "0")}.webp`;
+        // Écrite tout de suite : la page suivante ne doit pas attendre que celle-ci soit retenue.
+        writeFileSync(join(dossier, nom), await encoderWebp(reduite, { quality: options.qualite ?? 72 }));
 
-      const nom = `page-${String(index).padStart(4, "0")}.webp`;
-      // Écrite tout de suite : la page suivante ne doit pas attendre que celle-ci soit retenue.
-      writeFileSync(join(dossier, nom), await encoderWebp(reduite, { quality: options.qualite ?? 72 }));
+        // La vignette sort de l'image déjà réduite, pendant qu'elle est encore là. Si le générateur
+        // de dérivés refuse celle-ci — une page qui ne se comprime pas sous son plafond —, la page
+        // garde son image et perd sa vignette : les écrans savent s'en passer.
+        let nomVignette: string | undefined;
+        if (source !== undefined)
+          try {
+            const derive = await vignette(reduite, source);
+            nomVignette = `vignette-${String(indexLogique).padStart(4, "0")}.webp`;
+            writeFileSync(join(dossier, nomVignette), derive.octets);
+          } catch (cause) {
+            nomVignette = undefined;
+            console.warn(`Vignette de la page ${indexLogique} non produite : ${causeLisible(cause)}`);
+          }
 
-      // La vignette sort de l'image déjà réduite, pendant qu'elle est encore là. Si le générateur
-      // de dérivés refuse celle-ci — une page qui ne se comprime pas sous son plafond —, la page
-      // garde son image et perd sa vignette : les écrans savent s'en passer.
-      let nomVignette: string | undefined;
-      if (source !== undefined)
-        try {
-          const derive = await vignette(reduite, source);
-          nomVignette = `vignette-${String(index).padStart(4, "0")}.webp`;
-          writeFileSync(join(dossier, nomVignette), derive.octets);
-        } catch (cause) {
-          nomVignette = undefined;
-          console.warn(`Vignette de la page ${index} non produite : ${causeLisible(cause)}`);
-        }
-
-      exportees.push({
-        index,
-        fichier: nom,
-        largeur: reduite.width,
-        hauteur: reduite.height,
-        ...(nomVignette === undefined ? {} : { vignette: nomVignette }),
-      });
+        exportees.push({
+          index: indexLogique,
+          fichier: nom,
+          largeur: reduite.width,
+          hauteur: reduite.height,
+          ...(nomVignette === undefined ? {} : { vignette: nomVignette }),
+        });
+      }
     }
   } finally {
     await renduComplet?.fermer();

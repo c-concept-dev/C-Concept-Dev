@@ -17,7 +17,11 @@ const bac = mkdtempSync(join(tmpdir(), "lienotheque-voie-"));
 afterAll(() => rmSync(bac, { recursive: true, force: true }));
 
 /** Un PDF dont chaque page porte le contenu donné, en coordonnées PDF (origine en bas à gauche). */
-function pdfDePages(nom: string, contenus: readonly string[]): string {
+function pdfDePages(
+  nom: string,
+  contenus: readonly string[],
+  dimensions: { readonly largeur: number; readonly hauteur: number } = { largeur: 595, hauteur: 842 },
+): string {
   const objets: string[] = [];
   const ajouter = (contenu: string): number => objets.push(contenu);
 
@@ -27,7 +31,7 @@ function pdfDePages(nom: string, contenus: readonly string[]): string {
   const pages = contenus.map((contenu) => {
     const flux = ajouter(`<< /Length ${contenu.length} >>\nstream\n${contenu}\nendstream`);
     return ajouter(
-      `<< /Type /Page /Parent ${racinePages} 0 R /MediaBox [0 0 595 842]` +
+      `<< /Type /Page /Parent ${racinePages} 0 R /MediaBox [0 0 ${dimensions.largeur} ${dimensions.hauteur}]` +
         ` /Resources << /Font << /F1 ${police} 0 R >> >> /Contents ${flux} 0 R >>`,
     );
   });
@@ -117,11 +121,12 @@ describe("un document sans manière de lire (OUT-10)", () => {
           provenances: ["lot:epreuve"],
         })),
         provenancesMedias: ["lot:epreuve"],
+        foliosEtablis: true,
         texteDesPages: [
-          { page: 1, texte: "Doxy" },
-          { page: 2, texte: "" },
-          { page: 3, texte: "" },
-          { page: 4, texte: "Solitude" },
+          { page: 1, pageImprimee: 17, texte: "Doxy" },
+          { page: 2, pageImprimee: 18, texte: "" },
+          { page: 3, pageImprimee: 19, texte: "" },
+          { page: 4, pageImprimee: 20, texte: "Solitude" },
         ],
       });
 
@@ -134,6 +139,80 @@ describe("un document sans manière de lire (OUT-10)", () => {
       );
       expect(rejeu.association.abstention?.combien).toBe(2);
       expect(rejeu.association.appariements, "zéro lien actif").toEqual([]);
+    },
+  );
+
+  siTesseract(
+    "coupe chaque feuille double avant de chercher les marques et reprend les folios établis (OUT-03, OUT-15)",
+    { timeout: 180_000 },
+    async () => {
+      const feuilles = [0, 1, 2, 3].map((rang) =>
+        [
+          marque(70, 620, rang * 2 + 1),
+          marque(665, 620, rang * 2 + 2),
+          prose(760),
+          "0 g 592 0 6 842 re f",
+        ].join("\n"),
+      );
+      const pdf = pdfDePages("doubles-pages-oracle.pdf", feuilles, { largeur: 1190, hauteur: 842 });
+      const options = {
+        inventaireMedias: Array.from({ length: 8 }, (_, place) => ({
+          nom: `${String(place + 1).padStart(2, "0")}.mp3`,
+          empreinte: `${place}`.repeat(64).slice(0, 64),
+          provenances: ["lot:epreuve"],
+        })),
+        provenancesMedias: ["lot:epreuve"],
+        doublePage: true,
+        foliosEtablis: true,
+        texteDesPages: Array.from({ length: 8 }, (_, place) => ({
+          page: place + 1,
+          pageImprimee: 56 + place,
+          texte: "",
+        })),
+      };
+
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, options as Parameters<typeof rejouerParOracle>[2]);
+
+      expect(rejeu.resultat.pages, "quatre feuilles doivent devenir huit pages logiques").toHaveLength(8);
+      expect(rejeu.resultat.pages.map((page) => page.pageImprimee)).toEqual([56, 57, 58, 59, 60, 61, 62, 63]);
+      expect(rejeu.resultat.pages.every((page) => page.statut === "lue")).toBe(true);
+    },
+  );
+
+  siTesseract(
+    "ne publie pas une corroboration quand le document n'a établi aucun folio (OUT-15, REC-02)",
+    { timeout: 180_000 },
+    async () => {
+      const intitules = ["Doxy", "", "", "Solitude"];
+      const pages = [0, 1, 2, 3].map((rang) =>
+        [marque(70, 620, rang + 1), prose(760), ...(intitules[rang] === "" ? [] : [titre(400, intitules[rang]!)])].join(
+          "\n",
+        ),
+      );
+      const pdf = pdfDePages("folios-non-etablis.pdf", pages);
+      const noms = ["01 - Doxy.mp3", "02 - Autre chose.mp3", "03 - Encore autre.mp3", "04 - Solitude.mp3"];
+      const options = {
+        inventaireMedias: noms.map((nom, place) => ({
+          nom,
+          empreinte: `${place}`.repeat(64).slice(0, 64),
+          provenances: ["lot:epreuve"],
+        })),
+        provenancesMedias: ["lot:epreuve"],
+        foliosEtablis: false,
+        texteDesPages: [
+          { page: 1, texte: "Doxy" },
+          { page: 2, texte: "" },
+          { page: 3, texte: "" },
+          { page: 4, texte: "Solitude" },
+        ],
+      };
+
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, options as Parameters<typeof rejouerParOracle>[2]);
+
+      expect(rejeu.resultat.lignes.length, "les candidats restent visibles").toBeGreaterThan(0);
+      expect(rejeu.association.appariements, "aucun lien sans folio documentaire").toEqual([]);
+      expect(rejeu.association.abstention?.raison).toBe("corroboration_insuffisante");
+      expect(rejeu.journal.join(" ")).toMatch(/folio/i);
     },
   );
 
@@ -333,11 +412,12 @@ describe("un document sans manière de lire (OUT-10)", () => {
           provenances: ["lot:epreuve"],
         })),
         provenancesMedias: ["lot:epreuve"],
+        foliosEtablis: true,
         texteDesPages: [
-          { page: 1, texte: "Doxy" },
-          { page: 2, texte: "" },
-          { page: 3, texte: "" },
-          { page: 4, texte: "Solitude" },
+          { page: 1, pageImprimee: 17, texte: "Doxy" },
+          { page: 2, pageImprimee: 18, texte: "" },
+          { page: 3, pageImprimee: 19, texte: "" },
+          { page: 4, pageImprimee: 20, texte: "Solitude" },
         ],
       });
 
