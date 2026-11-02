@@ -141,6 +141,8 @@
           <div class="stat"><strong id="ocrCount">—</strong><span>Pages avec texte détecté</span></div>
         </div>
         <p class="notice" id="diagnosticNote"></p>
+        <p class="notice" id="imageDiagnostic"></p>
+        <p class="notice warning" id="textlessPages" hidden></p>
       </section>
 
       <section class="card" id="methodCard">
@@ -164,6 +166,7 @@
         <h2 class="card-title">Vérification en cours</h2>
         <progress class="progress-track" id="progressBar" max="100" value="0"></progress>
         <div class="muted" id="progressText">Préparation…</div>
+        <div class="button-row"><button class="button secondary" id="cancelBtn" type="button">Arrêter</button></div>
       </section>
       <div class="notice error" id="errorMessage" role="alert" hidden></div>
       <section class="card" id="results" hidden aria-live="polite">
@@ -182,7 +185,7 @@
   <script>
   "use strict";
   const $ = (id) => document.getElementById(id);
-  const state = { file: null, sourceBytes: null, sourceText: null, pageInfo: null, output: null, working: false };
+  const state = { file: null, sourceBytes: null, sourceText: null, pageInfo: null, output: null, working: false, cancelRequested: false };
   const pdfWorker = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   const upload = $("uploadZone");
   const input = $("fileInput");
@@ -205,6 +208,8 @@
     $("errorMessage").hidden = false;
   }
   function clearError() { $("errorMessage").hidden = true; $("errorMessage").textContent = ""; }
+  function checkCancelled() { if (state.cancelRequested) throw new Error("Traitement arrêté. Aucun PDF incomplet n’a été produit."); }
+  $("cancelBtn").addEventListener("click", () => { state.cancelRequested = true; status("Arrêt demandé…", $("progressBar").value); });
   function asciiContains(bytes, text) {
     const code = [...text].map(ch => ch.charCodeAt(0));
     outer: for (let i = bytes.indexOf(code[0]); i !== -1 && i <= bytes.length - code.length; i = bytes.indexOf(code[0], i + 1)) {
@@ -218,6 +223,7 @@
     try {
       const texts = [], pages = [];
       for (let i = 1; i <= doc.numPages; i++) {
+        checkCancelled();
         const page = await doc.getPage(i);
         const content = await page.getTextContent();
         texts.push(content.items.map(item => item.str || "").join("\u0000"));
@@ -244,6 +250,28 @@
       streams.set(ref.toString(), object.contents);
     }
     return streams;
+  }
+  function imageInventory(doc) {
+    const { PDFRawStream, PDFName } = PDFLib;
+    const counts = { jpegGray: 0, jpegRgb: 0, jpegOther: 0, fax: 0, jbig2: 0, jpx: 0, flate: 0, other: 0, eligible: 0, bytes: 0 };
+    for (const [, object] of doc.context.enumerateIndirectObjects()) {
+      if (!(object instanceof PDFRawStream) || object.dict.get(PDFName.of("Subtype"))?.toString() !== "/Image") continue;
+      counts.bytes += object.contents.length;
+      const filter = object.dict.get(PDFName.of("Filter"))?.toString();
+      const color = object.dict.get(PDFName.of("ColorSpace"))?.toString();
+      const family = filter === "/DCTDecode" ? (color === "/DeviceGray" ? "jpegGray" : color === "/DeviceRGB" ? "jpegRgb" : "jpegOther")
+        : filter === "/CCITTFaxDecode" ? "fax" : filter === "/JBIG2Decode" ? "jbig2" : filter === "/JPXDecode" ? "jpx" : filter === "/FlateDecode" ? "flate" : "other";
+      counts[family]++;
+      if (isEligibleJpeg(object)) counts.eligible++;
+    }
+    return counts;
+  }
+  function isEligibleJpeg(object) {
+    const { PDFName } = PDFLib;
+    const get = name => object.dict.get(PDFName.of(name))?.toString();
+    return get("Subtype") === "/Image" && get("Filter") === "/DCTDecode" &&
+      ["/DeviceGray", "/DeviceRGB"].includes(get("ColorSpace")) && get("BitsPerComponent") === "8" &&
+      !get("SMask") && !get("Mask") && !get("Decode") && !get("DecodeParms");
   }
   function sameStreams(a, candidate, replacements) {
     const b = rawStreams(candidate);
@@ -279,14 +307,12 @@
   async function optimizeJpegImages(doc) {
     const { PDFRawStream, PDFName, PDFNumber } = PDFLib;
     const refs = doc.context.enumerateIndirectObjects().filter(([, obj]) =>
-      obj instanceof PDFRawStream &&
-      obj.dict.get(PDFName.of("Subtype"))?.toString() === "/Image" &&
-      obj.dict.get(PDFName.of("Filter"))?.toString() === "/DCTDecode" &&
-      obj.dict.get(PDFName.of("ColorSpace"))?.toString() === "/DeviceGray" &&
-      obj.dict.get(PDFName.of("BitsPerComponent"))?.toString() === "8" &&
-      !obj.dict.get(PDFName.of("SMask")) && !obj.dict.get(PDFName.of("Mask")));
+      obj instanceof PDFRawStream && isEligibleJpeg(obj));
     const replacements = new Map();
+    const started = performance.now();
+    let saved = 0;
     for (let i = 0; i < refs.length; i++) {
+      checkCancelled();
       const [ref, image] = refs[i];
       try {
         const optimized = JsPeg.optimize(image.contents, { strip: false, progressive: true });
@@ -295,12 +321,15 @@
           dict.set(PDFName.of("Length"), PDFNumber.of(optimized.length));
           doc.context.assign(ref, PDFRawStream.of(dict, optimized));
           replacements.set(ref.toString(), optimized);
+          saved += image.contents.length - optimized.length;
         }
       } catch (error) {
         // Une image non compatible reste intacte ; les autres peuvent être optimisées.
         console.warn("Image JPEG conservée : optimisation sans perte indisponible.", ref.toString(), error);
       }
-      status(`Images vérifiées : ${i + 1}/${refs.length}`, 5 + Math.round((i + 1) / refs.length * 58));
+      const elapsed = (performance.now() - started) / 1000;
+      const remaining = Math.ceil(elapsed / (i + 1) * (refs.length - i - 1));
+      status(`Images vérifiées : ${i + 1}/${refs.length} · ${size(saved)} économisés sur les images · environ ${Math.ceil(remaining / 60)} min restantes`, 5 + Math.round((i + 1) / refs.length * 58));
       await new Promise(requestAnimationFrame);
     }
     return { replacements, eligible: refs.length };
@@ -308,6 +337,7 @@
   function resetState() {
     if (state.working) return;
     state.file = state.sourceBytes = state.sourceText = state.pageInfo = state.output = null;
+    state.cancelRequested = false;
     input.value = "";
     $("diagnostic").hidden = $("results").hidden = $("progressCard").hidden = true;
     $("methodStepNum").textContent = "2";
@@ -335,6 +365,7 @@
     if (!file || !/\.pdf$/i.test(file.name)) return error("Choisissez un fichier PDF.");
     if (typeof pdfjsLib === "undefined" || typeof PDFLib === "undefined" || typeof JsPeg === "undefined") return error("Les bibliothèques PDF ne sont pas chargées. Vérifiez votre connexion et réessayez.");
     state.working = true;
+    state.cancelRequested = false;
     input.disabled = true;
     $("progressCard").hidden = false;
     status("Lecture du document…", 2);
@@ -346,10 +377,13 @@
       pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
       const analysis = await parseWithPdfJs(bytes, (i, total) => status(`Lecture OCR : page ${i}/${total}`, 5 + Math.round(i / total * 35)));
       const pdf = await PDFLib.PDFDocument.load(bytes, { throwOnInvalidObject: true });
+      checkCancelled();
       if (pdf.getPageCount() !== analysis.pages.length) throw new Error("Le nombre de pages ne concorde pas entre les deux lecteurs PDF.");
       if (pdf.catalog.get(PDFLib.PDFName.of("AcroForm"))) throw new Error("PDF avec formulaire interactif : conservez l’original pour éviter d’altérer les champs.");
       state.file = file; state.sourceBytes = bytes; state.sourceText = analysis.texts; state.pageInfo = analysis.pages;
       const ocrPages = analysis.texts.filter(text => text.trim()).length;
+      const missingPages = analysis.texts.flatMap((text, i) => text.trim() ? [] : [i + 1]);
+      const inventory = imageInventory(pdf);
       $("fileName").textContent = file.name;
       $("fileSize").textContent = size(file.size);
       $("pageCount").textContent = String(analysis.pages.length);
@@ -358,6 +392,11 @@
         ? "La couche texte détectée sera comparée page par page après optimisation."
         : "Aucune couche texte détectée. Cet outil conserve l’OCR existant, mais n’en crée pas.";
       $("diagnosticNote").className = ocrPages ? "notice" : "notice warning";
+      const codecs = [["JPEG niveaux de gris", inventory.jpegGray], ["JPEG couleur", inventory.jpegRgb], ["JPEG autres profils", inventory.jpegOther], ["noir et blanc CCITT", inventory.fax], ["noir et blanc JBIG2", inventory.jbig2], ["JPEG 2000", inventory.jpx], ["Flate", inventory.flate], ["autres ou filtres combinés", inventory.other]]
+        .filter(([, count]) => count).map(([label, count]) => `${count} ${label}`).join(" · ");
+      $("imageDiagnostic").textContent = `Images : ${codecs || "aucune"}. Elles représentent ${Math.round(inventory.bytes / bytes.length * 100)} % du fichier ; ${inventory.eligible} JPEG standard admissible(s) à un essai sans perte. Les autres images restent intactes.`;
+      $("textlessPages").hidden = missingPages.length === 0;
+      $("textlessPages").textContent = missingPages.length ? `Aucun texte sélectionnable détecté sur ${missingPages.length} page(s) : ${missingPages.slice(0, 30).join(", ")}${missingPages.length > 30 ? "…" : ""}. Cela ne prouve pas à lui seul un défaut d’OCR ; vérifiez ces pages dans le document original.` : "";
       $("diagnostic").hidden = false;
       $("methodStepNum").textContent = "3";
       compress.disabled = false;
@@ -373,18 +412,23 @@
   compress.addEventListener("click", async () => {
     if (!state.file || state.working) return;
     state.working = true; compress.disabled = true; reset.disabled = true; input.disabled = true;
+    state.cancelRequested = false;
     clearError(); $("results").hidden = true; $("downloadBtn").hidden = true; $("progressCard").hidden = false;
     status("Préparation de l’optimisation sans perte…", 5);
     try {
       const original = await PDFLib.PDFDocument.load(state.sourceBytes, { throwOnInvalidObject: true });
+      checkCancelled();
       const beforeStreams = rawStreams(original);
       const { replacements, eligible } = await optimizeJpegImages(original);
+      checkCancelled();
       const candidateBytes = await original.save({ useObjectStreams: true, updateFieldAppearances: false });
+      checkCancelled();
       status("Contrôle des images, polices et flux PDF…", 68);
       const candidate = await PDFLib.PDFDocument.load(candidateBytes, { throwOnInvalidObject: true });
       if (candidate.getPageCount() !== state.pageInfo.length || !sameStreams(beforeStreams, candidate, replacements))
         throw new Error("Un flux du document a changé de façon inattendue. Aucun PDF modifié ne sera proposé.");
       const checked = await parseWithPdfJs(candidateBytes, (i, total) => status(`Vérification OCR : page ${i}/${total}`, 70 + Math.round(i / total * 29)));
+      checkCancelled();
       if (!comparePages(state.pageInfo, checked.pages) ||
           !state.sourceText.every((text, i) => text === checked.texts[i]))
         throw new Error("La géométrie ou le texte OCR a changé. Aucun PDF modifié ne sera proposé.");
