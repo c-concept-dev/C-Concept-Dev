@@ -380,7 +380,11 @@ export async function rejouerParOracle(
   );
 
   // ── 2. Les endroits où un même signe revient, et celui qui se lit ──────────────────────
-  const proposees = zonesAExaminer(zonesRecurrentes(formes, combienDePages));
+  //
+  // Le vivier est passé parce qu'une marque d'élément ne peut pas paraître plus souvent que ce
+  // qu'elle désigne : sans ce compte, un repère vu une fois par enregistrement est écarté avant
+  // toute lecture sur tout document qui a plus de pages que d'enregistrements.
+  const proposees = zonesAExaminer(zonesRecurrentes(formes, combienDePages, medias.length));
   dire(`${proposees.length} endroit(s) proposé(s) par la régularité des formes`);
   if (proposees.length === 0)
     return sansLien(

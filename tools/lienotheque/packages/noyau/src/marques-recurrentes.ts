@@ -84,6 +84,40 @@ const MEME_ORDONNEE = 0.03;
  *  planches. Exiger la quasi-totalité écarterait les marques des documents les plus ordinaires. */
 export const PART_DES_PAGES = 0.5;
 
+/** Combien de pages une marque doit toucher, selon ce qu'elle peut désigner (OUT-10).
+ *
+ *  ## Deux repères, et un seul plancher pour les deux
+ *
+ *  Ce plancher a été écrit pour un repère de **page** — un folio, un cartouche d'en-tête. Ceux-là
+ *  sont sur toutes les pages, et leur demander d'être sur la moitié ne coûte rien.
+ *
+ *  Un repère d'**élément** n'est pas de cette espèce. Il paraît une fois par chose désignée, et
+ *  un ouvrage a plus de pages que de choses à désigner. Lui demander la moitié des pages revient
+ *  à lui demander d'être plus nombreux que ce qu'il désigne — une exigence qu'aucune marque de ce
+ *  genre ne peut satisfaire, quelle que soit sa forme ou sa netteté.
+ *
+ *  Mesuré le 2 novembre 2026, sur quatre documents réels passés par la chaîne entière :
+ *
+ *  | document | choses à désigner | pages | plancher d'alors | atteignable ? |
+ *  |---|---|---|---|---|
+ *  | premier | 22 | 55 | 28 | **non** |
+ *  | deuxième | 52 | 116 | 58 | **non** |
+ *  | troisième | 9 | 41 | 21 | **non** |
+ *  | quatrième | 17 | 61 | 31 | **non** |
+ *
+ *  Les quatre se sont abstenus. Sur le premier, en abaissant ce seul plancher, la marque qui
+ *  désigne vraiment les enregistrements **sort première sur soixante-et-onze endroits** : elle
+ *  était écartée avant toute lecture.
+ *
+ *  Ce n'est donc pas un second seuil à deviner. C'est le même, borné par ce que le document a à
+ *  désigner : **on ne demande jamais à une marque d'être plus nombreuse que ce qu'elle désigne.**
+ *  Sans ce compte, rien ne change — le plancher reste celui des pages. */
+export function pagesPourUneMarque(pagesRegardees: number, aDesigner?: number): number {
+  const parLesPages = Math.ceil(pagesRegardees * PART_DES_PAGES);
+  const borne = aDesigner === undefined || aDesigner <= 0 ? parLesPages : Math.min(parLesPages, aDesigner);
+  return Math.max(2, borne);
+}
+
 export type ZoneRecurrente = {
   /** La boîte englobant toutes les apparitions, en parts de la page. */
   readonly x: number;
@@ -135,13 +169,14 @@ const mediane = (valeurs: readonly number[]): number => {
 export function zonesRecurrentes(
   formes: readonly FormeObservee[],
   pagesRegardees: number,
+  aDesigner?: number,
 ): readonly ZoneRecurrente[] {
   if (pagesRegardees <= 0) return [];
   let restantes = formes.filter(
     (forme) =>
       forme.l >= COTE_MINIMAL && forme.h >= COTE_MINIMAL && forme.l <= COTE_MAXIMAL && forme.h <= COTE_MAXIMAL,
   );
-  const minimum = Math.max(2, Math.ceil(pagesRegardees * PART_DES_PAGES));
+  const minimum = pagesPourUneMarque(pagesRegardees, aDesigner);
   const zones: ZoneRecurrente[] = [];
 
   // On part à chaque tour de la forme qui a le plus de semblables, on en fait un groupe, on le

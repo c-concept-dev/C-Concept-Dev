@@ -6,6 +6,7 @@ import {
   borneDeNumerotation,
   partDeNumerotation,
   observationsDesMarques,
+  pagesPourUneMarque,
   zonesAExaminer,
   zonesRecurrentes,
   type FormeObservee,
@@ -142,6 +143,42 @@ describe("il compte les pages regardées, pas celles où il a trouvé (OUT-10)",
 
   it("ne rend rien quand on n’a regardé aucune page", () => {
     expect(zonesRecurrentes([forme(1, 0.5, 0.5)], 0)).toEqual([]);
+  });
+});
+
+describe("on ne demande pas à une marque d’être plus nombreuse que ce qu’elle désigne (OUT-10)", () => {
+  /** Le cas réel du 2 novembre 2026 : vingt-deux enregistrements, cinquante-cinq pages. La
+   *  pastille paraît une fois par morceau — vingt-deux fois — et le plancher par les pages en
+   *  réclamait vingt-huit. Elle était écartée avant toute lecture, sur un compte qu'aucune marque
+   *  d'élément ne peut atteindre. */
+  const surVingtDeuxPages = Array.from({ length: 22 }, (_, rang) => forme(rang + 1, 0.13, 0.2));
+
+  it("sans compte à désigner, le plancher reste celui des pages (OUT-10)", () => {
+    expect(pagesPourUneMarque(55)).toBe(28);
+    expect(zonesRecurrentes(surVingtDeuxPages, 55), "vingt-deux pages sur cinquante-cinq").toEqual([]);
+  });
+
+  it("avec un compte à désigner, le plancher s’y borne (OUT-10)", () => {
+    expect(pagesPourUneMarque(55, 22)).toBe(22);
+    const [zone] = zonesRecurrentes(surVingtDeuxPages, 55, 22);
+    expect(zone?.pages.length, "la marque d’élément est enfin proposée").toBe(22);
+  });
+
+  it("un compte plus grand que les pages ne desserre rien (OUT-10)", () => {
+    // Un vivier fourni ne doit pas rendre régulière une forme vue deux fois sur deux cents pages.
+    expect(pagesPourUneMarque(200, 500)).toBe(100);
+    const deuxPages = [forme(1, 0.9, 0.95), forme(2, 0.9, 0.95)];
+    expect(zonesRecurrentes(deuxPages, 200, 500)).toEqual([]);
+  });
+
+  it("un compte absent ou nul vaut « je ne sais pas », et non « aucune exigence » (OUT-10)", () => {
+    expect(pagesPourUneMarque(55, 0)).toBe(28);
+    expect(pagesPourUneMarque(55, -3)).toBe(28);
+  });
+
+  it("le plancher ne descend jamais sous deux pages (OUT-10)", () => {
+    // Une forme vue une seule fois n’est pas une régularité, même dans un lot d’un seul élément.
+    expect(pagesPourUneMarque(4, 1)).toBe(2);
   });
 });
 
