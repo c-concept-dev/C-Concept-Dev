@@ -21,14 +21,18 @@ struct Rattachement {
 
 #[derive(Debug, Deserialize)]
 struct Manifeste {
+    #[serde(default, rename = "remplacerMediasExistants")]
+    remplacer_medias_existants: bool,
     medias: Vec<Rattachement>,
     documents: Vec<Rattachement>,
 }
 
+#[derive(Debug)]
 struct Plan {
     medias: Vec<MediaDepose>,
     travaux: Vec<travail::Travail>,
     medias_deja_faits: usize,
+    medias_corriges: usize,
     travaux_deja_faits: usize,
     travaux_corriges: usize,
 }
@@ -71,6 +75,7 @@ fn preparer(depot: &Depot, manifeste: &Manifeste) -> Result<Plan, String> {
 
     let mut medias_a_ecrire = Vec::new();
     let mut medias_deja_faits = 0;
+    let mut medias_corriges = 0;
     for ligne in &manifeste.medias {
         let connu = medias_connus
             .get(ligne.empreinte.as_str())
@@ -86,6 +91,12 @@ fn preparer(depot: &Depot, manifeste: &Manifeste) -> Result<Plan, String> {
                 medias_a_ecrire.push(enrichi);
             }
             [provenance] if provenance == &ligne.provenance => medias_deja_faits += 1,
+            _ if manifeste.remplacer_medias_existants => {
+                let mut corrige = (*connu).clone();
+                corrige.provenances = vec![ligne.provenance.clone()];
+                medias_a_ecrire.push(corrige);
+                medias_corriges += 1;
+            }
             autres => {
                 return Err(format!(
                     "le média {} porte déjà une provenance différente : {:?}",
@@ -148,6 +159,7 @@ fn preparer(depot: &Depot, manifeste: &Manifeste) -> Result<Plan, String> {
         medias: medias_a_ecrire,
         travaux: travaux_a_ecrire,
         medias_deja_faits,
+        medias_corriges,
         travaux_deja_faits,
         travaux_corriges,
     })
@@ -157,7 +169,9 @@ fn appliquer(depot: &Depot, plan: Plan) -> Result<(usize, usize), String> {
     let medias = plan.medias.len();
     let travaux = plan.travaux.len();
     for media in plan.medias {
-        depot.enregistrer_media(media).map_err(|e| format!("écriture du média : {e}"))?;
+        depot
+            .remplacer_provenances_media(&media.empreinte, media.provenances)
+            .map_err(|e| format!("écriture du média : {e}"))?;
     }
     for courant in plan.travaux {
         file::enregistrer(&depot.travaux(), &courant).map_err(|e| format!("écriture du travail {} : {e}", courant.id))?;
@@ -186,7 +200,10 @@ fn main() -> Result<(), String> {
     let plan = preparer(&depot, &manifeste)?;
     println!("Médias ciblés    : {}", manifeste.medias.len());
     println!("Documents ciblés : {}", manifeste.documents.len());
-    println!("Médias à écrire  : {} ({} déjà faits)", plan.medias.len(), plan.medias_deja_faits);
+    println!(
+        "Médias à écrire  : {} ({} déjà faits, {} anciennes provenances à corriger)",
+        plan.medias.len(), plan.medias_deja_faits, plan.medias_corriges
+    );
     println!(
         "Travaux à écrire : {} ({} déjà faits, {} anciennes provenances à corriger)",
         plan.travaux.len(), plan.travaux_deja_faits, plan.travaux_corriges
@@ -223,7 +240,7 @@ mod tests {
             nom: "piste.mp3".to_owned(),
             contenu: "audio".to_owned(),
             extension: "mp3".to_owned(),
-            provenances: Vec::new(),
+            provenances: vec!["zip:".to_owned() + &"d".repeat(64)],
         };
         let source_media = depot.source(&media.empreinte, &media.extension);
         fs::create_dir_all(source_media.parent().expect("palier")).expect("palier");
@@ -243,7 +260,22 @@ mod tests {
         depot.ecrire_version("version", "{}").expect("version");
         depot.activer(&empreinte_document, "version", 1).expect("active");
 
-        let manifeste = Manifeste { medias: vec![lien('a', 'c')], documents: vec![lien('b', 'c')] };
+        let sans_autorisation = Manifeste {
+            remplacer_medias_existants: false,
+            medias: vec![lien('a', 'c')],
+            documents: vec![lien('b', 'c')],
+        };
+        assert!(
+            preparer(&depot, &sans_autorisation)
+                .expect_err("une ancienne provenance média exige une autorisation explicite")
+                .contains("provenance différente")
+        );
+
+        let manifeste = Manifeste {
+            remplacer_medias_existants: true,
+            medias: vec![lien('a', 'c')],
+            documents: vec![lien('b', 'c')],
+        };
         let avant_media = depot.medias().expect("médias avant");
         let avant_travail = file::charger_tout(&depot.travaux(), &mut |_| {}).expect("travaux avant");
         let plan = preparer(&depot, &manifeste).expect("prévol");

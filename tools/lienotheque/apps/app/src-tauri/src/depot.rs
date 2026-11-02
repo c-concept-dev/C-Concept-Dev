@@ -271,6 +271,25 @@ impl Depot {
         ecrire_atomique(&chemin, &brut)
     }
 
+    /// Remplace les seuls groupes d'un média déjà inventorié.
+    ///
+    /// Cette opération est volontairement distincte du dépôt ordinaire, qui fusionne les groupes :
+    /// elle sert à réparer une provenance historique démontrée fausse par l'empreinte des octets
+    /// dans l'archive d'origine. Elle ne peut ni créer un média ni modifier son nom ou son type.
+    pub fn remplacer_provenances_media(&self, empreinte: &str, mut provenances: Vec<String>) -> io::Result<()> {
+        let chemin = self.racine.join(BASE).join(MEDIAS);
+        let mut inventaire = self.medias()?;
+        let media = inventaire
+            .iter_mut()
+            .find(|connu| connu.empreinte == empreinte)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("Média absent : {empreinte}")))?;
+        provenances.sort();
+        provenances.dedup();
+        media.provenances = provenances;
+        let brut = serde_json::to_vec_pretty(&inventaire).map_err(io::Error::other)?;
+        ecrire_atomique(&chemin, &brut)
+    }
+
     /// Les médias déposés, avec leur nom d'origine. Une bibliothèque plus ancienne n'en porte
     /// pas encore : elle rend simplement un inventaire vide.
     pub fn medias(&self) -> io::Result<Vec<MediaDepose>> {
