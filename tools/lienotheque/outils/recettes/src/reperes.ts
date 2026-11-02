@@ -594,6 +594,78 @@ export function lireDansLaFenetre(
   };
 }
 
+/** Les segmentations tentées pour lire ce qui est écrit : du bloc au texte épars.
+ *
+ *  Un nombre posé à côté d'un signe n'est pas sur la même ligne que lui, et une segmentation qui
+ *  attend une ligne unique n'en rend rien. Les trois ne se trompent pas aux mêmes endroits. */
+const SEGMENTATIONS_ECRITES = [6, 7, 11] as const;
+
+/** Un nombre isolé : ni le reste d'un mot, ni deux nombres collés par la reconnaissance. */
+const NOMBRE_SEUL = /^\s*(\d{1,2})\s*$/u;
+
+/** Le nombre **écrit** près d'un signe, lu sans rien supposer de sa forme (OUT-10).
+ *
+ *  ## Pourquoi une troisième manière de lire
+ *
+ *  Les deux autres cherchent un pavé sombre et lisent ses chiffres clairs. Elles nomment ainsi
+ *  trois suppositions, et sur certains documents les trois sont fausses ensemble :
+ *
+ *  - **la polarité** — `..._sombre_chiffres_clairs` le dit dans son nom. Un cartouche clair
+ *    portant un chiffre noir est l'exact contraire ;
+ *  - **l'échelle** — `hauteurNumero` vient de la forme qui revient, et tout ce qui est plus
+ *    étroit que six dixièmes de cette hauteur est écarté. Un « 1 » posé à côté d'un pictogramme
+ *    deux fois plus haut que lui est éliminé pour cause de minceur ;
+ *  - **la fenêtre** — elle est la boîte du signe, alors que le signe désigne un endroit et non
+ *    forcément le nombre. Rendu en image le 2 novembre 2026, un document du corpus pose son
+ *    nombre **sous** son pictogramme, hors cadre.
+ *
+ *  Un correctif par supposition ne marchait pas : vingt combinaisons de fenêtres, de motifs et de
+ *  polarités ont été essayées sans jamais rendre la suite attendue. Celle-ci les lève toutes les
+ *  trois d'un geste, en cessant de chercher une forme : elle lit l'encre telle qu'elle est
+ *  imprimée, avec **tout l'alphabet**, et ne garde que les nombres isolés. Une étiquette imprimée
+ *  à côté du chiffre revient alors en lettres et s'écarte d'elle-même, au lieu d'être forcée en
+ *  chiffres par une liste blanche.
+ *
+ *  ## Ce qu'elle rend, mesuré
+ *
+ *  Sur trois recueils du corpus, la fenêtre élargie d'une taille de signe dans les quatre
+ *  directions :
+ *
+ *  | recueil | meilleure des deux autres | celle-ci |
+ *  |---|---|---|
+ *  | nombre sombre sous un pictogramme | 2 justes sur 8 | **8 lues, 7 justes** |
+ *  | chiffres clairs sur pavé sombre | 12 sur 12, suite exacte | 9 lues, 8 justes |
+ *  | chiffre clair sur pavé sombre | 9 sur 12 | 2 lues |
+ *
+ *  Elle ne remplace donc rien : deux recueils sur trois sont mieux lus par les manières
+ *  existantes, et le troisième n'existe que par celle-ci. C'est à qui les essaie de garder la
+ *  meilleure, sur ce que la suite obtenue vaut — jamais sur le nom de la manière.
+ *
+ *  La présence rendue n'est pas celle d'une forme, puisqu'aucune n'est cherchée : c'est la part
+ *  des lectures tentées qui ont rendu un nombre. Elle dit la même chose à sa façon — y avait-il
+ *  quelque chose à lire ici. */
+export function lireLeNombreEcrit(image: ImageGrise, fenetre: Boite, options: OptionsReperes = {}): BlocPiste {
+  const zone = recadrer(image, fenetre);
+  if (zone.largeur === 0 || zone.hauteur === 0) return { presence: 0, votes: [] };
+
+  const clair = Math.max(1, tonClair(zone));
+  const votes: number[] = [];
+  let tentees = 0;
+  for (const seuil of SEUILS) {
+    const net = border(agrandir(seuiller(zone, Math.max(1, Math.round(clair * seuil))), 4), 20);
+    for (const segmentation of SEGMENTATIONS_ECRITES) {
+      tentees += 1;
+      for (const mot of ocr(net, segmentation, options)) {
+        const nombre = NOMBRE_SEUL.exec(mot.texte);
+        if (nombre === null) continue;
+        const lu = Number(nombre[1]);
+        if (lu > 0 && lu < 100) votes.push(lu);
+      }
+    }
+  }
+  return { presence: tentees === 0 ? 0 : Math.min(1, votes.length / tentees), votes };
+}
+
 /** Relit un numéro en séparant ses groupes de chiffres, quand le séparateur n'a pas survécu.
  *
  *  Un point imprimé entre deux chiffres ne revient pas de la lecture : le texte arrive collé.

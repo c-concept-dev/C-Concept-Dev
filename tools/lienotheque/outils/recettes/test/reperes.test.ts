@@ -13,6 +13,7 @@ import {
   consolider,
   dansLaZone,
   formesCandidates,
+  lireLeNombreEcrit,
   lireNumeroPage,
   motifLibelle,
   presenceDeForme,
@@ -449,5 +450,50 @@ describe("un éclat ne doit pas écarter le repère qui l'accompagne (OUT-07)", 
       pixels: Uint8Array.from({ length: 60 * 30 }, (_, rang) => (seul.pixels[rang] === 0 ? 20 : 240)),
     };
     expect(presenceDeForme(zone, formesCandidates(seul, 20)[0], 20)).toBe(0);
+  });
+});
+
+describe("lire le nombre écrit près d'un signe, sans supposer sa forme (OUT-07, OUT-10)", () => {
+  const siTesseract = tesseractDisponible() ? it : it.skip;
+
+  /** Un pavé sombre portant deux chiffres clairs — ce que les deux autres manières savent lire.
+   *  Celle-ci ne le sait pas, et c'est la preuve qu'elle lit bien l'encre et non le creux. */
+  const paveSombre = (): ImageGrise => {
+    const largeur = 120;
+    const hauteur = 70;
+    const pixels = new Uint8Array(largeur * hauteur).fill(245);
+    const encre = (x0: number, y0: number, l: number, h: number, ton: number): void => {
+      for (let y = y0; y < y0 + h; y += 1) for (let x = x0; x < x0 + l; x += 1) pixels[y * largeur + x] = ton;
+    };
+    encre(15, 10, 90, 50, 25);
+    encre(35, 20, 12, 30, 250);
+    encre(59, 20, 12, 30, 250);
+    return { largeur, hauteur, pixels };
+  };
+
+  it("une fenêtre vide ne fait pas travailler la reconnaissance (OUT-10)", () => {
+    const page = { largeur: 40, hauteur: 40, pixels: new Uint8Array(40 * 40).fill(255) };
+    expect(lireLeNombreEcrit(page, { x: 0, y: 0, l: 0, h: 10 })).toEqual({ presence: 0, votes: [] });
+    expect(lireLeNombreEcrit(page, { x: 0, y: 0, l: 10, h: 0 })).toEqual({ presence: 0, votes: [] });
+  });
+
+  siTesseract("ne rend rien d'une page sans écriture, et le dit par sa présence (OUT-10)", () => {
+    const blanche = { largeur: 120, hauteur: 70, pixels: new Uint8Array(120 * 70).fill(255) };
+    const bloc = lireLeNombreEcrit(blanche, { x: 0, y: 0, l: 120, h: 70 });
+    expect(bloc.votes).toEqual([]);
+    expect(bloc.presence).toBe(0);
+  });
+
+  siTesseract("lit l'encre et non le creux : un pavé sombre ne lui rend pas ses chiffres clairs (OUT-10)", () => {
+    // La complémentarité est le fond de l'affaire : trois manières, aucune ne couvre tout, et
+    // c'est la suite obtenue qui désigne la bonne — jamais le nom de la manière.
+    const bloc = lireLeNombreEcrit(paveSombre(), { x: 0, y: 0, l: 120, h: 70 });
+    expect(bloc.votes, "les chiffres clairs d'un pavé sombre ne sont pas de l'encre").toEqual([]);
+  });
+
+  siTesseract("la présence ne dépasse jamais un, quel que soit le nombre de votes (OUT-10)", () => {
+    const bloc = lireLeNombreEcrit(paveSombre(), { x: 0, y: 0, l: 120, h: 70 });
+    expect(bloc.presence).toBeGreaterThanOrEqual(0);
+    expect(bloc.presence).toBeLessThanOrEqual(1);
   });
 });

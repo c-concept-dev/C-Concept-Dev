@@ -30,6 +30,7 @@ import {
   borneDuVivier,
   corroborationDesLignes,
   lireDansLaFenetre,
+  lireLeNombreEcrit,
   mediasDuDossier,
   mediasDeLInventaire,
   qualifierAssociation,
@@ -98,6 +99,16 @@ export const LARGEUR_DE_RENDU = 1800;
  *  « toutes se lisent » de « une sur deux », pas assez pour coûter une passe entière. */
 export const APPARITIONS_POUR_JUGER = 12;
 
+/** Les façons dont une marque imprimée porte son nombre. On les essaie toutes : rien ici ne sait
+ *  d'avance laquelle ce document emploie.
+ *
+ *  Les deux premières cherchent un pavé sombre et lisent ses chiffres clairs. La troisième ne
+ *  cherche aucune forme : elle lit ce qui est **écrit** autour du signe et n'en garde que les
+ *  nombres. Mesuré le 2 novembre 2026 sur trois recueils, aucune des trois ne couvre les trois —
+ *  et chacune est seule à en couvrir un. */
+export const MOTIFS = ["losange_sombre_chiffres_clairs", "bloc_sombre_chiffres_clairs", "nombre_ecrit_autour"] as const;
+type Motif = (typeof MOTIFS)[number];
+
 /** Ce que l'exploration des endroits se permet au plus, avant de renoncer et de le dire.
  *
  *  Ce n'est pas la réparation d'une fuite. Mesurée sur vingt documents réels, l'exploration
@@ -105,18 +116,30 @@ export const APPARITIONS_POUR_JUGER = 12;
  *  tous menés à leur terme, aucun en cours à la fin. C'est un filet pour ce qui n'a pas été
  *  mesuré — vingt documents ne sont pas deux cent cinquante.
  *
- *  Les deux chiffres sortent des mêmes mesures. 256 essais valent 1,4 fois le maximum observé
- *  (182, sur 91 endroits — et l'endroit retenu s'y trouvait au 123ᵉ essai, ce qui interdit de
- *  couper court en espérant que les premiers suffisent). 2 700 secondes valent ces 256 essais au
- *  rythme le plus lent observé (10,2 s l'essai ; l'ordinaire va de 4,3 à 7,7 s) : une machine
- *  lente n'y tombe pas sans y avoir vraiment passé quarante-cinq minutes. La plus longue
- *  exploration réellement observée en a pris 947.
+ *  Les deux chiffres sortent des mêmes mesures. Ce qui a été observé est un nombre d'**endroits**
+ *  — 91 au plus, et l'endroit retenu s'y trouvait au 123ᵉ essai, ce qui interdit de couper court
+ *  en espérant que les premiers suffisent. Le compte d'essais en est le produit par le nombre de
+ *  façons de lire, et c'est pourquoi il s'écrit ainsi plutôt qu'en dur : le jour où une façon
+ *  s'ajoute, un budget figé rognerait d'autant les endroits couverts, sans que personne l'ait
+ *  voulu. 128 endroits valent 1,4 fois le maximum observé.
+ *
+ *  Les secondes suivent, et il le faut : elles valent ces essais au rythme le plus lent observé
+ *  (10,2 s l'essai ; l'ordinaire va de 4,3 à 7,7 s). Les laisser derrière rendrait le compte
+ *  d'essais inatteignable sur une machine lente — le filet des secondes se refermerait le
+ *  premier, et le budget annoncé serait une promesse qu'on ne tient pas. Une épreuve tient ce
+ *  rapport entre les deux. La plus longue exploration réellement observée a pris 947 secondes,
+ *  loin de l'un comme de l'autre : ce sont des filets, pas une attente ordinaire.
  *
  *  Quand le filet se referme, la voie ne devine rien. Elle garde l'endroit qui a prouvé sa
  *  numérotation s'il y en a un — ses marques sont toutes relues ensuite, et la publication
  *  demande toujours deux signaux indépendants —, et sinon elle s'abstient en disant combien
  *  d'essais ont été faits, sur combien de possibles, et pourquoi elle s'est arrêtée. */
-export const BUDGET_EXPLORATION: BudgetExploration = { paires: 256, secondes: 2700 };
+const ENDROITS_COUVERTS = 128;
+const SECONDES_PAR_ESSAI_AU_PLUS_LENT = 10.2;
+export const BUDGET_EXPLORATION: BudgetExploration = {
+  paires: ENDROITS_COUVERTS * MOTIFS.length,
+  secondes: Math.ceil(ENDROITS_COUVERTS * MOTIFS.length * SECONDES_PAR_ESSAI_AU_PLUS_LENT),
+};
 
 /** De quoi borner l'exploration autrement : une épreuve qui veut voir le filet se refermer, un
  *  essai qui n'a pas quarante minutes à donner. Les deux bornes se donnent ensemble — une borne
@@ -128,11 +151,6 @@ export type BudgetExploration = { readonly paires: number; readonly secondes: nu
  *  s'accordent pas n'est pas une lecture franche. */
 export const SEUIL_SANS_MANIERE_DE_LIRE = 0.5;
 const ACCORD_RETENU = SEUIL_SANS_MANIERE_DE_LIRE;
-
-/** Les deux façons dont une marque imprimée porte ses chiffres. On essaie les deux : rien ici ne
- *  sait d'avance laquelle ce document emploie. */
-const MOTIFS = ["losange_sombre_chiffres_clairs", "bloc_sombre_chiffres_clairs"] as const;
-type Motif = (typeof MOTIFS)[number];
 
 /** Une marque à lire : où elle est, et sur quelle image. */
 type Marque = {
@@ -252,17 +270,40 @@ const echantillonner = (zone: ZoneRecurrente, combien: number): readonly FormeOb
   return Array.from({ length: combien }, (_, place) => triees[Math.floor(place * pas)]!);
 };
 
-/** Lit une marque, en essayant les deux façons dont un signe porte ses chiffres. */
+/** La fenêtre élargie d'une taille de signe dans les quatre directions.
+ *
+ *  Pour lire ce qui est écrit **près** d'un signe, et non dedans. Rien ne dit de quel côté le
+ *  nombre se tient : une fenêtre qui s'ouvre également des quatre côtés ne choisit pas pour
+ *  l'auteur du document. Mesuré, l'élargissement s'arrête à une taille — à deux, le contexte
+ *  rapporté fait perdre deux lectures justes sur sept.
+ *
+ *  `fenetre` porte déjà un dixième de marge de chaque côté, soit 1,2 fois le signe : sa taille
+ *  divisée par 1,2 redonne celle du signe lui-même. */
+export const autourDeLaMarque = (fenetre: Boite): Boite => {
+  const horsTout = { l: fenetre.l / 1.2, h: fenetre.h / 1.2 };
+  return {
+    x: Math.max(0, Math.round(fenetre.x - horsTout.l)),
+    y: Math.max(0, Math.round(fenetre.y - horsTout.h)),
+    l: Math.round(fenetre.l + horsTout.l * 2),
+    h: Math.round(fenetre.h + horsTout.h * 2),
+  };
+};
+
+/** Lit une marque, de la façon demandée. */
 function lireLaMarque(
   marque: Marque,
   motif: Motif,
   options: OptionsVoieOracle,
 ): { valeur: number; accord: number; presence: number } | undefined {
-  const bloc = lireDansLaFenetre(marque.image, marque.fenetre, marque.hauteur, motif, false, {
+  const moteurs = {
     ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
     ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
     ...(options.langue === undefined ? {} : { langue: options.langue }),
-  });
+  };
+  const bloc =
+    motif === "nombre_ecrit_autour"
+      ? lireLeNombreEcrit(marque.image, autourDeLaMarque(marque.fenetre), moteurs)
+      : lireDansLaFenetre(marque.image, marque.fenetre, marque.hauteur, motif, false, moteurs);
   const vu = vote(bloc.votes);
   return vu === undefined ? undefined : { valeur: vu.valeur, accord: vu.accord, presence: bloc.presence };
 }

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
-import { BUDGET_EXPLORATION, VERSION_DE_LA_VOIE, rejouerParOracle } from "../src/index.js";
+import { BUDGET_EXPLORATION, MOTIFS, VERSION_DE_LA_VOIE, autourDeLaMarque, rejouerParOracle } from "../src/index.js";
 
 /** Lire un document sans manière de lire écrite à la main (OUT-10, REC-02).
  *
@@ -542,4 +542,27 @@ describe("ce que la voie retient d'un document, pour ne pas l'apprendre deux foi
       expect(rejeu.acquis, "rien n'est retenu d'une exploration qui n'a pas conclu").toBeUndefined();
     },
   );
+});
+
+describe("lire ce qui est écrit autour d'un signe (OUT-10)", () => {
+  /** La fenêtre d'une marque porte déjà un dixième de marge de chaque côté : elle vaut 1,2 fois
+   *  le signe. L'élargir d'une taille de signe des quatre côtés la porte donc à 3,2 fois. */
+  it("s'ouvre d'une taille de signe dans les quatre directions (OUT-10)", () => {
+    // Un signe de 100 × 50, dont la fenêtre fait 120 × 60 et commence dix unités plus haut.
+    expect(autourDeLaMarque({ x: 110, y: 205, l: 120, h: 60 })).toEqual({ x: 10, y: 155, l: 320, h: 160 });
+  });
+
+  it("ne sort pas de la page par le haut ni par la gauche (OUT-10)", () => {
+    const vue = autourDeLaMarque({ x: 5, y: 3, l: 120, h: 60 });
+    expect(vue.x, "une marque près du bord ne demande pas d'abscisse négative").toBe(0);
+    expect(vue.y).toBe(0);
+  });
+
+  it("le budget d'exploration suit le nombre de façons de lire (OUT-10)", () => {
+    // Ce qui a été mesuré est un nombre d'endroits ; le compte d'essais en est le produit par le
+    // nombre de façons. Figé, il rognerait les endroits couverts le jour où une façon s'ajoute,
+    // sans que personne l'ait voulu — et la voie s'abstiendrait là où elle concluait.
+    expect(BUDGET_EXPLORATION.paires % MOTIFS.length, "le budget est un nombre entier d'endroits").toBe(0);
+    expect(BUDGET_EXPLORATION.paires / MOTIFS.length, "128 endroits, soit 1,4 fois le maximum observé").toBe(128);
+  });
 });
