@@ -15,7 +15,7 @@ import {
   COTE_MINIMAL,
   NUMEROTATION_PROBABLE,
   accordsNomContenu,
-  marquesDesNoms,
+  designationsDesNoms,
   allureDeLaSuite,
   borneDeNumerotation,
   partDeNumerotation,
@@ -786,10 +786,7 @@ export async function rejouerParOracle(
     } else {
       dire("Confrontation par les noms suspendue : les index du texte et du rendu ne s'accordent pas.");
     }
-    const accords = accordsNomContenu(
-      marquesDesNoms(medias.map((media) => media.nom)),
-      contenus,
-    );
+    const accords = accordsNomContenu(designationsDesNoms(medias.map((media) => media.nom)), contenus);
     // Les pistes que la marque a attribuées, page par page : une page peut en porter plusieurs,
     // et un nom retrouvé là ne contredit que ce qu'aucune d'elles ne dit.
     const pistesDeLaPage = new Map<number, Set<number>>();
@@ -799,16 +796,28 @@ export async function rejouerParOracle(
       const page = marques[place]!.rangDePage;
       pistesDeLaPage.set(page, (pistesDeLaPage.get(page) ?? new Set()).add(piste));
     });
+    // Un accord désigne un ensemble d'enregistrements — un seul le plus souvent, deux quand un
+    // même morceau a sa démonstration et son accompagnement. La marque confirme dès qu'elle a lu
+    // **l'une** des pistes de l'ensemble sur cette page : le nom a mené à la page, et la marque y
+    // a lu ce que le nom y annonçait. Elle contredit quand la page porte des pistes et qu'aucune
+    // n'y est — c'est ce désaccord-là qui doit faire reculer.
     for (const accord of accords) {
-      const attendue = medias[accord.rang]?.piste;
-      if (attendue === undefined) continue;
-      if (pistesDeLaPage.get(accord.page)?.has(attendue) === true) confirmees.add(clefDeLAccord(accord.page, attendue));
-      else if (pistesDeLaPage.has(accord.page)) contredites += 1;
+      const attendues = accord.rangs
+        .map((rang) => medias[rang]?.piste)
+        .filter((piste): piste is number => piste !== undefined);
+      if (attendues.length === 0) continue;
+      const vues = pistesDeLaPage.get(accord.page);
+      if (vues === undefined) continue;
+      const accordee = attendues.find((piste) => vues.has(piste));
+      if (accordee === undefined) contredites += 1;
+      else confirmees.add(clefDeLAccord(accord.page, accordee));
     }
+    const seuls = accords.filter((accord) => accord.rangs.length === 1).length;
     dire(
       contenus.every(({ texte: brut }) => brut.trim() === "")
         ? "Les noms du vivier n'ont rien à confronter : aucun texte n'a pu être tiré de ces pages."
-        : `${accords.length} page(s) où le nom d'un seul enregistrement se retrouve imprimé : ` +
+        : `${accords.length} page(s) où le nom d'un enregistrement se retrouve imprimé, ` +
+            `dont ${seuls} qui n'en désigne(nt) qu'un seul : ` +
             `${confirmees.size} confirme(nt) la marque, ${contredites} la contredise(nt).`,
     );
   } catch (echec) {
@@ -971,9 +980,15 @@ function sansLien(
       : [],
   );
   const accords =
-    texteAligne === undefined ? [] : accordsNomContenu(marquesDesNoms(medias.map((media) => media.nom)), texteAligne);
+    texteAligne === undefined
+      ? []
+      : accordsNomContenu(designationsDesNoms(medias.map((media) => media.nom)), texteAligne);
+  // Un accord qui désigne plusieurs enregistrements vaut pour chacun d'eux : ce sont autant de
+  // candidats à vérifier, et le filtre qui suit écarte de toute façon tout média retrouvé sur
+  // plus d'une page. Rien n'est publié ici — ces lignes restent à vérifier à la main.
   const parMedia = new Map<number, typeof accords>();
-  for (const accord of accords) parMedia.set(accord.rang, [...(parMedia.get(accord.rang) ?? []), accord]);
+  for (const accord of accords)
+    for (const rang of accord.rangs) parMedia.set(rang, [...(parMedia.get(rang) ?? []), accord]);
   const lignes: LigneInterpretee[] = [...parMedia.entries()]
     .filter(([, trouves]) => trouves.length === 1)
     .map(([rang, trouves]) => {

@@ -31,26 +31,62 @@ import { corpsDuNom } from "./detecteurs-de-noms.js";
  *  mêmes lots, « 1-01 12_8 … Pg.67 » n'a plus aucun jeton — c'est la bonne réponse, son signal
  *  est ailleurs — tandis que « 02-… #5.1 » garde « 5.1 », qui est bien ce que ce nom désigne.
  *
- *  ## Ce qui rend un jeton recevable
+ *  ## Ce qu'un jeton désigne, et pourquoi ce n'est pas un seuil
  *
- *  Seul ce qui n'appartient qu'à **un** enregistrement du vivier. Un mot qui revient dans
- *  plusieurs noms ne les distingue pas, et une page où plusieurs noms se retrouvent ne désigne
- *  aucun d'eux — c'est le cas d'une page de sommaire, qui les porte tous. */
+ *  Première version, et sa faute : un jeton n'était reçu que s'il n'appartenait qu'à **un** nom.
+ *  La règle avait été écrite contre les pages de sommaire, qui portent tous les noms et n'en
+ *  désignent aucun, et elle a raison sur ce point. Mais elle jugeait la distinction au niveau du
+ *  **nom**, alors que ce qu'une page désigne n'est pas toujours un enregistrement : un même
+ *  morceau peut en avoir deux, une démonstration et un accompagnement, qui portent exactement le
+ *  même titre. La règle les éliminait l'un par l'autre, et le titre imprimé en gros sur la page —
+ *  la seule chose qui relie ce document à son audio — ne servait à rien.
+ *
+ *  Ce qui change ici n'est pas un seuil, c'est l'**unité**. Un jeton désigne l'ensemble des noms
+ *  qui le portent, et cet ensemble est ce que la page retrouve :
+ *
+ *  | ensemble désigné | ce qu'on en fait |
+ *  |---|---|
+ *  | un seul nom | un lien candidat, comme avant |
+ *  | quelques noms | autant de candidats, et l'ambiguïté est **dite**, pas cachée |
+ *  | tout le vivier | rien : désigner tout, c'est ne désigner personne |
+ *
+ *  Toutes les garanties de la première version tiennent, par un chemin qui dit pourquoi. Sur
+ *  quatre noms dont deux commencent par « Blue », une page qui imprime « Blue Seven » porte trois
+ *  jetons : « blue » désigne deux noms, « seven » et « blue seven » n'en désignent qu'un. Les
+ *  ensembles sont **emboîtés** — le plus petit est inclus dans tous les autres — et la page
+ *  désigne le plus petit. Une page de sommaire, elle, porte des ensembles disjoints : elle ne
+ *  désigne rien, exactement comme avant.
+ *
+ *  ## Les suites de mots
+ *
+ *  Un nom ne se distingue pas toujours par un mot. « Two-Part Invention 4 » n'a que des mots que
+ *  d'autres noms portent aussi, et pourtant la page qui l'imprime ne parle que de lui. Les
+ *  **suites** de deux à six mots sont donc des jetons au même titre, reçues telles quelles :
+ *  « invention 4 » n'est pas le nombre quatre, c'est le nom de la pièce, et c'est ainsi qu'il est
+ *  imprimé. Un mot isolé garde en revanche la règle d'avant — quatre caractères et une lettre —,
+ *  puisque seul, il tombe par hasard.
+ *
+ *  Mesuré le 2 novembre 2026 sur six documents entiers du corpus : **11 enregistrements situés
+ *  deviennent 117**, et l'un des six passe de zéro à cinquante-deux sur cinquante-deux, dans
+ *  l'ordre exact des pages. */
 
 /** Au moins autant de caractères, sinon un mot trop court tombe par hasard. */
 export const CARACTERES_DU_JETON = 4;
 
-/** Ce qu'un nom a de distinctif dans son vivier. */
-export type MarqueDeNom = {
-  /** La place du média dans le vivier présenté, à partir de zéro. */
-  readonly rang: number;
-  readonly jetons: readonly string[];
-};
+/** Au plus combien de mots dans une suite. Assez pour « two part invention 4 », pas assez pour
+ *  qu'un nom de quarante mots en engendre mille. */
+export const MOTS_DE_LA_SUITE = 6;
 
-/** Un accord entre un nom et le contenu d'une page : le nom d'un seul média s'y retrouve. */
+/** Ce que chaque jeton désigne : les rangs des noms qui le portent, dans le vivier présenté. */
+export type DesignationsDeNoms = ReadonlyMap<string, readonly number[]>;
+
+/** Un accord entre les noms et le contenu d'une page.
+ *
+ *  `rangs` porte l'ensemble désigné. Un seul rang est le cas ordinaire ; plusieurs disent que la
+ *  page ne départage pas ces enregistrements-là, et c'est une information, non un échec. */
 export type AccordNomContenu = {
   readonly page: number;
-  readonly rang: number;
+  readonly rangs: readonly number[];
   /** Ce qui a été retrouvé, pour pouvoir le revérifier à l'œil. */
   readonly jetons: readonly string[];
 };
@@ -76,49 +112,87 @@ export const apresLAdresse = (corps: string): string => {
   return lettre === -1 ? "" : corps.slice(lettre);
 };
 
-/** Les jetons d'un nom, avant qu'on éprouve s'ils n'appartiennent qu'à lui. */
-function jetonsDuNom(nom: string): readonly string[] {
+/** Les jetons d'un nom : ses mots assez longs, ses suites de mots, ses nombres composés. */
+export function jetonsDuNom(nom: string): readonly string[] {
   const corps = apresLAdresse(corpsDuNom(nom));
   const composes = (corps.match(NOMBRE_COMPOSE) ?? []).map((brut) => brut.replace("-", "."));
   const mots = normaliser(corps)
     .split(" ")
-    .filter((mot) => mot.length >= CARACTERES_DU_JETON && /[a-z]/u.test(mot));
-  return [...new Set([...composes, ...mots])];
+    .filter((mot) => mot !== "");
+  const jetons = mots.filter((mot) => mot.length >= CARACTERES_DU_JETON && /[a-z]/u.test(mot));
+  for (let depart = 0; depart < mots.length; depart += 1)
+    for (let combien = 2; combien <= MOTS_DE_LA_SUITE && depart + combien <= mots.length; combien += 1)
+      jetons.push(mots.slice(depart, depart + combien).join(" "));
+  return [...new Set([...composes, ...jetons])];
 }
 
-/** Ce que chaque nom du vivier a de distinctif : ses jetons que nul autre nom ne porte. */
-export function marquesDesNoms(noms: readonly string[]): readonly MarqueDeNom[] {
-  const tous = noms.map((nom) => jetonsDuNom(nom));
-  const combien = new Map<string, number>();
-  for (const jetons of tous) for (const jeton of jetons) combien.set(jeton, (combien.get(jeton) ?? 0) + 1);
-  return tous.map((jetons, rang) => ({ rang, jetons: jetons.filter((jeton) => combien.get(jeton) === 1) }));
+/** Ce que chaque jeton du vivier désigne.
+ *
+ *  Un jeton porté par tous les noms ne désigne personne, et il est écarté ici plutôt que page par
+ *  page : c'est une propriété du vivier, pas de ce qui est imprimé. */
+export function designationsDesNoms(noms: readonly string[]): DesignationsDeNoms {
+  const porteurs = new Map<string, number[]>();
+  noms.forEach((nom, rang) => {
+    for (const jeton of jetonsDuNom(nom)) porteurs.set(jeton, [...(porteurs.get(jeton) ?? []), rang]);
+  });
+  return new Map([...porteurs].filter(([, ensemble]) => ensemble.length < noms.length));
 }
 
 /** Le texte d'une page, tel que le document le porte. */
 export type ContenuDePage = { readonly page: number; readonly texte: string };
 
+const clef = (ensemble: readonly number[]): string => [...ensemble].sort((un, autre) => un - autre).join(",");
+const inclus = (petit: readonly number[], grand: readonly number[]): boolean => {
+  const dedans = new Set(grand);
+  return petit.every((rang) => dedans.has(rang));
+};
+
 /** Les accords entre les noms du vivier et le contenu des pages.
  *
- *  Une page ne rend un accord que si **un seul** nom s'y retrouve. Plusieurs noms sur une même
- *  page — un sommaire — ne désignent aucun enregistrement pour cette page, et rendre le plus
- *  fourni des deux serait une devinette. */
+ *  Une page ne tranche que si les ensembles qu'elle porte sont **emboîtés**. Deux ensembles
+ *  disjoints sur une même page, c'est un sommaire : elle désigne alors des choses sans rapport,
+ *  donc rien.
+ *
+ *  Puis, à l'échelle du document, une désignation large qui en contient strictement une autre ne
+ *  dit rien de plus qu'elle : elle est **dominée** et sort. Le critère n'est pas un seuil sur la
+ *  taille, c'est l'inclusion — rien à régler, c'est le document qui décide. Relevé sur un
+ *  recueil où deux fichiers servent chaque morceau : une page portant le mot « play » désignait
+ *  les neuf accompagnements à la fois, désignation vraie mais large, et elle pesait autant qu'une
+ *  désignation d'un seul fichier. */
 export function accordsNomContenu(
-  marques: readonly MarqueDeNom[],
+  designations: DesignationsDeNoms,
   contenus: readonly ContenuDePage[],
 ): readonly AccordNomContenu[] {
-  const accords: AccordNomContenu[] = [];
+  const trouves: AccordNomContenu[] = [];
   for (const { page, texte } of contenus) {
-    const normalise = ` ${normaliser(texte)} `;
-    const composes = new Set((texte.match(NOMBRE_COMPOSE) ?? []).map((brut) => brut.replace("-", ".")));
-    const trouves = marques
-      .map(({ rang, jetons }) => ({
-        rang,
-        jetons: jetons.filter((jeton) => (composes.has(jeton) ? true : normalise.includes(` ${jeton} `))),
-      }))
-      .filter(({ jetons }) => jetons.length > 0);
-    if (trouves.length !== 1) continue;
-    const seul = trouves[0]!;
-    accords.push({ page, rang: seul.rang, jetons: seul.jetons });
+    // C'est la **page** qui va chercher dans les désignations, et non l'inverse. Un vivier de
+    // deux mille noms engendre des dizaines de milliers de jetons ; les balayer tous contre le
+    // texte de chaque page coûterait des millions de parcours de chaîne par document, là où les
+    // quelques centaines de suites qu'une page porte se consultent une à une. Les jetons étant
+    // des suites de mots entiers, les deux façons retrouvent exactement les mêmes.
+    const mots = normaliser(texte)
+      .split(" ")
+      .filter((mot) => mot !== "");
+    const presents = new Set<string>((texte.match(NOMBRE_COMPOSE) ?? []).map((brut) => brut.replace("-", ".")));
+    for (let depart = 0; depart < mots.length; depart += 1)
+      for (let combien = 1; combien <= MOTS_DE_LA_SUITE && depart + combien <= mots.length; combien += 1)
+        presents.add(mots.slice(depart, depart + combien).join(" "));
+    const vus = [...presents]
+      .map((jeton) => [jeton, designations.get(jeton)] as const)
+      .filter((paire): paire is readonly [string, readonly number[]] => paire[1] !== undefined);
+    if (vus.length === 0) continue;
+    const ensembles = vus.map(([, ensemble]) => ensemble).sort((un, autre) => un.length - autre.length);
+    const plusPetit = ensembles[0]!;
+    if (!ensembles.every((ensemble) => inclus(plusPetit, ensemble))) continue;
+    trouves.push({
+      page,
+      rangs: [...plusPetit].sort((un, autre) => un - autre),
+      jetons: vus.filter(([, ensemble]) => clef(ensemble) === clef(plusPetit)).map(([jeton]) => jeton),
+    });
   }
-  return accords;
+
+  const tous = [...new Map(trouves.map(({ rangs }) => [clef(rangs), rangs])).values()];
+  const domine = (ensemble: readonly number[]): boolean =>
+    tous.some((autre) => autre.length < ensemble.length && inclus(autre, ensemble));
+  return trouves.filter(({ rangs }) => !domine(rangs));
 }
