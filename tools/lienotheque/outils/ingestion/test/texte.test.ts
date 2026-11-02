@@ -170,12 +170,30 @@ describe("ce que la lecture refuse de deviner", () => {
     "compte à part les pages dont rien n'a été tiré, au lieu de les taire",
     async () => {
       // On océrise de force un document natif : ses pages ne portent aucune image, l'OCR n'a
-      // donc rien à lire, et le compte doit le dire plutôt que de rendre huit pages vides.
+      // donc rien à lire, et le compte doit le dire.
       const lu = await lireLeTexte(NATIF, { pages: 3, forcerOcr: true });
       expect(lu.parLaCouche).toBe(0);
       expect(lu.parOcr).toBe(0);
       expect(lu.sansTexte).toBe(3);
-      expect(lu.pages).toHaveLength(0);
+    },
+    120_000,
+  );
+
+  siNatif(
+    "une page dont rien n'a été tiré reste une page du document (RCH-07)",
+    async () => {
+      // Ce contrôle a tenu l'inverse jusqu'au 2 novembre 2026 : les pages muettes étaient
+      // omises, « au lieu de rendre des pages vides ». Mesuré sur la bibliothèque entière, le
+      // prix de cette omission est que 46 documents sur 250 — 18 % — décrivaient un document
+      // plus court qu'il n'est, et que tout ce qui s'aligne sur leurs pages écartait alors leur
+      // texte **en bloc** : l'un d'eux pour une seule page blanche sur trois cent soixante-six.
+      //
+      // Ce que l'intention protégeait reste protégé, et c'est la ligne d'après qui le dit : on
+      // n'invente aucun passage. Une page vide n'entre pas dans ce qui se cherche.
+      const lu = await lireLeTexte(NATIF, { pages: 3, forcerOcr: true });
+      expect(lu.pages.map((page) => page.index), "le document garde sa longueur").toEqual([1, 2, 3]);
+      expect(lu.pages.every((page) => page.texte === "")).toBe(true);
+      expect(enPassages(lu.pages), "rien de vide n'entre dans le texte cherchable").toEqual([]);
     },
     120_000,
   );

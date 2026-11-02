@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { PageLue } from "@lienotheque/contrats";
+import type { PageLue, SourceLecture } from "@lienotheque/contrats";
 import {
   causeJpegNonDirect,
   estUnEpub,
@@ -206,6 +206,9 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
   // le signe « deux folios consécutifs » n'existe qu'après l'OCR : décider avant la boucle
   // condamnait la détection automatique à ne fonctionner que sur les PDF ayant déjà une couche.
   const feuilles: { readonly rang: number; readonly page: PageLue }[] = [];
+  /** Les feuilles dont rien n'a pu être lu. `source` nomme ce qui a été **tenté**, puisque rien
+   *  n'a été rendu : la couche quand elle existait, la reconnaissance sinon. */
+  const rangsSansTexte: { readonly rang: number; readonly source: SourceLecture }[] = [];
   let parLaCouche = 0;
   let parOcr = 0;
   let sansTexte = 0;
@@ -290,12 +293,20 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
 
       // Rien de lu : ni couche exploitable, ni image à océriser, ni mot après l'OCR. On le
       // compte, et la page ne donne aucun passage — on n'en invente pas un vide.
+      //
+      // Elle reste pourtant **une page du document**, et c'est tout l'enjeu : omise, le texte
+      // rendu décrit un document plus court qu'il n'est, et tout ce qui s'aligne sur ses pages
+      // l'écarte en bloc. Mesuré le 2 novembre 2026 sur la bibliothèque entière, 46 documents sur
+      // 250 — 18 % — portent au moins une page sans mot, et perdaient ainsi la totalité de leur
+      // second signal : l'un d'eux pour **une** page blanche sur trois cent soixante-six. Le rang
+      // est donc gardé, et une page vide prendra sa place parmi les autres.
       if (lue === undefined || lue.mots.length === 0) {
         // Une page, pas un passage. `parLaCouche` et `parOcr` comptent des pages ; compter
         // ici les deux moitiés d'une feuille double mêlait les deux unités dans la même
         // phrase du journal, qui annonçait alors plus de pages sans texte que le document
         // n'en porte.
         sansTexte += 1;
+        rangsSansTexte.push({ rang, source: deLaCouche === undefined ? "ocr" : "couche_texte" });
         options.avancement?.(rang, total);
         continue;
       }
@@ -314,18 +325,29 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
   // positions, jamais les pixels ; attendre la fin ne fait donc pas croître la mémoire comme les
   // images du document.
   const doublePage = options.doublePage ?? deuxPagesParFeuille(feuilles.map(({ page }) => page));
-  const pages: PageDeTexte[] = [];
-  /** Les nombres de la marge de chaque page, dans l'ordre des pages. Une page seule ne sait pas
-   *  lequel est son folio ; le document, lui, le sait. */
-  const candidats: (readonly number[])[] = [];
+  /** Chaque page logique à son rang, lue ou vide. Les nombres de marge l'accompagnent : une page
+   *  seule ne sait pas lequel est son folio, le document le sait — et le vote qui tranche les lit
+   *  **par rang**, si bien qu'une page omise décalerait tous les folios qui la suivent. */
+  const parRang = new Map<number, { readonly page: PageDeTexte; readonly marges: readonly number[] }>();
+  const rangsDeLaFeuille = (rang: number): readonly number[] =>
+    doublePage ? [(rang - 1) * 2 + 1, (rang - 1) * 2 + 2] : [rang];
   for (const feuille of feuilles) {
     const moities = doublePage ? couperEnDeux(feuille.page) : [feuille.page];
+    const rangs = rangsDeLaFeuille(feuille.rang);
     moities.forEach((moitie, cote) => {
-      const index = doublePage ? (feuille.rang - 1) * 2 + cote + 1 : feuille.rang;
-      pages.push({ ...pageDeTexte(moitie), index });
-      candidats.push(numerosEnMarge(moitie));
+      const index = rangs[cote]!;
+      parRang.set(index, { page: { ...pageDeTexte(moitie), index }, marges: numerosEnMarge(moitie) });
     });
   }
+  // Une page sans mot est une page sans mot, non une page absente. La porter vide ne fabrique
+  // aucun texte — `enPassages` écarte le vide, donc rien n'entre dans ce qui se cherche — mais
+  // rend au document sa vraie longueur, et c'est elle que tout le reste compare.
+  for (const { rang, source } of rangsSansTexte)
+    for (const index of rangsDeLaFeuille(rang)) parRang.set(index, { page: { index, texte: "", source }, marges: [] });
+
+  const ordonnees = [...parRang.entries()].sort((un, autre) => un[0] - autre[0]).map(([, vue]) => vue);
+  const pages: PageDeTexte[] = ordonnees.map((vue) => vue.page);
+  const candidats: (readonly number[])[] = ordonnees.map((vue) => vue.marges);
 
   // Le folio, tranché sur tout le document plutôt que page par page.
   //

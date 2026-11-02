@@ -74,9 +74,17 @@ describe("ce qu'on compte quand une page n'a rien rendu (OUT-05, OUT-15)", () =>
     // 164 sans texte » — un total de 178 pour 96 pages. Le compte juste était 82 pages, doublé.
     expect(double.sansTexte, "une feuille double reste une feuille : cinq, pas dix").toBe(5);
 
-    // Et rien n'est inventé pour autant : aucune page de texte ne sort d'une feuille vide.
-    expect(simple.pages).toHaveLength(0);
-    expect(double.pages).toHaveLength(0);
+    // Les pages, elles, restent celles du document. Ce contrôle tenait l'inverse jusqu'au
+    // 2 novembre 2026 — « aucune page de texte ne sort d'une feuille vide » — et le prix en a
+    // été mesuré sur la bibliothèque entière : 46 documents sur 250 décrivaient un document plus
+    // court qu'il n'est, et tout ce qui s'aligne sur leurs pages écartait leur texte **en bloc**,
+    // l'un d'eux pour une seule page blanche sur trois cent soixante-six.
+    //
+    // Rien n'est inventé pour autant, et c'est la ligne d'après qui le dit : ces pages ne
+    // portent aucun texte, donc aucune n'entre dans ce qui se cherche.
+    expect(simple.pages.map((page) => page.index), "cinq feuilles, cinq pages").toEqual([1, 2, 3, 4, 5]);
+    expect(double.pages, "cinq feuilles doubles, dix pages logiques").toHaveLength(10);
+    expect([...simple.pages, ...double.pages].every((page) => page.texte === "")).toBe(true);
   });
 });
 
