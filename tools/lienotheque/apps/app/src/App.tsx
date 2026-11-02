@@ -18,6 +18,7 @@ import { BROUILLON_NEUF, bilanDEssai, depuisRecette, enRecette, memeFile, type B
 import { EnTete } from "./EnTete.js";
 import { chargerBibliothequeDemonstration, chargerDonnees, rechercheDemandee } from "./donnees/chargement.js";
 import { chargerPassages, chargerVue } from "./donnees/vue.js";
+import { fusionnerAccompagnements } from "./donnees/arrivee.js";
 import { ACCUEIL, ecrireRoute, lireRoute, type Route } from "./navigation.js";
 import { journaliser, observerDepotsDeFichiers } from "./pont/bureau.js";
 import { ACCUEIL_VIDE, type DonneesAccueil } from "./donnees/modele.js";
@@ -233,6 +234,8 @@ export function App(): JSX.Element {
    *  une bibliothèque en lisant les documents d'une autre. */
   const choisirBibliotheque = (id: string): void => {
     setRacineTemporaire(undefined);
+    setAccompagnements([]);
+    setRefuses([]);
     setCreees((anciennes) => {
       const choisie = anciennes.find((autre) => autre.description.id === id);
       return choisie === undefined ? anciennes : [...anciennes.filter((autre) => autre !== choisie), choisie];
@@ -387,6 +390,8 @@ export function App(): JSX.Element {
     await administration.creerBibliotheque(dossier, description);
     await administration.retenirBibliotheque(dossier);
     setRacineTemporaire(undefined);
+    setAccompagnements([]);
+    setRefuses([]);
     setCreees((anciennes) => [...anciennes, { racine: dossier, description }]);
     aller({ ecran: "organisation" });
   };
@@ -688,6 +693,8 @@ export function App(): JSX.Element {
       const { racine, description, temporaire } = ouverte;
       // En queue, jamais en tête : `derniere` est le dernier élément, et une bibliothèque
       // qu'on vient d'ouvrir est celle où l'on veut être.
+      setAccompagnements([]);
+      setRefuses([]);
       setCreees((anciennes) => [...anciennes.filter((autre) => autre.racine !== racine), { racine, description }]);
       setRacineTemporaire(temporaire ? racine : undefined);
       aller({ ecran: "organisation" });
@@ -732,7 +739,7 @@ export function App(): JSX.Element {
   /** Dépose des fichiers : l'hôte copie les originaux et met la file à jour. */
   const montrerArrivee = (arrivee: ArriveeDeFichiers): void => {
     setFile(arrivee.travaux);
-    setAccompagnements((anciens) => [...anciens, ...arrivee.accompagnements]);
+    setAccompagnements((anciens) => fusionnerAccompagnements(anciens, arrivee.accompagnements));
     setRefuses(arrivee.refuses);
   };
 
@@ -750,6 +757,8 @@ export function App(): JSX.Element {
       return;
     }
     try {
+      setAccompagnements([]);
+      setRefuses([]);
       montrerArrivee(await administration.deposer(cible.racine, depotAccueil));
       setDepotAccueil([]);
       setEchecDepotAccueil(undefined);
