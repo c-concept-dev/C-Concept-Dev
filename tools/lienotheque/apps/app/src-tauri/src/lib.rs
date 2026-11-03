@@ -1042,8 +1042,19 @@ fn mettre_a_jour_application_embarquee(
 ) -> Result<application_embarquee::EtatApplicationEmbarquee, String> {
     let source = paquet_macos_courant()?;
     let marqueur = application_embarquee::produire_marqueur(&source, env!("CARGO_PKG_VERSION"))?;
-    application_embarquee::installer_application(&source, Path::new(&racine), &marqueur)?;
-    application_embarquee::etat_application(&source, Path::new(&racine), env!("CARGO_PKG_VERSION"))
+    let installation =
+        application_embarquee::installer_application(&source, Path::new(&racine), &marqueur)?;
+    let mut etat =
+        application_embarquee::etat_application(&source, Path::new(&racine), env!("CARGO_PKG_VERSION"))?;
+    // L'application neuve est en place. Ce que le ménage n'a pas pu retirer se dit — à l'écran
+    // et dans la sortie d'erreur — au lieu de faire passer une installation réussie pour un échec.
+    for residu in &installation.residus {
+        eprintln!("application embarquée : {residu}");
+    }
+    if !installation.residus.is_empty() {
+        etat.message = format!("{} {}", etat.message, installation.residus.join(" "));
+    }
+    Ok(etat)
 }
 
 #[tauri::command]

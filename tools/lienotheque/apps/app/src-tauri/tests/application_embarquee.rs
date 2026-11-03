@@ -1,14 +1,24 @@
 use lienotheque_bureau::application_embarquee::{
-    comparer_marqueurs, installer_application, produire_marqueur, ComparaisonMarqueurs,
+    comparer_marqueurs, etat_application, installer_application, produire_marqueur,
+    ComparaisonMarqueurs,
 };
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
 
-fn ecrire_fausse_application(racine: &Path, contenu: &str) {
+fn ecrire_fausse_application(racine: &Path, contenu: &str, version: &str) {
     let executable = racine.join("Contents/MacOS/lienotheque-bureau");
     fs::create_dir_all(executable.parent().expect("dossier MacOS")).expect("créer la fausse app");
     fs::write(executable, contenu).expect("écrire le faux exécutable");
+    fs::write(
+        racine.join("Contents/Info.plist"),
+        format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleShortVersionString</key><string>{version}</string>
+</dict></plist>"#),
+    )
+    .expect("écrire la version incluse dans l'application");
 }
 
 #[test]
@@ -16,8 +26,8 @@ fn compare_explicitement_la_version_et_le_contenu() {
     let temp = tempfile::tempdir().expect("dossier temporaire");
     let source = temp.path().join("source.app");
     let embarquee = temp.path().join("embarquee.app");
-    ecrire_fausse_application(&source, "nouvelle application");
-    ecrire_fausse_application(&embarquee, "ancienne application");
+    ecrire_fausse_application(&source, "nouvelle application", "0.2.0");
+    ecrire_fausse_application(&embarquee, "ancienne application", "0.1.0");
 
     let nouveau = produire_marqueur(&source, "0.2.0").expect("marqueur source");
     let ancien = produire_marqueur(&embarquee, "0.1.0").expect("marqueur embarqué");
@@ -37,9 +47,14 @@ fn remplace_uniquement_application_et_preserve_toutes_les_donnees() {
     let temp = tempfile::tempdir().expect("dossier temporaire");
     let bibliotheque = temp.path().join("Bibliothèque");
     let source = temp.path().join("Liénothèque.app");
-    let cible = bibliotheque.join("applications/macOS/Liénothèque.app");
-    ecrire_fausse_application(&source, "nouvelle application");
-    ecrire_fausse_application(&cible, "ancienne application");
+    let cible = bibliotheque.join("applications/Liénothèque.app");
+    ecrire_fausse_application(&source, "nouvelle application", "0.2.0");
+    ecrire_fausse_application(&cible, "ancienne application", "0.1.0");
+    fs::create_dir_all(bibliotheque.join("applications/macOS")).expect("ancien sous-dossier");
+    fs::write(bibliotheque.join("applications/version.json"), "ancien marqueur")
+        .expect("ancien marqueur");
+    fs::write(bibliotheque.join("applications/.DS_Store"), "métadonnée Finder")
+        .expect("ancienne métadonnée Finder");
 
     for dossier in ["sources", "derives", "base"] {
         let sentinelle = bibliotheque.join(dossier).join("NE-PAS-TOUCHER.txt");
@@ -50,7 +65,13 @@ fn remplace_uniquement_application_et_preserve_toutes_les_donnees() {
     }
 
     let marqueur = produire_marqueur(&source, "0.2.0").expect("marqueur source");
-    installer_application(&source, &bibliotheque, &marqueur).expect("mise à jour explicite");
+    let installation =
+        installer_application(&source, &bibliotheque, &marqueur).expect("mise à jour explicite");
+    assert!(
+        installation.residus.is_empty(),
+        "rien ne devait résister au ménage : {:?}",
+        installation.residus
+    );
 
     assert_eq!(
         fs::read_to_string(cible.join("Contents/MacOS/lienotheque-bureau"))
@@ -64,7 +85,58 @@ fn remplace_uniquement_application_et_preserve_toutes_les_donnees() {
             format!("sentinelle {dossier}")
         );
     }
-    assert!(bibliotheque.join("applications/version.json").is_file());
+    let contenu_applications = fs::read_dir(bibliotheque.join("applications"))
+        .expect("lire applications")
+        .map(|entree| entree.expect("entrée lisible").file_name())
+        .collect::<Vec<_>>();
+    assert_eq!(contenu_applications, ["Liénothèque.app"]);
+    let etat = etat_application(&source, &bibliotheque, "0.2.0")
+        .expect("relire la version depuis le paquet seul");
+    assert_eq!(etat.statut, "a_jour");
+    assert_eq!(etat.version_embarquee.as_deref(), Some("0.2.0"));
+}
+
+/// Le ménage de l'ancienne disposition vient **après** la mise en place de l'application neuve.
+/// S'il échoue, l'installation a pourtant réussi : la dire ratée ferait croire à l'utilisateur
+/// qu'il n'a pas la nouvelle version, alors qu'il l'a. Le résidu se signale, il ne bloque pas.
+#[test]
+fn une_installation_reussie_ne_devient_pas_un_echec_quand_le_menage_resiste() {
+    let temp = tempfile::tempdir().expect("dossier temporaire");
+    let bibliotheque = temp.path().join("Bibliothèque");
+    let source = temp.path().join("Liénothèque.app");
+    let cible = bibliotheque.join("applications/Liénothèque.app");
+    ecrire_fausse_application(&source, "nouvelle application", "0.2.0");
+    ecrire_fausse_application(&cible, "ancienne application", "0.1.0");
+
+    // Un dossier dont on ne peut pas retirer le contenu : le ménage y butera.
+    let ancienne_disposition = bibliotheque.join("applications/macOS");
+    fs::create_dir_all(&ancienne_disposition).expect("ancien sous-dossier");
+    fs::write(ancienne_disposition.join("résidu.txt"), "reste").expect("écrire le résidu");
+    fs::set_permissions(&ancienne_disposition, fs::Permissions::from_mode(0o500))
+        .expect("rendre le dossier non balayable");
+
+    let marqueur = produire_marqueur(&source, "0.2.0").expect("marqueur source");
+    let installation = installer_application(&source, &bibliotheque, &marqueur)
+        .expect("un ménage incomplet ne rate pas l'installation");
+
+    assert_eq!(
+        fs::read_to_string(cible.join("Contents/MacOS/lienotheque-bureau"))
+            .expect("lire la nouvelle app"),
+        "nouvelle application",
+        "la nouvelle application doit bien être en place"
+    );
+    assert_eq!(installation.application, cible);
+    assert_eq!(installation.residus.len(), 1, "{:?}", installation.residus);
+    assert!(
+        installation.residus[0].contains("macOS"),
+        "le résidu doit nommer ce qui reste : {}",
+        installation.residus[0]
+    );
+    let etat = etat_application(&source, &bibliotheque, "0.2.0").expect("relire l'état");
+    assert_eq!(etat.statut, "a_jour", "la bibliothèque porte bien la nouvelle version");
+
+    fs::set_permissions(&ancienne_disposition, fs::Permissions::from_mode(0o700))
+        .expect("rendre le dossier temporaire supprimable");
 }
 
 #[test]
@@ -84,7 +156,8 @@ fn copie_le_vrai_paquet_sans_briser_sa_signature() {
 
     let marqueur = produire_marqueur(source, "0.1.0").expect("marqueur du vrai paquet");
     let cible = installer_application(source, &bibliotheque, &marqueur)
-        .expect("copier le vrai paquet");
+        .expect("copier le vrai paquet")
+        .application;
     let verification = Command::new("codesign")
         .args(["--verify", "--deep", "--strict"])
         .arg(&cible)

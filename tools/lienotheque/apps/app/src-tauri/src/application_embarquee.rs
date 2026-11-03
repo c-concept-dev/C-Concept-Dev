@@ -7,9 +7,8 @@ use std::process::Command;
 use uuid::Uuid;
 
 const DOSSIER_APPLICATIONS: &str = "applications";
-const APPLICATION_MACOS: &str = "macOS/Liénothèque.app";
+const APPLICATION_MACOS: &str = "Liénothèque.app";
 const EXECUTABLE_MACOS: &str = "Contents/MacOS/lienotheque-bureau";
-const MARQUEUR: &str = "version.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -20,6 +19,16 @@ pub struct MarqueurApplication {
     pub architecture: String,
     pub empreinte_sha256: String,
     pub application: String,
+}
+
+/** Ce qu'une installation réussie rapporte. Les résidus sont les restes de l'ancienne
+ *  disposition que le ménage n'a pas pu retirer : l'application neuve est en place, donc
+ *  l'installation a réussi, et un balayage incomplet ne doit jamais la faire passer pour un
+ *  échec. Il se dit, il ne se tait pas. */
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Installation {
+    pub application: PathBuf,
+    pub residus: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -96,6 +105,12 @@ pub fn produire_marqueur(
     application: &Path,
     version: &str,
 ) -> Result<MarqueurApplication, String> {
+    let version_incluse = lire_version_incluse(application)?;
+    if version_incluse != version {
+        return Err(format!(
+            "La version annoncée ({version}) diffère de celle incluse dans l'application ({version_incluse})."
+        ));
+    }
     let executable = application.join(EXECUTABLE_MACOS);
     let contenu = fs::read(&executable)
         .map_err(|erreur| format!("Impossible de lire {} : {erreur}", executable.display()))?;
@@ -146,22 +161,42 @@ fn comparer_versions(gauche: &str, droite: &str) -> Ordering {
 }
 
 pub fn lire_marqueur(racine_bibliotheque: &Path) -> Result<Option<MarqueurApplication>, String> {
-    let chemin = racine_bibliotheque.join(DOSSIER_APPLICATIONS).join(MARQUEUR);
-    if !chemin.exists() {
+    let application = racine_bibliotheque
+        .join(DOSSIER_APPLICATIONS)
+        .join(APPLICATION_MACOS);
+    if !application.exists() {
         return Ok(None);
     }
-    let contenu = fs::read_to_string(&chemin)
-        .map_err(|erreur| format!("Impossible de lire {} : {erreur}", chemin.display()))?;
-    serde_json::from_str(&contenu)
-        .map(Some)
-        .map_err(|erreur| format!("Marqueur invalide {} : {erreur}", chemin.display()))
+    let version = lire_version_incluse(&application)?;
+    produire_marqueur(&application, &version).map(Some)
+}
+
+/** La version voyage dans le paquet qu'elle décrit. Aucun fichier voisin ne peut donc se
+ *  désynchroniser de l'application lors d'une copie de la bibliothèque. */
+fn lire_version_incluse(application: &Path) -> Result<String, String> {
+    let info = application.join("Contents/Info.plist");
+    let contenu = fs::read_to_string(&info)
+        .map_err(|erreur| format!("Impossible de lire {} : {erreur}", info.display()))?;
+    let apres_cle = contenu
+        .split_once("<key>CFBundleShortVersionString</key>")
+        .map(|(_, apres)| apres)
+        .ok_or_else(|| format!("Version absente de {}.", info.display()))?;
+    let apres_debut = apres_cle
+        .split_once("<string>")
+        .map(|(_, apres)| apres)
+        .ok_or_else(|| format!("Version illisible dans {}.", info.display()))?;
+    apres_debut
+        .split_once("</string>")
+        .map(|(version, _)| version.trim().to_owned())
+        .filter(|version| !version.is_empty())
+        .ok_or_else(|| format!("Version vide dans {}.", info.display()))
 }
 
 pub fn installer_application(
     source: &Path,
     racine_bibliotheque: &Path,
     marqueur: &MarqueurApplication,
-) -> Result<PathBuf, String> {
+) -> Result<Installation, String> {
     if marqueur.application != APPLICATION_MACOS {
         return Err("Le marqueur ne désigne pas l'application macOS attendue.".to_owned());
     }
@@ -174,12 +209,11 @@ pub fn installer_application(
         );
     }
 
-    fs::create_dir_all(cible.parent().expect("la cible macOS a un parent"))
+    fs::create_dir_all(&applications)
         .map_err(|erreur| format!("Impossible de préparer {} : {erreur}", cible.display()))?;
 
     let identifiant = Uuid::new_v4();
-    let preparation = applications.join(format!(".mise-a-jour-{identifiant}"));
-    let application_preparee = preparation.join("Liénothèque.app");
+    let application_preparee = applications.join(format!(".mise-a-jour-{identifiant}.app"));
     copier_application(source, &application_preparee)?;
 
     let marqueur_prepare = produire_marqueur(&application_preparee, &marqueur.version)?;
@@ -187,22 +221,8 @@ pub fn installer_application(
         return Err("La copie préparée ne correspond pas au marqueur annoncé.".to_owned());
     }
 
-    let marqueur_temporaire = applications.join(format!(".version-{identifiant}.json"));
-    let json = serde_json::to_string_pretty(marqueur)
-        .map_err(|erreur| format!("Impossible de sérialiser le marqueur : {erreur}"))?;
-    fs::write(&marqueur_temporaire, format!("{json}\n")).map_err(|erreur| {
-        format!(
-            "Impossible de préparer {} : {erreur}",
-            marqueur_temporaire.display()
-        )
-    })?;
-
     let sauvegarde = if cible.exists() {
-        let precedentes = applications.join(".precedentes");
-        fs::create_dir_all(&precedentes).map_err(|erreur| {
-            format!("Impossible de préparer {} : {erreur}", precedentes.display())
-        })?;
-        let sauvegarde = precedentes.join(format!("Liénothèque-{identifiant}.app"));
+        let sauvegarde = applications.join(format!(".precedente-{identifiant}.app"));
         fs::rename(&cible, &sauvegarde).map_err(|erreur| {
             format!("Impossible de sauvegarder {} : {erreur}", cible.display())
         })?;
@@ -218,20 +238,44 @@ pub fn installer_application(
         return Err(format!("Impossible d'installer {} : {erreur}", cible.display()));
     }
 
-    let chemin_marqueur = applications.join(MARQUEUR);
-    if let Err(erreur) = fs::rename(&marqueur_temporaire, &chemin_marqueur) {
-        let _ = fs::rename(&cible, &application_preparee);
-        if let Some(sauvegarde) = &sauvegarde {
-            let _ = fs::rename(sauvegarde, &cible);
+    // À partir d'ici l'application neuve est en place : tout ce qui suit n'est plus que du
+    // balayage. Un balayage qui échoue laisse un résidu, pas une installation ratée.
+    let mut residus = Vec::new();
+    if let Some(sauvegarde) = sauvegarde {
+        if let Err(erreur) = fs::remove_dir_all(&sauvegarde) {
+            residus.push(format!(
+                "L'ancienne application reste dans {} ({erreur}).",
+                sauvegarde.display()
+            ));
         }
-        return Err(format!(
-            "Impossible d'activer {} : {erreur}",
-            chemin_marqueur.display()
-        ));
     }
+    residus.extend(nettoyer_ancienne_disposition(&applications));
+    Ok(Installation {
+        application: cible,
+        residus,
+    })
+}
 
-    let _ = fs::remove_dir(&preparation);
-    Ok(cible)
+fn nettoyer_ancienne_disposition(applications: &Path) -> Vec<String> {
+    let mut residus = Vec::new();
+    for chemin in [applications.join("macOS"), applications.join(".precedentes")] {
+        if chemin.exists() {
+            if let Err(erreur) = fs::remove_dir_all(&chemin) {
+                residus.push(format!("{} n'a pas pu être retiré ({erreur}).", chemin.display()));
+            }
+        }
+    }
+    for fichier in [
+        applications.join("version.json"),
+        applications.join(".DS_Store"),
+    ] {
+        if fichier.exists() {
+            if let Err(erreur) = fs::remove_file(&fichier) {
+                residus.push(format!("{} n'a pas pu être retiré ({erreur}).", fichier.display()));
+            }
+        }
+    }
+    residus
 }
 
 fn copier_application(source: &Path, destination: &Path) -> Result<(), String> {
