@@ -264,6 +264,15 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   assert.deepEqual(afterScrollDrag[0], [], 'le bloc a quitté la première diapositive après défilement');
   assert.deepEqual(afterScrollDrag[1].filter((id) => id !== 'slide-p2'), ['slide-p3', 'slide-p1'], 'les blocs déjà présents gardent leur ordre');
   assert.ok(afterScrollDrag[1].includes('slide-p2'), 'la diapositive révélée reçoit le bloc');
+  const movedBlockView = await page.evaluate(() => {
+    const area = document.querySelector('.cc-ws-doc-area');
+    const areaRect = area.getBoundingClientRect();
+    const blockRect = document.getElementById('slide-p2').getBoundingClientRect();
+    return { visible: blockRect.top < areaRect.bottom && blockRect.bottom > areaRect.top,
+      blockTop: blockRect.top - areaRect.top, scrollTop: area.scrollTop };
+  });
+  assert.ok(movedBlockView.visible && movedBlockView.blockTop > 0,
+    'après le nouveau rendu, la vue doit rester sur le bloc déplacé dans la diapositive de destination');
   console.log('PASS présentation — défilement automatique et dépôt dans la diapositive hors écran');
 
   await page.setViewportSize({ width: 1400, height: 2400 });

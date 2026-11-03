@@ -21814,6 +21814,17 @@ ${recent}`;
     const excerpt = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 40);
     return 'Supprimer ' + kind + ' ' + (index + 1) + (excerpt ? ' : ' + excerpt : '');
   }
+  // Après un glissement, le rendu recrée tous les blocs. Replacer le bloc déplacé dans la
+  // zone visible une fois ce rendu terminé, sans faire défiler la page Safari elle-même.
+  function adocWsRevealMovedBlock(storeKey, findBlock) {
+    if (window._adocWsState.storeKey !== storeKey) return;
+    const area = document.querySelector('.cc-ws-doc-area');
+    const blockEl = area && findBlock();
+    if (!blockEl || !area.contains(blockEl)) return;
+    const areaRect = area.getBoundingClientRect();
+    const blockRect = blockEl.getBoundingClientRect();
+    area.scrollTop += blockRect.top - areaRect.top - Math.min(area.clientHeight / 3, 180);
+  }
   function adocWsSetupBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');
     if (!docCard) return;
@@ -22328,7 +22339,9 @@ ${recent}`;
           if (moved && dropSiblings && (dropSiblings !== siblings || dropIdx !== oldIdx)) {
             siblings.splice(oldIdx, 1);
             dropSiblings.splice(dropIdx, 0, block);
-            window.adocOpenWorkspace(storeKey);
+            window.adocOpenWorkspace(storeKey).then(function (opened) {
+              if (opened) adocWsRevealMovedBlock(storeKey, function () { return document.getElementById(block.id); });
+            });
           }
         }
         document.addEventListener('mousemove', onMove);
@@ -25727,6 +25740,7 @@ ${recent}`;
         adocSyncEditedLegacyBlocksToHtml(curArt);
         const idx = parseInt(blockEl.getAttribute('data-cc-legacy-block-id').slice(3), 10);
         const refIdx = refBlockEl ? parseInt(refBlockEl.getAttribute('data-cc-legacy-block-id').slice(3), 10) : null;
+        let movedIndex = null;
         try {
           const parsed = new DOMParser().parseFromString(curArt.html || '', 'text/html');
           if (!parsed || !parsed.body) throw new Error('document illisible');
@@ -25735,6 +25749,7 @@ ${recent}`;
           if (!movingEl) throw new Error('passage introuvable (document modifié entre-temps)');
           const refEl = refIdx != null ? freshBlocks[refIdx] : null;
           if (refEl) refEl.parentNode.insertBefore(movingEl, refEl); else movingEl.parentNode.appendChild(movingEl);
+          movedIndex = adocWsCollectLegacyBlocks(parsed.body).indexOf(movingEl);
           curArt.html = '<!DOCTYPE html>\n' + parsed.documentElement.outerHTML;
           if (curArt.blobUrl) { URL.revokeObjectURL(curArt.blobUrl); curArt.blobUrl = URL.createObjectURL(new Blob([curArt.html], { type: 'text/html;charset=utf-8' })); }
         } catch (err) {
@@ -25744,7 +25759,11 @@ ${recent}`;
         }
         const sk = storeKey;
         adocWsClearLegacyBlockSelection();
-        window.adocOpenWorkspace(sk);
+        window.adocOpenWorkspace(sk).then(function (opened) {
+          if (opened && movedIndex !== null) adocWsRevealMovedBlock(sk, function () {
+            return document.querySelector('#cc-ws-doc-card [data-cc-legacy-block-id="lb-' + movedIndex + '"]');
+          });
+        });
       }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
