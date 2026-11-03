@@ -21814,16 +21814,23 @@ ${recent}`;
     const excerpt = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 40);
     return 'Supprimer ' + kind + ' ' + (index + 1) + (excerpt ? ' : ' + excerpt : '');
   }
-  // Après un glissement, le rendu recrée tous les blocs. Replacer le bloc déplacé dans la
-  // zone visible une fois ce rendu terminé, sans faire défiler la page Safari elle-même.
+  // Après un glissement, le rendu recrée tous les blocs et remet AUSSI à zéro le défilement
+  // intérieur des diapositives (overflow:auto). Révéler le bloc dans chaque zone imbriquée,
+  // de la diapositive vers l'espace de travail, sans faire défiler la page Safari elle-même.
   function adocWsRevealMovedBlock(storeKey, findBlock) {
     if (window._adocWsState.storeKey !== storeKey) return;
     const area = document.querySelector('.cc-ws-doc-area');
     const blockEl = area && findBlock();
     if (!blockEl || !area.contains(blockEl)) return;
-    const areaRect = area.getBoundingClientRect();
-    const blockRect = blockEl.getBoundingClientRect();
-    area.scrollTop += blockRect.top - areaRect.top - Math.min(area.clientHeight / 3, 180);
+    for (let scroller = blockEl.parentElement; scroller; scroller = scroller.parentElement) {
+      if (scroller === area || (scroller.scrollHeight > scroller.clientHeight + 1 &&
+          /^(auto|scroll)$/.test(getComputedStyle(scroller).overflowY))) {
+        const viewport = scroller.getBoundingClientRect();
+        const blockRect = blockEl.getBoundingClientRect();
+        scroller.scrollTop += blockRect.top - viewport.top - Math.min(scroller.clientHeight / 3, 180);
+      }
+      if (scroller === area) break;
+    }
   }
   function adocWsSetupBlockEditing(art) {
     const docCard = document.getElementById('cc-ws-doc-card');

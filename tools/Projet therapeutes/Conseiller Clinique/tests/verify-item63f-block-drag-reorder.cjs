@@ -289,6 +289,48 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   assert.deepEqual(afterEmptyDrop[0], ['slide-p1'], 'une diapositive vide accepte le bloc déplacé');
   console.log('PASS présentation — dépôt dans une diapositive vide');
 
+  // Régression Safari réelle : une diapositive de Présentation possède son PROPRE défilement
+  // (overflow:auto). Après le nouveau rendu, ce défilement revient à zéro ; ne déplacer que
+  // .cc-ws-doc-area montrait le début de la diapositive suivante au lieu du bloc déplacé.
+  const storeKeyOverflow = 'adocArt_test63f_inner_scroll';
+  const overflowBlocks = Array.from({ length: 32 }, (_, i) => para('overflow-p' + i,
+    'Paragraphe ' + i + ' — texte assez long pour occuper plusieurs lignes dans la diapositive et imposer un défilement intérieur.'));
+  await page.evaluate(({ key, doc }) => {
+    window._adocArtifacts[key] = {
+      name: 'Test défilement intérieur', _adocGenerationEngine: 'structured',
+      _adocCapabilities: { workspace: true, blockEditing: true }, _adocStructuredDoc: doc,
+    };
+  }, { key: storeKeyOverflow, doc: {
+    ...ficheDoc([]), documentId: 'doc-63f-inner-scroll', documentKind: 'presentation',
+    blocks: [{ id: 'overflow-slide', type: 'card', content: { title: 'Diapositive longue', imageRef: null,
+      imageAlt: null, blocks: overflowBlocks }, citationIds: [], validation: {} }],
+  } });
+  await page.setViewportSize({ width: 1400, height: 900 });
+  opened = await page.evaluate((key) => window.adocOpenWorkspace(key), storeKeyOverflow);
+  assert.equal(opened, true, 'la présentation longue doit s’ouvrir');
+  const cardOverflows = await page.evaluate(() => {
+    const card = document.querySelector('#overflow-slide');
+    return card.scrollHeight > card.clientHeight + 50;
+  });
+  assert.ok(cardOverflows, 'la diapositive de test doit vraiment défiler intérieurement');
+  await page.locator('#overflow-p16').scrollIntoViewIfNeeded();
+  const deepNeighbor = await page.locator('#overflow-p17').boundingBox();
+  await dragEdgeTo('#overflow-p16', deepNeighbor.y + deepNeighbor.height + 4);
+  const afterInnerDrag = await page.evaluate((key) => {
+    const ids = window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks.map((b) => b.id);
+    const card = document.querySelector('#overflow-slide');
+    const area = document.querySelector('.cc-ws-doc-area');
+    const block = document.getElementById('overflow-p16');
+    const cardRect = card.getBoundingClientRect(), areaRect = area.getBoundingClientRect(), blockRect = block.getBoundingClientRect();
+    return { ids, innerScroll: card.scrollTop,
+      insideCard: blockRect.top >= cardRect.top && blockRect.top < cardRect.bottom,
+      insideWorkspace: blockRect.top >= areaRect.top && blockRect.top < areaRect.bottom };
+  }, storeKeyOverflow);
+  assert.equal(afterInnerDrag.ids.indexOf('overflow-p16'), 17, 'le bloc profond doit changer de place');
+  assert.ok(afterInnerDrag.innerScroll > 0 && afterInnerDrag.insideCard && afterInnerDrag.insideWorkspace,
+    'le bloc déplacé doit rester visible à la fois dans la diapositive et dans le document');
+  console.log('PASS présentation — bloc déplacé visible malgré le défilement intérieur de sa diapositive');
+
   // ═══════════════════════════════ TEST 6 — LEGACY (ancien moteur) ═══════════════════
   const storeKeyC = 'adocArt_test63f_legacy';
   await page.evaluate((key) => {
