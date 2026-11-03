@@ -466,13 +466,21 @@ pub fn vue_active(depot: &depot::Depot, empreinte: &str) -> Result<Option<serde_
 }
 
 fn empreintes_media_de(vue: &serde_json::Value) -> std::collections::BTreeSet<String> {
-    vue["pages"]
+    let mut empreintes = vue["pages"]
         .as_array()
         .into_iter()
         .flatten()
         .flat_map(|page| page["elements"].as_array().into_iter().flatten())
         .filter_map(|element| element["media"]["empreinte"].as_str().map(str::to_owned))
-        .collect()
+        .collect::<std::collections::BTreeSet<_>>();
+    empreintes.extend(
+        vue["douteux"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|cas| cas["element"]["media"]["empreinte"].as_str().map(str::to_owned)),
+    );
+    empreintes
 }
 
 fn type_audio(extension: &str) -> Option<&'static str> {
@@ -535,11 +543,23 @@ fn greffer_sources_media(
     base: &str,
     disponibles: &std::collections::BTreeSet<String>,
 ) -> usize {
-    let Some(pages) = vue["pages"].as_array_mut() else { return 0 };
     let mut greffees = 0;
-    for page in pages {
-        let Some(elements) = page["elements"].as_array_mut() else { continue };
-        for element in elements {
+    if let Some(pages) = vue["pages"].as_array_mut() {
+        for page in pages {
+            let Some(elements) = page["elements"].as_array_mut() else { continue };
+            for element in elements {
+                let Some(media) = element.get_mut("media") else { continue };
+                let Some(empreinte) = media["empreinte"].as_str() else { continue };
+                if disponibles.contains(empreinte) {
+                    media["source"] = serde_json::Value::String(format!("{base}/{empreinte}"));
+                    greffees += 1;
+                }
+            }
+        }
+    }
+    if let Some(douteux) = vue["douteux"].as_array_mut() {
+        for cas in douteux {
+            let Some(element) = cas.get_mut("element") else { continue };
             let Some(media) = element.get_mut("media") else { continue };
             let Some(empreinte) = media["empreinte"].as_str() else { continue };
             if disponibles.contains(empreinte) {
@@ -1181,7 +1201,7 @@ fn lancer(captures: bool) {
 
 #[cfg(test)]
 mod greffe {
-    use super::{greffer_le_texte, greffer_sources_media};
+    use super::{empreintes_media_de, greffer_le_texte, greffer_sources_media};
     use std::collections::BTreeSet;
 
     /// Une vue de deux pages, telle que `construireVue` la rend : `texte` vide en dur.
@@ -1257,6 +1277,40 @@ mod greffe {
         let greffees = greffer_sources_media(&mut vue, "http://127.0.0.1:4321/media/jeton", &BTreeSet::new());
         assert_eq!(greffees, 0);
         assert!(vue["pages"][0]["elements"][0]["media"].get("source").is_none());
+    }
+
+    #[test]
+    fn un_media_propose_a_la_verification_recoit_aussi_son_adresse_anc_05() {
+        // La voie oracle garde les liens publiables dans `douteux` pour que l'humain puisse
+        // encore les vérifier. Bass Aerobics porte ses quarante-quatre liens sous cette forme,
+        // sans aucun élément directement publié dans les pages.
+        let empreinte = "c".repeat(64);
+        let mut vue = serde_json::json!({
+            "pages": [{ "elements": [] }],
+            "douteux": [{
+                "nature": "lien",
+                "element": {
+                    "numero": "2",
+                    "page": 8,
+                    "media": {
+                        "empreinte": empreinte,
+                        "nom": "02 - Workout #2.mp3",
+                        "piste": 2,
+                        "position": { "segment": "inconnu" }
+                    }
+                }
+            }]
+        });
+
+        assert_eq!(empreintes_media_de(&vue), BTreeSet::from([empreinte.clone()]));
+        let greffees =
+            greffer_sources_media(&mut vue, "http://127.0.0.1:4321/media/jeton", &BTreeSet::from([empreinte.clone()]));
+
+        assert_eq!(greffees, 1);
+        assert_eq!(
+            vue["douteux"][0]["element"]["media"]["source"],
+            format!("http://127.0.0.1:4321/media/jeton/{empreinte}")
+        );
     }
 }
 
