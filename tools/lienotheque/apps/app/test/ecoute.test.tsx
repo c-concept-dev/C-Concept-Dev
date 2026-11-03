@@ -201,9 +201,9 @@ describe("le tempo ralentit sans transposer (CDC, écran du Lecteur)", () => {
     construits = [];
     render(<Lecteur vue={vueLecteur()} page={126} element={ID(20)} onPage={vi.fn()} onElement={vi.fn()} />);
 
-    // Le Lecteur ouvre à 75 % : c'est le réglage de travail d'une méthode.
+    // Le Lecteur ouvre à la vitesse originale ; ralentir reste un choix explicite.
     const element = dernierAudio() as HTMLAudioElement & { mozPreservesPitch?: boolean; webkitPreservesPitch?: boolean };
-    expect(element.playbackRate).toBeCloseTo(0.75, 2);
+    expect(element.playbackRate).toBeCloseTo(1, 2);
     expect(element.preservesPitch, "sans cela, ralentir transpose").toBe(true);
     expect(element.mozPreservesPitch, "le nom que comprennent les moteurs plus anciens").toBe(true);
     expect(element.webkitPreservesPitch).toBe(true);

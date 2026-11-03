@@ -62,7 +62,7 @@ const DUREE_SUPPOSEE = 44;
 
 export function Lecteur({ vue, document, page, element, texteLu = false, textePage, passagesPage, cibleRecherche, chargerImage, onTraduire, rotation = 0, onTourner, onPage, onElement }: Props): JSX.Element {
   const [boucle, setBoucle] = useState(false);
-  const [tempo, setTempo] = useState(75);
+  const [tempo, setTempo] = useState(100);
   const [zoom, setZoom] = useState(100);
   const [aDistance, setADistance] = useState(false);
   const [note, setNote] = useState("");

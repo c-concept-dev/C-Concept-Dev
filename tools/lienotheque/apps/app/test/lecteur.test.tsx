@@ -276,8 +276,8 @@ describe("Lecteur : raccourcis (B1)", () => {
   it("[ et ] changent le tempo, sans sortir des bornes", async () => {
     poser();
     const tempo = () => (screen.getByRole("slider", { name: /tempo/i }) as HTMLInputElement).value;
-    expect(tempo()).toBe("75");
-    await userEvent.keyboard("{]}{]}{]}{]}{]}{]}");
+    expect(tempo()).toBe("100");
+    await userEvent.keyboard("{]}{]}");
     expect(tempo(), "la borne haute tient").toBe("100");
     await userEvent.keyboard("{[}{[}");
     expect(tempo()).toBe("90");
