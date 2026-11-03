@@ -25,9 +25,27 @@ Pour l'application elle-même :
 
 ```sh
 pnpm --filter @lienotheque/app tauri dev      # fenêtre de développement
-pnpm --filter @lienotheque/app tauri build    # construit le paquet
-pnpm --filter @lienotheque/app tauri:finaliser:macos # rétablit les droits JIT de Node et éprouve son démarrage
 ```
+
+Le paquet, lui, se construit dans cet ordre, qui n'est pas interchangeable :
+
+```sh
+pnpm build                                              # schémas, feuille des jetons, page web
+python3 apps/app/src-tauri/outils/preparer-moteurs.py   # Tesseract — à lancer EN PREMIER
+python3 apps/app/src-tauri/outils/preparer-moteur-node.py  # Node, chaîne, rendu PDF, codecs
+pnpm --filter @lienotheque/app tauri build              # empaquette
+pnpm --filter @lienotheque/app tauri:finaliser:macos    # signe, vérifie, éprouve le démarrage de Node
+```
+
+**L'ordre des deux préparations compte.** `preparer-moteurs.py` commence par effacer `moteurs/`
+en entier ; lancé après son voisin, il emporte le binaire Node, et `tauri build` s'arrête alors sur
+`resource path moteurs/bin/node-aarch64-apple-darwin doesn't exist`. Erreur commise le 3 novembre
+2026 : le paquet n'a pas été construit, et la finalisation, lancée malgré tout, a signé **le paquet
+de la veille** en annonçant un succès. Une étape de fabrication qui échoue doit arrêter celles qui
+la suivent, sans quoi on vérifie l'ancien paquet en croyant tenir le neuf.
+
+`cargo tauri build` n'existe pas sur ce poste : le CLI est celui de `node_modules`, donc on passe
+toujours par `pnpm tauri`.
 
 Le panneau « Prototype bureau » n'apparaît que dans la fenêtre de bureau, jamais sur la page web.
 
@@ -41,7 +59,9 @@ Le panneau « Prototype bureau » n'apparaît que dans la fenêtre de bureau, ja
 | `examples/travail-long.rs` | Travail volontairement tuable, pour éprouver la reprise. **Exemple** Cargo : construit par `cargo test`, jamais embarqué dans le paquet | JOB-02 |
 | `src/media.rs` | Serveur local de médias par plages d'octets | lecture par plages |
 | `src/mesures.rs` | Pesée d'une installation | taille d'installation |
-| `outils/preparer-moteurs.py` | Embarque Tesseract et ses bibliothèques (macOS et Windows) | — |
+| `outils/preparer-moteurs.py` | Embarque Tesseract et ses bibliothèques (macOS et Windows). **Efface `moteurs/` d'abord** | — |
+| `outils/preparer-moteur-node.py` | Embarque Node réduit à l'architecture du poste, la chaîne compilée, le rendu PDF et les codecs | — |
+| `outils/finaliser-paquet-macos.py` | Signe le moteur avec ses droits puis la racine du paquet, vérifie en profondeur, prouve que Node démarre | — |
 | `outils/resumer-mesures.py` | Écrit les mesures dans le résumé d'exécution de l'intégration continue | — |
 
 ## Limites connues
