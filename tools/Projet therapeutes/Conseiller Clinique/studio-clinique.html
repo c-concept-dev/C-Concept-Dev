@@ -2282,18 +2282,11 @@
     }
     .cc-ws-doc-card .cc-flow-resize-handle:focus-visible { outline: 2px solid var(--terracotta-700); outline-offset: 3px; }
     .cc-drag-edge-hover { cursor: grab; }
-    /* La prise ↕ apparaît uniquement sur le bloc sélectionné, sans décaler son texte.
-       Elle reste dans la zone de glissement du bord gauche, y compris les 12px qui
-       dépassent du cadre. Le pseudo-élément n'entre ni dans le document ni dans les exports. */
-    .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-block.is-selected::before,
-    .cc-ws-doc-card.cc-ws-legacy-block-editable .adoc-sc-block-drag-wrap:has(.is-selected)::before {
-      content: '↕'; position: absolute; left: -12px; top: 4px; width: 24px; height: 24px;
-      z-index: 11; border: 1px solid var(--petrol-800); border-radius: 6px;
-      background: var(--paper); color: var(--petrol-800); box-shadow: 0 2px 6px rgba(16,47,49,.15);
-      font: 18px/22px system-ui, sans-serif; text-align: center; cursor: grab;
-    }
-    .cc-ws-doc-card .adoc-sc-block.is-selected.cc-drag-edge-hover::before,
-    .cc-ws-doc-card .adoc-sc-block-drag-wrap.cc-drag-edge-hover::before { background: var(--petrol-100); }
+    /* La main n'apparaît que sous le pointeur sur l'un des quatre bords.
+       Aucun pictogramme n'est ajouté au bloc, sélectionné ou non. */
+    .cc-ws-doc-card .cc-drag-edge-hover,
+    .cc-ws-doc-card .cc-drag-edge-hover * { cursor: grab !important; }
+    html.cc-block-reordering, html.cc-block-reordering * { cursor: grabbing !important; }
     #cc-preview-doc-card .adoc-sc-block::before {
       content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px;
       border-radius: 2px; background: var(--petrol-800); opacity: .32; pointer-events: none;
@@ -3761,7 +3754,7 @@
 {"tokens-studio-clinique-default-v1":{"tokensSnapshotId":"tokens-studio-clinique-default-v1","$comment":"UX-8A.1 — jetons résolus de la charte studio-clinique-default, extraits verbatim du bloc :root en production de studio-clinique.html (palette pétrole/terracotta/ivoire, Phase UX-3). Référencé par render-manifest-default.json via tokensSnapshotId.","colors":{"petrol950":"#102f31","petrol900":"#173f42","petrol800":"#1f5053","petrol100":"#dce8e6","terracotta700":"#8a3f29","terracotta600":"#9b4e36","terracotta100":"#f4e5de","ink":"#273331","muted":"#5d6966","stone400":"#a9a49a","stone300":"#c9c3b8","stone200":"#ddd7cc","ivory":"#f6f2ea","paper":"#fffdf9","white":"#ffffff"},"typography":{"headingFontFamily":"\"Source Serif 4\", Georgia, serif","bodyFontFamily":"\"IBM Plex Sans\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"}}}
 </script>
 
-<script src="studio-clinique-core.js?v=20261103-block-reorder-1"></script>
+<script src="studio-clinique-core.js?v=20261103-block-reorder-cursor-1"></script>
 <!-- LOT 2 — Atelier de montage, chutier visuel. Fichier SÉPARÉ de core.js, comme le CDC v2
      l'exige (le cœur dépasse 23 000 lignes). Chargé APRÈS lui : le moteur pilote le lecteur,
      et refuse de démarrer si le lecteur n'est pas là. Aucune interface : seulement le moteur. -->

@@ -54,7 +54,7 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   // séquence mousedown/move/up que l'ancien helper.
   async function dragEdgeTo(blockLocatorSelector, targetY) {
     const blockBox = await page.locator(blockLocatorSelector).boundingBox();
-    const startX = blockBox.x + 4, startY = blockBox.y + blockBox.height / 2;
+    const startX = blockBox.x + 12, startY = blockBox.y + blockBox.height / 2;
     await page.mouse.move(startX, startY);
     await page.mouse.down();
     await page.mouse.move(startX + 8, startY + 8); // franchit le seuil de 3px
@@ -203,14 +203,35 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
     selected: getComputedStyle(document.getElementById('slide-p1'), '::before').content,
     unselected: getComputedStyle(document.getElementById('slide-p2'), '::before').content,
   }));
-  assert.match(grip.selected, /↕/, 'la poignée doit être visible sur le bloc sélectionné');
-  assert.ok(grip.unselected === 'none' || grip.unselected === 'normal', 'la poignée doit être masquée sur un bloc non sélectionné');
+  assert.ok(!/↕/.test(grip.selected + grip.unselected), 'aucun pictogramme de déplacement ne doit apparaître');
+  const edgeBox = await page.locator('#slide-p1').boundingBox();
+  await page.mouse.move(edgeBox.x + 12, edgeBox.y + edgeBox.height / 2);
+  const edgeCursor = await page.evaluate(({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor,
+    { x: edgeBox.x + 12, y: edgeBox.y + edgeBox.height / 2 });
+  assert.equal(edgeCursor, 'grab', 'la main ouverte apparaît au survol du bord du bloc');
+  for (const [edge, x, y] of [
+    ['haut', edgeBox.x + edgeBox.width / 4, edgeBox.y + 4],
+    ['droite', edgeBox.x + edgeBox.width - 12, edgeBox.y + edgeBox.height / 2],
+    ['bas', edgeBox.x + edgeBox.width / 4, edgeBox.y + edgeBox.height - 4],
+  ]) {
+    await page.mouse.move(x, y);
+    const cursor = await page.evaluate(({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor, { x, y });
+    assert.equal(cursor, 'grab', 'main ouverte sur le bord ' + edge);
+  }
+  await page.mouse.move(edgeBox.x + 4, edgeBox.y + edgeBox.height / 2);
+  const resizeCursor = await page.evaluate(({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor,
+    { x: edgeBox.x + 4, y: edgeBox.y + edgeBox.height / 2 });
+  assert.equal(resizeCursor, 'ew-resize', 'la poignée de taille garde son curseur propre');
+  await page.mouse.move(edgeBox.x + edgeBox.width / 2, edgeBox.y + edgeBox.height / 2);
+  const textCursor = await page.evaluate(({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor,
+    { x: edgeBox.x + edgeBox.width / 2, y: edgeBox.y + edgeBox.height / 2 });
+  assert.notEqual(textCursor, 'grab', 'le texte au centre du bloc ne garde pas la main de déplacement');
   const destination = await page.locator('#slide-p3').boundingBox();
   await dragEdgeTo('#slide-p1', destination.y + destination.height + 30);
   const movedAcrossSlides = await page.evaluate((key) => window._adocArtifacts[key]._adocStructuredDoc.blocks.map((card) => card.content.blocks.map((b) => b.id)), storeKeyP);
   assert.deepEqual(movedAcrossSlides, [['slide-p2'], ['slide-p3', 'slide-p1']], 'le bloc doit être déplacé dans le tableau de la deuxième diapositive');
   assert.equal(await page.locator('#slide-2 > #slide-p1').count(), 1, 'le rendu doit afficher le bloc dans sa nouvelle diapositive');
-  console.log('PASS présentation — poignée sélectionnée et glissement entre deux diapositives persisté dans blocks[]');
+  console.log('PASS présentation — main au bord sans pictogramme et glissement entre deux diapositives persisté dans blocks[]');
 
   await page.click('#slide-p2');
   await page.evaluate(() => {
@@ -231,7 +252,7 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   await page.click('#slide-p2');
   const sourceSmall = await page.locator('#slide-p2').boundingBox();
   const scrollBox = await page.locator('.cc-ws-doc-area').boundingBox();
-  const dropX = sourceSmall.x + 4, dropY = scrollBox.y + scrollBox.height - 20;
+  const dropX = sourceSmall.x + 12, dropY = scrollBox.y + scrollBox.height - 20;
   await page.mouse.move(dropX, sourceSmall.y + sourceSmall.height / 2);
   await page.mouse.down();
   await page.mouse.move(dropX + 8, sourceSmall.y + sourceSmall.height / 2 + 8);
@@ -249,9 +270,9 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   await page.evaluate(() => { document.querySelector('.cc-ws-doc-area').scrollTop = 0; });
   const emptySlide = await page.locator('#slide-1').boundingBox();
   const sourceToEmpty = await page.locator('#slide-p1').boundingBox();
-  await page.mouse.move(sourceToEmpty.x + 4, sourceToEmpty.y + sourceToEmpty.height / 2);
+  await page.mouse.move(sourceToEmpty.x + 12, sourceToEmpty.y + sourceToEmpty.height / 2);
   await page.mouse.down();
-  await page.mouse.move(sourceToEmpty.x + 12, sourceToEmpty.y + sourceToEmpty.height / 2 + 8);
+  await page.mouse.move(sourceToEmpty.x + 20, sourceToEmpty.y + sourceToEmpty.height / 2 + 8);
   await page.mouse.move(emptySlide.x + 30, emptySlide.y + 100, { steps: 8 });
   await page.mouse.up();
   await page.waitForTimeout(60);

@@ -18020,50 +18020,21 @@ ${recent}`;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Refonte du geste de glisser-déposer (Sujet 1) — remplace la poignée carrée visible en
-  // permanence (jugée intrusive par Christophe, masquait une partie du contenu du bloc) par un
-  // simple changement de curseur au survol du BORD GAUCHE du bloc + un vrai fantôme qui suit
-  // réellement la souris pendant le déplacement. PARTAGÉ par les TROIS machines de glissement de
-  // l'outil (copie B→A ci-dessous, réordonnancement Item 63f structuré et legacy, cf.
-  // adocWsSetupBlockEditing/adocWsSetupLegacyBlockEditing) — jamais trois implémentations séparées
-  // de ce seul habillage visuel. La LOGIQUE DE DÉPÔT de chacune des trois machines reste, elle,
-  // entièrement inchangée — seuls le déclenchement et le retour visuel pendant le geste changent.
-  //
-  // Investigation (avant construction) : les blocs n'ont aucune marge/padding interne horizontale
-  // (`margin: 0 0 1em` sur .adoc-sc-paragraph etc., studio-clinique.html) — le texte commence au
-  // tout premier pixel du bloc. La seule "bordure" réellement disponible SANS décaler le texte
-  // d'aucun bloc est donc une bande mesurée en JS (getBoundingClientRect), jamais une marge CSS
-  // ajoutée. ADOC_DRAG_EDGE_ZONE_PX = 26px : assez large pour une saisie confortable au pouce/à la
-  // souris (comparable à une poignée cliquable standard), assez étroit pour ne jamais recouvrir un
-  // clic normal visant le texte (une sélection commence presque toujours À L'INTÉRIEUR d'un mot,
-  // jamais exactement au pixel 0-26 du bloc).
-  //
-  // CORRECTIF ERGONOMIE (trouvé en usage réel, mesure confirmée) — la première valeur retenue
-  // (10px) était mécaniquement parfaite (curseur "grab" activé/désactivé exactement au pixel près)
-  // mais invisible tant qu'on ne l'avait pas trouvée : un vrai défaut d'ergonomie, pas de code.
-  // Deux changements pour y répondre, jamais un seul : (1) la zone elle-même est élargie à 26px, ET
-  // (2) un repère visuel DISCRET MAIS TOUJOURS PRÉSENT (jamais seulement au survol) est ajouté en
-  // CSS sur le bord gauche de chaque bloc réordonnable — cf. `.adoc-sc-block::before` / `.adoc-sc-
-  // block-drag-wrap::before` dans studio-clinique.html — pour qu'on VOIE où saisir avant même de
-  // survoler, au lieu de devoir deviner puis chercher au pixel près. Le repère (une fine bande
-  // colorée, jamais un carré) reste volontairement plus étroit que la zone cliquable elle-même
-  // (même principe qu'une poignée de redimensionnement classique : le repère annonce, la zone
-  // cliquable reste généreuse autour de lui) — foncé au survol réel (.cc-drag-edge-hover) pour
-  // doubler le retour visuel déjà donné par le changement de curseur.
-  //
-  // ATTENTION conflit résolu par investigation, côté Item 63f structuré : un bloc IMBRIQUÉ dans une
-  // carte Carrousel porte AUSSI le geste de positionnement libre Item 75 (mousedown n'importe où
-  // ailleurs sur ce même bloc déplace l'élément). Remplacer le déclenchement de la poignée par une
-  // zone couvrant TOUT LE BORD aurait pu masquer ce second geste — la zone reste donc réservée au
-  // réordonnancement, exactement comme la poignée le faisait déjà (testée en priorité, AVANT la
-  // branche Item 75, avec un retour explicite en cas de zone atteinte — même ordre de précédence
-  // qu'avant, seule la méthode de détection change).
-  const ADOC_DRAG_EDGE_ZONE_PX = 26;
-  function adocDragInEdgeZone(el, clientX) {
+  // Les quatre bords déclenchent le réordonnancement et le curseur main, sans
+  // pictogramme dans le bloc. La zone centrale garde la sélection de texte et
+  // les huit poignées de taille conservent leur priorité. Cette détection est
+  // partagée par les glissements structurés, anciens et depuis l'aperçu.
+  const ADOC_DRAG_EDGE_ZONE_PX = 16;
+  function adocDragInEdgeZone(el, clientX, clientY) {
     const r = el.getBoundingClientRect();
-    const dx = clientX - r.left;
-    // La prise visible du bloc sélectionné déborde légèrement à gauche du cadre.
-    return dx >= -14 && dx <= ADOC_DRAG_EDGE_ZONE_PX;
+    const x = clientX - r.left, y = clientY - r.top;
+    if (x < 0 || x > r.width || y < 0 || y > r.height) return false;
+    // Quatre bords ; le haut/bas d'un paragraphe court restent étroits afin
+    // de conserver une vraie zone centrale pour placer le curseur de texte.
+    const horizontalEdge = Math.min(ADOC_DRAG_EDGE_ZONE_PX, r.width / 4);
+    const verticalEdge = Math.min(12, r.height / 4);
+    return x <= horizontalEdge || x >= r.width - horizontalEdge ||
+      y <= verticalEdge || y >= r.height - verticalEdge;
   }
   // Fantôme — clone RÉEL du DOM (jamais une reconstruction par type de bloc : un bloc image porte
   // ainsi sa vraie miniature, un tableau ses vraies cellules, un bloc legacy son enveloppe réelle —
@@ -18122,7 +18093,7 @@ ${recent}`;
     cardEl.onmousemove = function (e) {
       if (window._adocAnyDragActive) return;
       const blockEl = e.target.closest('.adoc-sc-block, .cc-preview-cover-source');
-      const inZone = blockEl && (e.target.closest('img') || adocDragInEdgeZone(blockEl, e.clientX));
+      const inZone = blockEl && (e.target.closest('img') || adocDragInEdgeZone(blockEl, e.clientX, e.clientY));
       if (hoverBlockEl && hoverBlockEl !== (inZone ? blockEl : null)) { hoverBlockEl.classList.remove('cc-drag-edge-hover'); hoverBlockEl = null; }
       if (inZone && hoverBlockEl !== blockEl) { blockEl.classList.add('cc-drag-edge-hover'); hoverBlockEl = blockEl; }
     };
@@ -18132,7 +18103,7 @@ ${recent}`;
     cardEl.onmousedown = function (e) {
       if (window._adocAnyDragActive) return;
       const blockEl = e.target.closest('.adoc-sc-block, .cc-preview-cover-source');
-      if (!blockEl || !(e.target.closest('img') || adocDragInEdgeZone(blockEl, e.clientX))) return;
+      if (!blockEl || !(e.target.closest('img') || adocDragInEdgeZone(blockEl, e.clientX, e.clientY))) return;
       const preview = window._adocPreviewState;
       const sourceId = blockEl.classList.contains('cc-preview-cover-source')
         ? 'preview-cover:' + blockEl.closest('.adoc-sc-card').id : blockEl.id;
@@ -22101,7 +22072,7 @@ ${recent}`;
     // déplacement) : sous ce seuil, mouseup ouvre quand même le panneau (clic normal, non-
     // régression explicitement demandée). Point d'annulation posé UNE SEULE FOIS au premier tick
     // de mouvement réel (même principe que le curseur d'opacité, Lot E, jamais à chaque frame).
-    // Refonte du geste (Sujet 1, étendue à Item 63f) — curseur "grab" au survol du bord gauche
+    // Curseur "grab" au survol de l'un des quatre bords
     // d'un bloc réordonnable, jamais un carré visible en permanence (même zone que le nouveau
     // déclenchement ci-dessous, adocDragInEdgeZone). N'interfère jamais avec les affordances
     // Item 75 (poignées dédiées, révélées en CSS :hover) : classe posée/retirée uniquement sur
@@ -22110,7 +22081,8 @@ ${recent}`;
     docCard.onmousemove = function (e) {
       if (window._adocAnyDragActive) return;
       const blockEl = e.target.closest('.adoc-sc-block');
-      const inZone = blockEl && adocDragInEdgeZone(blockEl, e.clientX);
+      const onResizeHandle = e.target.closest('.cc-flow-resize-handle, .cc-image-resize-handle, .adoc-sc-nested-resize-handle, .adoc-sc-card-resize-handle');
+      const inZone = blockEl && !onResizeHandle && adocDragInEdgeZone(blockEl, e.clientX, e.clientY);
       if (hoverReorderBlockEl && hoverReorderBlockEl !== (inZone ? blockEl : null)) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
       if (inZone && hoverReorderBlockEl !== blockEl) { blockEl.classList.add('cc-drag-edge-hover'); hoverReorderBlockEl = blockEl; }
     };
@@ -22232,9 +22204,8 @@ ${recent}`;
       // fonction commune avec lui (calcul de position totalement différent — ici un INDEX dans
       // `blocks[]`, jamais des coordonnées x/y).
       // Refonte du geste (Sujet 1, étendue à Item 63f sur confirmation explicite de Christophe) —
-      // la poignée carrée visible en permanence disparaît, remplacée par une zone de bord annoncée
-      // par un repère discret (CORRECTIF ERGONOMIE, cf. plus haut) sur ADOC_DRAG_EDGE_ZONE_PX le
-      // long du bord GAUCHE du bloc (adocDragInEdgeZone),
+      // la poignée carrée visible en permanence disparaît, remplacée par une zone
+      // sur les quatre bords du bloc (adocDragInEdgeZone),
       // jamais en plein texte (conflit avec la sélection native écarté par investigation). ORDRE
       // DE BRANCHEMENT INCHANGÉ : ce test reste le tout premier, avant la garde carte/nestedEl
       // ci-dessous — un point hors zone retombe exactement comme avant sur Item 75
@@ -22242,7 +22213,7 @@ ${recent}`;
       // d'investigation). Seule la MÉTHODE DE DÉTECTION change (géométrie au lieu d'un élément
       // poignée exact), jamais la structure de branchement.
       const reorderBlockEl = e.target.closest('.adoc-sc-block');
-      if (reorderBlockEl && adocDragInEdgeZone(reorderBlockEl, e.clientX)) {
+      if (reorderBlockEl && !e.target.closest('.adoc-sc-nested-resize-handle, .adoc-sc-card-resize-handle') && adocDragInEdgeZone(reorderBlockEl, e.clientX, e.clientY)) {
         e.preventDefault();
         const blockEl = reorderBlockEl;
         if (!blockEl) return;
@@ -22318,6 +22289,7 @@ ${recent}`;
             adocEditorCheckpoint();
             document.addEventListener('click', suppressNextClick, true);
             window._adocAnyDragActive = true; // Fusion Phase 2 — verrou partagé, posé au même moment que le checkpoint (mouvement réel confirmé)
+            document.documentElement.classList.add('cc-block-reordering');
             if (hoverReorderBlockEl) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
             ghost = adocDragGhostCreate(blockEl, ev.clientX, ev.clientY);
             if (doc.documentKind === 'presentation') {
@@ -22343,6 +22315,7 @@ ${recent}`;
           document.removeEventListener('mouseup', onUp);
           if (scrollTimer != null) window.clearInterval(scrollTimer);
           window._adocAnyDragActive = false; // Fusion Phase 2 — libère le verrou partagé, inconditionnel comme le retrait défensif ci-dessous
+          document.documentElement.classList.remove('cc-block-reordering');
           adocDragGhostRemove(ghost);
           // CORRECTIF (trouvé en testant) — quand mousedown et mouseup n'aboutissent pas au même
           // élément (le cas normal d'un réordonnancement : la poignée puis un tout autre bloc), le
@@ -25665,7 +25638,7 @@ ${recent}`;
     // CONTENU à un INDEX FIXE — incapable de persister un changement d'ORDRE, confirmé par lecture
     // directe avant construction).
     // Refonte du geste (Sujet 1, étendue à Item 63f) — même principe que côté structuré
-    // (adocWsSetupBlockEditing) : curseur "grab" au survol du bord gauche de l'ENVELOPPE
+    // (adocWsSetupBlockEditing) : curseur "grab" au survol des quatre bords de l'ENVELOPPE
     // .adoc-sc-block-drag-wrap (jamais du bloc lui-même, qui peut être un <table>/<ul>/<ol> sans
     // zone de bord fiable), jamais de carré visible en permanence. adocDragInEdgeZone et le
     // fantôme (adocDragGhostCreate/Move/Remove) sont les MÊMES fonctions partagées que côté
@@ -25674,7 +25647,7 @@ ${recent}`;
     docCard.onmousemove = function (e) {
       if (window._adocAnyDragActive) return;
       const wrapEl = e.target.closest('.adoc-sc-block-drag-wrap');
-      const inZone = wrapEl && adocDragInEdgeZone(wrapEl, e.clientX);
+      const inZone = wrapEl && !e.target.closest('.cc-flow-resize-handle') && adocDragInEdgeZone(wrapEl, e.clientX, e.clientY);
       if (hoverReorderWrapEl && hoverReorderWrapEl !== (inZone ? wrapEl : null)) { hoverReorderWrapEl.classList.remove('cc-drag-edge-hover'); hoverReorderWrapEl = null; }
       if (inZone && hoverReorderWrapEl !== wrapEl) { wrapEl.classList.add('cc-drag-edge-hover'); hoverReorderWrapEl = wrapEl; }
     };
@@ -25693,7 +25666,7 @@ ${recent}`;
       if (e.target.closest('.cc-block-delete')) return;
       if (window._adocAnyDragActive) return;
       const wrap = e.target.closest('.adoc-sc-block-drag-wrap');
-      if (!wrap || !adocDragInEdgeZone(wrap, e.clientX)) return;
+      if (!wrap || !adocDragInEdgeZone(wrap, e.clientX, e.clientY)) return;
       e.preventDefault();
       if (hoverReorderWrapEl) { hoverReorderWrapEl.classList.remove('cc-drag-edge-hover'); hoverReorderWrapEl = null; }
       const blockEl = wrap.querySelector('[data-cc-legacy-block-id]');
@@ -25724,6 +25697,7 @@ ${recent}`;
           adocEditorCheckpoint();
           document.addEventListener('click', suppressNextClick, true);
           window._adocAnyDragActive = true;
+          document.documentElement.classList.add('cc-block-reordering');
           ghost = adocDragGhostCreate(wrap, ev.clientX, ev.clientY);
         }
         moved = true;
@@ -25735,6 +25709,7 @@ ${recent}`;
         document.removeEventListener('mousemove', onMove);
         document.removeEventListener('mouseup', onUp);
         window._adocAnyDragActive = false;
+        document.documentElement.classList.remove('cc-block-reordering');
         adocDragGhostRemove(ghost);
         // CORRECTIF (même que côté structuré) — retrait défensif du piège suppressNextClick, sans
         // effet si le clic naturel l'a déjà auto-retiré : mousedown/mouseup n'aboutissent presque
