@@ -1211,9 +1211,11 @@ function sansLien(
 
   // Un document peut apprendre lui-même un repère numérique que personne n'a nommé dans le
   // code. On ne l'apprend que des lignes déjà prouvées par deux lectures indépendantes (nom et
-  // table), et seulement si le même libellé précède toujours la piste attendue, au moins huit
-  // fois, sans une seule contradiction. Les mots qui appartiennent à la désignation du média
-  // sont exclus : répéter son propre nom ne constituerait pas un second signal.
+  // table), et seulement si le même libellé précède la piste attendue au moins huit fois. Une
+  // lecture contrariée par vingt lectures concordantes est une faute de déchiffrage, pas un
+  // démenti : la tolérance vaut une contradiction par vingt accords exacts, donc aucune en
+  // dessous de vingt. Les mots qui appartiennent à la désignation du média sont exclus :
+  // répéter son propre nom ne constituerait pas un second signal.
   const normaliser = (texte: string): string =>
     texte
       .normalize("NFD")
@@ -1249,7 +1251,11 @@ function sansLien(
   }
   const libellesEtablis = new Set(
     [...statistiques]
-      .filter(([, statistique]) => statistique.accords.size >= 8 && statistique.contradictions === 0)
+      .filter(
+        ([, statistique]) =>
+          statistique.accords.size >= 8 &&
+          statistique.contradictions <= Math.floor(statistique.accords.size / 20),
+      )
       .map(([libelle]) => libelle),
   );
   const numerosDeLaTable = new Set(lignesDeLaTable.map((ligne) => ligne.numero));

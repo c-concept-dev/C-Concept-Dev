@@ -209,8 +209,8 @@ describe("un document sans manière de lire (OUT-10)", () => {
   });
 
   it("apprend un repère numérique récurrent des accords prouvés et récupère un départ absent de la table", async () => {
-    const pdf = pdfDePages("repere-appris.pdf", Array.from({ length: 11 }, () => prose(700)));
-    const motsDeTable = Array.from({ length: 8 }, (_, place) =>
+    const pdf = pdfDePages("repere-appris.pdf", Array.from({ length: 23 }, () => prose(700)));
+    const motsDeTable = Array.from({ length: 20 }, (_, place) =>
       [place + 1, place + 1, place + 8].map((valeur, colonne) => ({
         texte: String(valeur),
         x: 100 + colonne * 100,
@@ -219,7 +219,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
         h: 10,
       })),
     ).flat();
-    const inventaire = Array.from({ length: 9 }, (_, place) => ({
+    const inventaire = Array.from({ length: 21 }, (_, place) => ({
       nom: `${String(place + 1).padStart(2, "0")} - Clause #${place + 1}.mp3`,
       empreinte: `${place}`.repeat(64).slice(0, 64),
       provenances: ["lot:epreuve"],
@@ -227,13 +227,13 @@ describe("un document sans manière de lire (OUT-10)", () => {
     const texteDesPages = [
       { page: 1, texte: "Table", mots: motsDeTable },
       { page: 2, pageImprimee: 8, texte: "Borne 1 Clause #1", mots: [] },
-      ...Array.from({ length: 8 }, (_, place) => ({
+      ...Array.from({ length: 20 }, (_, place) => ({
         page: place + 3,
-        ...(place === 7 ? { pageImprimee: 16 } : {}),
-        texte: `Borne ${place + 2} Clause #${place + 2}`,
+        ...(place === 19 ? { pageImprimee: 28 } : {}),
+        texte: `Borne ${place + 2} Clause #${place + 2}${place === 0 ? " Borne 999" : ""}`,
         mots: [],
       })),
-      { page: 11, texte: "Fin", mots: [] },
+      { page: 23, texte: "Fin", mots: [] },
     ];
 
     const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
@@ -244,10 +244,10 @@ describe("un document sans manière de lire (OUT-10)", () => {
       budgetExploration: { paires: 256, secondes: 0 },
     });
 
-    expect(rejeu.resultat.lignes, rejeu.journal.join("\n")).toHaveLength(9);
-    expect(rejeu.resultat.lignes.find((ligne) => ligne.numero === 9)).toMatchObject({
-      pageImprimee: 16,
-      piste: 9,
+    expect(rejeu.resultat.lignes, rejeu.journal.join("\n")).toHaveLength(21);
+    expect(rejeu.resultat.lignes.find((ligne) => ligne.numero === 21)).toMatchObject({
+      pageImprimee: 28,
+      piste: 21,
       sourcePiste: "corroboration_recurrente",
     });
     expect(rejeu.association.abstention).toBeUndefined();
