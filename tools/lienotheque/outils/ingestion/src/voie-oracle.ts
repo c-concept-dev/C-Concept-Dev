@@ -319,7 +319,7 @@ export type TableObservee = { readonly page: number; readonly table: TableLue };
 export type PreuveParTable = {
   readonly page: number;
   readonly lignes: readonly LigneInterpretee[];
-  readonly signaux: readonly ["pastille", "table"];
+  readonly signaux: readonly string[];
 };
 
 const PERMUTATIONS_DE_TROIS = [
@@ -349,14 +349,22 @@ export function corroborerParTable(
   const lisibles = lignes.filter(
     (ligne) =>
       ligne.piste !== undefined &&
-      (ligne.sourcePiste === "pastille" || ligne.sourcePiste === "vision"),
+      (ligne.sourcePiste === "pastille" ||
+        ligne.sourcePiste === "vision" ||
+        ligne.sourcePiste === "corroboration_media"),
   );
   if (lisibles.length === 0) return undefined;
+  const premiersSignaux = [...new Set(lisibles.map((ligne) => ligne.sourcePiste!))];
 
   const parTriplet = new Map<string, LigneInterpretee | undefined>();
+  const parCoupleNomme = new Map<string, LigneInterpretee | undefined>();
   for (const ligne of lisibles) {
     const clef = `${ligne.numero}\u0000${ligne.piste}\u0000${ligne.pageImprimee}`;
     parTriplet.set(clef, parTriplet.has(clef) ? undefined : ligne);
+    if (ligne.sourcePiste === "corroboration_media") {
+      const couple = `${ligne.numero}\u0000${ligne.piste}`;
+      parCoupleNomme.set(couple, parCoupleNomme.has(couple) ? undefined : ligne);
+    }
   }
   const numeroMaximal = Math.max(...lisibles.map((ligne) => ligne.numero));
   const pageMaximale = Math.max(...lisibles.map((ligne) => ligne.pageImprimee));
@@ -392,8 +400,18 @@ export function corroborerParTable(
         continue;
 
       const correspondances = valeurs.flatMap(({ numero, piste, page }) => {
-        const ligne = parTriplet.get(`${numero}\u0000${piste}\u0000${page}`);
-        return ligne === undefined ? [] : [ligne];
+        if (numero === undefined || piste === undefined || page === undefined) return [];
+        // Une marque et une table nomment le même folio : leur triplet doit être identique.
+        // Un titre, lui, peut être retrouvé sur une page intérieure de l'élément alors que la
+        // table en donne la page de départ. Dans ce cas, les deux lectures indépendantes se
+        // confrontent sur ce qu'elles disent toutes deux : identité de l'élément et piste.
+        const exacte = parTriplet.get(`${numero}\u0000${piste}\u0000${page}`);
+        if (exacte !== undefined) return [exacte];
+        const nommee = parCoupleNomme.get(`${numero}\u0000${piste}`);
+        // Pour un titre retrouvé à l'intérieur d'un élément, la table fournit sa page de départ.
+        // Le chemin appelant exige déjà un vote documentaire de folios ; cette lecture précise
+        // les départs que tous les pieds de page n'ont pas nécessairement permis de relire.
+        return nommee === undefined ? [] : [{ ...nommee, pageImprimee: page }];
       });
       if (correspondances.length < minimum || correspondances.length / rangees.length < 0.9) continue;
       const uniques = [...new Map(correspondances.map((ligne) => [ligne.numero, ligne])).values()].sort(
@@ -414,7 +432,7 @@ export function corroborerParTable(
   return {
     page: retenu.page,
     lignes: retenu.lignes.map((ligne) => ({ ...ligne, sourcePiste: "corroboration_table" as const })),
-    signaux: ["pastille", "table"],
+    signaux: [...premiersSignaux, "corroboration_table"],
   };
 }
 
@@ -449,11 +467,12 @@ export async function rejouerParOracle(
       : undefined;
   const foliosEtablis =
     options.foliosEtablis === true &&
-    texteAligne !== undefined &&
-    texteAligne.every((page) => page.pageImprimee !== undefined);
+    texteAligne !== undefined;
   const folioParRang = new Map<number, number>(
     foliosEtablis
-      ? texteAligne!.map((page) => [page.page, page.pageImprimee!] as const)
+      ? texteAligne!.flatMap((page) =>
+          page.pageImprimee === undefined ? [] : [[page.page, page.pageImprimee] as const],
+        )
       : [],
   );
   if (options.texteDesPages !== undefined && texteAligne === undefined)
@@ -465,11 +484,16 @@ export async function rejouerParOracle(
     );
   if (options.foliosEtablis === true && !foliosEtablis)
     dire(
-      "folios écartés : la lecture dit les avoir établis, mais toutes les pages logiques n'en portent pas un. " +
+      "folios écartés : la lecture dit les avoir établis, mais le texte ne correspond pas aux pages rendues. " +
         "Les candidats resteront à vérifier.",
     );
   else if (!foliosEtablis)
     dire("aucun folio établi à l'échelle du document : les candidats resteront à vérifier.");
+  else if (folioParRang.size < combienDePages)
+    dire(
+      `folios établis sur ${folioParRang.size} page(s) sur ${combienDePages} ; ` +
+        "les pages liminaires sans folio restent déduites et ne pourront porter aucun lien automatique.",
+    );
   const acquis = acquisUtilisable(options.acquis, empreinte, combienDePages, dire);
 
   // Un document dont il est **déjà établi** qu'aucun endroit n'y porte de numérotation n'a rien à
@@ -972,11 +996,16 @@ export async function rejouerParOracle(
   // Une table n'est retenue que si elle recoupe massivement les triplets élément/piste/folio
   // déjà lus par les marques. Elle ne comble pas les trous : seules les lignes réellement
   // recoupées deviennent publiables.
+  const rangParNumero = new Map(marques.map((marque) => [marque.numero, marque.rangDePage] as const));
+  const lignesAvecFolio = lignesLues.filter((ligne) => {
+    const rang = rangParNumero.get(ligne.numero);
+    return rang !== undefined && folioParRang.has(rang);
+  });
   const tables =
     texteAligne?.flatMap((page) =>
       page.mots === undefined ? [] : [{ page: page.page, table: lireLaTable(page.mots) }],
     ) ?? [];
-  const preuveParTable = foliosEtablis ? corroborerParTable(lignesLues, tables, medias.length) : undefined;
+  const preuveParTable = foliosEtablis ? corroborerParTable(lignesAvecFolio, tables, medias.length) : undefined;
   const lignes: LigneInterpretee[] = [...(preuveParTable?.lignes ?? lignesLues)];
   if (preuveParTable !== undefined)
     dire(
@@ -989,7 +1018,6 @@ export async function rejouerParOracle(
         `et assez corroborée pour publier.`,
     );
 
-  const rangParNumero = new Map(marques.map((marque) => [marque.numero, marque.rangDePage] as const));
   const parRang = new Map<number, LigneInterpretee[]>();
   lignes.forEach((ligne) => {
     const rang = rangParNumero.get(ligne.numero);
@@ -1002,9 +1030,9 @@ export async function rejouerParOracle(
       index: place,
       rang: place,
       pageImprimee: folioParRang.get(rang) ?? rang,
-      // « Lue » seulement si le vote documentaire a établi tous les folios. Une lecture locale
-      // isolée ne doit jamais suffire à changer ce statut ni à autoriser la publication.
-      statut: foliosEtablis ? ("lue" as const) : ("deduite" as const),
+      // « Lue » seulement si le vote documentaire a établi le folio de cette page. Une lecture
+      // locale isolée ne doit jamais suffire à changer ce statut ni à autoriser la publication.
+      statut: folioParRang.has(rang) ? ("lue" as const) : ("deduite" as const),
       elements: (parRang.get(rang) ?? []).map((ligne) => ({
         numero: ligne.numero,
         y: ligne.zoneRepere?.y ?? 0,
@@ -1058,7 +1086,13 @@ export async function rejouerParOracle(
           pourquoi:
             "Deux façons de lire indépendantes s'accordent : les repères des pages et la table globale du document.",
         };
-  const corroboration = foliosEtablis
+  const foliosDesLignesEtablis =
+    foliosEtablis &&
+    lignes.every((ligne) => {
+      const rang = rangParNumero.get(ligne.numero);
+      return rang !== undefined && folioParRang.has(rang);
+    });
+  const corroboration = foliosDesLignesEtablis
     ? corroborationLue
     : {
         ...corroborationLue,
@@ -1117,11 +1151,12 @@ function sansLien(
       : undefined;
   const foliosEtablis =
     options.foliosEtablis === true &&
-    texteAligne !== undefined &&
-    texteAligne.every((page) => page.pageImprimee !== undefined);
+    texteAligne !== undefined;
   const folioParRang = new Map<number, number>(
     foliosEtablis
-      ? texteAligne!.map((page) => [page.page, page.pageImprimee!] as const)
+      ? texteAligne!.flatMap((page) =>
+          page.pageImprimee === undefined ? [] : [[page.page, page.pageImprimee] as const],
+        )
       : [],
   );
   const accords =
@@ -1134,30 +1169,64 @@ function sansLien(
   const parMedia = new Map<number, typeof accords>();
   for (const accord of accords)
     for (const rang of accord.rangs) parMedia.set(rang, [...(parMedia.get(rang) ?? []), accord]);
-  const lignes: LigneInterpretee[] = [...parMedia.entries()]
+  const candidatesNommees = [...parMedia.entries()]
     .filter(([, trouves]) => trouves.length === 1)
     .map(([rang, trouves]) => {
       const media = medias[rang]!;
+      const page = trouves[0]!.page;
       return {
-        numero: rang + 1,
-        pageImprimee: folioParRang.get(trouves[0]!.page) ?? trouves[0]!.page,
-        piste: media.piste,
-        disque: media.disque ?? 1,
-        sourcePiste: "corroboration_media" as const,
-        confiance: 1,
+        page,
+        ligne: {
+          numero: rang + 1,
+          pageImprimee: folioParRang.get(page) ?? page,
+          piste: media.piste,
+          disque: media.disque ?? 1,
+          sourcePiste: "corroboration_media" as const,
+          confiance: 1,
+        } satisfies LigneInterpretee,
       };
     })
-    .sort((un, autre) => un.pageImprimee - autre.pageImprimee || un.numero - autre.numero);
+    .sort(
+      (un, autre) =>
+        un.ligne.pageImprimee - autre.ligne.pageImprimee || un.ligne.numero - autre.ligne.numero,
+    );
+  const tables =
+    texteAligne?.flatMap((page) =>
+      page.mots === undefined ? [] : [{ page: page.page, table: lireLaTable(page.mots) }],
+    ) ?? [];
+  const preuveLue = foliosEtablis
+    ? corroborerParTable(
+        candidatesNommees.map((candidate) => candidate.ligne),
+        tables,
+        medias.length,
+      )
+    : undefined;
+  // La table est elle-même la seconde lecture qui établit le folio de départ. Exiger en plus
+  // que chaque pied de page ait été relu par l'OCR annulerait précisément son apport. Ses
+  // valeurs restent bornées et confrontées massivement aux noms par `corroborerParTable`.
+  const preuveParTable = preuveLue;
+  const lignes: LigneInterpretee[] = [
+    ...(preuveParTable?.lignes ?? candidatesNommees.map((candidate) => candidate.ligne)),
+  ];
   const pages = Array.from({ length: combienDePages }, (_, place) => ({
     index: place,
     rang: place,
     pageImprimee: folioParRang.get(place + 1) ?? place + 1,
-    statut: foliosEtablis ? ("lue" as const) : ("deduite" as const),
+    statut: folioParRang.has(place + 1) ? ("lue" as const) : ("deduite" as const),
     elements: [],
   }));
   if (lignes.length > 0) {
     const borne = borneDuVivier(options.provenancesMedias ?? [], options.inventaireMedias ?? medias.map(() => ({})));
-    const corroboration = corroborationDesLignes(lignes, {});
+    const corroboration =
+      preuveParTable === undefined
+        ? corroborationDesLignes(lignes, {})
+        : {
+            signaux: preuveParTable.signaux,
+            preuveHumaine: false,
+            suffisante: true,
+            pourquoi:
+              "Deux façons de lire indépendantes s'accordent : les noms imprimés et la table globale du document.",
+          };
     const association = qualifierAssociation(
       lignes,
       medias,
@@ -1165,8 +1234,11 @@ function sansLien(
       { borne, corroboration, mediasDisponibles: medias.length },
     );
     const message =
-      `${lignes.length} proposition(s) tirée(s) des noms restent visibles pour vérification humaine ; ` +
-      `ce signal unique ne publie aucun lien.`;
+      preuveParTable === undefined
+        ? `${lignes.length} proposition(s) tirée(s) des noms restent visibles pour vérification humaine ; ` +
+          `ce signal unique ne publie aucun lien.`
+        : `table globale page ${preuveParTable.page} : ${lignes.length} proposition(s) nommée(s) ` +
+          `recoupée(s) exactement et publiable(s) ; les autres restent à vérifier.`;
     journal.push(message);
     options.surPhase?.(message);
     return {

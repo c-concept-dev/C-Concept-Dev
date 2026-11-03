@@ -123,7 +123,7 @@ describe("une table globale corrobore sans jamais décider seule (OUT-10, REC-02
     expect(preuve?.page).toBe(5);
     expect(preuve?.lignes).toHaveLength(43);
     expect(new Set(preuve?.lignes.map((ligne) => ligne.sourcePiste))).toEqual(new Set(["corroboration_table"]));
-    expect(preuve?.signaux).toEqual(["pastille", "table"]);
+    expect(preuve?.signaux).toEqual(["pastille", "corroboration_table"]);
   });
 
   it("refuse une table courte même quand ses quatre valeurs coïncident", () => {
@@ -139,9 +139,71 @@ describe("une table globale corrobore sans jamais décider seule (OUT-10, REC-02
       corroborerParTable(lignes, [{ page: 5, table: { ...horsBornes, rangees } }], 52),
     ).toBeUndefined();
   });
+
+  it("sait confronter la table aux candidats venus des noms, sans exiger une marque", () => {
+    const nommees = lignes.map((ligne) => ({
+      ...ligne,
+      // Le titre peut être retrouvé sur une page intérieure de l'élément, tandis que la table
+      // donne sa page de départ. Ce sont deux localisateurs du même workout, pas une contradiction.
+      pageImprimee: ligne.pageImprimee + 1,
+      sourcePiste: "corroboration_media" as const,
+    }));
+    const preuve = corroborerParTable(nommees, [{ page: 5, table: table(43) }], 52);
+
+    expect(preuve?.lignes).toHaveLength(43);
+    expect(preuve?.lignes[0]?.pageImprimee, "la table donne la page de départ").toBe(8);
+    expect(preuve?.signaux).toEqual(["corroboration_media", "corroboration_table"]);
+  });
 });
 
 describe("un document sans manière de lire (OUT-10)", () => {
+  it("publie l'accord noms-table même si les pages liminaires n'ont pas de folio (REC-02, OUT-15)", async () => {
+    const pdf = pdfDePages("noms-et-table.pdf", Array.from({ length: 10 }, () => prose(700)));
+    const motsDeTable = Array.from({ length: 8 }, (_, place) =>
+      [place + 1, place + 1, place + 8].map((valeur, colonne) => ({
+        texte: String(valeur),
+        x: 100 + colonne * 100,
+        y: 100 + place * 20,
+        l: 12,
+        h: 10,
+      })),
+    ).flat();
+    const inventaire = Array.from({ length: 8 }, (_, place) => ({
+      nom: `${String(place + 1).padStart(2, "0")} - Workout #${place + 1}.mp3`,
+      empreinte: `${place}`.repeat(64).slice(0, 64),
+      provenances: ["lot:epreuve"],
+    }));
+    const texteDesPages = [
+      { page: 1, texte: "Table des pistes", mots: motsDeTable },
+      { page: 2, pageImprimee: 8, texte: "Début du premier élément", mots: [] },
+      ...Array.from({ length: 8 }, (_, place) => ({
+        page: place + 3,
+        // Comme sur le vrai Bass Aerobics, le vote documentaire établit la suite des folios
+        // sans que l'OCR relise chacun d'eux. La table doit pouvoir préciser les départs situés
+        // entre les deux bornes effectivement relues, mais jamais en dehors.
+        ...(place === 7 ? { pageImprimee: 16 } : {}),
+        texte: `Workout #${place + 1}`,
+        mots: [],
+      })),
+    ];
+
+    const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
+      inventaireMedias: inventaire,
+      provenancesMedias: ["lot:epreuve"],
+      foliosEtablis: true,
+      texteDesPages,
+      budgetExploration: { paires: 256, secondes: 0 },
+    });
+
+    expect(rejeu.resultat.lignes).toHaveLength(8);
+    expect(rejeu.resultat.lignes.map((ligne) => ligne.pageImprimee)).toEqual([8, 9, 10, 11, 12, 13, 14, 15]);
+    expect(new Set(rejeu.resultat.lignes.map((ligne) => ligne.sourcePiste))).toEqual(
+      new Set(["corroboration_table"]),
+    );
+    expect(rejeu.association.abstention).toBeUndefined();
+    expect(rejeu.association.appariements).toHaveLength(8);
+  });
+
   siTesseract("trouve la marque qui revient et en tire des liens", { timeout: 180_000 }, async () => {
     // Quatre pages, deux marques par page, à la même abscisse : 1 2 / 3 4 / 5 6 / 7 8.
     const pages = [0, 1, 2, 3].map((rang) =>
