@@ -200,6 +200,10 @@ describe("un document sans manière de lire (OUT-10)", () => {
     expect(new Set(rejeu.resultat.lignes.map((ligne) => ligne.sourcePiste))).toEqual(
       new Set(["corroboration_table"]),
     );
+    expect(
+      rejeu.resultat.pages.filter((page) => page.elements.length > 0).map((page) => page.index),
+      "les noms situent physiquement les éléments même quand la table corrige leur folio",
+    ).toEqual([2, 3, 4, 5, 6, 7, 8, 9]);
     expect(rejeu.association.abstention).toBeUndefined();
     expect(rejeu.association.appariements).toHaveLength(8);
   });

@@ -1208,12 +1208,26 @@ function sansLien(
   const lignes: LigneInterpretee[] = [
     ...(preuveParTable?.lignes ?? candidatesNommees.map((candidate) => candidate.ligne)),
   ];
+  // Le nom situe l'élément sur une page physique ; la table, elle, corrige son folio. Garder
+  // seulement le folio fait perdre le pont entre les deux : l'association existe alors dans le
+  // bilan mais aucune page du Lecteur ne peut la porter. C'était exactement le cas des
+  // quarante-quatre liens Bass Aerobics (Workout 2 : folio 8, page 10 du PDF).
+  const pagePhysiqueParNumero = new Map(candidatesNommees.map((candidate) => [candidate.ligne.numero, candidate.page]));
   const pages = Array.from({ length: combienDePages }, (_, place) => ({
     index: place,
     rang: place,
     pageImprimee: folioParRang.get(place + 1) ?? place + 1,
     statut: folioParRang.has(place + 1) ? ("lue" as const) : ("deduite" as const),
-    elements: [],
+    elements: lignes
+      .filter((ligne) => pagePhysiqueParNumero.get(ligne.numero) === place + 1)
+      .map((ligne) => ({
+        numero: ligne.numero,
+        y: 0,
+        presencePiste: 1,
+        suite: false,
+        accordNumero: 1,
+        accordPiste: ligne.confiance,
+      })),
   }));
   if (lignes.length > 0) {
     const borne = borneDuVivier(options.provenancesMedias ?? [], options.inventaireMedias ?? medias.map(() => ({})));
