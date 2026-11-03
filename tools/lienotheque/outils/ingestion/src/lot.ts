@@ -219,35 +219,50 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // Sans manière de lire, la seconde voie : elle cherche la régularité elle-même. Les deux
   // rendent la même forme — c'est ce qui permet à tout ce qui suit de ne pas savoir laquelle a
   // tourné, et aux écrans de n'avoir rien à apprendre.
-  const issu =
-    recette === undefined
-      ? await rejouerParOracle(lot.pdf, lot.medias, {
-          ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
-          ...(lot.provenancesMedias === undefined ? {} : { provenancesMedias: lot.provenancesMedias }),
-          ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
-          ...(lot.surPhase === undefined ? {} : { surPhase: lot.surPhase }),
-          ...(lot.pages === undefined ? {} : { pages: lot.pages }),
-          ...(lot.acquis === undefined ? {} : { acquis: lot.acquis }),
-          doublePage: lu.doublePage,
-          foliosEtablis: lu.foliosEtablis,
-          texteDesPages: lu.pages.map((page) => ({
-            page: page.index,
-            ...(page.pageImprimee === undefined ? {} : { pageImprimee: page.pageImprimee }),
-            texte: page.texte,
-            ...(page.mots === undefined ? {} : { mots: page.mots }),
-          })),
-        })
-      : await rejouer(lot.pdf, lot.medias, recette, {
-          ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
-          ...(lot.provenancesMedias === undefined ? {} : { provenancesMedias: lot.provenancesMedias }),
-          ...(lot.cache === undefined ? {} : { cache: lot.cache }),
-          ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
-          ...(lot.validationStructurelle === undefined ? {} : { validationStructurelle: lot.validationStructurelle }),
-          ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
-          ...(lot.surTotal === undefined ? {} : { surTotal: lot.surTotal }),
-          ...(lot.pages === undefined ? {} : { pages: lot.pages }),
-          ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
-        });
+  const optionsOracle = {
+    ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
+    ...(lot.provenancesMedias === undefined ? {} : { provenancesMedias: lot.provenancesMedias }),
+    ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
+    ...(lot.surPhase === undefined ? {} : { surPhase: lot.surPhase }),
+    ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+    ...(lot.acquis === undefined ? {} : { acquis: lot.acquis }),
+    doublePage: lu.doublePage,
+    foliosEtablis: lu.foliosEtablis,
+    texteDesPages: lu.pages.map((page) => ({
+      page: page.index,
+      ...(page.pageImprimee === undefined ? {} : { pageImprimee: page.pageImprimee }),
+      texte: page.texte,
+      ...(page.mots === undefined ? {} : { mots: page.mots }),
+    })),
+  };
+  let issu: Rejeu | RejeuParOracle;
+  if (recette === undefined) issu = await rejouerParOracle(lot.pdf, lot.medias, optionsOracle);
+  else {
+    const parLaRecette = await rejouer(lot.pdf, lot.medias, recette, {
+      ...(lot.inventaireMedias === undefined ? {} : { inventaireMedias: lot.inventaireMedias }),
+      ...(lot.provenancesMedias === undefined ? {} : { provenancesMedias: lot.provenancesMedias }),
+      ...(lot.cache === undefined ? {} : { cache: lot.cache }),
+      ...(lot.relecture === undefined ? {} : { relecture: lot.relecture }),
+      ...(lot.validationStructurelle === undefined ? {} : { validationStructurelle: lot.validationStructurelle }),
+      ...(lot.avancement === undefined ? {} : { avancement: lot.avancement }),
+      ...(lot.surTotal === undefined ? {} : { surTotal: lot.surTotal }),
+      ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+      ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
+    });
+    const candidates = parLaRecette.resultat.lignes.filter((ligne) => ligne.piste !== undefined);
+    const egaliteSansPreuve =
+      parLaRecette.association.abstention?.raison === "corroboration_insuffisante" &&
+      candidates.length > 0 &&
+      candidates.every(
+        (ligne) => ligne.sourcePiste === "numero_element" && ligne.piste === ligne.numero,
+      );
+    if (egaliteSansPreuve) {
+      lot.surPhase?.(
+        "La manière de lire ne propose que piste = numéro sans corroboration ; la voie oracle prend le relais.",
+      );
+      issu = await rejouerParOracle(lot.pdf, lot.medias, optionsOracle);
+    } else issu = parLaRecette;
+  }
   const { resultat, association, medias } = issu;
   const acquis = acquisRendu(issu);
 

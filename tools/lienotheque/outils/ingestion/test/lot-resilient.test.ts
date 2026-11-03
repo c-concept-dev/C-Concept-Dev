@@ -102,6 +102,71 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
     expect(ordre).toEqual(["texte", "oracle"]);
   });
 
+  it("REC-02 — une recette qui ne fait que poser piste égale numéro cède la place à l'oracle", async () => {
+    doubles.rejouer.mockResolvedValueOnce({
+      resultat: {
+        recette: { id: "methode-cartouche-double-identifiant", version: 1 },
+        pages: [],
+        lignes: [
+          {
+            numero: 1,
+            pageImprimee: 8,
+            piste: 1,
+            disque: 1,
+            sourcePiste: "numero_element",
+            confiance: 1,
+          },
+        ],
+        pagesAbsentes: [],
+        ecartes: [],
+      },
+      association: {
+        appariements: [],
+        manquants: [],
+        orphelins: [],
+        abstention: {
+          raison: "corroboration_insuffisante",
+          combien: 1,
+          pourquoi: "une seule déduction",
+        },
+      },
+      medias: [],
+    });
+    doubles.rejouerParOracle.mockResolvedValueOnce({
+      resultat: {
+        recette: { id: "voie-sans-maniere-de-lire", version: 3 },
+        pages: [],
+        lignes: [
+          {
+            numero: 1,
+            pageImprimee: 8,
+            piste: 1,
+            disque: 1,
+            sourcePiste: "corroboration_table",
+            confiance: 1,
+          },
+        ],
+        pagesAbsentes: [],
+        ecartes: [],
+      },
+      association: { appariements: [], manquants: [], orphelins: [] },
+      medias: [],
+      journal: [],
+    });
+
+    const traite = await instantaneDeLot({
+      pdf: join(RACINE, "fixtures/fichiers/inexistant-mais-double.pdf"),
+      medias: RACINE,
+      recette: RECETTE,
+      description: DESCRIPTION,
+    });
+
+    expect(doubles.rejouer).toHaveBeenCalledOnce();
+    expect(doubles.rejouerParOracle).toHaveBeenCalledOnce();
+    expect(traite.resultat.recette?.id).toBe("voie-sans-maniere-de-lire");
+    expect(traite.resultat.lignes[0]?.sourcePiste).toBe("corroboration_table");
+  });
+
   it("rend les passages même si l'export de la page échoue", async () => {
     expect(existsSync(DESCRIPTION) && existsSync(RECETTE)).toBe(true);
     doubles.exporterPages.mockRejectedValue(new Error("JPEG invalide : fin prématurée du flux"));
