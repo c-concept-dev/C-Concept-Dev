@@ -18062,7 +18062,8 @@ ${recent}`;
   function adocDragInEdgeZone(el, clientX) {
     const r = el.getBoundingClientRect();
     const dx = clientX - r.left;
-    return dx >= 0 && dx <= ADOC_DRAG_EDGE_ZONE_PX;
+    // La prise visible du bloc sélectionné déborde légèrement à gauche du cadre.
+    return dx >= -14 && dx <= ADOC_DRAG_EDGE_ZONE_PX;
   }
   // Fantôme — clone RÉEL du DOM (jamais une reconstruction par type de bloc : un bloc image porte
   // ainsi sa vraie miniature, un tableau ses vraies cellules, un bloc legacy son enveloppe réelle —
@@ -22268,15 +22269,42 @@ ${recent}`;
         const rects = siblingEls.map(function (el) { const r = el.getBoundingClientRect(); return { el: el, mid: r.top + r.height / 2 }; });
         const others = rects.filter(function (r) { return r.el !== blockEl; });
         const pointerStartX = e.clientX, pointerStartY = e.clientY;
-        let moved = false, dropLine = null, dropIdx = oldIdx, ghost = null;
+        let moved = false, dropLine = null, dropIdx = oldIdx, ghost = null, scrollTimer = null;
+        let pointerX = e.clientX, pointerY = e.clientY;
+        let dropContainer = container, dropSiblings = siblings;
         function suppressNextClick(ev2) { ev2.stopPropagation(); ev2.preventDefault(); document.removeEventListener('click', suppressNextClick, true); }
-        function computeDropIdx(pointerY) { for (let i = 0; i < others.length; i++) { if (pointerY < others[i].mid) return i; } return others.length; }
-        function placeDropLine(idx) {
+        function placeDropLine(idx, targetContainer, targetRects) {
           if (!dropLine) { dropLine = document.createElement('div'); dropLine.className = 'adoc-sc-drop-line'; }
-          const ref = others[idx] ? others[idx].el : null;
-          if (ref) container.insertBefore(dropLine, ref); else container.appendChild(dropLine);
+          const ref = targetRects[idx] ? targetRects[idx].el : null;
+          if (ref) targetContainer.insertBefore(dropLine, ref); else targetContainer.appendChild(dropLine);
+        }
+        function updateDropTarget(clientX, clientY) {
+          // Dans une Présentation, la diapositive sous le pointeur peut recevoir
+          // le bloc. Les autres documents gardent leur restriction de conteneur.
+          let targetRects = others;
+          dropContainer = container;
+          dropSiblings = siblings;
+          if (doc.documentKind === 'presentation') {
+            const hit = document.elementFromPoint(clientX, clientY);
+            const targetCardEl = hit && hit.closest('.adoc-sc-card[id]');
+            const targetCard = targetCardEl && (doc.blocks || []).find(function (card) { return card.id === targetCardEl.id && card.type === 'card'; });
+            if (!targetCard || !Array.isArray(targetCard.content.blocks)) {
+              dropSiblings = null;
+              if (dropLine) dropLine.remove();
+              return;
+            }
+            dropContainer = targetCardEl;
+            dropSiblings = targetCard.content.blocks;
+            targetRects = Array.prototype.filter.call(targetCardEl.children, function (el) {
+              return el !== blockEl && el.classList.contains('adoc-sc-block');
+            }).map(function (el) { const r = el.getBoundingClientRect(); return { el: el, mid: r.top + r.height / 2 }; });
+          }
+          dropIdx = targetRects.findIndex(function (r) { return clientY < r.mid; });
+          if (dropIdx === -1) dropIdx = targetRects.length;
+          placeDropLine(dropIdx, dropContainer, targetRects);
         }
         function onMove(ev) {
+          pointerX = ev.clientX; pointerY = ev.clientY;
           if (!moved && Math.abs(ev.clientX - pointerStartX) < 3 && Math.abs(ev.clientY - pointerStartY) < 3) return;
           if (!moved) {
             // Établit le contexte de correction (adocEditorContext) sur CE bloc — seul moyen déjà
@@ -22292,15 +22320,28 @@ ${recent}`;
             window._adocAnyDragActive = true; // Fusion Phase 2 — verrou partagé, posé au même moment que le checkpoint (mouvement réel confirmé)
             if (hoverReorderBlockEl) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
             ghost = adocDragGhostCreate(blockEl, ev.clientX, ev.clientY);
+            if (doc.documentKind === 'presentation') {
+              const scrollArea = docCard.closest('.cc-ws-doc-area');
+              if (scrollArea) scrollTimer = window.setInterval(function () {
+                const area = scrollArea.getBoundingClientRect();
+                const delta = pointerY > area.bottom - 48 && pointerY < area.bottom ? 18
+                  : pointerY < area.top + 48 && pointerY > area.top ? -18 : 0;
+                if (delta) {
+                  const before = scrollArea.scrollTop;
+                  scrollArea.scrollTop += delta;
+                  if (scrollArea.scrollTop !== before) updateDropTarget(pointerX, pointerY);
+                }
+              }, 30);
+            }
           }
           moved = true;
           adocDragGhostMove(ghost, ev.clientX, ev.clientY);
-          dropIdx = computeDropIdx(ev.clientY);
-          placeDropLine(dropIdx);
+          updateDropTarget(ev.clientX, ev.clientY);
         }
         function onUp() {
           document.removeEventListener('mousemove', onMove);
           document.removeEventListener('mouseup', onUp);
+          if (scrollTimer != null) window.clearInterval(scrollTimer);
           window._adocAnyDragActive = false; // Fusion Phase 2 — libère le verrou partagé, inconditionnel comme le retrait défensif ci-dessous
           adocDragGhostRemove(ghost);
           // CORRECTIF (trouvé en testant) — quand mousedown et mouseup n'aboutissent pas au même
@@ -22311,9 +22352,9 @@ ${recent}`;
           // Retrait défensif ici, sans effet si le clic naturel l'a déjà fait lui-même.
           document.removeEventListener('click', suppressNextClick, true);
           if (dropLine && dropLine.parentNode) dropLine.parentNode.removeChild(dropLine);
-          if (moved && dropIdx !== oldIdx) {
+          if (moved && dropSiblings && (dropSiblings !== siblings || dropIdx !== oldIdx)) {
             siblings.splice(oldIdx, 1);
-            siblings.splice(dropIdx, 0, block);
+            dropSiblings.splice(dropIdx, 0, block);
             window.adocOpenWorkspace(storeKey);
           }
         }

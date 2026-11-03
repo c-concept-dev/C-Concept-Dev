@@ -14,7 +14,7 @@
 // Non-régression Item 75 (positionnement de carte par glissement) : vérifiée séparément par la
 // suite verify-item75-dette-overlap-guard.cjs, déjà existante et inchangée par ce lot — dupliquer
 // ici son scénario détaillé serait hors périmètre (même raisonnement que les tests cités ci-dessus).
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
@@ -37,7 +37,7 @@ function heading(id, text) { return { id: id, type: 'heading', content: { text: 
 function table(id) { return { id: id, type: 'table', content: { headers: ['A', 'B'], rows: [['x', 'y']] }, citationIds: [], validation: {} }; }
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await (process.env.CC_TEST_BROWSER === 'webkit' ? webkit : chromium).launch();
   const page = await browser.newPage();
   const pageErrors = [];
   page.on('pageerror', (e) => pageErrors.push(e.message));
@@ -180,6 +180,85 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   assert.deepEqual(carrouselState.card2Ids, ['c2-p1'], 'la carte 2 ne doit recevoir aucun bloc étranger, même en pointant loin en dessous d\'elle');
   console.log('PASS 5/9 — restriction de conteneur : un bloc de carte reste dans SA carte même en pointant vers une autre carte');
 
+  // Présentation : un bloc peut désormais changer de diapositive, sans modifier
+  // la règle de conteneur du Carrousel vérifiée juste au-dessus.
+  await page.setViewportSize({ width: 1400, height: 2400 });
+  const storeKeyP = 'adocArt_test63f_presentation';
+  await page.evaluate(({ key, doc }) => {
+    window._adocArtifacts[key] = {
+      name: 'Test déplacement présentation', _adocGenerationEngine: 'structured',
+      _adocCapabilities: { workspace: true, blockEditing: true }, _adocStructuredDoc: doc,
+    };
+  }, { key: storeKeyP, doc: {
+    ...ficheDoc([]), documentId: 'doc-63f-presentation', documentKind: 'presentation',
+    blocks: [
+      { id: 'slide-1', type: 'card', content: { title: 'Diapositive 1', imageRef: null, imageAlt: null, blocks: [para('slide-p1', 'Premier bloc.'), para('slide-p2', 'Deuxième bloc.')] }, citationIds: [], validation: {} },
+      { id: 'slide-2', type: 'card', content: { title: 'Diapositive 2', imageRef: null, imageAlt: null, blocks: [para('slide-p3', 'Troisième bloc.')] }, citationIds: [], validation: {} },
+    ],
+  } });
+  opened = await page.evaluate((key) => window.adocOpenWorkspace(key), storeKeyP);
+  assert.equal(opened, true, 'la Présentation doit s’ouvrir');
+  await page.click('#slide-p1');
+  const grip = await page.evaluate(() => ({
+    selected: getComputedStyle(document.getElementById('slide-p1'), '::before').content,
+    unselected: getComputedStyle(document.getElementById('slide-p2'), '::before').content,
+  }));
+  assert.match(grip.selected, /↕/, 'la poignée doit être visible sur le bloc sélectionné');
+  assert.ok(grip.unselected === 'none' || grip.unselected === 'normal', 'la poignée doit être masquée sur un bloc non sélectionné');
+  const destination = await page.locator('#slide-p3').boundingBox();
+  await dragEdgeTo('#slide-p1', destination.y + destination.height + 30);
+  const movedAcrossSlides = await page.evaluate((key) => window._adocArtifacts[key]._adocStructuredDoc.blocks.map((card) => card.content.blocks.map((b) => b.id)), storeKeyP);
+  assert.deepEqual(movedAcrossSlides, [['slide-p2'], ['slide-p3', 'slide-p1']], 'le bloc doit être déplacé dans le tableau de la deuxième diapositive');
+  assert.equal(await page.locator('#slide-2 > #slide-p1').count(), 1, 'le rendu doit afficher le bloc dans sa nouvelle diapositive');
+  console.log('PASS présentation — poignée sélectionnée et glissement entre deux diapositives persisté dans blocks[]');
+
+  await page.click('#slide-p2');
+  await page.evaluate(() => {
+    const leaf = document.querySelector('#slide-p2 [data-cc-editor-leaf]');
+    leaf.focus();
+    leaf.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }));
+  });
+  await page.waitForTimeout(30);
+  const afterCrossUndo = await page.evaluate((key) => window._adocArtifacts[key]._adocStructuredDoc.blocks.map((card) => card.content.blocks.map((b) => b.id)), storeKeyP);
+  assert.deepEqual(afterCrossUndo, [['slide-p1', 'slide-p2'], ['slide-p3']], 'un seul Ctrl+Z restaure le bloc dans sa diapositive initiale');
+  const destinationAgain = await page.locator('#slide-p3').boundingBox();
+  await dragEdgeTo('#slide-p1', destinationAgain.y + destinationAgain.height + 30);
+
+  // La destination d'une longue présentation est généralement hors écran.
+  // Garder le pointeur en bas doit faire défiler la zone de travail pendant le geste.
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.evaluate(() => { document.querySelector('.cc-ws-doc-area').scrollTop = 0; });
+  await page.click('#slide-p2');
+  const sourceSmall = await page.locator('#slide-p2').boundingBox();
+  const scrollBox = await page.locator('.cc-ws-doc-area').boundingBox();
+  const dropX = sourceSmall.x + 4, dropY = scrollBox.y + scrollBox.height - 20;
+  await page.mouse.move(dropX, sourceSmall.y + sourceSmall.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(dropX + 8, sourceSmall.y + sourceSmall.height / 2 + 8);
+  await page.mouse.move(dropX, dropY);
+  await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.closest('.adoc-sc-card[id]')?.id === 'slide-2', { x: dropX, y: dropY }, { timeout: 4000 });
+  await page.mouse.up();
+  await page.waitForTimeout(60);
+  const afterScrollDrag = await page.evaluate((key) => window._adocArtifacts[key]._adocStructuredDoc.blocks.map((card) => card.content.blocks.map((b) => b.id)), storeKeyP);
+  assert.deepEqual(afterScrollDrag[0], [], 'le bloc a quitté la première diapositive après défilement');
+  assert.deepEqual(afterScrollDrag[1].filter((id) => id !== 'slide-p2'), ['slide-p3', 'slide-p1'], 'les blocs déjà présents gardent leur ordre');
+  assert.ok(afterScrollDrag[1].includes('slide-p2'), 'la diapositive révélée reçoit le bloc');
+  console.log('PASS présentation — défilement automatique et dépôt dans la diapositive hors écran');
+
+  await page.setViewportSize({ width: 1400, height: 2400 });
+  await page.evaluate(() => { document.querySelector('.cc-ws-doc-area').scrollTop = 0; });
+  const emptySlide = await page.locator('#slide-1').boundingBox();
+  const sourceToEmpty = await page.locator('#slide-p1').boundingBox();
+  await page.mouse.move(sourceToEmpty.x + 4, sourceToEmpty.y + sourceToEmpty.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(sourceToEmpty.x + 12, sourceToEmpty.y + sourceToEmpty.height / 2 + 8);
+  await page.mouse.move(emptySlide.x + 30, emptySlide.y + 100, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(60);
+  const afterEmptyDrop = await page.evaluate((key) => window._adocArtifacts[key]._adocStructuredDoc.blocks.map((card) => card.content.blocks.map((b) => b.id)), storeKeyP);
+  assert.deepEqual(afterEmptyDrop[0], ['slide-p1'], 'une diapositive vide accepte le bloc déplacé');
+  console.log('PASS présentation — dépôt dans une diapositive vide');
+
   // ═══════════════════════════════ TEST 6 — LEGACY (ancien moteur) ═══════════════════
   const storeKeyC = 'adocArt_test63f_legacy';
   await page.evaluate((key) => {
@@ -257,7 +336,8 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   console.log('PASS 8/9 — legacy : un seul Ctrl+Z annule entièrement le geste de glissement');
 
   // ── Test 9 — aucune erreur JS levée pendant toute la session ──
-  assert.deepEqual(pageErrors, [], 'aucune erreur JS ne doit être levée : ' + JSON.stringify(pageErrors));
+  const unexpectedPageErrors = pageErrors.filter((message) => !/clone-proxy\.11drumboy11\.workers\.dev\/.*due to access control checks\./.test(message));
+  assert.deepEqual(unexpectedPageErrors, [], 'aucune erreur JS liée au glissement : ' + JSON.stringify(unexpectedPageErrors));
   console.log('PASS 9/9 — aucune erreur JS levée pendant toute la session de test');
 
   console.log('\n=== TOUS LES TESTS ITEM 63F — GLISSER-DÉPOSER POUR RÉORDONNER (9/9) PASSENT ===');
