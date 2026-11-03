@@ -31,6 +31,9 @@ type Props = {
   /** Ouvrir **cette** bibliothèque, désignée par son identifiant. Sans cela, toutes les cartes
    *  menaient au même écran, qui montrait toujours la même bibliothèque. */
   readonly onOuvrir?: ((id: string) => void) | undefined;
+  /** Ce qu'on dit quand la bibliothèque qu'on vient de choisir n'est plus à son emplacement.
+   *  Sa carte disparaît alors de la liste : sans un mot, la disparition passerait pour un bogue. */
+  readonly bibliothequeAbsente?: string | undefined;
   /** Ouvrir une bibliothèque qui est sur le disque mais pas dans cette liste, et la retenir.
    *
    *  Le geste n'existait que sur l'écran de premier lancement : dès qu'on avait une
@@ -58,6 +61,7 @@ export function Accueil({
   echecDepot,
   onCreer,
   onOuvrir,
+  bibliothequeAbsente,
   onOuvrirUnDossier,
   onTesterCopie,
   onRenommer,
@@ -130,6 +134,7 @@ export function Accueil({
               </div>
             )}
           </div>
+          {bibliothequeAbsente === undefined ? null : <p role="alert">{bibliothequeAbsente}</p>}
           <div className="ln-grille">
             {bibliotheques.map((bibliotheque) => (
               <CarteBibliotheque

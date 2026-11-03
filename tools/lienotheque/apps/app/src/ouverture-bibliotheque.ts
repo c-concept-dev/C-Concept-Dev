@@ -47,3 +47,30 @@ export async function ouvrirBibliothequeDepuisDisque(
   if (!temporaire) await administration.retenirBibliotheque(racine);
   return { racine, description, temporaire };
 }
+
+/** Ce qu'on trouve en rouvrant une bibliothèque déjà connue de la session. */
+export type ChoixDeBibliotheque =
+  | { readonly etat: "ouverte"; readonly description: DescriptionBibliotheque }
+  | { readonly etat: "absente" };
+
+/** Rouvrir une bibliothèque que la session connaît déjà, en relisant son dossier.
+ *
+ *  Entre le démarrage et le clic, le dossier a pu partir : volume débranché, dossier déplacé,
+ *  mis à la corbeille. La liste tenue en mémoire, elle, ne l'apprend jamais — elle a été filtrée
+ *  une seule fois, au lancement. Sans cette relecture, choisir une bibliothèque absente se
+ *  bornait à la remonter en queue de liste, et l'écran montrait **sous son nom les documents de
+ *  celle d'avant**. Trouvé le 3 novembre 2026 en pilotant le paquet installé.
+ *
+ *  « Absente » ne veut pas dire « supprimée » : l'hôte continue de la retenir, et rebrancher le
+ *  volume la ramène. C'est pourquoi rien n'est oublié ici. */
+export async function choisirBibliothequeConnue(
+  administration: PortAdministration,
+  racine: string,
+): Promise<ChoixDeBibliotheque> {
+  try {
+    const description = await administration.lireBibliotheque(racine);
+    return description === undefined ? { etat: "absente" } : { etat: "ouverte", description };
+  } catch {
+    return { etat: "absente" };
+  }
+}

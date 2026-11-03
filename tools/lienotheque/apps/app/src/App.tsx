@@ -48,6 +48,7 @@ import { PasIdentifie } from "./pont/ligne.js";
 import { useTheme } from "./theme/useTheme.js";
 import {
   bibliothequesPourSession,
+  choisirBibliothequeConnue,
   ouvrirBibliothequeDepuisDisque,
   type ModeOuverture,
 } from "./ouverture-bibliotheque.js";
@@ -226,20 +227,43 @@ export function App(): JSX.Element {
 
   const [retrait, setRetrait] = useState<{ readonly occupe: boolean; readonly echec?: string }>({ occupe: false });
 
+  /** Ce qu'on dit quand la bibliothèque choisie n'est plus à son emplacement. */
+  const [absente, setAbsente] = useState<string | undefined>(undefined);
+
   /** Ouvrir une bibliothèque donnée, et non « la dernière de la liste ».
    *
    *  `derniere` est le dernier élément de `creees` : c'est ainsi que l'application désigne celle
    *  où l'on est. Choisir une bibliothèque revient donc à la mettre en queue. Sans ce geste,
    *  toutes les cartes menaient au même écran, qui montrait toujours la même — on se croyait dans
-   *  une bibliothèque en lisant les documents d'une autre. */
-  const choisirBibliotheque = (id: string): void => {
+   *  une bibliothèque en lisant les documents d'une autre.
+   *
+   *  Mettre en queue ne suffisait pourtant pas : la liste n'est filtrée qu'au lancement, et un
+   *  dossier parti depuis ne s'y voit pas. On relit donc le dossier au moment du clic. S'il n'y
+   *  a plus rien à lire, la bibliothèque sort de la session en le disant, au lieu d'ouvrir un
+   *  écran qui aurait porté son nom au-dessus des documents de la précédente. */
+  const choisirBibliotheque = async (id: string): Promise<void> => {
+    const choisie = creees.find((autre) => autre.description.id === id);
+    if (choisie === undefined) return;
+    setAbsente(undefined);
+    // Hors du bureau il n'y a pas de dossier à relire : on s'en tient à ce que la session sait.
+    const choix =
+      administration === undefined
+        ? ({ etat: "ouverte", description: choisie.description } as const)
+        : await choisirBibliothequeConnue(administration, choisie.racine);
+    if (choix.etat === "absente") {
+      setCreees((anciennes) => anciennes.filter((autre) => autre !== choisie));
+      setAbsente(
+        `« ${choisie.description.nom} » n'est plus à son emplacement. Elle revient d'elle-même si vous remettez son dossier en place ou rebranchez son volume.`,
+      );
+      return;
+    }
     setRacineTemporaire(undefined);
     setAccompagnements([]);
     setRefuses([]);
-    setCreees((anciennes) => {
-      const choisie = anciennes.find((autre) => autre.description.id === id);
-      return choisie === undefined ? anciennes : [...anciennes.filter((autre) => autre !== choisie), choisie];
-    });
+    setCreees((anciennes) => [
+      ...anciennes.filter((autre) => autre !== choisie),
+      { racine: choisie.racine, description: choix.description },
+    ]);
   };
 
   /** Renomme sans déplacer ni réidentifier : les liens et les sources continuent donc de viser
@@ -1043,7 +1067,8 @@ export function App(): JSX.Element {
         }}
         echecDepot={echecDepotAccueil}
         onCreer={() => aller({ ecran: "creer" })}
-        onOuvrir={choisirBibliotheque}
+        onOuvrir={(id) => void choisirBibliotheque(id)}
+        {...(absente === undefined ? {} : { bibliothequeAbsente: absente })}
         onOuvrirUnDossier={administration !== undefined ? () => void ouvrir() : undefined}
         onTesterCopie={administration !== undefined ? () => void ouvrir("temporaire") : undefined}
         onRenommer={renommerBibliotheque}
