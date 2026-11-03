@@ -893,8 +893,8 @@ fn relire_page(
     fichier: &str,
     langue: &str,
 ) -> Result<Option<String>, String> {
-    let depot = depot::Depot::ouvrir(racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     let nom = nom_image_page(fichier)?;
+    let depot = depot::Depot::ouvrir(racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     let chemin = depot.racine().join(depot::DERIVES).join(version).join("pages").join(nom);
     if !chemin.exists() {
         return Ok(None);
