@@ -88,7 +88,11 @@ if (existsSync(cache)) {
 // ── Ce que la règle en place trouve ─────────────────────────────────────────────────────
 const marques = designationsDesNoms(noms);
 const accordsActuels = accordsNomContenu(marques, contenus);
-const sansJeton = marques.filter(({ jetons }) => jetons.length === 0).length;
+// `designationsDesNoms` rend désormais une carte jeton → rangs, non une liste d'objets porteurs
+// de `jetons`. On compte la même chose qu'avant : les noms que nul jeton distinctif ne désigne.
+const rangsDesignes = new Set<number>();
+for (const ensemble of marques.values()) for (const rang of ensemble) rangsDesignes.add(rang);
+const sansJeton = noms.length - rangsDesignes.size;
 const parRangActuel = new Map<number, number[]>();
 for (const accord of accordsActuels)
   for (const rang of accord.rangs) parRangActuel.set(rang, [...(parRangActuel.get(rang) ?? []), accord.page]);

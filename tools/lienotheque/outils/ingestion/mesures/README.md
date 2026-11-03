@@ -26,6 +26,24 @@ scripts, pas reconstituées de mémoire. Deux limites à garder en tête :
 - un rattachement au CDC n'est écrit que lorsque le CDC ou l'avis du 1er novembre nomme la
   mesure. Ailleurs : **non établi**. Une attribution vraisemblable n'est pas une attribution.
 
+## Un banc s'exécute à un commit donné, et dérive
+
+Ces scripts appellent le code du dépôt. Ils ne sont pas tenus par `pnpm check` et rien ne les
+empêche de vieillir. Deux dérives mesurées le 3 novembre 2026, sur un seul banc :
+
+- **dérive d'interface** — `noms-par-ensembles.ts` s'arrêtait sur `marques.filter is not a
+  function` : `designationsDesNoms` rend désormais une carte `jeton → rangs` et non une liste.
+  Adaptation de cinq lignes, qui compte la même chose ;
+- **dérive de sens, plus grave** — ce banc comparait « la règle en place » à sa propre
+  implémentation de la règle renforcée. Le commit `c204d8b7` (2/11, 20 h 01) a fait entrer la
+  règle renforcée **dans la bibliothèque**, trois heures après l'écriture du banc. Ses deux
+  branches mesurent donc aujourd'hui la même chose, et le `11` d'origine n'est plus atteignable
+  sans sortir la bibliothèque à `c204d8b7^`.
+
+La seconde ne se voit pas : le banc tourne et rend un chiffre. **Un banc qui s'exécute ne prouve
+pas qu'il mesure encore ce qu'il mesurait.** Dater chaque sortie, et citer le commit du dépôt au
+moment du lancement, est le minimum.
+
 ## Index
 
 | fichier | ce qu'il mesure | première sortie retrouvée | statut | section CDC |
@@ -56,9 +74,9 @@ scripts, pas reconstituées de mémoire. Deux limites à garder en tête :
 | `fenetres-autour-du-signe.ts` | plusieurs fenêtres ancrées sur la forme détectée | `8 apparitions : pages 5, 8, 11, 23, 26, 28, 34, 38` | a produit | §-1 sexies point 3 |
 | `comment-regrouper.ts` | jusqu'où pousser une composante connexe | dépassement de 600 s | jamais abouti | §-1 sexies point 2 |
 | `lire-sans-supposer.ts` | renverser la fenêtre, pas la page | `vivier 22, 12 apparitions, lues 9/12` | a produit | §-1 sexies point 2 |
-| `noms-par-ensembles.ts` | un nom désigne par ses suites de mots, pas ses mots isolés | — | sortie non retrouvée | §-1 sexies |
+| `noms-par-ensembles.ts` | un nom désigne par ses suites de mots, pas ses mots isolés | relancé le 3/11 sur un document entier : **52/52 des deux côtés** | a produit | §-1 sexies, la mesure **11 → 117** — côté renforcé reproduit, côté « ancienne règle » irreproductible (voir ci-dessous) |
 | `echantillon-au-hasard.ts` | tirage reproductible sur une vraie bibliothèque | `250 documents actifs, 1868 enregistrements` | a produit | non établi |
-| `ou-passent-les-propositions.ts` | ancienne règle contre règle renforcée, vivier borné | `1868 noms ; 6 documents`, colonnes « ancienne règle / règle renforcée » | a produit | §-1 sexies, la mesure 11 → 117 |
+| `ou-passent-les-propositions.ts` | pourquoi la règle renforcée rend **moins** de propositions sur certains documents, vivier borné | relancé le 3/11 sur la vraie bibliothèque : `1868 noms ; 6 documents`, **18 → 20** | a produit | **non établi** — son propre en-tête documente 14 → 21, jamais 11 → 117 |
 
 **Récapitulatif** : 14 ont produit une sortie retrouvée, 5 n'ont jamais abouti (erreur,
 dépassement, module manquant), 10 ont une sortie non retrouvée. Rien n'a été trié ni retiré.
