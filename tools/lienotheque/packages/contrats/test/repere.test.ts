@@ -75,6 +75,10 @@ describe("ligne interprétée (REC-02, REC-05)", () => {
     expect(LigneInterpretee.safeParse({ ...ligne, sourcePiste: "nom_de_fichier" }).success).toBe(false);
   });
 
+  it("nomme la corroboration indépendante d'une table lue dans le document (OUT-10, REC-02)", () => {
+    expect(LigneInterpretee.safeParse({ ...ligne, sourcePiste: "corroboration_table" }).success).toBe(true);
+  });
+
   it("refuse une confiance hors de l'intervalle", () => {
     expect(LigneInterpretee.safeParse({ ...ligne, confiance: 1.2 }).success).toBe(false);
   });

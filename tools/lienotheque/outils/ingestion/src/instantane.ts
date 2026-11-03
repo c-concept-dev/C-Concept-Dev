@@ -66,6 +66,8 @@ export function phraseDuLien(ligne: LigneInterpretee, mots: MotsBibliotheque): s
       // parce que ANC-02 demande que la corroboration se voie — le numéro ne vient pas d'un seul
       // regard, il vient d'un regard que la suite a confirmé.
       return `Repère relu sur l'image, et confirmé par la suite des repères alentour`;
+    case "corroboration_table":
+      return `Repère lu sur la page et confirmé par la table du document`;
     case "numero_element":
       return `${mots.piste.un[0]!.toUpperCase()}${mots.piste.un.slice(1)} et numéro coïncident dans ce document`;
     case "suite":

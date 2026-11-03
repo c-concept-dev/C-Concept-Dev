@@ -234,6 +234,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
             page: page.index,
             ...(page.pageImprimee === undefined ? {} : { pageImprimee: page.pageImprimee }),
             texte: page.texte,
+            ...(page.mots === undefined ? {} : { mots: page.mots }),
           })),
         })
       : await rejouer(lot.pdf, lot.medias, recette, {

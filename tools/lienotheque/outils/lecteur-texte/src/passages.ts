@@ -1,4 +1,11 @@
-import { CONFIANCE_MINIMALE, type PageLue, type Passage, type SourceLecture, texteDePage } from "@lienotheque/contrats";
+import {
+  CONFIANCE_MINIMALE,
+  type MotLu,
+  type PageLue,
+  type Passage,
+  type SourceLecture,
+  texteDePage,
+} from "@lienotheque/contrats";
 
 /** Du texte lu aux passages cherchables (RCH-07, RCH-09, ANC-01).
  *
@@ -19,6 +26,10 @@ export type PageDeTexte = {
   readonly source: SourceLecture;
   readonly pageImprimee?: number | undefined;
   readonly confiance?: number | undefined;
+  /** Les mots et leur géométrie, conservés pour les lectures structurelles faites après le texte.
+   *  Les passages n'en ont pas besoin ; les relire par OCR pour une table contredirait en revanche
+   *  la lecture que la chaîne vient de retenir. */
+  readonly mots?: readonly MotLu[] | undefined;
   /** D'où cette page vient dans le document, quand le format le nomme : un chapitre pour un
    *  EPUB, rien pour une page de PDF. Voir `Passage.emplacement`. */
   readonly emplacement?: string | undefined;
@@ -364,6 +375,7 @@ export function pageDeTexte(page: PageLue): PageDeTexte {
     index: page.index,
     texte: texteDePage(page),
     source: page.source,
+    mots: page.mots,
     ...(imprimee === undefined ? {} : { pageImprimee: imprimee }),
     ...(confiance === undefined ? {} : { confiance }),
   };

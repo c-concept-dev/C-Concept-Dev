@@ -5,7 +5,16 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { tesseractDisponible } from "@lienotheque/lecteur-texte";
-import { BUDGET_EXPLORATION, MOTIFS, VERSION_DE_LA_VOIE, autourDeLaMarque, rejouerParOracle } from "../src/index.js";
+import {
+  BUDGET_EXPLORATION,
+  MOTIFS,
+  VERSION_DE_LA_VOIE,
+  autourDeLaMarque,
+  corroborerParTable,
+  rejouerParOracle,
+} from "../src/index.js";
+import type { LigneInterpretee } from "@lienotheque/contrats";
+import type { TableLue } from "@lienotheque/noyau";
 
 /** Lire un document sans manière de lire écrite à la main (OUT-10, REC-02).
  *
@@ -76,6 +85,61 @@ const dossierSansPiste = mkdtempSync(join(tmpdir(), "lienotheque-sans-piste-"));
 afterAll(() => rmSync(dossierSansPiste, { recursive: true, force: true }));
 
 const siTesseract = tesseractDisponible() ? it : it.skip;
+
+describe("une table globale corrobore sans jamais décider seule (OUT-10, REC-02)", () => {
+  const lignes: LigneInterpretee[] = Array.from({ length: 52 }, (_, place) => ({
+    numero: place + 1,
+    pageImprimee: 8 + place * 2,
+    piste: place + 1,
+    disque: 1,
+    sourcePiste: "pastille",
+    confiance: 1,
+  }));
+  const table = (combien: number, colonnes = 3): TableLue => ({
+    colonnes: Array.from({ length: colonnes }, (_, place) => ({ x: 100 + place * 100, etendue: 0, presentDans: combien })),
+    panneaux: 1,
+    rangees: Array.from({ length: combien }, (_, place) => ({
+      y: 100 + place * 10,
+      intitule: "Entrée",
+      cellules: colonnes === 3 ? [place + 1, place + 1, 8 + place * 2] : [place + 1, 8 + place * 2],
+    })),
+    utilisables: Array.from({ length: combien }, (_, place) => place),
+    incompletes: [],
+    suspectes: [],
+    estUneTable: true,
+  });
+
+  it("retient les 43 correspondances exactes et écarte les faux tableaux courts", () => {
+    const preuve = corroborerParTable(
+      lignes,
+      [
+        { page: 4, table: table(4, 2) },
+        { page: 5, table: table(43) },
+        { page: 9, table: table(2, 2) },
+      ],
+      52,
+    );
+
+    expect(preuve?.page).toBe(5);
+    expect(preuve?.lignes).toHaveLength(43);
+    expect(new Set(preuve?.lignes.map((ligne) => ligne.sourcePiste))).toEqual(new Set(["corroboration_table"]));
+    expect(preuve?.signaux).toEqual(["pastille", "table"]);
+  });
+
+  it("refuse une table courte même quand ses quatre valeurs coïncident", () => {
+    expect(corroborerParTable(lignes, [{ page: 4, table: table(4, 3) }], 52)).toBeUndefined();
+  });
+
+  it("refuse les valeurs hors du vivier au lieu de les rabattre", () => {
+    const horsBornes = table(43);
+    const rangees = horsBornes.rangees.map((rangee, place) =>
+      place === 12 ? { ...rangee, cellules: [13, 113, 32] } : rangee,
+    );
+    expect(
+      corroborerParTable(lignes, [{ page: 5, table: { ...horsBornes, rangees } }], 52),
+    ).toBeUndefined();
+  });
+});
 
 describe("un document sans manière de lire (OUT-10)", () => {
   siTesseract("trouve la marque qui revient et en tire des liens", { timeout: 180_000 }, async () => {

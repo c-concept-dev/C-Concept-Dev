@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   AcquisDeLecture,
+  type MotLu,
   type LigneInterpretee,
   type PageReperee,
   type ResultatRecette,
@@ -22,6 +23,8 @@ import {
   zonesAExaminer,
   zonesRecurrentes,
   type FormeObservee,
+  lireLaTable,
+  type TableLue,
   type ZoneRecurrente,
   type ContenuDePage,
 } from "@lienotheque/noyau";
@@ -88,7 +91,7 @@ import { ocrDUnePageGrise } from "./texte.js";
  *  monte pas quand seul le coût change : l'élagage du 31 octobre 2026 rend les mêmes endroits, au
  *  centième, et n'a donc rien périmé. */
 export const ID_DE_LA_VOIE = "voie-sans-maniere-de-lire";
-export const VERSION_DE_LA_VOIE = 2;
+export const VERSION_DE_LA_VOIE = 3;
 const LA_VOIE = { id: ID_DE_LA_VOIE, version: VERSION_DE_LA_VOIE } as const;
 
 /** La largeur à laquelle les pages sont rendues. La même que la chaîne de texte : deux largeurs
@@ -186,7 +189,10 @@ export type OptionsVoieOracle = {
    *
    *  Absent, la voie reste utilisable seule et relit le document. Présent — même vide — il fait
    *  foi pour cette passe : réocériser ici contredirait la lecture que la bibliothèque publie. */
-  readonly texteDesPages?: readonly (ContenuDePage & { readonly pageImprimee?: number | undefined })[] | undefined;
+  readonly texteDesPages?: readonly (ContenuDePage & {
+    readonly pageImprimee?: number | undefined;
+    readonly mots?: readonly MotLu[] | undefined;
+  })[] | undefined;
   /** Jusqu'où chercher un endroit qui porte la numérotation. Voir `BUDGET_EXPLORATION`. */
   readonly budgetExploration?: BudgetExploration | undefined;
   /** Ce qu'une lecture antérieure de **ce** document a appris, s'il y en a une.
@@ -306,6 +312,110 @@ function lireLaMarque(
       : lireDansLaFenetre(marque.image, marque.fenetre, marque.hauteur, motif, false, moteurs);
   const vu = vote(bloc.votes);
   return vu === undefined ? undefined : { valeur: vu.valeur, accord: vu.accord, presence: bloc.presence };
+}
+
+export type TableObservee = { readonly page: number; readonly table: TableLue };
+
+export type PreuveParTable = {
+  readonly page: number;
+  readonly lignes: readonly LigneInterpretee[];
+  readonly signaux: readonly ["pastille", "table"];
+};
+
+const PERMUTATIONS_DE_TROIS = [
+  [0, 1, 2],
+  [0, 2, 1],
+  [1, 0, 2],
+  [1, 2, 0],
+  [2, 0, 1],
+  [2, 1, 0],
+] as const;
+
+/** Confronte une table globale aux repères déjà lus, sans jamais prendre la table pour une preuve
+ *  autonome (OUT-10, REC-02).
+ *
+ *  Trois nombres ne disent pas par eux-mêmes lequel est l'élément, la piste ou la page. Les six
+ *  ordres sont donc éprouvés et seul celui qui recoupe massivement des lignes déjà lues peut
+ *  tenir. Le seuil dépend du vivier : au moins la moitié, jamais moins de huit, et tous les
+ *  enregistrements quand le vivier en porte moins de huit. Une table courte de sommaire ne peut
+ *  ainsi gagner contre une vraie table globale. Une valeur hors des bornes du document ou du
+ *  vivier invalide l'interprétation entière ; elle n'est jamais rabattue ni corrigée. */
+export function corroborerParTable(
+  lignes: readonly LigneInterpretee[],
+  tables: readonly TableObservee[],
+  nombreDeMedias: number,
+): PreuveParTable | undefined {
+  if (nombreDeMedias < 4) return undefined;
+  const lisibles = lignes.filter(
+    (ligne) =>
+      ligne.piste !== undefined &&
+      (ligne.sourcePiste === "pastille" || ligne.sourcePiste === "vision"),
+  );
+  if (lisibles.length === 0) return undefined;
+
+  const parTriplet = new Map<string, LigneInterpretee | undefined>();
+  for (const ligne of lisibles) {
+    const clef = `${ligne.numero}\u0000${ligne.piste}\u0000${ligne.pageImprimee}`;
+    parTriplet.set(clef, parTriplet.has(clef) ? undefined : ligne);
+  }
+  const numeroMaximal = Math.max(...lisibles.map((ligne) => ligne.numero));
+  const pageMaximale = Math.max(...lisibles.map((ligne) => ligne.pageImprimee));
+  const minimum = Math.min(nombreDeMedias, Math.max(8, Math.ceil(nombreDeMedias / 2)));
+  const candidats: { page: number; lignes: LigneInterpretee[]; clef: string }[] = [];
+
+  for (const observee of tables) {
+    const table = observee.table;
+    if (!table.estUneTable || table.colonnes.length !== 3 || table.utilisables.length < minimum) continue;
+    const rangees = table.utilisables.map((place) => table.rangees[place]!).filter((rangee) => rangee !== undefined);
+    if (rangees.length < minimum) continue;
+
+    for (const [colonneNumero, colonnePiste, colonnePage] of PERMUTATIONS_DE_TROIS) {
+      const valeurs = rangees.map((rangee) => ({
+        numero: rangee.cellules[colonneNumero],
+        piste: rangee.cellules[colonnePiste],
+        page: rangee.cellules[colonnePage],
+      }));
+      if (
+        valeurs.some(
+          ({ numero, piste, page }) =>
+            numero === undefined ||
+            numero < 1 ||
+            numero > numeroMaximal ||
+            piste === undefined ||
+            piste < 1 ||
+            piste > nombreDeMedias ||
+            page === undefined ||
+            page < 1 ||
+            page > pageMaximale,
+        )
+      )
+        continue;
+
+      const correspondances = valeurs.flatMap(({ numero, piste, page }) => {
+        const ligne = parTriplet.get(`${numero}\u0000${piste}\u0000${page}`);
+        return ligne === undefined ? [] : [ligne];
+      });
+      if (correspondances.length < minimum || correspondances.length / rangees.length < 0.9) continue;
+      const uniques = [...new Map(correspondances.map((ligne) => [ligne.numero, ligne])).values()].sort(
+        (un, autre) => un.pageImprimee - autre.pageImprimee || un.numero - autre.numero,
+      );
+      if (uniques.length !== correspondances.length) continue;
+      const clef = uniques.map((ligne) => `${ligne.numero}:${ligne.piste}:${ligne.pageImprimee}`).join("|");
+      candidats.push({ page: observee.page, lignes: uniques, clef });
+    }
+  }
+
+  if (candidats.length === 0) return undefined;
+  const meilleurNombre = Math.max(...candidats.map((candidat) => candidat.lignes.length));
+  const meilleurs = candidats.filter((candidat) => candidat.lignes.length === meilleurNombre);
+  const resultatsDistincts = new Map(meilleurs.map((candidat) => [candidat.clef, candidat]));
+  if (resultatsDistincts.size !== 1) return undefined;
+  const retenu = [...resultatsDistincts.values()][0]!;
+  return {
+    page: retenu.page,
+    lignes: retenu.lignes.map((ligne) => ({ ...ligne, sourcePiste: "corroboration_table" as const })),
+    signaux: ["pastille", "table"],
+  };
 }
 
 /** Le document lu sans manière de lire, de ses pixels à son association. */
@@ -830,7 +940,7 @@ export async function rejouerParOracle(
     dire("Les noms contredisent la marque au moins autant qu'ils la confirment : ce signal n'est pas retenu.");
 
   // ── 6. Le résultat, dans la forme que les écrans lisent ────────────────────────────────
-  const lignes: LigneInterpretee[] = coordonne.pages.map((decision, place) => {
+  const lignesLues: LigneInterpretee[] = coordonne.pages.map((decision, place) => {
     const marque = marques[place]!;
     const piste = pistes[place];
     const confirmee =
@@ -855,9 +965,35 @@ export async function rejouerParOracle(
     };
   });
 
+  // ── 6. La table globale : une seconde lecture, jamais une preuve autonome ──────────────
+  //
+  // Les mots et leur géométrie ont déjà été lus par la chaîne. On les réemploie : refaire un
+  // OCR ici pourrait produire une autre table que celle sur laquelle le texte publié repose.
+  // Une table n'est retenue que si elle recoupe massivement les triplets élément/piste/folio
+  // déjà lus par les marques. Elle ne comble pas les trous : seules les lignes réellement
+  // recoupées deviennent publiables.
+  const tables =
+    texteAligne?.flatMap((page) =>
+      page.mots === undefined ? [] : [{ page: page.page, table: lireLaTable(page.mots) }],
+    ) ?? [];
+  const preuveParTable = foliosEtablis ? corroborerParTable(lignesLues, tables, medias.length) : undefined;
+  const lignes: LigneInterpretee[] = [...(preuveParTable?.lignes ?? lignesLues)];
+  if (preuveParTable !== undefined)
+    dire(
+      `table globale page ${preuveParTable.page} : ${preuveParTable.lignes.length} ligne(s) ` +
+        `recoupent exactement les repères lus ; les autres restent à vérifier.`,
+    );
+  else if (tables.length > 0)
+    dire(
+      `${tables.length} page(s) à géométrie disponible, sans table globale assez plausible ` +
+        `et assez corroborée pour publier.`,
+    );
+
+  const rangParNumero = new Map(marques.map((marque) => [marque.numero, marque.rangDePage] as const));
   const parRang = new Map<number, LigneInterpretee[]>();
-  lignes.forEach((ligne, place) => {
-    const rang = marques[place]!.rangDePage;
+  lignes.forEach((ligne) => {
+    const rang = rangParNumero.get(ligne.numero);
+    if (rang === undefined) return;
     parRang.set(rang, [...(parRang.get(rang) ?? []), ligne]);
   });
   const pages: PageReperee[] = Array.from({ length: combienDePages }, (_, place) => {
@@ -912,7 +1048,16 @@ export async function rejouerParOracle(
   //
   // Elle doit donc gagner ses deux signaux elle-même. Un œil humain a sa place ici, mais sur
   // `appariements[].statut`, lien par lien, et non sur le document entier.
-  const corroborationLue = corroborationDesLignes(lignes, {});
+  const corroborationLue =
+    preuveParTable === undefined
+      ? corroborationDesLignes(lignes, {})
+      : {
+          signaux: preuveParTable.signaux,
+          preuveHumaine: false,
+          suffisante: true,
+          pourquoi:
+            "Deux façons de lire indépendantes s'accordent : les repères des pages et la table globale du document.",
+        };
   const corroboration = foliosEtablis
     ? corroborationLue
     : {

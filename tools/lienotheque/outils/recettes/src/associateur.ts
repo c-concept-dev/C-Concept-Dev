@@ -183,7 +183,7 @@ export function associer(
  *  la piste valait le numéro, et rien, absolument rien, n'avait été lu sur ses pages pour
  *  l'appuyer. Le résultat était net, complet et régulier — et il ne reposait sur aucune
  *  observation. */
-export const LECTURES = ["pastille", "corroboration_media", "vision"] as const;
+export const LECTURES = ["pastille", "corroboration_media", "corroboration_table", "vision"] as const;
 
 /** Ce qui autorise — ou non — à publier les liens de ce document (OUT-10).
  *

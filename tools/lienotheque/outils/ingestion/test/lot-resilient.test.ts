@@ -80,7 +80,9 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
     });
     doubles.rejouerParOracle.mockImplementationOnce(async (_pdf, _medias, options) => {
       ordre.push("oracle");
-      expect(options.texteDesPages).toEqual([{ page: 1, pageImprimee: 17, texte: "Un intitulé distinctif." }]);
+      expect(options.texteDesPages).toEqual([
+        { page: 1, pageImprimee: 17, texte: "Un intitulé distinctif.", mots: [] },
+      ]);
       expect(options.doublePage).toBe(true);
       expect(options.foliosEtablis).toBe(true);
       return {

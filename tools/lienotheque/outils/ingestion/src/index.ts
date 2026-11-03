@@ -35,7 +35,7 @@ import type { Association } from "@lienotheque/recettes";
  *  Jamais `nom_de_fichier` : un nom ne vaut qu'indice de recoupement, et le moteur ne s'en sert
  *  jamais pour décider d'une piste (REC-05). */
 export function preuveDe(source: SourcePiste | undefined): Preuve {
-  return source === "pastille" ? "lu" : "sequence";
+  return source === "pastille" || source === "corroboration_table" ? "lu" : "sequence";
 }
 
 export type MediaIngere = {
