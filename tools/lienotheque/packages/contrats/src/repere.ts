@@ -137,6 +137,7 @@ export const SourcePiste = z.enum([
   "vision",
   "corroboration_media",
   "corroboration_table",
+  "corroboration_recurrente",
 ]);
 export type SourcePiste = z.infer<typeof SourcePiste>;
 

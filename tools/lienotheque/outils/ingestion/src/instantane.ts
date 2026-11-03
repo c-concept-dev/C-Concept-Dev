@@ -32,7 +32,7 @@ export type Entree = {
    *  Une page existe parce qu'elle a été lue, et non parce qu'on y a reconnu quelque chose. La
    *  vue les déduisait des éléments : un ouvrage ordinaire n'en portant aucun, il n'avait aucune
    *  page — mesuré sur sept documents, 108 à 614 pages lues et zéro affichable, images comprises. */
-  readonly pages: readonly { readonly index: number; readonly numero?: number }[];
+  readonly pages: readonly { readonly index: number; readonly numero?: number; readonly debutElement?: boolean }[];
   readonly association: Association;
   readonly medias: readonly MediaIngere[];
   readonly seuil: number;
@@ -68,6 +68,8 @@ export function phraseDuLien(ligne: LigneInterpretee, mots: MotsBibliotheque): s
       return `Repère relu sur l'image, et confirmé par la suite des repères alentour`;
     case "corroboration_table":
       return `Repère lu sur la page et confirmé par la table du document`;
+    case "corroboration_recurrente":
+      return `Repère lu sur la page et confirmé par la structure récurrente du document`;
     case "numero_element":
       return `${mots.piste.un[0]!.toUpperCase()}${mots.piste.un.slice(1)} et numéro coïncident dans ce document`;
     case "suite":
@@ -320,6 +322,7 @@ export function construireVue(entree: Entree): VueBibliotheque {
   // Une page par page lue, dans l'ordre de lecture. Les éléments viennent s'y poser par leur
   // numéro imprimé — c'est le seul lien qu'ils aient avec une page — et une page qui n'en porte
   // aucun reste une page.
+  let elementsActifs: ElementAffiche[] = [];
   const pages: PageAffichee[] = [...entree.pages]
     .sort((un, autre) => un.index - autre.index)
     .map((page) => {
@@ -327,10 +330,17 @@ export function construireVue(entree: Entree): VueBibliotheque {
       // Sur une page dont le numéro est revendiqué deux fois, rien n'est sûr d'être au bon
       // endroit. Une copie : les deux pages partagent le même tableau, et marquer l'un
       // marquerait l'autre sans qu'on l'ait demandé.
-      const elements =
+      const elementsDuDepart =
         page.numero !== undefined && numerosEnDouble.has(page.numero)
           ? poses.map((element) => ({ ...element, aVerifier: true }))
           : poses;
+      // Un repère de départ vaut jusqu'au prochain repère : tourner la page ne coupe pas le
+      // média qui accompagne encore le même élément. Une borne sans lien arrête malgré tout la
+      // propagation ; elle dit qu'un autre élément commence, sans prétendre savoir quel média
+      // lui appartient. Cette information vient du document traité, jamais d'un vocabulaire ou
+      // d'un nombre de pages codé ici.
+      if (page.debutElement) elementsActifs = elementsDuDepart;
+      const elements = elementsDuDepart.length > 0 ? elementsDuDepart : elementsActifs;
       const titre = page.numero === undefined ? undefined : entree.titreDePage?.(page.numero);
       const vue = entree.imageDePage?.(page.index);
       return {

@@ -1176,6 +1176,7 @@ function sansLien(
       const page = trouves[0]!.page;
       return {
         page,
+        jetons: trouves[0]!.jetons,
         ligne: {
           numero: rang + 1,
           pageImprimee: folioParRang.get(page) ?? page,
@@ -1205,28 +1206,95 @@ function sansLien(
   // que chaque pied de page ait été relu par l'OCR annulerait précisément son apport. Ses
   // valeurs restent bornées et confrontées massivement aux noms par `corroborerParTable`.
   const preuveParTable = preuveLue;
-  const lignes: LigneInterpretee[] = [
-    ...(preuveParTable?.lignes ?? candidatesNommees.map((candidate) => candidate.ligne)),
-  ];
+  const lignesDeLaTable = preuveParTable?.lignes ?? [];
+  const parNumero = new Map(candidatesNommees.map((candidate) => [candidate.ligne.numero, candidate]));
+
+  // Un document peut apprendre lui-même un repère numérique que personne n'a nommé dans le
+  // code. On ne l'apprend que des lignes déjà prouvées par deux lectures indépendantes (nom et
+  // table), et seulement si le même libellé précède toujours la piste attendue, au moins huit
+  // fois, sans une seule contradiction. Les mots qui appartiennent à la désignation du média
+  // sont exclus : répéter son propre nom ne constituerait pas un second signal.
+  const normaliser = (texte: string): string =>
+    texte
+      .normalize("NFD")
+      .replaceAll(/[̀-ͯ]/gu, "")
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]+/gu, " ")
+      .trim();
+  const couplesNumeriques = (texte: string): readonly { libelle: string; numero: number }[] =>
+    [...normaliser(texte).matchAll(/\b([a-z]{3,})\s+0*(\d{1,3})\b/gu)].map((trouve) => ({
+      libelle: trouve[1]!,
+      numero: Number.parseInt(trouve[2]!, 10),
+    }));
+  const texteParPage = new Map(texteAligne?.map((page) => [page.page, page.texte] as const) ?? []);
+  const decalages = new Set(
+    lignesDeLaTable.flatMap((ligne) => {
+      const candidate = parNumero.get(ligne.numero);
+      return candidate === undefined ? [] : [ligne.pageImprimee - candidate.page];
+    }),
+  );
+  const decalageStable = decalages.size === 1 ? [...decalages][0] : undefined;
+  const statistiques = new Map<string, { accords: Set<number>; contradictions: number }>();
+  for (const ligne of lignesDeLaTable) {
+    const candidate = parNumero.get(ligne.numero);
+    if (candidate === undefined || ligne.piste === undefined) continue;
+    const motsDuNom = new Set(candidate.jetons.flatMap((jeton) => normaliser(jeton).split(" ")));
+    for (const couple of couplesNumeriques(texteParPage.get(candidate.page) ?? "")) {
+      if (motsDuNom.has(couple.libelle)) continue;
+      const statistique = statistiques.get(couple.libelle) ?? { accords: new Set<number>(), contradictions: 0 };
+      if (couple.numero === ligne.piste) statistique.accords.add(ligne.numero);
+      else statistique.contradictions += 1;
+      statistiques.set(couple.libelle, statistique);
+    }
+  }
+  const libellesEtablis = new Set(
+    [...statistiques]
+      .filter(([, statistique]) => statistique.accords.size >= 8 && statistique.contradictions === 0)
+      .map(([libelle]) => libelle),
+  );
+  const numerosDeLaTable = new Set(lignesDeLaTable.map((ligne) => ligne.numero));
+  const lignesDeLaRecurrence: LigneInterpretee[] =
+    decalageStable === undefined || libellesEtablis.size === 0
+      ? []
+      : candidatesNommees.flatMap((candidate) => {
+          if (numerosDeLaTable.has(candidate.ligne.numero) || candidate.ligne.piste === undefined) return [];
+          const confirme = couplesNumeriques(texteParPage.get(candidate.page) ?? "").some(
+            (couple) => libellesEtablis.has(couple.libelle) && couple.numero === candidate.ligne.piste,
+          );
+          if (!confirme) return [];
+          const pageImprimee = candidate.page + decalageStable;
+          return pageImprimee < 1
+            ? []
+            : [{
+                ...candidate.ligne,
+                pageImprimee,
+                sourcePiste: "corroboration_recurrente" as const,
+              }];
+        });
+  const lignes: LigneInterpretee[] =
+    preuveParTable === undefined
+      ? candidatesNommees.map((candidate) => candidate.ligne)
+      : [...lignesDeLaTable, ...lignesDeLaRecurrence].sort(
+          (une, autre) => une.pageImprimee - autre.pageImprimee || une.numero - autre.numero,
+        );
   // Le nom situe l'élément sur une page physique ; la table, elle, corrige son folio. Garder
   // seulement le folio fait perdre le pont entre les deux : l'association existe alors dans le
   // bilan mais aucune page du Lecteur ne peut la porter. C'était exactement le cas des
   // quarante-quatre liens Bass Aerobics (Workout 2 : folio 8, page 10 du PDF).
-  const pagePhysiqueParNumero = new Map(candidatesNommees.map((candidate) => [candidate.ligne.numero, candidate.page]));
   const pages = Array.from({ length: combienDePages }, (_, place) => ({
     index: place,
     rang: place,
     pageImprimee: folioParRang.get(place + 1) ?? place + 1,
     statut: folioParRang.has(place + 1) ? ("lue" as const) : ("deduite" as const),
-    elements: lignes
-      .filter((ligne) => pagePhysiqueParNumero.get(ligne.numero) === place + 1)
-      .map((ligne) => ({
-        numero: ligne.numero,
+    elements: candidatesNommees
+      .filter((candidate) => candidate.page === place + 1)
+      .map((candidate) => ({
+        numero: candidate.ligne.numero,
         y: 0,
-        presencePiste: 1,
+        presencePiste: lignes.some((ligne) => ligne.numero === candidate.ligne.numero) ? 1 : 0,
         suite: false,
         accordNumero: 1,
-        accordPiste: ligne.confiance,
+        accordPiste: lignes.some((ligne) => ligne.numero === candidate.ligne.numero) ? 1 : 0,
       })),
   }));
   if (lignes.length > 0) {
@@ -1235,7 +1303,10 @@ function sansLien(
       preuveParTable === undefined
         ? corroborationDesLignes(lignes, {})
         : {
-            signaux: preuveParTable.signaux,
+            signaux: [
+              ...preuveParTable.signaux,
+              ...(lignesDeLaRecurrence.length === 0 ? [] : ["corroboration_recurrente"]),
+            ],
             preuveHumaine: false,
             suffisante: true,
             pourquoi:

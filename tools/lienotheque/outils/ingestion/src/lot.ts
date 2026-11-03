@@ -308,11 +308,15 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // souvent aucun. Ses pages existent pourtant : l'export d'images les a rendues, et la lecture
   // de texte les a parcourues. Limiter la vue à `resultat.pages` produisait donc des centaines de
   // dérivés inatteignables et rabattait à tort un PDF natif vers le lecteur de texte seul.
-  const pagesParRang = new Map<number, { index: number; numero?: number }>();
+  const pagesParRang = new Map<number, { index: number; numero?: number; debutElement?: boolean }>();
   for (const page of resultat.pages) {
     const index = page.index + PREMIER_RANG;
     const numero = imprimes.get(page.index);
-    pagesParRang.set(index, { index, ...(numero === undefined ? {} : { numero }) });
+    pagesParRang.set(index, {
+      index,
+      ...(numero === undefined ? {} : { numero }),
+      ...(page.elements.length === 0 ? {} : { debutElement: true }),
+    });
   }
   for (const rang of parRang.keys())
     if (!pagesParRang.has(rang)) pagesParRang.set(rang, { index: rang });

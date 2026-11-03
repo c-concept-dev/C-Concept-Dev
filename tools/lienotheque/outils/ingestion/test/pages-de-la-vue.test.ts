@@ -67,6 +67,51 @@ describe("une page lue existe dans la vue, même sans élément reconnu", () => 
   });
 });
 
+describe("un média accompagne toutes les pages de son élément (ANC-05, OUT-15)", () => {
+  it("reste disponible jusqu'au prochain départ établi", () => {
+    const vue = construireVue(
+      entreeMinimale({
+        lignes: [
+          ligne(1, { pageImprimee: 100, sourcePiste: "corroboration_table" }),
+          ligne(2, { pageImprimee: 102, sourcePiste: "corroboration_table" }),
+        ],
+        pages: [
+          { index: 10, numero: 100, debutElement: true },
+          { index: 11 },
+          { index: 12, numero: 102, debutElement: true },
+        ],
+      }),
+    );
+
+    expect(vue.pages.map((page) => page.elements.map((element) => element.numero))).toEqual([
+      ["1"],
+      ["1"],
+      ["2"],
+    ]);
+  });
+
+  it("s'arrête à un départ sans lien plutôt que de déborder sur l'élément suivant", () => {
+    const vue = construireVue(
+      entreeMinimale({
+        lignes: [ligne(1, { pageImprimee: 100, sourcePiste: "corroboration_table" })],
+        pages: [
+          { index: 10, numero: 100, debutElement: true },
+          { index: 11 },
+          { index: 12, debutElement: true },
+          { index: 13 },
+        ],
+      }),
+    );
+
+    expect(vue.pages.map((page) => page.elements.map((element) => element.numero))).toEqual([
+      ["1"],
+      ["1"],
+      [],
+      [],
+    ]);
+  });
+});
+
 describe("un élément ne disparaît pas parce que sa page n'a pas été lue", () => {
   /** Les pages de la vue viennent désormais des pages **lues**. Un élément, lui, ne connaît que
    *  son numéro **imprimé** : si aucune page lue ne porte ce numéro, il n'a nulle part où se
