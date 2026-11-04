@@ -1830,6 +1830,19 @@
        sur docKind dans adocOpenWorkspace, jamais un changement global qui affecterait les 5 autres
        types — cf. rapport). */
     .cc-ws-doc-card.cc-ws-doc-card--presentation { max-width: none; }
+    .cc-ws-deepdives { margin: 24px auto; padding: 20px; max-width: 1040px; background: #fff; border: 1px solid #d9d5cc; border-radius: 12px; color: #173f42; }
+    .cc-ws-deepdives h2 { margin: 0 0 6px; font-size: 21px; }
+    .cc-ws-deepdives > p { margin: 0 0 16px; }
+    .cc-ws-deepdives details { margin: 12px 0; padding: 12px; border: 1px solid #d9d5cc; border-radius: 8px; }
+    .cc-ws-deepdives summary { cursor: pointer; font-weight: 700; }
+    .cc-ws-deepdives label { display: block; margin: 10px 0; font-weight: 600; }
+    .cc-ws-deepdives input, .cc-ws-deepdives textarea { display: block; box-sizing: border-box; width: 100%; padding: 8px; font: inherit; }
+    .cc-ws-deepdives textarea { min-height: 84px; resize: vertical; }
+    .cc-ws-deepdives button { margin: 4px 8px 0 0; }
+    .cc-block-sources { margin-top: 12px; padding: 10px; border: 1px solid #d9d5cc; border-radius: 8px; }
+    .cc-block-sources summary { cursor: pointer; font-weight: 700; }
+    .cc-block-sources > div { margin: 10px 0; overflow-wrap: anywhere; }
+    .cc-block-sources select { max-width: 100%; margin: 4px 8px; }
     .cc-ws-doc-card .adoc-photo-missing-notice { padding: 9px 12px; margin: 4px 0 12px; color: #8a3f29; background: #fff7f2; border: 1px solid #d9a995; border-radius: 6px; font-weight: 600; }
     .cc-ws-doc-card .adoc-photo-missing-notice button { margin-left: 8px; color: #173f42; background: white; border: 1px solid #8aa5a5; border-radius: 4px; padding: 4px 9px; cursor: pointer; }
     .cc-ws-doc-card img.is-selected + .adoc-photo-missing-notice { display: none; }
@@ -4143,6 +4156,7 @@
     </aside>
     <div class="cc-ws-doc-area">
       <div class="cc-ws-doc-card" id="cc-ws-doc-card"></div>
+      <section id="cc-ws-deepdives" class="cc-ws-deepdives" hidden aria-label="Pages d’approfondissement"></section>
     </div>
     <!-- LOT 1 Présentation (6e documentKind) — mode plein écran de navigation. Superposition
          PAR-DESSUS #cc-workspace (z-index supérieur, cf. CSS) : Échap/flèches interceptées en

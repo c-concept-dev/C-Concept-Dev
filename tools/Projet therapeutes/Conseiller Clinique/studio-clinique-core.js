@@ -10675,7 +10675,6 @@ ${recent}`;
     if (display.mirrorX) transforms.push('scaleX(-1)');
     if (display.mirrorY) transforms.push('scaleY(-1)');
     if (transforms.length) css.push('transform:' + transforms.join(' '));
-    if (display.crop) css.push(adocImageCropStyle(display));
     if (display.borderWidth) css.push('border:' + n('borderWidth', 0) + 'px solid ' + (/^#[0-9a-fA-F]{6}$/.test(display.borderColor || '') ? display.borderColor : '#286b7b'));
     if (display.shadow) css.push('box-shadow:0 4px ' + n('shadow', 0) + 'px rgba(0,0,0,.35)');
     if (surface === 'cover' && Number.isFinite(display.sizePercent)) css.push('width:' + Math.max(10, Math.min(100, display.sizePercent)) + '%;margin-inline:auto');
@@ -10683,6 +10682,9 @@ ${recent}`;
     else if (surface === 'cover' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
     else if (surface === 'image' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
     else if (surface === 'image' && ['contain', 'cover', 'fill'].includes(display.fit)) css.push('aspect-ratio:16/9');
+    // Le rectangle recadré fixe son ratio : une ancienne hauteur en pixels ne doit
+    // pas l'étirer lorsque la largeur de la fenêtre change.
+    if (display.crop) css.push(adocImageCropStyle(display));
     return css.length ? css.join(';') + ';' : '';
   }
   // Le rectangle est exprimé dans les coordonnées de l'original, jamais dans celles du cadre.
@@ -10699,7 +10701,10 @@ ${recent}`;
     return 'object-fit:fill;clip-path:inset(' + c.y + '% ' + (100 - c.x - c.width) + '% ' +
       (100 - c.y - c.height) + '% ' + c.x + '%);transform-origin:center center;' +
       'transform:' + rotate + mirror + 'scale(' + (1 / w) + ',' + (1 / h) + ') translate(' + tx + '%,' + ty + '%);' +
-      (Number.isFinite(c.aspectRatio) ? 'height:auto;aspect-ratio:' + c.aspectRatio + ';' : '');
+      // Le plafond générique de couverture (45 % de la carte) dépend de la hauteur
+      // du mode d'affichage. Pour un recadrage explicite, il changerait le ratio
+      // entre l'atelier et la présentation : le rectangle choisi prévaut.
+      (Number.isFinite(c.aspectRatio) ? 'height:auto;max-height:none;aspect-ratio:' + c.aspectRatio + ';' : '');
   }
   function adocImageDisplayControlsHTML(isImageBlock) {
     const range = (label, key, min, max, value) => '<label>' + label + ' <output data-image-output="' + key + '">' + value + '</output><input type="range" min="' + min + '" max="' + max + '" step="1" value="' + value + '" data-image-display="' + key + '"></label>';
@@ -17531,6 +17536,67 @@ ${recent}`;
     }
   });
 
+  function adocRenderWorkspaceDeepDives(art) {
+    const host = document.getElementById('cc-ws-deepdives');
+    if (!host) return;
+    const doc = art && art._adocStructuredDoc;
+    const pages = doc && doc.documentKind === 'presentation' && Array.isArray(doc.deepDives) ? doc.deepDives : [];
+    host.hidden = !pages.length;
+    host.innerHTML = pages.length ? '<h2>Approfondissements</h2><p>Pages visibles dans la présentation. Modifiez-les ici, puis sauvegardez le document.</p>' +
+      pages.map(function (page, index) {
+        return '<details data-deep-dive-index="' + index + '"><summary>' + adocEsc(page.title) + '</summary>' +
+          '<label>Titre<input data-deep-dive-title value="' + adocEsc(page.title) + '"></label>' +
+          (page.paragraphs || []).map(function (paragraph, paragraphIndex) {
+            const value = typeof paragraph === 'string' ? paragraph : paragraph.text;
+            return '<label>Paragraphe ' + (paragraphIndex + 1) + '<textarea data-deep-dive-paragraph="' + paragraphIndex + '">' + adocEsc(value || '') + '</textarea></label>';
+          }).join('') +
+          '<button type="button" onclick="adocWorkspaceDeepDiveSave(' + index + ')">Appliquer</button>' +
+          '<button type="button" onclick="adocWorkspaceDeepDiveRemove(' + index + ')">Retirer cet approfondissement</button></details>';
+      }).join('') : '';
+  }
+  window.adocWorkspaceDeepDiveSave = async function (index) {
+    const art = adocEditorArt(), doc = art && art._adocStructuredDoc;
+    const page = doc && doc.deepDives && doc.deepDives[index];
+    const section = document.querySelector('#cc-ws-deepdives [data-deep-dive-index="' + index + '"]');
+    if (!page || !section) return;
+    const title = section.querySelector('[data-deep-dive-title]').value.trim();
+    const texts = Array.from(section.querySelectorAll('[data-deep-dive-paragraph]')).map(function (el) { return el.value.trim(); });
+    if (!title || texts.some(function (text) { return !text; })) { alert('Le titre et les paragraphes doivent rester renseignés.'); return; }
+    adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
+    page.title = title;
+    page.paragraphs = page.paragraphs.map(function (paragraph, i) {
+      return typeof paragraph === 'string' ? texts[i] : Object.assign({}, paragraph, { text: texts[i] });
+    });
+    adocEditorMarkDirty();
+    await window.adocOpenWorkspace(window._adocWsState.storeKey);
+    document.getElementById('cc-ws-deepdives')?.scrollIntoView({ block: 'nearest' });
+  };
+  window.adocWorkspaceDeepDiveRemove = async function (index) {
+    const art = adocEditorArt(), doc = art && art._adocStructuredDoc;
+    const page = doc && doc.deepDives && doc.deepDives[index];
+    if (!page || !confirm('Retirer « ' + page.title + ' » et ses liens dans les diapositives ?')) return;
+    adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
+    const targetId = page.id;
+    function removeLinks(blocks) {
+      (blocks || []).forEach(function (block) {
+        if (Array.isArray(block.deepDiveLinks)) block.deepDiveLinks = block.deepDiveLinks.filter(function (link) { return link.targetId !== targetId; });
+        if (block.content && Array.isArray(block.content.coverDeepDiveLinks)) block.content.coverDeepDiveLinks = block.content.coverDeepDiveLinks.filter(function (link) { return link.targetId !== targetId; });
+        removeLinks(block.content && block.content.blocks);
+      });
+    }
+    removeLinks(doc.blocks);
+    doc.deepDives.splice(index, 1);
+    doc.deepDives.forEach(function (other) {
+      other.paragraphs = other.paragraphs.map(function (paragraph) {
+        if (typeof paragraph === 'string' || !Array.isArray(paragraph.deepDiveLinks)) return paragraph;
+        return Object.assign({}, paragraph, { deepDiveLinks: paragraph.deepDiveLinks.filter(function (link) { return link.targetId !== targetId; }) });
+      });
+    });
+    adocEditorMarkDirty();
+    await window.adocOpenWorkspace(window._adocWsState.storeKey);
+    document.getElementById('cc-ws-deepdives')?.scrollIntoView({ block: 'nearest' });
+  };
+
   window.adocOpenWorkspace = async function (storeKey, options) {
     const art = window._adocArtifacts?.[storeKey];
     // Audit correctif, Partie B point 10 — l'écran de travail s'ouvre pour TOUT artefact dont les
@@ -17675,6 +17741,7 @@ ${recent}`;
     // docKind, jamais un changement global de largeur, cf. rapport correctif).
     wsDocCardEl.classList.toggle('cc-ws-doc-card--presentation', !isLegacy && docKind === 'presentation');
     wsDocCardEl.innerHTML = renderedHtml;
+    adocRenderWorkspaceDeepDives(art);
     adocWsSetupBlockEditing(art); // UX-11 — sélection/correction ciblée d'un bloc, uniquement si blockEditing est vrai
     if (!isLegacy) {
       const showMissing = function (img) {
@@ -18480,7 +18547,7 @@ ${recent}`;
     // d'approfondissement en plein écran) : aucun ton nouveau.
     '.cc-ws-present-slide-inner::after{content:"↓";position:absolute;left:0;right:0;bottom:0;height:54px;display:none;align-items:flex-end;justify-content:center;padding-bottom:6px;font-size:20px;line-height:1;color:#e8f5f1;background:linear-gradient(to bottom,rgba(20,33,31,0) 0%,rgba(20,33,31,.5) 65%,rgba(20,33,31,.76) 100%);pointer-events:none;border-radius:0 0 12px 12px;}' +
     '.cc-ws-present-slide-inner.cc-ws-present-suite::after{display:flex;}' +
-    '.cc-ws-present-slide-inner .adoc-sc-doc{height:100%;}' +
+    '.cc-ws-present-slide-inner .adoc-sc-doc{height:100%;background:#fffdf9;}' +
     '.cc-ws-present-slide-inner .adoc-sc-card{width:100%;height:100%;max-width:none;box-sizing:border-box;overflow:auto;}' +
     '.cc-ws-present-slide-inner.cc-ws-present-out{opacity:0;}' +
     // `visibility` en plus de l'opacité : un bloc non encore révélé était RETIRÉ DU CLIC
@@ -20187,7 +20254,8 @@ ${recent}`;
       // un seul par lecture. Ses deux dépendances, adocBlockStyleToCSSText et adocEditorStyleCSS,
       // figuraient DÉJÀ dans cette liste : vérifié, rien à y ajouter de plus.
       adocTitleStyleAttr: adocTitleStyleAttr,
-      adocImageDisplayStyle: adocImageDisplayStyle, adocDocumentCoverVisual: adocDocumentCoverVisual,
+      adocImageDisplayStyle: adocImageDisplayStyle, adocImageCropStyle: adocImageCropStyle,
+      adocDocumentCoverVisual: adocDocumentCoverVisual,
       // Appelées par adocPresentOpenWithDoc, qui s'exécute au démarrage de tout export : sans elles
       // ici, aucune présentation exportée ne s'ouvrirait — ReferenceError dès la première ligne.
       adocPresentCalculerEchelle: adocPresentCalculerEchelle,
@@ -21592,6 +21660,58 @@ ${recent}`;
   // Boutons d'intention + champ libre AU MÊME NIVEAU VISUEL (jamais les boutons seuls) — même
   // patron que la carte de clarification déjà établie (cc-clarity-card/cc-clarity-reply-btn/
   // cc-clarity-other-btn), jamais un nouveau style réinventé pour ce panneau.
+  function adocBlockSourcesControlsHTML(blockId, storeKey) {
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    const block = doc && adocFindEditableBlock(doc, blockId);
+    if (!block || block.type === 'card' || block.type === 'image' || block.type === 'video') return '';
+    const citations = doc.citations || [];
+    const entries = (art._adocStructuredSnapshot && art._adocStructuredSnapshot.entries) || [];
+    const links = (block.validation && block.validation.citationLinks) || [];
+    return '<details class="cc-block-sources"><summary>Sources et notes de bas de page (' + links.length + ')</summary>' +
+      '<p>Les appels numérotés renvoient aux sources du document. Un nouveau lien reste « à vérifier ».</p>' +
+      links.map(function (link) {
+        const citation = citations.find(function (c) { return c.citationId === link.citationId; });
+        const entry = citation && entries.find(function (e) { return e.sourceSnapshotEntryId === citation.sourceSnapshotEntryId; });
+        return '<div><strong>[' + (citations.indexOf(citation) + 1 || '?') + ']</strong> ' +
+          adocEsc(citation ? citation.displayLabel : 'Source introuvable') +
+          (entry ? ' — ' + adocEsc(entry.exactText.slice(0, 160)) : '') +
+          ' <button type="button" data-citation-id="' + adocEsc(link.citationId) + '" onclick="adocBlockSourceUnlink(this.dataset.citationId)">Retirer cette référence du bloc</button></div>';
+      }).join('') +
+      (citations.length ? '<label>Ajouter une source déjà présente <select data-block-source-choice><option value="">Choisir une source</option>' +
+        citations.map(function (c) { return '<option value="' + adocEsc(c.citationId) + '">' + adocEsc(c.displayLabel) + '</option>'; }).join('') +
+        '</select></label><button type="button" onclick="adocBlockSourceAttach(this)">Lier cette source au bloc</button>' : '') +
+      '<p>Pour une nouvelle source, recherchez un extrait dans « Bibliothèque thérapeutique », puis choisissez « Citer le bloc sélectionné ».</p></details>';
+  }
+  window.adocBlockSourceUnlink = async function (citationId) {
+    const ctx = adocEditorContext();
+    if (!ctx || ctx.legacy || !ctx.block) return;
+    adocSyncEditedStructuredBlocksToDoc(ctx.art); adocSyncEditedRootFieldsToDoc(ctx.art);
+    const block = ctx.block;
+    if (block.validation && Array.isArray(block.validation.citationLinks)) block.validation.citationLinks = block.validation.citationLinks.filter(function (link) { return link.citationId !== citationId; });
+    if (Array.isArray(block.citationIds)) block.citationIds = block.citationIds.filter(function (id) { return id !== citationId; });
+    const doc = ctx.art._adocStructuredDoc;
+    function stillUsed(blocks) { return (blocks || []).some(function (b) { return ((b.validation && b.validation.citationLinks) || []).some(function (l) { return l.citationId === citationId; }) || stillUsed(b.content && b.content.blocks); }); }
+    if (!stillUsed(doc.blocks)) doc.citations = (doc.citations || []).filter(function (c) { return c.citationId !== citationId; });
+    adocEditorMarkDirty();
+    await window.adocOpenWorkspace(ctx.st.storeKey);
+  };
+  window.adocBlockSourceAttach = async function (button) {
+    const ctx = adocEditorContext();
+    if (!ctx || ctx.legacy || !ctx.block) return;
+    const citationId = button.closest('.cc-block-sources').querySelector('[data-block-source-choice]').value;
+    if (!citationId || !(ctx.art._adocStructuredDoc.citations || []).some(function (c) { return c.citationId === citationId; })) return;
+    adocSyncEditedStructuredBlocksToDoc(ctx.art); adocSyncEditedRootFieldsToDoc(ctx.art);
+    const block = ctx.block;
+    block.validation = block.validation || {};
+    block.validation.citationLinks = block.validation.citationLinks || [];
+    if (block.validation.citationLinks.some(function (link) { return link.citationId === citationId; })) return;
+    const claimText = adocBlockPreviewText(block) || 'Référence du bloc';
+    block.validation.citationLinks.push({ citationId: citationId, claimText: claimText, claimSupport: 'needs-review' });
+    block.citationIds = Array.from(new Set([].concat(block.citationIds || [], citationId)));
+    adocEditorMarkDirty();
+    await window.adocOpenWorkspace(ctx.st.storeKey);
+  };
   function adocBuildBlockEditPanelHTML(blockType, blockId, storeKey) {
     const btn = function (key) {
       return '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocRequestBlockCorrectionByIntent(\'' + key + '\')">' +
@@ -21641,6 +21761,7 @@ ${recent}`;
       '</div>' +
       // 57f — the same controls apply to every directly editable block.
       (ADOC_DIRECT_TYPES.includes(blockType) ? adocBuildBlockStyleControlsHTML('adocApplyBlockStyle') : '') +
+      adocBlockSourcesControlsHTML(blockId, storeKey) +
       '<div class="cc-block-edit-result" hidden></div>';
   }
 
@@ -26947,6 +27068,7 @@ ${recent}`;
       + '</div>' + text + garbled
       + '<div class="cc-lib-actions">' + (!card.full && c.id ? '<button type="button" onclick="adocLibraryFullContext(\'' + uid + '\')"' + (card.loading ? ' disabled' : '') + '>' + (card.loading ? 'Chargement…' : 'Voir plus de contexte') + '</button>' : '')
       + (card.allowInsert ? '<button type="button" onclick="adocLibraryInsert(\'' + uid + '\')"' + (card.inserting ? ' disabled' : '') + '>Insérer cet extrait</button>' : '')
+      + (card.allowInsert ? '<button type="button" onclick="adocLibraryCiteSelected(\'' + uid + '\')"' + (card.inserting ? ' disabled' : '') + '>Citer le bloc sélectionné</button>' : '')
       + '</div><div class="cc-lib-status" role="status">' + adocEsc(card.status || (card.full ? 'Contexte complet' : 'Extrait') + (card.allowInsert ? ' — insertion après le bloc sélectionné, ou en fin de document.' : '')) + '</div></article>';
   }
   function adocRefreshLibraryCard(card) {
@@ -26972,6 +27094,49 @@ ${recent}`;
       card.full = true;
     } catch (e) { card.status = 'Contexte indisponible. Réessayez.'; }
     finally { clearTimeout(timer); card.loading = false; adocRefreshLibraryCard(card); }
+  };
+
+  window.adocLibraryCiteSelected = async function (uid) {
+    const card = _adocLibCards.get(uid);
+    const state = window._adocBlockEditState;
+    const storeKey = window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    const block = doc && state && state.storeKey === storeKey && adocFindEditableBlock(doc, state.blockId);
+    if (!card || !card.allowInsert || card.inserting || _adocLibraryInsertBusy) return;
+    if (!block || block.type === 'card') { card.status = 'Sélectionnez d’abord un bloc de texte dans le document.'; adocRefreshLibraryCard(card); return; }
+    const text = card.translated && !card.showingOriginal ? card.translated : card.original;
+    if (!text) return;
+    _adocLibraryInsertBusy = true; card.inserting = true; card.status = ''; adocRefreshLibraryCard(card);
+    const previousDoc = JSON.parse(JSON.stringify(doc)), previousSnapshot = art._adocStructuredSnapshot;
+    try {
+      const checksum = await adocComputeSHA256Hex(text);
+      if (window._adocWsState.storeKey !== storeKey || window._adocArtifacts[storeKey] !== art) throw new Error('Le document ouvert a changé. Recommencez.');
+      adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
+      const source = card.data;
+      const snapshot = art._adocStructuredSnapshot || { sourceSnapshotId: 'snapshot-' + adocUUID(), entries: [] };
+      const entryId = 'entry-' + adocUUID(), citationId = 'citation-' + adocUUID();
+      const nextSnapshot = Object.assign({}, snapshot, { entries: snapshot.entries.concat([{
+        sourceSnapshotEntryId: entryId, sourceType: 'library', sourceId: String(source.book_id || source.book_title || 'Référence'),
+        passageId: String(source.id || entryId), exactText: text, contentChecksum: 'sha256:' + checksum,
+        book: source.book_title || 'Référence', author: source.author || 'Auteur inconnu',
+        locator: { page: Number.isInteger(Number(source.page_number)) && Number(source.page_number) > 0 ? Number(source.page_number) : null, section: null },
+        retrievedAt: new Date().toISOString(),
+      }]) });
+      art._adocStructuredSnapshot = nextSnapshot; doc.sourceSnapshotId = nextSnapshot.sourceSnapshotId;
+      doc.citations = doc.citations || [];
+      doc.citations.push({ citationId: citationId, sourceSnapshotEntryId: entryId,
+        displayLabel: [source.author || 'Auteur inconnu', adocLibraryPageLabel(source) || source.book_title || 'Référence'].join(', ') });
+      block.validation = block.validation || {};
+      block.validation.citationLinks = block.validation.citationLinks || [];
+      block.validation.citationLinks.push({ citationId: citationId, claimText: adocBlockPreviewText(block) || 'Référence du bloc', claimSupport: 'needs-review' });
+      block.citationIds = Array.from(new Set([].concat(block.citationIds || [], citationId)));
+      if (!await window.adocOpenWorkspace(storeKey, { preserveLibrarySearch: true })) throw new Error('Source non ajoutée : document invalide.');
+      adocEditorMarkDirty(); card.status = 'Source liée au bloc. Vérifiez sa pertinence, puis sauvegardez.';
+    } catch (error) {
+      art._adocStructuredDoc = previousDoc; art._adocStructuredSnapshot = previousSnapshot;
+      card.status = error.message || 'Source non ajoutée.';
+    } finally { _adocLibraryInsertBusy = false; card.inserting = false; adocRefreshLibraryCard(card); }
   };
 
   window.adocLibraryInsert = async function (uid) {
