@@ -229,6 +229,12 @@ pub struct Session {
 }
 
 impl Session {
+    /// Le numéro du processus mené. L'épreuve du ramassage en a besoin pour constater, après
+    /// coup, qu'il ne reste pas de zombie derrière une session abandonnée.
+    pub fn numero_de_processus(&self) -> u32 {
+        self.enfant.id()
+    }
+
     pub fn ouvrir(lancement: &Lancement) -> io::Result<Self> {
         let mut enfant = Command::new(&lancement.programme)
             .args(&lancement.arguments)
@@ -309,9 +315,66 @@ impl Session {
     }
 }
 
+
+/// Ce qu'une session emporte en se terminant : son processus.
+///
+/// ## Le défaut que cela corrige, trouvé le 4 novembre 2026
+///
+/// `arreter` et `tuer` récoltent le moteur ; rien ne le faisait quand la session partait sans
+/// qu'on les appelle — et `std::process::Child` ne récolte pas en se libérant. Un fil qui
+/// panique en menant un travail laissait donc un **zombie**, constaté trente minutes durant,
+/// pendant que l'écran annonçait « un traitement en cours ».
+///
+/// On ne demande rien poliment ici : qui abandonne la session ne lui parle plus, et le moteur
+/// n'a plus personne pour l'écouter. On le tue et on récolte sa dépouille. Les deux retours sont
+/// ignorés à dessein : un processus déjà mort n'est pas une panne, et se libérer ne doit jamais
+/// échouer.
+impl Drop for Session {
+    fn drop(&mut self) {
+        let _ = self.enfant.kill();
+        let _ = self.enfant.wait();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Une session abandonnée ne laisse pas de zombie derrière elle.
+    ///
+    /// Le 4 novembre 2026, un fil a paniqué en menant un travail. La session est partie avec lui,
+    /// sans que personne appelle `arreter` ni `tuer` — et `std::process::Child` ne récolte pas son
+    /// processus en se libérant. Le moteur est resté **zombie** trente minutes, pendant que
+    /// l'écran annonçait « un traitement en cours ».
+    #[test]
+    fn une_session_abandonnee_recolte_son_processus() {
+        let lancement = Lancement {
+            // Un processus qui meurt tout de suite : c'est **après sa mort** qu'un enfant non
+            // récolté devient zombie. Un processus encore vivant n'en est pas un, et une épreuve
+            // qui le laisserait tourner passerait sans rien prouver.
+            programme: std::path::PathBuf::from("/bin/sh"),
+            arguments: vec!["-c".to_owned(), "exit 0".to_owned()],
+            environnement: Vec::new(),
+        };
+        let session = Session::ouvrir(&lancement).expect("session ouverte");
+        let numero = session.numero_de_processus();
+
+        // On le laisse mourir AVANT d'abandonner la session : sans ramassage au Drop, le système
+        // garde sa dépouille tant que le parent ne l'a pas réclamée.
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        drop(session);
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        let etat = std::process::Command::new("/bin/ps")
+            .args(["-o", "stat=", "-p", &numero.to_string()])
+            .output()
+            .expect("ps");
+        let etat = String::from_utf8_lossy(&etat.stdout).trim().to_owned();
+        assert!(
+            !etat.starts_with('Z'),
+            "le processus {numero} est resté zombie (état « {etat} ») : la session ne l'a pas récolté"
+        );
+    }
+
 
     /// Un paquet en miniature : `MacOS/node` à côté des binaires, `Resources/moteurs/…` pour le
     /// reste. C'est l'agencement réel, et c'est de lui que les deux réglages se déduisent.
