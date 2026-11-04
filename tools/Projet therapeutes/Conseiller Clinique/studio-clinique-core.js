@@ -475,13 +475,35 @@
   // jamais trois implémentations séparées). Réutilise EXACTEMENT le patron déjà éprouvé de
   // l'upload de PDF de charte graphique (adocBrandKitConfirmSave, POST /brand-assets/upload,
   // JSON base64) — jamais un second mécanisme de transport pour un même contrat Worker. jpg/png
-  // uniquement (décision déjà actée, investigation Lot 2 précédente) : contrôlé ici côté client,
-  // le Worker lui-même n'impose aucune restriction de type (confirmé par investigation).
+  // Le Worker stocke le MIME fourni. Les formats décodables par le navigateur autres que
+  // JPEG/PNG sont donc convertis en PNG avant l'envoi, pour garantir leur relecture.
   var ADOC_IMAGE_UPLOAD_ACCEPTED_TYPES = ['image/jpeg', 'image/png'];
-  async function adocUploadImageAsset(file) {
-    if (ADOC_IMAGE_UPLOAD_ACCEPTED_TYPES.indexOf(file.type) === -1) {
-      throw new Error('Seuls les fichiers JPG ou PNG sont acceptés.');
+  async function adocNormalizeImageFile(file) {
+    if (!file || (!file.type.startsWith('image/') && !/\.(avif|bmp|gif|heic|heif|jpe?g|jxl|png|svg|tiff?|webp)$/i.test(file.name || ''))) {
+      throw new Error('Choisissez un fichier image.');
     }
+    if (ADOC_IMAGE_UPLOAD_ACCEPTED_TYPES.includes(file.type)) return file;
+    const url = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      await new Promise(function (resolve, reject) {
+        image.onload = resolve;
+        image.onerror = function () { reject(new Error('Ce format d’image ne peut pas être lu par ce navigateur.')); };
+        image.src = url;
+      });
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      if (!canvas.width || !canvas.height) throw new Error('Cette image est vide.');
+      canvas.getContext('2d').drawImage(image, 0, 0);
+      const blob = await new Promise(function (resolve, reject) {
+        canvas.toBlob(function (result) { result ? resolve(result) : reject(new Error('Conversion de l’image impossible.')); }, 'image/png');
+      });
+      return new File([blob], (file.name || 'image').replace(/\.[^.]+$/, '') + '.png', { type: 'image/png' });
+    } finally { URL.revokeObjectURL(url); }
+  }
+  async function adocUploadImageAsset(file) {
+    file = await adocNormalizeImageFile(file);
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -11510,7 +11532,7 @@ ${recent}`;
   window.adocArmImageDropOnBlock = function () {
     const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block) return;
     ctx.el.classList.add('cc-image-drop-armed');
-    adocEditorMessage('Glissez une image (JPG/PNG) sur ce bloc pour l’ajouter en fond.');
+    adocEditorMessage('Glissez une image sur ce bloc pour l’ajouter en fond.');
   };
 
   function adocEditorLeafInContext(ctx) {
@@ -22839,13 +22861,9 @@ ${recent}`;
       // jamais un fond (qui reste le comportement de l'onglet Médias cliqué depuis la barre
       // latérale — deux gestes distincts, décision actée au lot précédent).
       resultEl.innerHTML =
-        '<div class="cc-block-edit-label">Décrivez brièvement l\'image souhaitée, ou glissez-déposez un fichier JPG/PNG</div>' +
-        '<div style="display:flex;gap:6px;margin-top:6px;">' +
-          '<input type="text" class="cc-block-edit-freetext adoc-textarea" style="flex:1;" placeholder="ex. mère et enfant en interaction calme" ' +
-            'onkeydown="if(event.key===\'Enter\'){event.preventDefault();event.stopPropagation();window.adocConfirmBlockInsert(\'' + direction + '\',\'image\',this.value);}" />' +
-          '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocConfirmBlockInsert(\'' + direction + '\',\'image\',this.previousElementSibling.value)">Créer</button>' +
-        '</div>' +
-        '<div class="cc-block-insert-image-drop" style="margin-top:8px;padding:12px;border:1px dashed var(--stone-300);border-radius:8px;text-align:center;font-size:12px;color:var(--muted);">Ou glissez une image ici (JPG/PNG)</div>' +
+        '<div class="cc-block-edit-label">Choisissez la source de l’image</div>' +
+        '<input type="file" class="cc-block-insert-image-file" accept="image/*,.heic,.heif,.tif,.tiff,.avif,.webp,.bmp,.gif,.svg,.jxl" hidden aria-label="Choisir une image sur cet appareil">' +
+        '<button type="button" class="cc-block-insert-image-drop cc-clarity-other-btn" style="display:block;width:100%;margin-top:8px;padding:12px;border:1px dashed var(--stone-300);border-radius:8px;text-align:center;">Importer une image depuis cet appareil (ou glisser-déposer ici)</button>' +
         '<div style="margin-top:8px;"><button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocBlockInsertMediaToggle(\'' + direction + '\')">Choisir dans Médias</button></div>' +
         '<div class="cc-ws-media-panel" id="cc-block-media-panel" hidden>' +
           '<div class="cc-media-search-row">' +
@@ -22859,6 +22877,14 @@ ${recent}`;
         '</div>' +
         '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelBlockCorrection()">Annuler</button></div>';
       const dropZone = resultEl.querySelector('.cc-block-insert-image-drop');
+      const fileInput = resultEl.querySelector('.cc-block-insert-image-file');
+      dropZone.addEventListener('click', function (e) { e.stopPropagation(); fileInput.click(); });
+      fileInput.addEventListener('change', function (e) {
+        e.stopPropagation();
+        const file = fileInput.files && fileInput.files[0];
+        if (file) window.adocConfirmBlockInsertFromFile(direction, file);
+        fileInput.value = '';
+      });
       dropZone.addEventListener('dragover', function (e) { e.preventDefault(); e.stopPropagation(); dropZone.style.borderColor = 'var(--petrol-800)'; });
       dropZone.addEventListener('dragleave', function () { dropZone.style.borderColor = 'var(--stone-300)'; });
       dropZone.addEventListener('drop', function (e) {

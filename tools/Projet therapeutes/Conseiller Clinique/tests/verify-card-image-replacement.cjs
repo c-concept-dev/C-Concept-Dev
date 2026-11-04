@@ -1,32 +1,39 @@
-const {chromium}=require('playwright'),assert=require('node:assert/strict'),path=require('node:path');
+const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict'),path=require('node:path');
 const {ROOT,doc,open}=require('./presentation-edit-fixtures.cjs');
 const backend=require(path.resolve(__dirname,'../../../../Worker/tests/clinical-documents-sqlite.cjs'))();
 const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
-(async()=>{const browser=await chromium.launch();try{
- const page=await browser.newPage(),alerts=[],errors=[],requests=[];
+(async()=>{const browser=await (process.env.STUDIO_TEST_WEBKIT==='1'?webkit:chromium).launch();try{
+ const page=await browser.newPage(),alerts=[],errors=[],requests=[],uploads=[];
  page.on('dialog',async d=>{alerts.push(d.message());await d.accept();});page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>localStorage.setItem('workerApiKey','image-secret-local'));
  await page.route('https://**/*',async r=>{const req=r.request(),u=new URL(req.url());requests.push({path:u.pathname,method:req.method()});
   if(req.resourceType()==='script')return r.fulfill({body:'',contentType:'application/javascript'});
   if(u.pathname.startsWith('/clinical-documents')){const rep=await backend.respond(req.url(),req.method(),req.postData());return r.fulfill({status:rep.status,body:await rep.text(),contentType:'application/json'});}
   if(u.pathname.startsWith('/brand-assets/')&&req.method()==='GET')return r.fulfill({contentType:'image/png',body:Buffer.from(png,'base64')});
-  if(u.pathname==='/brand-assets/upload'&&req.method()==='POST')return r.fulfill({json:{asset_id:'asset-upload'}});
+  if(u.pathname==='/brand-assets/upload'&&req.method()==='POST'){uploads.push(JSON.parse(req.postData()));return r.fulfill({json:{asset_id:'asset-upload'}});}
   if(u.pathname==='/media-assets')return r.fulfill({json:{media:[{asset_id:'asset-library',attribution:'Photo locale'}]}});
   return r.fulfill({json:{results:[],items:[],total:0}});
  });
  await page.goto('file://'+ROOT+'/studio-clinique.html');
  for(const kind of ['presentation','carrousel']){
-  const d=doc(kind);d.blocks[0].content.imageRef='ocean landscape';d.blocks[0].content.imageAlt='Océan';
+  const d=doc(kind);d.blocks[0].content.imageRef='ocean landscape';d.blocks[0].content.imageAlt='Océan';d.blocks[0].content.imageDisplay={coverHeightPx:240,sizePercent:75};
   assert.equal(await open(page,d),true);
   await page.locator('.adoc-sc-card-img').click();await page.getByRole('button',{name:'Changer l’image',exact:true}).click();
-  await page.locator('.cc-block-edit-result input.cc-block-edit-freetext').fill('forest landscape');
-  await page.getByRole('button',{name:'Créer',exact:true}).click();
+  assert.equal(await page.locator('.cc-block-edit-result input.cc-block-edit-freetext').count(),0);
+  const importButton=page.getByRole('button',{name:/Importer une image depuis cet appareil/});
+  assert.equal(await importButton.count(),1);
+  const webp=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=2;c.height=2;c.getContext('2d').fillRect(0,0,2,2);return c.toDataURL('image/webp').split(',')[1]});
+  const fileChooser=page.waitForEvent('filechooser');await importButton.click();
+  await (await fileChooser).setFiles({name:'photo.webp',mimeType:'image/webp',buffer:Buffer.from(webp,'base64')});
+  await page.waitForSelector('.adoc-sc-card-img[data-asset-id="asset-upload"]');
+  assert.equal(uploads.at(-1).mime_type,'image/png');
+  assert.deepEqual(await page.evaluate(()=>window._adocArtifacts['test-doc']._adocStructuredDoc.blocks[0].content.imageDisplay),{coverHeightPx:240,sizePercent:75});
   // Q7 : remplacer une image ne crée aucune entrée avant le clic explicite sur Sauvegarder.
   await page.waitForFunction(()=>window._adocArtifacts['test-doc']._ccEditorDirty===true);
   assert.equal(await page.evaluate(()=>window._adocArtifacts['test-doc']._adocClinicalDocumentId||null),null);
   assert.equal(await page.evaluate(()=>window._adocArtifacts['test-doc']._ccEditorDirty),true);
   assert.equal(await page.locator('#cc-ws-save-status').textContent(),'Modifications non sauvegardées');
-  assert.equal(await page.evaluate(()=>window._adocArtifacts['test-doc']._adocStructuredDoc.blocks[0].content.imageRef),'forest landscape');
+  assert.equal(await page.evaluate(()=>window._adocArtifacts['test-doc']._adocStructuredDoc.blocks[0].content.imageAssetId),'asset-upload');
   await page.locator('.adoc-sc-card-img').click();await page.getByRole('button',{name:'Changer l’image',exact:true}).click();
   await page.getByRole('button',{name:'Choisir dans Médias',exact:true}).click();
   await page.locator('#cc-block-media-history button').filter({hasText:'Insérer'}).click();
@@ -43,7 +50,7 @@ const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFg
   await page.waitForSelector('.adoc-sc-card-img[data-asset-id="asset-upload"]');
   await page.evaluate(()=>adocWsSave());const id=await page.evaluate(()=>window._adocArtifacts['test-doc']._adocClinicalDocumentId);
   await page.reload();await page.evaluate(()=>adocCreationsLoad('cc-home-creations'));const idx=await page.evaluate(id=>window._adocCreationsState['cc-home-creations'].filtered.findIndex(x=>x.document_id===id),id);await page.evaluate(i=>adocCreationsOpen('cc-home-creations',i),idx);await page.waitForSelector('.adoc-sc-card-img[data-asset-id="asset-upload"]');
-  console.log('PASS '+kind+' : description, Médias, dépôt panneau/direct, retrait/restauration, sauvegarde/relecture');
+  console.log('PASS '+kind+' : bouton d’import WebP, Médias, dépôt panneau/direct, retrait/restauration, sauvegarde/relecture');
  }
  const d=doc();d.blocks[0].content.imageRef=null;d.blocks[0].content.imageAlt='Couverture';d.blocks[0].content.imageAssetId='asset-cover';
  d.blocks[0].content.blocks.push({id:'img-inline',type:'image',content:{query:'Photo',alt:'Photo',assetId:'asset-inline'},citationIds:[],validation:{}});

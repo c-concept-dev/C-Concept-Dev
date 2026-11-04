@@ -103,15 +103,14 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(opened, true, 'adocOpenWorkspace doit réussir sur un document structuré valide');
   const blockCount = () => page.evaluate((key) => window._adocArtifacts[key]._adocStructuredDoc.blocks.length, storeKey);
 
-  // ── Test 1 : sélection réelle de blk-b, "Insérer un bloc après", type "Image" → les 3 modes
-  // sont bien présents, y compris le nouveau ──
+  // ── Test 1 : l'import local et Médias sont les deux choix explicites ──
   await page.click('#blk-b');
   await page.click('.cc-block-edit-panel button:has-text("Insérer un bloc après")');
   await page.locator('.cc-block-edit-panel button', { hasText: /^Image$/ }).click();
   await page.waitForSelector('.cc-block-edit-panel button:has-text("Choisir dans Médias")');
-  assert.ok(await page.locator('.cc-block-edit-panel input.cc-block-edit-freetext').count(), 'le mode description doit toujours être présent');
+  assert.equal(await page.locator('.cc-block-edit-panel input.cc-block-edit-freetext').count(), 0, 'le champ de description trompeur doit être absent');
   assert.ok(await page.locator('.cc-block-edit-panel .cc-block-insert-image-drop').count(), 'le mode glisser-déposer doit toujours être présent');
-  console.log('PASS 1/12 — les 3 modes (description, glisser-déposer, Choisir dans Médias) sont bien proposés côte à côte');
+  console.log('PASS 1/12 — import local et Médias sont les deux choix explicites');
 
   // ── Test 2 : "Choisir dans Médias" déplie recherche + historique (historique vide au départ) ──
   await page.click('.cc-block-edit-panel button:has-text("Choisir dans Médias")');
@@ -165,21 +164,13 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(await page.locator('#cc-block-media-history .cc-media-delete-btn').count(), 0, 'jamais de bouton Effacer dans ce sous-panneau de sélection');
   console.log('PASS 6/12 — aucun bouton "Effacer" dans le sous-panneau de sélection (comportement voulu, différent de l’onglet Médias)');
 
-  // ── Test 7 : non-régression — le mode description (IA/Pexels éphémère) fonctionne toujours,
-  // via un vrai clic sur "Créer" ──
+  // ── Test 7 : le sélecteur local est accessible sans glisser-déposer ──
   await page.click('#blk-c');
   await page.click('.cc-block-edit-panel button:has-text("Insérer un bloc après")');
   await page.locator('.cc-block-edit-panel button', { hasText: /^Image$/ }).click();
-  const countBefore7 = await blockCount();
-  await page.fill('.cc-block-edit-panel input.cc-block-edit-freetext', 'illustration libre');
-  await page.click('.cc-block-edit-panel button:has-text("Créer")');
-  await page.waitForFunction((n) => document.querySelectorAll('.adoc-sc-block').length >= n, countBefore7 + 1);
-  const blocksAfter7 = await page.evaluate((key) => window._adocArtifacts[key]._adocStructuredDoc.blocks, storeKey);
-  assert.equal(blocksAfter7.length, countBefore7 + 1);
-  const legacyBlock = blocksAfter7.find((b) => b.content && b.content.query === 'illustration libre');
-  assert.ok(legacyBlock, 'le mode description doit toujours créer un bloc avec content.query');
-  assert.equal(legacyBlock.content.assetId, undefined, 'le mode description ne doit jamais poser d’assetId (mécanisme distinct, inchangé)');
-  console.log('PASS 7/12 — non-régression : le mode description (Pexels éphémère) fonctionne toujours à l’identique');
+  assert.equal(await page.locator('.cc-block-insert-image-file[accept*="image/*"]').count(), 1);
+  assert.equal(await page.getByRole('button', { name: /Importer une image depuis cet appareil/ }).count(), 1);
+  console.log('PASS 7/12 — bouton d’import local et sélecteur de fichier présents');
 
   // ── Test 8 : non-régression — le mode glisser-déposer local fonctionne toujours (appel réel à
   // la fonction réelle adocConfirmBlockInsertFromFile, upload réel intercepté) ──
