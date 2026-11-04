@@ -966,7 +966,8 @@ function renderQueue() {
         if (q.status === 'pending') statusText = `${(q.file.size/(1024*1024)).toFixed(1)} Mo — en attente`;
         else if (q.status === 'duplicate') {
             const match = q._duplicateOf || q._similarTo;
-            statusText = `<span class="err">Doublon${dupChunkText}${match ? ' de « ' + escHtml(match.book_title || match.book_id) + ' »' : ''}</span>`;
+            const label = q._similarTo ? 'Titre ressemblant à' : 'Doublon de';
+            statusText = `<span class="err">${label}${match ? ' « ' + escHtml(match.book_title || match.book_id) + ' »' : ''}${dupChunkText}</span>`;
         }
         else if (q.status === 'extracting') statusText = 'Extraction du texte...';
         else if (q.status === 'uploading') statusText = `Indexation ${q.chunks.length} chunks...`;
@@ -2005,12 +2006,12 @@ async function startIngestion(onlyQueueId = null) {
                 // du nom de fichier : deux éditions du même livre, nommées différemment, passaient
                 // inaperçues. /library-stats ne rend que book_id/book_title/author/language/approach
                 // — aucun contenu — donc une vraie empreinte de contenu n'est pas faisable ici sans
-                // toucher au Worker. Ce contrôle par titre+auteur normalisés est honnête sur sa
-                // limite : un signal, pas une certitude — d'où un AVERTISSEMENT qui bloque et
-                // demande une décision humaine, jamais un rejet silencieux ni un écrasement
-                // automatique.
+                // toucher au Worker. Ce contrôle par titre est un signal à arbitrer par l'humain.
+                // Chaque rapprochement écarté est mémorisé uniquement dans cette file ; le contrôle
+                // de collision exacte par book_id ci-dessus est toujours exécuté à chaque essai.
                 const similar = q._replacementOf ? null : (stats.books || []).find(b =>
                     b.book_id !== q.meta.book_id && b.book_id !== q._replacementOf &&
+                    !q._distinctFrom?.includes(b.book_id) &&
                     titleSimilarity(b.book_title, q.meta.title) >= 0.6
                 );
                 if (similar) {
@@ -2205,6 +2206,17 @@ function skipDuplicate(qId) {
     if (q) { q._dupAction = 'skip'; q.status = 'skipped'; renderQueue(); renderDupAlerts(); }
 }
 
+function indexDistinctBook(qId) {
+    const q = queue.find(x => x.id === qId);
+    if (!q || q.status !== 'duplicate' || !q._similarTo || q._duplicateOf || isIngesting) return;
+    q._distinctFrom = [...new Set([...(q._distinctFrom || []), q._similarTo.book_id])];
+    q._similarTo = null;
+    q.status = 'pending';
+    renderQueue();
+    renderDupAlerts();
+    startIngestion(q.id); // Recontrôle D1 : une collision exacte reste toujours bloquante.
+}
+
 function renderDupAlerts() {
     const el = document.getElementById('dupAlerts');
     const dups = queue.filter(q => q.status === 'duplicate');
@@ -2224,8 +2236,9 @@ function renderDupAlerts() {
                 + escHtml(q._similarTo.book_title || q._similarTo.book_id) + '</b>'
                 + (q._similarTo.author ? ' · ' + escHtml(q._similarTo.author) : '')
                 + ' · identifiant : ' + escHtml(q._similarTo.book_id)
-                + '. Il peut s’agir de la même œuvre sous un autre nom de fichier. Vérifiez avant de choisir « Remplacer un ouvrage ».</div>'
+                + '. Le titre seul ne prouve pas un doublon. Si ce sont deux livres distincts, confirmez leur ajout sans supprimer l’ouvrage existant.</div>'
                 + '<div class="dup-actions">'
+                + '<button class="btn-overwrite" onclick="indexDistinctBook(\''+q.id+'\')">Indexer comme livre distinct</button>'
                 + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer — ne pas déposer ce fichier</button>'
                 + '</div></div>';
         }
