@@ -14769,7 +14769,7 @@ ${recent}`;
       '.adoc-sc-card{position:relative;border:1px solid var(--adoc-sc-card-border,#c9c3b8);background:var(--adoc-sc-card-bg,#fff);border-radius:12px;padding:18px;}' +
       (isPresentation ? '.adoc-pdf-page .adoc-sc-card-title{font-family:var(--adoc-sc-heading-font,Georgia,serif);color:var(--adoc-sc-heading-color,#102f31);}' +
         '.adoc-pdf-page .adoc-sc-block{break-inside:avoid;page-break-inside:avoid;}' +
-        '.adoc-pdf-page .adoc-sc-card-img{max-height:324px;object-fit:cover;break-inside:avoid;page-break-inside:avoid;}' : '') +
+        '.adoc-pdf-page .adoc-sc-card-img{max-height:324px!important;object-fit:cover;break-inside:avoid;page-break-inside:avoid;}' : '') +
       '.adoc-sc-table-el{border-collapse:collapse;width:100%;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;}' +
       '.adoc-sc-table-el th{background:var(--adoc-sc-table-header-bg,#dce8e6);color:var(--adoc-sc-table-header-color,#102f31);}' +
       '.adoc-sc-cite{color:var(--adoc-sc-cite-color,#8a3f29);font-size:0.7em;}' +
