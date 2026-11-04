@@ -910,7 +910,7 @@ function addFiles(files, options = {}) {
 
     const added = [];
     for (const f of accepted) {
-        if (queue.find(q => q.file.name === f.name)) continue;
+        if (!options.allowDuplicateFilename && queue.find(q => q.file.name === f.name)) continue;
         const id = 'q-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5);
         const ext = f.name.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
         const bookId = f.name.replace(/\.(pdf|html?|epub)$/i, '').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüÿçœæ\s-]/g, '').substring(0, 60);
@@ -964,7 +964,10 @@ function renderQueue() {
             ? ` (${q._existingChunks} chunks)` : '';
         let statusText = '';
         if (q.status === 'pending') statusText = `${(q.file.size/(1024*1024)).toFixed(1)} Mo — en attente`;
-        else if (q.status === 'duplicate') statusText = `<span class="err">Doublon${dupChunkText}</span>`;
+        else if (q.status === 'duplicate') {
+            const match = q._duplicateOf || q._similarTo;
+            statusText = `<span class="err">Doublon${dupChunkText}${match ? ' de « ' + escHtml(match.book_title || match.book_id) + ' »' : ''}</span>`;
+        }
         else if (q.status === 'extracting') statusText = 'Extraction du texte...';
         else if (q.status === 'uploading') statusText = `Indexation ${q.chunks.length} chunks...`;
         else if (q.status === 'verifying') statusText = 'Écritures reçues — vérification D1 et Vectorize en cours…';
@@ -1043,16 +1046,20 @@ async function verifyQueuedBookIndex(id) {
 
 // ── Remplacer un livre — carte dédiée du 22/10/2026 ──
 //
-// Trouvaille en construisant cette carte : le circuit existant « Doublon → Écraser »
-// (overwriteDuplicate/renderDupAlerts, utilisé jusqu'ici) SUPPRIME l'ancien livre AVANT
-// d'ingérer le nouveau (cf. startIngestion, branche `q._dupAction === 'overwrite'`). Si la
-// nouvelle extraction échoue après cette suppression, le livre disparaît purement et
-// simplement de la bibliothèque, sans ancienne ni nouvelle version. Ce n'est pas corrigé ici
-// — changer ce circuit toucherait un chemin déjà en production, décision à part — mais cette
-// carte ne l'emprunte JAMAIS : elle ingère d'abord sous un identifiant distinct, et ne
-// supprime l'ancienne version qu'après confirmation explicite que la nouvelle a réussi.
+// Le circuit « Doublon → Écraser » supprimait l'ancien livre avant d'ingérer le nouveau.
+// Il ouvre désormais ce remplacement vérifié : nouvelle extraction sous un identifiant
+// distinct, puis suppression de l'ancienne seulement après confirmation de disponibilité.
 let _replaceOld = null;
 let _replaceQueueId = null;
+
+function newReplacementBookId() {
+    // Vectorize limite l'identifiant du vecteur à 64 octets. Le suffixe du passage
+    // est ajouté plus tard ; l'identifiant temporaire reste court et unique par essai.
+    const unique = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID().replace(/-/g, '').slice(0, 20)
+        : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    return 'replacement-' + unique;
+}
 
 function showReplacementProgress(q, label, done = null, total = null) {
     if (!q || q.id !== _replaceQueueId) return;
@@ -1089,7 +1096,8 @@ function prepareReplaceTab() {
 function renderReplaceBookOptions(error = '') {
     const sel = document.getElementById('replaceOldBook');
     const notice = document.getElementById('replaceBooksNotice');
-    const books = window._libBooks || [];
+    const books = [...new Map((window._libBooks || []).filter(b => b.book_id).map(b => [b.book_id, b])).values()];
+    window._replaceBooks = books;
     const selectedId = _replaceOld?.book_id;
     sel.innerHTML = '<option value="">— Choisissez dans la bibliothèque —</option>' +
         books.map((b, i) => `<option value="${i}">${escHtml(b.book_title || b.book_id)}</option>`).join('');
@@ -1108,7 +1116,7 @@ function renderReplaceBookOptions(error = '') {
 
 function onReplaceOldBookChange() {
     const idx = document.getElementById('replaceOldBook').value;
-    const books = window._libBooks || [];
+    const books = window._replaceBooks || [];
     _replaceOld = idx !== '' ? books[idx] : null;
     document.getElementById('replaceDropzone').style.display = _replaceOld ? '' : 'none';
     document.getElementById('replaceStatus').innerHTML = '';
@@ -1119,24 +1127,39 @@ document.getElementById('replaceFileInput').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file || !_replaceOld) return;
 
-    const [q] = addFiles([file], { language: _replaceOld.language });
+    const [q] = addFiles([file], { language: _replaceOld.language, allowDuplicateFilename: true });
     e.target.value = '';
     if (!q) {
-        document.getElementById('replaceStatus').textContent = 'Ce fichier est déjà dans la file, ou son format n’est pas accepté. Retirez-le de la file avant de le sélectionner à nouveau.';
+        document.getElementById('replaceStatus').textContent = 'Format non accepté : choisissez un PDF ou un EPUB.';
         return;
     }
-    // Identifiant et titre volontairement distincts de l'ancien — c'est ce qui empêche le
-    // circuit de doublon/écrasement de se déclencher : cette ingestion-ci n'écrase rien.
-    q.meta.book_id = (_replaceOld.book_id || 'livre') + '-nouvelle-extraction';
-    q.meta.title = (_replaceOld.book_title || file.name) + ' — nouvelle extraction';
-    q.meta.author = _replaceOld.author || '';
-    q.meta.language = normalizeAdminBookLanguage(_replaceOld.language);
-    q.meta.approach = _replaceOld.approach || 'general';
+    stageReplacement(q, _replaceOld);
+});
+
+function stageReplacement(q, oldBook) {
+    if (!q || !oldBook) return;
+    _replaceOld = oldBook;
+    q.status = 'pending';
+    q.error = null;
+    q._dupAction = null;
+    q._duplicateOf = null;
+    q._similarTo = null;
+    // L'identifiant provisoire est distinct ; le titre et les métadonnées restent ceux
+    // de l'ouvrage, pour ne pas laisser une « nouvelle extraction » dans le catalogue.
+    q.meta.book_id = newReplacementBookId();
+    q.meta.title = oldBook.book_title || q.file.name;
+    q.meta.author = oldBook.author || '';
+    q.meta.language = normalizeAdminBookLanguage(oldBook.language);
+    q.meta.approach = oldBook.approach || 'general';
     // La détection démarrée par addFiles est asynchrone. Elle ne doit jamais effacer la
     // langue connue du livre à remplacer et bloquer silencieusement cette ingestion.
     q._languageManual = Boolean(q.meta.language);
-    q._replacementOf = _replaceOld.book_id;
+    q._replacementOf = oldBook.book_id;
     _replaceQueueId = q.id;
+    document.getElementById('replaceDropzone').style.display = '';
+    renderReplaceBookOptions();
+    renderQueue();
+    renderDupAlerts();
 
     document.getElementById('replaceStatus').innerHTML = `
         <div style="padding:12px;background:#fafaf8;border:1px solid #eee;border-radius:8px;font-size:13px;">
@@ -1156,7 +1179,7 @@ document.getElementById('replaceFileInput').addEventListener('change', (e) => {
     q._languageDetectionPromise.then(() => {
         if (q.id === _replaceQueueId) document.getElementById('replaceLanguage').innerHTML = adminBookLanguageOptions(q.meta.language);
     });
-});
+}
 
 async function replaceIngestNew() {
     if (!_replaceQueueId) return;
@@ -1166,11 +1189,32 @@ async function replaceIngestNew() {
         resultEl.textContent = 'Une indexation est déjà en cours. Attendez sa fin avant de remplacer cet ouvrage.';
         return;
     }
-    if (button) button.disabled = true;
     const active = queue.find(x => x.id === _replaceQueueId);
+    if (!active) return;
+    if (active.status === 'verify_pending') {
+        await verifyQueuedBookIndex(active.id);
+        if (active.status === 'verify_pending') resultEl.textContent = 'La nouvelle extraction reste en attente de vérification. L’ancien ouvrage est conservé.';
+        return;
+    }
+    if (active.status === 'done') {
+        await finishReplacement(active);
+        return;
+    }
+    if (active.status === 'duplicate') {
+        resultEl.textContent = 'L’identifiant provisoire existe déjà. Choisissez à nouveau le fichier ; aucun ouvrage existant n’a été supprimé.';
+        return;
+    }
+    if (button) button.disabled = true;
     showReplacementProgress(active, 'Préparation de la nouvelle extraction…');
     try {
+        if (active.status === 'partial' || active.status === 'error') {
+            await cleanupReplacementCandidate(active);
+        }
         await startIngestion(_replaceQueueId); // Même circuit, limité à cette nouvelle extraction.
+    } catch (err) {
+        active.status = 'error';
+        active.error = err.message;
+        renderQueue();
     } finally {
         if (button) button.disabled = false;
     }
@@ -1189,6 +1233,28 @@ async function replaceIngestNew() {
     }
 }
 
+async function cleanupReplacementCandidate(q) {
+    if (!q._replacementOf || !q.meta.book_id.startsWith('replacement-') || q.meta.book_id === q._replacementOf)
+        throw new Error('Identifiant provisoire invalide : reprise arrêtée par précaution.');
+    showReplacementProgress(q, 'Nettoyage de l’extraction provisoire incomplète…');
+    const res = await fetch(getWorkerUrl() + '/delete-book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
+        body: JSON.stringify({ book_id: q.meta.book_id })
+    });
+    let data;
+    try { data = await res.json(); } catch { throw new Error('Nettoyage provisoire non confirmé : réponse invalide. L’ancien ouvrage est conservé.'); }
+    if (!res.ok || data.success !== true)
+        throw new Error('Nettoyage provisoire non confirmé : ' + (data.error || `HTTP ${res.status}`) + '. L’ancien ouvrage est conservé.');
+    q.meta.book_id = newReplacementBookId();
+    q.chunks = [];
+    q.error = null;
+    q._partialInfo = null;
+    q._verifyInfo = null;
+    q.status = 'pending';
+    renderQueue();
+}
+
 async function finishReplacement(q) {
     if (!q || q.status !== 'done' || !q._replacementOf || q._replacementFinalized || q._replacementFinalizing) return;
     q._replacementFinalizing = true;
@@ -1202,10 +1268,10 @@ async function finishReplacement(q) {
             body: JSON.stringify({ book_id: q._replacementOf })
         });
         const data = await res.json();
-        if (!res.ok || data.success !== true) {
+        if (!res.ok || data.success !== true || !Number.isSafeInteger(data.deleted_d1) || data.deleted_d1 < 1) {
             throw new Error(data.partial
                 ? `Suppression partielle de l'ancien livre (D1 : ${data.deleted_d1 ?? '?'}, vecteurs : ${data.deleted_vectorize ?? '?'})`
-                : data.error || `HTTP ${res.status}`);
+                : data.error || `Suppression de l’ancien ouvrage non confirmée (HTTP ${res.status}, passages supprimés : ${data.deleted_d1 ?? '?'})`);
         }
         q._replacementFinalized = true;
         showReplacementProgress(q, 'Remplacement terminé.', 1, 1);
@@ -1904,7 +1970,8 @@ async function startIngestion(onlyQueueId = null) {
             // échec de vérification (réseau/HTTP/JSON) → erreur levée, `/ingest` jamais appelée
             // pour ce livre (capturée par le catch englobant, qui marque déjà le livre en
             // erreur — jamais un faux succès ni un faux repli silencieux).
-            if (q._dupAction !== 'overwrite') {
+            if (q._dupAction === 'overwrite') throw new Error('Ancien écrasement direct désactivé : utilisez le remplacement vérifié.');
+            {
                 showReplacementProgress(q, 'Vérification de la bibliothèque avant écriture…');
                 log('  Vérification doublon : ' + q.meta.book_id + '...');
                 let statsRes;
@@ -1922,12 +1989,16 @@ async function startIngestion(onlyQueueId = null) {
                 } catch (parseErr) {
                     throw new Error('Vérification doublon impossible (réponse invalide) — ingestion bloquée par précaution');
                 }
-                const exists = (stats.books || []).some(b => b.book_id === q.meta.book_id);
-                if (exists) {
+                if (q._replacementOf && !(stats.books || []).some(b => b.book_id === q._replacementOf))
+                    throw new Error('L’ouvrage à remplacer n’est plus présent dans la bibliothèque. Aucune nouvelle extraction n’a été écrite.');
+                const existing = (stats.books || []).find(b => b.book_id === q.meta.book_id);
+                if (existing) {
                     q._existingChunks = null; // connu : existe déjà — jamais un compte exact via cette méthode
+                    q._duplicateOf = existing;
                     q.status = 'duplicate';
                     log('  DOUBLON : "' + q.meta.title + '" existe déjà', 'error');
                     renderQueue();
+                    renderDupAlerts();
                     continue;
                 }
                 // ── Correctif du 22/10/2026 — le contrôle ci-dessus ne compare que book_id, dérivé
@@ -1937,8 +2008,8 @@ async function startIngestion(onlyQueueId = null) {
                 // toucher au Worker. Ce contrôle par titre+auteur normalisés est honnête sur sa
                 // limite : un signal, pas une certitude — d'où un AVERTISSEMENT qui bloque et
                 // demande une décision humaine, jamais un rejet silencieux ni un écrasement
-                // automatique (qui emprunterait le circuit « Écraser », déjà signalé à risque).
-                const similar = (stats.books || []).find(b =>
+                // automatique.
+                const similar = q._replacementOf ? null : (stats.books || []).find(b =>
                     b.book_id !== q.meta.book_id && b.book_id !== q._replacementOf &&
                     titleSimilarity(b.book_title, q.meta.title) >= 0.6
                 );
@@ -1947,41 +2018,9 @@ async function startIngestion(onlyQueueId = null) {
                     q.status = 'duplicate';
                     log('  RESSEMBLE À UN LIVRE EXISTANT : "' + q.meta.title + '" ≈ "' + similar.book_title + '" (' + similar.book_id + ')', 'error');
                     renderQueue();
+                    renderDupAlerts();
                     continue;
                 }
-            } else {
-                // Correctif urgent P0-1 — fail-open corrigé : avant, le résultat de /delete-book
-                // n'était ni capturé ni vérifié, "Ancien contenu supprimé" s'affichait
-                // INCONDITIONNELLEMENT juste après (y compris sur 401/429/4xx/5xx ou
-                // {success:false}) — l'ingestion du nouveau contenu se poursuivait alors par-dessus
-                // un ancien contenu potentiellement toujours présent. Contrat désormais explicite :
-                // HTTP ok ET JSON décodable ET data.success===true → confirmé, on continue ; tout
-                // le reste → erreur levée, extraction/indexation de ce livre jamais entamée (capturée
-                // par le catch englobant, jamais un faux succès affiché).
-                log('  Suppression de l\'ancien "' + q.meta.book_id + '"...');
-                let delRes;
-                try {
-                    delRes = await fetch(getWorkerUrl() + '/delete-book', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
-                        body: JSON.stringify({ book_id: q.meta.book_id })
-                    });
-                } catch (delErr) {
-                    throw new Error('Suppression de l\'ancien contenu impossible (réseau : ' + delErr.message + ') — ingestion bloquée');
-                }
-                if (!delRes.ok) {
-                    throw new Error('Suppression de l\'ancien contenu non confirmée (HTTP ' + delRes.status + ') — ingestion bloquée');
-                }
-                let delData;
-                try {
-                    delData = await delRes.json();
-                } catch (parseErr) {
-                    throw new Error('Suppression de l\'ancien contenu non confirmée (réponse invalide) — ingestion bloquée');
-                }
-                if (delData.success !== true) {
-                    throw new Error('Suppression de l\'ancien contenu non confirmée (' + (delData.error || 'success absent de la réponse') + ') — ingestion bloquée');
-                }
-                log('  Ancien contenu supprimé (' + (delData.deleted_chunks != null ? delData.deleted_chunks : '?') + ' chunks)');
             }
 
             // Phase 1: Extract
@@ -2144,16 +2183,6 @@ async function startIngestion(onlyQueueId = null) {
         renderDupAlerts();
     }
 
-    // Relancer si des doublons ont été détectés et que l'utilisateur a fait un choix
-    const pendingDups = queue.filter(q => q.status === 'pending' && q._dupAction === 'overwrite');
-    if (pendingDups.length > 0) {
-        isIngesting = false;
-        btn.disabled = false;
-        btn.textContent = 'Indexer tout';
-        log('\n' + pendingDups.length + ' livre(s) prêts à écraser — relancez l\'indexation');
-        return;
-    }
-
     log(`\n═══ Terminé: ${success} réussi(s), ${partial} partiel(s), ${errors} erreur(s) ═══`, success > 0 ? 'success' : 'error');
 
     btn.disabled = false;
@@ -2165,7 +2194,10 @@ async function startIngestion(onlyQueueId = null) {
 // ── Gestion des doublons (upload) ──
 function overwriteDuplicate(qId) {
     const q = queue.find(x => x.id === qId);
-    if (q) { q._dupAction = 'overwrite'; q.status = 'pending'; renderQueue(); renderDupAlerts(); }
+    if (!q || !q._duplicateOf) return;
+    const oldBook = q._duplicateOf;
+    switchTab('replace');
+    stageReplacement(q, oldBook);
 }
 
 function skipDuplicate(qId) {
@@ -2185,21 +2217,28 @@ function renderDupAlerts() {
         const chunkCountText = (typeof q._existingChunks === 'number' && q._existingChunks > 1)
             ? ' (' + q._existingChunks + ' chunks)' : '';
         if (q._similarTo) {
-            // Signal de similarité, pas une certitude — et jamais orienté vers « Écraser »,
-            // qui supprime avant d'ingérer (cf. commentaire sur replaceIngestNew). On ignore
-            // ici, ou on passe par la carte « Remplacer un livre », qui ingère d'abord.
+            // Signal de similarité, pas une certitude : la décision revient à l'utilisateur.
             return '<div class="dup-banner">'
                 + '<div class="dup-icon" aria-hidden="true">!</div>'
-                + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> ressemble à <b>' + escHtml(q._similarTo.book_title) + '</b> déjà présent — peut-être la même œuvre, sous un autre nom de fichier. Pour la remplacer en sécurité, utilisez l\'onglet « Remplacer un ouvrage ».</div>'
+                + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> ressemble à l’ouvrage existant <b>'
+                + escHtml(q._similarTo.book_title || q._similarTo.book_id) + '</b>'
+                + (q._similarTo.author ? ' · ' + escHtml(q._similarTo.author) : '')
+                + ' · identifiant : ' + escHtml(q._similarTo.book_id)
+                + '. Il peut s’agir de la même œuvre sous un autre nom de fichier. Vérifiez avant de choisir « Remplacer un ouvrage ».</div>'
                 + '<div class="dup-actions">'
                 + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer — ne pas déposer ce fichier</button>'
                 + '</div></div>';
         }
+        const existing = q._duplicateOf;
         return '<div class="dup-banner">'
             + '<div class="dup-icon" aria-hidden="true">!</div>'
-            + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> existe déjà dans la base' + chunkCountText + '. Écraser ou ignorer ?</div>'
+            + '<div class="dup-text"><b>' + escHtml(q.meta.title) + '</b> correspond à l’ouvrage existant <b>'
+            + escHtml(existing?.book_title || q.meta.title) + '</b>'
+            + (existing?.author ? ' · ' + escHtml(existing.author) : '')
+            + (existing?.book_id ? ' · identifiant : ' + escHtml(existing.book_id) : '')
+            + chunkCountText + '.</div>'
             + '<div class="dup-actions">'
-            + '<button class="btn-overwrite" onclick="overwriteDuplicate(\''+q.id+'\')">Écraser</button>'
+            + '<button class="btn-overwrite" onclick="overwriteDuplicate(\''+q.id+'\')">Remplacer en sécurité</button>'
             + '<button class="btn-skip" onclick="skipDuplicate(\''+q.id+'\')">Ignorer</button>'
             + '</div></div>';
     }).join('');
