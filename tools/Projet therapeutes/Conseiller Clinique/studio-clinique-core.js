@@ -17694,6 +17694,35 @@ ${recent}`;
     if (overview && !overview.hidden) { adocWsOverviewClose(); window.adocWsOverviewToggle(true); }
   });
 
+  // Même canevas que Présenter (1422 px). transform réduit uniquement l'affichage
+  // dans la fenêtre de travail : à la différence de zoom, WebKit ne recalcule pas
+  // les retours à la ligne sur des fractions de pixels.
+  let adocWsPresentationAreaObserver;
+  function adocWsSyncPresentationScale() {
+    const area = document.querySelector('#cc-workspace .cc-ws-doc-area');
+    const presentation = document.querySelector('#cc-ws-doc-card.cc-ws-doc-card--presentation .adoc-sc-presentation');
+    if (!area || !presentation) return;
+    const css = getComputedStyle(area);
+    const width = area.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight);
+    const scale = Math.min(1, Math.max(.25, width / 1422));
+    presentation.querySelectorAll('.adoc-sc-presentation-slide').forEach(function (slide) {
+      slide.style.transform = 'scale(' + scale + ')';
+      const card = slide.querySelector('.adoc-sc-card');
+      const number = slide.querySelector('.adoc-sc-presentation-slide-num');
+      slide.style.height = ((card ? card.offsetHeight : 0) + (number ? number.offsetHeight + parseFloat(getComputedStyle(number).marginBottom) : 0)) * scale + 'px';
+    });
+  }
+  function adocWsObservePresentationArea() {
+    if (adocWsPresentationAreaObserver) adocWsPresentationAreaObserver.disconnect();
+    const area = document.querySelector('#cc-workspace .cc-ws-doc-area');
+    if (!area || !window.ResizeObserver) return;
+    adocWsPresentationAreaObserver = new ResizeObserver(adocWsSyncPresentationScale);
+    adocWsPresentationAreaObserver.observe(area);
+    document.querySelectorAll('#cc-ws-doc-card.cc-ws-doc-card--presentation .adoc-sc-card').forEach(function (card) {
+      adocWsPresentationAreaObserver.observe(card);
+    });
+  }
+
   window.adocOpenWorkspace = async function (storeKey, options) {
     adocWsOverviewClose();
     const art = window._adocArtifacts?.[storeKey];
@@ -17839,6 +17868,12 @@ ${recent}`;
     // docKind, jamais un changement global de largeur, cf. rapport correctif).
     wsDocCardEl.classList.toggle('cc-ws-doc-card--presentation', !isLegacy && docKind === 'presentation');
     wsDocCardEl.innerHTML = renderedHtml;
+    if (!isLegacy && docKind === 'presentation') {
+      adocWsSyncPresentationScale();
+      adocWsObservePresentationArea();
+    } else if (adocWsPresentationAreaObserver) {
+      adocWsPresentationAreaObserver.disconnect();
+    }
     adocRenderWorkspaceDeepDives(art);
     adocWsSetupBlockEditing(art); // UX-11 — sélection/correction ciblée d'un bloc, uniquement si blockEditing est vrai
     if (!isLegacy) {
@@ -17885,6 +17920,7 @@ ${recent}`;
     sourceToggle.setAttribute('aria-expanded', String(sourcesVisible));
     sourceToggle.setAttribute('aria-label', sourcesVisible ? 'Masquer les sources' : 'Afficher les sources');
     document.getElementById('cc-workspace').classList.add('open');
+    if (!isLegacy && docKind === 'presentation') adocWsSyncPresentationScale();
     document.body.style.overflow = 'hidden';
     document.getElementById('cc-ws-close-btn').focus();
     return true;
