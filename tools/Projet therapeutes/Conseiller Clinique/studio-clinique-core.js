@@ -21632,6 +21632,17 @@ ${recent}`;
   // pousse le contenu suivant, exactement comme avant item 64. Même geste sur les deux moteurs
   // (régression #6).
   function adocMountContextualBlockEditPanel(panel, anchorEl) {
+    function revealBesideSelectedBlock() {
+      requestAnimationFrame(function () {
+        if (!panel.isConnected || !anchorEl.isConnected) return;
+        const selected = anchorEl.getBoundingClientRect();
+        const controls = panel.getBoundingClientRect();
+        // Ne déplace la vue que lorsque le bloc et le panneau compact peuvent tenir ensemble.
+        // scrollIntoView choisit aussi le bon conteneur lorsque l'espace de travail défile en interne.
+        if (selected.height + controls.height < window.innerHeight * .8 && controls.bottom > window.innerHeight - 8)
+          panel.scrollIntoView({ block: 'nearest' });
+      });
+    }
     // LOT B — cas particulier vérifié (0E, capture réelle) : un ancrage à l'intérieur de la
     // bannière de couverture (.adoc-sc-cover, fond pétrole/terracotta/ardoise/forêt selon le type
     // de document — Fiche/Script/Tableau/Liens, même gabarit de bannière) étirerait ce conteneur
@@ -21641,7 +21652,7 @@ ${recent}`;
     // bloc de carte Carrousel (.adoc-sc-card, vérifié visuellement sans effet disgracieux — la
     // carte s'agrandit proprement, comportement conservé tel quel, jamais élargi sans raison).
     const coverEl = anchorEl.closest('.adoc-sc-cover');
-    if (coverEl) { coverEl.insertAdjacentElement('afterend', panel); return; }
+    if (coverEl) { coverEl.insertAdjacentElement('afterend', panel); revealBesideSelectedBlock(); return; }
     // ITEM 75 Phase 2 (intra-carte) — cas NEUF, jamais rencontré avant ce lot : un bloc de
     // CONTENU IMBRIQUÉ (.adoc-sc-block DANS une carte — jamais le titre de carte, qui ne porte
     // pas cette classe, vérifié — ni la carte elle-même). Sans cette sortie, le panneau resterait
@@ -21653,11 +21664,13 @@ ${recent}`;
     // montré qu'une condition plus large capturait AUSSI le titre de carte, décalant les index
     // `:nth-child` des cartes suivantes dans `.adoc-sc-carrousel` — jamais reproduit ici.
     const cardAncestor = anchorEl.closest('.adoc-sc-card');
-    // Le panneau d'une photo doit rester immédiatement sous elle : la carte peut contenir
-    // plusieurs paragraphes et mesurer plusieurs écrans. Les clics du panneau sont exclus
-    // des gestes de carte dans docCard.onmousedown/onclick.
-    if (cardAncestor && cardAncestor !== anchorEl && anchorEl.classList.contains('adoc-sc-block') && !anchorEl.classList.contains('adoc-sc-image')) { cardAncestor.insertAdjacentElement('afterend', panel); return; }
+    // Les clics du panneau sont désormais exclus des gestes de carte dans
+    // docCard.onmousedown/onclick : il peut rester juste sous le bloc sélectionné.
+    if (cardAncestor && cardAncestor !== anchorEl && anchorEl.classList.contains('adoc-sc-block')) {
+      anchorEl.insertAdjacentElement('afterend', panel); revealBesideSelectedBlock(); return;
+    }
     (anchorEl.matches('td,th') ? anchorEl.closest('table') : anchorEl).insertAdjacentElement('afterend', panel);
+    revealBesideSelectedBlock();
   }
   function adocUnmountBlockEditPanel(panel) {
     if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
