@@ -17642,7 +17642,60 @@ ${recent}`;
     document.getElementById('cc-ws-deepdives')?.scrollIntoView({ block: 'nearest' });
   };
 
+  function adocWsOverviewClose() {
+    const overview = document.getElementById('cc-ws-overview');
+    const button = document.getElementById('cc-ws-overview-btn');
+    if (overview) overview.hidden = true;
+    if (button) button.setAttribute('aria-expanded', 'false');
+  }
+  window.adocWsOverviewToggle = function (force) {
+    const overview = document.getElementById('cc-ws-overview');
+    const grid = document.getElementById('cc-ws-overview-grid');
+    const button = document.getElementById('cc-ws-overview-btn');
+    const area = document.querySelector('#cc-workspace .cc-ws-doc-area');
+    const docCard = document.getElementById('cc-ws-doc-card');
+    if (!overview || !grid || !button || !area || !docCard) return;
+    if (force === false || !overview.hidden) { adocWsOverviewClose(); button.focus(); return; }
+    grid.replaceChildren();
+    const cards = Array.from(docCard.querySelectorAll('.adoc-sc-card'));
+    const targets = cards.length ? cards : Array.from(docCard.children).filter(el => el.getBoundingClientRect().height > 0);
+    targets.forEach(function (target, index) {
+      const tile = document.createElement('button');
+      tile.type = 'button'; tile.className = 'cc-ws-overview-tile';
+      const photo = target.querySelector('img');
+      if (photo && (photo.currentSrc || photo.src)) {
+        const thumb = document.createElement('img');
+        thumb.src = photo.currentSrc || photo.src; thumb.alt = '';
+        tile.appendChild(thumb);
+      }
+      const label = document.createElement('strong');
+      label.textContent = (cards.length ? 'Diapositive ' : 'Section ') + (index + 1);
+      tile.appendChild(label);
+      const summary = document.createElement('span');
+      summary.textContent = (target.querySelector('.adoc-sc-card-title, h1, h2, h3')?.textContent || target.textContent || '').trim().slice(0, 130);
+      tile.appendChild(summary);
+      tile.addEventListener('click', function () {
+        adocWsOverviewClose();
+        target.scrollIntoView({ block: 'start' });
+        area.scrollTop = Math.max(0, area.scrollTop - 16);
+      });
+      grid.appendChild(tile);
+    });
+    if (!targets.length) {
+      const empty = document.createElement('p'); empty.textContent = 'Aucune section à afficher.'; grid.appendChild(empty);
+    }
+    const rect = area.getBoundingClientRect();
+    overview.style.left = rect.left + 'px'; overview.style.top = rect.top + 'px';
+    overview.style.width = rect.width + 'px'; overview.style.height = rect.height + 'px';
+    overview.hidden = false; button.setAttribute('aria-expanded', 'true');
+  };
+  window.addEventListener('resize', function () {
+    const overview = document.getElementById('cc-ws-overview');
+    if (overview && !overview.hidden) { adocWsOverviewClose(); window.adocWsOverviewToggle(true); }
+  });
+
   window.adocOpenWorkspace = async function (storeKey, options) {
+    adocWsOverviewClose();
     const art = window._adocArtifacts?.[storeKey];
     // Audit correctif, Partie B point 10 — l'écran de travail s'ouvre pour TOUT artefact dont les
     // capacités l'autorisent (structuré OU repli legacy-html), plus seulement le moteur structuré.
@@ -17843,6 +17896,7 @@ ${recent}`;
     // Q7 (2.4) — AVANT tout effet : une fermeture refusée ne doit RIEN avoir changé, pas même
     // l'oubli du retour en arrière de D5 ci-dessous.
     if (!adocQ7AbandonAccepte('Fermer ce document')) return;
+    adocWsOverviewClose();
     // Enregistrer, enregistrer sous et fermer n'appellent pas adocEditorMarkDirty :
     // l'oubli du retour en arrière est donc dit ici, explicitement (D5).
     if (window.adocOublierAnnulationPage) window.adocOublierAnnulationPage();

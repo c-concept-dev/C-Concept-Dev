@@ -24,6 +24,8 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     assert(panelTop < 800, 'le panneau apparaît sans défilement manuel après sélection');
     assert(panelTop >= blockBottom, 'le panneau ne recouvre pas le bloc sélectionné');
     await panel.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    assert.equal(await panel.locator('.cc-block-edit-target').evaluate(el => getComputedStyle(el).position), 'relative',
+      'le titre du bloc défile avec le panneau au lieu de recouvrir les commandes');
     const selected = await page.locator('#p1').evaluate(el => ({ top: el.getBoundingClientRect().top, bottom: el.getBoundingClientRect().bottom }));
     assert(selected.bottom > 0 && selected.top < 800, 'le bloc reste visible lorsque les options défilent');
     assert.equal(await page.locator('.cc-editor-narration').evaluate(el => el.open), false);
@@ -54,6 +56,18 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     });
     assert.equal(dive.link.targetId, dive.page.id);
     assert.equal(dive.page.paragraphs[0], 'Nouveau paragraphe.');
+    const overviewDoc = doc();
+    const nextCard = JSON.parse(JSON.stringify(overviewDoc.blocks[0]));
+    nextCard.id = 'card-02'; nextCard.content.title = 'Deuxième diapositive';
+    nextCard.content.blocks.forEach(block => { block.id += '-2'; });
+    overviewDoc.blocks.push(nextCard);
+    assert.equal(await open(page, overviewDoc, 'test-overview'), true);
+    await page.locator('#cc-ws-overview-btn').click();
+    assert.equal(await page.locator('.cc-ws-overview-tile').count(), 2);
+    assert.equal(await page.locator('#cc-ws-overview-btn').getAttribute('aria-expanded'), 'true');
+    await page.locator('.cc-ws-overview-tile').nth(1).click();
+    assert.equal(await page.locator('#cc-ws-overview').isHidden(), true);
+    assert.equal(await page.locator('#cc-ws-overview-btn').getAttribute('aria-expanded'), 'false');
     assert.deepEqual(errors, []);
     console.log('PASS contextual UX, manual source, manual deep dive');
   } finally { await browser.close(); }

@@ -2343,8 +2343,20 @@
       box-shadow: 0 8px 24px rgba(16,47,49,.15);
     }
     .cc-block-edit-panel .cc-block-edit-target {
-      position: sticky; top: -1px; z-index: 1; background: var(--ivory);
+      position: relative; background: var(--ivory);
     }
+    .cc-ws-overview { position: fixed; z-index: 70; box-sizing: border-box; overflow: auto;
+      padding: 18px; background: var(--ivory); box-shadow: 0 8px 24px rgba(16,47,49,.18); }
+    .cc-ws-overview[hidden] { display: none; }
+    .cc-ws-overview-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .cc-ws-overview-head button { cursor: pointer; border: 1px solid var(--stone-300); border-radius: 6px; background: white; padding: 6px 10px; }
+    .cc-ws-overview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+    .cc-ws-overview-tile { min-width: 0; text-align: left; cursor: pointer; border: 1px solid var(--stone-300); border-radius: 8px;
+      padding: 8px; background: white; color: var(--ink); }
+    .cc-ws-overview-tile:hover, .cc-ws-overview-tile:focus-visible { outline: 2px solid var(--petrol-700); }
+    .cc-ws-overview-tile img { display: block; width: 100%; height: 100px; object-fit: cover; margin-bottom: 8px; border-radius: 4px; }
+    .cc-ws-overview-tile strong, .cc-ws-overview-tile span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cc-ws-overview-tile span { font-size: 12px; margin-top: 4px; }
     .cc-block-edit-panel .cc-block-edit-controls { gap: 5px !important; }
     .cc-block-edit-panel .cc-block-edit-controls button { padding: 5px 8px; font-size: 11px; }
     .cc-block-edit-panel .cc-editor-narration { margin-top: 6px; font-size: 12px; }
@@ -3784,7 +3796,7 @@
 {"tokens-studio-clinique-default-v1":{"tokensSnapshotId":"tokens-studio-clinique-default-v1","$comment":"UX-8A.1 — jetons résolus de la charte studio-clinique-default, extraits verbatim du bloc :root en production de studio-clinique.html (palette pétrole/terracotta/ivoire, Phase UX-3). Référencé par render-manifest-default.json via tokensSnapshotId.","colors":{"petrol950":"#102f31","petrol900":"#173f42","petrol800":"#1f5053","petrol100":"#dce8e6","terracotta700":"#8a3f29","terracotta600":"#9b4e36","terracotta100":"#f4e5de","ink":"#273331","muted":"#5d6966","stone400":"#a9a49a","stone300":"#c9c3b8","stone200":"#ddd7cc","ivory":"#f6f2ea","paper":"#fffdf9","white":"#ffffff"},"typography":{"headingFontFamily":"\"Source Serif 4\", Georgia, serif","bodyFontFamily":"\"IBM Plex Sans\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"}}}
 </script>
 
-<script src="studio-clinique-core.js?v=20261104-contextual-ux3"></script>
+<script src="studio-clinique-core.js?v=20261104-overview1"></script>
 <!-- LOT 2 — Atelier de montage, chutier visuel. Fichier SÉPARÉ de core.js, comme le CDC v2
      l'exige (le cœur dépasse 23 000 lignes). Chargé APRÈS lui : le moteur pilote le lecteur,
      et refuse de démarrer si le lecteur n'est pas là. Aucune interface : seulement le moteur. -->
@@ -4001,6 +4013,8 @@
     </div>
       </div>
     </div>
+    <button type="button" class="cc-ws-topbar-btn" id="cc-ws-overview-btn" onclick="window.adocWsOverviewToggle()"
+      aria-expanded="false" aria-controls="cc-ws-overview" aria-label="Afficher la vue globale du document">▦ <span>Vue globale</span></button>
     <!-- LOT 1 Présentation : accès direct au mode de présentation. -->
     <button type="button" class="cc-ws-topbar-btn primary" id="cc-ws-present-btn" onclick="window.adocPresentOpen()" aria-label="Présenter en plein écran" hidden>
       <svg class="cc-ws-icon" aria-hidden="true" focusable="false"><use href="#icon-file-slides"></use></svg>
@@ -4172,6 +4186,10 @@
       <div class="cc-ws-memory" id="cc-ws-memory-mount"></div>
     </aside>
     <div class="cc-ws-doc-area">
+      <div id="cc-ws-overview" class="cc-ws-overview" hidden aria-label="Vue globale du document">
+        <div class="cc-ws-overview-head"><strong>Vue globale</strong><button type="button" onclick="window.adocWsOverviewToggle(false)">Fermer</button></div>
+        <div id="cc-ws-overview-grid" class="cc-ws-overview-grid"></div>
+      </div>
       <div class="cc-ws-doc-card" id="cc-ws-doc-card"></div>
       <section id="cc-ws-deepdives" class="cc-ws-deepdives" hidden aria-label="Pages d’approfondissement"></section>
     </div>
