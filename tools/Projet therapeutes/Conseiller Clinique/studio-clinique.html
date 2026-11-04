@@ -1830,19 +1830,24 @@
        sur docKind dans adocOpenWorkspace, jamais un changement global qui affecterait les 5 autres
        types — cf. rapport). */
     .cc-ws-doc-card.cc-ws-doc-card--presentation { max-width: none; }
-    .cc-ws-deepdives { margin: 24px auto; padding: 20px; max-width: 1040px; background: #fff; border: 1px solid #d9d5cc; border-radius: 12px; color: #173f42; }
-    .cc-ws-deepdives h2 { margin: 0 0 6px; font-size: 21px; }
-    .cc-ws-deepdives > p { margin: 0 0 16px; }
-    .cc-ws-deepdives details { margin: 12px 0; padding: 12px; border: 1px solid #d9d5cc; border-radius: 8px; }
-    .cc-ws-deepdives summary { cursor: pointer; font-weight: 700; }
-    .cc-ws-deepdives label { display: block; margin: 10px 0; font-weight: 600; }
-    .cc-ws-deepdives input, .cc-ws-deepdives textarea { display: block; box-sizing: border-box; width: 100%; padding: 8px; font: inherit; }
-    .cc-ws-deepdives textarea { min-height: 84px; resize: vertical; }
+    .cc-ws-deepdives { margin: 14px auto; padding: 12px; max-width: 1040px; background: #fff; border: 1px solid #d9d5cc; border-radius: 8px; color: #173f42; font-size: 12px; }
+    .cc-ws-deepdives > details, .cc-ws-deepdives details details { margin: 0; padding: 6px 8px; border: 0; border-radius: 6px; }
+    .cc-ws-deepdives details details { border-top: 1px solid #e8e3da; }
+    .cc-ws-deepdives summary { cursor: pointer; font-weight: 600; }
+    .cc-ws-deepdives label { display: block; margin: 7px 0; font-weight: 600; }
+    .cc-ws-deepdives input, .cc-ws-deepdives textarea { display: block; box-sizing: border-box; width: 100%; padding: 6px; font: inherit; }
+    .cc-ws-deepdives textarea { min-height: 58px; resize: vertical; }
     .cc-ws-deepdives button { margin: 4px 8px 0 0; }
-    .cc-block-sources { margin-top: 12px; padding: 10px; border: 1px solid #d9d5cc; border-radius: 8px; }
-    .cc-block-sources summary { cursor: pointer; font-weight: 700; }
-    .cc-block-sources > div { margin: 10px 0; overflow-wrap: anywhere; }
+    .cc-block-sources { margin-top: 8px; padding: 6px 8px; border: 1px solid #e2ddd4; border-radius: 6px; font-size: 11px; line-height: 1.4; }
+    .cc-block-sources summary { cursor: pointer; font-weight: 600; }
+    .cc-block-sources > div { margin: 6px 0; overflow-wrap: anywhere; }
     .cc-block-sources select { max-width: 100%; margin: 4px 8px; }
+    .cc-block-source-manual, .cc-block-deep-dive { margin-top: 7px; padding: 6px 8px; border: 1px solid #e2ddd4; border-radius: 6px; font-size: 11px; }
+    .cc-block-source-manual summary, .cc-block-deep-dive summary { cursor: pointer; font-weight: 600; }
+    .cc-block-source-manual label, .cc-block-deep-dive label { display: block; margin-top: 6px; }
+    .cc-block-source-manual input, .cc-block-source-manual textarea,
+    .cc-block-deep-dive input, .cc-block-deep-dive textarea { display: block; box-sizing: border-box; width: 100%; padding: 5px 7px; font: inherit; }
+    .cc-block-source-error, .cc-deep-dive-status { display: block; margin-top: 5px; color: var(--terracotta-700); font-size: 11px; }
     .cc-ws-doc-card .adoc-photo-missing-notice { padding: 9px 12px; margin: 4px 0 12px; color: #8a3f29; background: #fff7f2; border: 1px solid #d9a995; border-radius: 6px; font-weight: 600; }
     .cc-ws-doc-card .adoc-photo-missing-notice button { margin-left: 8px; color: #173f42; background: white; border: 1px solid #8aa5a5; border-radius: 4px; padding: 4px 9px; cursor: pointer; }
     .cc-ws-doc-card img.is-selected + .adoc-photo-missing-notice { display: none; }
@@ -2332,7 +2337,19 @@
        — jamais de position:fixed ni de calcul JS de coordonnées, le panneau ne peut donc plus
        structurellement recouvrir un autre bloc (il pousse le contenu suivant, ne flotte jamais
        dessus). */
-    .cc-block-edit-panel { margin: 10px 0 18px; }
+    .cc-block-edit-panel {
+      position: sticky; bottom: 8px; z-index: 15; margin: 8px 0 12px;
+      max-height: min(50vh, 480px); overflow-y: auto; overscroll-behavior: contain;
+      box-shadow: 0 8px 24px rgba(16,47,49,.15);
+    }
+    .cc-block-edit-panel .cc-block-edit-target {
+      position: sticky; top: -1px; z-index: 1; background: var(--ivory);
+    }
+    .cc-block-edit-panel .cc-block-edit-controls { gap: 5px !important; }
+    .cc-block-edit-panel .cc-block-edit-controls button { padding: 5px 8px; font-size: 11px; }
+    .cc-block-edit-panel .cc-editor-narration { margin-top: 6px; font-size: 12px; }
+    .cc-block-edit-panel .cc-editor-narration summary { cursor: pointer; font-weight: 600; }
+    .cc-block-edit-panel .cc-editor-narration-texte { min-height: 68px; }
     .cc-block-edit-target {
       display: flex; align-items: flex-start; gap: 8px;
       font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;

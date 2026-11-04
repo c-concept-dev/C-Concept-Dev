@@ -21,10 +21,12 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
       { stepId: 'p1', text: 'Narration existante de la deuxième étape.' }];
     assert.equal(await open(page, d), true);
     await page.locator('#p1').click();
+    await page.locator('.cc-editor-narration summary').click();
     assert.equal(await page.locator('.nia-paragraphe-bouton').isVisible(), true);
     assert.equal(await page.locator('.nia-bouton').isVisible(), true, 'la génération globale reste disponible');
 
     assert.equal(await page.evaluate(() => window.adocConfirmBlockInsert('after', 'paragraph', '')), true);
+    await page.locator('.cc-editor-narration summary').click();
     const inserted = await page.evaluate(() => {
       const blocks = window._adocArtifacts['test-doc']._adocStructuredDoc.blocks[0].content.blocks;
       return blocks[2].id;

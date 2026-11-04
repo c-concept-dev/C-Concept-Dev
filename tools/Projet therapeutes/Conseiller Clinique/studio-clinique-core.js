@@ -10202,11 +10202,11 @@ ${recent}`;
       // .cc-editor-list-tools l'est hors d'une liste : un seul mécanisme de révélation, celui
       // déjà en place dans adocEditorRefreshControls. Aucune règle CSS nouvelle — .adoc-textarea
       // et .cc-editor-row existent déjà, et aucun pictogramme n'est ajouté ici.
-      '<div class="cc-editor-narration" hidden><strong>Narration</strong>' +
+      '<details class="cc-editor-narration" hidden><summary>Narration de cette étape</summary>' +
         '<p class="cc-editor-narration-etape" role="status" aria-live="polite"></p>' +
         '<div class="cc-editor-row"><textarea class="adoc-textarea cc-editor-narration-texte" data-editor-narration rows="4" aria-label="Narration de cette étape" placeholder="Ce que vous direz pendant cette étape."></textarea></div>' +
         '<p class="cc-editor-narration-compte"></p>' +
-      '</div>' +
+      '</details>' +
       '<div class="cc-editor-row">' + button('reset','Réinitialiser le style') + '</div><p class="cc-editor-message" role="status" aria-live="polite"></p></div>';
   }
   // Partie B (import charte) — id de la charte réellement appliquée à CE document précis, jamais
@@ -17542,18 +17542,62 @@ ${recent}`;
     const doc = art && art._adocStructuredDoc;
     const pages = doc && doc.documentKind === 'presentation' && Array.isArray(doc.deepDives) ? doc.deepDives : [];
     host.hidden = !pages.length;
-    host.innerHTML = pages.length ? '<h2>Approfondissements</h2><p>Pages visibles dans la présentation. Modifiez-les ici, puis sauvegardez le document.</p>' +
+    host.innerHTML = pages.length ? '<details><summary>Approfondissements (' + pages.length + ')</summary>' +
       pages.map(function (page, index) {
         return '<details data-deep-dive-index="' + index + '"><summary>' + adocEsc(page.title) + '</summary>' +
           '<label>Titre<input data-deep-dive-title value="' + adocEsc(page.title) + '"></label>' +
           (page.paragraphs || []).map(function (paragraph, paragraphIndex) {
             const value = typeof paragraph === 'string' ? paragraph : paragraph.text;
-            return '<label>Paragraphe ' + (paragraphIndex + 1) + '<textarea data-deep-dive-paragraph="' + paragraphIndex + '">' + adocEsc(value || '') + '</textarea></label>';
+            return '<label>Paragraphe ' + (paragraphIndex + 1) + '<textarea data-deep-dive-paragraph="' + paragraphIndex + '">' + adocEsc(value || '') + '</textarea></label>' +
+              '<button type="button" onclick="adocWorkspaceDeepDiveDraft(' + index + ',' + paragraphIndex + ')">Rédiger ce paragraphe</button>';
           }).join('') +
+          '<button type="button" onclick="adocWorkspaceDeepDiveAddParagraph(' + index + ')">Ajouter un paragraphe</button>' +
           '<button type="button" onclick="adocWorkspaceDeepDiveSave(' + index + ')">Appliquer</button>' +
-          '<button type="button" onclick="adocWorkspaceDeepDiveRemove(' + index + ')">Retirer cet approfondissement</button></details>';
-      }).join('') : '';
+          '<button type="button" onclick="adocWorkspaceDeepDiveRemove(' + index + ')">Retirer cet approfondissement</button>' +
+          '<span class="cc-deep-dive-status" role="status"></span></details>';
+      }).join('') + '</details>' : '';
   }
+  window.adocWorkspaceDeepDiveAddParagraph = function (index) {
+    const section = document.querySelector('#cc-ws-deepdives [data-deep-dive-index="' + index + '"]');
+    if (!section) return;
+    const next = section.querySelectorAll('[data-deep-dive-paragraph]').length;
+    const label = document.createElement('label');
+    label.textContent = 'Paragraphe ' + (next + 1);
+    const area = document.createElement('textarea');
+    area.dataset.deepDiveParagraph = String(next);
+    area.value = 'Nouveau paragraphe.';
+    label.appendChild(area);
+    const draft = document.createElement('button');
+    draft.type = 'button'; draft.textContent = 'Rédiger ce paragraphe';
+    draft.onclick = function () { window.adocWorkspaceDeepDiveDraft(index, next); };
+    section.insertBefore(label, section.querySelector('button'));
+    label.insertAdjacentElement('afterend', draft);
+    area.focus();
+  };
+  window.adocWorkspaceDeepDiveDraft = async function (index, paragraphIndex) {
+    const art = adocEditorArt(), doc = art && art._adocStructuredDoc;
+    const page = doc && doc.deepDives && doc.deepDives[index];
+    const section = document.querySelector('#cc-ws-deepdives [data-deep-dive-index="' + index + '"]');
+    const area = section && section.querySelector('[data-deep-dive-paragraph="' + paragraphIndex + '"]');
+    if (!page || !area) return;
+    const status = section.querySelector('.cc-deep-dive-status');
+    status.textContent = 'Rédaction en cours…';
+    try {
+      adocEditorSync();
+      const context = adocParagraphDraftContext(doc, null) + '\n\nAPPROFONDISSEMENTS EXISTANTS :\n' +
+        (doc.deepDives || []).map(function (entry, i) { return (i === index ? '[PAGE CIBLE] ' : '') + entry.title + ' : ' +
+          (entry.paragraphs || []).map(function (p) { return typeof p === 'string' ? p : p.text; }).join(' '); }).join('\n');
+      if (context.length > 60000) throw new Error('Document trop long pour une rédaction contextualisée.');
+      const prompt = adocBuildBlockCorrectionSystemPrompt(doc,
+        'Rédige uniquement le paragraphe ' + (paragraphIndex + 1) + ' de l’approfondissement « ' + page.title +
+        ' ». Utilise les blocs voisins et le document entier pour le contexte. Remplace « Nouveau paragraphe. » ; sans répétition ni source inventée.');
+      const result = await adocCallBlockCorrectionModel(prompt,
+        'Paragraphe actuel : ' + area.value + '\nDOCUMENT ENTIER DANS SON ORDRE :\n' + context);
+      if (!result.text || /^Nouveau paragraphe\.?$/i.test(result.text.trim())) throw new Error('Aucune proposition exploitable.');
+      area.value = adocStripEmoji(result.text.trim());
+      status.textContent = 'Proposition dans le champ. Relisez, puis cliquez « Appliquer ».';
+    } catch (error) { status.textContent = error.message || 'Rédaction impossible.'; }
+  };
   window.adocWorkspaceDeepDiveSave = async function (index) {
     const art = adocEditorArt(), doc = art && art._adocStructuredDoc;
     const page = doc && doc.deepDives && doc.deepDives[index];
@@ -17564,8 +17608,9 @@ ${recent}`;
     if (!title || texts.some(function (text) { return !text; })) { alert('Le titre et les paragraphes doivent rester renseignés.'); return; }
     adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
     page.title = title;
-    page.paragraphs = page.paragraphs.map(function (paragraph, i) {
-      return typeof paragraph === 'string' ? texts[i] : Object.assign({}, paragraph, { text: texts[i] });
+    page.paragraphs = texts.map(function (text, i) {
+      const paragraph = page.paragraphs[i];
+      return !paragraph || typeof paragraph === 'string' ? text : Object.assign({}, paragraph, { text: text });
     });
     adocEditorMarkDirty();
     await window.adocOpenWorkspace(window._adocWsState.storeKey);
@@ -21383,6 +21428,7 @@ ${recent}`;
   // éviter tout conflit d'apostrophe entre les niveaux d'échappement HTML/JS imbriqués).
   var ADOC_BLOCK_EDIT_INTENTS = {
     draftParagraph: { label: 'Rédiger ce paragraphe', instruction: "Rédige uniquement ce paragraphe à partir du contexte du document. Si le texte actuel est « Nouveau paragraphe. », c'est un repère provisoire : remplace-le entièrement. Tiens compte des blocs précédents et suivants, sans répéter leur texte ni inventer de source. Ne produis ni consigne de narration ni balise [pause]." },
+    draftBlock: { label: 'Rédiger ce bloc', instruction: "Rédige uniquement le contenu de ce bloc à partir des blocs voisins et du document entier. Garde son type et sa structure (liste, tableau ou texte). Remplace tout repère provisoire. Évite les répétitions et n'invente aucune source. Ne produis ni consigne de narration ni balise [pause]." },
     rewrite: { label: 'Réécrire', instruction: "Réécris ce passage pour en améliorer la clarté et la fluidité, sans en changer le sens ni la longueur de façon significative." },
     shorten: { label: 'Raccourcir', instruction: "Raccourcis ce passage en conservant les éléments essentiels, sans perdre les informations cliniques importantes." },
     expand: { label: 'Développer', instruction: "Développe ce passage avec un peu plus de détail clinique pertinent, en restant proche du sujet." },
@@ -21536,7 +21582,7 @@ ${recent}`;
         if (block.type === 'card') {
           lines.push('Carte : ' + (block.content && block.content.title || ''));
           walk(block.content && block.content.blocks);
-        } else if (block.id === targetId) lines.push('[PARAGRAPHE À RÉDIGER]');
+        } else if (block.id === targetId) lines.push('[BLOC À RÉDIGER : ' + block.type + ']');
         else if (ADOC_BLOCK_EDIT_TYPES.includes(block.type)) lines.push(adocDescribeBlockContent(block));
         else {
           const visible = otherVisibleText(block.content, 'content');
@@ -21668,8 +21714,8 @@ ${recent}`;
     const citations = doc.citations || [];
     const entries = (art._adocStructuredSnapshot && art._adocStructuredSnapshot.entries) || [];
     const links = (block.validation && block.validation.citationLinks) || [];
-    return '<details class="cc-block-sources"><summary>Sources et notes de bas de page (' + links.length + ')</summary>' +
-      '<p>Les appels numérotés renvoient aux sources du document. Un nouveau lien reste « à vérifier ».</p>' +
+    return '<details class="cc-block-sources"><summary>Références (' + links.length + ')</summary>' +
+      '<p>Notes numérotées du document. Toute référence ajoutée reste à vérifier.</p>' +
       links.map(function (link) {
         const citation = citations.find(function (c) { return c.citationId === link.citationId; });
         const entry = citation && entries.find(function (e) { return e.sourceSnapshotEntryId === citation.sourceSnapshotEntryId; });
@@ -21681,8 +21727,69 @@ ${recent}`;
       (citations.length ? '<label>Ajouter une source déjà présente <select data-block-source-choice><option value="">Choisir une source</option>' +
         citations.map(function (c) { return '<option value="' + adocEsc(c.citationId) + '">' + adocEsc(c.displayLabel) + '</option>'; }).join('') +
         '</select></label><button type="button" onclick="adocBlockSourceAttach(this)">Lier cette source au bloc</button>' : '') +
-      '<p>Pour une nouvelle source, recherchez un extrait dans « Bibliothèque thérapeutique », puis choisissez « Citer le bloc sélectionné ».</p></details>';
+      '<details class="cc-block-source-manual"><summary>Ajouter une référence manuellement</summary>' +
+        '<label>Auteur<input data-source-author type="text" autocomplete="off"></label>' +
+        '<label>Titre de la source<input data-source-title type="text" autocomplete="off"></label>' +
+        '<label>Page (facultatif)<input data-source-page type="number" min="1"></label>' +
+        '<label>Extrait exact ou référence bibliographique complète<textarea data-source-excerpt rows="2"></textarea></label>' +
+        '<button type="button" onclick="adocBlockSourceCreate(this)">Ajouter et lier au bloc</button>' +
+        '<span class="cc-block-source-error" role="status"></span></details>' +
+      '<p>Vous pouvez aussi rechercher un extrait dans « Bibliothèque thérapeutique », puis choisir « Citer le bloc sélectionné ».</p></details>';
   }
+  window.adocBlockSourceOpen = function () {
+    const panel = document.querySelector('.cc-block-edit-panel');
+    const details = panel && panel.querySelector('.cc-block-sources');
+    if (!details) return;
+    details.open = true;
+    details.querySelector('.cc-block-source-manual').open = true;
+    details.scrollIntoView({ block: 'nearest' });
+    details.querySelector('[data-source-author]').focus({ preventScroll: true });
+  };
+  window.adocBlockSourceCreate = async function (button) {
+    const ctx = adocEditorContext();
+    if (!ctx || ctx.legacy || !ctx.block || ctx.block.type === 'card') return;
+    const form = button.closest('.cc-block-source-manual');
+    const author = form.querySelector('[data-source-author]').value.trim();
+    const title = form.querySelector('[data-source-title]').value.trim();
+    const exactText = form.querySelector('[data-source-excerpt]').value.trim();
+    const pageRaw = form.querySelector('[data-source-page]').value.trim();
+    const page = pageRaw ? Number(pageRaw) : null;
+    const status = form.querySelector('.cc-block-source-error');
+    if (!author || !title || !exactText || (page !== null && (!Number.isInteger(page) || page < 1))) {
+      status.textContent = 'Renseignez auteur, titre et texte exact ; la page doit être positive.'; return;
+    }
+    button.disabled = true; status.textContent = 'Ajout en cours…';
+    const art = ctx.art, doc = art._adocStructuredDoc, storeKey = ctx.st.storeKey, blockId = ctx.block.id;
+    const beforeDoc = JSON.parse(JSON.stringify(doc)), beforeSnapshot = art._adocStructuredSnapshot;
+    try {
+      const checksum = await adocComputeSHA256Hex(exactText);
+      if (window._adocWsState.storeKey !== storeKey || window._adocArtifacts[storeKey] !== art) throw new Error('Le document ouvert a changé.');
+      adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
+      const block = adocFindEditableBlock(doc, blockId);
+      if (!block) throw new Error('Le bloc a changé.');
+      const snapshot = art._adocStructuredSnapshot || { sourceSnapshotId: 'snapshot-' + adocUUID(), entries: [] };
+      const entryId = 'entry-' + adocUUID(), citationId = 'citation-' + adocUUID();
+      art._adocStructuredSnapshot = Object.assign({}, snapshot, { entries: snapshot.entries.concat([{
+        sourceSnapshotEntryId: entryId, sourceType: 'session', sourceId: 'manual-' + entryId,
+        passageId: entryId, exactText: exactText, contentChecksum: 'sha256:' + checksum,
+        book: title, author: author, locator: { page: page, section: null }, retrievedAt: new Date().toISOString()
+      }]) });
+      doc.sourceSnapshotId = art._adocStructuredSnapshot.sourceSnapshotId;
+      doc.citations = doc.citations || [];
+      doc.citations.push({ citationId: citationId, sourceSnapshotEntryId: entryId,
+        displayLabel: author + ', ' + title + (page ? ', p. ' + page : '') + ' (saisie manuelle)' });
+      block.validation = block.validation || {};
+      block.validation.citationLinks = block.validation.citationLinks || [];
+      block.validation.citationLinks.push({ citationId: citationId,
+        claimText: adocBlockPreviewText(block) || 'Référence du bloc', claimSupport: 'needs-review' });
+      block.citationIds = Array.from(new Set([].concat(block.citationIds || [], citationId)));
+      if (!await window.adocOpenWorkspace(storeKey)) throw new Error('Le document avec cette référence est invalide.');
+      adocEditorMarkDirty();
+    } catch (error) {
+      art._adocStructuredDoc = beforeDoc; art._adocStructuredSnapshot = beforeSnapshot;
+      if (status.isConnected) status.textContent = error.message || 'Référence non ajoutée.';
+    } finally { if (button.isConnected) button.disabled = false; }
+  };
   window.adocBlockSourceUnlink = async function (citationId) {
     const ctx = adocEditorContext();
     if (!ctx || ctx.legacy || !ctx.block) return;
@@ -21712,6 +21819,48 @@ ${recent}`;
     adocEditorMarkDirty();
     await window.adocOpenWorkspace(ctx.st.storeKey);
   };
+  function adocBlockDeepDiveControlsHTML(blockType, storeKey) {
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    if (!art || !art._adocStructuredDoc || art._adocStructuredDoc.documentKind !== 'presentation' ||
+        !['heading', 'paragraph', 'callout', 'list', 'quote'].includes(blockType)) return '';
+    return '<details class="cc-block-deep-dive"><summary>Ajouter un approfondissement</summary>' +
+      '<label>Expression exacte dans ce bloc<input data-deep-dive-link-text type="text"></label>' +
+      '<label>Titre de la page<input data-deep-dive-new-title type="text"></label>' +
+      '<label>Premier paragraphe<textarea data-deep-dive-new-text rows="2" placeholder="Écrivez ici, ou utilisez ensuite « Rédiger ce paragraphe ».">Nouveau paragraphe.</textarea></label>' +
+      '<button type="button" onclick="adocBlockDeepDiveCreate(this)">Ajouter et lier à ce bloc</button>' +
+      '<span class="cc-deep-dive-status" role="status"></span></details>';
+  }
+  window.adocBlockDeepDiveCreate = async function (button) {
+    const ctx = adocEditorContext();
+    if (!ctx || ctx.legacy || !ctx.block) return;
+    const form = button.closest('.cc-block-deep-dive');
+    const phrase = form.querySelector('[data-deep-dive-link-text]').value.trim();
+    const title = form.querySelector('[data-deep-dive-new-title]').value.trim();
+    const text = form.querySelector('[data-deep-dive-new-text]').value.trim();
+    const status = form.querySelector('.cc-deep-dive-status');
+    if (!phrase || !title || !text || !adocBlockContentText(ctx.block.type, ctx.block.content).includes(phrase)) {
+      status.textContent = 'Renseignez les trois champs ; l’expression doit figurer exactement dans ce bloc.'; return;
+    }
+    const art = ctx.art, doc = art._adocStructuredDoc, storeKey = ctx.st.storeKey, blockId = ctx.block.id;
+    const before = JSON.parse(JSON.stringify(doc));
+    try {
+      adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
+      const block = adocFindEditableBlock(doc, blockId);
+      if (!block) throw new Error('Le bloc a changé.');
+      doc.deepDives = doc.deepDives || [];
+      const id = 'deepdive-' + adocUUID();
+      doc.deepDives.push({ id: id, title: title, paragraphs: [text] });
+      block.deepDiveLinks = block.deepDiveLinks || [];
+      block.deepDiveLinks.push({ text: phrase, targetId: id });
+      if (!await window.adocOpenWorkspace(storeKey)) throw new Error('Cette page est invalide.');
+      adocEditorMarkDirty();
+      const list = document.getElementById('cc-ws-deepdives');
+      if (list) { list.querySelector(':scope > details').open = true; list.querySelector('[data-deep-dive-index="' + (doc.deepDives.length - 1) + '"]').open = true; }
+    } catch (error) {
+      art._adocStructuredDoc = before;
+      if (status.isConnected) status.textContent = error.message || 'Approfondissement non ajouté.';
+    }
+  };
   function adocBuildBlockEditPanelHTML(blockType, blockId, storeKey) {
     const btn = function (key) {
       return '<button type="button" class="cc-clarity-reply-btn" onclick="window.adocRequestBlockCorrectionByIntent(\'' + key + '\')">' +
@@ -21740,7 +21889,9 @@ ${recent}`;
     const addImageBtn = '<button type="button" class="cc-clarity-reply-btn" data-block-add-image hidden onclick="event.stopPropagation();window.adocArmImageDropOnBlock()">Ajouter une image</button>';
     return '<div class="cc-clarity-question sc-icon-label">' + adocIconSvg('icon-clarify') + '<span>Corriger ce passage</span></div>' +
       '<div class="cc-block-edit-controls" style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;">' +
-        (blockType === 'paragraph' ? btn('draftParagraph') : '') + btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
+        (blockType === 'paragraph' ? btn('draftParagraph') : ADOC_DIRECT_TYPES.includes(blockType) ? btn('draftBlock') : '') +
+        btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
+        '<button type="button" class="cc-clarity-reply-btn" onclick="adocBlockSourceOpen()">Ajouter une référence</button>' +
         '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
         ((blockType === 'card' || (blockId || '').startsWith('root:card-title:')) ? '' : insertBtn('before', 'Insérer un bloc avant')) + insertBtn('after', 'Insérer un bloc après') + addImageBtn +
         // D1 — les gestes de PAGE, après ceux de bloc et derrière le même repère visuel discret :
@@ -21762,6 +21913,7 @@ ${recent}`;
       // 57f — the same controls apply to every directly editable block.
       (ADOC_DIRECT_TYPES.includes(blockType) ? adocBuildBlockStyleControlsHTML('adocApplyBlockStyle') : '') +
       adocBlockSourcesControlsHTML(blockId, storeKey) +
+      adocBlockDeepDiveControlsHTML(blockType, storeKey) +
       '<div class="cc-block-edit-result" hidden></div>';
   }
 
@@ -22816,12 +22968,12 @@ ${recent}`;
     if (resultEl) { resultEl.hidden = false; resultEl.innerHTML = adocIconSvg('icon-progress') + ' Correction en cours…'; }
     try {
       const systemPrompt = adocBuildBlockCorrectionSystemPrompt(doc, intentInstruction);
-      const drafting = intentLabel === ADOC_BLOCK_EDIT_INTENTS.draftParagraph.label && block.type === 'paragraph';
+      const drafting = intentLabel === ADOC_BLOCK_EDIT_INTENTS.draftParagraph.label || intentLabel === ADOC_BLOCK_EDIT_INTENTS.draftBlock.label;
       const userContent = drafting
-        ? 'Paragraphe actuel : ' + (block.content.text || '') + '\n\nDOCUMENT ENTIER DANS SON ORDRE :\n' + adocParagraphDraftContext(doc, block.id)
+        ? 'Bloc actuel : ' + adocDescribeBlockContent(block) + '\n\nDOCUMENT ENTIER DANS SON ORDRE :\n' + adocParagraphDraftContext(doc, block.id)
         : adocDescribeBlockContent(block);
       const raw = await adocCallBlockCorrectionModel(systemPrompt, userContent);
-      if (drafting && (!raw.text || /^Nouveau paragraphe\.?$/i.test(raw.text.trim()))) {
+      if (drafting && block.type === 'paragraph' && (!raw.text || /^Nouveau paragraphe\.?$/i.test(raw.text.trim()))) {
         throw new Error('La proposition ne remplace pas encore le paragraphe provisoire. Réessayez.');
       }
       let newContent;
