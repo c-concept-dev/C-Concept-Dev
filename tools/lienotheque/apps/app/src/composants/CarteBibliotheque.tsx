@@ -1,4 +1,4 @@
-import type { CSSProperties, JSX } from "react";
+import { useId, useState, type CSSProperties, type JSX } from "react";
 import { BadgeEtat, Etat } from "./BadgeEtat.js";
 import { Icone, type NomIcone } from "./Icone.js";
 import "./CarteBibliotheque.css";
@@ -32,8 +32,13 @@ type Props = {
    *  dans une bibliothèque en regardant les documents d'une autre. Le lien reste un lien — pour
    *  le clavier et le menu contextuel — mais il dit d'abord **laquelle** on ouvre. */
   readonly onOuvrir?: (() => void) | undefined;
-  /** Renomme durablement la bibliothèque. Absent en lecture seule, notamment en ligne. */
-  readonly onRenommer?: (() => void) | undefined;
+  /** Renomme durablement la bibliothèque. Absent en lecture seule, notamment en ligne.
+   *
+   *  Reçoit le **nouveau nom**, saisi dans la carte. Il appelait auparavant `globalThis.prompt`,
+   *  que la WebView de l'application empaquetée n'implémente pas : elle rend `null` sans rien
+   *  afficher, et renommer était impossible — sans un mot à l'écran. Trouvé le 4 novembre 2026
+   *  en voulant s'en servir dans le paquet installé. */
+  readonly onRenommer?: ((nouveau: string) => void) | undefined;
 };
 
 export function CarteBibliotheque({
@@ -51,6 +56,8 @@ export function CarteBibliotheque({
   onRenommer,
 }: Props): JSX.Element {
   const bandeau = { "--ln-collection": `var(--ln-collection-${collection})` } as CSSProperties;
+  const champ = useId();
+  const [renommage, setRenommage] = useState<string | undefined>(undefined);
   return (
     <article className="ln-carte">
       <div className="ln-carte__bandeau" style={bandeau}>
@@ -88,7 +95,12 @@ export function CarteBibliotheque({
         <div className="ln-carte__pied">
           <span className="ln-muted">Ouverte {ouverte}</span>
           {onRenommer === undefined ? null : (
-            <button type="button" className="ln-lien-action" aria-label={`Renommer ${nom}`} onClick={onRenommer}>
+            <button
+              type="button"
+              className="ln-lien-action"
+              aria-label={`Renommer ${nom}`}
+              onClick={() => setRenommage(nom)}
+            >
               Renommer
             </button>
           )}
@@ -99,6 +111,41 @@ export function CarteBibliotheque({
             </span>
           )}
         </div>
+        {onRenommer === undefined || renommage === undefined ? null : (
+          <form
+            className="ln-carte__renommage"
+            onSubmit={(evenement) => {
+              evenement.preventDefault();
+              const propose = renommage.trim();
+              setRenommage(undefined);
+              if (propose.length > 0 && propose !== nom) onRenommer(propose);
+            }}
+          >
+            <label className="ln-champ ln-champ--serre" htmlFor={champ}>
+              Nouveau nom
+              <input
+                id={champ}
+                className="ln-saisie"
+                value={renommage}
+                autoFocus
+                onChange={(evenement) => setRenommage(evenement.target.value)}
+              />
+            </label>
+            <div className="ln-row">
+              <button type="submit" className="ln-lien-action" aria-label="Enregistrer le nom">
+                Enregistrer
+              </button>
+              <button
+                type="button"
+                className="ln-lien-action"
+                aria-label="Renoncer au renommage"
+                onClick={() => setRenommage(undefined)}
+              >
+                Renoncer
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </article>
   );

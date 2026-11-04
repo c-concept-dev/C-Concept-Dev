@@ -163,15 +163,25 @@ describe("accueil garni : composition des maquettes", () => {
     }
   });
 
+  /** Cette épreuve simulait `globalThis.prompt` : elle tenait donc pour acquis le chemin même
+   *  qui ne marche pas dans l'application empaquetée. Réécrite sur le champ posé dans la carte,
+   *  elle garde son intention — renommer ne change pas la bibliothèque qu'on ouvre. */
   it("permet de renommer une bibliothèque sans changer celle que l'on ouvre", async () => {
     const utilisateur = userEvent.setup();
     const renommer = vi.fn();
-    vi.spyOn(globalThis, "prompt").mockReturnValue("  Bibliothèque musicale  ");
-    render(<Accueil donnees={DEMONSTRATION} onFichiers={vi.fn()} onCreer={vi.fn()} onRenommer={renommer} />);
+    const ouvrir = vi.fn();
+    render(
+      <Accueil donnees={DEMONSTRATION} onFichiers={vi.fn()} onCreer={vi.fn()} onRenommer={renommer} onOuvrir={ouvrir} />,
+    );
 
-    await utilisateur.click(screen.getByRole("button", { name: `Renommer ${DEMONSTRATION.bibliotheques[0]!.nom}` }));
+    const premiere = DEMONSTRATION.bibliotheques[0]!;
+    await utilisateur.click(screen.getByRole("button", { name: `Renommer ${premiere.nom}` }));
+    await utilisateur.clear(screen.getByRole("textbox", { name: "Nouveau nom" }));
+    await utilisateur.type(screen.getByRole("textbox", { name: "Nouveau nom" }), "Bibliothèque musicale");
+    await utilisateur.click(screen.getByRole("button", { name: "Enregistrer le nom" }));
 
-    expect(renommer).toHaveBeenCalledWith(DEMONSTRATION.bibliotheques[0]!.id, "Bibliothèque musicale");
+    expect(renommer).toHaveBeenCalledWith(premiere.id, "Bibliothèque musicale");
+    expect(ouvrir).not.toHaveBeenCalled();
   });
 
   it("rend les positions depuis les sélecteurs d'ancres (ANC-01, ANC-02)", () => {
@@ -345,5 +355,80 @@ describe("tester une copie portable", () => {
     expect(screen.getByText(/Données de la bibliothèque inchangées/)).toBeInTheDocument();
     await utilisateur.click(screen.getByRole("button", { name: "Mettre à jour l’application embarquée" }));
     expect(mettreAJour).toHaveBeenCalledTimes(1);
+  });
+});
+
+/** Renommer sans boîte du navigateur (UX-06, LIV-07).
+ *
+ *  Le bouton appelait `globalThis.prompt`. La WebView de l'application empaquetée ne l'implémente
+ *  pas : elle rend `null` sans rien afficher, le code sortait sur ce `null`, et renommer était
+ *  impossible — sans un mot à l'écran. Trouvé le 4 novembre 2026 en voulant s'en servir dans le
+ *  paquet installé. Le champ vit donc dans la page, comme tout le reste. */
+describe("renommer une bibliothèque depuis sa carte (UX-06, LIV-07)", () => {
+  const UNE_CARTE: BibliothequeAffichee = {
+    id: "une-bibliotheque",
+    nom: "Une bibliothèque",
+    href: "#depot",
+    collection: "research",
+    icones: [],
+    compteurs: [],
+    hebergement: { libelle: "Sur cet ordinateur", icones: ["ordinateur"] },
+    etat: { libelle: "Prêt", icone: "valide" },
+    ouverte: "à l’instant",
+  };
+
+  const avecCarte = (onRenommer: (id: string, nom: string) => void) =>
+    render(
+      <Accueil
+        donnees={{ ...ACCUEIL_VIDE, bibliotheques: [UNE_CARTE] }}
+        onFichiers={vi.fn()}
+        onCreer={vi.fn()}
+        onRenommer={onRenommer}
+      />,
+    );
+
+  it("ouvre un champ dans la carte, prérempli du nom actuel", async () => {
+    const utilisateur = userEvent.setup();
+    avecCarte(vi.fn());
+
+    await utilisateur.click(screen.getByRole("button", { name: "Renommer Une bibliothèque" }));
+
+    expect(screen.getByRole("textbox", { name: "Nouveau nom" })).toHaveValue("Une bibliothèque");
+  });
+
+  it("rend l’identifiant et le nouveau nom, jamais le nom d’origine", async () => {
+    const utilisateur = userEvent.setup();
+    const renommer = vi.fn();
+    avecCarte(renommer);
+
+    await utilisateur.click(screen.getByRole("button", { name: "Renommer Une bibliothèque" }));
+    await utilisateur.clear(screen.getByRole("textbox", { name: "Nouveau nom" }));
+    await utilisateur.type(screen.getByRole("textbox", { name: "Nouveau nom" }), "Autre nom");
+    await utilisateur.click(screen.getByRole("button", { name: "Enregistrer le nom" }));
+
+    expect(renommer).toHaveBeenCalledWith("une-bibliotheque", "Autre nom");
+  });
+
+  it("n’appelle jamais la boîte du navigateur : elle n’existe pas dans l’application", async () => {
+    const utilisateur = userEvent.setup();
+    const demande = vi.spyOn(globalThis, "prompt").mockReturnValue(null);
+    avecCarte(vi.fn());
+
+    await utilisateur.click(screen.getByRole("button", { name: "Renommer Une bibliothèque" }));
+
+    expect(demande).not.toHaveBeenCalled();
+    demande.mockRestore();
+  });
+
+  it("renoncer referme le champ sans rien renommer", async () => {
+    const utilisateur = userEvent.setup();
+    const renommer = vi.fn();
+    avecCarte(renommer);
+
+    await utilisateur.click(screen.getByRole("button", { name: "Renommer Une bibliothèque" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Renoncer au renommage" }));
+
+    expect(screen.queryByRole("textbox", { name: "Nouveau nom" })).not.toBeInTheDocument();
+    expect(renommer).not.toHaveBeenCalled();
   });
 });

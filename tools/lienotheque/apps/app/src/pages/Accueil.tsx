@@ -143,10 +143,12 @@ export function Accueil({
                 {...(onRenommer === undefined
                   ? {}
                   : {
-                      onRenommer: () => {
-                        const propose = globalThis.prompt("Nouveau nom de la bibliothèque", bibliotheque.nom)?.trim();
-                        if (propose !== undefined && propose.length > 0 && propose !== bibliotheque.nom)
-                          void onRenommer(bibliotheque.id, propose);
+                      // Le nom vient d'un champ posé dans la carte. Il venait de
+                      // `globalThis.prompt`, que la WebView de l'application empaquetée
+                      // n'implémente pas : elle rend `null` sans rien afficher, et renommer
+                      // était impossible sans qu'un mot le dise (4 novembre 2026, LIV-07).
+                      onRenommer: (nouveau: string) => {
+                        void onRenommer(bibliotheque.id, nouveau);
                       },
                     })}
                 nom={bibliotheque.nom}
