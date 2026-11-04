@@ -54,6 +54,100 @@ const ADRESSE_RELECTURE: &str = "https://lienotheque-api.11drumboy11.workers.dev
 /// Le nom du fichier qui porte la manière de lire d'une bibliothèque.
 pub const RECETTE: &str = "recette.json";
 
+/// Ce qui rend sa place à la file, quoi qu'il arrive au fil qui mène le travail.
+///
+/// ## Le défaut que cela corrige, trouvé le 4 novembre 2026
+///
+/// Le retrait de l'ensemble des travaux menés suivait l'appel à `mener` :
+///
+/// ```ignore
+/// std::thread::spawn(move || { fil.mener(parti.clone()); fil.menes.lock()…remove(&parti.id); });
+/// ```
+///
+/// Un fil qui **panique** n'atteint jamais la ligne d'après. Le travail restait donc dans
+/// l'ensemble **pour toujours** : jamais repris, bien que son bail ait expiré depuis longtemps,
+/// et affiché « en cours » par l'écran. Mesuré : trente minutes, et rien ne l'aurait arrêté.
+///
+/// Un garde libéré par le langage lui-même n'a pas ce défaut : la place revient au déroulement
+/// de la pile, panique comprise. Et comme une panique n'écrit nulle part dans une application
+/// lancée depuis le Finder, le garde la **trace** — c'est à cela que sert [`crate::trace`].
+struct PlaceTenue<'a> {
+    menes: &'a Mutex<HashSet<String>>,
+    travail: String,
+    chemin: PathBuf,
+}
+
+impl Drop for PlaceTenue<'_> {
+    fn drop(&mut self) {
+        // Une fin normale a déjà conclu le travail : on ne fait que rendre la place.
+        if std::thread::panicking() {
+            self.conclure_la_panique();
+        }
+        if let Ok(mut menes) = self.menes.lock() {
+            menes.remove(&self.travail);
+        }
+    }
+}
+
+impl PlaceTenue<'_> {
+    /// Ce qu'on écrit quand le fil meurt : une panne qu'on ne voit pas est une panne qui dure.
+    ///
+    /// Rendre la place ne suffisait pas. `file::prendre` ne compte une tentative que depuis
+    /// « en_echec_recuperable » ; un travail laissé « en_cours » serait repris indéfiniment,
+    /// **sans jamais consommer de tentative** — un blocage échangé contre une boucle. On écrit
+    /// donc l'échec, et le plafond de tentatives reprend ses droits : récupérable tant qu'il en
+    /// reste, définitif ensuite.
+    fn conclure_la_panique(&self) {
+        crate::trace::ecrire(&format!(
+            "roulement : le fil qui menait « {} » a paniqué ; échec écrit, place rendue",
+            self.travail
+        ));
+        let Ok(Some(courant)) = travail::charger(&self.chemin) else { return };
+        let Some(mut echoue) = file::appliquer(&courant, "echouerRecuperable", travail::maintenant())
+        else {
+            return;
+        };
+        echoue.cause = Some(
+            "Le traitement s'est interrompu sans rien dire. La trace de l'application en garde le moment."
+                .to_owned(),
+        );
+        echoue.reprise_possible = echoue.etat == "en_echec_recuperable";
+        let _ = travail::enregistrer(&self.chemin, &echoue);
+    }
+}
+
+
+/// Le début d'un texte, pour dire de quoi parlait le dernier message reçu.
+///
+/// ## Le défaut que cela corrige, trouvé le 4 novembre 2026
+///
+/// On coupait à soixante **octets** : `&texte[..texte.len().min(60)]`. Rust refuse une découpe
+/// qui tombe au milieu d'un caractère, et nos journaux sont en français. Sur « … se retrouve
+/// imprimé, … », l'octet 60 tombe dans le « é » — le fil qui mène le travail **panique**.
+///
+/// Ce que coûtait une tranche d'octet : la panique d'un fil détaché ne remonte nulle part, la
+/// session est abandonnée sans récolter le moteur (**zombie**), le travail ne sort jamais de
+/// l'ensemble des travaux menés, et l'écran affiche « en cours » indéfiniment. Mesuré : trente
+/// minutes d'attente pour un traitement mort à 99 % de son travail.
+///
+/// On compte donc en **caractères**. Le budget d'octets reste une borne — un caractère pesant
+/// jusqu'à quatre octets, couper à soixante caractères ne dépasse jamais soixante octets qu'en
+/// apparence : on s'arrête dès que le prochain caractère ferait déborder.
+fn apercu_du_texte(texte: &str) -> String {
+    let mut apercu = String::new();
+    for caractere in texte.chars() {
+        if apercu.len() + caractere.len_utf8() > APERCU_OCTETS {
+            break;
+        }
+        apercu.push(caractere);
+    }
+    apercu
+}
+
+/// Longueur de l'aperçu d'un message, pour le diagnostic.
+const APERCU_OCTETS: usize = 60;
+
+
 /// Qui se lit comment, quand une bibliothèque a plusieurs manières de lire.
 ///
 /// Une bibliothèque d'un seul tenant n'en a qu'une, et `recette.json` suffit. Un corpus
@@ -189,8 +283,14 @@ impl Roulement {
 
             let fil = Arc::clone(self);
             std::thread::spawn(move || {
+                // La place est rendue par un garde, et non par la ligne d'après : une panique
+                // sauterait cette ligne et le travail resterait « mené » pour toujours.
+                let _place = PlaceTenue {
+                    menes: &fil.menes,
+                    travail: parti.id.clone(),
+                    chemin: fil.depot.travaux().join(format!("{}.json", parti.id)),
+                };
                 fil.mener(parti.clone());
-                fil.menes.lock().expect("ensemble des travaux menés").remove(&parti.id);
             });
         }
     }
@@ -282,7 +382,7 @@ impl Roulement {
             vus += 1;
             dernier = Some(match &message {
                 Ok(Message::Salutation { .. }) => "une salutation".to_owned(),
-                Ok(Message::Journal { texte, .. }) => format!("« {} »", &texte[..texte.len().min(60)]),
+                Ok(Message::Journal { texte, .. }) => format!("« {} »", apercu_du_texte(texte)),
                 Ok(Message::Progression { point, .. }) => match point {
                     Some(p) => format!("une progression à {} {}", p.valeur, p.unite),
                     None => "une progression".to_owned(),
@@ -626,6 +726,137 @@ impl std::fmt::Display for Obstacle {
 
 #[cfg(test)]
 mod tests {
+
+    /// Après une panique, le travail est en **échec visible**, pas en boucle.
+    ///
+    /// Rendre sa place à la file ne suffisait pas : `file::prendre` ne compte une tentative que
+    /// depuis « en_echec_recuperable ». Un travail resté « en_cours » serait donc repris
+    /// indéfiniment, **sans jamais consommer de tentative** — un blocage échangé contre une
+    /// boucle. Le garde écrit donc l'échec, avec sa raison, et le plafond de tentatives
+    /// reprend ses droits.
+    #[test]
+    fn une_panique_laisse_un_echec_visible_et_non_une_boucle() {
+        let bac = bac("panique-echec");
+        let dossier = bac.join("travaux");
+        std::fs::create_dir_all(&dossier).expect("dossier");
+        let mut depart = Travail::neuf("0190f0a0-0000-7000-8000-0000000000ff", "traitement-de-lot", 0);
+        depart.etat = "en_cours".to_owned();
+        let chemin = dossier.join(format!("{}.json", depart.id));
+        travail::enregistrer(&chemin, &depart).expect("écrit");
+
+        let menes: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+        menes.lock().expect("ensemble").insert(depart.id.clone());
+
+        let resultat = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _place = PlaceTenue {
+                menes: &menes,
+                travail: depart.id.clone(),
+                chemin: chemin.clone(),
+            };
+            panic!("le fil meurt ici");
+        }));
+        assert!(resultat.is_err(), "l'épreuve doit avoir paniqué");
+
+        let relu = travail::charger(&chemin).expect("relu").expect("présent");
+        assert!(
+            relu.etat.starts_with("en_echec"),
+            "le travail doit être en échec visible, il est « {} »",
+            relu.etat
+        );
+        assert!(relu.cause.is_some(), "un échec sans raison ne dit rien à personne");
+        assert!(relu.verrou.is_none(), "un travail en échec ne garde pas son bail");
+        assert!(!menes.lock().expect("ensemble").contains(&depart.id), "la place est rendue");
+    }
+
+    /// Au-delà du plafond de tentatives, l'échec devient définitif.
+    #[test]
+    fn au_dela_du_plafond_l_echec_devient_definitif() {
+        let bac = bac("panique-plafond");
+        let dossier = bac.join("travaux");
+        std::fs::create_dir_all(&dossier).expect("dossier");
+        let mut depart = Travail::neuf("0190f0a0-0000-7000-8000-0000000000fe", "traitement-de-lot", 0);
+        depart.etat = "en_cours".to_owned();
+        depart.tentative = crate::limites::LIMITES.tentatives_max;
+        let chemin = dossier.join(format!("{}.json", depart.id));
+        travail::enregistrer(&chemin, &depart).expect("écrit");
+
+        let menes: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _place = PlaceTenue { menes: &menes, travail: depart.id.clone(), chemin: chemin.clone() };
+            panic!("encore");
+        }));
+
+        let relu = travail::charger(&chemin).expect("relu").expect("présent");
+        assert_eq!(relu.etat, "en_echec_definitif", "à bout de tentatives, l'échec se dit définitif");
+    }
+
+
+    /// Un fil qui panique en menant un travail lui rend quand même sa place.
+    ///
+    /// Le 4 novembre 2026, le retrait suivait l'appel à `mener` : une panique sautait la ligne,
+    /// et le travail restait « mené » pour toujours — jamais repris malgré un bail expiré, et
+    /// annoncé « en cours » à l'écran pendant trente minutes.
+    #[test]
+    fn une_panique_rend_sa_place_au_travail() {
+        let menes: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+        menes.lock().expect("ensemble").insert("un-travail".to_owned());
+
+        let resultat = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _place = super::PlaceTenue {
+                menes: &menes,
+                travail: "un-travail".to_owned(),
+                // Aucun fichier : on n'éprouve ici que le retour de la place.
+                chemin: PathBuf::from("/dev/null/aucun-travail.json"),
+            };
+            panic!("le fil meurt ici, comme le 4 novembre");
+        }));
+
+        assert!(resultat.is_err(), "l'épreuve doit bien avoir paniqué");
+        assert!(
+            !menes.lock().expect("ensemble").contains("un-travail"),
+            "la place doit être rendue même quand le fil panique"
+        );
+    }
+
+    /// Et sans panique, la place est rendue tout autant.
+    #[test]
+    fn une_fin_normale_rend_aussi_la_place() {
+        let menes: Mutex<HashSet<String>> = Mutex::new(HashSet::new());
+        menes.lock().expect("ensemble").insert("un-travail".to_owned());
+        {
+            let _place = super::PlaceTenue {
+                menes: &menes,
+                travail: "un-travail".to_owned(),
+                chemin: PathBuf::from("/dev/null/aucun-travail.json"),
+            };
+        }
+        assert!(menes.lock().expect("ensemble").is_empty());
+    }
+
+
+    /// Le message qui a tué un traitement le 4 novembre 2026, à la minute près.
+    ///
+    /// L'hôte résumait le dernier message reçu en coupant son texte à soixante **octets**.
+    /// Sur « … se retrouve imprimé, … », l'octet 60 tombe au milieu du « é » : Rust refuse la
+    /// découpe et le fil qui mène le travail panique. Personne ne le voit — la panique d'un fil
+    /// détaché ne remonte nulle part, le moteur reste zombie, et le travail affiche « en cours »
+    /// pour toujours. Trente minutes d'attente pour une tranche d'octet.
+    #[test]
+    fn un_accent_a_la_soixantieme_place_ne_tue_plus_le_fil() {
+        let tue = "0 page(s) où le nom d'un enregistrement se retrouve imprimé, dont 0 qui n'en \
+                   désigne(nt) qu'un seul : 0 confirme(nt) la marque, 0 la contredise(nt).";
+        let apercu = super::apercu_du_texte(tue);
+        assert!(tue.starts_with(&apercu), "l'aperçu doit être un début du texte");
+        assert!(apercu.len() <= super::APERCU_OCTETS, "l'aperçu tient dans le budget d'octets");
+    }
+
+    /// Un texte plus court que le budget revient entier, accents compris.
+    #[test]
+    fn un_texte_court_revient_entier() {
+        let court = "28 page(s) à marque confrontée(s).";
+        assert_eq!(super::apercu_du_texte(court), court);
+    }
+
     use super::*;
     use std::{fs, io::Write};
     use zip::{write::SimpleFileOptions, ZipWriter};
