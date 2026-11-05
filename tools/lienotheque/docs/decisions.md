@@ -6418,3 +6418,25 @@ plus d'en faire la cible.
 sur sa ligne ». **Sa sortie ne tranche rien** : cinq documents, de 4 à 20 feuillets, et **aucune
 vérité attendue** — elle compte des folios « écartés » et « gagnés » sans savoir lesquels étaient
 justes. Il faut une référence avant de mesurer une règle.
+
+## 5 novembre 2026 — A2 passe devant A1b, et pourquoi
+
+**Décision de Christophe.** A2 — délai effectif sur Tesseract et repli Vision obligatoire,
+exigence 0 — se fait **maintenant** ; A1b ensuite.
+
+**La raison, telle qu'il l'a donnée** : la voie oracle pose ses éléments **par la feuille** et ne
+dépend pas du folio. Le folio, lui, reste nécessaire — pour **l'affichage**, pour **la recherche**
+et pour **la citation par vraie page**. Il n'est donc pas abandonné, il est différé : ce qui
+bloque un lien passe avant ce qui gêne une citation.
+
+### Sur la vérité attendue des folios, pour quand A1b reprendra
+
+Trois conditions, et la première est la plus importante :
+
+1. **Prouver que la référence oracle est indépendante de la lecture de marge qu'on mesure.** Si
+   l'oracle tirait ses folios de la même bande de marge, la mesure serait circulaire : on
+   comparerait une règle à elle-même.
+2. **Au moins trois familles de pagination** — une méthode du type de celle du jalon, un recueil
+   de standards, un livre de texte — et non un document seul.
+3. **Une dizaine de pages précises** (document, feuille) à vérifier au papier, en plus de la
+   référence machine.
