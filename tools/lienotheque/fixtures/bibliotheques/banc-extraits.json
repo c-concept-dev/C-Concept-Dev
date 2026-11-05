@@ -1,0 +1,63 @@
+{
+ "id": "banc-extraits",
+ "nom": "Banc d'extraits",
+ "description": "Jeu de travail : un petit bout de chaque méthode, pour éprouver la chaîne.",
+ "contenus": [
+  "documents",
+  "audio"
+ ],
+ "mots": {
+  "element": {
+   "un": "élément",
+   "plusieurs": "éléments"
+  },
+  "piste": {
+   "un": "piste",
+   "plusieurs": "pistes"
+  },
+  "page": {
+   "un": "page",
+   "plusieurs": "pages"
+  }
+ },
+ "schema": {
+  "cle": "banc",
+  "nom": "Banc",
+  "langue": "fr",
+  "version": 2,
+  "axes": [
+   {
+    "cle": "style-musical",
+    "nom": "Style musical",
+    "nature": "etiquettes",
+    "cardinalite": "plusieurs",
+    "structure": "plat",
+    "obligatoire": false,
+    "valeurs": [],
+    "alias": []
+   },
+   {
+    "cle": "type-de-ressource",
+    "nom": "Type de ressource",
+    "nature": "referentiel",
+    "cardinalite": "une",
+    "structure": "hierarchique",
+    "roleCommun": "categorie",
+    "obligatoire": false,
+    "valeurs": [],
+    "alias": []
+   },
+   {
+    "cle": "etat-audio",
+    "nom": "État audio",
+    "nature": "referentiel",
+    "cardinalite": "une",
+    "structure": "plat",
+    "roleCommun": "etat",
+    "obligatoire": false,
+    "valeurs": [],
+    "alias": []
+   }
+  ]
+ }
+}
