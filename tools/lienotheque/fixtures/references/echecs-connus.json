@@ -5,7 +5,11 @@
       "id": "critere-f3-orphelins-93-98",
       "paquet": "@lienotheque/ingestion",
       "controle": "test/criteres.test.ts — critère F3 — méthode numérisée, 95 sur 95 (OUT-15, REC-06) > relie les 95 éléments à la bonne piste, repère les deux pages absentes et les six médias sans page",
-      "exigences": ["OUT-15", "REC-06", "REC-02"],
+      "exigences": [
+        "OUT-15",
+        "REC-06",
+        "REC-02"
+      ],
       "assertion": "expect(association.orphelins).toEqual([...reference.mp3_orphelins])",
       "echec": "AssertionError: expected [] to deeply equal [ 93, 94, 95, 96, 97, 98 ]",
       "epingle_le": "2026-11-05",
@@ -23,8 +27,14 @@
         "resultat": "F3_AVANT_MON_CHANGEMENT=1, même assertion, même échec.",
         "quand": "2026-11-05"
       },
-      "ce_qui_le_levera": "Étape A4 du plan : décider QUI déclare la provenance d'un lot de fixture, et faire porter au critère deux attentes — strict : abstention motivée ; estimation : 95 liens estimés. C'est une décision de conception, pas une réparation de l'associateur.",
-      "a_ne_pas_faire": "Ne jamais relâcher l'assertion ni la garde de `qualifierAssociation` pour verdir ce contrôle : la garde est là pour ne pas publier sur un vivier que rien ne borne (REC-02)."
+      "ce_qui_le_levera": "Étape A4 du plan (CDC v24, § feuille de route) : le critère F3 est réécrit sur la VOIE ORACLE — décision du 29 octobre : l'oracle remplace les recettes — plus les confirmations. A4 dépend d'A3 (confirmation lien par lien, visant un lien précis : élément, feuille, média, et non un `cas.id`) et d'A1 pour les pages absentes, que l'oracle détecte. La provenance est déclarée PAR MÉDIA, et non par le lot : c'est ce qui lève `vivier_non_borne` sans toucher à la garde.",
+      "a_ne_pas_faire": "Ne jamais relâcher l'assertion ni la garde de `qualifierAssociation` pour verdir ce contrôle : la garde est là pour ne pas publier sur un vivier que rien ne borne (REC-02).",
+      "ce_qui_ne_le_levera_pas": "La proposition du 4 novembre — faire porter au critère deux attentes, « strict : abstention » et « estimation : 95 liens estimés » — est DÉPASSÉE. Le mode estimation est l'étape B, distincte, et son seuil d'erreur reste à fixer par Christophe. Ne pas l'invoquer pour lever cette épingle.",
+      "depend_de": [
+        "A1",
+        "A3",
+        "A4"
+      ]
     }
   ]
 }
