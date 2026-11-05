@@ -57,10 +57,29 @@ describe("page repérée (OUT-07)", () => {
   });
 
   it("porte son rang : sur un livre photographié, un cliché vaut deux pages", () => {
-    const sansRang = { index: 1, statut: "lue", pageImprimee: 3, elements: [] };
+    const sansRang = { feuille: 1, statut: "lue", pageImprimee: 3, elements: [] };
     expect(PageReperee.safeParse(sansRang).success).toBe(false);
     expect(PageReperee.safeParse({ ...sansRang, rang: 2, cote: "gauche" }).success).toBe(true);
     expect(PageReperee.safeParse({ ...sansRang, rang: 3, cote: "droite" }).success).toBe(true);
+  });
+
+  // OUT-15, 5 novembre 2026. Le champ s'appelait `index` et comptait les feuilles **retenues** :
+  // une feuille sans image était écartée, et toutes les suivantes prenaient son rang. `feuille`
+  // dit le rang réel, et la suite n'a donc aucune raison d'être contiguë.
+  it("une suite de feuilles peut comporter des trous (OUT-15)", () => {
+    const feuille = (rang: number) => ({ feuille: rang, rang, statut: "lue", pageImprimee: rang, elements: [element] });
+    // Les feuilles 1, 11 et 24 : les autres ne portaient aucune image, elles n'ont pas été lues.
+    const pages = [feuille(1), feuille(11), feuille(24)].map((page) => PageReperee.safeParse(page));
+    expect(pages.every((page) => page.success), "un trou dans la suite des feuilles est une donnée valide").toBe(true);
+    expect(pages.map((page) => page.data?.feuille)).toEqual([1, 11, 24]);
+  });
+
+  it("relit `index` des versions et des caches écrits avant le renommage (OUT-15)", () => {
+    const relu = PageReperee.safeParse({ index: 7, rang: 7, statut: "lue", pageImprimee: 5, elements: [element] });
+    expect(relu.success, "une version d'avant le 5 novembre 2026 reste lisible").toBe(true);
+    expect(relu.data?.feuille, "l'ancien `index` devient la feuille, sans réécrire le fichier").toBe(7);
+    const prefere = PageReperee.safeParse({ index: 7, feuille: 9, rang: 9, statut: "lue", pageImprimee: 5, elements: [element] });
+    expect(prefere.success, "les deux noms ensemble : `feuille` fait foi, `index` est refusé").toBe(false);
   });
 });
 

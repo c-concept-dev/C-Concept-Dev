@@ -18,8 +18,8 @@ const element = (numero: number, sur: Partial<ElementRepere> = {}): ElementReper
   ...sur,
 });
 
-const page = (index: number, pageLue: number | undefined, numeros: readonly ElementRepere[]): PageLue => ({
-  index,
+const page = (feuille: number, pageLue: number | undefined, numeros: readonly ElementRepere[]): PageLue => ({
+  feuille,
   ...(pageLue === undefined ? {} : { pageLue }),
   elements: numeros,
 });
@@ -246,9 +246,9 @@ describe("un numéro relu n'est appliqué que si la suite le confirme (ANC-02, O
 
   /** Trois éléments sur trois pages, celui du milieu ayant un repère illisible. */
   const pages = (sur: Partial<ElementRepere> = {}): PageNumerotee[] => [
-    { index: 10, rang: 20, cote: "gauche", pageImprimee: 70, statut: "lue", elements: [element(1, { pisteLue: 11, accordPiste: 1 })] },
-    { index: 11, rang: 22, cote: "gauche", pageImprimee: 71, statut: "lue", elements: [element(2, sur)] },
-    { index: 12, rang: 24, cote: "gauche", pageImprimee: 72, statut: "lue", elements: [element(3, { pisteLue: 13, accordPiste: 1 })] },
+    { feuille: 10, rang: 20, cote: "gauche", pageImprimee: 70, statut: "lue", elements: [element(1, { pisteLue: 11, accordPiste: 1 })] },
+    { feuille: 11, rang: 22, cote: "gauche", pageImprimee: 71, statut: "lue", elements: [element(2, sur)] },
+    { feuille: 12, rang: 24, cote: "gauche", pageImprimee: 72, statut: "lue", elements: [element(3, { pisteLue: 13, accordPiste: 1 })] },
   ];
 
   const relu = (numero: number, confiance = 0.9): Map<string, LectureParVision> =>
@@ -310,7 +310,7 @@ describe("un support absent ne reçoit pas les éléments du précédent (REC-05
    *  la recette appelle un changement de disque. */
   const lot = (): PageNumerotee[] =>
     Array.from({ length: 28 }, (_, rang) => ({
-      index: rang,
+      feuille: rang,
       rang,
       cote: "gauche" as const,
       pageImprimee: 60 + rang,
@@ -376,10 +376,10 @@ describe("le verdict de la relecture décide de l'ouverture d'une piste (lot D, 
   /** Deux éléments voisins lisent tous deux « 7 », et un seul porte le repère. C'est le cas que la
    *  lecture seule ne sait pas trancher : la présence vaut à peu près la même chose des deux côtés. */
   const lot = (): PageNumerotee[] => [
-    { index: 1, rang: 2, cote: "gauche", pageImprimee: 60, statut: "lue", elements: [element(1, { pisteLue: 6, accordPiste: 1 })] },
-    { index: 2, rang: 4, cote: "gauche", pageImprimee: 61, statut: "lue", elements: [element(2, { pisteLue: 7, accordPiste: 1 })] },
-    { index: 3, rang: 6, cote: "gauche", pageImprimee: 62, statut: "lue", elements: [element(3, { pisteLue: 7, accordPiste: 1 })] },
-    { index: 4, rang: 8, cote: "gauche", pageImprimee: 63, statut: "lue", elements: [element(4, { pisteLue: 8, accordPiste: 1 })] },
+    { feuille: 1, rang: 2, cote: "gauche", pageImprimee: 60, statut: "lue", elements: [element(1, { pisteLue: 6, accordPiste: 1 })] },
+    { feuille: 2, rang: 4, cote: "gauche", pageImprimee: 61, statut: "lue", elements: [element(2, { pisteLue: 7, accordPiste: 1 })] },
+    { feuille: 3, rang: 6, cote: "gauche", pageImprimee: 62, statut: "lue", elements: [element(3, { pisteLue: 7, accordPiste: 1 })] },
+    { feuille: 4, rang: 8, cote: "gauche", pageImprimee: 63, statut: "lue", elements: [element(4, { pisteLue: 8, accordPiste: 1 })] },
   ];
 
   const verdict = (numero: number, repere: "present" | "absent" | "incertain", lu?: number): Map<string, LectureParVision> =>
@@ -413,7 +413,7 @@ describe("le verdict de la relecture décide de l'ouverture d'une piste (lot D, 
 
   it("un pavé déclaré absent n'ouvre aucune piste, même seul à la lire", () => {
     const seul: PageNumerotee[] = [
-      { index: 1, rang: 2, cote: "gauche", pageImprimee: 60, statut: "lue", elements: [element(1, { pisteLue: 2, accordPiste: 1 })] },
+      { feuille: 1, rang: 2, cote: "gauche", pageImprimee: 60, statut: "lue", elements: [element(1, { pisteLue: 2, accordPiste: 1 })] },
     ];
     const sans = sequencer(seul, V5, { nombreDePistes: 92 }).lignes[0]!;
     const avec = sequencer(seul, V5, { nombreDePistes: 92, vision: verdict(1, "absent") }).lignes[0]!;

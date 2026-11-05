@@ -50,7 +50,7 @@ const rendrePages: Rendre = async (chemin, numeros, recette) => {
     pages: derniere - premiere + 1,
     sansBinarisation: true,
   })) {
-    const numero = page.index + 1;
+    const numero = page.feuille + 1;
     if (!voulues.has(numero)) continue;
     const image = await encoderWebp(enRvba(page.image), { lossless: 1, quality: 100 });
     pages.push({

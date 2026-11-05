@@ -111,7 +111,7 @@ export type Lot = {
 /** Le décalage entre le rang **interne** d'une page et celui qu'on montre.
  *
  *  Deux conventions coexistent dans le projet, et ce n'est pas une coquette : la chaîne d'images
- *  compte ses pages **à partir de zéro** (`PageReperee.index`, et les fichiers `page-0000.webp`),
+ *  compte ses feuilles **à partir de zéro** (`PageReperee.feuille`, et les fichiers `page-0000.webp`),
  *  tandis que le texte compte **à partir de un** (`Passage.page`). La vue est faite pour une
  *  personne et cite ses pages : elle s'aligne donc sur le texte, et la conversion se fait ici,
  *  une seule fois, plutôt que d'être refaite — ou oubliée — à chaque écran.
@@ -121,11 +121,11 @@ export type Lot = {
 const PREMIER_RANG = 1;
 
 export function numerosImprimes(
-  lues: readonly { index: number; elements: readonly { numero: number }[] }[],
+  lues: readonly { feuille: number; elements: readonly { numero: number }[] }[],
   lignes: readonly { numero: number; pageImprimee: number }[],
 ): Map<number, number> {
   const pageDeLElement = new Map(lignes.map((ligne) => [ligne.numero, ligne.pageImprimee]));
-  const parIndex = new Map<number, number>();
+  const parFeuille = new Map<number, number>();
 
   for (const page of lues) {
     const votes = new Map<number, number>();
@@ -136,9 +136,9 @@ export function numerosImprimes(
     let retenue: number | undefined;
     let meilleur = 0;
     for (const [imprimee, nombre] of votes) if (nombre > meilleur) [retenue, meilleur] = [imprimee, nombre];
-    if (retenue !== undefined) parIndex.set(page.index, retenue);
+    if (retenue !== undefined) parFeuille.set(page.feuille, retenue);
   }
-  return parIndex;
+  return parFeuille;
 }
 
 /** Ce qu'un lot traité a produit : la vue que les écrans liront, et ce dont elle est tirée.
@@ -308,10 +308,16 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   // souvent aucun. Ses pages existent pourtant : l'export d'images les a rendues, et la lecture
   // de texte les a parcourues. Limiter la vue à `resultat.pages` produisait donc des centaines de
   // dérivés inatteignables et rabattait à tort un PDF natif vers le lecteur de texte seul.
+  //
+  // Le rang vient de la **feuille** d'où la page a été lue, et non d'un compte des pages retenues.
+  // C'était le défaut : `resultat.pages` numérotait les feuilles qu'il avait gardées, et le folio
+  // comme le début d'élément se posaient au rang de ce compte. Un document dont une feuille ne
+  // porte aucune image voyait donc tout ce qui suit décalé d'un rang, sur des images qui, elles,
+  // sont nommées par feuille (OUT-15).
   const pagesParRang = new Map<number, { index: number; numero?: number; debutElement?: boolean }>();
   for (const page of resultat.pages) {
-    const index = page.index + PREMIER_RANG;
-    const numero = imprimes.get(page.index);
+    const index = page.feuille + PREMIER_RANG;
+    const numero = imprimes.get(page.feuille);
     pagesParRang.set(index, {
       index,
       ...(numero === undefined ? {} : { numero }),

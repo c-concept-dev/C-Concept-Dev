@@ -32,6 +32,10 @@ export type Entree = {
    *  Une page existe parce qu'elle a été lue, et non parce qu'on y a reconnu quelque chose. La
    *  vue les déduisait des éléments : un ouvrage ordinaire n'en portant aucun, il n'avait aucune
    *  page — mesuré sur sept documents, 108 à 614 pages lues et zéro affichable, images comprises. */
+  /** Les pages à montrer. `index` est le rang de la page **affichée**, à partir de un : c'est la
+   *  convention de la vue, celle que l'on cite à une personne (`PREMIER_RANG` dans `lot.ts`). Il
+   *  désigne la même feuille que `PageReperee.feuille`, décalée d'un rang — et non un compte des
+   *  pages retenues, ce qu'il valait avant le 5 novembre 2026. */
   readonly pages: readonly { readonly index: number; readonly numero?: number; readonly debutElement?: boolean }[];
   readonly association: Association;
   readonly medias: readonly MediaIngere[];

@@ -194,7 +194,7 @@ export function ciblesStructurellesAttendues(
   for (const page of pages)
     for (const element of page.elements) {
       const pagesDeLElement = parNumero.get(element.numero) ?? new Set<number>();
-      pagesDeLElement.add(page.index + 1);
+      pagesDeLElement.add(page.feuille + 1);
       parNumero.set(element.numero, pagesDeLElement);
     }
   const numerosLus = [...parNumero.keys()].sort((a, b) => a - b);
@@ -260,13 +260,13 @@ export function integrerCiblesValidees(
   const parPage = new Map<number, CibleStructurelleValidee[]>();
   for (const cible of cibles) {
     if (cible.confiance < seuil || deja.has(cible.numero) || !mediasParElement.has(cible.numero)) continue;
-    const index = cible.pagePdf - 1;
-    if (!pages.some((page) => page.index === index)) continue;
-    parPage.set(index, [...(parPage.get(index) ?? []), cible]);
+    const feuille = cible.pagePdf - 1;
+    if (!pages.some((page) => page.feuille === feuille)) continue;
+    parPage.set(feuille, [...(parPage.get(feuille) ?? []), cible]);
     deja.add(cible.numero);
   }
   return pages.map((page) => {
-    const ajouts = parPage.get(page.index) ?? [];
+    const ajouts = parPage.get(page.feuille) ?? [];
     if (ajouts.length === 0) return { ...page, elements: [...page.elements] };
     const elements = [
       ...page.elements,
@@ -299,7 +299,7 @@ export function completerResultatParCiblesValidees(
   const ajouts = cibles.flatMap((cible) => {
     if (cible.confiance < seuil || presentes.has(cible.numero)) return [];
     const media = mediasParElement.get(cible.numero);
-    const page = resultat.pages.find((candidate) => candidate.index === cible.pagePdf - 1);
+    const page = resultat.pages.find((candidate) => candidate.feuille === cible.pagePdf - 1);
     if (media === undefined || page?.pageImprimee === undefined) return [];
     // Si la lecture locale avait vu l'identifiant mais que la remise en suite l'a écarté, sa
     // boîte mesurée sur les pixels est plus précise que la boîte grossière du repli Vision.
@@ -337,10 +337,10 @@ const ECHANTILLON_MAX = 16;
 /** Vote l'orientation du lot sur un échantillon de ses clichés. */
 async function voterOrientation(chemin: string, options: OptionsBanc): Promise<RotationTrouvee | undefined> {
   const notes: (readonly { rotation: Rotation; note: number }[])[] = [];
-  let index = -1;
-  for await (const image of pagesEnGris(chemin, options.pages)) {
-    index += 1;
-    if (index % PAS_ECHANTILLON !== 0) continue;
+  let vues = -1;
+  for await (const { image } of pagesEnGris(chemin, options.pages)) {
+    vues += 1;
+    if (vues % PAS_ECHANTILLON !== 0) continue;
     notes.push(noterLesQuatreSens(image, options.redressement ?? {}));
     if (notes.length >= ECHANTILLON_MAX) break;
   }
@@ -380,15 +380,18 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
 
   // Le rang dans le document, et non dans la tranche : essayer une manière de lire sur dix
   // pages du milieu doit les numéroter comme elles le sont, sinon ce qu'on lit ne se retrouve
-  // nulle part.
-  let index = options.depuis ?? 0;
+  // nulle part. Il vient de `pagesEnGris`, qui lit le document ; il n'est **pas** compté ici.
+  //
+  // Il l'était, et c'était le défaut : le compteur n'avançait que pour les feuilles rendues, donc
+  // une feuille sans image décalait toutes les suivantes d'un rang. Mesuré le 5 novembre 2026 sur
+  // la bibliothèque musicale — cinquante-deux propositions posées une page trop tôt (OUT-15).
   let total = 0;
   // `pagesEnGris` compte les feuilles du PDF. La progression, elle, compte ce que la recette
   // livre réellement au lecteur : deux pages logiques par feuille quand elle déclare une double
   // page. Sans cette conversion, F4 annonçait 143 au départ puis avançait jusqu'à 286, et la
   // barre atteignait donc 100 % à mi-parcours.
   const pagesParFeuille = preparation.double_page === true ? 2 : 1;
-  for await (const image of pagesEnGris(
+  for await (const { image, feuille } of pagesEnGris(
     chemin,
     options.pages,
     (compte) => {
@@ -397,9 +400,9 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
     },
     options.depuis ?? 0,
   )) {
-    if (reglages === undefined) yield { image, index, total };
+    if (reglages === undefined) yield { image, feuille, total };
     else
-      for (const produite of redresser(image, index, reglages, {
+      for (const produite of redresser(image, feuille, reglages, {
         ...(options.redressement ?? {}),
         ...(rotationDuLot === undefined ? {} : { rotationImposee: rotationDuLot.rotation }),
         // Le gris n'est gardé que si quelqu'un en a l'usage : une relecture ciblée déclarée par
@@ -410,15 +413,26 @@ export async function* preparerLot(chemin: string, recette: Recette, options: Op
         yield {
           image: produite.image,
           ...(produite.grise === undefined ? {} : { grise: produite.grise }),
-          index,
+          feuille,
           total,
-          rang: preparation.double_page === true ? index * 2 + (cote === "droite" ? 1 : 0) : index,
+          rang: preparation.double_page === true ? feuille * 2 + (cote === "droite" ? 1 : 0) : feuille,
           ...(cote === undefined ? {} : { cote }),
         };
       }
-    index += 1;
   }
 }
+
+/** Une feuille rendue en gris, et le rang qu'elle occupe dans le document.
+ *
+ *  Le rang voyage avec l'image parce que toutes les feuilles ne sont pas rendues : celles qui ne
+ *  portent aucune image n'ont pas de repère photographié à lire. Sans lui, l'appelant ne pouvait
+ *  que compter ce qu'il recevait, et une feuille écartée décalait toutes les suivantes. */
+export type FeuilleEnGris = {
+  readonly image: ImageGrise;
+  /** Rang de la feuille dans le document, à partir de zéro, et **absolu** : la tranche demandée
+   *  par `depuis` ne le ramène pas à zéro. */
+  readonly feuille: number;
+};
 
 /** Pages d'un PDF numérisé, en gris, dans l'ordre du document et à leur résolution d'origine.
  *
@@ -429,7 +443,7 @@ export async function* pagesEnGris(
   limite?: number,
   surTotal?: (total: number) => void,
   depuis = 0,
-): AsyncGenerator<ImageGrise> {
+): AsyncGenerator<FeuilleEnGris> {
   const objets = objetsPdf(await readFile(chemin));
   const pages = pagesPdf(objets);
   const retenues = pages.slice(depuis, limite === undefined ? undefined : depuis + limite);
@@ -450,7 +464,7 @@ export async function* pagesEnGris(
         const octets = octetsImage(objets, page.images[0]!.numero);
         if (octets?.extension === "jpg")
           try {
-            yield enGris(await decoderJpeg(octets.octets));
+            yield { image: enGris(await decoderJpeg(octets.octets)), feuille: page.index };
             continue;
           } catch (cause) {
             causeDirecte = cause;
@@ -464,7 +478,7 @@ export async function* pagesEnGris(
       if (page.images.length === 0) continue;
       try {
         renduComplet ??= await ouvrirRenduPdf(chemin);
-        yield enGris(await renduComplet.page(page.index + 1, 1800));
+        yield { image: enGris(await renduComplet.page(page.index + 1, 1800)), feuille: page.index };
       } catch (causeRendu) {
         const dire = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause));
         throw new Error(
@@ -478,9 +492,14 @@ export async function* pagesEnGris(
   }
 }
 
-/** Lit les repères de chaque page, puis interprète selon la recette. */
+/** Lit les repères de chaque page, puis interprète selon la recette.
+ *
+ *  Raccourci de banc : il prend un tableau d'images déjà rendues et numérote les feuilles par leur
+ *  position dans ce tableau. C'est juste pour un jeu d'images **sans trou** — un banc qui les a
+ *  rendues lui-même. Sur un document, c'est `preparerLot` qui tient le rang des feuilles, parce
+ *  que lui seul sait lesquelles ont été écartées. */
 export function lireEtInterpreter(pages: readonly ImageGrise[], recette: Recette, options: OptionsBanc = {}): ResultatRecette {
-  return interpreter(reperer(pages.map((image, index) => ({ image, index, total: pages.length })), recette, options), recette);
+  return interpreter(reperer(pages.map((image, feuille) => ({ image, feuille, total: pages.length })), recette, options), recette);
 }
 
 /** Une page à lire, avec ce que le redresseur en sait déjà. */
@@ -491,7 +510,9 @@ export type PageAlire = {
   /** La même page en gris, quand la recette déclare une relecture ciblée : c'est de là que les
    *  recadrages sont pris, et non de la page binarisée que l'OCR préfère. */
   readonly grise?: ImageGrise;
-  readonly index: number;
+  /** Rang de la feuille dans le document, à partir de zéro. La suite peut comporter des trous :
+   *  les feuilles sans image ne sont pas rendues, et gardent pourtant leur place. */
+  readonly feuille: number;
   readonly rang?: number;
   readonly cote?: CotePage;
 };
@@ -508,7 +529,7 @@ export function reperer(pages: readonly PageAlire[], recette: Recette, options: 
         ? undefined
         : lireNumeroPage(page.image, ouLirePage, avecCote);
     return {
-      index: page.index,
+      feuille: page.feuille,
       ...(page.rang === undefined ? {} : { rang: page.rang }),
       ...(page.cote === undefined ? {} : { cote: page.cote }),
       ...(pageLue === undefined ? {} : { pageLue }),

@@ -31,9 +31,10 @@ describe("la lecture d'un lot se fait en flux", () => {
 
   siF3("s'abandonne après une seule page, sans décoder le reste", async () => {
     let vues = 0;
-    for await (const page of pagesEnGris(F3)) {
+    for await (const { image, feuille } of pagesEnGris(F3)) {
       vues += 1;
-      expect(page.pixels.length).toBeGreaterThan(0);
+      expect(image.pixels.length).toBeGreaterThan(0);
+      expect(feuille, "la première feuille rendue est la première du document").toBe(0);
       break;
     }
     // Un tableau aurait décodé les vingt-neuf pages avant de rendre la première.

@@ -24,7 +24,7 @@ const dossierNeuf = (): string => {
 };
 
 const page = (index: number) => ({
-  index,
+  feuille: index,
   rang: index,
   cote: "gauche" as const,
   pageLue: 60 + index,
@@ -73,7 +73,7 @@ describe("l'écriture ne laisse jamais d'entrée à moitié", () => {
     const fichier = join(dossier, "lot.json");
     ecrireCache(fichier, [PageLueBrute.parse(page(1))] as never);
     ecrireCache(fichier, [PageLueBrute.parse(page(2))] as never);
-    expect(lireCache(fichier)?.[0]?.index).toBe(2);
+    expect(lireCache(fichier)?.[0]?.feuille).toBe(2);
     expect(readdirSync(dossier)).toEqual(["lot.json"]);
   });
 });
@@ -95,7 +95,7 @@ describe("une entrée douteuse est relue, jamais servie", () => {
     // C'est ce que `JSON.parse` seul laissait passer : la forme n'était jamais vérifiée.
     expect(lireCache(abimer('{"bonjour": true}'))).toBeUndefined();
     expect(lireCache(abimer("[1, 2, 3]"))).toBeUndefined();
-    expect(lireCache(abimer('[{"index": 1}]')), "une page sans ses éléments n'est pas une page lue").toBeUndefined();
+    expect(lireCache(abimer('[{"feuille": 1}]')), "une page sans ses éléments n'est pas une page lue").toBeUndefined();
   });
 
   it("refuse une entrée vide", () => {
@@ -124,6 +124,6 @@ describe("ce que le cache garde, et ce qu'il ne garde pas", () => {
     const brut = readFileSync(fichier, "utf8");
     // Le contrat est « strict » : rien d'autre que ces champs ne peut y entrer, et donc aucun
     // pixel ni texte du document sous droits.
-    expect(Object.keys(JSON.parse(brut)[0]).sort()).toEqual(["cote", "elements", "index", "pageLue", "rang"]);
+    expect(Object.keys(JSON.parse(brut)[0]).sort()).toEqual(["cote", "elements", "feuille", "pageLue", "rang"]);
   });
 });

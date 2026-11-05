@@ -151,7 +151,7 @@ export function margesSansLecture(page: PageAmarges, recette: Recette, options: 
       const marge = Math.round(encre.h * MARGE_RECADRAGE);
       const haut = Math.max(0, encre.y - marge);
       trouves.push({
-        page: page.index,
+        page: page.feuille,
         ...(page.cote === undefined ? {} : { cote: page.cote }),
         // Le numéro n'est pas connu — c'est ce qu'on vient demander. On le désigne par sa place,
         // en millièmes de la hauteur de page : stable d'un rejeu à l'autre, et unique sur la page.
@@ -178,7 +178,9 @@ export function margesSansLecture(page: PageAmarges, recette: Recette, options: 
 
 /** Une page dont on sonde les marges, et ce qu'on y a déjà lu. */
 export type PageAmarges = {
-  readonly index: number;
+  /** Rang de la feuille dans le document, à partir de zéro. Voir `PageAlire.feuille` : la
+   *  suite peut comporter des trous, les feuilles sans image n'étant pas rendues. */
+  readonly feuille: number;
   readonly image: ImageGrise;
   readonly cote?: CotePage | undefined;
   readonly dejaLus: readonly DejaLu[];

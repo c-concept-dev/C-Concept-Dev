@@ -34,7 +34,7 @@ describe("préparation du lot selon la recette (OUT-03, A2)", () => {
       expect(pages).toHaveLength(6);
       expect(pages.map((page) => page.cote)).toEqual(["gauche", "droite", "gauche", "droite", "gauche", "droite"]);
       expect(pages.map((page) => page.rang)).toEqual([0, 1, 2, 3, 4, 5]);
-      expect(pages.map((page) => page.index)).toEqual([0, 0, 1, 1, 2, 2]);
+      expect(pages.map((page) => page.feuille)).toEqual([0, 0, 1, 1, 2, 2]);
     },
     900_000,
   );

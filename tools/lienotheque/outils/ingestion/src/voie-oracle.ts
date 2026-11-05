@@ -1027,7 +1027,8 @@ export async function rejouerParOracle(
   const pages: PageReperee[] = Array.from({ length: combienDePages }, (_, place) => {
     const rang = place + 1;
     return {
-      index: place,
+      // La voie oracle rend une entrée par feuille rendue : elle garde sa place à chacune.
+      feuille: place,
       rang: place,
       pageImprimee: folioParRang.get(rang) ?? rang,
       // « Lue » seulement si le vote documentaire a établi le folio de cette page. Une lecture
@@ -1288,7 +1289,7 @@ function sansLien(
   // bilan mais aucune page du Lecteur ne peut la porter. C'était exactement le cas des
   // quarante-quatre liens Bass Aerobics (Workout 2 : folio 8, page 10 du PDF).
   const pages = Array.from({ length: combienDePages }, (_, place) => ({
-    index: place,
+    feuille: place,
     rang: place,
     pageImprimee: folioParRang.get(place + 1) ?? place + 1,
     statut: folioParRang.has(place + 1) ? ("lue" as const) : ("deduite" as const),

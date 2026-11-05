@@ -1,0 +1,51 @@
+{
+  "a1-decalage-constant.pdf": {
+    "sha256": "9b05c9cd63e8a5eb435732e5f4a28bb9c86b6616653e98d5fb18760fb08be451",
+    "octets": 7698916,
+    "feuilles": 5,
+    "feuillesDeLOriginal": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "feuillesAvecImage": [
+      1,
+      3,
+      4,
+      5
+    ],
+    "indexAttendus": [
+      0,
+      2,
+      3,
+      4
+    ],
+    "pourquoi": "la feuille 2 ne porte aucune image : décalage de 1 à partir de la troisième"
+  },
+  "a1-decalages-multiples.pdf": {
+    "sha256": "17ab991c1e09a1edaea3175805a50495c4cad6ead49d6ebfeb0cd267c968837a",
+    "octets": 1338060,
+    "feuilles": 6,
+    "feuillesDeLOriginal": [
+      1,
+      2,
+      3,
+      12,
+      13,
+      25
+    ],
+    "feuillesAvecImage": [
+      1,
+      4,
+      6
+    ],
+    "indexAttendus": [
+      0,
+      3,
+      5
+    ],
+    "pourquoi": "trois feuilles portent une image (1, 4, 6 de l'extrait) : décalages 0, 2 puis 3"
+  }
+}

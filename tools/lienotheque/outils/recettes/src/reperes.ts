@@ -933,7 +933,11 @@ export function lecturesDePage(image: ImageGrise, recette: Recette, options: Opt
 /** 9 : une lecture porte le numéro **tel qu'il est imprimé** quand il ne s'écrit pas comme un
  *  nombre, et la forme attendue vient de la recette au lieu d'être écrite ici. Les caches
  *  d'avant ne le portent pas. */
-export const VERSION_LECTURE = 10;
+/** 11 : une page lue désigne la **feuille** dont elle vient, et non son rang parmi les feuilles
+ *  retenues (OUT-15, 5 novembre 2026). Les caches d'avant portent l'ancien compte : les relire
+ *  rendrait le correctif inopérant, puisqu'une lecture gardée ramènerait les rangs compactés.
+ *  C'est la seule raison de ce numéro — la forme de la lecture, elle, n'a pas changé. */
+export const VERSION_LECTURE = 11;
 
 /** Hauteur en deçà de laquelle deux lectures parlent du même élément. */
 const MEME_HAUTEUR = 0.03;

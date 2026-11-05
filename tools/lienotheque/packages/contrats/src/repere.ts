@@ -80,12 +80,36 @@ export type ElementRepere = z.infer<typeof ElementRepere>;
 export const StatutPageReperee = z.enum(["couverture", "lue", "deduite"]);
 export type StatutPageReperee = z.infer<typeof StatutPageReperee>;
 
-export const PageReperee = z
+/** Une suite de feuilles peut comporter des trous, et un contrat doit le dire.
+ *
+ *  Le champ s'appelait `index`, et il ne portait pas le rang de la feuille : il comptait les
+ *  feuilles **retenues**. Une feuille sans image est écartée de la lecture des repères (elle n'a
+ *  aucun repère photographié), et celles qui suivaient prenaient son rang. Mesuré le 5 novembre
+ *  2026 sur la bibliothèque musicale : les cinquante-deux propositions de `ca36cf98` étaient
+ *  toutes posées une page trop tôt, parce que sa feuille 2 ne porte pas d'image.
+ *
+ *  `feuille` dit ce que c'est : le rang de la feuille dans le document, à partir de zéro. La
+ *  suite n'est **pas** contiguë — un document dont seules quatorze feuilles sur deux cent dix-huit
+ *  portent une image rend quatorze feuilles aux rangs qu'elles occupent vraiment. */
+const feuilleOuIndexAncien = (valeur: unknown): unknown => {
+  // Les versions et les caches écrits avant le 5 novembre 2026 portent `index`. Les relire est
+  // la seule façon de ne pas rendre illisible ce qui est déjà sur le disque ; ils sont peu
+  // nombreux à être faux, et aucun n'est réécrit par cette lecture.
+  if (valeur === null || typeof valeur !== "object" || Array.isArray(valeur)) return valeur;
+  const objet = valeur as Record<string, unknown>;
+  if (!("index" in objet) || "feuille" in objet) return valeur;
+  const { index, ...reste } = objet;
+  return { ...reste, feuille: index };
+};
+
+export const PageReperee = z.preprocess(
+  feuilleOuIndexAncien,
+  z
   .object({
-    index: z.number().int().nonnegative(),
-    /** Rang attendu de la page dans la numérotation imprimée, avant tout décalage. Vaut l'index
-     *  pour un document d'une page par image ; pour un livre photographié en doubles pages, il
-     *  compte deux pages par cliché. */
+    feuille: z.number().int().nonnegative(),
+    /** Rang attendu de la page dans la numérotation imprimée, avant tout décalage. Vaut la
+     *  feuille pour un document d'une page par image ; pour un livre photographié en doubles
+     *  pages, il compte deux pages par cliché. */
     rang: z.number().int().nonnegative(),
     /** Côté du cliché dont la page est tirée, quand il y a eu coupe (OUT-03). */
     cote: CotePage.optional(),
@@ -100,7 +124,8 @@ export const PageReperee = z
       ctx.addIssue({ code: "custom", path: ["pageImprimee"], message: "Une couverture ne porte pas de numéro imprimé" });
     if (page.statut !== "couverture" && page.pageImprimee === undefined)
       ctx.addIssue({ code: "custom", path: ["pageImprimee"], message: "Une page numérotée porte son numéro" });
-  });
+  }),
+);
 export type PageReperee = z.infer<typeof PageReperee>;
 
 /** Ce qu'une page a donné à lire, avant toute numérotation — et ce que le cache de lecture garde.
@@ -112,15 +137,20 @@ export type PageReperee = z.infer<typeof PageReperee>;
  *  Distinct de `PageReperee` : celle-ci porte en plus le numéro imprimé et son statut, que
  *  l'interprète établit ensuite en votant sur le lot. Ce qui sort de la lecture ne les a pas
  *  encore. */
-export const PageLueBrute = z
+export const PageLueBrute = z.preprocess(
+  feuilleOuIndexAncien,
+  z
   .object({
-    index: z.number().int().nonnegative(),
+    /** Rang de la feuille dans le document, à partir de zéro. Voir `PageReperee.feuille` : la
+     *  suite peut comporter des trous, et les caches d'avant le 5 novembre 2026 disent `index`. */
+    feuille: z.number().int().nonnegative(),
     rang: z.number().int().nonnegative().optional(),
     cote: CotePage.optional(),
     pageLue: z.number().int().positive().optional(),
     elements: z.array(ElementRepere),
   })
-  .strict();
+  .strict(),
+);
 export type PageLueBrute = z.infer<typeof PageLueBrute>;
 
 /** Comment le numéro de piste a été obtenu. Jamais « d'après le nom du fichier » : un nom de

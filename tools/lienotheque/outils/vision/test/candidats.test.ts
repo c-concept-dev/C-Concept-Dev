@@ -13,7 +13,7 @@ const AVEC = lire("methode-pastilles-cd.v5.json");
 const SANS = lire("methode-pastilles-cd.v4.json");
 
 const page = (elements: readonly ElementAsonder[], largeur = 1786, hauteur = 2410): PageAsonder => ({
-  index: 7,
+  feuille: 7,
   image: { largeur, hauteur, pixels: new Uint8Array(largeur * hauteur).fill(240) },
   cote: "gauche",
   elements,

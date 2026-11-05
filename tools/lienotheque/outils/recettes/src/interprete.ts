@@ -22,8 +22,12 @@ import { numeroterElements, type ElementPlace, type Ecart } from "./sequence.js"
 
 /** Ce qu'une page a donné à lire, avant toute numérotation. */
 export type PageLue = {
-  readonly index: number;
-  /** Rang attendu dans la numérotation imprimée, avant décalage. L'index par défaut ; pour un
+  /** Rang de la feuille dans le document, à partir de zéro. **La suite peut comporter des
+   *  trous** : une feuille sans image n'a aucun repère photographié à lire, elle n'est donc pas
+   *  lue — et elle garde pourtant sa place, parce que les images, le texte et les écrans
+   *  comptent tous les feuilles. Voir `PageReperee.feuille`. */
+  readonly feuille: number;
+  /** Rang attendu dans la numérotation imprimée, avant décalage. La feuille par défaut ; pour un
    *  livre photographié en doubles pages, deux pages par cliché. */
   readonly rang?: number;
   readonly cote?: CotePage;
@@ -35,7 +39,7 @@ export type PageLue = {
  *  emporter la suite du livre. */
 const FENETRE = 2;
 
-const rangDe = (page: PageLue): number => page.rang ?? page.index;
+const rangDe = (page: PageLue): number => page.rang ?? page.feuille;
 
 /** Décalage le plus fréquent de tout le lot. À égalité, le plus petit : il faut une réponse, et
  *  elle doit être la même à chaque exécution. Sert de point d'appui, pas de verdict. */
@@ -102,7 +106,7 @@ export function numeroterPages(
   for (const page of pages) {
     const rang = rangDe(page);
     const commun = {
-      index: page.index,
+      feuille: page.feuille,
       rang,
       elements: [...page.elements],
       ...(page.cote === undefined ? {} : { cote: page.cote }),
@@ -237,7 +241,7 @@ export function sequencer(
       // repères audio de la recette. Les autres sont hors périmètre, pas des erreurs de lecture :
       // les écarter ici les empêche de décaler silencieusement toute la suite des pistes.
       if (prefixes !== undefined && !prefixes.some((prefixe) => element.numeroLu?.startsWith(prefixe))) continue;
-      places.push({ ...element, pageImprimee: page.pageImprimee, cliche: page.index, ...(page.cote === undefined ? {} : { cote: page.cote }) });
+      places.push({ ...element, pageImprimee: page.pageImprimee, cliche: page.feuille, ...(page.cote === undefined ? {} : { cote: page.cote }) });
     }
   }
 

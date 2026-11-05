@@ -38,7 +38,9 @@ export type ElementAsonder = {
 };
 
 export type PageAsonder = {
-  readonly index: number;
+  /** Rang de la feuille dans le document, à partir de zéro. Voir `PageAlire.feuille` : la
+   *  suite peut comporter des trous, les feuilles sans image n'étant pas rendues. */
+  readonly feuille: number;
   /** La page en gris, à sa résolution d'origine : c'est de là que le recadrage est pris. */
   readonly image: ImageGrise;
   /** Côté du cliché, quand il y a eu coupe. Reporté sur le candidat pour qu'on sache d'où il
@@ -157,7 +159,7 @@ export function candidatsDePage(page: PageAsonder, recette: Recette, options: Op
     if (recadrage === undefined || recadrage.l <= 0 || recadrage.h <= 0) continue;
 
     trouves.push({
-      page: page.index,
+      page: page.feuille,
       ...(page.cote === undefined ? {} : { cote: page.cote }),
       numero: element.numero,
       motif,

@@ -236,14 +236,14 @@ describe("repli structurel validé", () => {
   it("ne demande que les trous bornés par deux lectures de la même page", () => {
     const pages = [
       {
-        index: 72,
+        feuille: 72,
         elements: [
           { y: 0.2, numero: 5039, numeroLu: "5.39", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
           { y: 0.8, numero: 5042, numeroLu: "5.42", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
         ],
       },
       {
-        index: 73,
+        feuille: 73,
         elements: [{ y: 0.2, numero: 5100, numeroLu: "5.100", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }],
       },
     ];
@@ -262,7 +262,7 @@ describe("repli structurel validé", () => {
   it("s'abstient devant un grand intervalle, un identifiant non structuré ou un média ambigu", () => {
     const pages = [
       {
-        index: 1,
+        feuille: 1,
         elements: [
           { y: 0.2, numero: 5001, numeroLu: "5.1", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
           { y: 0.8, numero: 5010, numeroLu: "5.10", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
@@ -275,8 +275,8 @@ describe("repli structurel validé", () => {
 
   it("propose les deux pages voisines à une rupture de page et ignore un élément déjà interprété", () => {
     const pages = [
-      { index: 71, elements: [{ y: 0.8, numero: 5036, numeroLu: "5.36", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }] },
-      { index: 72, elements: [{ y: 0.2, numero: 5038, numeroLu: "5.38", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }] },
+      { feuille: 71, elements: [{ y: 0.8, numero: 5036, numeroLu: "5.36", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }] },
+      { feuille: 72, elements: [{ y: 0.2, numero: 5038, numeroLu: "5.38", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }] },
     ];
     const medias = new Map([[5037, { piste: 37, disque: 1 }]]);
     expect(ciblesStructurellesAttendues(pages, medias, "5.19", new Set())).toEqual([
@@ -300,7 +300,7 @@ describe("repli structurel validé", () => {
   it("ajoute seulement une cible vue avec confiance et corroborée par un média unique", () => {
     const pages = [
       {
-        index: 64,
+        feuille: 64,
         elements: [
           { y: 0.2, numero: 5007, numeroLu: "5.7", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
           { y: 0.8, numero: 5009, numeroLu: "5.9", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 },
@@ -322,7 +322,7 @@ describe("repli structurel validé", () => {
   });
 
   it("s'abstient si la confiance est insuffisante ou si l'élément existe déjà", () => {
-    const pages = [{ index: 64, elements: [{ y: 0.2, numero: 5008, numeroLu: "5.8", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }] }];
+    const pages = [{ feuille: 64, elements: [{ y: 0.2, numero: 5008, numeroLu: "5.8", presencePiste: 0, suite: false, accordNumero: 1, accordPiste: 0 }] }];
     const medias = new Map([[5008, { piste: 9, disque: 1 }]]);
     expect(
       integrerCiblesValidees(
@@ -337,7 +337,7 @@ describe("repli structurel validé", () => {
   it("rétablit après interprétation une cible exacte que la suite prudente a écartée", () => {
     const resultat = ResultatRecette.parse({
       recette: { id: "composee", version: 1 },
-      pages: [{ index: 64, rang: 64, pageImprimee: 65, statut: "deduite", elements: [] }],
+      pages: [{ feuille: 64, rang: 64, pageImprimee: 65, statut: "deduite", elements: [] }],
       lignes: [],
       pagesAbsentes: [],
       ecartes: [],

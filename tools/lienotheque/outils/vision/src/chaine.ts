@@ -70,18 +70,18 @@ export function relectureCiblee(transport: Transport, options: OptionsChaine = {
     // 2. Les pages à nouveau, pour leurs pixels en gris, et la sélection des pavés. Aucun moteur
     //    de lecture ici : le rendu et le redressement seulement, la part la moins chère.
     const parPage = new Map<string, PageLue>();
-    for (const page of lues) parPage.set(`${page.index}/${page.cote ?? "—"}`, page);
+    for (const page of lues) parPage.set(`${page.feuille}/${page.cote ?? "—"}`, page);
 
     const candidats: Candidat[] = [];
     const grises = new Map<string, ImageGrise>();
     for await (const page of preparerLot(chemin, recette, optionsDuLot)) {
-      const clef = `${page.index}/${page.cote ?? "—"}`;
+      const clef = `${page.feuille}/${page.cote ?? "—"}`;
       const lue = parPage.get(clef);
       if (lue === undefined) continue;
       const source = page.grise ?? page.image;
       const trouves = candidatsDePage(
         {
-          index: page.index,
+          feuille: page.feuille,
           image: source,
           ...(page.cote === undefined ? {} : { cote: page.cote }),
           elements: lue.elements.map((element) => ({
