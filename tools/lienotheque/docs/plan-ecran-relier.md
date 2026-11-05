@@ -10,10 +10,13 @@ sont intégrées ci-dessous : la **clé est la feuille physique** (A1a, poussé 
 renommé `index` en `feuille` et corrigé sa valeur), et un **défaut d'affichage du Lecteur** a été
 mesuré, qu'il faudra corriger ici (§ 4 bis).
 
-**Placement dans la feuille de route** : après le jalon « ça marche » (Bass Aerobics à l'écran),
-après A1b et après A2. C'est le premier des quatre travaux essentiels du kit du 3 novembre —
-mode manuel, puis estimation marquée (B), puis mémoire d'apprentissage à trois niveaux, puis
-l'Expert.
+**Placement dans la feuille de route, confirmé par Christophe le 5 novembre** :
+
+> jalon Bass Aerobics (borne de fin de propagation, puis R2-oracle) → **A1b** → **A2** →
+> **mode manuel** → estimation marquée → mémoire d'apprentissage → Expert
+
+Cet écran est donc le **quatrième** travail de la file, et le premier des quatre travaux
+essentiels du kit du 3 novembre.
 
 ## 1. Ce que la décision change, dit sans l'adoucir
 
@@ -122,13 +125,17 @@ jour où une relance échoue à mi-chemin. Une couche à part rend la règle tri
 
 Forme d'une décision, à poser en contrat :
 
-- la cible : empreinte du document, et soit un numéro d'élément existant, soit une plage de
-  **feuilles physiques** (début, fin). **La clé est la feuille, jamais le folio imprimé ni un rang
-  compacté** — décision du 4 novembre, et A1a l'a rendue vraie dans le code le 5 novembre en
-  renommant `index` en `feuille`. Un folio imprimé peut être revendiqué par deux feuilles (mesuré
-  sur `ca36cf98` : le sommaire et la vraie page 66), et un rang compacté ne désigne pas une
-  feuille. Une décision humaine qui viserait l'un ou l'autre se poserait un jour ailleurs qu'où
-  la personne l'a posée ;
+- la cible : empreinte du document, et **soit un numéro d'élément existant, soit une plage de
+  feuilles**. **Les deux, et c'est tranché** (réponse de Christophe à la question 1, 5 novembre) :
+  l'élément quand il existe, la plage sinon — créer un élément depuis une plage est le même geste.
+
+  **Ce qu'A1a fixe, et seulement cela : une plage s'exprime en FEUILLES PHYSIQUES, jamais en
+  folios imprimés ni en rangs.** A1a a rendu la feuille lisible dans le code le 5 novembre, en
+  renommant `index` en `feuille` et en corrigeant sa valeur. Un folio imprimé peut être revendiqué
+  par deux feuilles — mesuré sur `ca36cf98`, où le sommaire se déclare page 66 comme la vraie
+  page 66 — et un rang compacté ne désigne aucune feuille. Une décision humaine qui viserait l'un
+  ou l'autre se reposerait un jour ailleurs qu'où la personne l'a posée. A1a ne dit rien, en
+  revanche, de l'unité à viser : un élément reste une cible légitime ;
 - le média : son empreinte, jamais son chemin (ANC-05 : une bibliothèque se copie ailleurs) ;
 - l'auteur : `{ type: "personne" }`, imposé par le contrat existant ;
 - le moment, pour l'ordre et le défaire ;
@@ -176,5 +183,6 @@ déjà la place — mais rien n'en est écrit ici.
    sans exception — l'étape 3 pourra généraliser *à l'intérieur* d'une bibliothèque, jamais entre
    deux.
 
-La question 1 est **tranchée par A1a** pour ce qui est de l'unité : une plage se dit en feuilles
-physiques. Reste à confirmer qu'une décision peut viser un élément quand il existe.
+**La question 1 est tranchée** (Christophe, 5 novembre) : **une décision peut viser un élément
+OU une plage**. A1a ne tranche pas cette question-là — il fixe seulement que la plage s'exprime en
+**feuilles physiques**, jamais en folios ni en rangs. Les questions 2 et 3 restent ouvertes.
