@@ -6723,3 +6723,30 @@ désignée comme liste des pistes ; quand cette page n'en est pas une — ou qua
 mal lus, ce qui est précisément le défaut qu'A2 traite — le compte tombe. Le banc le dit au lieu
 de le cacher, et **il faut le corriger avant d'étendre aux 115** : un extrait à deux médias
 n'éprouve pas grand-chose.
+
+## 5 novembre 2026 — le banc d'extraits, construit sur 115 méthodes
+
+**115 jeux sur 116**, chacun huit pages choisies par mesure et onze médias — huit retenus, trois
+en trop. **7,6 Go**, dont la quasi-totalité est de l'audio : un PDF extrait pèse 5,5 Mo, ses onze
+médias 107 Mo. « Un petit bout » vaut pour les pages, pas pour l'audio, et c'est un point à
+reprendre si le banc doit voyager.
+
+### Les deux défauts rencontrés, et ce qu'ils apprennent
+
+**Le glob.** Le premier lancement a échoué sur **les 116** : le shell n'a pas développé
+`"$D"/*.zip`, et l'outil a reçu le chemin littéral avec l'étoile. Zéro jeu, quatre erreurs. La
+liste des archives est maintenant produite par `find` dans un fichier, et la boucle lit ce
+fichier — **plus de glob du tout**. Le script saute les jeux déjà faits, donc une interruption ne
+coûte rien.
+
+**L'encodage des noms dans une archive.** Une archive sur 116 échoue encore : ses noms internes
+ne sont pas en UTF-8, et l'outil les rend avec des points d'interrogation
+(`M??thode ?? v??rifier/…`). Ce n'est pas un défaut de l'archive : c'est le format ZIP qui
+autorise un encodage ancien, et l'outil en ligne de commande qui ne le devine pas. **À reprendre
+par une lecture qui gère l'encodage**, et non par un contournement sur ce nom-là.
+
+### Ce que le banc permet maintenant, et qui n'existait pas ce matin
+
+Mesurer la chaîne sur **tout le corpus de méthodes**, et non sur les deux documents qui
+fonctionnent. La voie oracle d'abord — seule, comme Christophe l'a demandé —, puis A2, pour que le
+gain d'A2 se lise et ne se suppose pas.
