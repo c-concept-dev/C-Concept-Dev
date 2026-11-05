@@ -40,7 +40,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Windows est hors périmètre depuis le 5 novembre 2026 (décision de Christophe, qui
+        # remplace celle du 28 octobre). Il n'est donc plus éprouvé : un contrôle qu'on ne compte
+        # plus et qu'on laisse tourner finit par être lu comme un succès, ou ignoré comme un
+        # bruit — les deux coûtent plus qu'ils ne rapportent.
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Récupérer le dossier Liénothèque
         uses: actions/checkout@v5
