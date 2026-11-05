@@ -6112,9 +6112,17 @@ feuillets sur `ca36cf98`. **La borne y est exactement neutre.** C'est la meilleu
 règle neuve puisse donner sur une structure qu'elle n'a pas servi à écrire : elle ne change rien.
 
 Et sur `ca36cf98`, elle retire **cinq** pages, les cinq dernières du document — pas une page du
-milieu, pas un lien entre deux éléments. Ce qui reste à établir au niveau 3 : que ces cinq pages
-ne portaient rien. Le registre dit déjà ce qu'elles portent, Christophe l'a vérifié dans son
-lecteur ; **la vue de la Liénothèque, elle, n'a encore été regardée par personne.**
+milieu, pas un lien entre deux éléments.
+
+**Correction de Christophe, le 5 novembre :** il n'a vérifié dans son lecteur **que les feuilles
+11 et 12**. Ce que portent les pages de fin est établi **par le texte lu — niveau 1**, et par rien
+d'autre. J'avais écrit « le registre dit déjà ce qu'elles portent, Christophe l'a vérifié dans son
+lecteur », ce qui étendait sa vérification à des pages qu'il n'a pas regardées. Deux affirmations
+de portée très différente, et je les ai confondues en une.
+
+Donc, exactement : **que ces cinq pages ne portent pas de lien attendu reste à établir au
+niveau 3**, comme tout le reste de l'écran. **La vue de la Liénothèque n'a encore été regardée par
+personne.**
 
 **Donc, exactement** : deux structures mesurées, la règle 1 en demande trois. Il en manque une, et
 aucun document de la bibliothèque ne peut la fournir aujourd'hui.

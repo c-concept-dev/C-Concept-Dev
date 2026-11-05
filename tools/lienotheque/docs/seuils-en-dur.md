@@ -18,7 +18,131 @@ faire pour la plupart.
 | **produit** | 23 | choix d'ergonomie, de budget, de version ou tarif externe. Ne dépendent d'aucun document |
 | **jugement** | 82 | **seuils qui décident de quelque chose dans un document.** C'est la catégorie que la doctrine visait |
 
-## Les seuils de jugement — la dette
+## Les seuils de jugement, classés par ce qui les fera casser
+
+Grille proposée par le Claude de claude.ai le 5 novembre 2026, et appliquée ici. Le classement
+se lit sur le **nom** et le **fichier** : c'est une lecture, pas une mesure. Un seuil mal
+classé reste un seuil en dur — le classement dit seulement lequel regarder d'abord.
+
+| Catégorie | Combien |
+|---|---|
+| 1. Seuils géométriques | 34 |
+| 2. Seuils de lecture | 12 |
+| 3. Hypothèses de structure déguisées en nombres | 34 |
+| 4. Seuils liés à la langue ou à l'alphabet | 2 |
+| 5. À classer | 0 |
+
+### 1. Seuils géométriques — les plus fragiles
+
+Position ou taille sur la page, en fractions ou en pixels. Ils supposent une mise en page : un format paysage, un livre de poche ou une double page les fait mentir.
+
+| Où | Nom | Valeur |
+|---|---|---|
+| `outils/redresseur/src/pages.ts:10` | `BANDE_CENTRALE` | 0.18 |
+| `outils/lecteur-texte/src/passages.ts:46` | `BANDE_MARGE` | 0.12 |
+| `outils/recettes/src/reperes.ts:84` | `BANDE_NUMERO` | 0.07 |
+| `outils/vision/src/marges.ts:34` | `BANDE_NUMERO` | 0.06 |
+| `outils/recettes/src/reperes.ts:87` | `COIN_LARGEUR` | 0.3 |
+| `packages/noyau/src/marques-recurrentes.ts:74` | `COTE_MAXIMAL` | 0.15 |
+| `packages/noyau/src/marques-recurrentes.ts:73` | `COTE_MINIMAL` | 0.004 |
+| `outils/redresseur/src/rotation.ts:47` | `ECART_DECISIF` | 0.25 |
+| `outils/vision/src/marges.ts:50` | `ENCRE_MINIMALE` | 0.12 |
+| `outils/vision/src/marges.ts:38` | `LARGEUR_MAX_RELATIVE` | 3.5 |
+| `outils/recettes/src/reperes.ts:278` | `LARGEUR_MINIMALE_REPERE` | 0.35 |
+| `outils/vision/src/marges.ts:43` | `LARGEUR_MIN_RELATIVE` | 0.18 |
+| `outils/vision/src/marges.ts:30` | `MARGE_RECADRAGE` | 1 |
+| `outils/vision/src/candidats.ts:75` | `MARGE_RELATIVE` | 0.4 |
+| `packages/noyau/src/marques-recurrentes.ts:84` | `MEME_ABSCISSE` | 0.03 |
+| `outils/recettes/src/reperes.ts:943` | `MEME_HAUTEUR` | 0.03 |
+| `outils/vision/src/marges.ts:19` | `MEME_HAUTEUR` | 0.03 |
+| `packages/noyau/src/marques-recurrentes.ts:86` | `MEME_ORDONNEE` | 0.03 |
+| `outils/optimiseur/src/silences.ts:27` | `PART` | 0.08 |
+| `outils/images/src/conduites.ts:70` | `PART_DE_LA_LARGEUR` | 0.12 |
+| `outils/images/src/conduites.ts:46` | `PART_DU_POINT` | 1 |
+| `outils/recettes/src/chiffres.ts:41` | `PART_ETROITESSE` | 0.15 |
+| `outils/lecteur-texte/src/filigranes.ts:31` | `PART_FILIGRANE` | 0.5 |
+| `outils/recettes/src/chiffres.ts:25` | `PART_HAUTEUR` | 0.62 |
+| `outils/recettes/src/chiffres.ts:32` | `PART_LARGEUR` | 1.25 |
+| `outils/recettes/src/chiffres.ts:28` | `PART_MORCEAU` | 0.92 |
+| `outils/lecteur-texte/src/passages.ts:258` | `PAYSAGE_MINIMUM` | 1.1 |
+| `outils/images/src/conduites.ts:38` | `POINTS_MINIMUM` | 6 |
+| `outils/recettes/src/reperes.ts:417` | `PRESENCE_MINIMALE` | 0.25 |
+| `outils/images/src/conduites.ts:57` | `RAPPORT_DE_TAILLE` | 2 |
+| `packages/noyau/src/marques-recurrentes.ts:81` | `RAPPORT_DE_TAILLE` | 1.5 |
+| `outils/recettes/src/reperes.ts:398` | `REMPLISSAGE_MINIMAL` | 0.45 |
+| `outils/images/src/conduites.ts:81` | `SEUIL_ENCRE` | 128 |
+| `outils/optimiseur/src/silences.ts:25` | `TRANCHE` | 0.05 |
+
+### 2. Seuils de lecture
+
+Nombre de mots, confiance de l'OCR, lisibilité. Une page qui porte peu de texte lit peu et avec une confiance basse, légitimement. Ceux-là doivent devenir des données de bibliothèque.
+
+| Où | Nom | Valeur |
+|---|---|---|
+| `outils/recettes/src/pistes.ts:45` | `ACCORD_SUR` | 0.5 |
+| `outils/recettes/src/reperes.ts:89` | `CONFIANCE_MINIMALE` | 0.6 |
+| `outils/recettes/src/numeros.ts:106` | `ECART_FRANC` | 1.6 |
+| `packages/noyau/src/maniere.ts:297` | `MINIMUM` | 0.005 |
+| `outils/lecteur-texte/src/passages.ts:54` | `MOTS_MINIMUM` | 20 |
+| `outils/redresseur/src/rotation.ts:55` | `NOTE_MINIMALE_POUR_TRANCHER` | 10 |
+| `packages/noyau/src/marques-recurrentes.ts:476` | `NUMEROTATION_PROBABLE` | 0.5 |
+| `outils/ingestion/src/texte.ts:387` | `PART_OCR_MINIMALE` | 0.25 |
+| `outils/recettes/src/interprete.ts:188` | `PLAFOND_VISION` | 0.85 |
+| `outils/lecteur-texte/src/passages.ts:117` | `SEUIL_FORME` | 0.6 |
+| `outils/lecteur-texte/src/passages.ts:75` | `SEUIL_LISIBILITE` | 0.08 |
+| `outils/ingestion/src/voie-oracle.ts:155` | `SEUIL_SANS_MANIERE_DE_LIRE` | 0.5 |
+
+### 3. Hypothèses de structure déguisées en nombres
+
+Nombre minimal de repères, régularité attendue, écarts tolérés, folios supposés croissants. Un document à plusieurs numérotations sur la même page, ou à sections qui repartent à 1, les casse. **La borne de fin est ici.**
+
+| Où | Nom | Valeur |
+|---|---|---|
+| `outils/ingestion/src/voie-oracle.ts:103` | `APPARITIONS_POUR_JUGER` | 12 |
+| `outils/ingestion/src/texte.ts:441` | `APPUI_MINIMUM` | 3 |
+| `packages/noyau/src/detecteurs-de-noms.ts:152` | `CHAMPS_REGARDES` | 4 |
+| `outils/optimiseur/src/silences.ts:26` | `DUREE_MINIMALE` | 0.6 |
+| `packages/noyau/src/table.ts:307` | `ECARTS_TOLERES` | 8 |
+| `outils/recettes/src/banc.ts:160` | `ECART_MAX_REPLI_STRUCTUREL` | 4 |
+| `packages/noyau/src/table.ts:136` | `ECART_RELATIF_TOLERE` | 0.1 |
+| `outils/recettes/src/interprete.ts:77` | `ECART_TOLERE` | 4 |
+| `outils/images/src/conduites.ts:78` | `ECART_TOLERE` | 1 |
+| `outils/recettes/src/banc.ts:335` | `ECHANTILLON_MAX` | 16 |
+| `outils/recettes/src/pistes.ts:43` | `FACTEUR_ENGAGEMENT` | 4 |
+| `outils/recettes/src/interprete.ts:40` | `FENETRE` | 2 |
+| `outils/lecteur-texte/src/passages.ts:203` | `FEUILLES_A_DEUX_FOLIOS` | 2 |
+| `outils/lecteur-texte/src/passages.ts:202` | `FEUILLES_REGARDEES` | 10 |
+| `outils/ingestion/src/instantane.ts:154` | `FILET_DE_LA_PORTEE` | 2 |
+| `packages/noyau/src/table.ts:75` | `LIGNES_POUR_UNE_COLONNE` | 4 |
+| `outils/ingestion/src/texte.ts:428` | `PAGES_POUR_VOTER` | 4 |
+| `outils/recettes/src/reperes.ts:82` | `PAGE_MAX` | 400 |
+| `outils/lecteur-texte/src/passages.ts:57` | `PAGE_MAXIMUM` | 9_999 |
+| `packages/noyau/src/marques-recurrentes.ts:92` | `PART_DES_PAGES` | 0.5 |
+| `outils/ingestion/src/texte.ts:440` | `PART_DE_L_APPUI` | 0.2 |
+| `outils/recettes/src/banc.ts:334` | `PAS_ECHANTILLON` | 8 |
+| `outils/recettes/src/pistes.ts:37` | `PENALITE_REPETITION` | 0.3 |
+| `outils/recettes/src/pistes.ts:61` | `PENALITE_SAUT_CORROBORE` | 1.5 |
+| `outils/recettes/src/pistes.ts:35` | `POIDS_ELEMENT` | 2 |
+| `outils/recettes/src/pistes.ts:31` | `POIDS_LECTURE` | 4 |
+| `outils/recettes/src/sequence.ts:21` | `PORTEE` | 40 |
+| `outils/recettes/src/pistes.ts:48` | `PRIME_DERNIERE` | 2 |
+| `outils/recettes/src/pistes.ts:40` | `PRIOR_DEPART` | 0.1 |
+| `packages/noyau/src/table.ts:434` | `RANGEES_POUR_UNE_TABLE` | 4 |
+| `packages/noyau/src/moteur-oracle.ts:25` | `REPERES_DE_L_ECHANTILLON` | 8 |
+| `outils/ingestion/src/instantane.ts:148` | `REPERES_POUR_UNE_PORTEE` | 3 |
+| `outils/optimiseur/src/silences.ts:28` | `SEGMENT_MINIMAL` | 3 |
+| `packages/noyau/src/marques-recurrentes.ts:226` | `TOURS_DE_GLISSEMENT` | 10 |
+
+### 4. Seuils liés à la langue ou à l'alphabet
+
+Longueur minimale d'un mot, motifs de lettres. Un corpus non latin les casse.
+
+| Où | Nom | Valeur |
+|---|---|---|
+| `apps/app/src-tauri/src/doublons.rs:47` | `LONGUEUR_MOT_MINIMALE` | 4 |
+| `packages/noyau/src/accord-nom-contenu.ts:78` | `MOTS_DE_LA_SUITE` | 6 |
+
+## Les seuils de jugement, liste brute
 
 | Où | Nom | Valeur |
 |---|---|---|
