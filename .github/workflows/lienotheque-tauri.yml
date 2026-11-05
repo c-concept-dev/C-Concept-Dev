@@ -36,10 +36,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Windows est hors périmètre depuis le 5 novembre 2026 (décision de Christophe, qui
-        # remplace celle du 28 octobre). Les étapes marquées `runner.os == 'Windows'` plus bas
-        # ne tournent donc plus ; elles sont gardées, non supprimées, pour le jour où la
-        # question se reposerait.
+        # Windows est hors périmètre POUR L'INSTANT — suspendu, pas abandonné (décision de
+        # Christophe du 5 novembre 2026, qui remplace celle du 28 octobre). Les étapes marquées
+        # `runner.os == 'Windows'` plus bas ne tournent donc plus ; elles sont gardées, non
+        # supprimées, pour le jour où la question se reposera — et elle se reposera.
         os: [macos-latest]
     steps:
       - name: Récupérer le dossier Liénothèque

@@ -85,10 +85,11 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 ## Plateformes
 Multiplateforme par conception : rien de propre à un seul système sans son équivalent prévu.
 **Phase 1** (tests et bêta) : macOS seul, référence macOS Tahoe 26.3 (25D125) Apple Silicon.
-**Windows est hors périmètre** (décision du 5 novembre 2026, qui remplace celle du 17 octobre le
-rendant informatif et celle du 28 octobre « macOS puis Windows ») : `windows-latest` a quitté les
-deux matrices d'intégration continue. Le code et les scripts propres à Windows sont **conservés,
-inactifs, aucun retrait prévu**, et listés au registre. Linux hors périmètre. Détail :
+**Windows est hors périmètre pour l'instant** — **suspendu, pas abandonné** (décision du
+5 novembre 2026, qui remplace celle du 17 octobre le rendant informatif et celle du 28 octobre
+« macOS puis Windows ») : `windows-latest` a quitté les deux matrices d'intégration continue. Le
+code et les scripts propres à Windows sont **conservés, inactifs, aucun retrait prévu**, et listés
+au registre — précisément parce que la question se reposera. Linux hors périmètre. Détail :
 `docs/decisions.md`.
 
 ## Organisation
