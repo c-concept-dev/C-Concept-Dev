@@ -181,7 +181,24 @@ const voulus = audioInternes.filter((n) => {
   const num = parNumero(n);
   return num !== undefined && numerosDeLaListe.has(num);
 });
-const retenus = (voulus.length > 0 ? voulus : audioInternes).slice(0, 6);
+// **Autant de médias que de pages retenues, et répartis sur tout le vivier.**
+//
+// La première version ne gardait que les médias désignés par les nombres lus sur la page qu'elle
+// avait prise pour la liste des pistes. Quand cette page n'en est pas une — ou quand ses nombres
+// sont mal lus, ce qui est précisément le défaut qu'A2 traite — le compte tombait à deux, et un
+// extrait à deux médias n'éprouve pas grand-chose. Mesuré le 5 novembre 2026 sur six méthodes :
+// 2, 2, 6, 3, 6 et 6 médias retenus sur des viviers de 11 à 99.
+//
+// La règle ne pose aucun nombre : on en garde **autant que de pages retenues** — un compte que le
+// document a lui-même fourni — en prenant d'abord ceux que la liste désigne, puis un échantillon
+// RÉGULIER du reste, pour couvrir toute l'étendue du vivier plutôt que son début.
+const combienDeMedias = Math.min(audioInternes.length, choisies.size);
+const retenus: string[] = [...voulus].slice(0, combienDeMedias);
+if (retenus.length < combienDeMedias && audioInternes.length > 0) {
+  const reste = audioInternes.filter((n) => !retenus.includes(n));
+  const pas = Math.max(1, Math.floor(reste.length / Math.max(1, combienDeMedias - retenus.length)));
+  for (let i = 0; i < reste.length && retenus.length < combienDeMedias; i += pas) retenus.push(reste[i]!);
+}
 const enTrop = audioInternes.filter((n) => !retenus.includes(n)).slice(-MEDIAS_EN_TROP);
 const dossierMedias = join(sortie, "medias");
 mkdirSync(dossierMedias, { recursive: true });
