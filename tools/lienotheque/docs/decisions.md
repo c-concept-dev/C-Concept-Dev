@@ -6194,3 +6194,82 @@ Un champ, et rien d'autre à défaire.
 **Aucun niveau 3 sur l'écran de la Liénothèque.** Tout ce qui précède est du niveau 1 : des octets
 et du texte lu. C'est Christophe qui fera le niveau 3, et ce sera le premier de ce projet sur un
 écran du produit.
+
+## 5 novembre 2026 — l'application installée était trop vieille pour lire ce que R2 a écrit
+
+**Soulevé par Christophe avant de regarder l'écran, et il avait raison.** J'avais écrit « vous
+pouvez ouvrir l'application » sans vérifier que l'application installée savait lire la version que
+je venais d'écrire. C'est la faute symétrique de celle du 3 novembre : la file lance `moteur.js`,
+pas les sources — et ici, l'écran lance un paquet, pas HEAD.
+
+### Ce que l'ancienne installation portait, mesuré
+
+| | |
+|---|---|
+| date | **4 novembre 19:12** (Christophe l'a dite de « ce matin » ; elle est de la veille au soir) |
+| version annoncée | 0.1.0 |
+| exécutable | `5bd2fc9a…`, 12 526 112 octets |
+| interface embarquée | `index-C6JO6V6w.js` |
+| moteur embarqué | **`VERSION_LECTURE = 10`** |
+
+**`VERSION_LECTURE = 10` est la preuve datée** : A1a l'a porté à 11. Le moteur embarqué est donc
+antérieur au correctif du 5 novembre.
+
+### Savait-elle lire la version `07451d43` ? Très probablement non, et voici la raison exacte
+
+La version écrite porte `resultat.pages[].feuille` et **pas** `index`. Le contrat d'avant A1a
+(`PageReperee`, commit `6aa84541^`) exigeait `index`, en `.strict()`. **La tolérance que j'ai
+écrite ne va que dans un sens** — du nouveau code vers d'anciennes données — et l'inverse n'est
+pas couvert.
+
+**Ce que je n'ai PAS établi, et qu'il faut dire** : si l'écran valide `resultat` au chargement,
+donc si le refus se produit réellement. Je n'ai pas démontré la panne ; j'ai démontré que le
+champ attendu n'est pas là.
+
+Le nouvel état `portee_irreguliere` n'était, lui, pas en cause : ce document ne porte aucun cas de
+ce genre — ses seuls cas douteux sont des `media_orphelin`.
+
+### Une mesure que j'ai failli lire à l'envers
+
+Mon premier test cherchait `portee_irreguliere`, `page_en_double`, `feuille` dans l'exécutable :
+**zéro partout**. La conclusion tentante était « l'application ne connaît rien de tout cela ».
+**Elle aurait été fausse** : `page_en_double` existe depuis des semaines. J'ai calibré
+l'instrument — `Bonjour`, `Vérifier`, `--ln-` donnent aussi zéro, alors que `actives.json` et
+`apercu_de_bibliotheque` donnent un. **Tauri compresse les ressources web dans l'exécutable** :
+`strings` voit le code Rust et rien de l'interface. Le test n'était pas négatif, il était muet.
+
+La mesure qui marche, et qui est **discriminante** : le nom haché des fichiers construits. La
+nouvelle application porte `index-BWfW-VXt.js`, l'ancienne `index-C6JO6V6w.js`. Deux interfaces
+différentes, prouvé par les octets.
+
+### Le paquet refabriqué depuis HEAD, dans l'ordre documenté
+
+Cinq étapes, chacune à zéro, et l'ordre n'est pas interchangeable — `preparer-moteurs.py` efface
+`moteurs/` en entier, donc il passe avant son voisin, sinon il emporte le binaire Node.
+
+| | |
+|---|---|
+| exécutable | `07f10d89…`, identique dans le paquet et dans `/Applications` |
+| interface | `index-BWfW-VXt.js` — le nom haché de **ce** build |
+| moteur | **`VERSION_LECTURE = 11`**, et il porte la borne et `portee_irreguliere` |
+| Node embarqué | 108 353 824 octets · Tesseract 86 496 |
+| signature | `codesign --verify --deep --strict` : valide |
+
+L'ancienne installation est **mise de côté**, non effacée :
+`~/Documents/Lienotheque-sauvegardes/application-avant-2026-11-05T1950/`.
+
+**Aucun traitement lancé.**
+
+### La copie embarquée dans la bibliothèque : à mettre à jour, et par l'application elle-même
+
+`applications/Liénothèque.app` de la bibliothèque musicale porte l'exécutable `0897334704…` du
+**3 novembre 15:45** — plus ancienne encore que celle qui était installée.
+
+**Elle doit être mise à jour**, et la bonne façon est celle que le produit prévoit :
+`application_embarquee.rs` calcule un marqueur — version, plateforme, architecture, empreinte
+SHA-256 de l'exécutable — et compare. Versions égales, empreintes différentes :
+`MiseAJourDisponible`. L'interface expose l'état et le geste, et l'hôte écrit lui-même en passant
+par `.mise-a-jour-<id>.app` puis en gardant `.precedente-<id>.app`.
+
+**Je n'y touche pas** : c'est une écriture dans une vraie bibliothèque, donc une porte, et de
+toute façon l'application le fait mieux que moi.
