@@ -6322,3 +6322,38 @@ retirait ensuite le document, `07451d43` resterait orpheline sur le disque.**
 
 **Le script est corrigé** pour les prochaines fois. **Le travail déjà écrit, non** : le réécrire
 est une écriture dans une vraie bibliothèque, donc une porte, et elle n'a aucune urgence.
+
+## 5 novembre 2026 — JALON ATTEINT : le premier niveau 3 sur un écran du produit
+
+**Christophe a ouvert Bass Aerobics dans l'application installée, sur `Bibliotheque Musique`, et a
+dit : « tout est bon, tout fonctionne ».**
+
+C'est la **première validation humaine sur un écran de la Liénothèque** depuis le début du projet.
+Tout ce qui avait été établi jusqu'ici l'était au niveau 1 — des octets, du texte lu — ou au
+niveau 3 sur un **autre** écran que le nôtre : son lecteur PDF.
+
+Ce à quoi sa phrase répond, c'est-à-dire ce que je lui avais demandé de regarder :
+
+| | |
+|---|---|
+| **page 12** | « Workout 3 · TRACK 3 », lien de la piste 3 |
+| **page 11** | fin du Workout 2, lien 2 et non 3 |
+| **fin du livre, pages 112 à 116** | aucun lien : postface, biographie, légende de notation, page muette, quatrième de couverture |
+| **écran Vérifier** | aucun signalement « portée irrégulière » |
+| **écoute** | le média se joue |
+
+**Je consigne sa formule, pas une liste de cases cochées** : « tout est bon, tout fonctionne »
+est ce qu'il a écrit, et la liste ci-dessus est ce à quoi la question portait. La faute de ce
+matin — étendre une vérification au-delà de ce qu'elle couvrait — ne se refait pas en l'étendant
+dans l'autre sens.
+
+### Ce que ce jalon ferme, et ce qu'il ne ferme pas
+
+**Il ferme** : « la Liénothèque de base fonctionne ». Un document réel, ouvert dans l'application
+installée, montre ses liens sur les bonnes pages, et on les écoute.
+
+**Il ne ferme pas** : quatre exercices manquent encore (12, 17, 20, 22) — c'est A2, et le repli
+Vision devrait les rattraper. La borne reste **non adoptée** au sens de la doctrine : deux
+structures l'ont éprouvée, il en faut trois. Et les 82 seuils de jugement sont toujours en dur.
+
+**La file reprend** : A1b (source du folio), puis A2.
