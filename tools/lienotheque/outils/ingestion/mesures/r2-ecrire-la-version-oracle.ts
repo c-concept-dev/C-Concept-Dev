@@ -194,6 +194,20 @@ if (!pourDeVrai) {
 }
 
 // ── 3. L'écriture : la version, le travail, puis le pointeur ───────────────────────────────────
+// La sauvegarde est revérifiée JUSTE AVANT d'écrire. Le traitement dure une demi-heure : entre la
+// première vérification et ce point, la base a eu tout le temps de changer — l'application ouverte
+// sur la même bibliothèque suffirait. Vérifier au début seulement, c'est vérifier l'état d'une
+// base qu'on n'écrase pas.
+const justeAvant = empreinteDeLaBase();
+if (justeAvant !== manifeste.empreinte_de_l_ensemble) {
+  console.error("\nLa base a CHANGÉ pendant le traitement : la sauvegarde ne la décrit plus.");
+  console.error(`  sauvegardé : ${manifeste.empreinte_de_l_ensemble}`);
+  console.error(`  à l'instant : ${justeAvant}`);
+  console.error("Rien n'a été écrit dans la bibliothèque. Refaites la sauvegarde et relancez.");
+  process.exit(2);
+}
+console.log(`\nsauvegarde revérifiée juste avant d'écrire : ${justeAvant.slice(0, 16)}… inchangée`);
+
 const charge = {
   vue: traite.vue,
   resultat: traite.resultat,

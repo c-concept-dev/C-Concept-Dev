@@ -6133,3 +6133,64 @@ Inscrit tel quel. Il ne touche à aucun lien et ne déplace pas la borne — un 
 **aucun des deux documents réels ne le déclenche** (3 contre 2 × 2, et 1 contre 2 × 1). Seul F5 le
 déclenche, avec des écarts 2, 2, 2, 5. Sa valeur reste un « par exemple » et non une mesure : à
 calibrer quand assez de documents porteront des repères, ou à retirer s'il ne sert jamais.
+
+## 5 novembre 2026 — R2-oracle : la première version écrite dans une vraie bibliothèque
+
+**Autorisé par Christophe le 5 novembre.** Sauvegarde vérifiée d'abord, puis écriture, puis
+contrôle du critère.
+
+| | |
+|---|---|
+| bibliothèque | `Bibliotheque Musique`, 250 documents, 13 Go |
+| document | `ca36cf98`, 116 pages |
+| version | `d183554c` → **`07451d43`** (l'ancienne est **conservée**) |
+| travail | `914c0ae2`, qui relie la version à sa source |
+| traitement | 1 561 s · 113 pages lues par OCR, 3 sans texte · association : **publie** |
+| sauvegarde | 1 129 fichiers, 116,5 Mo, empreinte `45869bdb…`, **revérifiée inchangée juste avant d'écrire** |
+
+### Le critère, et il est tenu deux fois
+
+Le critère fixé le 2 novembre : **« Workout 3 doit être lié à la feuille 12, et la page 12 cesser
+d'être muette. »** Ce que la bibliothèque porte maintenant, relu dans le fichier écrit et non dans
+la sortie du script :
+
+| page de la vue | AVANT | APRÈS |
+|---|---|---|
+| 10 | folio —, aucun élément | folio **8**, élément 2 |
+| 11 | folio **10**, élément **3** | folio —, élément **2** |
+| 12 | folio —, **muette** | folio **10**, élément **3** |
+| 13 | folio 12, élément 4 | folio —, élément 3 |
+
+**Le défaut était exactement là** : le folio 10 et l'élément 3 se posaient sur la page 11 ; ils
+sont sur la page 12. Les deux moitiés du critère sont tenues d'un seul coup, et pour la même
+cause.
+
+**Et une troisième source concorde, que le critère ne demandait pas** : le texte lu de la page 12
+commence par **« Workout 3 … »**. Le lien, l'image (`page-0011.webp`, la douzième feuille comptée
+à partir de un) et le texte de la page disent la même chose. C'est la double numérotation qui m'a
+déjà trompé une fois aujourd'hui ; cette fois je l'ai vérifiée dans les trois.
+
+### La borne, à l'œuvre sur une vraie bibliothèque
+
+Dernière porteuse : page **111** sur 116. Les cinq dernières pages ne portent **aucun lien**, et
+voici ce que leur texte lu dit : *AFTERWORD* · *ABOUT THE AUTHOR* · *BASS NOTATION LEGEND* · une
+page sans texte · le prix du livre. **C'est exactement ce que la borne devait retirer**, et c'est
+le texte du document qui le dit, pas moi (niveau 1).
+
+Aucun signalement « portée irrégulière » sur ce document : max 3, médiane 2.
+
+### Ce que j'ai vérifié sans croire le script
+
+Lu dans la bibliothèque, après coup : `actives.json` porte toujours **250 entrées** et **seule
+celle de `ca36cf98` a changé** — comparaison entrée par entrée avec la sauvegarde ; la version
+porte **le même jeu de sept clés** que le format réel ; 232 images dans `derives/07451d43/pages` ;
+113 passages, 52 médias ; et **l'ancienne version est toujours sur le disque**.
+
+**Retour arrière** : reposer le pointeur de `ca36cf98` sur `d183554c` dans `base/actives.json`.
+Un champ, et rien d'autre à défaire.
+
+### Ce qui n'est pas encore établi
+
+**Aucun niveau 3 sur l'écran de la Liénothèque.** Tout ce qui précède est du niveau 1 : des octets
+et du texte lu. C'est Christophe qui fera le niveau 3, et ce sera le premier de ce projet sur un
+écran du produit.
