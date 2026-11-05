@@ -6357,3 +6357,64 @@ Vision devrait les rattraper. La borne reste **non adoptée** au sens de la doct
 structures l'ont éprouvée, il en faut trois. Et les 82 seuils de jugement sont toujours en dur.
 
 **La file reprend** : A1b (source du folio), puis A2.
+
+## 5 novembre 2026 — A1b, mesure d'ouverture : le folio est presque toujours inventé
+
+**Avant de corriger quoi que ce soit, l'ampleur.** Relevé sur les 250 documents actifs de la
+bibliothèque musicale, en lisant chaque version active.
+
+### Les pages, par statut de folio
+
+| statut | pages |
+|---|---|
+| **déduite** | **10 418** |
+| couverture | 243 |
+| **lue** | **194** |
+
+**98,2 % des folios sont déduits.** Et « déduit » veut dire ici ce que le registre a établi le
+5 novembre : `numeroterPages` pose `pageImprimee = rang + décalage`, avec un décalage qui vaut
+zéro quand aucune lecture ne l'appuie. **Le folio est alors le rang, et rien d'autre.**
+
+### Par document
+
+| | documents |
+|---|---|
+| **tous les folios déduits valent exactement le rang** | **225** |
+| au moins un folio lu | 34 |
+| sans page de résultat | 6 |
+
+Et les 34 qui lisent quelque chose lisent **très peu** : un folio sur 24 pages, un sur 37, **un
+sur 231**. Le meilleur relevé de l'échantillon en lit 18 sur 35.
+
+### Ce que cela change pour A1b
+
+A1b n'est pas un correctif local : **la lecture du folio ne fonctionne pratiquement pas.** Trois
+des quatre manières de lire de cette bibliothèque **déclarent** pourtant une lecture
+`page_imprimee` — zone « coins, bord bas », alphabet chiffres. Seule
+`methode-cartouche-double-identifiant v1`, celle du document du jalon, n'en déclare aucune.
+
+**Correction d'une mesure que j'ai faite à l'envers il y a dix minutes** : j'avais compté « 4
+manières de lire, 4 sans lecture de folio ». Faux — je cherchais la clé `cible` ou `genre` alors
+que le champ s'appelle `ancre`. Trois sur quatre en déclarent une.
+
+### Les deux moitiés d'A1b, et pourquoi la seconde ne peut pas être livrée seule
+
+| | |
+|---|---|
+| **lire** | marge, nombre seul sur sa ligne, au moins cinq lectures concordantes |
+| **s'abstenir** | sans lecture, aucun folio n'est posé — et on le dit |
+
+**S'abstenir seul casserait la voie recette** : dans `construireVue`, un élément se pose sur une
+page **par son numéro imprimé** (`parPage.get(page.numero)`). Sans folio, plus aucun lien. C'est
+mesuré, pas supposé : c'est la ligne qui pose les éléments.
+
+L'ordre juste est donc : **lire d'abord, s'abstenir ensuite.** Et la voie oracle, elle, pose ses
+éléments par la feuille (`debutElement`) : elle ne dépend pas du folio, ce qui est une raison de
+plus d'en faire la cible.
+
+### Ce qui existe déjà, et ce qu'il vaut
+
+`mesures/nombre-seul-sur-sa-ligne.ts` (4 novembre) éprouve la variante « le nombre doit être seul
+sur sa ligne ». **Sa sortie ne tranche rien** : cinq documents, de 4 à 20 feuillets, et **aucune
+vérité attendue** — elle compte des folios « écartés » et « gagnés » sans savoir lesquels étaient
+justes. Il faut une référence avant de mesurer une règle.
