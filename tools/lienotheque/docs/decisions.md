@@ -6493,3 +6493,43 @@ repli sur difficulté.** Le dire évite de mesurer le rattrapage sur la mauvaise
 Et le critère de déclenchement n'a pas besoin d'un seuil posé : une case dont la confiance est
 franchement inférieure à celle de la même colonne ailleurs dans le document est **mesurée dans le
 document**, comme la doctrine du 5 novembre l'exige.
+
+## 5 novembre 2026 — A2 : trois précisions de Christophe, et ce qu'elles changent
+
+**Décisions, et elles rendent le dispositif universel là où mon premier dessin ne l'était pas.**
+
+### 1. « Comparable » ne veut pas dire « même colonne »
+
+Mon déclencheur comparait la confiance d'un mot à celle de **la même colonne d'un tableau**. Un
+sommaire a des colonnes ; **du texte courant, une partition et une page de titre n'en ont pas**.
+Le critère doit comparer un mot à des mots **comparables du même document** : même zone, même
+rôle.
+
+Ce qu'un mot lu porte, et qui ne doit rien au domaine : sa position, sa **hauteur de glyphes**,
+sa largeur, sa confiance. Deux mots de même hauteur, dans la même bande, jouent le même rôle dans
+la page — un folio n'a pas la taille d'un titre, ni une case de tableau celle d'un paragraphe.
+**C'est le document qui fournit la référence, et le code ne nomme aucune colonne.**
+
+### 2. Le délai : relatif au document **et** plafonné
+
+| | |
+|---|---|
+| **relatif** | un multiple de la durée habituelle **de ce document-ci**, mesurée au fil de sa lecture |
+| **absolu** | un plafond large, tiré de durées mesurées sur **au moins trois familles**, pour qu'un traitement **finisse toujours** |
+
+Le relatif seul ne suffit pas : sur un document dont la première page est anormalement lente, la
+« durée habituelle » n'existe pas encore. Le plafond est le filet qui garantit la terminaison.
+
+### 3. Vision ne relit que la zone en difficulté
+
+**La ligne ou la case, pas la page.** Appel tracé dans `docs/journal-appels-en-ligne.jsonl`, coût
+porté au rapport. Relire une page entière coûterait plus et apporterait moins : la page est
+lisible, sept cases ne le sont pas.
+
+### La mesure du rattrapage, fixée avant de coder
+
+| | |
+|---|---|
+| **48 → 52** | sur le document du jalon |
+| **aucun lien juste perdu** | les 48 d'aujourd'hui restent, et restent sur les mêmes pages |
+| **le coût de l'étape** | en dollars, au rapport et au journal |
