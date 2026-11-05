@@ -16,7 +16,29 @@ export type OptionsOcr = {
   readonly segmentation?: number;
   /** Caractères autorisés, pour les lectures de chiffres. */
   readonly alphabet?: string | undefined;
+  /** Au bout de combien de temps couper l'outil, en millisecondes. Absent, aucune coupure.
+   *
+   *  **La valeur ne se décide pas ici.** Ce module ne connaît ni le document ni le corpus : un
+   *  délai juste se mesure sur la lecture en cours et se plafonne sur ce qu'on a observé
+   *  ailleurs. L'appelant sait ces deux choses, ce module non (A2, doctrine du 5 novembre 2026). */
+  readonly delaiMs?: number | undefined;
 };
+
+/** Ce que lève une lecture coupée par son délai — et rien d'autre.
+ *
+ *  **Une erreur nommée, parce que la suite dépend de la cause.** Un outil coupé n'a pas dit que
+ *  la page était vide : il n'a rien dit du tout. Confondre les deux ferait passer une page
+ *  illisible pour une page « sans texte », qui est le repli silencieux que la règle du
+ *  5 novembre 2026 interdit. L'appelant doit pouvoir distinguer, et donc relire autrement. */
+export class ErreurDelaiOcr extends Error {
+  constructor(
+    readonly delaiMs: number,
+    readonly image: string,
+  ) {
+    super(`La reconnaissance a été coupée après ${delaiMs} ms sans avoir rendu la main.`);
+    this.name = "ErreurDelaiOcr";
+  }
+}
 
 /** La langue sur laquelle `tesseract` part quand on ne lui dit rien.
  *
@@ -130,13 +152,31 @@ export function argumentsOcr(image: string, options: OptionsOcr = {}): string[] 
   return arguments_;
 }
 
+/** Le signal employé pour couper : **SIGKILL, et pas SIGTERM**.
+ *
+ *  Un outil qui ne rend pas la main est précisément celui qui peut ignorer une demande polie. Et
+ *  c'est ce signal-là qui sert à **reconnaître notre propre coupure** : si le processus est mort
+ *  de celui qu'on a demandé, c'est nous qui l'avons tué. */
+const SIGNAL_DE_COUPURE = "SIGKILL";
+
 export function lireParOcr(image: string, largeur: number, hauteur: number, index: number, options: OptionsOcr = {}): PageLue {
-  const tsv = execFileSync(options.binaire ?? "tesseract", argumentsOcr(image, options), {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-    maxBuffer: 64 * 1024 * 1024,
-    ...(options.tessdata === undefined ? {} : { env: { ...process.env, TESSDATA_PREFIX: options.tessdata } }),
-  });
+  let tsv: string;
+  try {
+    tsv = execFileSync(options.binaire ?? "tesseract", argumentsOcr(image, options), {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 64 * 1024 * 1024,
+      ...(options.delaiMs === undefined ? {} : { timeout: options.delaiMs, killSignal: SIGNAL_DE_COUPURE }),
+      ...(options.tessdata === undefined ? {} : { env: { ...process.env, TESSDATA_PREFIX: options.tessdata } }),
+    });
+  } catch (souci) {
+    // Notre coupure se reconnaît au signal qu'on a demandé. Un outil qui sort en erreur de
+    // lui-même, lui, n'a pas de signal — et ce n'est pas un délai : le dire autrement ferait
+    // relire par Vision une page qui n'a jamais été lente.
+    const signal = (souci as { signal?: NodeJS.Signals | null }).signal;
+    if (options.delaiMs !== undefined && signal === SIGNAL_DE_COUPURE) throw new ErreurDelaiOcr(options.delaiMs, image);
+    throw souci;
+  }
 
   return PageLue.parse({ index, source: "ocr", unite: "pixel", largeur, hauteur, mots: analyserTsv(tsv) });
 }

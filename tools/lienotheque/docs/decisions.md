@@ -6533,3 +6533,38 @@ lisible, sept cases ne le sont pas.
 | **48 → 52** | sur le document du jalon |
 | **aucun lien juste perdu** | les 48 d'aujourd'hui restent, et restent sur les mêmes pages |
 | **le coût de l'étape** | en dollars, au rapport et au journal |
+
+## 5 novembre 2026 — A2, pièce 1 : le délai, et ce que quatre familles disent de sa valeur
+
+**Le défaut, démontré par le test avant d'être corrigé** : le contrôle qui éprouve la coupure a
+d'abord attendu **30 306 ms** — la durée entière d'un faux outil qui dort trente secondes. Rien ne
+coupait. Après correctif : **304 ms**.
+
+### Ce qu'une page coûte, mesuré sur quatre documents
+
+| document | la plus courte | médiane | la plus longue |
+|---|---|---|---|
+| le document du jalon, 116 pages | 0,6 s | 1,1 s | 1,4 s |
+| un recueil de 29 pages | 0,3 s | 0,5 s | 0,6 s |
+| un livre de 512 pages | 0,3 s | 0,5 s | 0,5 s |
+| un livre de 508 pages | 0,4 s | 0,4 s | 0,7 s |
+
+**La page la plus lente observée, toutes familles confondues : 1,4 s.** Et le rapport entre la
+plus lente et l'habituelle d'un même document ne dépasse jamais **1,75**.
+
+### Ce que le module sait, et ce qu'il ne sait pas
+
+`lireParOcr` reçoit un délai, il n'en invente aucun : **ce module ne connaît ni le document ni le
+corpus.** Sans délai donné, il n'en impose aucun — un contrôle le vérifie, pour qu'on ne découvre
+pas un jour une coupure que personne n'a demandée.
+
+### La coupure se reconnaît, et ne se confond pas avec un échec
+
+Coupure par **SIGKILL** : un outil qui ne rend pas la main est précisément celui qui peut ignorer
+une demande polie. Et c'est ce signal qui permet de reconnaître **notre propre** coupure — si le
+processus est mort de celui qu'on a demandé, c'est nous.
+
+L'erreur levée est nommée, `ErreurDelaiOcr`, et porte le délai. **Un outil qui sort en erreur de
+lui-même n'a pas de signal et n'est donc pas un délai** : un contrôle le vérifie. Confondre les
+deux ferait passer une page illisible pour une page « sans texte » — le repli silencieux que la
+règle du 5 novembre interdit — ou ferait relire par Vision une page qui n'a jamais été lente.
