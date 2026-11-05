@@ -130,9 +130,16 @@ export type NatureDoute = z.infer<typeof NatureDoute>;
  *  silence. Ce qui se pose sur une page ainsi revendiquée se pose aussi sur l'autre, et l'une des
  *  deux images n'a rien à voir avec ce qui a été mesuré.
  *
- *  Les trois derniers ne sont pas des décisions à prendre mais des faits à connaître : une page que
+ *  « portee_irreguliere » dit que la portée du document ne se laisse pas résumer : son plus grand
+ *  écart entre repères dépasse largement son écart habituel. Les éléments y sont posés, bornés
+ *  comme ailleurs, mais la borne y repose sur un écart qui ne ressemble pas aux autres — un
+ *  numéro imprimé mal lu suffit à fabriquer un tel écart. On ne corrige rien : on dit à l'œil
+ *  qu'ici la mesure est moins solide qu'ailleurs.
+ *
+ *  Les quatre derniers ne sont pas des décisions à prendre mais des faits à connaître : une page que
  *  la numérotation donne pour sautée, un média qu'aucun élément ne réclame, un numéro porté deux
- *  fois. Ils n'attendent qu'un œil, pas un arbitrage — d'où « information » comme nature. */
+ *  fois, une portée irrégulière. Ils n'attendent qu'un œil, pas un arbitrage — d'où « information »
+ *  comme nature. */
 export const EtatDoute = z.enum([
   "confiance",
   "relecture_sans_majorite",
@@ -143,6 +150,7 @@ export const EtatDoute = z.enum([
   "media_orphelin",
   "maniere_inadaptee",
   "page_en_double",
+  "portee_irreguliere",
 ]);
 export type EtatDoute = z.infer<typeof EtatDoute>;
 

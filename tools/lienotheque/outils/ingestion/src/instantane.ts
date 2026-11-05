@@ -141,6 +141,18 @@ function doute(ligne: LigneInterpretee, seuil: number, statut?: "auto" | "a_veri
 const clefLigne = (ligne: LigneInterpretee): string =>
   `${ligne.pageImprimee}/${ligne.numero}/${ligne.disque}/${ligne.piste ?? "sans"}`;
 
+/** Combien de repères il faut pour qu'une portée soit observée, et non supposée.
+ *
+ *  Deux repères ne donnent qu'un écart. Un écart unique est une mesure, pas une régularité : on
+ *  ne fonde pas sur lui la portée de tout un document. En dessous, aucune propagation. */
+const REPERES_POUR_UNE_PORTEE = 3;
+
+/** À partir de quel rapport au-dessus de l'écart habituel un document se signale.
+ *
+ *  Un maximum qui dépasse le double de la médiane ne décrit plus le document : il décrit son cas
+ *  le plus étrange. On garde la borne — l'écart a été observé — et on le dit. */
+const FILET_DE_LA_PORTEE = 2;
+
 export function construireVue(entree: Entree): VueBibliotheque {
   const parPiste = new Map(entree.medias.map((media) => [`${media.disque ?? 1}/${media.piste}`, media]));
   const parLigne = new Map(entree.association.appariements.map((appariement) => [clefLigne(appariement.ligne), appariement]));
@@ -323,10 +335,63 @@ export function construireVue(entree: Entree): VueBibliotheque {
     [...combienParNumero].filter(([, combien]) => combien > 1).map(([numero, combien]) => [numero, combien]),
   );
 
+  // Jusqu'où un repère vaut : la portée que le document montre lui-même (OUT-15).
+  //
+  // « Un repère vaut jusqu'au prochain repère » est juste au milieu d'un document et faux à sa
+  // fin : le dernier n'a pas de prochain repère, et hérite donc de tout ce qui reste. Mesuré sur
+  // un document réel de 108 pages lues : son dernier élément se proposait sur SEPT pages — tout
+  // ce que le document porte après lui, jusqu'à celle qui en donne le prix — là où ses cinquante
+  // et un voisins en couvrent deux. Le document et son contenu sont nommés au registre et dans
+  // les contrôles, jamais ici (CLA-01).
+  //
+  // La portée se lit dans le document, jamais ici : c'est l'écart entre deux repères. Deux
+  // statistiques, parce qu'il y a deux questions (décision de Christophe du 5 novembre 2026) :
+  //
+  //   — au MILIEU, le maximum. La borne ne doit jamais couper une portée que le document a
+  //     montrée, et toute portée observée lui est inférieure ou égale.
+  //   — à la FIN, la médiane. Le dernier élément n'a RIEN montré de sa portée ; lui donner le
+  //     maximum serait lui accorder le cas le plus généreux du livre sans qu'aucune mesure ne
+  //     l'appuie. La médiane lui donne ce que le document fait habituellement. Mesuré sur F5 :
+  //     le maximum lui faisait couvrir la page de discographie, la médiane s'arrête avant.
+  //
+  // Un écart bordé par un repère dont la PLACE est douteuse — son numéro imprimé est revendiqué
+  // par deux pages — ne compte pas : un repère peut-être mal placé ne doit pas décider de la
+  // portée des autres. Et écarter l'ÉCART, jamais le repère : retirer un repère de la suite
+  // fusionnerait ses deux écarts voisins et fabriquerait une portée plus grande que toutes les
+  // autres (mesuré : 3 devenait 4).
+  //
+  // Sous trois repères, il n'y a pas de portée observée — deux repères ne donnent qu'un écart,
+  // et un écart unique est une mesure, pas une régularité. On ne propage alors pas du tout.
+  const ouvrantes = [...entree.pages]
+    .filter((page) => page.debutElement === true)
+    .map((page) => page.index)
+    .sort((un, autre) => un - autre);
+  const placeDouteuse = new Set(
+    [...entree.pages]
+      .filter((page) => page.numero !== undefined && numerosEnDouble.has(page.numero) && page.debutElement === true)
+      .map((page) => page.index),
+  );
+  const ecartsSurs = ouvrantes
+    .slice(0, -1)
+    .map((debut, rang) => ({ debut, fin: ouvrantes[rang + 1]! }))
+    .filter(({ debut, fin }) => !placeDouteuse.has(debut) && !placeDouteuse.has(fin))
+    .map(({ debut, fin }) => fin - debut);
+  const portee = ((): { courante: number; derniere: number } | undefined => {
+    if (ouvrantes.length < REPERES_POUR_UNE_PORTEE || ecartsSurs.length === 0) return undefined;
+    const tries = [...ecartsSurs].sort((un, autre) => un - autre);
+    const milieu = Math.floor(tries.length / 2);
+    // Médiane basse sur un compte pair : une portée est un nombre de pages, et une demi-page
+    // n'existe pas. Arrondir vers le bas, c'est préférer une page sans lien à un lien de trop.
+    const mediane = tries.length % 2 === 1 ? tries[milieu]! : Math.min(tries[milieu - 1]!, tries[milieu]!);
+    return { courante: Math.max(...ecartsSurs), derniere: mediane };
+  })();
+  const dernierRepere = ouvrantes.at(-1);
+
   // Une page par page lue, dans l'ordre de lecture. Les éléments viennent s'y poser par leur
   // numéro imprimé — c'est le seul lien qu'ils aient avec une page — et une page qui n'en porte
   // aucun reste une page.
   let elementsActifs: ElementAffiche[] = [];
+  let departDeLaPortee: number | undefined;
   const pages: PageAffichee[] = [...entree.pages]
     .sort((un, autre) => un.index - autre.index)
     .map((page) => {
@@ -343,8 +408,22 @@ export function construireVue(entree: Entree): VueBibliotheque {
       // propagation ; elle dit qu'un autre élément commence, sans prétendre savoir quel média
       // lui appartient. Cette information vient du document traité, jamais d'un vocabulaire ou
       // d'un nombre de pages codé ici.
-      if (page.debutElement) elementsActifs = elementsDuDepart;
-      const elements = elementsDuDepart.length > 0 ? elementsDuDepart : elementsActifs;
+      if (page.debutElement) {
+        // Un repère dont la place est douteuse ne propage pas du tout : il reste sur sa seule
+        // page, marqué. On ne sait pas laquelle des deux pages qui revendiquent le même numéro
+        // est à la sienne, et c'est une personne qui le tranchera (mode manuel). La doctrine
+        // préfère une page sans lien à un faux lien.
+        elementsActifs = placeDouteuse.has(page.index) ? [] : elementsDuDepart;
+        departDeLaPortee = page.index;
+      }
+      const limite =
+        portee === undefined || departDeLaPortee === undefined
+          ? 0
+          : departDeLaPortee === dernierRepere
+            ? portee.derniere
+            : portee.courante;
+      const dansLaPortee = departDeLaPortee !== undefined && page.index - departDeLaPortee < limite;
+      const elements = elementsDuDepart.length > 0 ? elementsDuDepart : dansLaPortee ? elementsActifs : [];
       const titre = page.numero === undefined ? undefined : entree.titreDePage?.(page.numero);
       const vue = entree.imageDePage?.(page.index);
       return {
@@ -379,6 +458,28 @@ export function construireVue(entree: Entree): VueBibliotheque {
       ),
     });
   }
+
+  // Une portée que le document ne laisse pas résumer (OUT-15).
+  //
+  // Le maximum est la bonne borne au milieu, et sa faiblesse est connue : un seul écart aberrant
+  // l'emporte, et un numéro imprimé mal lu suffit à en fabriquer un. On ne remplace pas la règle
+  // — l'écart existe, et couper dedans perdrait un lien vrai — on dit que la mesure est moins
+  // solide ici qu'ailleurs, et on laisse un œil regarder. Le filet retenu : un maximum qui
+  // dépasse le double de l'écart habituel.
+  if (portee !== undefined && portee.courante > FILET_DE_LA_PORTEE * portee.derniere)
+    douteux.push({
+      id: identifiantDe(`${entree.id}/portee-irreguliere`),
+      nature: "information",
+      etat: "portee_irreguliere",
+      libelle: "Portée irrégulière",
+      proposition: `Vérifier les numéros lus sur les ${entree.mots.page.plusieurs} du document`,
+      motif:
+        `le plus grand écart entre deux repères est de ${portee.courante} ${entree.mots.page.plusieurs},` +
+        ` pour ${portee.derniere} habituellement`,
+      details: [
+        `écarts mesurés, du plus petit au plus grand : ${[...ecartsSurs].sort((un, autre) => un - autre).join(", ")}`,
+      ],
+    });
 
   // Un élément dont aucune page lue ne porte le numéro imprimé n'a nulle part où se poser.
   //

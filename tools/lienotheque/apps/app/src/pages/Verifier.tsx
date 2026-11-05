@@ -50,6 +50,7 @@ const ETATS: Readonly<Record<EtatDoute, { readonly libelle: string; readonly ico
   media_orphelin: { libelle: "Aucun lien", icone: "audio" },
   maniere_inadaptee: { libelle: "Lecture non applicable", icone: "info" },
   page_en_double: { libelle: "Numéro de page en double", icone: "document" },
+  portee_irreguliere: { libelle: "Portée irrégulière", icone: "document" },
 };
 
 /** Ce dont parle un cas. Un doute porte sur un élément ; une information porte sur ce que son

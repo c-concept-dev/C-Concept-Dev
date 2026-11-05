@@ -68,7 +68,39 @@ describe("une page lue existe dans la vue, même sans élément reconnu", () => 
 });
 
 describe("un média accompagne toutes les pages de son élément (ANC-05, OUT-15)", () => {
+  /** Ces deux contrôles éprouvaient la même intention sur **deux** repères, ce qui suffisait tant
+   *  qu'un repère valait jusqu'au prochain sans condition. Depuis la borne de fin (OUT-15,
+   *  décision du 5 novembre 2026), un document doit montrer sa portée avant qu'on propage, et
+   *  **deux repères ne donnent qu'un écart** : une mesure, pas une régularité. La forme a donc
+   *  changé — trois repères au lieu de deux — l'intention, non. */
   it("reste disponible jusqu'au prochain départ établi", () => {
+    const vue = construireVue(
+      entreeMinimale({
+        lignes: [100, 102, 104].map((pageImprimee, rang) =>
+          ligne(rang + 1, { pageImprimee, sourcePiste: "corroboration_table" }),
+        ),
+        pages: [
+          { index: 10, numero: 100, debutElement: true },
+          { index: 11 },
+          { index: 12, numero: 102, debutElement: true },
+          { index: 13 },
+          { index: 14, numero: 104, debutElement: true },
+          { index: 15 },
+        ],
+      }),
+    );
+
+    expect(vue.pages.map((page) => page.elements.map((element) => element.numero))).toEqual([
+      ["1"],
+      ["1"],
+      ["2"],
+      ["2"],
+      ["3"],
+      ["3"],
+    ]);
+  });
+
+  it("s'arrête à un départ sans lien plutôt que de déborder sur l'élément suivant", () => {
     const vue = construireVue(
       entreeMinimale({
         lignes: [
@@ -78,27 +110,10 @@ describe("un média accompagne toutes les pages de son élément (ANC-05, OUT-15
         pages: [
           { index: 10, numero: 100, debutElement: true },
           { index: 11 },
-          { index: 12, numero: 102, debutElement: true },
-        ],
-      }),
-    );
-
-    expect(vue.pages.map((page) => page.elements.map((element) => element.numero))).toEqual([
-      ["1"],
-      ["1"],
-      ["2"],
-    ]);
-  });
-
-  it("s'arrête à un départ sans lien plutôt que de déborder sur l'élément suivant", () => {
-    const vue = construireVue(
-      entreeMinimale({
-        lignes: [ligne(1, { pageImprimee: 100, sourcePiste: "corroboration_table" })],
-        pages: [
-          { index: 10, numero: 100, debutElement: true },
-          { index: 11 },
-          { index: 12, debutElement: true },
+          { index: 12, debutElement: true },   // un départ que rien ne relie : il vide
           { index: 13 },
+          { index: 14, numero: 102, debutElement: true },
+          { index: 15 },
         ],
       }),
     );
@@ -108,6 +123,8 @@ describe("un média accompagne toutes les pages de son élément (ANC-05, OUT-15
       ["1"],
       [],
       [],
+      ["2"],
+      ["2"],
     ]);
   });
 });
