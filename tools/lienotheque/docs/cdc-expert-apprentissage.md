@@ -1,3 +1,23 @@
+> **ANNOTATION DU 5 NOVEMBRE 2026 — § 3 ET § 8 VALIDÉS PAR CHRISTOPHE.**
+>
+> Le corps du document est celui du 3 novembre, **inchangé** ; comme pour le CDC, on annote et on
+> ne supprime pas. Ce qui est validé, et qui ne se rediscute plus sans décision de Christophe :
+>
+> - **§ 3 — la frontière.** L'Expert **ne publie jamais seul**. Il propose, avec son raisonnement,
+>   et Christophe tranche. Il intervient en **second recours**, après le moteur déterministe,
+>   jamais en premier passage sur un document.
+> - **§ 8 — l'ordre.** Il vient **en dernier** : après le mode manuel, après l'estimation marquée,
+>   après la mémoire d'apprentissage.
+>
+> **Révisable après usage réel, sur décision de Christophe** — une frontière qu'on n'a jamais
+> éprouvée n'est pas encore une frontière prouvée.
+>
+> **Statut : validé § 3 et § 8 le 5 novembre 2026, révisable après usage réel. La conception
+> détaillée — format exact des questions, contrat de l'appel API, budget — reste à écrire avant
+> tout code**, comme le § 9 le demande.
+
+---
+
 # Liénothèque — l'Expert d'apprentissage
 ## Cahier des charges de conception, 3 novembre 2026
 
