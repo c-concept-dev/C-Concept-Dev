@@ -5153,3 +5153,512 @@ estimation est l'étape **B**, distincte, dont le seuil d'erreur reste à fixer 
 
 L'épingle porte maintenant aussi un champ `ce_qui_ne_le_levera_pas` : une épingle doit fermer les
 fausses sorties autant qu'ouvrir la bonne.
+
+## 5 novembre 2026 — le job « Rendu » : la cause, en une ligne de journal
+
+**Lecture seule. Aucun correctif appliqué.** L'hypothèse du 29 octobre était fausse sur les deux
+suspects qu'elle nommait, et la vraie cause est dans le journal du dernier passage
+(`gh run view --job 123696833388 --log`, exécution 40944685964 du 29 octobre 19:57) :
+
+```
+/home/runner/.cache/ms-playwright/webkit-2359/minibrowser-wpe/bin/MiniBrowser:
+error while loading shared libraries: libicudata.so.74: cannot open shared object file
+```
+
+Et, dix lignes plus haut, dans la même exécution :
+
+```
+libicu78 is already the newest version (78.2-2ubuntu1).
+```
+
+**Ce n'est ni un navigateur manquant, ni la mémoire de l'exécutant.** Les trois moteurs sont là —
+le cache a fait mouche, donc l'étape `playwright install` a été sautée et seul `install-deps` a
+tourné. Le WebKit en cache (`webkit-2359`) a été construit contre **ICU 74** ; l'image
+`ubuntu-latest` est passée à **ICU 78**. `install-deps` installe l'ICU du jour, pas la 74.
+
+**Et seul WebKit tombe** : 195 tests, 2 exécutants, **59 contextes d'erreur, tous `-webkit`**.
+Zéro pour Chromium, zéro pour Firefox. Le `kill ESRCH` et le « Target page, context or browser has
+been closed » cités le 29 octobre sont les **conséquences** du moteur qui meurt au lancement, pas
+la cause.
+
+**La cause racine est la clef de cache** :
+
+```yaml
+key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+```
+
+Elle ne porte pas la version de l'**image** de l'exécutant. Quand GitHub met l'image à jour, les
+moteurs en cache restent ceux d'avant, le cache fait mouche, `playwright install` ne retourne
+jamais chercher un WebKit construit pour la nouvelle image, et le job est rouge pour toujours.
+C'est exactement ce qui s'est passé : rouge **sans interruption** depuis que l'image a bougé.
+
+**Correctif proposé, non appliqué** : ajouter l'image à la clef, par exemple
+`playwright-${{ runner.os }}-${{ env.ImageOS }}-${{ steps.playwright.outputs.version }}` (ou
+`ImageVersion`, plus fin). Une mise à jour d'image invalide alors les moteurs, et
+`playwright install` les reprend. Une ligne, et la dette tombe. À valider par Christophe.
+
+**Autre constat du même relevé, à ne pas confondre** : la dernière exécution de
+`lienotheque-ci.yml` date du **29 octobre**. Le workflow se déclenche sur `main` et sur les
+demandes de fusion touchant `tools/lienotheque/**` ; nos commits vont sur
+`wip/lienotheque-2026-10-29`, qui n'est ni l'un ni l'autre. **L'intégration continue n'a donc rien
+vu du travail des 30 octobre au 5 novembre**, correctif A1 compris. Ce n'est pas une panne, c'est
+le déclencheur — mais il faut le savoir avant de se croire couvert.
+
+## 5 novembre 2026 — Bass Aerobics par la voie oracle : 48 liens, et pourquoi pas 52
+
+**Mesure, aucune écriture.** Référence : `sorties/mesures-3nov/bass-apres.json` (même voie,
+`voie-sans-maniere-de-lire` v3, 3 novembre). Nouveau :
+`sorties/a1-r1-5nov/ca36cf98-oracle-avec-provenance.json`.
+
+**48 liens de part et d'autre, 0 désaccord** — même piste, même folio, même feuille pour les 48.
+`TRCK` de l'étiquette ID3, seul signal entièrement indépendant : **48 / 48**. Folio lu en marge,
+partiellement indépendant : **33 égaux, 0 différent, 15 muets**. Provenance déclarée : 44
+`corroboration_table`, 4 `corroboration_recurrente`. Placement juste, **Workout 3 sur la
+feuille 12**.
+
+### Les quatre manquants : des lignes de sommaire abîmées par l'OCR
+
+Les éléments **12, 17, 20 et 22** n'ont aucune ligne et sont les **mêmes quatre** que les quatre
+orphelins — un seul fait, pas deux. La table de la feuille 5 porte **huit lignes abîmées**, et
+ce sont exactement les quatre perdus plus les quatre rattrapés par la récurrence :
+
+| Élément | Ligne lue par l'OCR | Issue |
+|---|---|---|
+| 1 | `Workout 1 4l 6` — piste « 4l » | rattrapé |
+| 7 | `Workout 7 L 18` — piste « L » | rattrapé |
+| 12 | `Workout 12. LL -` — piste **et** page illisibles | **perdu** |
+| 17 | `Workout 17 16 38` — piste lue 16, déjà prise | **perdu** |
+| 20 | `Workout 20 At` — piste illisible, page absente | **perdu** |
+| 21 | `Workout 21 22 46` — piste lue 22, en conflit | rattrapé |
+| 22 | `Workout 22 22 48` — lisible, mais 21 revendique la même piste | **perdu** |
+| 28 | `Workout 28 8 60` — piste lue 8, déjà prise | rattrapé |
+
+**C'est un cas d'école de l'exigence 0** : une difficulté de Tesseract, et non une donnée
+manquante. Le sommaire est parfaitement lisible à l'œil ; l'OCR seul échoue sur huit lignes.
+**A2 — délai Tesseract et repli Vision — devrait les rattraper : 48 → 52 attendu**, à mesurer le
+moment venu, et non à supposer. Les huit pages muettes de la version oracle hors liminaires —
+30, 31, 40, 41, 46, 47, 50, 51 — sont exactement les deux pages de chacun des quatre perdus :
+c'est la trace du manque, et ce sera la mesure du rattrapage.
+
+**Niveau de preuve.** Que les huit lignes soient abîmées et que ce soient exactement les huit
+concernés : **mesuré**. Que l'abîme soit la *cause* du rejet : **inféré** — le code dit seulement
+que `candidatesNommees` ne garde un média que si une seule place a été trouvée pour lui. Ce qui
+le prouverait : instrumenter `lireLaTable` sur les mots de la feuille 5. Non fait.
+
+### Où les orphelins se voient, et où ils ne se voient pas
+
+L'écran **Vérifier** lit `vue.douteux` et porte un libellé pour l'état `media_orphelin` :
+« Aucun lien ». Les quatre y apparaissent donc, avec leur motif, et l'Accueil y mène par son
+compteur « à vérifier ». Ce qui n'affiche pas `aVerifier`, c'est le **Lecteur** : une proposition
+non vérifiée y ressemble à un lien publié. Les deux faits sont vrais et distincts ; le second
+reste une dette.
+
+## 5 novembre 2026 — RÈGLE : aucun retraitement par la voie recette avant A1b
+
+**Décision de Christophe, prise après la mesure R1-recette du jour.**
+
+**A1 se scinde en deux :**
+
+| | Quoi | État |
+|---|---|---|
+| **A1a** | **Placement** — une page désigne la feuille dont elle vient | **fait**, poussé (`6aa84541`) |
+| **A1b** | **Source du folio** — marge, plages, au moins cinq lectures concordantes, nombre seul sur sa ligne | **à faire** |
+
+**La règle : aucun retraitement par la voie recette tant qu'A1b n'est pas faite.**
+
+**Pourquoi.** A1a corrige le rang de la feuille. Sur la voie recette, quand la manière de lire ne
+déclare **aucune** lecture `page_imprimee` — c'est le cas de `bass-aerobics.json`, qui ne déclare
+qu'une lecture `element` —, `pageLue` est vide sur toutes les pages, `numeroterPages` ne peut
+voter aucun décalage, retient `0`, et pose `pageImprimee = rang`.
+
+**Le folio n'était donc jamais lu : c'était le rang.** Et il était **juste par accident** — la
+page imprimée N de ce livre est sur la feuille N+2, et le rang compacté de la feuille N+2 valait
+exactement N. Corriger le rang casse la coïncidence : mesuré sur `ca36cf98`, **les 52 lignes
+voient leur `pageImprimee` passer de N à N+1**, et le folio 10 de la feuille 12 — vérifié au
+papier par Christophe — devient 11.
+
+Ce n'est pas un défaut d'A1a : c'est un défaut **antérieur** qu'A1a révèle. Inventer un folio égal
+au rang quand aucun n'est lu était faux avant et reste faux ; le `statut` disait déjà `deduite`,
+mais la **valeur** était une supposition que rien n'appuyait.
+
+**Conséquence sur R2.** Un R2 « recette décalée » écrirait des folios faux d'une unité par rapport
+au papier. La voie oracle, elle, n'est pas concernée : ses folios viennent d'un vote à l'échelle
+du document, et elle pose bien le folio 10 sur la feuille 12. **R2-oracle reste la cible**,
+indépendante de ce défaut.
+
+## 5 novembre 2026 — la propagation des éléments : ce n'est pas A1a, c'est `e7adc9b8`
+
+**Question de Christophe : pourquoi `elementsActifs` ne propageait-il pas avant ? Preuve par le
+code et la donnée.**
+
+**Il n'existait pas.** La propagation est née le **3 novembre** :
+
+```
+e7adc9b8  2026-11-03  fix(lienotheque): prolonger le media sur son element
+```
+
+C'est le **seul** commit qui touche `elementsActifs` dans `instantane.ts`. Et la version
+comparée, `d183554c`, a été activée le **2 novembre 2026 à 22:42:12** — **la veille**.
+
+**Les 53 pages porteuses d'« avant » viennent donc d'une chaîne qui ne propageait pas.** Le
+passage à 112 (recette) et 101 (oracle) n'est **pas** un effet d'A1a : c'est `e7adc9b8`, mesuré
+par sa date et par son unicité dans l'historique. Mon soupçon de la veille — « le folio déplacé en
+est la cause probable » — était faux, et c'est la bonne raison de ne pas l'avoir affirmé.
+
+### La propagation est-elle juste sur le papier ?
+
+| Version | 2 pages | davantage |
+|---|---|---|
+| oracle | **47 éléments sur 48** | n° 52 sur 7 pages |
+| recette après A1a | **50 éléments sur 52** | n° 31 sur 5 pages, n° 52 sur 7 pages |
+
+**Oui pour la règle générale, et c'est vérifiable au papier.** Chaque exercice de ce livre occupe
+deux feuilles : « CHAPTER 1 AEROBICS CHROMATICS » ouvre le Workout 1 sur la feuille 8, la
+feuille 9 en est la suite musicale sans titre, et « Workout 2 » commence feuille 10. L'élément 1
+posé sur les pages 8 et 9 est donc **juste** : la seconde page est bien la suite du premier
+exercice.
+
+**Non dans deux cas, et ils disent chacun quelque chose :**
+
+- **n° 31 sur les pages 5, 6, 7** (version recette seulement) : feuille 5 « CD TRACK LISTING »,
+  feuille 6 « CRITICAL ACCLAIM », feuille 7 « INTRODUCTION ». Le Workout 31 n'y est pas. La
+  propagation **amplifie l'artefact OUT-15** — le sommaire qui revendique le folio 66 — en
+  l'étalant sur trois pages liminaires au lieu d'une. Un repère faux coûte désormais plus cher.
+- **n° 52 sur 7 pages** (les deux versions) : le Workout 52 ouvre feuille 110, et **rien n'arrête
+  la propagation** jusqu'à la feuille 116 — crédits d'enregistrement compris. Le dernier élément
+  hérite de toute la fin du livre.
+
+**À retenir pour A3** : la propagation a besoin d'une borne de fin, et un repère faux se paie
+maintenant sur plusieurs pages. Aucun correctif écrit ; lecture seule.
+
+## 5 novembre 2026 — le rouge clavier : hypothèse de Christophe, PROUVÉE
+
+**Hypothèse à vérifier, pas à adopter.** Vérifiée, et juste.
+
+**Par le code.** `61d516bc` (3 novembre, « ouvrir le Lecteur à la vitesse originale ») change une
+seule ligne : `const [tempo, setTempo] = useState(75)` devient `useState(100)`. Et
+`raccourcis.ts` porte `TEMPO_MAX = 100`, avec
+`tempoSuivant = Math.min(TEMPO_MAX, …)`. Mesuré en appelant la vraie fonction :
+
+```
+TEMPO_MIN=50  TEMPO_MAX=100
+« ] » depuis  75 →  80   change : le test passe
+« ] » depuis  95 → 100   change : le test passe
+« ] » depuis 100 → 100   INCHANGÉ : le test « ] accélère » échoue
+```
+
+**Par le rejeu local**, `ecrans.spec.ts:134` sur Chromium :
+
+```
+Error: ] accélère
+expect(received).not.toBe(expected)
+Expected: not "100"
+```
+
+Le curseur lit **100 avant la touche**, et 100 après. Le contrôle a été écrit pour un départ à
+75 % ; le Lecteur ouvre maintenant à 100 %, qui est le maximum. **« ] » ne peut plus accélérer.**
+
+Le produit n'est pas en cause : ralentir reste offert de 50 à 100 par pas de cinq, et c'était le
+but du commit. C'est le contrôle qui dit une chose fausse depuis le 3 novembre. **Aucun correctif
+écrit** ; et **cette épingle ne se pose pas**, puisque le remède n'est pas une étape mais une
+réécriture du contrôle — à décider.
+
+## 5 novembre 2026 — la CI lit l'épingle : le garde-fou
+
+**Demandé par Christophe.** `packages/banc/scripts/controle-epingles.ts` lance le contrôle complet
+puis le juge contre `fixtures/references/echecs-connus.json`. Il remplace `pnpm test` dans
+`pnpm check`, en local **et** en intégration continue — même commande, même règle.
+
+Il refuse **trois** choses, et la deuxième est celle qu'on oublie :
+
+1. un échec qu'aucune épingle ne couvre — **régression** ;
+2. une épingle dont le contrôle **passe** — elle a survécu à sa cause, et il faut la retirer ;
+3. un contrôle épinglé qui tombe pour **une autre cause** que celle de l'épingle — une épingle
+   couvre une cause, pas un nom de contrôle, sans quoi elle cacherait une régression déguisée.
+
+Un contrôle **sauté** n'est ni l'un ni l'autre : il est dit, non refusé. L'intégration continue
+saute les contrôles qui demandent des œuvres non versionnées.
+
+La logique est pure (`packages/banc/src/epingles.ts`) et séparée du script : **sept contrôles**
+l'éprouvent, dont celui qui compte — « refuse une épingle dont le contrôle passe ». Un garde-fou
+qu'on n'éprouve pas ne garde rien.
+
+L'épingle porte désormais quatre champs que la machine compare — `paquet`, `fichier`, `nom`,
+`message` — le reste restant pour nous.
+
+## 5 novembre 2026 — ce que l'intégration continue ne contrôle PAS
+
+**À consigner, parce qu'un silence ressemble à un succès.**
+
+- **Elle n'a pas Tesseract.** Un contrôle qui en dépend y échoue ou s'y saute. C'est ce qui fait
+  tomber `test/aucune-page-lue.test.ts` sur Linux et macOS : `spawnSync tesseract ENOENT` au lieu
+  de « aucune des 7 pages ».
+- **Elle saute F3.** Les œuvres de la fixture ne sont pas versionnées (règle 5) : `criteres.test.ts`
+  y rend « 9 tests | 4 skipped ». Le critère gardien de la tâche A4 **ne tourne pas** en CI.
+- **Elle n'a pas Rust** : les tests du prototype bureau sont ailleurs (`lienotheque-tauri.yml`).
+
+**Conséquence, à tenir pour une règle : l'intégration continue ne remplace pas le contrôle local
+complet avant chaque push.** Elle couvre ce qu'une machine nue peut couvrir, et c'est utile — elle
+vient de révéler deux régressions d'une semaine. Elle ne couvre pas ce qui demande un moteur d'OCR
+ou une œuvre.
+
+**À proposer avec A2** : installer Tesseract en intégration continue, pour que le repli Vision et
+la lecture honnête d'un document sans texte soient éprouvés là où personne ne les a sous la main.
+
+## 5 novembre 2026 — Windows suspendu, non abandonné (REMPLACE la décision du 28 octobre)
+
+**Décision de Christophe.** Windows était une erreur d'aiguillage. Il sort du périmètre de la
+Liénothèque **pour l'instant** : **suspendu, pas abandonné**. La nuance n'est pas de politesse —
+c'est elle qui explique qu'on ne retire ni code ni script, et qu'on les laisse lisibles pour le
+jour où la question se reposera. Elle se reposera.
+
+**Cette entrée remplace la décision du 28 octobre** — « bibliothèques autonomes macOS, puis
+Windows ». Celle-ci n'est pas effacée : elle est **remplacée**, et c'est ici qu'on le lit. Elle
+remplace aussi, par conséquence, la décision du 17 octobre qui faisait de Windows un contrôle
+**informatif** : il n'est plus informatif, il n'est plus.
+
+**Intégration continue** (`84cc6396`) : `windows-latest` quitte les deux matrices — « Vérification »
+de `lienotheque-ci.yml` et « Mesures » de `lienotheque-tauri.yml`. Un contrôle qu'on ne compte plus
+et qu'on laisse tourner finit par être lu comme un succès, ou ignoré comme un bruit ; c'est la dette
+exacte du job « Rendu ».
+
+**Et ce retrait tranche un rouge sans le réparer** : les trois échecs de
+`lecteur-texte/test/rendu-page.test.ts` — un chemin à barres obliques comparé à un
+`C:\Users\…\Temp\…` — n'ont plus d'objet. **Aucune épingle n'est posée pour eux** : une épingle
+promet une levée, et il n'y en aura pas.
+
+### Ce qui reste propre à Windows — listé, non supprimé
+
+**Rien n'est retiré** (consigne de Christophe). Ce qui subsiste, et où :
+
+| Où | Quoi |
+|---|---|
+| `.github/workflows/lienotheque-tauri.yml` | deux étapes gardées par `runner.os == 'Windows'` : Tesseract par chocolatey (avec ses deux tentatives), construction de l'exécutable sans NSIS |
+| `apps/app/src-tauri/outils/preparer-moteurs.py` | `embarquer_windows()`, le lecteur PE et son `--autotest`, l'archive siegfried `win64` et son empreinte, `tesseract.exe`, l'agencement `tessdata` de l'installateur |
+| `apps/app/src-tauri/outils/preparer-moteur-node.py` | triplets `win32-arm64-msvc` et `win32-x64-msvc`, suffixe `.exe`, `pnpm` en `.cmd` |
+| `apps/app/src-tauri/outils/resumer-mesures.py` | recherche de `lienotheque-bureau.exe` |
+| `apps/app/src-tauri/src/lib.rs` | `NOM_MOTEUR = "tesseract.exe"` sous `cfg!(windows)` |
+| `apps/app/src-tauri/src/main.rs` | `windows_subsystem = "windows"` |
+| `apps/app/src-tauri/src/moteur.rs` | séparateur de chemin `;`, et le commentaire sur l'absence de signaux |
+| `apps/app/src-tauri/src/travail.rs` | tolérance CRLF de la sentinelle |
+| `apps/app/src-tauri/src/memoire.rs` | commentaire : l'équivalent `GlobalMemoryStatusEx`, « quand Windows redeviendra un sujet » |
+| `outils/formats/src/identifier.ts` | `sf.exe` sous `win32` |
+| `fixtures/generer-locales.py` | polices `C:\Windows\Fonts\…` |
+| commentaires seuls | `outils/cache/test/cache.test.ts`, `packages/depot-sqlite/test/d1.test.ts`, `packages/noyau/test/objets.test.ts`, `apps/app/playwright.config.ts`, `apps/app/src/ceremonie/navigateur.ts` |
+
+**Décision de Christophe du 5 novembre : conservés, inactifs, aucun retrait prévu.** Aucun de ces
+éléments ne coûte quoi que ce soit tant qu'il ne tourne pas, et les retirer serait un chantier à
+part qu'on ne fait pas en passant. On ne les touche donc plus, et on ne revient pas sur la
+question tant qu'elle n'est pas reposée.
+
+### CDC v24 annoté, et une proposition pour le CLAUDE.md
+
+**v24** : les **trois** mentions de Windows sont annotées, aucune supprimée — deux paragraphes du
+lot 10 (autonomie et doublage macOS + Windows, puis les exécutables embarqués par construction) et
+la cellule de chiffrage « composante Windows déjà chiffrée séparément (4-6 j) ». Chaque annotation
+dit : hors périmètre depuis le 5 novembre 2026, texte conservé, décision au registre.
+
+**CLAUDE.md** : sa section « Plateformes » est devenue fausse. Elle dit encore que `Mesures
+(windows-latest)` « reste exécuté et lu, mais il est informatif », et nomme « deux tests de
+`volume` » — alors que le job ne tourne plus et que les échecs mesurés étaient trois tests de
+`rendu-page`. **Proposition, à valider par Christophe, non appliquée :**
+
+> ## Plateformes
+> Multiplateforme par conception : rien de propre à un seul système sans son équivalent prévu.
+> **Phase 1** (tests et bêta) : macOS seul, référence macOS Tahoe 26.3 (25D125) Apple Silicon.
+> **Windows est hors périmètre** (décision du 5 novembre 2026, qui remplace celle du 17 octobre
+> le rendant informatif et celle du 28 octobre « macOS puis Windows ») : `windows-latest` a quitté
+> les deux matrices d'intégration continue. Le code et les tests propres à Windows subsistent, sans
+> être retirés, et sont listés au registre. Linux hors périmètre. Détail : `docs/decisions.md`.
+
+**Accepté par Christophe le 5 novembre : appliqué.**
+
+## 5 novembre 2026 — LE CAP : la Liénothèque de base doit marcher avant toute extension
+
+**Décision de Christophe, et elle commande tout le reste.**
+
+**Premier jalon « ça marche »** : **Bass Aerobics avec ses liens publiés dans la vraie
+bibliothèque, vérifiés par Christophe à l'écran.** Pas une mesure, pas un banc, pas un rapport :
+un document qu'on ouvre, dont on écoute une piste, et dont on voit le lien sur la bonne feuille.
+
+**Tout ce qui ne sert pas ce jalon attend.** Ce qui le sert, dans l'ordre :
+
+1. **Borne de fin de propagation** — bloquante : sans elle, le dernier élément se pose sur sept
+   pages, crédits d'enregistrement compris, et le jalon serait faux à l'écran.
+2. **R2-oracle** sur Bass Aerobics — sauvegarde vérifiée par empreinte de contenu, critère
+   d'acceptation déjà fixé, puis la vérification humaine.
+
+**Ce qui attend, et qui est donc explicitement reporté :**
+
+| Reporté | Pourquoi ça ne sert pas le jalon |
+|---|---|
+| **A1b** — source du folio (marge, plages, cinq lectures concordantes) | la voie oracle tire ses folios d'un vote à l'échelle du document, pas du rang : le jalon n'en dépend pas. La règle « aucun retraitement par la voie recette avant A1b » reste en vigueur |
+| **A2** — délai Tesseract et repli Vision | les quatre exercices perdus de Bass Aerobics (12, 17, 20, 22) ne bloquent pas le jalon : 48 liens justes valent mieux que 52 attendus |
+| **Windows** | suspendu, décision du jour |
+| **Tesseract et Rust en intégration continue** | utile, pas bloquant |
+| **Les dix-neuf autres documents compactés** | un document qui marche d'abord |
+| **Mode estimation (étape B), familles (C), reconstruction (D)** | après le jalon |
+
+**Ce que ce cap change dans ma façon de travailler** : devant chaque tâche, la question est
+« est-ce que cela met Bass Aerobics à l'écran, juste, chez Christophe ? ». Si non, elle attend, et
+je le dis au lieu de la faire.
+
+## 5 novembre 2026 — OUBLI GRAVE RÉPARÉ : les quatre travaux essentiels du kit du 3 novembre
+
+**Faute de ma part, signalée par Christophe.** Ma feuille de route reportait « l'estimation (B),
+les familles (C), la reconstruction (D) » et ne nommait **nulle part** les quatre travaux que le
+kit du 3 novembre pose comme **essentiels**. Les reporter sans les nommer, c'est les oublier.
+
+Objectif rappelé (décision du 30 octobre) : **des bibliothèques exploitables dans Prof de Basse
+et Studio Clinique.** Les quatre travaux ci-dessous sont ce qui mène là ; le reste les sert ou
+attend.
+
+### Dans cet ordre, et l'ordre est une décision
+
+**1. Le mode manuel — écran d'association à deux colonnes, glisser-déposer.**
+
+Deux gestes, et le second n'a de sens qu'après le premier : **confirmation lien par lien**
+(élément, feuille, média — **caduque si la lecture change**), puis **association libre quand le
+moteur ne propose rien**.
+
+- **Base existante, à reprendre et non à réinventer** : `docs/plan-ecran-relier.md` (écrit le
+  3 novembre, **repris et commité le 5**), l'écran `Verifier.tsx`, le `decisions.json` de l'hôte
+  qui **survit déjà aux relances**, et le contrat `Preuve` qui porte déjà `"manuel"` avec un
+  `superRefine` interdisant qu'une preuve manuelle ait un outil pour auteur.
+- **Une décision peut viser un élément OU une plage** (réponse de Christophe du 5 novembre à la
+  question 1 du plan) : l'élément quand il existe, la plage sinon — créer un élément depuis une
+  plage est le même geste. **A1a ne tranche pas cette question-là.** Il fixe seulement **qu'une
+  plage s'exprime en FEUILLES PHYSIQUES, jamais en folios imprimés ni en rangs** : un folio peut
+  être revendiqué par deux feuilles — mesuré sur `ca36cf98` — et un rang compacté ne désigne
+  aucune feuille.
+- **Les décisions vivent dans une couche séparée** que le moteur n'écrit jamais, appliquée
+  par-dessus la version active à la lecture. **Test rouge central** : relancer le moteur après une
+  décision humaine ne la perd pas et ne la modifie pas.
+
+**2. Le moteur en « meilleure estimation » marquée** (étape B). Seuil d'erreur à fixer par
+Christophe. Intenable avant le mode manuel : publier des estimations sans moyen de les corriger
+ferait de la bibliothèque un champ d'erreurs silencieuses.
+
+**3. La mémoire d'apprentissage à trois niveaux** — association, exemple vérifié, généralisation
+**prouvée et réversible** — **nourrie par les décisions du mode manuel**. Elle n'a donc rien à
+apprendre avant que le mode manuel existe : c'est ce qui fixe l'ordre.
+
+**4. L'Expert** — référence versionnée le 5 novembre : **`docs/cdc-expert-apprentissage.md`**
+(écrit le 3 novembre, entré au dépôt tel quel, empreinte du corps du 3 novembre
+`8c48a8555f665545fa52fa409d60eac4bc39e84c306136c1e113c3349312d441`, corps inchangé sous l'annotation
+du 5 novembre).
+
+**Statut : § 3 et § 8 VALIDÉS par Christophe le 5 novembre 2026, révisables après usage réel. La
+conception détaillée — format exact des questions, contrat de l'appel API, budget — reste à écrire
+avant tout code** (§ 9).
+
+**Ce qui est validé, et ne se rediscute plus sans décision de Christophe :**
+
+- **§ 3, la frontière** : l'Expert **ne publie jamais seul**. Il propose, avec son raisonnement, et
+  Christophe tranche. **Second recours**, après le moteur déterministe, jamais en premier passage.
+- **§ 8, l'ordre** : il vient **en dernier** — après le mode manuel, après l'estimation marquée,
+  après la mémoire d'apprentissage.
+
+**« Révisable après usage réel » est à prendre au mot** : une frontière qu'on n'a jamais éprouvée
+n'est pas une frontière prouvée. Ce qui est fixé, c'est la règle de départ, pas un dogme — et sa
+révision sera une décision de Christophe, pas une dérive d'usage.
+
+Vivant, il raisonne, il questionne, et **il ne publie jamais seul** — c'est la règle de frontière
+non négociable de son § 3, et elle le distingue du moteur en mode estimation, qui publie en
+marquant. Son § 8 fixe l'ordre, et c'est le même que celui de cette entrée : écran manuel, puis
+estimation marquée, puis mémoire, puis l'Expert. « L'Expert sans mémoire d'apprentissage existante
+reposerait les mêmes questions indéfiniment. La mémoire sans écran de correction n'aurait rien à
+apprendre. »
+
+Deux choses de ce document à ne pas perdre de vue, parce qu'elles engagent autre chose que du
+code : c'est le **premier composant non déterministe** du projet, et **il coûte de l'argent et du
+temps** à chaque appel. Son § 6 pose les questions de gouvernance — plafond d'appels par document,
+que faire quand l'API ne répond pas, et un **interrupteur global** pour qu'une bibliothèque puisse
+tourner sans aucune dépendance externe.
+
+### Placement
+
+**File confirmée par Christophe le 5 novembre, et c'est l'ordre de travail :**
+
+> **jalon Bass Aerobics** (borne de fin de propagation, puis R2-oracle) → **A1b** → **A2** →
+> **mode manuel** → **estimation marquée** → **mémoire d'apprentissage** → **Expert**
+
+Ce qui ne veut pas dire « plus tard et on verra » : les quatre derniers sont les travaux qui
+mènent à l'objectif du 30 octobre, et ils sont désormais écrits ici pour qu'on ne les oublie
+plus. Chaque étape dépend structurellement de la précédente — c'est le § 8 du cahier des charges
+de l'Expert, et c'est aussi vrai en amont : la borne de fin conditionne R2-oracle, et R2-oracle
+conditionne le jalon.
+
+### Un défaut d'affichage à corriger avec le mode manuel
+
+**Le Lecteur affiche des propositions non vérifiées comme des liens sûrs.** Mesuré le 5 novembre
+sur la vraie bibliothèque musicale : il n'affiche pas `aVerifier`, et une proposition s'y présente
+avec panneau d'écoute, bande sur la page et « Confiance haute ». Sur `ca36cf98`, le catalogue
+comptait « **0 liens** · 52 propositions non vérifiées » pendant que le Lecteur en montrait
+cinquante-deux comme des liens.
+
+C'est exactement ce que le plan de l'écran Relier interdit : « aucun faux lien **non signalé comme
+tel** ». **Le mode estimation est intenable tant qu'une estimation ressemble à une certitude.** Le
+correctif appartient donc au lot E du mode manuel, avec un test rouge d'abord ; l'écran Vérifier,
+lui, fait déjà son travail.
+
+## 5 novembre 2026 — LES APPELS EN LIGNE SONT AUTORISÉS pour éprouver le système
+
+**Décision de Christophe. Elle remplace la règle « aucun appel en ligne par les agents ».**
+Motif, qui est une règle du 29 octobre : **« le réel reste le réel »** — un système qu'on
+n'éprouve que hors ligne n'est pas éprouvé.
+
+**Ce qui reste interdit, sans aucun changement** : `therapeute-library` (la base D1 de Studio
+Clinique), `clone-proxy`, Vectorize, `bibliotheque-admin.html`.
+
+### Conditions
+
+- **Les appels passent par le Worker de la Liénothèque** (`lienotheque-api`), avec le jeton du
+  **trousseau**. Jamais une clé dans le dépôt, une archive, un navigateur ou un dossier copiable
+  (règle 6 du CLAUDE.md, inchangée).
+- **Chaque appel est tracé dans un journal versionnable** : date, route, document, feuille,
+  résultat, durée, coût estimé.
+- **Les traitements depuis l'application sont de nouveau permis.** La suspension posée le
+  4 novembre — « aucun agent ne lance de traitement depuis l'application tant que le jeton y
+  est » — est **levée**.
+
+### Le coût : pas de plafond fixe
+
+**Précision de Christophe : aucun plafond.** Il ajuste les fonds lui-même, au fur et à mesure. Le
+plafond de précaution de 10 $/mois proposé le 30 octobre est donc **remplacé par cette règle, et
+ne s'applique pas.**
+
+À la place, deux obligations qui me reviennent :
+
+1. **Chaque rapport donne le coût cumulé des appels depuis le 5 novembre**, tiré du journal, **et
+   le coût de l'étape en cours.** Pas une estimation de tête : le journal fait foi.
+2. **Si l'API refuse un appel faute de crédit — ou pour toute autre raison de compte : STOP
+   immédiat et rapport.** Christophe renfloue. **Jamais de repli silencieux.**
+
+**Et la conséquence qui compte pour le produit** : une page que Vision n'a pas pu lire reste
+**« non lue, Vision indisponible »**, jamais **« sans texte »**. Les deux ne veulent pas dire la
+même chose : le premier se relit plus tard, le second se croit définitif. C'est déjà ce que le
+v24 exigeait au § 5.6 ; cela devient une obligation sans condition.
+
+### Conséquences sur la file
+
+- **A2** (délai Tesseract, repli Vision) **pourra être éprouvé en réel**, et non plus seulement
+  raisonné.
+- **R2-oracle et la vérification humaine pourront se faire dans l'application**, ce qui est le
+  jalon « ça marche » lui-même.
+- **L'épreuve `funk-fusion-corpus` n'est plus bloquée par la règle.** Ce qu'elle demande pour
+  tourner, lu dans `outils/vision/test/funk-fusion-corpus.test.ts` — elle se saute d'elle-même
+  tant qu'une seule manque :
+
+| Variable | Ce qu'elle désigne |
+|---|---|
+| `LIENOTHEQUE_FUNK_FUSION_PDF` | le PDF du corpus, qui doit exister |
+| `LIENOTHEQUE_FUNK_FUSION_MEDIAS` | le dossier de ses médias, qui doit exister |
+| `LIENOTHEQUE_DIAGNOSTIC_URL` | la base du Worker de diagnostic |
+| le jeton | lu au **trousseau** par `jetonDacces()`, jamais passé en variable |
+| `LIENOTHEQUE_CACHE_LECTURES`, `LIENOTHEQUE_CACHE_VALIDATIONS` | facultatives, pour ne pas repayer |
+
+Elle attend **98 pistes justes, aucun manquant, aucun fautif, aucun supplémentaire, aucun
+orphelin**. Et une réserve à ne pas perdre de vue : le PDF de Funk Fusion **n'existe nulle part**
+dans les bibliothèques connues (constat du v24, corpus F5 / REC-07) — c'est la première chose à
+régler avant de pouvoir la lancer, et ce n'est pas une question d'autorisation.

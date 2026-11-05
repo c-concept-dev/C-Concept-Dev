@@ -37,6 +37,13 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
    vérités attendues et paramètres sont versionnés.
 6. **Jamais de clé ni de secret** dans le dépôt, une archive, le navigateur ou un dossier copiable.
    Les appels à Claude Haiku passent par le Worker existant (secret `ANTHROPIC_API_KEY`).
+   **Les appels en ligne sont autorisés pour éprouver le système** (décision du 5 novembre 2026 —
+   « le réel reste le réel ») : par le Worker `lienotheque-api`, avec le jeton du **trousseau**,
+   **chaque appel tracé** dans un journal versionnable (date, route, document, feuille, résultat,
+   durée, coût estimé). **Pas de plafond** : Christophe ajuste les fonds. Chaque rapport donne le
+   **coût cumulé depuis le 5 novembre** et celui de l'étape. **Un refus de l'API faute de crédit
+   arrête tout et se rapporte** ; jamais de repli silencieux, et une page que Vision n'a pas lue
+   reste **« non lue, Vision indisponible »**, jamais « sans texte ».
 7. **Cloudflare** : jeton limité à ce projet ; aucune suppression de base D1 ou d'espace R2 sans accord
    explicite ; `wrangler deploy --config <fichier>` toujours explicite ; ne jamais toucher à
    `clone-proxy` ni à la base `therapeute-library` (Studio Clinique en dépend).
