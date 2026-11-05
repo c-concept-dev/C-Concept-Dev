@@ -28,7 +28,11 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
    générées par `@lienotheque/jetons`. Les bandeaux de collections ne portent que des icônes (taupe
    sous 4,5:1 pour du texte).
 4. **Tests obligatoires.** Chaque exigence implémentée cite son identifiant CDC dans le nom du test.
-   `pnpm check` doit passer avant tout commit.
+   `pnpm check` doit passer avant tout commit, **hors les échecs épinglés dans
+   `fixtures/references/echecs-connus.json`** — ceux dont la cause est connue, antérieure et
+   prouvée telle, et dont la levée est une étape identifiée. **Tout autre rouge est une
+   régression et bloque le commit.** Une épingle se retire dès que son contrôle passe : une
+   épingle qui survit à sa cause éteint la valeur du rouge.
 5. **Jamais d'œuvre sous droits dans le dépôt** (`fixtures/fichiers/` est ignoré). Seuls les empreintes,
    vérités attendues et paramètres sont versionnés.
 6. **Jamais de clé ni de secret** dans le dépôt, une archive, le navigateur ou un dossier copiable.

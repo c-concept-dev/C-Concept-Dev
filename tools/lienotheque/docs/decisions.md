@@ -5135,3 +5135,21 @@ Texte proposé :
 >    épingle qui survit à sa cause éteint la valeur du rouge.
 
 Je ne touche pas au CLAUDE.md avant son accord.
+
+## 5 novembre 2026 — règle 4 du CLAUDE.md : appliquée
+
+**Décision de Christophe : la formulation proposée est acceptée.** Elle est inscrite au
+CLAUDE.md, règle 4. La proposition consignée plus haut dans ce registre devient donc le texte en
+vigueur, et non plus une proposition.
+
+**Et l'épingle F3 a été corrigée le même jour** : elle annonçait « deux attentes — strict :
+abstention ; estimation : 95 liens estimés », proposition du 4 novembre que le v24 a dépassée. La
+levée, telle que le v24 et ce registre la portent : critère F3 réécrit sur la **voie oracle**
+(décision du 29 octobre, l'oracle remplace les recettes) plus les confirmations ; **A4 dépend
+d'A3** — confirmation lien par lien visant un lien précis, élément, feuille, média, et non un
+`cas.id` — **et d'A1** pour les pages absentes, que l'oracle détecte ; **provenance déclarée par
+média**, non par le lot, ce qui lève `vivier_non_borne` sans toucher à la garde. Le mode
+estimation est l'étape **B**, distincte, dont le seuil d'erreur reste à fixer par Christophe.
+
+L'épingle porte maintenant aussi un champ `ce_qui_ne_le_levera_pas` : une épingle doit fermer les
+fausses sorties autant qu'ouvrir la bonne.
