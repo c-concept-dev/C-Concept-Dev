@@ -1,10 +1,9 @@
 {
-  "description": "Échecs épinglés : des contrôles rouges pour une cause connue, antérieure, et dont la levée est une étape identifiée. Cette liste est une donnée, pas du code. Règle du 5 novembre 2026 : `pnpm check` passe HORS échecs épinglés ; tout autre rouge est une régression et bloque le commit. Quand un épinglé passe, son épingle se retire — une épingle qui survit à sa cause éteint la valeur du rouge.",
+  "description": "Échecs épinglés : des contrôles rouges pour une cause connue, antérieure, et dont la levée est une étape identifiée. Cette liste est une donnée, pas du code. Règle du 5 novembre 2026 : `pnpm check` passe HORS échecs épinglés ; tout autre rouge est une régression et bloque le commit. Le garde-fou `packages/banc/scripts/controle-epingles.ts` l'applique, en local comme en intégration continue : il refuse tout échec non épinglé, ET refuse une épingle dont le contrôle passe — une épingle qui survit à sa cause éteint la valeur du rouge. `paquet`, `fichier` et `controles` (chacun : `nom`, `message`) sont ce que le garde-fou compare ; le reste est pour nous. Le `nom` est le `fullName` du rapport : les niveaux de `describe` et le nom du contrôle y sont joints par une ESPACE, jamais par « > ». Pris pour un « > » le 5 novembre 2026, il a fait déclarer régression un échec bel et bien épinglé — le garde-fou avait raison d'être strict, c'est l'épingle qui était mal écrite. `absenceRequise` dit les outils dont l'ABSENCE est la cause : l'épingle ne vaut que là où ils manquent, et le garde-fou la range « hors contexte » ailleurs — ni tenue, ni périmée.",
   "epingles": [
     {
       "id": "critere-f3-orphelins-93-98",
       "paquet": "@lienotheque/ingestion",
-      "controle": "test/criteres.test.ts — critère F3 — méthode numérisée, 95 sur 95 (OUT-15, REC-06) > relie les 95 éléments à la bonne piste, repère les deux pages absentes et les six médias sans page",
       "exigences": [
         "OUT-15",
         "REC-06",
@@ -34,6 +33,53 @@
         "A1",
         "A3",
         "A4"
+      ],
+      "fichier": "test/criteres.test.ts",
+      "controles": [
+        {
+          "nom": "critère F3 — méthode numérisée, 95 sur 95 (OUT-15, REC-06) relie les 95 éléments à la bonne piste, repère les deux pages absentes et les six médias sans page",
+          "message": "expected [] to deeply equal [ 93, 94, 95, 96, 97, 98 ]"
+        }
+      ],
+      "ou_il_ne_tourne_pas": "L'intégration continue le saute : les œuvres de la fixture F3 ne sont pas versionnées, donc `criteres.test.ts` y rend « 9 tests | 4 skipped ». L'épingle ne vaut que pour le contrôle local complet."
+    },
+    {
+      "id": "tesseract-absent-aucune-page-lue",
+      "paquet": "@lienotheque/ingestion",
+      "fichier": "test/aucune-page-lue.test.ts",
+      "absenceRequise": [
+        "tesseract"
+      ],
+      "controles": [
+        {
+          "nom": "un document dont rien n'a pu être lu échoue en nommant le nombre de pages, au lieu de se dire terminé (JOB-05)",
+          "message": "expected 'spawnSync tesseract ENOENT' to contain '7'"
+        },
+        {
+          "nom": "ce qu'on compte quand une page n'a rien rendu (OUT-05, OUT-15) compte des pages, et n'en double pas le nombre sur une feuille double",
+          "message": "spawnSync tesseract ENOENT"
+        }
+      ],
+      "exigences": [
+        "JOB-05",
+        "OUT-05",
+        "OUT-15"
+      ],
+      "epingle_le": "2026-11-05",
+      "cause": {
+        "quoi": "Sur une machine sans Tesseract, la lecture d'une page sans couche texte tente la reconnaissance, qui n'existe pas : `spawnSync tesseract ENOENT` remonte brut jusqu'à la cause de l'échec. Le contrôle attend « aucune des 7 pages », et le produit devrait le dire — une machine sans moteur d'OCR n'est pas une raison de cracher le nom d'un exécutable manquant.",
+        "premier_commit_fautif": "INCONNU. `cc05e8359` (30 octobre) a été soupçonné et RÉFUTÉ : son parent `d89b852f` échoue aussi. Le bisect n'a pas été mené, et son résultat n'est pas supposé ici.",
+        "pourquoi_on_a_cru_qu_il_avait_disparu": "Le registre notait au 29 octobre « cause disparue : zéro occurrence ». Faux : le passage du 29 octobre s'est arrêté au premier paquet rouge (CLA-01 sur `@lienotheque/banc`), six paquets sur dix-sept ont tourné, et `@lienotheque/ingestion` n'a jamais été atteint. L'échec n'était pas absent, il n'avait pas eu lieu de se produire. Le garde-fou passe désormais `--no-bail` et refuse un passage incomplet."
+      },
+      "preuve_d_anteriorite": {
+        "methode": "Sonde : rejeu du contrôle avec un `PATH` privé de Tesseract, validée d'abord sur l'arbre courant — elle rend exactement l'échec de l'intégration continue, deux échecs, même assertion.",
+        "resultat": "Rouge sur `d140a413c` (29 octobre, commit de documentation seule), donc antérieur à tout le travail du 30 octobre au 5 novembre. Rouge aussi sur `cc05e8359` et sur son parent `d89b852f`.",
+        "quand": "2026-11-05"
+      },
+      "ce_qui_le_levera": "A2 — délai Tesseract et repli Vision : quand le moteur manque ou échoue, la chaîne bascule sur Vision, ou dit « non lue ». Le contrôle demande exactement cela : nommer le nombre de pages au lieu de se dire terminé. Sa levée dira aussi d'installer Tesseract en intégration continue, pour que ce chemin soit éprouvé là où personne ne l'a sous la main.",
+      "a_ne_pas_faire": "Ne pas verdir le contrôle en sautant quand Tesseract manque : ce serait cacher précisément le cas que l'exigence 0 veut couvrir. Et ne pas relâcher l'assertion : c'est le nombre de pages qui doit figurer dans la cause.",
+      "depend_de": [
+        "A2"
       ]
     }
   ]

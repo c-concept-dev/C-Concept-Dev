@@ -9,9 +9,10 @@
   },
   "scripts": {
     "test": "pnpm -r --workspace-concurrency=1 test",
+    "epingles": "pnpm --filter @lienotheque/banc exec tsx scripts/controle-epingles.ts",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",
-    "check": "pnpm typecheck && pnpm test"
+    "check": "pnpm typecheck && pnpm epingles"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

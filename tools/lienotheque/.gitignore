@@ -16,6 +16,8 @@ target/
 **/src-tauri/moteurs/
 **/src-tauri/gen/
 test-results/
+# Rapports du garde-fou des épingles : réécrits à chaque passage, un par paquet.
+.rapport-epingles.json
 playwright-report/
 .cache/
 
