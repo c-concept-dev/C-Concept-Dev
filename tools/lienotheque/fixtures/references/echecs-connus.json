@@ -1,0 +1,30 @@
+{
+  "description": "Échecs épinglés : des contrôles rouges pour une cause connue, antérieure, et dont la levée est une étape identifiée. Cette liste est une donnée, pas du code. Règle du 5 novembre 2026 : `pnpm check` passe HORS échecs épinglés ; tout autre rouge est une régression et bloque le commit. Quand un épinglé passe, son épingle se retire — une épingle qui survit à sa cause éteint la valeur du rouge.",
+  "epingles": [
+    {
+      "id": "critere-f3-orphelins-93-98",
+      "paquet": "@lienotheque/ingestion",
+      "controle": "test/criteres.test.ts — critère F3 — méthode numérisée, 95 sur 95 (OUT-15, REC-06) > relie les 95 éléments à la bonne piste, repère les deux pages absentes et les six médias sans page",
+      "exigences": ["OUT-15", "REC-06", "REC-02"],
+      "assertion": "expect(association.orphelins).toEqual([...reference.mp3_orphelins])",
+      "echec": "AssertionError: expected [] to deeply equal [ 93, 94, 95, 96, 97, 98 ]",
+      "epingle_le": "2026-11-05",
+      "apparu_le": "2026-10-29",
+      "cause": {
+        "commit": "c2fb2c04",
+        "quand": "29 octobre 2026 23:37",
+        "quoi": "`qualifierAssociation` rend `borne` non facultatif et s'abstient AVANT tout calcul. Le critère F3 ne déclare aucune provenance pour ses médias : abstention `vivier_non_borne`, donc `orphelins = []`. Personne ne réclame les pistes 93 à 98 — le calcul n'a pas lieu.",
+        "puis": "Avec la provenance réelle portée par chaque média, `vivier_non_borne` est levé et la seconde garde prend le relais : `corroboration_insuffisante` sur les 95 éléments, une seule façon de lire les appuyant et personne n'ayant vérifié le document.",
+        "garde_fou_legitime": true,
+        "ce_qui_reste_juste": "Les 95 lignes interprétées et `pagesAbsentes = [30, 31]`. L'interprétation fonctionne ; seule la publication est retenue."
+      },
+      "preuve_d_anteriorite": {
+        "methode": "Rejeu du même contrôle sur `6dae5612`, dont `git diff 6dae5612 6e5094af` ne montre que `docs/decisions.md` : code identique à HEAD, sans aucun changement du 5 novembre.",
+        "resultat": "F3_AVANT_MON_CHANGEMENT=1, même assertion, même échec.",
+        "quand": "2026-11-05"
+      },
+      "ce_qui_le_levera": "Étape A4 du plan : décider QUI déclare la provenance d'un lot de fixture, et faire porter au critère deux attentes — strict : abstention motivée ; estimation : 95 liens estimés. C'est une décision de conception, pas une réparation de l'associateur.",
+      "a_ne_pas_faire": "Ne jamais relâcher l'assertion ni la garde de `qualifierAssociation` pour verdir ce contrôle : la garde est là pour ne pas publier sur un vivier que rien ne borne (REC-02)."
+    }
+  ]
+}
