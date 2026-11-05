@@ -4901,3 +4901,237 @@ intégration continue déjà rouge. C'est le coût réel de cette dette, et il g
 - **Tesseract**, du 26 au 27 octobre : `test/aucune-page-lue.test.ts` rendait
   `spawnSync tesseract ENOENT` sur un exécutant qui n'a délibérément pas Tesseract. **Cause
   disparue** : zéro occurrence dans le passage du 29 octobre.
+
+## 5 novembre 2026 — A1 : l'ampleur du compactage, révisée à la baisse
+
+**Décision : le correctif reste prioritaire, mais sur un seul document visible.** Plan complet :
+`docs/plan-a1-feuille.md`.
+
+J'avais annoncé un décalage « jusqu'à 174 feuilles » dans Studio Clinique. Il est réel **dans la
+donnée** et **ne touche aucun écran** de cette bibliothèque. La mesure qui tranche n'est pas le
+décalage lui-même mais ce que la vue porte : un folio ou un élément. Mesure des deux
+bibliothèques, documents actifs, lecture seule
+(`outils/ingestion/mesures/sorties/a1-visible-5nov/`) :
+
+| | musicale | Studio Clinique |
+|---|---|---|
+| documents actifs | 250 | 245 |
+| `0 < resultat.pages < pages de la vue` | 10 | 10 |
+| … dont la vue porte un folio ou un élément | **1** | **0** |
+
+Les soixante-huit documents de Studio Clinique dont `resultat.pages` est plus court que la vue
+sont pour l'essentiel des documents à `resultat.pages` **vide** : aucune manière de lire
+appliquée, donc aucun compactage — seulement l'absence de repères. Le compter comme « touché »
+était une erreur de critère de ma part.
+
+**`f5bca72c` = « Les mots sont des fenêtres (ou bien des murs) », Rosenberg** : 218 feuilles,
+14 dans `resultat.pages`, et une vue de **218 pages parfaitement alignées** sur ses images, sans
+un seul folio ni élément. Rien à y voir.
+
+**Le seul document dont un écran est faux : `ca36cf98`, Bass Aerobics** (bibliothèque musicale).
+Sa feuille 2 ne porte aucune image ; ses **53 folios et 53 éléments sont tous posés une page trop
+tôt**, de la page 2 à la page 109. Établi par le texte des passages, qui suit les feuilles : la
+feuille 12 porte « Workout 3 », « TRACK 3 » et le folio imprimé **10**, et la vue les affiche
+page 11, sur l'image de la feuille 11 — la fin du Workout 2.
+
+**Niveau de preuve 1** (octets des JSON de la vraie bibliothèque, texte des passages, code). Le
+Lecteur n'a pas été ouvert ; le niveau 2 appartient à Christophe, sur les pages 9, 11 et 13 de ce
+document.
+
+**L'image n'est jamais fausse** : la vue sert toujours l'image du rang qu'elle affiche. Ce qui est
+faux est ce qu'on pose dessus.
+
+### Deux tests rouges, et pourquoi ils ne sont pas commités
+
+`outils/recettes/test/a1-feuille-contre-index.test.ts` éprouve deux extraits fabriqués par la
+logique d'`extracteur-pages.html` (`outils/recettes/mesures/extraire-a1.ts`, hors ligne) :
+décalage constant de 1 (Bass Aerobics 1-5) et décalages multiples 0, 2, 3 (Rosenberg 1 2 3 12 13
+25). Les deux échouent aujourd'hui, le même correctif doit les faire passer. Les œuvres ne sont
+pas versionnées : extraits sous `fixtures/fichiers/A1/` (ignoré), empreintes et vérités attendues
+sous `fixtures/references/a1-feuille-contre-index.json`. Le test vérifie l'empreinte avant de
+juger.
+
+Ils restent **hors du dépôt** tant que le correctif n'est pas écrit : les commiter rendrait
+`pnpm check` rouge, ce que la règle 4 du CLAUDE.md interdit avant commit. Ils entreront dans le
+même commit que le correctif.
+
+### Ce que le correctif changera aussi
+
+`interprete.ts` déduit le folio depuis `pageLue - rang`. Aujourd'hui le rang est trop petit de 1
+et le décalage trop grand de 1 : les deux erreurs s'annulent, la **valeur** du folio sort juste et
+seule sa **place** est fausse. Sur un document à beaucoup de feuilles sautées, en revanche, les
+rangs deviennent très espacés et la déduction ne rendra plus les mêmes nombres. **Les vingt
+documents touchés se retraitent donc, ils ne se migrent pas** : un recalcul d'index figerait des
+`pageImprimee` et des `absentes` déduits d'un rang faux.
+
+F3 et F4 n'ont aucune feuille sans image : leurs critères ne peuvent pas bouger. Ils seront
+rejoués avant tout retraitement (gardien de la tâche A4).
+
+## 5 novembre 2026 — A1, le correctif : la feuille voyage avec la page
+
+**Décision de Christophe, maintenue contre ma proposition de la reporter : le renommage
+`index` → `feuille` fait partie du correctif.** J'avais proposé de le remettre à plus tard sans
+signaler que le registre portait déjà la décision contraire — faute de méthode, signalée par
+Christophe. **Règle ajoutée : toute divergence avec le registre se signale en tête du rapport.**
+
+Et il avait raison sur le fond : c'est le renommage qui fait désigner chaque consommateur par le
+compilateur, et c'est lui qui a corrigé ma propre liste dans les deux sens.
+
+### Le correctif
+
+`pagesEnGris` connaissait déjà la feuille — elle sert au rendu — et la perdait au `yield`. Elle
+voyage maintenant avec l'image (`FeuilleEnGris`), et `preparerLot` ne compte plus : son rang vient
+du document. Effet de bord gagné : `options.depuis` n'a plus à amorcer un compteur, donc la
+lecture d'une tranche du milieu devient juste par construction et non par compensation.
+
+Renommés, parce qu'ils désignent une feuille à partir de zéro, en suite possiblement trouée :
+`PageReperee.feuille`, `PageLueBrute.feuille`, `PageLue.feuille`, `PageAlire.feuille`,
+`PageAsonder.feuille`, `PageAmarges.feuille`.
+
+**Non renommés, et documentés à la place** : `PageAffichee.index` et l'entrée d'`instantane.ts`
+comptent le rang de la page **affichée**, à partir de un — la convention de la vue, celle qu'on
+cite à une personne, convertie une seule fois par `PREMIER_RANG` dans `lot.ts`. Leur donner le nom
+`feuille` créerait deux champs du même nom comptant depuis des origines différentes : un second
+piège à la place du premier. Leur valeur devient juste par le correctif, `lot.ts` les construisant
+désormais depuis `page.feuille`.
+
+**Deux consommateurs que ma table du 5 novembre accusait à tort** : `executant.ts` lit la sortie
+d'`exporterPages`, numérotée par feuille physique, jamais compactée. Le compilateur ne les a pas
+désignés, et le code le confirme. L'erreur était dans ma table.
+
+### La trappe du cache, trouvée en écrivant le plan de retraitement
+
+`clefDeLecture` ne change pas avec le correctif, et les entrées de cache portent l'**ancien**
+compte : une lecture gardée aurait ramené les rangs compactés, et **le correctif aurait été
+inopérant sur tout document déjà lu**, Bass Aerobics compris. `VERSION_LECTURE` passe de 10 à 11 —
+le mécanisme existait déjà pour exactement cela. Conséquence assumée : un retraitement relit le
+document, il ne peut pas s'appuyer sur le cache.
+
+### Les deux tests rouges sont passés au vert
+
+```
+✓ a1-decalage-constant.pdf   — la feuille 2 ne porte aucune image : décalage de 1
+✓ a1-decalages-multiples.pdf — trois feuilles portent une image : décalages 0, 2 puis 3
+```
+
+Plus deux contrôles de contrat : une suite de feuilles trouée est une donnée valide, et un `index`
+écrit avant le renommage se relit comme `feuille` — les deux noms ensemble sont refusés.
+
+### Le registre n'a rien perdu
+
+J'avais annoncé « 89 décisions » hier et compté 83 aujourd'hui. **Rien n'a disparu** : au commit
+`6e5094af` le fichier portait 4 903 lignes et **82** titres de niveau deux ; il en porte 83 après
+l'entrée du jour, et `git diff` montre **65 ajouts, 0 retrait**. Les 4 903 premières lignes sont
+identiques octet pour octet à la version commitée. Le 89 d'hier était un mauvais comptage de ma
+part, pas une perte.
+
+## 5 novembre 2026 — A1 : la mise en page du document, confirmée par Christophe (niveau 3 sur le document)
+
+**Christophe, 5 novembre 10:38.** Vérification dans un lecteur PDF qui compte les feuilles
+(« 12 de 116 »), hors Liénothèque :
+
+| Feuille du PDF | Ce qu'elle porte | Folio imprimé |
+|---|---|---|
+| **11** | fin du Workout 2, double barre de reprise | **9** |
+| **12** | « Workout 3 · TRACK 3 » | 10 |
+
+**La correspondance feuille ↔ folio et la lecture du contenu sont confirmées.** Le décalage est
+bien d'exactement une feuille, et la vérification humaine le prouve deux fois :
+
+- la vue affiche le folio **10** sur sa page 11, alors que la feuille 11 porte le folio **9** ;
+- elle y propose Workout #3, alors que « Workout 3 · TRACK 3 » est sur la feuille **12**.
+
+**Rectification des niveaux de preuve** (Christophe, 5 novembre) : j'avais écrit « les trois
+niveaux sont réunis ». C'est faux, et la faute porte sur la définition même des niveaux.
+
+- Comparer les passages à la vue est une comparaison de **données** : c'est du **niveau 1**, comme
+  les octets et le code. Le niveau 2 est un **regard sur l'écran**, avec une capture citée.
+- La vérification de Christophe est un **niveau 3 sur le document** — feuille 11 : folio 9, fin du
+  Workout 2 ; feuille 12 : Workout 3 — et non sur l'affichage de la Liénothèque.
+
+Formulation juste : **le défaut d'affichage est établi au niveau 1** ; **la mise en page du
+document est confirmée au niveau 3** par Christophe ; **aucun niveau 2 ni 3 sur l'écran de la
+Liénothèque à ce jour**. Le premier sera l'« après » R2.
+
+Ce que la vérification de Christophe apporte malgré tout, et qui ne vient pas de nos données :
+elle établit sur le document que la feuille 11 porte le folio **9**. La vue affiche **10** sur sa
+page 11 — le folio d'une autre feuille. Le décalage est donc attesté par le numéro imprimé **et**
+par le contenu, deux fois indépendamment.
+
+**Ce que cela fixe comme critère de recette.** Après R2, dans la Liénothèque : **Workout 3 doit
+être lié à la feuille 12**, et la page 12 cesser d'être muette. C'est la vérification humaine de
+l'« après », et c'est Christophe qui la fait.
+
+## 5 novembre 2026 — `pnpm check` est rouge, et il l'était déjà
+
+**`pnpm check` sur l'arbre du correctif A1 : `CHECK=1`.** Code lu sur la commande, pas au bout
+d'un tuyau. 16 paquets verts, 2 711 tests passés, **un** échec — et c'est le critère F3.
+
+```
+FAIL outils/ingestion test/criteres.test.ts
+     critère F3 — méthode numérisée, 95 sur 95 (OUT-15, REC-06)
+AssertionError: expected [] to deeply equal [ 93, 94, 95, 96, 97, 98 ]
+```
+
+**Vérifié, pas supposé.** Le même test lancé dans le worktree de bisect, à `6dae5612` — dont
+`git diff 6dae5612 6e5094af` ne montre qu'un seul fichier, `docs/decisions.md`, donc **code
+identique à HEAD** — rend la **même assertion, le même échec** :
+
+```
+F3_AVANT_MON_CHANGEMENT=1
+× critère F3 … relie les 95 éléments à la bonne piste …
+AssertionError: expected [] to deeply equal [ 93, 94, 95, 96, 97, 98 ]
+```
+
+C'est la régression bisectée le 4 novembre : `c2fb2c04` (29/10 23:37) rend `borne` non facultatif
+dans `qualifierAssociation` et s'abstient **avant tout calcul** ; le critère F3 ne déclare aucune
+provenance, donc abstention `vivier_non_borne` et `orphelins = []`. Personne ne réclame les pistes
+93 à 98 : le calcul n'a pas lieu. Les 95 lignes et `pagesAbsentes = [30, 31]` restent justes. Le
+correctif n'est pas « réparer l'associateur » mais **décider qui déclare la provenance d'un lot de
+fixture** — une décision, pas un correctif, et elle n'est pas prise.
+
+**Conséquence sur la règle 4 du CLAUDE.md** (« `pnpm check` doit passer avant tout commit ») :
+elle n'est satisfiable par **aucun** commit tant que cette décision n'est pas prise. Ce n'est pas
+une conséquence du correctif A1. Rien n'est commité sans le mot de Christophe.
+
+**Un effet mesuré du correctif, à consigner** : le même test a pris **230 s** dans la passe
+complète contre **29 s** dans le worktree de bisect. Ce n'est pas une régression de vitesse, c'est
+`VERSION_LECTURE` 10 → 11 : la passe complète a relu les 29 feuilles de F3, le worktree de bisect
+a lu son cache d'avant. Les deux jeux d'entrées coexistent sans se gêner, et la prochaine passe
+retrouvera sa vitesse.
+
+## 5 novembre 2026 — la règle des échecs épinglés
+
+**Décision de Christophe.** Un contrôle rouge pour une cause connue, antérieure, et dont la levée
+est une étape identifiée, s'**épingle** dans une liste versionnée :
+`fixtures/references/echecs-connus.json`. Cette liste est une **donnée**, pas du code — comme
+`fixtures/termes-de-domaine.json`.
+
+**La règle : `pnpm check` passe HORS échecs épinglés ; tout autre rouge est une régression et
+bloque le commit.**
+
+Une épingle porte son assertion exacte, sa cause, la **preuve qu'elle est antérieure**, et
+l'étape qui la lèvera. **Quand un épinglé passe, son épingle se retire** : une épingle qui survit
+à sa cause éteint la valeur du rouge, exactement comme le job « Rendu » rouge en permanence
+(entrée du 29 octobre).
+
+Première et seule épingle à ce jour : `critere-f3-orphelins-93-98`, dont l'antériorité est prouvée
+par rejeu sur `6dae5612`.
+
+### Proposition pour la règle 4 du CLAUDE.md — **à valider par Christophe, non appliquée**
+
+Texte actuel :
+
+> 4. **Tests obligatoires.** Chaque exigence implémentée cite son identifiant CDC dans le nom du test.
+>    `pnpm check` doit passer avant tout commit.
+
+Texte proposé :
+
+> 4. **Tests obligatoires.** Chaque exigence implémentée cite son identifiant CDC dans le nom du
+>    test. `pnpm check` doit passer avant tout commit, **hors les échecs épinglés dans
+>    `fixtures/references/echecs-connus.json`** — ceux dont la cause est connue, antérieure et
+>    prouvée telle, et dont la levée est une étape identifiée. **Tout autre rouge est une
+>    régression et bloque le commit.** Une épingle se retire dès que son contrôle passe : une
+>    épingle qui survit à sa cause éteint la valeur du rouge.
+
+Je ne touche pas au CLAUDE.md avant son accord.
