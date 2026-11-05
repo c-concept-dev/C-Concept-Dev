@@ -2,9 +2,18 @@ name: Liénothèque — intégration continue
 
 # Ce dépôt est un monorepo hétérogène : cette intégration continue ne concerne que
 # tools/lienotheque. Elle ne déploie rien (voir deploy-worker.yml et deploy-pages.yml).
+# Les branches de travail sont contrôlées comme `main`.
+#
+# Elles ne l'étaient pas, et le prix a été payé : du 30 octobre au 5 novembre 2026, tout le
+# travail est allé sur `wip/lienotheque-2026-10-29`, qui n'est ni `main` ni une demande de
+# fusion. L'intégration continue n'a donc **rien contrôlé** pendant une semaine — ni le typage,
+# ni les tests, sur aucun des trois systèmes. Ce n'était pas une panne : c'était le déclencheur,
+# et c'est pire, parce qu'un silence ressemble à un succès.
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'wip/**'
     paths:
       - 'tools/lienotheque/**'
       - '.github/workflows/lienotheque-ci.yml'
