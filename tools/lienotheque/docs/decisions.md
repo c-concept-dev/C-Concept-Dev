@@ -6620,3 +6620,52 @@ le rôle vient de ce que la lecture cherche, pas de la taille des lettres. Et ce
 les deux défauts : sur une partition, aucune lecture n'attend rien, donc rien ne se déclenche.
 
 **Rien n'a été codé sur le critère réfuté.** La mesure a servi à ça.
+
+## 5 novembre 2026 — inventaire des 116 méthodes : le verrou n'est pas celui qu'on croyait
+
+**Lecture seule, rien extrait, rien déplacé.** Les PDF des archives ont été empreintés **en flux**,
+sans rien écrire. La liste nominative des 116 méthodes **n'est pas versionnée** : ce dépôt est
+public, et la collection de Christophe n'a pas à y figurer. Elle lui a été remise à part.
+
+### Ce que l'inventaire donne
+
+| | |
+|---|---|
+| archives | **116**, toutes lisibles, 11,3 Go, 2 095 fichiers |
+| PDF + audio | **115** · PDF seul : 1 |
+| **le même PDF est déjà actif dans la bibliothèque** | **115 sur 116** |
+| hors de la bibliothèque | **1** — l'archive *Funk Fusion* porte **une autre numérisation** |
+| **vivier borné** (médias du document = audio de son archive) | **114** |
+
+**Les deux dossiers d'archives portent la même numérisation.** Celui hors de `Basse/` en a 116,
+celui dans `Basse/` 113, et leurs noms diffèrent (`Aebersold 001 - […]` contre
+`Aebersold - 001 - […]`) — mais **115 PDF sur 116 ont la même empreinte des deux côtés**. Le choix
+de la copie est donc **indifférent pour le PDF**, et seule *Funk Fusion* fait exception.
+
+### Familles, d'après la forme des noms de pistes
+
+| forme | méthodes |
+|---|---|
+| le nom commence par un numéro | 109 |
+| « Track N » | 2 |
+| **le numéro de page imprimée est dans le nom** (`Pg.194`) | **2** — les deux Westwood |
+| autre | 2 |
+| sans audio | 1 |
+
+Les deux Westwood portent **la page imprimée dans le nom du média**. Rien ne l'exploite
+aujourd'hui, et c'est une source de folio que A1b devra regarder.
+
+### Le verrou, et il n'est pas celui que je croyais
+
+**114 méthodes sur 115 ont un vivier borné et s'abstiennent toutes pour la même raison :
+`corroboration_insuffisante`. Et 113 ne posent AUCUN élément.**
+
+Ce n'est donc pas « les Aebersold n'ont jamais été traités » : ils l'ont été, leur vivier est
+borné, et **l'association s'abstient faute de corroboration**. Le verrou est unique, et il est
+exactement ce qu'A2 vise : la corroboration vient de la lecture, et la lecture échoue.
+
+| document | éléments posés | état |
+|---|---|---|
+| le document du jalon | 96 | **publiés** |
+| *'70s Funk & Disco Bass* | 95 | **proposés**, l'association s'abstient |
+| les 113 autres | **0** | `corroboration_insuffisante` |
