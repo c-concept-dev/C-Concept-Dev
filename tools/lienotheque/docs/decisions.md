@@ -6691,3 +6691,35 @@ survivrait pas au premier corpus qui écrit « page », « p. » ou rien du tout
 **Ce qui est générique** : un nom de fichier porte plusieurs nombres ; on cherche **lequel d'entre
 eux est corrélé aux folios** du document. C'est le document qui répond, et la règle ne nomme
 aucun mot. Même esprit que la borne de fin : la régularité se mesure, elle ne se déclare pas.
+
+## 5 novembre 2026 — le banc d'extraits, rodé sur six méthodes
+
+**Six méthodes, une par famille, extraites hors de toute bibliothèque.** 136 Mo, 57 fichiers,
+sept jeux avec celui du rodage. Les archives n'ont pas été touchées.
+
+| méthode | pages du document | pages retenues | médias retenus + en trop |
+|---|---|---|---|
+| une méthode à vivier serré | 23 | 8 | 2 + 3 sur 11 |
+| une méthode à vivier large | 74 | 8 | 2 + 3 sur 20 |
+| le document du jalon | 116 | 8 | 6 + 3 sur 52 |
+| le recueil à un repère par feuille | 29 | 8 | 3 + 3 sur 99 |
+| deux volumes à folio dans le nom | 57 et 86 | 8 et 8 | 6 + 3 sur 92 et 73 |
+| le cas sans audio | 35 | 8 | 0 |
+
+### La seule vérité que je connaisse, le critère la trouve
+
+Le document du jalon porte sa liste de pistes **sur la feuille 5** — établi plus tôt dans la
+journée par le texte lu (« CD TRACK LISTING … »). **Le banc a retenu la feuille 5**, désignée par
+« la plus forte densité de nombres par rapport aux mots ». Aucun mot de domaine n'a servi : ni
+« sommaire », ni « track », ni un titre.
+
+Pour les six autres, **je ne connais pas la vérité** et je ne la suppose pas. C'est ce que la
+vérification au papier devra établir.
+
+### Une réserve, dite avant d'étendre aux 115
+
+**Peu de médias sont retenus** : 2 à 6 selon les jeux. Ils viennent des nombres lus sur la page
+désignée comme liste des pistes ; quand cette page n'en est pas une — ou quand ses nombres sont
+mal lus, ce qui est précisément le défaut qu'A2 traite — le compte tombe. Le banc le dit au lieu
+de le cacher, et **il faut le corriger avant d'étendre aux 115** : un extrait à deux médias
+n'éprouve pas grand-chose.
