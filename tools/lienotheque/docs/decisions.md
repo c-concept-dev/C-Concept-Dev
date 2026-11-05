@@ -6584,3 +6584,39 @@ PDF + MP3. **Les Aebersold ne le sont pas** — ils n'ont jamais été traités 
    publier**.
 
 **Une écriture réelle viendra ensuite, sur son mot.** Elle n'est pas comprise dans cette demande.
+
+## 5 novembre 2026 — A2, pièce 2 : mon premier critère est RÉFUTÉ, et c'est la mesure qui le dit
+
+**Le critère éprouvé** : grouper les mots d'une page par **gabarit** — hauteur de glyphes
+relative, ce qui distingue un rôle d'un autre sans rien savoir du domaine — puis, dans chaque
+groupe, couper à **la plus grande rupture** de la suite triée des confiances. Aucun seuil posé :
+une rupture, pas un nombre.
+
+**Il ne tient pas.** Mesuré sur cinq pages du document du jalon :
+
+| page | ce que la rupture désigne |
+|---|---|
+| le sommaire aux huit lignes abîmées | **5 mots sur 15** — elle rate `Ne(0,35)`, `ZI(0,19)`, `of(0,19)`, `50(0,37)`, `104(0,37)` |
+| une page de texte courant | 4 mots, dont **`a(0,92)`** et **`on(0,93)`** — des mots parfaitement lus |
+| deux pages de partition | 92 et 106 mots, c'est-à-dire la moitié de la page |
+
+**Deux défauts, et ils sont de conception :**
+
+1. **La rupture n'a pas de garde.** Elle coupe *toujours*, même dans un groupe homogène : entre
+   0,92 et 0,93, la plus grande rupture est là, et elle désigne un mot juste.
+2. **Le gabarit ne dit pas le rôle.** Sur une partition, tout est « bruit » légitimement — on n'y
+   cherche rien, et pourtant le critère y désigne la moitié des mots.
+
+### Ce que la réfutation apprend, et la voie qu'elle ouvre
+
+Je cherchais au mauvais endroit. **Le repli ne se décide pas sur « un mot est douteux » mais sur
+« la lecture attendue a échoué ».** Chaque lecture de la chaîne sait ce qu'elle attend : un
+nombre dans un coin, une ligne « élément, piste, page ». Les mots **comparables** sont ceux qui
+remplissent **le même rôle dans la même attente** — les cinquante-deux cases « piste » d'une table
+sont comparables entre elles, et c'est le document qui les fournit.
+
+Cela satisfait la précision de Christophe (« même zone, même rôle ») **mieux que la géométrie** :
+le rôle vient de ce que la lecture cherche, pas de la taille des lettres. Et cela règle d'un coup
+les deux défauts : sur une partition, aucune lecture n'attend rien, donc rien ne se déclenche.
+
+**Rien n'a été codé sur le critère réfuté.** La mesure a servi à ça.
