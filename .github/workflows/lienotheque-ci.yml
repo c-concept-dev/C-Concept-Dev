@@ -110,12 +110,25 @@ jobs:
       # Mesuré le 5 novembre 2026 sur l'exécution 40944685964 : 59 échecs, tous WebKit ; zéro
       # pour Chromium et Firefox. Les « Target page … has been closed » et « kill ESRCH » qu'on
       # lisait n'étaient que les conséquences du moteur mort.
+      # `ImageOS` et `ImageVersion` sont injectés par l'exécutant dans l'environnement du
+      # processus ; le contexte `env` d'une expression, lui, ne porte que ce que le workflow
+      # déclare. Écrits tels quels dans la clef, ils rendaient donc du vide : mesuré le
+      # 5 novembre 2026, « Cache not found for input keys: playwright-Linux---1.63.0 ». La clef
+      # était constante — le cache ratait ce jour-là parce qu'elle était neuve, et le défaut
+      # serait revenu à la mise à jour d'image suivante. On les relève comme la version de
+      # Playwright, par une étape.
+      - name: Relever la version de la machine
+        id: machine
+        run: |
+          echo "os=$ImageOS" >> "$GITHUB_OUTPUT"
+          echo "version=$ImageVersion" >> "$GITHUB_OUTPUT"
+
       - name: Reprendre les moteurs en cache
         id: cache-moteurs
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ env.ImageOS }}-${{ env.ImageVersion }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ steps.machine.outputs.os }}-${{ steps.machine.outputs.version }}-${{ steps.playwright.outputs.version }}
 
       - name: Installer les moteurs
         if: steps.cache-moteurs.outputs.cache-hit != 'true'
