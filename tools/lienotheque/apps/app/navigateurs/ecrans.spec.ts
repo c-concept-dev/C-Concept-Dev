@@ -131,13 +131,28 @@ test.describe("parcours au clavier (B6)", () => {
     expect(premier.length, "le premier arrêt est nommé").toBeGreaterThan(0);
   });
 
+  // Les deux sens, et dans cet ordre — c'est le départ qui l'impose.
+  //
+  // Le contrôle pressait « ] » depuis un Lecteur qui ouvrait à 75 % et vérifiait que la valeur
+  // change. `61d516bc` (3 novembre) l'ouvre à 100 %, et 100 est le maximum (`TEMPO_MAX`) : « ] »
+  // ne peut plus rien changer, et le contrôle tombait sur les trois moteurs depuis ce jour-là.
+  // Il affirmait une chose fausse, et le produit avait raison.
+  //
+  // On éprouve donc le geste réel : depuis le départ, « [ » ralentit, puis « ] » ramène où on
+  // était. Le contrôle ne suppose plus la valeur de départ, et il tient quelle qu'elle soit.
   test("le Lecteur répond aux touches annoncées", async ({ page }) => {
     await poser(page, "light", "#lecteur/page=127", ".ln-lecteur");
     const tempo = page.getByRole("slider", { name: /tempo/i });
     if ((await tempo.count()) === 0) test.skip(true, "pas de données : le Lecteur montre l’accueil");
-    const avant = await tempo.inputValue();
+    const depart = await tempo.inputValue();
+
+    await page.keyboard.press("BracketLeft");
+    const ralenti = await tempo.inputValue();
+    expect(ralenti, "[ ralentit").not.toBe(depart);
+    expect(Number(ralenti), "[ ralentit, il n'accélère pas").toBeLessThan(Number(depart));
+
     await page.keyboard.press("BracketRight");
-    expect(await tempo.inputValue(), "] accélère").not.toBe(avant);
+    expect(await tempo.inputValue(), "] ré-accélère, et ramène où on était").toBe(depart);
   });
 });
 
