@@ -6669,3 +6669,25 @@ exactement ce qu'A2 vise : la corroboration vient de la lecture, et la lecture �
 | le document du jalon | 96 | **publiés** |
 | *'70s Funk & Disco Bass* | 95 | **proposés**, l'association s'abstient |
 | les 113 autres | **0** | `corroboration_insuffisante` |
+
+## 5 novembre 2026 — correction de Christophe : le verrou n'est pas la corroboration
+
+**J'ai écrit « le verrou est `corroboration_insuffisante` ». C'est le symptôme, pas la cause.**
+
+Sa correction : **ces 113 méthodes ne proposent AUCUN élément.** Il n'y a donc rien à corroborer —
+la lecture des repères ne trouve rien du tout. Dire « l'association s'abstient faute de
+corroboration » laisse croire qu'elle a des candidats qu'elle refuse ; elle n'en a aucun.
+
+**Conséquence sur ce qu'il faut mesurer** : sur le banc d'extraits, la voie oracle et A2 se
+mesurent **séparément**. L'une cherche les repères sans manière de lire ; l'autre relit ce que
+Tesseract a abîmé. Les confondre ferait porter à l'une le résultat de l'autre.
+
+### Le nombre caché dans un nom de fichier : générique, jamais un motif en dur
+
+Deux méthodes portent le folio dans le nom de leur média (`… - 706 Pg.194.mp3`). **La règle ne
+doit pas chercher « Pg. »** — ce serait un motif de domaine dans le code générique, et il ne
+survivrait pas au premier corpus qui écrit « page », « p. » ou rien du tout.
+
+**Ce qui est générique** : un nom de fichier porte plusieurs nombres ; on cherche **lequel d'entre
+eux est corrélé aux folios** du document. C'est le document qui répond, et la règle ne nomme
+aucun mot. Même esprit que la borne de fin : la régularité se mesure, elle ne se déclare pas.
