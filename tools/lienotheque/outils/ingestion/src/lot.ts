@@ -58,6 +58,24 @@ export type Lot = {
    *  dit pourquoi — au lieu de rester en pause indéfiniment. Sur la base réelle, 248 documents
    *  sur 250 sont dans ce cas. */
   readonly recette?: string | undefined;
+  /** **RÉSERVÉ AUX BANCS DE COMPARAISON** : interdit la bascule vers la seconde voie, même si la
+   *  manière de lire s'abstient. Son nom le dit, pour qu'un appelant de production ne la pose pas
+   *  en croyant régler un détail.
+   *
+   *  La chaîne bascule normalement quand la manière de lire ne propose qu'une égalité sans
+   *  preuve : c'est la décision du 29 octobre 2026, et **un traitement réel doit la garder**.
+   *  `executant.ts` ne pose jamais cette option, et un contrôle le vérifie.
+   *
+   *  À quoi elle sert, et pourquoi elle a sa place ici plutôt que dans un banc : comparer un
+   *  retraitement à une version écrite **avant** cette bascule exige de rejouer **le même
+   *  producteur**, sinon on mesure deux changements à la fois et on ne sait plus lequel on
+   *  observe. Mesuré le 5 novembre 2026 sur `ca36cf98` — la voie oracle rend 48 propositions là
+   *  où la recette en rendait 52, et aucune comparaison champ par champ n'a de sens entre les
+   *  deux. Un banc qui appellerait la recette seule devrait réassembler la vue de son côté : un
+   *  second chemin de code, celui que ce fichier interdit plus bas parce qu'il avait déjà divergé.
+   *
+   *  Sans effet quand aucune manière de lire n'est donnée : il n'y a alors rien à garder. */
+  readonly reserveAuxComparaisons_sansBascule?: boolean | undefined;
   /** Ce qu'une lecture antérieure de ce document a appris, quand l'hôte en garde un.
    *
    *  Il n'a de sens que pour la seconde voie : une manière de lire écrite à la main sait déjà où
@@ -256,7 +274,12 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
       candidates.every(
         (ligne) => ligne.sourcePiste === "numero_element" && ligne.piste === ligne.numero,
       );
-    if (egaliteSansPreuve) {
+    if (egaliteSansPreuve && lot.reserveAuxComparaisons_sansBascule === true) {
+      lot.surPhase?.(
+        "La manière de lire ne propose que piste = numéro sans corroboration ; un banc de comparaison interdit la bascule, la recette est gardée.",
+      );
+      issu = parLaRecette;
+    } else if (egaliteSansPreuve) {
       lot.surPhase?.(
         "La manière de lire ne propose que piste = numéro sans corroboration ; la voie oracle prend le relais.",
       );

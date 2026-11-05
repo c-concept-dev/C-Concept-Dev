@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { randomUUID } from "node:crypto";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -165,6 +165,59 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
     expect(doubles.rejouerParOracle).toHaveBeenCalledOnce();
     expect(traite.resultat.recette?.id).toBe("voie-sans-maniere-de-lire");
     expect(traite.resultat.lignes[0]?.sourcePiste).toBe("corroboration_table");
+  });
+
+  // L'option de comparaison, et les deux choses qu'il faut garder d'elle.
+  //
+  // Le contrôle « par défaut la bascule a lieu » est celui juste au-dessus (REC-02) : on ne le
+  // double pas. Restent ceux-ci — que l'option fasse ce qu'elle dit, et qu'aucun appelant de
+  // production ne la pose.
+  it("un banc de comparaison garde la recette, et le dit (OUT-15)", async () => {
+    const rendu = (recette: string, source: string) => ({
+      resultat: {
+        recette: recette === "recette" ? { id: "methode-cartouche-double-identifiant", version: 1 } : { id: "voie-sans-maniere-de-lire", version: 3 },
+        pages: [],
+        lignes: [{ numero: 1, pageImprimee: 8, piste: 1, disque: 1, sourcePiste: source, confiance: 1 }],
+        pagesAbsentes: [],
+        ecartes: [],
+      },
+      association: {
+        appariements: [],
+        manquants: [],
+        orphelins: [],
+        ...(recette === "recette"
+          ? { abstention: { raison: "corroboration_insuffisante", combien: 1, pourquoi: "une seule déduction" } }
+          : {}),
+      },
+      medias: [],
+      journal: [],
+    });
+    doubles.rejouer.mockResolvedValueOnce(rendu("recette", "numero_element"));
+    doubles.rejouerParOracle.mockResolvedValueOnce(rendu("oracle", "corroboration_table"));
+    const phases: string[] = [];
+
+    const traite = await instantaneDeLot({
+      pdf: join(RACINE, "fixtures/fichiers/inexistant-mais-double.pdf"),
+      medias: RACINE,
+      recette: RECETTE,
+      description: DESCRIPTION,
+      reserveAuxComparaisons_sansBascule: true,
+      surPhase: (phase) => phases.push(phase),
+    });
+
+    expect(doubles.rejouerParOracle, "la seconde voie n'est jamais appelée").not.toHaveBeenCalled();
+    expect(traite.resultat.recette?.id, "le producteur comparé est le même").toBe("methode-cartouche-double-identifiant");
+    expect(traite.resultat.lignes[0]?.sourcePiste).toBe("numero_element");
+    // Et il le dit : une comparaison menée sur un producteur imposé sans qu'on le sache ne vaut
+    // rien, puisque c'est précisément ce qu'on croit mesurer.
+    expect(phases.some((phase) => phase.includes("banc de comparaison interdit la bascule"))).toBe(true);
+  });
+
+  it("aucun appelant de production ne pose l'option de comparaison (REC-02)", () => {
+    // Elle permet de contourner la décision du 29 octobre 2026. Son nom le dit, et ce contrôle
+    // le vérifie : `executant.ts` est le seul chemin par lequel l'application traite un lot.
+    const executant = readFileSync(join(import.meta.dirname, "../src/executant.ts"), "utf8");
+    expect(executant.includes("reserveAuxComparaisons_sansBascule"), "executant.ts ne la pose jamais").toBe(false);
   });
 
   it("rend les passages même si l'export de la page échoue", async () => {

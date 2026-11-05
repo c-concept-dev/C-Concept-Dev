@@ -5662,3 +5662,69 @@ Elle attend **98 pistes justes, aucun manquant, aucun fautif, aucun supplémenta
 orphelin**. Et une réserve à ne pas perdre de vue : le PDF de Funk Fusion **n'existe nulle part**
 dans les bibliothèques connues (constat du v24, corpus F5 / REC-07) — c'est la première chose à
 régler avant de pouvoir la lancer, et ce n'est pas une question d'autorisation.
+
+## 5 novembre 2026 — incident : le volume externe démonté, et le message que je n'ai pas lu
+
+**Le produit a eu raison, et moi tort.** Le disque « Macbook Pro » — qui porte la Bibliothèque
+musicale, Studio Clinique, les archives ZIP et le cache des lectures — s'est démonté en cours de
+session. **La chaîne l'a dit, exactement comme il faut :**
+
+```
+Cache : « /Volumes/Macbook Pro/lienotheque-cache » n'est pas joignable — volume démonté ou
+écriture refusée. Repli sur « …/apps/app/.cache », plafonné à 2 Gio.
+```
+
+Le message est **juste** : il nomme le chemin, il nomme les deux causes possibles, il dit où il se
+replie et sous quel plafond. Le repli a fonctionné. **C'est le comportement attendu, et il n'y a
+rien à corriger là.**
+
+**Ce qui a failli, c'est moi** : je l'ai vu à 13:43:18 dans le journal du rejeu clavier, je l'ai
+cité comme une curiosité, et je n'en ai tiré aucune conséquence. La même ligne apparaît **quatre
+fois** dans le contrôle complet. Il a fallu que le ZIP de Funk Fusion soit introuvable pour que je
+comprenne. Un message exact, lu et non compris, ne sert à rien.
+
+**Deux conséquences mesurées :**
+
+- Le contrôle complet de 13:57 a tourné **sans le cache externe**. J'avais attribué sa lenteur à
+  la seule invalidation de `VERSION_LECTURE` ; les deux causes se sont additionnées. Son verdict
+  reste valable — relire davantage n'invalide rien.
+- Les mesures R1 et oracle sont **sauves** : terminées avant, et écrites sur le disque interne.
+
+**Nouvel exemple du chemin de cache en dur** (`outils/cache/src/index.ts` : `CACHE_PAR_DEFAUT =
+"/Volumes/Macbook Pro/lienotheque-cache"`). Le repli le sauve à chaque fois, mais il reste un
+chemin de machine inscrit dans le code, et c'est la troisième fois qu'il se manifeste.
+
+**« Carte Ext » porte aussi un `lienotheque-cache`, des sauvegardes et un `lienotheque-rec07` : on
+n'y touche pas.** Inventaire plus tard, sur le mot de Christophe.
+
+## 5 novembre 2026 — RÈGLE : aucun contrôle de référence sur un arbre portant une modification non commitée du produit
+
+**Faute de ma part, relevée par Christophe.** Le contrôle complet a validé un arbre contenant
+`outils/ingestion/src/lot.ts` **modifié et non commité** ; le push a envoyé un arbre qui ne le
+contenait pas. Le verdict ne portait donc pas sur ce qui a été poussé.
+
+**La règle : un contrôle de référence tourne sur un arbre propre pour tout ce qui est du
+produit.** Les bancs, les mesures et les sorties peuvent rester non suivis — ils ne changent pas
+ce qui est éprouvé.
+
+### Ce qui a été décidé de l'option elle-même
+
+**Décision de Christophe : l'option est GARDÉE**, et renommée pour dire son usage :
+`reserveAuxComparaisons_sansBascule`. Un nom qui se lit comme un avertissement, pour qu'un
+appelant de production ne la pose pas en croyant régler un détail.
+
+Pourquoi elle a sa place dans le produit plutôt que dans un banc : comparer un retraitement à une
+version écrite avant la bascule du 29 octobre exige de rejouer **le même producteur**. Un banc qui
+appellerait la recette seule devrait réassembler la vue de son côté — un **second chemin de code**,
+celui que `lot.ts` interdit en commentaire parce qu'il avait déjà divergé. Et l'usage n'est pas
+unique : il revient pour les dix-neuf autres documents compactés et pour la vérification d'A1b.
+
+**Trois gardes, dont deux écrites aujourd'hui :**
+
+1. l'option fait ce qu'elle dit — la seconde voie n'est jamais appelée, le producteur comparé est
+   le même, **et la phase le dit** : une comparaison menée sur un producteur imposé sans qu'on le
+   sache ne vaut rien, puisque c'est précisément ce qu'on croit mesurer ;
+2. **`executant.ts` ne la pose jamais** — contrôle sur la source, `executant.ts` étant le seul
+   chemin par lequel l'application traite un lot ;
+3. **par défaut la bascule a lieu** — ce contrôle **existait déjà** (REC-02, « une recette qui ne
+   fait que poser piste égale numéro cède la place à l'oracle »). Je ne l'ai pas doublé.
