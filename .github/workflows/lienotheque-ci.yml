@@ -88,12 +88,25 @@ jobs:
         id: playwright
         run: echo "version=$(pnpm --filter @lienotheque/app exec playwright --version | tr -dc '0-9.')" >> "$GITHUB_OUTPUT"
 
+      # La clef porte la version de l'IMAGE de l'exécutant, pas seulement celle de Playwright.
+      #
+      # Sans elle, ce job était rouge sans interruption depuis que GitHub a mis l'image à jour :
+      # le WebKit en cache (`webkit-2359`) est construit contre ICU 74, l'image est passée à
+      # ICU 78, et `install-deps` installe l'ICU du jour — jamais la 74. Le cache faisait mouche,
+      # donc `playwright install` ne retournait jamais chercher un moteur bâti pour la nouvelle
+      # image, et le MiniBrowser mourait au lancement :
+      #
+      #     MiniBrowser: error while loading shared libraries: libicudata.so.74
+      #
+      # Mesuré le 5 novembre 2026 sur l'exécution 40944685964 : 59 échecs, tous WebKit ; zéro
+      # pour Chromium et Firefox. Les « Target page … has been closed » et « kill ESRCH » qu'on
+      # lisait n'étaient que les conséquences du moteur mort.
       - name: Reprendre les moteurs en cache
         id: cache-moteurs
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ env.ImageOS }}-${{ env.ImageVersion }}-${{ steps.playwright.outputs.version }}
 
       - name: Installer les moteurs
         if: steps.cache-moteurs.outputs.cache-hit != 'true'
