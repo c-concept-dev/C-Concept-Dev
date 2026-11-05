@@ -6273,3 +6273,52 @@ par `.mise-a-jour-<id>.app` puis en gardant `.precedente-<id>.app`.
 
 **Je n'y touche pas** : c'est une écriture dans une vraie bibliothèque, donc une porte, et de
 toute façon l'application le fait mieux que moi.
+
+## 5 novembre 2026 — l'ouverture d'une bibliothèque n'écrit rien, et R2 tient
+
+**Question de Christophe avant d'ouvrir** : `migrer_les_actives` peut-il remettre `ca36cf98` sur
+l'ancienne version ? **Non.** Posé au code en l'exécutant, sur des copies, jamais sur la vraie.
+
+### La simulation, et ce qu'elle rend
+
+Un exemple Cargo (`examples/simuler-ouverture.rs`) ouvre un dépôt — ce qui déclenche le rattrapage
+— et relève l'empreinte de **chaque** fichier avant et après, pour nommer tout ce qui change et
+pas seulement ce qu'on s'attendait à voir changer. Il refuse de travailler sur un dossier dont le
+nom ne porte pas « copie-simulation » : un garde-fou qui ne dépend pas de ma vigilance.
+
+| copie | avant | après | fichiers écrits |
+|---|---|---|---|
+| **l'état actuel**, celui que R2 a écrit | `ca36cf98 → 07451d43` | `ca36cf98 → 07451d43` | **aucun** |
+| **la sauvegarde**, l'état d'avant R2 | `ca36cf98 → d183554c` | `ca36cf98 → d183554c` | **aucun** |
+
+**Rien n'est créé, modifié ni supprimé.** Aucune entrée de `actives.json` ne bouge, sur ni l'une
+ni l'autre.
+
+Deux raisons, dans le code : le rattrapage **n'écrase jamais une entrée existante**
+(`if table.contains_key(empreinte) { continue; }`) — et les 250 documents en ont une — et il
+n'écrit la table que si quelque chose a été inscrit.
+
+**Note sur la copie employée** : Christophe a demandé la simulation sur une copie de la
+sauvegarde. La sauvegarde est l'état d'**avant** R2 ; elle ne porte donc pas le cas à éprouver.
+J'ai fait les deux, et c'est la copie de l'état **actuel** qui répond à la question.
+
+### Une inexactitude dans la question, et un vrai défaut derrière
+
+Christophe a écrit « sans travail associé ». **R2 a bien écrit un travail**, `914c0ae2`. Mais en
+le comparant à un travail que l'hôte avait écrit lui-même, il est **mal formé** :
+
+| | l'hôte lit | R2 a écrit |
+|---|---|---|
+| état | `etat: "termine"` | `etat: "fini"` |
+| version | `version_cible` | `version` |
+
+**Un travail mal nommé n'est pas lu, et ne dit donc rien** — il a l'air d'être là, c'est tout.
+
+Conséquence, exactement : aucune sur l'ouverture (le rattrapage l'ignorerait de toute façon,
+l'entrée existant déjà). Une seule, et elle est à retardement : `retirer_document` retrouve les
+versions d'un document par le pointeur actif **et** par les travaux qui les visent. Tant que
+`07451d43` est active, un retrait l'emporterait. **Si une autre version devenait active et qu'on
+retirait ensuite le document, `07451d43` resterait orpheline sur le disque.**
+
+**Le script est corrigé** pour les prochaines fois. **Le travail déjà écrit, non** : le réécrire
+est une écriture dans une vraie bibliothèque, donc une porte, et elle n'a aucune urgence.

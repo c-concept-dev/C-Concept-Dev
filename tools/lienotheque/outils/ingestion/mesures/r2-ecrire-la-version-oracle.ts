@@ -228,6 +228,12 @@ console.log(`\nversion écrite : base/versions/${version}.json`);
 
 // Le travail : c'est lui qui relie une version à sa source. Sans lui, un retrait de document ne
 // retrouverait pas cette version-ci le jour où elle ne serait plus active (depot.rs le dit).
+//
+// **Les noms des champs sont ceux que l'hôte lit, et pas ceux qui me venaient.** Ma première
+// version écrivait `etat: "fini"` et `version` ; l'hôte cherche `etat: "termine"` et
+// `version_cible` (`depot.rs`, `migrer_les_actives` et `retirer_document`). Un travail mal nommé
+// n'est pas lu, et il ne dit donc rien — il a l'air d'être là, c'est tout. Mesuré le 5 novembre
+// 2026 en comparant avec un travail que l'hôte avait écrit lui-même.
 const travailId = randomUUID();
 ecrireAtomique(
   join(travaux, `${travailId}.json`),
@@ -235,10 +241,10 @@ ecrireAtomique(
     {
       id: travailId,
       empreinte,
-      version,
+      version_cible: version,
       genre: "reprise",
-      etat: "fini",
-      fini_le: Math.floor(Date.now() / 1000),
+      etat: "termine",
+      maj_le: Math.floor(Date.now() / 1000),
       ...(provenancesDuDocument === undefined ? {} : { sujet: { provenances_medias: [...provenancesDuDocument] } }),
       origine: "mesures/r2-ecrire-la-version-oracle.ts — R2 du plan A1, autorisé le 5 novembre 2026",
     },
