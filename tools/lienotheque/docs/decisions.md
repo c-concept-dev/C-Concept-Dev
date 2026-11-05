@@ -6568,3 +6568,19 @@ L'erreur levée est nommée, `ErreurDelaiOcr`, et porte le délai. **Un outil qu
 lui-même n'a pas de signal et n'est donc pas un délai** : un contrôle le vérifie. Confondre les
 deux ferait passer une page illisible pour une page « sans texte » — le repli silencieux que la
 règle du 5 novembre interdit — ou ferait relire par Vision une page qui n'a jamais été lente.
+
+## 5 novembre 2026 — à faire après A2 : passer des Aebersold par la voie oracle, à blanc
+
+**Constat de Christophe** : dans la vraie bibliothèque, seuls deux documents sont reconnus comme
+PDF + MP3. **Les Aebersold ne le sont pas** — ils n'ont jamais été traités par la voie oracle.
+
+**Demande, après A2 et en parallèle du plan du mode manuel** (lecture seule, aucune écriture) :
+
+1. choisir un ou deux volumes représentatifs, **et dire pourquoi ceux-là** ;
+2. les passer par la voie oracle **à blanc**, comme R1 : sortie hors bibliothèque, appels tracés,
+   coût relevé ;
+3. rendre : **liens proposés, publiés, abstentions et leur cause, folios, borne de fin** — et
+   c'est la **troisième famille** que la doctrine réclame pour la borne — **et ce qui manque pour
+   publier**.
+
+**Une écriture réelle viendra ensuite, sur son mot.** Elle n'est pas comprise dans cette demande.
