@@ -6081,3 +6081,47 @@ pas balayés par CLA-01, donc rien ne l'a vu.
 
 **Ce que je ne peux pas faire seul** : décider qu'une règle en vigueur sur une seule famille est
 acceptable le temps du jalon. C'est une porte, et elle est à Christophe.
+
+## 5 novembre 2026 — la borne mesurée sur la vraie bibliothèque : deux structures, pas une
+
+**Correction de ce que j'ai écrit une heure plus tôt.** J'avais dit « un témoin, trois fois ». La
+mesure, faite en lecture seule sur les deux vraies bibliothèques, dit mieux que mon jugement.
+
+### Combien de documents peuvent éprouver la borne : deux sur 495
+
+| Bibliothèque | Documents actifs | À trois repères ou plus |
+|---|---|---|
+| celle de 13 Go | 250 | **2** |
+| l'autre | 245 | **0** |
+
+**Ce n'est pas un raccourci qu'on choisit, c'est une impossibilité de mesure.** Aucune autre
+famille ne porte aujourd'hui assez de repères pour juger une règle de portée — elles n'ont pas
+encore été traitées. Le fait a été soulevé par le Claude de claude.ai, qui l'avait de mémoire et
+avec un chiffre faux ; je l'ai mesuré.
+
+### Les deux structures, et ce que la borne leur fait
+
+| Document | Repères | Écarts sûrs | Porteuses avant | Après | Pages qui perdent un lien |
+|---|---|---|---|---|---|
+| `ca36cf98`, 115 pages lues | 53 | max 3, médiane 2 | 112 | 107 | **5** — les cinq dernières du document |
+| `fc41f8c5`, 29 pages lues | 28 | max 1, médiane 1 | 28 | 28 | **aucune** |
+
+**`fc41f8c5` est une seconde structure, et elle est franchement différente** : un repère par
+feuille, 28 sur 29 pages, 99 médias, écarts tous de 1 — contre un repère tous les deux à trois
+feuillets sur `ca36cf98`. **La borne y est exactement neutre.** C'est la meilleure nouvelle qu'une
+règle neuve puisse donner sur une structure qu'elle n'a pas servi à écrire : elle ne change rien.
+
+Et sur `ca36cf98`, elle retire **cinq** pages, les cinq dernières du document — pas une page du
+milieu, pas un lien entre deux éléments. Ce qui reste à établir au niveau 3 : que ces cinq pages
+ne portaient rien. Le registre dit déjà ce qu'elles portent, Christophe l'a vérifié dans son
+lecteur ; **la vue de la Liénothèque, elle, n'a encore été regardée par personne.**
+
+**Donc, exactement** : deux structures mesurées, la règle 1 en demande trois. Il en manque une, et
+aucun document de la bibliothèque ne peut la fournir aujourd'hui.
+
+### Le filet « maximum > 2 × médiane » : non calibré, information seulement
+
+Inscrit tel quel. Il ne touche à aucun lien et ne déplace pas la borne — un contrôle le tient — et
+**aucun des deux documents réels ne le déclenche** (3 contre 2 × 2, et 1 contre 2 × 1). Seul F5 le
+déclenche, avec des écarts 2, 2, 2, 5. Sa valeur reste un « par exemple » et non une mesure : à
+calibrer quand assez de documents porteront des repères, ou à retirer s'il ne sert jamais.
