@@ -6440,3 +6440,56 @@ Trois conditions, et la première est la plus importante :
    de standards, un livre de texte — et non un document seul.
 3. **Une dizaine de pages précises** (document, feuille) à vérifier au papier, en plus de la
    référence machine.
+
+## 5 novembre 2026 — A2, mesure d'ouverture : Tesseract dit lui-même où il a échoué
+
+**Deux questions, une seule passe** (`mesures/a2-ce-que-tesseract-dit-de-lui-meme.ts`), sur le
+document du jalon.
+
+### 1. Le délai : il n'y en a aucun, et voici ce qu'une lecture normale coûte
+
+`lireParOcr` (`outils/lecteur-texte/src/ocr.ts`) appelle `execFileSync` **sans `timeout`**. Si
+Tesseract se bloque, la chaîne attend sans fin et sans rien dire.
+
+Quatorze pages lues : **la plus courte 0,2 s, la médiane 1,0 s, la plus longue 2,0 s.** C'est peu,
+et c'est une mesure sur **un seul document** — un délai posé là-dessus serait calibré sur lui.
+
+### 2. La difficulté : mon premier relevé était aveugle, et je l'ai vu avant de conclure
+
+Premier relevé, **par page** : la page du sommaire — celle dont huit lignes sont abîmées — affiche
+une confiance **médiane de 0,97** et seulement **6 % de mots sous 0,60**. Elle ne se distingue
+pas. J'allais en conclure que la confiance ne détecte pas cette difficulté.
+
+**C'était l'agrégat qui était aveugle, pas la confiance.** Relevé **mot par mot** sur la même
+page :
+
+| ligne | ce que Tesseract a lu à la place de la piste | confiance |
+|---|---|---|
+| Workout 1 | `'l` | **0,13** |
+| Workout 7 | `ie` | **0,38** |
+| Workout 12 | `Ne` puis `2p` | **0,35** et **0,00** |
+| Workout 17 | `ali?` | **0,00** |
+| Workout 20 | `eOr` puis `a4` | **0,00** et 0,44 |
+| Workout 21 | `ZI` | **0,19** |
+| Workout 37 | `of` | **0,19** |
+
+Les cases justes de la même colonne sont à **0,94 – 0,97**. **L'écart est franc, et Tesseract dit
+lui-même où il a échoué** — la chaîne conserve déjà cette confiance et ne s'en sert pas.
+
+**La leçon, et elle vaut au-delà d'A2** : une difficulté locale ne se voit pas dans une moyenne de
+page. Deux cent quarante et un mots justes noient sept cases illisibles. **Le repli doit se
+décider à la ligne, pas à la page.**
+
+### Ce que cela fixe pour A2
+
+| pièce | ce qu'elle rattrape |
+|---|---|
+| **délai effectif** | un Tesseract **bloqué** — aucun des quatre perdus |
+| **repli sur difficulté** | une case illisible dans une ligne attendue — **les quatre perdus** |
+
+Les deux sont demandées, mais ce n'est pas le délai qui ramènera les quatre éléments : **c'est le
+repli sur difficulté.** Le dire évite de mesurer le rattrapage sur la mauvaise pièce.
+
+Et le critère de déclenchement n'a pas besoin d'un seuil posé : une case dont la confiance est
+franchement inférieure à celle de la même colonne ailleurs dans le document est **mesurée dans le
+document**, comme la doctrine du 5 novembre l'exige.
