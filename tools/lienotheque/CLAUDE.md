@@ -85,11 +85,11 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 ## Plateformes
 Multiplateforme par conception : rien de propre à un seul système sans son équivalent prévu.
 **Phase 1** (tests et bêta) : macOS seul, référence macOS Tahoe 26.3 (25D125) Apple Silicon.
-**Windows n'est pas un contrôle bloquant** (décision du 17 octobre 2026) : `Mesures
-(windows-latest)` reste exécuté et lu, mais il est **informatif** et n'empêche aucune fusion.
-Il échoue aujourd'hui sur deux tests de `volume` qui posent des hypothèses POSIX — le produit,
-lui, y est correct. La transposition Windows sera reprise si la complexité s'alourdit, pas
-avant. Linux hors périmètre. Détail et réserves : `docs/decisions.md`.
+**Windows est hors périmètre** (décision du 5 novembre 2026, qui remplace celle du 17 octobre le
+rendant informatif et celle du 28 octobre « macOS puis Windows ») : `windows-latest` a quitté les
+deux matrices d'intégration continue. Le code et les scripts propres à Windows sont **conservés,
+inactifs, aucun retrait prévu**, et listés au registre. Linux hors périmètre. Détail :
+`docs/decisions.md`.
 
 ## Organisation
 ```
