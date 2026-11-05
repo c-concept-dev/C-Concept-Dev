@@ -6750,3 +6750,36 @@ par une lecture qui gère l'encodage**, et non par un contournement sur ce nom-l
 Mesurer la chaîne sur **tout le corpus de méthodes**, et non sur les deux documents qui
 fonctionnent. La voie oracle d'abord — seule, comme Christophe l'a demandé —, puis A2, pour que le
 gain d'A2 se lise et ne se suppose pas.
+
+## 5 novembre 2026 — A2, pièce 2 : le déclencheur existe déjà dans le code, et personne ne s'en sert
+
+**Après avoir réfuté mon critère par gabarit, j'ai cherché où « la lecture attendue a échoué » se
+décide. C'était déjà écrit.**
+
+`lireLaTable` (`packages/noyau/src/table.ts`) rend, pour toute table lue :
+
+| | |
+|---|---|
+| `utilisables` | les rangées dont **toutes** les cellules ont été lues et dont aucune n'est suspecte |
+| **`incompletes`** | **les rangées à trou, « nommées plutôt que comblées »** |
+| **`suspectes`** | les cellules aberrantes, avec leur rangée, leur colonne, leur valeur et **pourquoi** |
+
+Et `cellulesSuspectes` compare chaque valeur **aux autres de sa colonne** — précisément les
+« comparables » que Christophe demande, et que mon critère par gabarit cherchait à inventer.
+
+**La voie oracle appelle `lireLaTable` à deux endroits, et n'emploie ni `incompletes` ni
+`suspectes`.** C'est le même défaut que la confiance de Tesseract : **le signal est calculé, il
+n'est pas employé.** Deux fois dans la même journée, et au même endroit du raisonnement — la
+chaîne sait où elle a échoué, et elle ne se le demande pas.
+
+### Ce que cela fixe pour A2
+
+Le repli Vision se déclenche sur **les rangées `incompletes` et les cellules `suspectes`**, et
+relit **leur zone** — la boîte de la rangée ou de la cellule, que les mots lus donnent déjà. Rien
+à inventer, rien à calibrer, et aucune page entière relue : exactement ce que Christophe a
+demandé au point 3 de ses précisions.
+
+**Les quatre éléments perdus du document du jalon sont des rangées incomplètes** : `Workout 12`
+avec sa piste illisible, `Workout 17`, `Workout 20`. Le quatrième, `Workout 22`, est un conflit
+de pistes — une cellule **suspecte**, pas absente. Les deux catégories sont donc nécessaires, et
+elles suffisent.
