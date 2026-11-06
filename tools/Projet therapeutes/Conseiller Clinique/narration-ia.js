@@ -1135,6 +1135,9 @@
           texte: o.blocCible.texte, contenuBrut: o.blocCible.bloc && o.blocCible.bloc.content || null }) : toutes[i];
     var cible = (o.cible > 0) ? o.cible
       : repartirMots([etape], (typeof o.minutes === 'number' ? o.minutes : DUREE_DEFAUT_MIN)).cibles[0].mots;
+    if (o.blocCible && Math.ceil(cible * JETONS_PAR_MOT * MARGE_JSON) + JETONS_PLANCHER > JETONS_PLAFOND) {
+      throw new Error('Cette longueur dépasse la capacité d’une seule proposition. Réduisez la longueur visée ou répartissez le texte entre plusieurs blocs.');
+    }
     var dejaEcrites = o.dejaEcrites || {};
     var avant = i > 0 ? dejaEcrites[toutes[i - 1].stepId] : null;
     var apres = i + 1 < toutes.length ? dejaEcrites[toutes[i + 1].stepId] : null;
@@ -1526,7 +1529,7 @@
     seulPanneau.className = 'nia-panneau nia-paragraphe-panneau';
     seulPanneau.hidden = true;
     seulPanneau.innerHTML = '<p>La proposition vise ce bloc uniquement, avec le contexte de toute la présentation. Un paragraphe encore provisoire sera remplacé lors de l’application.</p>'
-      + '<div class="nia-ligne"><label>Longueur visée <input type="number" class="nia-paragraphe-mots" min="15" max="120" value="45"> mots</label>'
+      + '<div class="nia-ligne"><label>Longueur visée <input type="number" class="nia-paragraphe-mots" min="1" step="1" value="45"> mots</label>'
       + '<label>Adresse <select class="nia-paragraphe-adresse"><option value="vous">vous</option><option value="tu">tu</option></select></label></div>'
       + '<div class="nia-ligne"><button type="button" class="nia-paragraphe-generer">Proposer</button>'
       + '<button type="button" class="nia-paragraphe-appliquer" disabled>Appliquer à ce bloc</button>'
@@ -1560,8 +1563,8 @@
         }
       }
       var cible = Number(seulPanneau.querySelector('.nia-paragraphe-mots').value);
-      if (!Number.isInteger(cible) || cible < IA.MOTS_MIN_ETAPE || cible > IA.MOTS_MAX_ETAPE) {
-        dire(seulPanneau, 'Choisissez entre 15 et 120 mots.', true); return;
+      if (!Number.isSafeInteger(cible) || cible < 1) {
+        dire(seulPanneau, 'Indiquez un nombre entier de mots supérieur à zéro.', true); return;
       }
       var btn = this;
       btn.disabled = true;

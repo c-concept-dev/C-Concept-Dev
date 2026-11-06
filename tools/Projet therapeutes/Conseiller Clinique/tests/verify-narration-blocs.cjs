@@ -108,6 +108,25 @@ const { doc, open } = require('./presentation-edit-fixtures.cjs');
     });
     assert.deepEqual(click.errors, []);
     assert.equal(click.enabled, true, click.status);
+    const lengths = await page.evaluate(async () => {
+      const panel = document.querySelector('.cc-editor-narration .nia-paragraphe-panneau');
+      const input = panel.querySelector('.nia-paragraphe-mots');
+      const button = panel.querySelector('.nia-paragraphe-generer');
+      const results = [];
+      for (const target of [10, 250, 10000]) {
+        input.value = String(target);
+        button.click();
+        await new Promise(r => setTimeout(r, 100));
+        results.push({ target, status: panel.querySelector('.nia-etat').textContent,
+          enabled: !panel.querySelector('.nia-paragraphe-appliquer').disabled });
+      }
+      return { max: input.getAttribute('max'), results };
+    });
+    assert.equal(lengths.max, null);
+    assert.equal(lengths.results[0].enabled, true, lengths.results[0].status);
+    assert.equal(lengths.results[1].enabled, true, lengths.results[1].status);
+    assert.match(lengths.results[2].status, /capacité d’une seule proposition/);
+    assert.equal(lengths.results[2].enabled, false);
     const titleClick = await page.evaluate(async () => {
       window.NarrationIA._transportDEssai = async () => JSON.stringify([{
         stepId: 'root:card-title:card-01',
