@@ -27,7 +27,7 @@ if (base === "") {
 }
 const jeton = jetonDacces();
 if (jeton === undefined) {
-  console.log("Aucun jeton : ni dans l'environnement, ni dans le trousseau. Rien n'a été appelé.");
+  console.log("Aucun jeton au trousseau du système. Rien n'a été appelé.");
   process.exit(1);
 }
 

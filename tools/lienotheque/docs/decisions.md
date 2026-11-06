@@ -7360,6 +7360,8 @@ Relevé du 5 novembre, recompté le 6. **1 979 enregistrements**, médiane **13*
 | 17 | 3 | 95 |
 | 18 | 2 | 97 |
 | 20 | 3 | 100 |
+| 2026-11-06 | **Le jeton d'accès ne vient que du TROUSSEAU.** Le chemin par la variable `LIENOTHEQUE_JETON` est **retiré** : aucun des quinze appelants ne s'en gardait, aucune intégration continue ne la pose, et il était **silencieux** — un jeton qui traîne l'emportait sur le trousseau sans rien dire. La variable garde **un seul** rôle, le signal qui fait refuser de démarrer les douze programmes de mesure hors ligne : un signal de refus ne doit pas pouvoir servir d'accès | Voie 1 choisie par Christophe le 06/11, sur relevé des appelants ; deux contrôles tués par la mutation qui le réinstalle |
+| 2026-11-06 | **Renouvellement du jeton d'accès autorisé**, selon `docs/renouveler-le-jeton.md`, dans la fenêtre où aucune mesure en ligne ne tourne (avant 48 → 52) ; vérification par `verifier-route.ts`. Motif : le fragment de 37 caractères sur 64 passé par le **contexte du modèle**, non exploitable mais ayant voyagé. **Les deux gestes qui installent le secret sont faits par Christophe** — Claude n'entre pas un secret dans un champ, même autorisé | Autorisation de Christophe dans la fenêtre de la session, 06/11/2026 |
 | 21 | 1 | 101 |
 | 22 | 2 | 103 |
 | 23 | 1 | 104 |
@@ -8019,3 +8021,175 @@ distinguera : le mot est le même. La correction ne pouvait pas les atteindre, e
 « rareté » sont des mots de ce domaine, donc interdits dans le code générique **pour la bonne
 raison**. `rareté` y est d'ailleurs déjà, depuis le domaine des cartes à jouer. La collision est
 inoffensive par construction — mais il fallait le vérifier plutôt que le supposer.
+---
+
+## 6 novembre 2026 — le jeton ne vient plus que du trousseau
+
+Christophe a demandé un relevé avant de décider : quels appelants de `jetonDacces()` existent,
+lesquels portent la garde contre un jeton d'environnement, et pourquoi l'environnement passait
+devant. Le relevé a donné une réponse nette, et la décision a suivi : **voie 1, le chemin par
+l'environnement est retiré.**
+
+### Le relevé
+
+**Quinze appelants de `jetonDacces()`, aucun gardé.** Deux dans le produit (`traiter.ts:97`,
+`executant.ts:171`), neuf dans les mesures Vision, deux ailleurs, un dans un contrôle.
+
+**Douze programmes portent la garde** (`LIENOTHEQUE_JETON` présent → arrêt), et **aucun d'eux
+n'appelle `jetonDacces()`** : ce sont les mesures hors ligne, où un jeton n'a rien à faire.
+
+**Les deux ensembles sont disjoints.** La garde n'a donc jamais protégé un appel — elle empêche
+une mesure hors ligne de tourner dans un environnement qui porte un jeton, ce qui est son rôle
+propre et reste inchangé.
+
+**Et ce n'était pas pour l'intégration continue.** Le commentaire du code invoquait « une mise au
+point locale ». Vérifié : aucun des deux ateliers ne pose `LIENOTHEQUE_JETON`, et le seul
+contrôle en ligne se saute sur l'absence de `LIENOTHEQUE_DIAGNOSTIC_URL`. Retirer le chemin ne
+casse **aucune** intégration continue.
+
+### Ce qui a décidé
+
+Le défaut n'était pas que le chemin existe, c'est qu'il était **silencieux** : un jeton qui
+traîne dans l'environnement l'emportait sur le trousseau sans que rien ne le dise. Un jeton
+silencieux est un jeton qu'on ne sait pas avoir utilisé.
+
+Et une variable y cumulait **deux rôles contraires** : « jeton d'accès » et « signal qu'une
+mesure hors ligne doit refuser de démarrer ». Un signal de refus ne doit pas pouvoir servir
+d'accès. La voie 1 les sépare en retirant le premier ; `LIENOTHEQUE_JETON` ne garde que le
+second.
+
+### Un fait découvert en écrivant le contrôle rouge
+
+Le troisième contrôle a affiché **un fragment du vrai jeton du trousseau** dans son message
+d'écart — parce que `jetonDacces()` n'acceptait aucun lecteur injectable et interrogeait donc le
+vrai trousseau de la machine. Un contrôle qui échoue ne doit pas pouvoir citer un secret.
+
+`jetonDacces(lire = lireParSecurity)` prend désormais son lecteur en argument, comme
+`jetonDuTrousseau` le faisait déjà. La fonction s'éprouve sans toucher au trousseau réel. Ce
+n'était pas demandé ; c'est le contrôle rouge qui l'a imposé.
+
+### Où ce fragment est allé — correction de Christophe
+
+J'avais écrit que le fragment était resté dans « un fichier local qui ne quitte pas la machine ».
+**C'est faux, et Christophe l'a corrigé.** Le message d'écart est entré dans le **contexte du
+modèle**, donc il est passé par les serveurs d'Anthropic avant d'être écrit dans la transcription
+locale. Un message de contrôle n'est pas un fichier : il est lu par le modèle, et ce qu'il lit a
+voyagé.
+
+C'est la différence entre « un secret dans un fichier » et « un secret dans une conversation », et
+je l'avais effacée en décrivant la recherche par ses seuls résultats sur disque. La recherche était
+juste ; sa conclusion sur la portée ne l'était pas.
+
+**La conclusion de risque, elle, ne change pas** : trente-sept caractères hexadécimaux sur
+soixante-quatre, c'est cent huit bits manquants. Le fragment n'est pas exploitable, où qu'il soit
+passé. Mais la portée d'une fuite se mesure à l'endroit où le secret est allé, pas à l'endroit où
+on le retrouve.
+
+### Le relevé, pour mémoire
+
+Cherché par un motif lu **depuis le trousseau par le script lui-même**, pour qu'il n'apparaisse
+dans aucune commande ni aucune réponse :
+
+| Endroit | Trouvé |
+|---|---|
+| fichiers suivis et **index Git**, les deux copies du dépôt | non |
+| bac de session, sorties de tâches, `mesures/sorties/`, fichiers non suivis | non |
+| `/tmp`, `/private/tmp`, `~/.claude` hors transcriptions | non |
+| transcription de la session | **oui, 2 occurrences** |
+
+Longueur présente : **37 caractères**. Les préfixes de 40, 48, 56 et 64 donnent zéro. Le jeton
+entier n'est nulle part sur le disque.
+
+### La contre-épreuve
+
+Mutation : le chemin par l'environnement revient devant le trousseau. **Deux contrôles meurent** —
+« ne prend pas un jeton posé dans l'environnement » et « prend celui du trousseau, même quand
+l'environnement en porte un autre ». Restauré octet pour octet.
+
+`jetonDeLEnvironnement` est **supprimée**, et non conservée au cas où : elle n'avait plus aucun
+appelant hors de son propre contrôle. Les douze programmes hors ligne lisent `process.env`
+directement et ne passaient pas par elle.
+---
+
+## 6 novembre 2026 — renouvellement du jeton d'accès : autorisé
+
+**Autorisation de Christophe**, dans la fenêtre de la session, le 6 novembre 2026 :
+
+> « Renouvellement du jeton AUTORISÉ, selon `docs/renouveler-le-jeton.md`, au moment où aucune
+> mesure en ligne ne tourne (avant la mesure 48 → 52). Vérification par `verifier-route.ts`. »
+
+Motif : le fragment de trente-sept caractères passé par le contexte du modèle. Non exploitable —
+cent huit bits manquants — mais un secret dont on sait qu'il a voyagé se renouvelle, et il se
+renouvelle quand c'est bon marché. Il l'est aujourd'hui : aucune mesure en ligne ne tourne encore.
+
+**Fenêtre choisie : avant la mesure 48 → 52.** `laisserEntrer` ne compare qu'à une seule valeur
+attendue : pendant la bascule, l'ancien jeton rend 401 et la machine ne passe plus. Renouveler
+pendant une mesure de cent seize pages la ferait échouer en plein vol, et l'échec ressemblerait à
+une panne de Vision.
+
+### Ce que Claude n'exécute pas, et pourquoi
+
+Les deux gestes qui **installent** le secret — le poser sur le Worker, le poser au trousseau —
+sont faits par Christophe. Ce n'est pas la règle 6 du CDC qui l'impose ici, c'est une règle de
+l'assistant : **il n'entre pas un secret dans un champ**, même autorisé, même sur l'infrastructure
+de son utilisateur, même avec la procédure écrite devant lui.
+
+Cette frontière tombe d'ailleurs bien : les deux commandes de la procédure demandent leur valeur
+sur **l'entrée standard**, précisément pour qu'elle n'entre pas dans l'historique du shell. Elles
+sont faites pour une main humaine.
+
+Ce que Claude fait : la procédure (écrite), le choix de la fenêtre, l'inscription ici, et la
+**vérification** par `verifier-route.ts` une fois les deux côtés posés — celle-là n'installe rien
+et ne dépense rien, elle touche la route avec le jeton que le trousseau porte déjà.
+
+### État
+
+| Geste | Qui | Fait |
+|---|---|---|
+| fabriquer le jeton, dans une variable du Terminal, jamais affiché | Christophe | **fait** |
+| poser `JETON_ACCES` sur `lienotheque-api` | Christophe | **fait** |
+| poser le jeton au trousseau `lienotheque-jeton` | Christophe | **fait** |
+| vérifier par `verifier-route.ts` | Claude | **fait, 7 / 7** |
+| consigner que l'ancien est mort | Claude | **fait, ci-dessous** |
+
+### La vérification, le 6 novembre 2026
+
+```
+✓ santé : conforme à son contrat                 attendu 200 + contrat   obtenu 200 + contrat
+✓ sans jeton : refusé                            attendu 401            obtenu 401
+✓ mauvais jeton, même longueur : refusé          attendu 401            obtenu 401
+✓ mauvais jeton, autre longueur : refusé         attendu 401            obtenu 401
+✓ demande hors contrat : refusée                 attendu 400            obtenu 400
+✓ bon jeton : réponse conforme au contrat        attendu 200 + contrat   obtenu 200 + contrat
+✓ route inconnue : refusée                       attendu 404            obtenu 404
+7 / 7 contrôles passés, et rien à cacher dans les réponses.
+```
+
+1076 jetons d'entrée comptés par le comptage, **rien dépensé** : la route et le contrat sont
+éprouvés, pas la lecture.
+
+### L'ancien jeton est mort — ce qui le prouve, et ce qui ne le prouve pas
+
+**Ce que je n'ai pas fait** : présenter l'ancien jeton et constater son 401. Je ne l'ai jamais
+tenu en entier — trente-sept caractères sur soixante-quatre sont passés dans un message d'écart,
+jamais les soixante-quatre. Je ne peux donc pas produire cette mesure, et je ne vais pas la
+raconter comme si je l'avais faite.
+
+**Ce qui le prouve quand même**, par trois faits qui se tiennent ensemble :
+
+1. `laisserEntrer` compare le jeton présenté à **une seule** valeur attendue, `JETON_ACCES`
+   (`apps/worker/src/app.ts`). Il n'existe aucune liste, aucune fenêtre à deux valeurs.
+2. Le nouveau jeton **passe** : le Worker attend donc le nouveau, et lui seul.
+3. Un mauvais jeton **de la même longueur** est refusé par un 401, mesuré ci-dessus. La porte ne
+   se contente pas d'un format plausible.
+
+De 1, 2 et 3 : toute valeur autre que le jeton courant reçoit un 401. L'ancien en est une.
+**Il est mort**, et cette conclusion est une déduction explicite, pas une observation déguisée.
+
+### Textes devenus faux, corrigés dans le même lot
+
+Cinq programmes annonçaient « aucun jeton : ni dans l'environnement, ni dans le trousseau », et
+un en-tête décrivait encore « environnement d'abord, trousseau ensuite ». C'étaient des phrases
+vraies le matin et fausses l'après-midi. Un message d'erreur qui nomme une source que le code ne
+lit plus envoie chercher au mauvais endroit — et c'est précisément quand on cherche un jeton
+manquant qu'on n'a pas de temps à perdre.

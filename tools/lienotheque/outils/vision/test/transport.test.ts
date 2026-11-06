@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { DemandeVision, ReponseVision } from "@lienotheque/contrats";
-import { describe, expect, it } from "vitest";
-import { jetonDeLEnvironnement, jetonDuTrousseau, SERVICE_TROUSSEAU, transportVersWorker } from "../src/index.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { jetonDacces, jetonDuTrousseau, SERVICE_TROUSSEAU, transportVersWorker } from "../src/index.js";
 
 const JETON = "jeton-de-test";
 const EMPREINTE = "a".repeat(32);
@@ -63,14 +63,35 @@ describe("le chemin vers le Worker (OUT-08, règle 6)", () => {
   });
 });
 
-describe("le jeton vient de l'environnement (SEC-01)", () => {
-  it("le prend quand il est là", () => {
-    expect(jetonDeLEnvironnement({ LIENOTHEQUE_JETON: "abc" })).toBe("abc");
+/** Le jeton ne vient QUE du trousseau (SEC-01, décision de Christophe du 6 novembre 2026).
+ *
+ *  Le chemin par l'environnement est retiré : il n'avait aucun appelant gardé, aucune
+ *  intégration continue ne pose la variable, et il était **silencieux** — un jeton qui traîne
+ *  dans l'environnement l'emportait sur le trousseau sans que rien ne le dise.
+ *
+ *  `LIENOTHEQUE_JETON` garde un rôle, mais un seul : **un signal de refus** pour les programmes
+ *  de mesure hors ligne, qui s'arrêtent quand ils le voient. Un signal de refus ne doit pas
+ *  pouvoir servir d'accès ; c'est tout l'objet de ces contrôles. */
+describe("le jeton ne vient que du trousseau (SEC-01)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it("ne rend rien quand il manque ou qu'il est vide : ce n'est pas une panne", () => {
-    expect(jetonDeLEnvironnement({})).toBeUndefined();
-    expect(jetonDeLEnvironnement({ LIENOTHEQUE_JETON: "" })).toBeUndefined();
+  it("ne prend pas un jeton posé dans l'environnement", () => {
+    vi.stubEnv("LIENOTHEQUE_JETON", "venu-de-l-environnement");
+    const absentDuTrousseau = (): string => {
+      throw new Error("The specified item could not be found in the keychain.");
+    };
+    expect(jetonDacces(absentDuTrousseau)).toBeUndefined();
+  });
+
+  it("prend celui du trousseau, même quand l'environnement en porte un autre", () => {
+    vi.stubEnv("LIENOTHEQUE_JETON", "venu-de-l-environnement");
+    expect(jetonDacces(() => "venu-du-trousseau\n")).toBe("venu-du-trousseau");
+  });
+
+  it("rend le jeton du trousseau quand l'environnement est vide", () => {
+    expect(jetonDacces(() => "venu-du-trousseau")).toBe("venu-du-trousseau");
   });
 });
 

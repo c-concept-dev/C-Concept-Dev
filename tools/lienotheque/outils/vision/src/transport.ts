@@ -59,11 +59,6 @@ export function transportVersWorker(base: string, jeton: string, appeler: typeof
  *
  *  Rendu `undefined` plutôt que levé : une application sans jeton n'est pas en panne, elle n'a
  *  simplement pas de relecture ciblée — et doit le dire plutôt que de s'arrêter. */
-export const jetonDeLEnvironnement = (env: Record<string, string | undefined> = process.env): string | undefined => {
-  const valeur = env.LIENOTHEQUE_JETON;
-  return valeur === undefined || valeur.length === 0 ? undefined : valeur;
-};
-
 /** Service sous lequel le trousseau du système garde le jeton. */
 export const SERVICE_TROUSSEAU = "lienotheque-jeton";
 
@@ -91,8 +86,27 @@ const lireParSecurity = (service: string): string =>
     stdio: ["ignore", "pipe", "ignore"],
   });
 
-/** Le jeton, d'où qu'il vienne : l'environnement d'abord, le trousseau ensuite.
+/** Le jeton, et il n'a qu'une source : **le trousseau du système**.
  *
- *  L'environnement passe devant parce qu'il permet de viser un autre jeton sans toucher au
- *  trousseau — pour une mise au point locale, par exemple. */
-export const jetonDacces = (): string | undefined => jetonDeLEnvironnement() ?? jetonDuTrousseau();
+ *  Il a existé un second chemin, par la variable `LIENOTHEQUE_JETON`, passant devant le
+ *  trousseau. Il est retiré (décision de Christophe du 6 novembre 2026), pour trois raisons
+ *  mesurées le même jour :
+ *
+ *  - **aucun appelant ne s'en gardait.** Les quinze appelants de cette fonction n'avaient pas la
+ *    garde, et les douze programmes qui portaient la garde ne l'appelaient pas : deux ensembles
+ *    disjoints. Le chemin n'était donc protégé nulle part.
+ *  - **aucune intégration continue n'en dépendait.** Les deux ateliers ne posent pas la variable,
+ *    et le seul contrôle en ligne se saute sur l'absence d'adresse du Worker.
+ *  - **il était silencieux.** Un jeton qui traîne dans l'environnement l'emportait sur le
+ *    trousseau sans que rien ne le dise, et un jeton silencieux est un jeton qu'on ne sait pas
+ *    avoir utilisé.
+ *
+ *  `LIENOTHEQUE_JETON` garde un rôle, et **un seul** : un signal de refus pour les programmes de
+ *  mesure hors ligne, qui s'arrêtent quand ils le voient. Un signal de refus ne doit pas pouvoir
+ *  servir d'accès — c'était exactement le cumul des deux rôles dans une même variable.
+ *
+ *  `lire` est injectable pour que cette fonction s'éprouve **sans interroger le vrai trousseau**.
+ *  Sans cela, un contrôle qui échoue affiche le vrai jeton dans son message d'écart : c'est
+ *  arrivé en écrivant le contrôle rouge de cette décision. */
+export const jetonDacces = (lire = lireParSecurity): string | undefined =>
+  jetonDuTrousseau(SERVICE_TROUSSEAU, lire);

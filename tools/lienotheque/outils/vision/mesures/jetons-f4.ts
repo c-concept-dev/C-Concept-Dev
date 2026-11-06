@@ -9,8 +9,8 @@
  *  information, mais peut changer ce que le modèle voit — et cela se paie. On mesure donc le prix
  *  de chaque échelle avant de choisir ; la justesse de chacune se mesurera à part, en dépensant.
  *
- *  Le jeton d'accès est lu au moment de l'appel — environnement d'abord, trousseau du système
- *  ensuite — gardé en mémoire seulement, et jamais affiché. La clé du modèle n'est pas ici : elle
+ *  Le jeton d'accès est lu au moment de l'appel, au trousseau du système — gardé en mémoire
+ *  seulement, et jamais affiché. La clé du modèle n'est pas ici : elle
  *  est dans le Worker, et c'est tout l'intérêt.
  *
  *     pnpm --filter @lienotheque/vision exec tsx mesures/jetons-f4.ts <url>
@@ -25,7 +25,7 @@ import { jetonDacces, recadrerPour, type Candidat } from "../src/index.js";
 const BASE = (process.argv[2] ?? "http://127.0.0.1:8787").replace(/\/$/, "");
 const JETON = jetonDacces();
 if (JETON === undefined) {
-  console.log("Aucun jeton : ni dans l'environnement, ni dans le trousseau. Rien n'a été appelé.");
+  console.log("Aucun jeton au trousseau du système. Rien n'a été appelé.");
   process.exit(0);
 }
 
