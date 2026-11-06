@@ -6948,3 +6948,58 @@ complètement échoué. Sur les cases vraiment abîmées — celles de Christoph
 rendent du bruit sans jamais s'accorder. **C'est l'argument pour Vision, et il est maintenant
 mesuré au lieu d'être supposé** : la relecture locale d'abord, gratuite ; Vision ensuite, sur ce
 qui reste sans accord, et seulement là.
+
+## 6 novembre 2026 — La voie oracle sur six familles du banc : le tableau, et ce qu'il ne mesure pas
+
+Voie oracle **seule**, sans A2, sans relecture ciblée, sans aucun appel en ligne — la référence
+d'avant A2 que Christophe a demandée le 5 novembre.
+
+| Jeu | pages | méd | élém | folios | porteuses | lecture | min | abstention |
+|---|---|---|---|---|---|---|---|---|
+| '70s Funk & Disco Bass | 8 | 11 | **28** | 8 | 8 | ocr 7 | 2 | corroboration insuffisante |
+| Aebersold 001 | 8 | 11 | 0 | 0 | 0 | ocr 8 | **28** | aucun repère |
+| Aebersold 002 | 8 | 11 | **6** | 3 | 6 | ocr 8 | 26 | corroboration insuffisante |
+| Aebersold 041 | 8 | **0** | 0 | 0 | 0 | ocr 8 | 19 | aucun repère |
+| Bass Aerobics (le jalon) | 8 | 11 | 1 | 1 | 1 | ocr 7 | 9 | corroboration insuffisante |
+| Paul Westwood 1 | 16 | 11 | 1 | 1 | 1 | ocr 7 | 2 | corroboration insuffisante |
+
+### Ce que le tableau ne mesure pas, et qu'il serait faux de lui faire dire
+
+Le document du jalon publie **48 liens** dans la vraie bibliothèque, et rend **1 élément** ici. Ce
+n'est pas une régression : c'est **arithmétiquement impossible autrement**. Son extrait porte 8
+pages sur 116 et 11 médias sur 52 ; le seuil de corroboration pour un vivier de onze est de
+**huit lignes à recouper**, et les repères ne peuvent venir que des huit pages retenues. La table
+des pistes y liste bien ses cinquante-deux enregistrements — aucun n'a de repère à confronter.
+
+**Le banc mesure si la chaîne s'engage avec la structure d'un document** — table trouvée, folios
+lus, éléments proposés. **Il ne mesure pas ce qu'elle publierait.** Lire « 28 pour Funk contre 1
+pour Bass Aerobics » comme un classement serait l'erreur exacte : dans la vraie bibliothèque c'est
+l'inverse. Pour les liens publiés, il faut les documents entiers.
+
+### Trois choses que le tableau apprend, elles
+
+**Aucune page de ces six documents n'a de couche texte lisible.** `couche 0` partout, 45 pages
+reconnues sur 45. La mesure du 30 octobre sur dix-sept documents se confirme sur six familles
+différentes.
+
+**Le coût est inversement lié au succès.** Funk trouve 28 éléments en 2 minutes ; Aebersold 001
+n'en trouve aucun en 28. Quand un endroit l'emporte tôt, l'exploration s'arrête ; quand rien ne
+l'emporte, elle essaie tout. Le code le disait déjà — « jusqu'à 182 essais et 839 s pour conclure
+qu'il n'y a rien » — et la mesure le confirme sur d'autres documents.
+
+**Moyenne réelle : 14 min par jeu, soit 27 heures pour 115 — et non les quarante que j'ai
+annoncées il y a deux heures.** Mon extrapolation partait des jeux lents. Les six donnent 86
+minutes en tout.
+
+### Deux défauts
+
+**Dix-neuf minutes dépensées sur un document sans vivier.** Aebersold 041 n'a aucun média — son
+archive est un PDF seul. Rien n'aurait pu être publié, et la voie oracle a tout de même exploré
+ses huit pages. Le vivier n'est regardé qu'à la fin, par `corroborerParTable` ; il devrait l'être
+avant la première reconnaissance.
+
+**L'abstention nomme la mauvaise cause.** `medias_non_interpretes` s'affiche quand la voie oracle
+n'a trouvé **aucun repère sur les pages** — rien à voir avec les médias. Un lecteur qui lit
+« médias non interprétés » sur l'écran Vérifier ira regarder ses noms de fichiers, alors que le
+document ne porte simplement pas de numérotation lisible. C'est le cas d'Aebersold 001 **et** 041,
+dont l'un a onze médias et l'autre aucun : la même phrase pour deux situations opposées.
