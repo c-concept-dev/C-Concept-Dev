@@ -6783,3 +6783,75 @@ demandé au point 3 de ses précisions.
 avec sa piste illisible, `Workout 17`, `Workout 20`. Le quatrième, `Workout 22`, est un conflit
 de pistes — une cellule **suspecte**, pas absente. Les deux catégories sont donc nécessaires, et
 elles suffisent.
+
+## 6 novembre 2026 — A2, pièce 2 : la zone sort des mots, pas d'un réglage
+
+`lireLaTable` disait **qu'une** case était en défaut, jamais **où**. Relire voulait donc dire
+relire la page entière : le prix d'une page pour rattraper une case. `TableLue` rend maintenant
+`aRelire`, une entrée par case en défaut — les cellules non lues des rangées à trou, et les
+cellules suspectes — avec sa boîte.
+
+**Tout vient des mots déjà lus.** La bande verticale, des boîtes de la rangée elle-même ; la bande
+horizontale, du centre et de l'étendue de la colonne visée, élargis de **ce qu'un nombre occupe
+dans ce panneau** — la médiane des largeurs des nombres qui y ont été lus. Aucune constante
+géométrique n'entre là : un nombre ne s'écarte pas de sa colonne de plus que sa propre largeur,
+et c'est une propriété de la composition, pas un réglage à ajuster document par document.
+
+Une table en deux panneaux garde ses zones dans **son** panneau : les colonnes d'un panneau ne
+sont pas celles de l'autre, et une rangée se souvient de la ligne et du panneau dont elle vient.
+
+### Trois règles écrites puis retirées, parce qu'aucun contrôle ne mourait de leur retrait
+
+Douze contrôles, douze mutations. Dix sont mortes du premier coup. **Deux ont survécu**, et une
+troisième après coup — et la doctrine du 5 novembre vaut aussi contre moi :
+
+| Ce que j'avais écrit | Pourquoi c'est parti |
+|---|---|
+| Un dédoublonnage des cases | Une case non lue n'a pas de valeur, donc ne peut pas être suspecte ; et `cellulesSuspectes` ne nomme jamais deux fois la même case. La garde ne protégeait de rien |
+| Un tri des zones par position | Personne ne lit cette liste dans cet ordre. L'ordre était déjà déterminé sans elle |
+| — | La garde « ce n'est pas une table » **est restée** : un vrai cas la fait mourir (cinq rangées, deux colonnes, une à trou et deux suspectes : deux rangées nettes ne font pas une table, et il n'y a rien à rattraper là) |
+
+Le contrôle du dédoublonnage ne vérifiait rien : il comparait deux cases **différentes**. Il dit
+maintenant ce qui est vrai — les deux causes désignent nécessairement deux cases distinctes.
+
+## 6 novembre 2026 — Ce que la voie oracle coûte vraiment : cinq reconnaissances par seconde
+
+Le premier passage du banc sur six familles a donné **1 599 s et 1 101 s pour huit pages** — deux
+cents secondes par page, là où les durées mesurées le 5 novembre sur quatre familles donnaient
+des médianes de 0,4 à 1,1 s. L'écart n'est pas une lenteur : c'est une autre unité de travail.
+
+Relevé en comptant les processus distincts pendant vingt secondes : **105 appels à Tesseract**,
+chacun très court, soit environ **cinq par seconde**. La voie oracle ne lit pas huit pages : elle
+éprouve des dizaines de zones candidates × plusieurs façons de lire × un échantillon
+d'apparitions, et chaque essai est une reconnaissance sur une fenêtre de quelques dizaines de
+pixels. Le compteur `reconnaissances` existe déjà dans le code ; c'est bien le travail prévu.
+
+**Ce que cela change pour la décision des 115 :** environ 22 min par jeu de huit pages, soit
+**quarante heures** pour 115 jeux, et non les quinze annoncées hier. L'estimation d'hier venait
+d'un jeu dont la voie avait abandonné tôt.
+
+**Ce que cela change pour A2 :** le plafond absolu d'un délai ne peut pas se poser « par page ».
+L'unité de la voie oracle est la **fenêtre**, et il y en a des milliers par document. Un délai par
+appel, oui ; un plafond par page n'a pas de sens ici.
+
+## 6 novembre 2026 — Mon banc mesurait son propre défaut : une empreinte fabriquée depuis un nom
+
+Quatre des six jeux ont échoué sur un refus de contrat : `pages[n] … /^[0-9a-f]{64}$/`. La cause
+était dans **ma mesure**, pas dans le produit — `banc-voie-oracle.ts` fabriquait l'empreinte d'un
+média en complétant son **nom** à soixante-quatre caractères. Un nom de fichier n'est pas de
+l'hexadécimal. L'empreinte vient maintenant des **octets**.
+
+Deux leçons, et la seconde est la plus coûteuse :
+
+1. **Le refus tombait tard.** Il arrive à la construction de l'écran, donc *après* la
+   reconnaissance : vingt minutes de travail par jeu avant d'apprendre que l'entrée était
+   invalide. Une donnée inventée doit être refusée là où elle est inventée.
+2. **J'avais tronqué le message d'erreur à 160 caractères** dans le rapport, et à 80 à l'écran. Le
+   chemin de l'erreur — ce qui nomme la cause — était coupé juste avant le nom du champ. J'ai
+   cherché la cause dans le produit pendant un long moment, à cause d'une troncature que j'avais
+   écrite moi-même. **Un rapport d'échec ne tronque pas la cause.**
+
+Et les deux jeux qui ont abouti ont dit quelque chose de vrai : Aebersold 001 et 041 rendent
+**zéro élément**, avec `medias_non_interpretes` et un doute `maniere_inadaptee`. L'archive
+d'Aebersold 041 n'a d'ailleurs **aucun audio** — c'est le « 1 PDF seul » de l'inventaire des 116,
+vérifié dans l'archive. Il ne peut pas servir à mesurer une association.

@@ -27,8 +27,8 @@
   "version": 2,
   "axes": [
    {
-    "cle": "style-musical",
-    "nom": "Style musical",
+    "cle": "axe-1",
+    "nom": "Axe 1",
     "nature": "etiquettes",
     "cardinalite": "plusieurs",
     "structure": "plat",
@@ -37,25 +37,265 @@
     "alias": []
    },
    {
-    "cle": "type-de-ressource",
-    "nom": "Type de ressource",
+    "cle": "axe-2",
+    "nom": "Axe 2",
     "nature": "referentiel",
     "cardinalite": "une",
     "structure": "hierarchique",
     "roleCommun": "categorie",
     "obligatoire": false,
-    "valeurs": [],
+    "valeurs": [
+     {
+      "cle": "valeur-2-1",
+      "nom": "Valeur 2.1",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-2",
+      "nom": "Valeur 2.2",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-3",
+      "nom": "Valeur 2.3",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-4",
+      "nom": "Valeur 2.4",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-5",
+      "nom": "Valeur 2.5",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-6",
+      "nom": "Valeur 2.6",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-7",
+      "nom": "Valeur 2.7",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-8",
+      "nom": "Valeur 2.8",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-9",
+      "nom": "Valeur 2.9",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-10",
+      "nom": "Valeur 2.10",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-11",
+      "nom": "Valeur 2.11",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-12",
+      "nom": "Valeur 2.12",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-13",
+      "nom": "Valeur 2.13",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-14",
+      "nom": "Valeur 2.14",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-15",
+      "nom": "Valeur 2.15",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-16",
+      "nom": "Valeur 2.16",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-17",
+      "nom": "Valeur 2.17",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-18",
+      "nom": "Valeur 2.18",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-19",
+      "nom": "Valeur 2.19",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-20",
+      "nom": "Valeur 2.20",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-21",
+      "nom": "Valeur 2.21",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-22",
+      "nom": "Valeur 2.22",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-23",
+      "nom": "Valeur 2.23",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-24",
+      "nom": "Valeur 2.24",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-25",
+      "nom": "Valeur 2.25",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-26",
+      "nom": "Valeur 2.26",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-27",
+      "nom": "Valeur 2.27",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-28",
+      "nom": "Valeur 2.28",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-29",
+      "nom": "Valeur 2.29",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-2-30",
+      "nom": "Valeur 2.30",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     }
+    ],
     "alias": []
    },
    {
-    "cle": "etat-audio",
-    "nom": "État audio",
+    "cle": "axe-3",
+    "nom": "Axe 3",
     "nature": "referentiel",
     "cardinalite": "une",
     "structure": "plat",
     "roleCommun": "etat",
     "obligatoire": false,
-    "valeurs": [],
+    "valeurs": [
+     {
+      "cle": "valeur-3-1",
+      "nom": "Valeur 3.1",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-3-2",
+      "nom": "Valeur 3.2",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-3-3",
+      "nom": "Valeur 3.3",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     },
+     {
+      "cle": "valeur-3-4",
+      "nom": "Valeur 3.4",
+      "alias": [],
+      "synonymes": [],
+      "retiree": false
+     }
+    ],
     "alias": []
    }
   ]

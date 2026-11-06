@@ -13,6 +13,7 @@
  *
  *  Usage : banc-voie-oracle.ts <dossier-du-banc> <sortie.json> [combien]
  */
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { instantaneDeLot } from "../src/lot.js";
@@ -57,7 +58,10 @@ for (const jeu of jeux) {
       provenancesMedias: [`banc:${nom}`],
       inventaireMedias: medias.map((n) => ({
         nom: n,
-        empreinte: n.padEnd(64, "0").slice(0, 64),
+        // L'empreinte **vient des octets**, jamais du nom. Une empreinte fabriquée depuis le nom
+        // n'est pas de l'hexadécimal : le contrat la refuse, et le refus tombe tard — après la
+        // reconnaissance, là où on croit mesurer la lecture.
+        empreinte: createHash("sha256").update(readFileSync(join(dossierMedias, n))).digest("hex"),
         provenances: [`banc:${nom}`],
       })),
       description: DESCRIPTION,
@@ -86,7 +90,7 @@ for (const jeu of jeux) {
         `${String(elements).padStart(3)} éléments · ${String(folios).padStart(3)} folios · ${ab?.raison ?? "publie"}`,
     );
   } catch (souci) {
-    resultats.push({ jeu: nom, erreur: String((souci as Error).message).slice(0, 160) });
+    resultats.push({ jeu: nom, erreur: String((souci as Error).message) });
     console.log(`  ${nom.slice(0, 44).padEnd(44)} ÉCHEC : ${String((souci as Error).message).slice(0, 80)}`);
   }
 }
