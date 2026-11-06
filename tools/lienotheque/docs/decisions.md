@@ -7078,3 +7078,44 @@ construire pour elle ce qu'on construirait pour cent quinze serait se tromper d'
 114 viviers sur 115 ont une place candidate — y compris le numéro de disque, constant. Ce qui
 distingue la page du rang de piste, ce sont **les folios lus**, et rien d'autre : la confrontation
 que Christophe a nommée n'est pas un raffinement du mécanisme, elle **est** le mécanisme.
+
+## 6 novembre 2026 — A2 sur un livre entier : 99,5 % du coût part dans des pages qui ne sont pas des tables
+
+Le document du jalon, 116 pages, relecture locale sur **toutes** ses cases en défaut :
+
+| | |
+|---|---|
+| Tables détectées à cases en défaut | **57** |
+| Rangées utilisables | 87 → **96 (+9)** |
+| Appels de reconnaissance | **23 284** |
+| Durée | **1 414 s, soit 23 minutes** |
+
+Et voici où cela part :
+
+| | cases en défaut | gain |
+|---|---|---|
+| Pages 1 à 5 — dont **la seule vraie table**, la liste des pistes | **27** | **+1 rangée** |
+| Pages 6 à 116 — le corps du livre, en tablature | **5 794** | +8 rangées |
+
+**99,5 % des cases, 23 176 appels sur 23 284, et 1 414 secondes sur 1 420, vont à des pages qui
+ne portent aucune table.** Ce sont les chiffres de la tablature, alignés en colonnes sur
+cinquante rangées : exactement ce que `colonnesDeNombres` cherche. Vérifié à l'œil sur la page 8,
+rendue en PNG — c'est le chapitre 1.
+
+Les « +8 rangées » gagnées là ne valent rien non plus : une rangée utilisable de tablature n'est
+pas un enregistrement.
+
+### Ce que cela décide, et c'est un renversement de priorité
+
+**Le repli Vision ne doit pas être branché avant que le détecteur de table cesse de voir des
+tables dans la musique.** Branché aujourd'hui, il dépenserait son budget à mille contre un sur des
+pages de partition — et la facture serait réelle, elle.
+
+Le détecteur a besoin d'une question qu'il ne pose pas : **ces colonnes de nombres forment-elles
+des enregistrements ?** Une liste de pistes a des intitulés répétés, des valeurs bornées par le
+vivier, une colonne qui suit les folios. Une tablature n'a rien de cela — ses nombres sont des
+cases de manche, entre 0 et une vingtaine, sans intitulé et sans ordre croissant d'une rangée à
+l'autre. Rien de tout cela n'est propre à un domaine : ce sont des propriétés de la **forme**.
+
+Le chiffrage est fait, et il vaut pour la décision : **23 minutes et vingt-trois mille
+reconnaissances pour un livre, afin de gagner une rangée dans la seule table qui compte.**
