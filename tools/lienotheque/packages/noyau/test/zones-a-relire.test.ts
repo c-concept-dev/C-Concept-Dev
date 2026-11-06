@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { MotLu } from "@lienotheque/contrats";
 import { lireLaTable } from "../src/index.js";
 
+/** Ce qu'un document de douze enregistrements offre : assez pour que la colonne de gauche,
+ *  qui va de 1 à 10, puisse en désigner un. */
+const DOUZE = { enregistrements: 12 };
+
 /** A2 — où relire, quand une rangée ou une cellule demande une seconde lecture (OUT-10, OUT-05).
  *
  *  La table se dit déjà en défaut : elle nomme ses rangées à trou et ses cellules suspectes. Ce
@@ -37,7 +41,7 @@ const pleine = Array.from({ length: 10 }, (_, rang) => [rang + 1, 6 + rang * 2] 
 
 describe("A2 — la zone à relire d'une rangée à trou (OUT-10)", () => {
   it("ne propose rien quand toutes les rangées sont pleines et nettes", () => {
-    const lue = lireLaTable(table(pleine));
+    const lue = lireLaTable(table(pleine), DOUZE);
     expect(lue.incompletes).toEqual([]);
     expect(lue.suspectes).toEqual([]);
     expect(lue.aRelire).toEqual([]);
@@ -47,7 +51,7 @@ describe("A2 — la zone à relire d'une rangée à trou (OUT-10)", () => {
     const valeurs = pleine.map((couple, rang) =>
       rang === 4 ? ([undefined, couple[1]] as const) : couple,
     );
-    const lue = lireLaTable(table(valeurs));
+    const lue = lireLaTable(table(valeurs), DOUZE);
     expect(lue.incompletes).toEqual([4]);
     expect(lue.aRelire).toHaveLength(1);
     expect(lue.aRelire[0]!.rangee).toBe(4);
@@ -59,7 +63,7 @@ describe("A2 — la zone à relire d'une rangée à trou (OUT-10)", () => {
     const valeurs = pleine.map((couple, rang) =>
       rang === 4 ? ([undefined, couple[1]] as const) : couple,
     );
-    const zone = lireLaTable(table(valeurs)).aRelire[0]!;
+    const zone = lireLaTable(table(valeurs), DOUZE).aRelire[0]!;
     // La rangée 4 est à y = 568 + 4 × 83 = 900, mots de hauteur 34.
     expect(zone.y).toBeLessThanOrEqual(900);
     expect(zone.y + zone.h).toBeGreaterThanOrEqual(934);
@@ -71,7 +75,7 @@ describe("A2 — la zone à relire d'une rangée à trou (OUT-10)", () => {
     const valeurs = pleine.map((couple, rang) =>
       rang === 4 ? ([undefined, couple[1]] as const) : couple,
     );
-    const zone = lireLaTable(table(valeurs)).aRelire[0]!;
+    const zone = lireLaTable(table(valeurs), DOUZE).aRelire[0]!;
     // La colonne manquante est celle de x = 793 ; l'autre est à 955.
     expect(zone.x).toBeLessThanOrEqual(793);
     expect(zone.x + zone.l).toBeLessThan(955);
@@ -83,7 +87,7 @@ describe("A2 — la zone à relire d'une rangée à trou (OUT-10)", () => {
     const valeurs = pleine.map((couple, rang) =>
       rang === 4 ? ([undefined, couple[1]] as const) : couple,
     );
-    const zone = lireLaTable(table(valeurs)).aRelire[0]!;
+    const zone = lireLaTable(table(valeurs), DOUZE).aRelire[0]!;
     // Les nombres de cette colonne font 18 ou 36 de large : la zone doit en contenir un, sans
     // couvrir l'écart qui la sépare de la colonne voisine (162).
     expect(zone.l).toBeGreaterThanOrEqual(36);
@@ -94,7 +98,7 @@ describe("A2 — la zone à relire d'une rangée à trou (OUT-10)", () => {
     const valeurs = pleine.map((couple, rang) =>
       rang === 4 ? ([undefined, undefined] as const) : couple,
     );
-    const lue = lireLaTable(table(valeurs));
+    const lue = lireLaTable(table(valeurs), DOUZE);
     expect(lue.incompletes).toEqual([]);
     expect(lue.aRelire).toEqual([]);
   });
@@ -113,7 +117,7 @@ describe("A2 — la zone à relire d'une rangée à trou (OUT-10)", () => {
       const autre = droite[rang];
       if (autre !== undefined) mots.push(mot(String(autre), 955, y));
     });
-    const lue = lireLaTable(mots);
+    const lue = lireLaTable(mots, DOUZE);
     expect(lue.colonnes.length, "deux colonnes tout de même").toBe(2);
     expect(lue.estUneTable, "mais deux rangées nettes ne font pas une table").toBe(false);
     expect(lue.incompletes, "la rangée à trou est bien nommée").toEqual([1]);
@@ -130,7 +134,7 @@ describe("A2 — la zone à relire d'une cellule suspecte (OUT-10)", () => {
   );
 
   it("propose la zone de la cellule suspecte, désignée par sa colonne", () => {
-    const lue = lireLaTable(table(avecUneAberration));
+    const lue = lireLaTable(table(avecUneAberration), DOUZE);
     expect(lue.suspectes.map((suspecte) => suspecte.rangee)).toContain(6);
     const zones = lue.aRelire.filter((zone) => zone.rangee === 6);
     expect(zones).toHaveLength(1);
@@ -139,7 +143,7 @@ describe("A2 — la zone à relire d'une cellule suspecte (OUT-10)", () => {
   });
 
   it("place cette zone sur la colonne de droite, là où la valeur a été lue", () => {
-    const zone = lireLaTable(table(avecUneAberration)).aRelire.find((candidate) => candidate.rangee === 6)!;
+    const zone = lireLaTable(table(avecUneAberration), DOUZE).aRelire.find((candidate) => candidate.rangee === 6)!;
     // La valeur suspecte est à x = 955.
     expect(zone.x).toBeLessThanOrEqual(955);
     expect(zone.x + zone.l).toBeGreaterThanOrEqual(955 + 18);
@@ -150,7 +154,7 @@ describe("A2 — la zone à relire d'une cellule suspecte (OUT-10)", () => {
     const valeurs = pleine.map((couple, rang) =>
       rang === 6 ? ([undefined, 382] as const) : couple,
     );
-    const lue = lireLaTable(table(valeurs));
+    const lue = lireLaTable(table(valeurs), DOUZE);
     const zones = lue.aRelire.filter((candidate) => candidate.rangee === 6);
     // Une case non lue n'a pas de valeur, donc ne peut pas être suspecte : les deux causes
     // désignent nécessairement deux cases différentes, et aucune n'est nommée deux fois.
@@ -198,7 +202,7 @@ describe("A2 — la zone à relire d'une table en panneaux (OUT-10)", () => {
   ];
 
   it("garde la zone dans le panneau dont la rangée vient", () => {
-    const lue = lireLaTable(deuxPanneaux);
+    const lue = lireLaTable(deuxPanneaux, DOUZE);
     expect(lue.panneaux, "deux panneaux").toBe(2);
     expect(lue.aRelire.length, "au moins la case retirée").toBeGreaterThanOrEqual(1);
     // La case retirée est celle du panneau droit, vers x = 1643 : aucune zone ne doit viser le
@@ -207,7 +211,7 @@ describe("A2 — la zone à relire d'une table en panneaux (OUT-10)", () => {
   });
 
   it("désigne la rangée par sa place dans la liste commune aux deux panneaux", () => {
-    const lue = lireLaTable(deuxPanneaux);
+    const lue = lireLaTable(deuxPanneaux, DOUZE);
     const zone = lue.aRelire[0]!;
     expect(lue.incompletes, "la rangée à trou est nommée").toContain(zone.rangee);
     expect(lue.rangees[zone.rangee]!.cellules[zone.colonne!], "et sa case est bien vide").toBeUndefined();

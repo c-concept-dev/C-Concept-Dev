@@ -10,6 +10,10 @@
  *  **Le rappel ne se mesure que sur des pages confirmées à l'image.** Le texte trie, l'image
  *  tranche : une page que le détecteur ne signale pas n'a pas d'autre juge.
  *
+ *  **Attention au repère.** Depuis le 6 novembre 2026, `lireLaTable` porte elle-même les trois
+ *  critères retenus : « R0 — l'actuelle » ne décrit donc plus la règle d'avant, mais celle qui
+ *  est en place. Les chiffres de la règle d'avant sont au registre, à leur date.
+ *
  *  Usage : eprouver-le-detecteur.ts <mots.json> [<mots.json>…]
  */
 import { readFileSync } from "node:fs";
@@ -127,7 +131,7 @@ for (const fichier of process.argv.slice(2)) {
   const jeux = JSON.parse(readFileSync(fichier, "utf8")) as readonly Jeu[];
   for (const jeu of jeux)
     for (const page of jeu.pages) {
-      const table = lireLaTable(page.mots);
+      const table = lireLaTable(page.mots, { enregistrements: jeu.vivier });
       const porteuses = table.rangees
         .map((rangee, place) => ({ ...rangee, place }))
         .filter((rangee) => rangee.cellules.some((cellule) => cellule !== undefined));

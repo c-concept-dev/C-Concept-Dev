@@ -65,7 +65,7 @@ try {
             : ocrDUnePageGrise(enGris(await rendu.page(rang, 1800)), rang, bac, OCR);
         // Pour mesurer ce que le détecteur **manque**, il faut les mots des pages qu'il ne
         // signale pas : une vraie table qu'il ne voit pas ne se compte pas autrement.
-        if (!toutes && !lireLaTable(lue.mots).estUneTable) continue;
+        if (!toutes && !lireLaTable(lue.mots, { enregistrements: vivier }).estUneTable) continue;
         pages.push({ page: rang, largeur: lue.largeur, mots: lue.mots });
       }
     } finally {

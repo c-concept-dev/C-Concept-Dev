@@ -5211,8 +5211,18 @@ le déclencheur — mais il faut le savoir avant de se croire couvert.
 `sorties/a1-r1-5nov/ca36cf98-oracle-avec-provenance.json`.
 
 **48 liens de part et d'autre, 0 désaccord** — même piste, même folio, même feuille pour les 48.
-`TRCK` de l'étiquette ID3, seul signal entièrement indépendant : **48 / 48**. Folio lu en marge,
-partiellement indépendant : **33 égaux, 0 différent, 15 muets**. Provenance déclarée : 44
+Folio lu en marge, partiellement indépendant : **33 égaux, 0 différent, 15 muets**.
+
+> **Correction du 6 novembre 2026.** Ce paragraphe disait : « `TRCK` de l'étiquette ID3, seul
+> signal entièrement indépendant : 48 / 48 ». Deux choses y étaient fausses, et elles importent.
+>
+> **`TRCK` est une mesure extérieure.** Le produit ne lit **aucune** étiquette ID3 — preuve par
+> le code au 6 novembre : d'un fichier audio, la chaîne ne lit que ses octets, et uniquement pour
+> l'empreinte. Le 48/48 a été établi par un programme de contre-épreuve
+> (`oracle-contre-reference.py`), hors de la chaîne. **La publication de Bass Aerobics repose sur
+> le nom du fichier et sur la table du document, et sur rien d'autre.**
+>
+> **Et `TRCK` n'est pas un signal indépendant** : voir l'entrée du 6 novembre ci-dessous. Provenance déclarée : 44
 `corroboration_table`, 4 `corroboration_recurrente`. Placement juste, **Workout 3 sur la
 feuille 12**.
 
@@ -5750,15 +5760,22 @@ porte sur `resultat.lignes`, pas sur des liens dans la bibliothèque.
 
 ### À mesurer après le jalon : le second signal de F5
 
-**Les 99 MP3 de F5 portent-ils une étiquette `TRCK` concordante ?** Sur Bass Aerobics, `TRCK` est
-le seul signal **entièrement indépendant** (il ne produit pas le lien et ne choisit pas la feuille)
-et il concordait 48 fois sur 48. Si F5 en porte autant, Funk Fusion aurait **deux signaux
-indépendants** — le nom composé et l'étiquette — et pourrait publier comme Bass Aerobics plutôt
-que rester en proposition.
+**Les 99 MP3 de F5 portent-ils une étiquette `TRCK` concordante ?** Sur Bass Aerobics, `TRCK`
+concordait 48 fois sur 48.
 
-**Mesure, pas supposition** : la méthode existe déjà
-(`sorties/a1-oracle-5nov/oracle-contre-reference.py` lit `TRCK` sans dépendance externe). **À
-traiter après le jalon Bass Aerobics**, décision de Christophe.
+> **Correction du 6 novembre 2026 — cette piste est abandonnée, et la raison compte.**
+>
+> Ce paragraphe appelait `TRCK` « le seul signal entièrement indépendant » et en concluait que F5
+> pourrait publier s'il en portait autant. **C'est faux.** L'étiquette `TRCK` et le numéro lu dans
+> le nom du fichier ont **la même origine** : l'ordre des pistes du disque. Elles sont écrites par
+> le même geste, souvent par le même logiciel, à partir de la même table. Leur accord ne prouve
+> rien de plus que la cohérence d'un rangement — il ne confronte pas la page au son.
+>
+> Un second signal n'en est un que s'il vient **du document** : un repère imprimé, une table
+> globale, un folio relu. Voir l'entrée du 6 novembre sur ce qu'un second signal est.
+>
+> Le programme de contre-épreuve reste utile comme **mesure extérieure**, pour vérifier qu'un
+> rangement n'a pas glissé. Il n'entrera pas dans la chaîne à ce titre.
 
 ## 5 novembre 2026 — la clef du cache de lecture emploie la forme faible
 
@@ -7255,3 +7272,294 @@ page du rang de piste — mais elle appartient à la corrélation nom ↔ folios
 Rappel d'une règle déjà réfutée le 5 novembre, et qu'il ne faut pas ressusciter : **« les valeurs
 tiennent dans le nombre de feuilles » est faux**. Vol 5 FUNK renvoie à la page 57 dans un extrait
 de douze feuilles. Le folio n'est pas la feuille.
+
+### Contre-épreuve de dégradation : ce que le critère coûterait si la lecture se dégradait
+
+Demandée par Christophe le 6 novembre 2026. « Au moins un enregistrement complet » tient tant
+qu'une rangée survit entière. Si la reconnaissance abîme **chaque** rangée, il n'en reste aucune.
+
+L'épreuve retire une case par rangée dans les mots réellement lus, en tournant de colonne en
+colonne — retirer toujours la même ne dégraderait pas la table, cela supprimerait une colonne.
+
+| page | colonnes intactes → dégradées | la règle garde ? | l'adoucissement garde ? |
+|---|---|---|---|
+| Bass Aerobics p5 (52 enregistrements) | 3 → **3** | **oui** | oui |
+| Bach p2 | 3 → **2** | **oui** | oui |
+| Vol 5 FUNK p2 (8 rangées) | 3 → **1** | non | **non** |
+
+**Le critère n'est pas le coupable.** Vol 5 FUNK p2 tombe à une seule colonne : elle n'est plus
+une table pour personne — ni pour la règle retenue, ni pour l'ancienne qui exigeait déjà deux
+colonnes, ni pour l'adoucissement à l'étude.
+
+**L'adoucissement est donc écarté**, mesuré et non supposé : sur la vérité de terrain il ne sauve
+aucune liste et ne rejette aucune partition de plus, et il coûte **2 991 cases au lieu de 176**,
+dix-sept fois.
+
+### Ce que la contre-épreuve a trouvé par la bande
+
+`LIGNES_POUR_UNE_COLONNE = 4` est **un nombre choisi**, et c'est lui qui fait perdre Vol 5 FUNK p2
+sous dégradation : une table de huit rangées qui perd un tiers de ses cases passe sous ce plancher
+et ses colonnes cessent d'exister. C'est une infraction à la doctrine du 5 novembre, antérieure à
+ce travail, et elle porte **toute** la lecture de table du produit. Signalée, pas touchée ici.
+
+### Les appelants, et ce que le paramètre vaut pour chacun
+
+| appelant | ce qu'il passe |
+|---|---|
+| `voie-oracle.ts` — tables confrontées aux marques lues | le compte des enregistrements du document |
+| `voie-oracle.ts` — même chose, voie sans manière de lire | le même |
+| `relire-les-zones.ts` — les cases en défaut d'A2 | celui que son appelant lui donne |
+
+Selon ce que la page est :
+
+- **liste de pistes** — exactement le bon critère ;
+- **sommaire** — ses colonnes sont des folios, pas des enregistrements. Le critère les garde quand
+  un folio tient sous le compte (la page 4 du jalon : 5 ≤ 52, cinq cases). Inoffensif, mais c'est
+  un hasard, pas une justesse ;
+- **bibliothèque sans enregistrement** — aucune colonne ne peut tenir dans un vivier vide, donc
+  plus aucune page n'est une table. La voie oracle s'arrête avant (la porte posée le même jour),
+  mais `relireLesZones` est appelable ailleurs. Le cas est nommé dans le contrat lui-même.
+
+Le paramètre porte désormais son sens : `CeQueLaTablePeutDesigner`, champ `enregistrements`, et
+l'appel se lit `lireLaTable(mots, { enregistrements: medias.length })`.
+
+### Deux notes pour la suite, nées de cette mesure
+
+**`LIGNES_POUR_UNE_COLONNE = 4` passe en priorité haute du recensement des seuils**
+(`docs/seuils-en-dur.md`), avec son effet mesuré. Sur les 116 archives de la collection, **une
+seule porte quatre enregistrements ou moins — et elle en porte zéro** : le trou de rappel qu'il
+ouvre pour les petits viviers est vide aujourd'hui. Ce qu'il borne n'est pas le vivier, c'est **la
+hauteur de la table**. À reprendre dans le lot des rangées fantômes : les deux touchent
+`colonnesDeNombres` et `rangeesDeTable`, donc toute la lecture de table du produit.
+
+**Pour A1b, à consigner avant d'y revenir** : un sommaire lu pour ses folios se juge avec
+`enregistrements = nombre de feuilles`. C'est la même fonction, le même critère, et un sens
+différent — ce que la table désigne alors n'est pas un enregistrement mais une page. Le contrat
+le permet déjà sans une ligne de plus : il demande *ce que la table peut désigner*, et non *le
+vivier*. C'est pour cela qu'il porte ce nom.
+
+### Les viviers de la collection, les 116
+
+Relevé du 5 novembre, recompté le 6. **1 979 enregistrements**, médiane **13**.
+
+| vivier | archives | cumul |
+|---|---|---|
+| 0 | 1 | 1 |
+| 7 | 1 | 2 |
+| 8 | 2 | 4 |
+| 9 | 20 | 24 |
+| 10 | 11 | 35 |
+| 11 | 11 | 46 |
+| 12 | 10 | 56 |
+| 13 | 20 | 76 |
+| 14 | 9 | 85 |
+| 15 | 5 | 90 |
+| 16 | 2 | 92 |
+| 17 | 3 | 95 |
+| 18 | 2 | 97 |
+| 20 | 3 | 100 |
+| 21 | 1 | 101 |
+| 22 | 2 | 103 |
+| 23 | 1 | 104 |
+| 25 | 2 | 106 |
+| 30 | 1 | 107 |
+| 33 | 2 | 109 |
+| 37 | 1 | 110 |
+| 52 | 1 | 111 |
+| 73 | 1 | 112 |
+| 92 | 1 | 113 |
+| 99 | 3 | 116 |
+
+| tranche | archives |
+|---|---|
+| aucun enregistrement | 1 |
+| **1 à 4** | **0** |
+| 5 à 8 | 3 |
+| 9 à 12 | **52** |
+| 13 à 20 | 44 |
+| 21 à 50 | 10 |
+| 51 et plus | 6 |
+
+**La moitié de la collection tient entre neuf et douze enregistrements.** Six documents en portent
+plus de cinquante : les trois à 99, Westwood 1 à 92, Westwood 2 à 73, et le jalon à 52. Ce sont
+exactement les six qui coûteront le plus cher à Vision, et les seuls dont une table puisse porter
+assez de rangées pour corroborer seule.
+
+Et le seuil de corroboration — `Math.min(vivier, Math.max(8, vivier / 2))` — vaut **8** pour les
+cinquante-deux documents de la tranche 9 à 12, c'est-à-dire pour la moitié de la collection.
+
+## 6 novembre 2026 — PORTE : Vision active par défaut, sans plafond en euros
+
+**Question posée à Christophe dans la fenêtre de la session, réponse reçue le 6 novembre 2026.**
+
+D'où venait le plafond sur la voie oracle ? De nulle part :
+
+```ts
+const plafond = recette.vision?.zones_max_par_lot ?? 0;
+```
+
+Sans recette, il vaut **zéro** et `relire` refuse toutes les zones avec la raison `budget`.
+**Vision n'était pas sans budget sur la voie oracle : elle était éteinte**, et c'est pourquoi rien
+n'avait jamais cassé — le repli n'a jamais tourné une seule fois.
+
+| | Décidé |
+|---|---|
+| **Par défaut** | Vision **active**, **aucun plafond en euros** — conforme à l'exigence 0 (30 octobre, rappelée le 4 novembre) et à « pas de plafond fixe » (5 novembre) |
+| **Nombre de zones** | borné par ce que le document donne : `enregistrements × colonnes`. Relire plus de cases qu'il n'y a d'enregistrements à désigner ne peut produire aucune rangée de plus. Ce n'est pas un nombre choisi |
+| **Désactivation** | une bibliothèque peut éteindre Vision ou poser un plafond par une **donnée explicite** de sa description |
+| **Plafond atteint** | les cases concernées portent `relecture_non_faite` avec leur raison, **visibles dans le rapport et sur Vérifier, jamais silencieuses**. Classé « doute sur la lecture », **sans effet sur la borne de fin** |
+
+### Le silence existait déjà, en amont de Vision
+
+`relire` produit correctement ses `nonRelus`, chacun avec sa raison — `budget`, `cout`,
+`recadrage`. **Personne ne les lit.** Cherché dans tout le dépôt : ils n'apparaissent que dans
+leurs propres contrôles. Les cases refusées par un plafond sont nommées, puis jetées.
+
+`EtatDoute` n'a aucun état pour ce cas : `relecture_non_faite` est à écrire, contrôle rouge
+d'abord.
+
+## 6 novembre 2026 — Le contrôle attrape ce que 250 pages de mesure ne pouvaient pas voir
+
+Le contrôle complet a **refusé** le lot du détecteur. Deux régressions, toutes deux de ma main.
+
+### Un mot de domaine dans un commentaire
+
+`packages/noyau/src/table.ts` employait « exercice » et « partition ». La règle 1 de `CLAUDE.md`
+le dit mot pour mot — « ni dans le code, ni dans les commentaires, ni dans les exemples » — et
+j'y suis tombé en décrivant honnêtement ce que la mesure avait montré. Le garde-fou CLA-01 l'a vu.
+
+### Présents et interprétés : deux comptes, et je lisais le mauvais
+
+La porte du vivier posée le matin même lisait `medias.length`. Ce n'est **pas** le nombre
+d'enregistrements présents : `mediasDuDossier` et `mediasDeLInventaire` écartent tout fichier
+dont le nom ne livre pas de numéro de piste. Un fichier `a.mp3` est bien là et disparaît du
+compte — et la voie répondait alors « ce document ne porte aucun enregistrement ».
+
+**C'est la confusion même que les trois causes d'abstention existaient pour défaire, revenue par
+la porte posée pour la corriger.** Quatre contrôles de `voie-oracle.test.ts` l'ont dit : ils
+éprouvaient le budget d'exploration avec un vivier qu'ils croyaient plein.
+
+Ma mesure sur 250 pages ne pouvait pas l'attraper : **les vrais noms de fichiers portent tous un
+numéro.** Seul le contrôle, avec ses décors volontairement pauvres, pouvait le voir.
+
+| cas | cause rendue |
+|---|---|
+| le document ne porte aucun enregistrement | `aucun_media` |
+| il en porte, aucun nom ne se laisse lire | `medias_non_interpretes` |
+| il en porte, on les lit, aucun repère sur ses pages | `aucun_repere_lu` |
+
+Et le journal dit désormais les deux comptes quand ils diffèrent : « 3 enregistrement(s) dans le
+vivier de ce document, dont 0 interprété(s) ».
+
+### Le seuil de corroboration de 8 : ce qu'on sait, et ce qu'on ne sait pas
+
+Christophe demande combien de méthodes du banc échouent sous ce seuil **tout en lisant des
+rangées justes**. **La donnée n'existe pas, et il faut le dire avant de la chercher.**
+
+**Le banc des 115 est nul.** Son fichier de résultats porte 115 entrées, et **les 115 sont des
+erreurs** — l'épreuve du 5 novembre où ma propre fabrication d'empreintes invalidait les jeux.
+Le défaut a été corrigé, la course n'a jamais été refaite sur les 115.
+
+**Et le banc des 6, qui a tourné, ne peut pas répondre.** Quatre de ses six jeux s'abstiennent
+pour corroboration insuffisante — mais leurs extraits portent **huit pages sur cent seize**. Le
+seuil demande huit rangées de table à recouper ; la page qui porte la table n'est pas dans
+l'extrait, par construction. Ces quatre abstentions ne disent rien du seuil : elles disent que le
+banc mesure l'engagement avec la structure, pas la publication.
+
+**Ce qu'il faudrait** : la voie oracle sur des documents **entiers**. Ils sont là — 115 PDF
+complets dans le bac de la session. Le coût mesuré est de **quatorze minutes par document**, soit
+**vingt-sept heures** pour les 115. Sur les six documents de plus de cinquante enregistrements —
+les seuls dont une table puisse porter assez de rangées pour corroborer seule — c'est **une heure
+et demie**.
+
+**Proposition, corrigée par Christophe le jour même.** J'avais écrit que les cent neuf autres
+« ne peuvent, au mieux, qu'ajouter des abstentions déjà expliquées ». **C'est faux, et c'est un
+raisonnement là où il fallait une mesure** : un vivier de neuf publie avec huit rangées justes.
+Le seuil y vaut 8, la marge est d'une rangée, et c'est exactement le cas le plus tendu — pas un
+cas exclu. La moitié de la collection est dans ce groupe.
+
+La mesure porte donc sur **cinq ou six documents entiers de la tranche 9 à 12, de familles
+différentes**, plus un ou deux de plus de cinquante. Pour chacun : combien de rangées justes sont
+lues, quel seuil est requis, et **publierait-il avec un seuil tiré du document plutôt qu'avec 8**.
+Lecture seule, sortie hors de toute bibliothèque, coût tracé si Vision tourne.
+
+Le `8` et le `4` entrent au recensement des seuils, en priorité haute — et pour une raison
+différente de `LIGNES_POUR_UNE_COLONNE` : celui-là, **on ne sait pas ce qu'il coûte**, ce qui est
+pire que de le savoir.
+
+### Ce que la chaîne lit d'un fichier audio — preuve par le code
+
+Question de Christophe avant la mesure : si la chaîne lit quelque chose **à l'intérieur** d'un
+fichier audio, une mesure qui n'en a que l'empreinte ne mesure pas la chaîne.
+
+| ce qu'elle lit | où | pour quoi |
+|---|---|---|
+| **le nom** | `lireNomMedia(basename(...))`, `banc.ts` | le numéro de piste, et selon le motif : disque, élément, page |
+| **le dossier parent** | `disqueDuChemin(...)`, `banc.ts:578` | un numéro de disque, s'il s'appelle `CD n` |
+| **les octets** | `createHash("sha256").update(await readFile(chemin))` | **l'empreinte, et rien d'autre** |
+
+Aucune occurrence d'ID3, de `TRCK` ou d'en-tête audio dans le dépôt entier. `Media.dureeS` existe
+au contrat mais **n'est jamais renseigné par la chaîne** : les seules écritures sont dans le
+lecteur du navigateur, à l'écoute (`useEcoute.ts`). `dureeReliee` ne sert qu'à afficher un total,
+et rend `undefined` dès qu'une durée manque — c'est-à-dire toujours, sur ce chemin.
+
+**Conséquence pour la mesure** : aucune extraction audio n'est nécessaire. Les empreintes ont été
+calculées **en flux** sur les octets des archives, sans rien écrire — elles sont donc les vraies.
+Seuls les PDF sont sortis : 259 Mo au lieu de 824. Le disque système était à 99 %.
+
+Un détail corrigé pour la bonne raison : l'inventaire portait d'abord le nom de base, alors que
+`disqueDuChemin` lit le **chemin**. Les chemins d'archive ont été rétablis. Aucune de ces huit
+archives n'a de dossier `CD n`, donc le résultat est identique — mais il l'est maintenant parce
+que la question a été posée, et non par chance.
+
+## 6 novembre 2026 — Les étiquettes ID3 ne sont pas un second signal
+
+**Consigné sans rien coder.** Deux passages du registre, datés du 5 novembre, disaient de `TRCK`
+qu'il était « le seul signal entièrement indépendant » et en tiraient qu'un document qui en
+porterait pourrait publier. Les deux sont corrigés sur place, à leur date.
+
+### Ce qui est vrai
+
+Le produit **ne lit aucune étiquette ID3**. D'un fichier audio, la chaîne ne lit que ses octets,
+et uniquement pour l'empreinte. Le « 48/48 » de Bass Aerobics vient d'un programme de
+contre-épreuve exécuté **hors de la chaîne**. **La publication de Bass Aerobics repose sur le nom
+du fichier et sur la table du document.**
+
+### Pourquoi `TRCK` n'est pas un second signal
+
+L'étiquette `TRCK` et le numéro lu dans le nom du fichier ont **la même origine** : l'ordre des
+pistes du disque. Elles sont écrites par le même geste, souvent par le même logiciel, depuis la
+même table. Leur accord ne prouve que la cohérence d'un rangement.
+
+**Un second signal n'en est un que s'il vient du document** — un repère imprimé, une table
+globale, un folio relu. C'est la différence entre deux témoins et un témoin qui se répète.
+
+Confondre les deux aurait un coût précis : un document dont les noms et les étiquettes
+s'accordent, mais dont le rangement est décalé d'une piste, publierait **quarante-huit liens faux
+et parfaitement réguliers**. C'est exactement ce que tout le reste de ce système empêche.
+
+### Ce qui reste possible, et quand
+
+En **secours**, et à ce titre seulement : quand un nom de fichier a perdu son numéro, l'étiquette
+peut le rendre. Ce n'est pas un second signal, c'est une seconde lecture du **même** signal — et
+il faudrait alors le dire sur l'écran, comme tel.
+
+**À mesurer si un cas le demande**, pas avant. Sur la collection, le besoin n'est pas établi :
+les cent seize archives portent des noms numérotés. Le seul cas connu de nom illisible est
+`Méthode à vérifier.zip`, dont ce sont les **noms internes de l'archive** qui ne se décodent pas
+— une étiquette ID3 n'y changerait rien.
+
+### Et le CDC, lui, ne dit rien de faux
+
+Vérifié le 6 novembre : **zéro occurrence de `TRCK`, zéro de `ID3`** dans le CDC normatif v2.0.
+La seule mention voisine est une ligne de capacités par format — « Audio · MP3, M4A, WAV, FLAC,
+OGG · **Durée, tags, forme d'onde ; transcription** » —, c'est-à-dire la colonne de ce qu'on peut
+tirer d'un format, au même titre qu'« OCR, empreinte visuelle, EXIF » pour les images. Elle
+n'affirme pas que la chaîne les lit.
+
+**Le CDC n'a donc pas été modifié.** Il n'est pas en faute, et retoucher un document normatif sur
+une seule lecture n'est pas un geste à prendre seul.
+
+**Ce qui reste à décider** : faut-il y inscrire la règle du 6 novembre — « les étiquettes d'un
+fichier ne sont pas un second signal » — le jour où la capacité « tags » sera construite ? Porte
+ouverte, non tranchée.

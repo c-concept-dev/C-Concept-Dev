@@ -14,9 +14,9 @@
  *
  *  Usage : a2-rattrapage-de-la-table.ts <document.pdf> [première] [dernière]
  */
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { lireLaTable } from "@lienotheque/noyau";
 import { enGris, type ImageGrise } from "@lienotheque/images";
 import { coucheSuffisante, lireCoucheTexte, lireParOcr, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
@@ -35,6 +35,14 @@ if (pdf === undefined) {
 }
 const premiere = Number(process.argv[3] ?? 1);
 const derniere = Number(process.argv[4] ?? 0);
+/** Le vivier du document : les enregistrements posés à côté de lui. `lireLaTable` en a besoin
+ *  pour dire si une colonne de nombres peut en désigner un (décision du 6 novembre 2026). */
+const vivier = Number(
+  process.env["LIENOTHEQUE_VIVIER"] ??
+    readdirSync(dirname(pdf)).filter((n) => /\.(mp3|m4a|wav|flac|ogg|aac)$/i.test(n)).length,
+);
+const OFFRE = { enregistrements: vivier };
+
 
 /** Les manières de regarder une case. Ce sont les segmentations que Tesseract nomme — une ligne,
  *  un mot, un bloc — et l'agrandissement est une duplication de pixels : rien n'est inventé. */
@@ -84,7 +92,7 @@ try {
     const page =
       deLaCouche !== undefined && coucheSuffisante(deLaCouche) ? deLaCouche : ocrDUnePageGrise(grise, rang, bac, OCR);
     if (page.source === "couche_texte") continue;
-    const avant = lireLaTable(page.mots);
+    const avant = lireLaTable(page.mots, OFFRE);
     if (!avant.estUneTable || avant.aRelire.length === 0) continue;
     tables += 1;
 
@@ -111,8 +119,8 @@ try {
       return accordees.length === 1 ? String(accordees[0]![0]) : undefined;
     };
 
-    const fait = await relireLesZones([{ page: rang, mots: page.mots }], relire);
-    const apres = lireLaTable(fait.pages[0]!.mots!);
+    const fait = await relireLesZones([{ page: rang, mots: page.mots }], relire, OFFRE);
+    const apres = lireLaTable(fait.pages[0]!.mots!, OFFRE);
     avantEnTout += avant.utilisables.length;
     apresEnTout += apres.utilisables.length;
     const retenues = fait.traces.filter((trace) => trace.retenu !== undefined);

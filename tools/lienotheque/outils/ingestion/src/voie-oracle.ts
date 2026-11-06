@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream, mkdtempSync, rmSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -225,6 +226,24 @@ export type RejeuParOracle = {
  *  appelle, une erreur de clé appliquerait l'endroit d'un document à un autre — et produirait des
  *  liens faux et réguliers, exactement ce que tout le reste existe pour empêcher. Lue en flux :
  *  un document de cinq cents pages ne doit pas tenir en mémoire pour être empreint. */
+/** Combien d'enregistrements le dossier **porte**, interprétés ou non.
+ *
+ *  `mediasDuDossier` rend ceux dont le nom livre un numéro de piste ; celui-ci compte les
+ *  fichiers. Les deux comptes diffèrent dès qu'un nom ne se laisse pas lire, et c'est précisément
+ *  ce cas-là qu'il faut pouvoir nommer. L'extension et la règle du point initial sont les mêmes
+ *  que là-bas : deux règles qui divergeraient feraient deux vérités. */
+async function combienDEnregistrements(dossier: string, extension = ".mp3"): Promise<number> {
+  try {
+    const entrees = await readdir(dossier, { recursive: true, withFileTypes: true });
+    return entrees.filter(
+      (entree) => entree.isFile() && entree.name.toLowerCase().endsWith(extension) && !entree.name.startsWith("."),
+    ).length;
+  } catch {
+    // Un dossier qui n'existe pas ne porte rien, et le dire vaut mieux que de refuser le document.
+    return 0;
+  }
+}
+
 async function empreinteDuFichier(chemin: string): Promise<string> {
   const condensat = createHash("sha256");
   for await (const morceau of createReadStream(chemin)) condensat.update(morceau as Buffer);
@@ -452,7 +471,20 @@ export async function rejouerParOracle(
     options.inventaireMedias === undefined
       ? await mediasDuDossier(dossierMedias)
       : mediasDeLInventaire(options.inventaireMedias);
-  dire(`${medias.length} enregistrement(s) dans le vivier de ce document`);
+  // **Présents** et **interprétés** sont deux comptes, et les confondre égare.
+  // `mediasDuDossier` et `mediasDeLInventaire` écartent tout enregistrement dont le nom ne porte
+  // pas de numéro : un fichier bien là disparaît alors du compte. Dire « aucun enregistrement »
+  // d'un document qui en porte un, mais qu'on ne sait pas lire, est faux — et c'est la confusion
+  // que les trois causes d'abstention existent pour défaire.
+  const disponibles =
+    options.inventaireMedias === undefined
+      ? await combienDEnregistrements(dossierMedias)
+      : options.inventaireMedias.length;
+  dire(
+    disponibles === medias.length
+      ? `${medias.length} enregistrement(s) dans le vivier de ce document`
+      : `${disponibles} enregistrement(s) dans le vivier de ce document, dont ${medias.length} interprété(s)`,
+  );
 
   const empreinte = await empreinteDuFichier(pdf);
   // ── 1. Les formes sombres de chaque page ───────────────────────────────────────────────
@@ -511,8 +543,12 @@ export async function rejouerParOracle(
       options,
       journal,
       combienDePages,
-      "Ce document ne porte aucun enregistrement : il n'y a rien à relier, et rien n'a été exploré.",
+      disponibles === 0
+        ? "Ce document ne porte aucun enregistrement : il n'y a rien à relier, et rien n'a été exploré."
+        : `Aucun des ${disponibles} enregistrement(s) de ce document n'a pu être interprété : ` +
+          "aucun lien n'est possible, et rien n'a été exploré.",
       acquis,
+      disponibles,
     );
   }
 
@@ -1024,7 +1060,9 @@ export async function rejouerParOracle(
   });
   const tables =
     texteAligne?.flatMap((page) =>
-      page.mots === undefined ? [] : [{ page: page.page, table: lireLaTable(page.mots) }],
+      page.mots === undefined
+        ? []
+        : [{ page: page.page, table: lireLaTable(page.mots, { enregistrements: medias.length }) }],
     ) ?? [];
   const preuveParTable = foliosEtablis ? corroborerParTable(lignesAvecFolio, tables, medias.length) : undefined;
   const lignes: LigneInterpretee[] = [...(preuveParTable?.lignes ?? lignesLues)];
@@ -1162,6 +1200,9 @@ function sansLien(
   combienDePages: number,
   pourquoi: string,
   acquis?: AcquisDeLecture,
+  /** Combien d'enregistrements le document **porte**, interprétés ou non. Par défaut, ceux qu'on
+   *  a su lire : un appelant qui ne distingue pas les deux n'a rien à distinguer. */
+  disponibles = medias.length,
 ): RejeuParOracle {
   journal.push(pourquoi);
   options.surPhase?.(pourquoi);
@@ -1215,7 +1256,9 @@ function sansLien(
     );
   const tables =
     texteAligne?.flatMap((page) =>
-      page.mots === undefined ? [] : [{ page: page.page, table: lireLaTable(page.mots) }],
+      page.mots === undefined
+        ? []
+        : [{ page: page.page, table: lireLaTable(page.mots, { enregistrements: medias.length }) }],
     ) ?? [];
   const preuveLue = foliosEtablis
     ? corroborerParTable(
@@ -1382,8 +1425,13 @@ function sansLien(
       // le second il n'y a pas de média du tout. Qui lit ne pouvait pas savoir s'il devait
       // déposer des enregistrements ou changer de manière de lire.
       abstention: {
-        raison: medias.length === 0 ? "aucun_media" : "aucun_repere_lu",
-        combien: medias.length,
+        raison:
+          disponibles === 0
+            ? "aucun_media"
+            : medias.length === 0
+              ? "medias_non_interpretes"
+              : "aucun_repere_lu",
+        combien: disponibles,
         pourquoi,
       },
     },

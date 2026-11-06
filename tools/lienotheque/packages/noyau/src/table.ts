@@ -482,7 +482,57 @@ function largeurDUnNombre(ligne: readonly LigneDeTable[], panneau: readonly Colo
 
 export const RANGEES_POUR_UNE_TABLE = 4;
 
-export function lireLaTable(mots: readonly MotLu[]): TableLue {
+/** Ce que la table peut désigner, et qu'une page seule ne peut pas savoir.
+ *
+ *  Ce n'est pas facultatif, et pour la même raison que `borne` ne l'est pas pour une association :
+ *  un appelant qui ne sait pas combien d'enregistrements son document porte ne peut pas dire si
+ *  une colonne de nombres les désigne, et n'a pas à y penser pour que ce soit vrai. Un paramètre
+ *  qu'on peut omettre aurait désarmé le garde-fou en silence.
+ *
+ *  **Zéro est une réponse, pas une absence.** Un document sans enregistrement n'a aucune colonne
+ *  qui en désigne, et aucune de ses pages n'est une table au sens de ce module — ce qui est la
+ *  vérité, et non un défaut. Le jour où une bibliothèque portera des documents sans
+ *  enregistrement, c'est cette phrase qu'il faudra relire : des tables y existeront toujours,
+ *  mais elles ne désigneront plus la même chose, et ce module devra apprendre quoi. */
+export type CeQueLaTablePeutDesigner = {
+  /** Combien d'enregistrements le document porte. Une colonne qui en désigne ne peut pas aller
+   *  au-delà de leur compte. */
+  readonly enregistrements: number;
+};
+
+/** Les rangées de la plus longue suite à pas constant, tolérance comprise.
+ *
+ *  **C'est cette suite qui dit quelles rangées sont la table**, et c'est là son rôle principal :
+ *  les deux autres critères se calculent sur elle, et non sur tout ce que la page porte par
+ *  ailleurs. Mesuré le 6 novembre 2026 : jugée sur toute la page, la liste de pistes d'un
+ *  document était écartée parce que l'adresse de l'éditeur imprimée en pied de page — 7777,
+ *  53213 — entrait dans le test de ce que la table peut désigner.
+ *
+ *  La tolérance est la hauteur d'une rangée, que la page imprime elle-même. Un pas en pixels
+ *  n'aurait aucun sens d'une image à l'autre, et un pourcentage serait un nombre choisi. */
+function suiteAPasConstant<T extends { readonly y: number }>(
+  rangees: readonly T[],
+  hauteurDUneRangee: number,
+): readonly T[] {
+  if (rangees.length < 2) return rangees;
+  const ecarts = rangees.slice(1).map((rangee, rang) => rangee.y - rangees[rang]!.y);
+  let meilleur = { depuis: 0, combien: 1 };
+  for (let depart = 0; depart < ecarts.length; depart += 1) {
+    const pas = ecarts[depart]!;
+    // Un écart nul ou négatif ne fait pas un pas : c'est la frontière entre deux panneaux, dont
+    // les rangées repartent du haut de la page.
+    if (pas <= 0) continue;
+    let combien = 2;
+    for (let suivant = depart + 1; suivant < ecarts.length; suivant += 1) {
+      if (Math.abs(ecarts[suivant]! - pas) > hauteurDUneRangee) break;
+      combien += 1;
+    }
+    if (combien > meilleur.combien) meilleur = { depuis: depart, combien };
+  }
+  return rangees.slice(meilleur.depuis, meilleur.depuis + meilleur.combien);
+}
+
+export function lireLaTable(mots: readonly MotLu[], designables: CeQueLaTablePeutDesigner): TableLue {
   const lignes = lignesDeMots(mots);
   const toutes = colonnesDeNombres(lignes);
   // Chaque panneau est lu **comme sa propre table** : ses rangées, ses colonnes, ses cellules
@@ -527,7 +577,37 @@ export function lireLaTable(mots: readonly MotLu[]): TableLue {
     if (!douteuses.has(rang)) utilisables.push(rang);
   }
 
-  const estUneTable = colonnes.length >= 2 && utilisables.length + incompletes.length >= RANGEES_POUR_UNE_TABLE;
+  // ── Est-ce une table d'enregistrements ? ───────────────────────────────────────────────────
+  //
+  // La géométrie ne suffit pas. Mesuré le 6 novembre 2026 sur 250 pages : deux colonnes et quatre
+  // rangées retenaient 87 pages et 6 578 cases à relire, dont l'essentiel sur des pages gravées,
+  // où les chiffres s'alignent en colonnes sans former une seule table. Trois propriétés de plus,
+  // et aucune constante choisie — chacune tuée par sa propre mutation, mesure au registre.
+  const porteuses = rangees.filter((rangee) => rangee.cellules.some((cellule) => cellule !== undefined));
+  const hauteurs = mots.map((mot) => mot.h).sort((un, autre) => un - autre);
+  const hauteurDUneRangee = hauteurs[Math.floor(hauteurs.length / 2)] ?? 0;
+  const suite = suiteAPasConstant(porteuses, hauteurDUneRangee);
+  // Un enregistrement complet : une rangée qui remplit toutes ses colonnes. Ce n'est pas un
+  // seuil mais un « il en existe » — exiger la moitié des rangées perdait une vraie liste dont
+  // deux rangées sur dix-sept seulement étaient complètes.
+  const unEnregistrementComplet = suite.some((rangee) =>
+    rangee.cellules.every((cellule) => cellule !== undefined),
+  );
+  // Une colonne dont toutes les valeurs peuvent désigner un enregistrement : sans elle, des
+  // numéros imprimés en marge d'une page gravée, parfaitement réguliers et bien au-delà de ce que
+  // le document porte, passaient pour une table.
+  const uneColonneDansLeVivier = colonnes.some((_, colonne) => {
+    const valeurs = suite
+      .map((rangee) => rangee.cellules[colonne])
+      .filter((valeur): valeur is number => valeur !== undefined);
+    return valeurs.length > 0 && valeurs.every((valeur) => valeur >= 1 && valeur <= designables.enregistrements);
+  });
+  const estUneTable =
+    colonnes.length >= 2 &&
+    utilisables.length + incompletes.length >= RANGEES_POUR_UNE_TABLE &&
+    suite.length >= RANGEES_POUR_UNE_TABLE &&
+    unEnregistrementComplet &&
+    uneColonneDansLeVivier;
 
   // Les cases à relire : une par case. Les cellules non lues des rangées à trou d'abord, les
   // cellules suspectes ensuite — et jamais deux fois la même case, car une rangée peut être à la

@@ -280,7 +280,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
   siTesseract("s'abstient, et dit pourquoi, quand rien ne revient", { timeout: 180_000 }, async () => {
     const pdf = pdfDePages("sans-marque.pdf", [prose(700), prose(500), prose(300), prose(200)]);
     const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
-      inventaireMedias: [{ nom: "a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
+      inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
       provenancesMedias: ["lot:epreuve"],
     });
 
@@ -408,7 +408,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
       const pdf = pdfDePages("vivier-non-borne.pdf", pages);
       // Un inventaire sans provenance : rien ne dit que ces pistes appartiennent à ce document.
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
-        inventaireMedias: [{ nom: "a.mp3", empreinte: "a".repeat(64) }],
+        inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64) }],
       });
       expect(rejeu.association.abstention?.raison).toBe("vivier_non_borne");
       expect(rejeu.association.appariements).toEqual([]);
@@ -419,7 +419,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
     const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
     const pdf = pdfDePages("folios.pdf", pages);
     const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
-      inventaireMedias: [{ nom: "a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
+      inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
       provenancesMedias: ["lot:epreuve"],
     });
     expect(
@@ -502,7 +502,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
       const pages = [0, 1, 2, 3].map(() => [marque(70, 620, 7), marque(70, 320, 7), prose(760)].join("\n"));
       const pdf = pdfDePages("budget-epuise.pdf", pages);
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
-        inventaireMedias: [{ nom: "a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
+        inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
         provenancesMedias: ["lot:epreuve"],
         budgetExploration: { paires: 1, secondes: 3600 },
       });
@@ -528,7 +528,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
       const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
       const pdf = pdfDePages("budget-horloge.pdf", pages);
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
-        inventaireMedias: [{ nom: "a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
+        inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
         provenancesMedias: ["lot:epreuve"],
         budgetExploration: { paires: 256, secondes: 0 },
       });
@@ -804,4 +804,43 @@ describe("ce que la voie fait avant d'explorer, et la cause qu'elle nomme (OUT-1
       expect(rejeu.association.abstention?.combien, "les enregistrements sont bien là").toBe(11);
     },
   );
+});
+
+describe("présents et interprétés sont deux comptes (OUT-10, REC-02)", () => {
+  // Le garde-fou posé le matin du 6 novembre lisait `medias.length`, qui est le nombre
+  // d'enregistrements **interprétés**. Un fichier dont le nom ne porte pas de numéro est bien
+  // là et disparaît pourtant de ce compte : la voie disait alors « ce document ne porte aucun
+  // enregistrement » d'un document qui en portait un. C'est la confusion même que les trois
+  // causes d'abstention existent pour défaire, et elle était revenue par la porte.
+  //
+  // Attrapé par le contrôle complet, et par lui seul : la mesure sur 250 pages ne pouvait pas
+  // le voir, puisque les vrais noms de fichiers portent tous un numéro.
+
+  const page = (): string => pdfDePages(`presents-${Math.random()}.pdf`, [prose(700), prose(500), prose(300), prose(200)]);
+
+  it("dit « aucun enregistrement » quand le document n'en porte aucun", async () => {
+    const rejeu = await rejouerParOracle(page(), dossierSansPiste, {
+      inventaireMedias: [],
+      provenancesMedias: ["lot:epreuve"],
+    });
+    expect(rejeu.association.abstention?.raison).toBe("aucun_media");
+    expect(rejeu.association.abstention?.combien).toBe(0);
+  });
+
+  it("dit « médias non interprétés » quand il en porte, sans savoir les lire", async () => {
+    const rejeu = await rejouerParOracle(page(), dossierSansPiste, {
+      // Trois enregistrements bien présents, dont aucun nom ne livre de numéro de piste.
+      inventaireMedias: [
+        { nom: "intro.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] },
+        { nom: "milieu.mp3", empreinte: "b".repeat(64), provenances: ["lot:epreuve"] },
+        { nom: "fin.mp3", empreinte: "c".repeat(64), provenances: ["lot:epreuve"] },
+      ],
+      provenancesMedias: ["lot:epreuve"],
+    });
+    expect(rejeu.association.abstention?.raison, "les enregistrements sont là").toBe("medias_non_interpretes");
+    expect(rejeu.association.abstention?.combien, "et ils sont comptés").toBe(3);
+    expect(rejeu.journal.join(" "), "et le journal distingue les deux comptes").toMatch(
+      /3 enregistrement\(s\) dans le vivier de ce document, dont 0 interprété\(s\)/,
+    );
+  });
 });

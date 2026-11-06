@@ -174,7 +174,7 @@ try {
           deLaCouche !== undefined && coucheSuffisante(deLaCouche)
             ? deLaCouche
             : ocrDUnePageGrise(enGris(await rendu.page(rang, 1800)), rang, bac, OCR);
-        const table = lireLaTable(page.mots);
+        const table = lireLaTable(page.mots, { enregistrements: vivierReel });
         if (!table.estUneTable) continue;
         passent += 1;
         const releve = relever(basename(dossier), rang, vivierReel, combien, table);

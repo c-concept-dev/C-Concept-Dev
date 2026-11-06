@@ -10,6 +10,10 @@ import {
   rangeesDeTable,
 } from "../src/index.js";
 
+/** Ce qu'un document de douze enregistrements offre : assez pour que la colonne de gauche,
+ *  qui va de 1 à 10, puisse en désigner un. */
+const DOUZE = { enregistrements: 12 };
+
 /** Lire une table à colonnes (OUT-10).
  *
  *  La géométrie employée ici n'est pas inventée : ce sont les abscisses et les hauteurs relevées
@@ -199,26 +203,26 @@ describe("les quatre vraies erreurs d’une lecture de table (OUT-10)", () => {
 
 describe("le verdict de la table (OUT-10)", () => {
   it("compte comme utilisables les rangées complètes et nettes, pas les autres", () => {
-    const lue = lireLaTable(table(dix));
+    const lue = lireLaTable(table(dix), DOUZE);
     expect(lue.estUneTable).toBe(true);
     expect(lue.utilisables).toHaveLength(10);
     expect(lue.incompletes).toEqual([]);
   });
 
   it("écarte des utilisables une rangée dont une cellule est suspecte", () => {
-    const lue = lireLaTable(table([...dix.slice(0, 5), [382, 18], ...dix.slice(6)] as const));
+    const lue = lireLaTable(table([...dix.slice(0, 5), [382, 18], ...dix.slice(6)] as const), DOUZE);
     expect(lue.suspectes.length).toBeGreaterThan(0);
     expect(lue.utilisables, "une rangée suspecte est restée utilisable").not.toContain(5);
     expect(lue.rangees[5]?.cellules[1], "mais ce qui a été lu reste écrit tel quel").toBe(382);
   });
 
   it("ne tient pas pour une table ce qui n’en est pas une", () => {
-    const deuxLignes = lireLaTable(table(dix.slice(0, 2)));
+    const deuxLignes = lireLaTable(table(dix.slice(0, 2)), DOUZE);
     expect(deuxLignes.estUneTable).toBe(false);
   });
 
   it("dit en clair ce qu’il a vu, et où le revérifier", () => {
-    const observations = observationsDeLaTable(lireLaTable(table(dix)), "rang 5");
+    const observations = observationsDeLaTable(lireLaTable(table(dix), DOUZE), "rang 5");
     for (const observation of observations) {
       expect(() => Observation.parse(observation)).not.toThrow();
       expect(observation.source).toBe("contenu");
@@ -227,7 +231,7 @@ describe("le verdict de la table (OUT-10)", () => {
   });
 
   it("dit aussi quand il n’y a pas de table, au lieu de se taire", () => {
-    const observations = observationsDeLaTable(lireLaTable([mot("rien", 10, 10)]), "rang 2");
+    const observations = observationsDeLaTable(lireLaTable([mot("rien", 10, 10)], DOUZE), "rang 2");
     expect(observations[0]?.constat).toMatch(/Pas de table/);
   });
 });
@@ -279,7 +283,7 @@ describe("une table imprimée en deux panneaux (OUT-10)", () => {
   });
 
   it("rend une rangée par enregistrement, et non une rangée pour deux", () => {
-    const table = lireLaTable(deuxPanneaux);
+    const table = lireLaTable(deuxPanneaux, DOUZE);
     expect(table.panneaux).toBe(2);
     expect(table.colonnes.length, "une rangée porte trois cellules, pas six").toBe(3);
     // Dix rangées à gauche, dix à droite : vingt enregistrements, pas dix rangées de six cellules.
@@ -290,7 +294,7 @@ describe("une table imprimée en deux panneaux (OUT-10)", () => {
   });
 
   it("ne prête à un panneau que l'intitulé qui est le sien", () => {
-    const table = lireLaTable(deuxPanneaux);
+    const table = lireLaTable(deuxPanneaux, DOUZE);
     // Sans borne à gauche, l'intitulé du panneau droit ramassait tout le panneau gauche.
     for (const place of table.utilisables)
       expect(table.rangees[place]!.intitule, "un seul intitulé par rangée").toBe("Workout");
@@ -303,13 +307,13 @@ describe("une table imprimée en deux panneaux (OUT-10)", () => {
     const lignes = lignesDeMots(sansEnTete);
     const panneaux = panneauxDeColonnes(lignes, colonnesDeNombres(lignes));
     expect(panneaux.length, "un seul panneau : le document ne dit pas qu'il y en a deux").toBe(1);
-    expect(lireLaTable(sansEnTete).panneaux).toBe(1);
+    expect(lireLaTable(sansEnTete, DOUZE).panneaux).toBe(1);
   });
 
   it("ne voit qu'un panneau dans une table ordinaire à deux colonnes", () => {
     const ordinaire = table(Array.from({ length: 8 }, (_, rang) => [rang + 1, 6 + rang * 2] as const));
     const lignes = lignesDeMots(ordinaire);
     expect(panneauxDeColonnes(lignes, colonnesDeNombres(lignes)).length).toBe(1);
-    expect(lireLaTable(ordinaire).panneaux).toBe(1);
+    expect(lireLaTable(ordinaire, DOUZE).panneaux).toBe(1);
   });
 });

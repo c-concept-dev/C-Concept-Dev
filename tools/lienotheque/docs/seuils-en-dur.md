@@ -18,6 +18,50 @@ faire pour la plupart.
 | **produit** | 23 | choix d'ergonomie, de budget, de version ou tarif externe. Ne dépendent d'aucun document |
 | **jugement** | 82 | **seuils qui décident de quelque chose dans un document.** C'est la catégorie que la doctrine visait |
 
+## Priorité haute : les seuils dont l'effet est **mesuré**
+
+Le reste du relevé liste sans juger. Ici, on sait ce que le seuil coûte, parce qu'on l'a vu
+coûter. Un seuil mesuré passe devant quatre-vingt-un seuils supposés.
+
+### `8` et `4` — `outils/ingestion/src/voie-oracle.ts`, lignes 367 et 390
+
+Ce sont des **nombres nus**, sans nom : le relevé des 123 constantes ne les voit pas, et ils
+tombent dans les 64 comparaisons que ce relevé dit ne pas voir.
+
+```ts
+if (nombreDeMedias < 4) return undefined;                                    // ligne 367
+const minimum = Math.min(nombreDeMedias, Math.max(8, Math.ceil(nombreDeMedias / 2)));  // ligne 390
+```
+
+Combien de rangées d'une table doivent recouper des repères déjà lus pour que la table soit tenue
+pour une seconde lecture.
+
+| | |
+|---|---|
+| **Ce qu'il décide** | la moitié du vivier, jamais moins de huit — et tout le vivier s'il en porte moins de huit |
+| **Ce qu'il vaut en pratique** | **8 pour la moitié de la collection.** 52 archives sur 116 portent de neuf à douze enregistrements : sur un vivier de neuf, la marge est d'**une rangée** |
+| **D'où vient le 8** | non établi. Le registre dit qu'il « ne peut ainsi pas être gagné par une table courte de sommaire » — c'est un raisonnement, pas une mesure |
+| **Ce qu'il coûte** | **non mesuré.** Combien de documents lisent des rangées justes et s'arrêtent sous le seuil ? La donnée n'existe pas : voir ci-dessous |
+| **Comment le mesurer** | la voie oracle sur des documents **entiers** — un extrait de huit pages sur cent seize ne peut structurellement pas porter huit rangées de table |
+
+**Priorité haute, et pour une raison différente du précédent** : celui-là, on ne sait pas ce
+qu'il coûte. C'est pire que de le savoir.
+
+### `LIGNES_POUR_UNE_COLONNE = 4` — `packages/noyau/src/table.ts`
+
+Une colonne n'existe que si quatre valeurs au moins partagent son abscisse.
+
+| | |
+|---|---|
+| **Effet mesuré** | une vraie liste de pistes perdue. Vol 5 FUNK p2, huit rangées : qu'elle perde une case par rangée, et elle passe de **trois colonnes à une**. Elle n'est plus une table pour personne |
+| **Mesuré le** | 6 novembre 2026, contre-épreuve de dégradation sur la vérité de terrain confirmée à l'image |
+| **Ce qu'il coûte aujourd'hui** | rien sur cette collection : le trou de rappel qu'il ouvre pour les viviers de trois ou quatre enregistrements est **vide**. Sur les 116 archives, une seule en porte quatre ou moins — et elle en porte zéro. Le tableau complet est au registre, à la date du 6 novembre 2026 |
+| **Ce qu'il coûtera** | dès qu'une bibliothèque portera des tables courtes — une liste de cinq ou six enregistrements —, ou dès qu'une reconnaissance se dégradera. Le seuil ne borne pas le vivier : **il borne la hauteur de la table** |
+| **Où le reprendre** | dans le lot des rangées fantômes. Les deux touchent `rangeesDeTable` et `colonnesDeNombres`, c'est-à-dire **toute la lecture de table du produit** : une seule mesure, un seul lot, et la même contre-épreuve |
+
+Il n'est pas corrigé ici : le corriger demande de dire ce qui fait une colonne sans compter ses
+valeurs, et cela se mesure avant de s'écrire.
+
 ## Les seuils de jugement, classés par ce qui les fera casser
 
 Grille proposée par le Claude de claude.ai le 5 novembre 2026, et appliquée ici. Le classement

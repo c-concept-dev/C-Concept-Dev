@@ -24,7 +24,7 @@
  *  Le relecteur est un **port** : ce module n'appelle rien par lui-même et ne connaît ni réseau
  *  ni clé. Sans relecteur, il rend les zones qu'il aurait relues et ne fait rien d'autre.
  */
-import { lireLaTable, valeurDeCellule, type ZoneARelire } from "@lienotheque/noyau";
+import { lireLaTable, valeurDeCellule, type CeQueLaTablePeutDesigner, type ZoneARelire } from "@lienotheque/noyau";
 import type { MotLu } from "@lienotheque/contrats";
 
 /** Ce qu'on demande à relire : une zone d'une page, dans les unités des mots de cette page. */
@@ -73,10 +73,11 @@ export type Relecture<T extends PageAMots> = {
  *  pour une cellule suspecte. C'est elle qui dit si la relecture comble ou remplace. */
 export function zonesEnDefaut(
   pages: readonly PageAMots[],
+  designables: CeQueLaTablePeutDesigner,
 ): readonly (ZoneARelire & { page: number; valeurActuelle?: number | undefined })[] {
   return pages.flatMap((page) => {
     if (page.mots === undefined) return [];
-    const table = lireLaTable(page.mots);
+    const table = lireLaTable(page.mots, designables);
     return table.aRelire.map((zone) => {
       const actuelle = table.rangees[zone.rangee]?.cellules[zone.colonne];
       return { ...zone, page: page.page, ...(actuelle === undefined ? {} : { valeurActuelle: actuelle }) };
@@ -93,8 +94,9 @@ export function zonesEnDefaut(
 export async function relireLesZones<T extends PageAMots>(
   pages: readonly T[],
   relire: RelecteurDeZone | undefined,
+  designables: CeQueLaTablePeutDesigner,
 ): Promise<Relecture<T>> {
-  const zones = zonesEnDefaut(pages);
+  const zones = zonesEnDefaut(pages, designables);
   if (relire === undefined) return { pages, traces: [], enDefaut: zones.length };
 
   const traces: TraceDeRelecture[] = [];

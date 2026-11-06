@@ -32,7 +32,7 @@ try {
             binaire: join(MOTEURS, "bin/tesseract"),
             tessdata: join(MOTEURS, "tessdata"),
           });
-    const table = lireLaTable(page.mots);
+    const table = lireLaTable(page.mots, { enregistrements: pistes });
     if (!table.estUneTable) {
       console.log(`page ${String(rang).padStart(2)} : pas une table (${table.colonnes.length} colonne(s), ${table.rangees.length} rangée(s))`);
       continue;

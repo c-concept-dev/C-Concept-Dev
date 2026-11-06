@@ -10,9 +10,9 @@
  *
  *  Usage : a2-relire-la-zone-sur-place.ts <document.pdf> [première] [dernière]
  */
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { lireLaTable } from "@lienotheque/noyau";
 import { enGris, type ImageGrise } from "@lienotheque/images";
 import { coucheSuffisante, lireCoucheTexte, lireParOcr, ouvrirRenduPdf } from "@lienotheque/lecteur-texte";
@@ -31,6 +31,14 @@ if (pdf === undefined) {
 }
 const premiere = Number(process.argv[3] ?? 1);
 const derniere = Number(process.argv[4] ?? 0);
+/** Le vivier du document : les enregistrements posés à côté de lui. `lireLaTable` en a besoin
+ *  pour dire si une colonne de nombres peut en désigner un (décision du 6 novembre 2026). */
+const vivier = Number(
+  process.env["LIENOTHEQUE_VIVIER"] ??
+    readdirSync(dirname(pdf)).filter((n) => /\.(mp3|m4a|wav|flac|ogg|aac)$/i.test(n)).length,
+);
+const OFFRE = { enregistrements: vivier };
+
 
 /** Les façons de regarder une case, de la plus proche de la lecture d'origine à la plus insistante.
  *
@@ -89,7 +97,7 @@ try {
       deLaCouche !== undefined && coucheSuffisante(deLaCouche)
         ? deLaCouche
         : ocrDUnePageGrise(grise, rang, bac, OCR);
-    const table = lireLaTable(page.mots);
+    const table = lireLaTable(page.mots, OFFRE);
     if (table.aRelire.length === 0) continue;
     const parLaCouche = page.source === "couche_texte";
     console.log(
