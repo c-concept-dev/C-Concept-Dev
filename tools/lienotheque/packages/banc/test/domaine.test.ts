@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { termesTrouves } from "../src/vocabulaire.js";
 
 /** CLA-01 : le code générique ne connaît aucun domaine. Un mot de thérapie, de droit, de cuisine,
  *  de philatélie ou de musique dans le noyau est une régression : il annonce une branche
@@ -17,8 +18,6 @@ type Garde = {
 };
 
 const garde = JSON.parse(readFileSync(join(RACINE, "fixtures/termes-de-domaine.json"), "utf8")) as Garde;
-
-const sansAccents = (texte: string): string => texte.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
 function sources(dossier: string, sauf: readonly string[]): string[] {
   if (!statSync(dossier, { throwIfNoEntry: false })?.isDirectory()) return [];
@@ -65,15 +64,13 @@ describe("CLA-01 : aucun mot de domaine dans le code générique", () => {
 
   it("ne laisse passer aucun terme de la liste", () => {
     for (const chemin of fichiers) {
-      const contenu = sansAccents(readFileSync(join(RACINE, chemin), "utf8"));
-      const trouves = garde.termes.filter((terme) => contenu.includes(sansAccents(terme)));
+      const trouves = termesTrouves(readFileSync(join(RACINE, chemin), "utf8"), garde.termes);
       expect(trouves, `${chemin} emploie un vocabulaire de domaine`).toEqual([]);
     }
   });
 
   it("repérerait un terme introduit par mégarde", () => {
-    const sonde = sansAccents("const approche = 'Thérapie brève';");
-    expect(garde.termes.filter((t) => sonde.includes(sansAccents(t)))).toContain("thérapie");
+    expect(termesTrouves("const approche = 'Thérapie brève';", garde.termes)).toContain("thérapie");
   });
 
   it("justifie chacune de ses exceptions", () => {

@@ -92,6 +92,7 @@
 | 2026-10-08 | **Les écrans se photographient dans l'application de bureau**, en clair et en hybride : le thème hybride est ce qui montre les défauts de charte, qu'aucun test ne voit | Lot D2, étape 2 |
 | 2026-10-06 | **Les critères des corpus remontent à la porte de l'application** : F1, F3 et F4 se mesurent sur `executerTravail`, dans `outils/ingestion`, et nulle part ailleurs. Un seul test de critère par corpus | Lot D2, étape 1, section ci-dessous |
 | 2026-11-06 | **Titres et auteurs : deux régimes, selon le lieu.** **Code du produit** (y compris ses commentaires et ses données de démonstration) : **aucun titre, aucun auteur, jamais** — c'est la doctrine anti-codage en dur de CLA-01, indépendante du caractère public du dépôt. **Registre, documentation, tests et programmes de mesure** : les titres d'ouvrages du commerce **sont acceptés**, ils donnent leur sens aux décisions. Restent interdits partout : les **fichiers** (PDF, MP3, extraits) et l'**inventaire nominatif complet** de la collection | Décision de Christophe du 06/11, après le relevé des titres en dur dans les programmes de mesure |
+| 2026-11-06 | **CLA-01 cherche des mots, pas des suites de lettres.** La frontière d'un mot, dans du code, est l'espace **ou le passage de casse** (`lirePartition`, `partitionDuTexte`) ; une terminaison d'une **liste fermée** (`s`, `es`) décline le mot sans en faire un autre — **ce n'est pas une longueur** : `e`, plus court que `es`, est interdit parce qu'il transforme le mot (« desserte », « bache »). Chaque entrée porte son cas réel dans la liste des termes. Les **homonymes** (`rosier`, `rareté`) restent pris, et c'est sans danger : le jour où leur domaine entre au banc, ils sont interdits pour la bonne raison | Question de Christophe du 06/11, quatre faux positifs mesurés dont un antérieur ; trois règles, chacune tuée par sa mutation |
 
 
 
@@ -7914,3 +7915,106 @@ documents que mes relevés affichent viennent des **dossiers sur disque**, hors 
 titres. Le test a **rougi avant la correction** (`voie-oracle.ts emploie un vocabulaire de
 domaine`) et passe après. Il ne couvre toujours ni `mesures/`, ni `test/`, ni `docs/` — et par
 la règle 2, **c'est maintenant voulu, et non plus une lacune**.
+---
+
+## 6 novembre 2026 — le garde-fou cherchait des suites de lettres, pas des mots
+
+Christophe a posé la question juste après le push : « vérifie que CLA-01 cherche des **mots
+entiers** ; *rosier* est un mot français courant, *bach* peut figurer dans d'autres mots ».
+
+Il avait raison, et la mesure l'a montré en six lignes :
+
+| Phrase parfaitement légitime | Ce que le garde-fou accusait |
+|---|---|
+| `const bache = couvrirLaZone();` | `bach` |
+| `une desserte de service` | `dessert` |
+| `un bachelor en informatique` | `bach` |
+| `la fête bachique` | `bach` |
+
+**Le deuxième est antérieur à mon commit** : `dessert` était dans la liste depuis le domaine de
+la cuisine, et `desserte` aurait été accusée depuis le début. Le défaut ne venait donc pas des
+treize termes ajoutés ; ils l'ont seulement rendu probable.
+
+### Pourquoi c'est grave et pas cosmétique
+
+Un garde-fou qui accuse à tort **finit par être désarmé**. Celui qui le voit rouge sur un mot
+innocent ajoute une exception, puis une autre, et le jour où il rougit à raison personne ne le
+croit. Et le code déjà propre ne peut pas révéler ce défaut : il faut **lui soumettre des mots
+légitimes**. C'est le rôle du nouveau contrôle.
+
+### La frontière d'un mot, dans du code
+
+Elle n'est pas l'espace. Trois règles, chacune tuée par sa mutation :
+
+| Règle | Ce qu'elle permet | La mutation qui la tue |
+|---|---|---|
+| majuscule après minuscule = début de mot | `lirePartition` est pris | « attrape le terme collé dans un identifiant composé » |
+| majuscule = fin de mot | `partitionDuTexte` est pris | le même |
+| terminaison dans une liste fermée : `s` | « décrets », « exercices », « desserts » | « attrape le terme décliné » |
+| la même liste : `es` | « oblitérées », féminin pluriel d'un participe | la même |
+| aucune frontière (l'ancien comportement) | — | « n'accuse pas un mot français qui contient par hasard un terme » |
+
+**Correction, le même jour.** J'avais écrit ici « une flexion de deux lettres au plus », et
+Christophe a vu la contradiction immédiatement : « desserte » est « dessert » **plus une seule
+lettre**, donc une règle de longueur l'accuserait. Elle ne l'accuse pas, et ma phrase décrivait
+mal le code.
+
+La règle réelle est une **liste fermée de terminaisons**, `FLEXIONS`, et le test est
+`FLEXIONS.has(suite[0])` — une appartenance, jamais un compte de lettres :
+
+| Mot | Terminaison après le terme | Dans la liste ? | Verdict |
+|---|---|---|---|
+| dessert**s** | `s` | oui | accusé, à raison |
+| oblitér**ées** | `es` | oui | accusé, à raison |
+| dessert**e** | `e` | **non** | libéré |
+| bach**e** | `e` | **non** | libéré |
+| bach**elor** | `elor` | non | libéré |
+
+C'est donc l'**absence de `e`** qui libère « desserte » et « bache », et une lettre de plus ou de
+moins n'y est pour rien. Deux contrôles séparés le disent maintenant : « attrape le terme décliné,
+quand la déclinaison est prouvée » et « refuse une lettre ajoutée qui fait un autre mot ».
+
+**Et la liste a maigri.** La contre-épreuve par mutation, passée entrée par entrée, a montré que
+`s` était prouvé, mais que **`es` et `x` ne l'étaient par aucun test**. Deux suites différentes :
+
+- `es` a un cas réel dans la liste des termes — « oblitéré » → « oblitérées », féminin pluriel
+  d'un participe. Le test manquait ; il est écrit, et `es` est désormais prouvé.
+- `x` n'a **aucun cas** parmi les quarante-deux termes : aucun ne fait son pluriel en `-x`. Il est
+  **retiré**. C'est la doctrine appliquée à la lettre — une règle qu'aucune mutation ne tue est
+  supprimée.
+
+**Mais il faut dire dans quel sens ce retrait peut coûter.** J'avais écrit que le pluriel d'un
+futur terme en `-al` ou `-ou` « rougirait à tort » : c'est l'inverse. Un terme dont le pluriel
+sort de `FLEXIONS` est **laissé passer en silence**. « bijoux » ne rencontre pas « bijou », le
+garde-fou ne dit rien, et personne ne sait qu'il n'a rien vu. C'est un **trou**, pas une fausse
+alarme — et le trou est la panne la plus dangereuse d'un garde-fou, parce qu'elle ressemble
+exactement au succès.
+
+La même remarque vaut pour les terminaisons déjà absentes : un terme au pluriel irrégulier
+(`-aux`, `-eaux`, `-oux`) passe aujourd'hui inaperçu. L'avertissement est donc inscrit **là où on
+ajoute un terme**, dans la description de `fixtures/termes-de-domaine.json` : qui dépose un terme
+au pluriel irrégulier doit ajouter sa terminaison à `FLEXIONS`, avec son contrôle. C'est le seul
+endroit qui sera lu au bon moment.
+
+La logique quitte le fichier de test pour `packages/banc/src/vocabulaire.ts`, pour la même raison
+que `rien-de-lourd.ts` avant elle : **une fonction pure s'éprouve seule**. L'extraction a d'abord
+été faite sans changer le comportement (cinq contrôles verts), puis le test rouge ajouté, puis la
+correction.
+
+### Ce que la correction ne règle pas, et pourquoi c'est sans danger
+
+`rosier` et `rareté` restent pris **en tant que mots** :
+
+```
+  ACCUSÉ  le rosier du jardin        ["rosier"]
+  ACCUSÉ  la rareté de ce timbre     ["rareté"]
+          une bache                  []
+          une desserte               []
+```
+
+Ce ne sont pas des sous-chaînes mais des **homonymes**, et aucune règle de frontière ne les
+distinguera : le mot est le même. La correction ne pouvait pas les atteindre, et **elle n'a pas
+à le faire** : le jour où un domaine de jardinage ou de philatélie entre au banc, « rosier » et
+« rareté » sont des mots de ce domaine, donc interdits dans le code générique **pour la bonne
+raison**. `rareté` y est d'ailleurs déjà, depuis le domaine des cartes à jouer. La collision est
+inoffensive par construction — mais il fallait le vérifier plutôt que le supposer.
