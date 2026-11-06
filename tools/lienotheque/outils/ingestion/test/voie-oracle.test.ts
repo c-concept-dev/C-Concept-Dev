@@ -106,6 +106,8 @@ describe("une table globale corrobore sans jamais décider seule (OUT-10, REC-02
     utilisables: Array.from({ length: combien }, (_, place) => place),
     incompletes: [],
     suspectes: [],
+    // Toutes les rangées sont pleines et nettes : il n'y a rien à relire ici.
+    aRelire: [],
     estUneTable: true,
   });
 

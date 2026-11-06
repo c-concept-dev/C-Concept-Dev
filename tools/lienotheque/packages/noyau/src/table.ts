@@ -411,6 +411,31 @@ export function cellulesSuspectes(rangees: readonly RangeeDeTable[], colonnes: r
   return suspectes;
 }
 
+/** Où relire, quand une case demande une seconde lecture (A2).
+ *
+ *  **La zone, et non la page.** La table se disait déjà en défaut — ses rangées à trou, ses
+ *  cellules suspectes — mais sans dire *où* elles sont : relire voulait donc dire relire la page
+ *  entière, au prix d'une page pour rattraper une case. Mesuré le 5 novembre 2026 : quatre cases
+ *  manquées sur une table de cinquante-deux rangées.
+ *
+ *  Tout sort **des mots déjà lus** : la bande verticale des boîtes de la rangée, la bande
+ *  horizontale de la colonne visée élargie de ce qu'un nombre occupe ici. Aucune constante, donc
+ *  rien à calibrer document par document — un nombre ne s'écarte pas de sa colonne de plus que sa
+ *  propre largeur, et c'est une propriété de la composition.
+ *
+ *  Les unités sont celles des boîtes reçues, jamais des parts de page : c'est à qui relit de les
+ *  rapporter à l'image dont il les tient. */
+export type ZoneARelire = {
+  readonly rangee: number;
+  readonly colonne: number;
+  readonly x: number;
+  readonly y: number;
+  readonly l: number;
+  readonly h: number;
+  /** Pourquoi cette case est à relire, dans les mots de la table elle-même. */
+  readonly pourquoi: string;
+};
+
 export type TableLue = {
   /** Les colonnes **d'une rangée**. Quand la table est imprimée en panneaux, ce sont celles d'un
    *  panneau : chaque rangée rendue porte un enregistrement, pas deux. Voir `panneaux`. */
@@ -426,10 +451,29 @@ export type TableLue = {
   /** Les rangées à trou, nommées plutôt que comblées. */
   readonly incompletes: readonly number[];
   readonly suspectes: readonly CelluleSuspecte[];
+  /** Les cases à relire, une par case et jamais une par page : les cellules non lues des rangées
+   *  à trou, et les cellules suspectes. Vide quand ce n'est pas une table. */
+  readonly aRelire: readonly ZoneARelire[];
   /** Une table demande au moins deux colonnes et assez de rangées pour que ce ne soit pas un
    *  hasard. En deçà, ce qu'on a trouvé n'est pas une table. */
   readonly estUneTable: boolean;
 };
+
+/** Ce qu'un nombre occupe ici, en largeur : la médiane des nombres réellement lus dans ce
+ *  panneau. Tirée des données, parce qu'une largeur en pixels n'a pas de sens d'une image à
+ *  l'autre. */
+function largeurDUnNombre(ligne: readonly LigneDeTable[], panneau: readonly Colonne[]): number {
+  const premiere = panneau[0]?.x ?? Number.NEGATIVE_INFINITY;
+  const derniere = (panneau.at(-1)?.x ?? Number.POSITIVE_INFINITY) + (panneau.at(-1)?.etendue ?? 0);
+  const largeurs = ligne
+    .flatMap((une) => une.mots)
+    .filter((mot) => valeurDe(mot.texte) !== undefined && mot.x >= premiere - 1 && mot.x <= derniere + 1)
+    .map((mot) => mot.l)
+    .sort((un, autre) => un - autre);
+  // Sans un seul nombre dans ce panneau il n'y aurait pas de panneau : le repli ne sert qu'à
+  // garder la fonction totale.
+  return largeurs[Math.floor(largeurs.length / 2)] ?? 0;
+}
 
 export const RANGEES_POUR_UNE_TABLE = 4;
 
@@ -444,6 +488,8 @@ export function lireLaTable(mots: readonly MotLu[]): TableLue {
   const panneaux = panneauxDeColonnes(lignes, toutes);
   const rangees: RangeeDeTable[] = [];
   const suspectes: CelluleSuspecte[] = [];
+  /** D'où vient chaque rangée : sa ligne de mots, et les colonnes de son panneau. */
+  const ou = new Map<number, { ligne: LigneDeTable; panneau: readonly Colonne[] }>();
   for (const [place, panneau] of panneaux.entries()) {
     // La borne est le **milieu** entre deux panneaux, et non le centre de la dernière colonne du
     // précédent : les valeurs d'une colonne s'impriment un peu à droite de son centre, et prendre
@@ -455,6 +501,11 @@ export function lireLaTable(mots: readonly MotLu[]): TableLue {
     const decalage = rangees.length;
     for (const suspecte of cellulesSuspectes(siennes, panneau))
       suspectes.push({ ...suspecte, rangee: suspecte.rangee + decalage });
+    // De quoi relire une case plus tard : sa ligne d'origine et les colonnes de **son** panneau.
+    // `rangeesDeTable` rend une rangée par ligne, dans l'ordre des lignes : la place suffit.
+    siennes.forEach((_, rang) => {
+      ou.set(decalage + rang, { ligne: lignes[rang]!, panneau });
+    });
     rangees.push(...siennes);
   }
   const colonnes = panneaux[0] ?? [];
@@ -471,6 +522,53 @@ export function lireLaTable(mots: readonly MotLu[]): TableLue {
     if (!douteuses.has(rang)) utilisables.push(rang);
   }
 
+  const estUneTable = colonnes.length >= 2 && utilisables.length + incompletes.length >= RANGEES_POUR_UNE_TABLE;
+
+  // Les cases à relire : une par case. Les cellules non lues des rangées à trou d'abord, les
+  // cellules suspectes ensuite — et jamais deux fois la même case, car une rangée peut être à la
+  // fois à trou et suspecte.
+  const aRelire: ZoneARelire[] = [];
+  if (estUneTable) {
+    const largeurs = new Map<readonly Colonne[], number>();
+    // Pas de dédoublonnage : une case non lue n'a pas de valeur, donc ne peut pas être suspecte,
+    // et `cellulesSuspectes` ne nomme jamais deux fois la même case. Une garde ici n'aurait
+    // protégé de rien — aucun contrôle ne mourait de son retrait, et c'est ce qui l'a condamnée.
+    const poser = (rangee: number, colonne: number, pourquoi: string): void => {
+      const source = ou.get(rangee);
+      const visee = source?.panneau[colonne];
+      if (source === undefined || visee === undefined) return;
+      const mots = source.ligne.mots;
+      if (mots.length === 0) return;
+      const haut = Math.min(...mots.map((mot) => mot.y));
+      const bas = Math.max(...mots.map((mot) => mot.y + mot.h));
+      let largeur = largeurs.get(source.panneau);
+      if (largeur === undefined) {
+        largeur = largeurDUnNombre(lignes, source.panneau);
+        largeurs.set(source.panneau, largeur);
+      }
+      // Un nombre ne s'écarte pas de sa colonne de plus que sa propre largeur : la bande part
+      // d'une demi-largeur avant le centre du groupe et court jusqu'au bout de son étendue, plus
+      // une largeur et demie pour contenir le nombre lui-même.
+      aRelire.push({
+        rangee,
+        colonne,
+        x: visee.x - largeur / 2,
+        y: haut,
+        l: visee.etendue + largeur * 2,
+        h: bas - haut,
+        pourquoi,
+      });
+    };
+    for (const rang of incompletes)
+      rangees[rang]!.cellules.forEach((cellule, colonne) => {
+        if (cellule === undefined) poser(rang, colonne, "cellule non lue");
+      });
+    for (const suspecte of suspectes) poser(suspecte.rangee, suspecte.colonne, `cellule suspecte : ${suspecte.pourquoi}`);
+    // Pas de tri : l'ordre est déjà déterminé — les trous dans l'ordre des rangées, puis les
+    // suspectes dans le leur — et personne ne lit cette liste dans l'ordre des positions. Un tri
+    // ajouté « pour la propreté » ne faisait mourir aucun contrôle ; il est parti avec eux.
+  }
+
   return {
     colonnes,
     panneaux: panneaux.length,
@@ -478,7 +576,8 @@ export function lireLaTable(mots: readonly MotLu[]): TableLue {
     utilisables,
     incompletes,
     suspectes,
-    estUneTable: colonnes.length >= 2 && utilisables.length + incompletes.length >= RANGEES_POUR_UNE_TABLE,
+    aRelire,
+    estUneTable,
   };
 }
 
