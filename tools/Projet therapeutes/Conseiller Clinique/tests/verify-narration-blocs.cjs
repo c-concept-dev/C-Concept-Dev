@@ -13,6 +13,13 @@ const { doc, open } = require('./presentation-edit-fixtures.cjs');
     const d = doc();
     d.blocks[0].content.blocks.push({ id: 'q1', type: 'quote',
       content: { text: 'Une citation à commenter.' }, citationIds: [], validation: {} });
+    d.blocks[0].content.blocks.push({ id: 'p2', type: 'paragraph',
+      content: { text: 'Le bloc suivant apporte une nuance.' }, citationIds: [], validation: {} });
+    d.blocks.push({ id: 'card-02', type: 'card', content: {
+      title: 'Diapositive suivante', imageRef: null, imageAlt: null,
+      blocks: [{ id: 'p3', type: 'paragraph',
+        content: { text: 'La suite du document développe cette idée.' }, citationIds: [], validation: {} }],
+    }, citationIds: [], validation: {} });
     await open(page, d, 'narration-blocs');
     await page.evaluate(() => { window._adocWsState.storeKey = 'narration-blocs'; });
     const result = await page.evaluate(() => {
@@ -62,7 +69,9 @@ const { doc, open } = require('./presentation-edit-fixtures.cjs');
       return prompt;
     });
     assert.match(context, /Bloc immédiatement AVANT : Contenu clinique de la diapositive/);
+    assert.match(context, /Bloc immédiatement APRÈS : Le bloc suivant apporte une nuance/);
     assert.match(context, /Contexte de la présentation, dans l’ordre/);
+    assert.match(context, /La suite du document développe cette idée/);
     assert.match(context, /Ne commentez que ce bloc/);
     console.log('PASS narration individuelle : titre, en-tête, paragraphe, citation ; schéma et export.');
   } finally { await browser.close(); }
