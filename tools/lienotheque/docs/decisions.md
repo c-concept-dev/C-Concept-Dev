@@ -93,6 +93,8 @@
 | 2026-10-06 | **Les critères des corpus remontent à la porte de l'application** : F1, F3 et F4 se mesurent sur `executerTravail`, dans `outils/ingestion`, et nulle part ailleurs. Un seul test de critère par corpus | Lot D2, étape 1, section ci-dessous |
 | 2026-11-06 | **Titres et auteurs : deux régimes, selon le lieu.** **Code du produit** (y compris ses commentaires et ses données de démonstration) : **aucun titre, aucun auteur, jamais** — c'est la doctrine anti-codage en dur de CLA-01, indépendante du caractère public du dépôt. **Registre, documentation, tests et programmes de mesure** : les titres d'ouvrages du commerce **sont acceptés**, ils donnent leur sens aux décisions. Restent interdits partout : les **fichiers** (PDF, MP3, extraits) et l'**inventaire nominatif complet** de la collection | Décision de Christophe du 06/11, après le relevé des titres en dur dans les programmes de mesure |
 | 2026-11-06 | **CLA-01 cherche des mots, pas des suites de lettres.** La frontière d'un mot, dans du code, est l'espace **ou le passage de casse** (`lirePartition`, `partitionDuTexte`) ; une terminaison d'une **liste fermée** (`s`, `es`) décline le mot sans en faire un autre — **ce n'est pas une longueur** : `e`, plus court que `es`, est interdit parce qu'il transforme le mot (« desserte », « bache »). Chaque entrée porte son cas réel dans la liste des termes. Les **homonymes** (`rosier`, `rareté`) restent pris, et c'est sans danger : le jour où leur domaine entre au banc, ils sont interdits pour la bonne raison | Question de Christophe du 06/11, quatre faux positifs mesurés dont un antérieur ; trois règles, chacune tuée par sa mutation |
+| 2026-11-06 | **Le jeton d'accès ne vient que du TROUSSEAU.** Le chemin par la variable `LIENOTHEQUE_JETON` est **retiré** : aucun des quinze appelants ne s'en gardait, aucune intégration continue ne la pose, et il était **silencieux** — un jeton qui traîne l'emportait sur le trousseau sans rien dire. La variable garde **un seul** rôle, le signal qui fait refuser de démarrer les douze programmes de mesure hors ligne : un signal de refus ne doit pas pouvoir servir d'accès | Voie 1 choisie par Christophe le 06/11, sur relevé des appelants ; deux contrôles tués par la mutation qui le réinstalle |
+| 2026-11-06 | **Renouvellement du jeton d'accès autorisé**, selon `docs/renouveler-le-jeton.md`, dans la fenêtre où aucune mesure en ligne ne tourne (avant 48 → 52) ; vérification par `verifier-route.ts`. Motif : le fragment de 37 caractères sur 64 passé par le **contexte du modèle**, non exploitable mais ayant voyagé. **Les deux gestes qui installent le secret sont faits par Christophe** — Claude n'entre pas un secret dans un champ, même autorisé | Autorisation de Christophe dans la fenêtre de la session, 06/11/2026 |
 
 
 
@@ -7360,8 +7362,6 @@ Relevé du 5 novembre, recompté le 6. **1 979 enregistrements**, médiane **13*
 | 17 | 3 | 95 |
 | 18 | 2 | 97 |
 | 20 | 3 | 100 |
-| 2026-11-06 | **Le jeton d'accès ne vient que du TROUSSEAU.** Le chemin par la variable `LIENOTHEQUE_JETON` est **retiré** : aucun des quinze appelants ne s'en gardait, aucune intégration continue ne la pose, et il était **silencieux** — un jeton qui traîne l'emportait sur le trousseau sans rien dire. La variable garde **un seul** rôle, le signal qui fait refuser de démarrer les douze programmes de mesure hors ligne : un signal de refus ne doit pas pouvoir servir d'accès | Voie 1 choisie par Christophe le 06/11, sur relevé des appelants ; deux contrôles tués par la mutation qui le réinstalle |
-| 2026-11-06 | **Renouvellement du jeton d'accès autorisé**, selon `docs/renouveler-le-jeton.md`, dans la fenêtre où aucune mesure en ligne ne tourne (avant 48 → 52) ; vérification par `verifier-route.ts`. Motif : le fragment de 37 caractères sur 64 passé par le **contexte du modèle**, non exploitable mais ayant voyagé. **Les deux gestes qui installent le secret sont faits par Christophe** — Claude n'entre pas un secret dans un champ, même autorisé | Autorisation de Christophe dans la fenêtre de la session, 06/11/2026 |
 | 21 | 1 | 101 |
 | 22 | 2 | 103 |
 | 23 | 1 | 104 |
@@ -7918,6 +7918,7 @@ documents que mes relevés affichent viennent des **dossiers sur disque**, hors 
 titres. Le test a **rougi avant la correction** (`voie-oracle.ts emploie un vocabulaire de
 domaine`) et passe après. Il ne couvre toujours ni `mesures/`, ni `test/`, ni `docs/` — et par
 la règle 2, **c'est maintenant voulu, et non plus une lacune**.
+
 ---
 
 ## 6 novembre 2026 — le garde-fou cherchait des suites de lettres, pas des mots
@@ -8021,6 +8022,35 @@ distinguera : le mot est le même. La correction ne pouvait pas les atteindre, e
 « rareté » sont des mots de ce domaine, donc interdits dans le code générique **pour la bonne
 raison**. `rareté` y est d'ailleurs déjà, depuis le domaine des cartes à jouer. La collision est
 inoffensive par construction — mais il fallait le vérifier plutôt que le supposer.
+
+---
+
+## 6 novembre 2026 — A2 a DEUX déclencheurs, pas un
+
+Rappel de Christophe, au moment d'attaquer la fin d'A2. Je n'en avais retenu qu'un, et la
+différence porte loin.
+
+| # | Déclencheur | Ce qu'on relit | Où il se mesure |
+|---|---|---|---|
+| 1 | **une case de repère** restée sans accord après la relecture locale | la case seule, agrandie | le jalon, mesure 48 → 52 |
+| 2 | **le texte d'une page** qui lit nettement moins bien que les pages comparables du même document | la page entière | un livre de la **Bibliothèque Studio Clinique** |
+
+Les deux partagent l'étage payant et la règle d'économie, mais **rien d'autre** : l'un relit une
+boîte de quelques dizaines de pixels, l'autre une page ; l'un se juge sur des liens justes,
+l'autre sur du texte lisible.
+
+**« Comparables » est une donnée de bibliothèque, pas une constante.** Ce qui fait qu'une page se
+compare à une autre dépend du type de document — et ce type vient du schéma de la bibliothèque,
+jamais du code. C'est la règle 1 du CDC appliquée à la comparaison elle-même : une méthode
+illustrée et un recueil de texte n'ont pas la même page normale, et le code n'a pas à le savoir.
+
+Le second déclencheur se mesure **hors de la bibliothèque musicale**, sur Studio Clinique. Ce
+n'est pas un détail de commodité : un seuil de lisibilité trouvé sur un seul corpus serait
+exactement le genre de constante calibrée que la doctrine du 5 novembre interdit. Deux familles
+de documents, deux natures de page.
+
+Ordre arrêté : **48 → 52 d'abord**, le second déclencheur ensuite.
+
 ---
 
 ## 6 novembre 2026 — le jeton ne vient plus que du trousseau
@@ -8109,6 +8139,7 @@ l'environnement en porte un autre ». Restauré octet pour octet.
 `jetonDeLEnvironnement` est **supprimée**, et non conservée au cas où : elle n'avait plus aucun
 appelant hors de son propre contrôle. Les douze programmes hors ligne lisent `process.env`
 directement et ne passaient pas par elle.
+
 ---
 
 ## 6 novembre 2026 — renouvellement du jeton d'accès : autorisé
@@ -8193,30 +8224,49 @@ un en-tête décrivait encore « environnement d'abord, trousseau ensuite ». C'
 vraies le matin et fausses l'après-midi. Un message d'erreur qui nomme une source que le code ne
 lit plus envoie chercher au mauvais endroit — et c'est précisément quand on cherche un jeton
 manquant qu'on n'a pas de temps à perdre.
+
 ---
 
-## 6 novembre 2026 — A2 a DEUX déclencheurs, pas un
+## 6 novembre 2026 — discipline de tenue : un lot à la fois, et la charge avant un contrôle
 
-Rappel de Christophe, au moment d'attaquer la fin d'A2. Je n'en avais retenu qu'un, et la
-différence porte loin.
+Deux règles posées par Christophe après trois incidents de la même journée. Elles sont ici parce
+qu'elles ont chacune un coût mesuré.
 
-| # | Déclencheur | Ce qu'on relit | Où il se mesure |
-|---|---|---|---|
-| 1 | **une case de repère** restée sans accord après la relecture locale | la case seule, agrandie | le jalon, mesure 48 → 52 |
-| 2 | **le texte d'une page** qui lit nettement moins bien que les pages comparables du même document | la page entière | un livre de la **Bibliothèque Studio Clinique** |
+### Un lot à la fois
 
-Les deux partagent l'étage payant et la règle d'économie, mais **rien d'autre** : l'un relit une
-boîte de quelques dizaines de pixels, l'autre une page ; l'un se juge sur des liens justes,
-l'autre sur du texte lisible.
+**Chaque lot est commité AVEC sa propre entrée de registre avant qu'un autre ne commence.**
 
-**« Comparables » est une donnée de bibliothèque, pas une constante.** Ce qui fait qu'une page se
-compare à une autre dépend du type de document — et ce type vient du schéma de la bibliothèque,
-jamais du code. C'est la règle 1 du CDC appliquée à la comparaison elle-même : une méthode
-illustrée et un recueil de texte n'ont pas la même page normale, et le code n'a pas à le savoir.
+Pourquoi : `docs/decisions.md` est partagé par tous les lots, et **trois fois ce jour** un
+`git add docs/decisions.md` a emporté les écritures de lots qui n'étaient pas prêts. La troisième
+fois, le commit annonçait dans son message que les autres entrées « partiraient avec leur lot »
+alors qu'il venait de les prendre — **165 insertions au lieu de 3**, rattrapées par le
+`git show --stat` placé dans la même commande.
 
-Le second déclencheur se mesure **hors de la bibliothèque musicale**, sur Studio Clinique. Ce
-n'est pas un détail de commodité : un seuil de lisibilité trouvé sur un seul corpus serait
-exactement le genre de constante calibrée que la doctrine du 5 novembre interdit. Deux familles
-de documents, deux natures de page.
+La leçon n'est pas « faire attention » : c'est que **un fichier partagé par trois lots est un
+chemin trop large**, exactement comme un dossier. La règle « jamais `git add -A` ni `git add .` »
+ne suffisait pas, parce qu'elle parle de la forme du chemin et non de ce qu'il contient.
 
-Ordre arrêté : **48 → 52 d'abord**, le second déclencheur ensuite.
+Reconstruire une version partielle pour l'index fonctionne — c'est ce qui a sauvé les trois cas —
+mais c'est un rattrapage, pas une méthode. La méthode est de ne pas accumuler.
+
+### La charge avant un contrôle complet
+
+**Relever `uptime` avant de lancer `pnpm check` ; si la charge est anormale, attendre ou le
+signaler. Un seul contrôle à la fois.**
+
+Pourquoi : un contrôle a été **refusé sur un dépassement de délai**, pas sur une assertion. Le
+même test prenait 71 s dans la course précédente et a dépassé 360 s dans celle-là ; la suite
+`outils/ingestion` est passée de 1419 s à 3294 s tandis que tous les autres paquets gardaient
+leur durée à la seconde près. Rejoué seul, le test rend **73,8 s et vert**.
+
+Un indice de plus, trouvé sans le chercher : le code de sortie portait aussi
+`[vitest-worker]: Timeout calling "onTaskUpdate"` — **la liaison interne du banc entre son
+ouvrier et son fil principal** en dépassement. Quand l'infrastructure d'un banc n'arrive plus à
+se répondre à elle-même, ce n'est pas le code qu'il faut relire.
+
+Et j'avais moi-même lancé **trois `pnpm check` en concurrence** plus tôt dans la journée, deux
+portant sur un état déjà périmé. D'où la seconde moitié de la règle.
+
+**Ce qu'il ne faut pas faire dans ce cas**, et qui n'a pas été fait : épingler le rouge (une
+épingle sert à un échec compris, pas à un échec inexpliqué) ou allonger le délai de 360 s (ce
+serait supprimer le seul signal qui a dit que la machine était saturée).
