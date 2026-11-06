@@ -6889,3 +6889,57 @@ ailleurs. Les deux lectures restent au rapport (`lu`, `retenu`, `remplace`).
 **Sur les trois commits d'A2, cinq règles écrites par moi sont parties et deux ont été gardées
 parce qu'un vrai cas les tue.** La doctrine du 5 novembre ne vaut pas seulement contre les
 constantes du produit.
+
+## 6 novembre 2026 — A2 : mesurer avant de dépenser une clé, et ce que la page a dit
+
+Avant d'appeler Vision, j'ai demandé à **Tesseract lui-même** de relire les cases que la table dit
+en défaut : la même reconnaissance, mais sur **la zone seule et en segmentation serrée** au lieu
+de la page entière en blocs. Quatre manières — ligne (7), mot (8), mot ×3, bloc (6) ×3 —, chacune
+mesurée à part. L'agrandissement est une duplication de pixels : aucun pixel n'est inventé.
+
+**Coût : 61 à 67 ms par case.** Sans commune mesure avec un appel en ligne. Mais le résultat
+n'est pas celui que j'espérais, et c'est la page rendue en PNG qui l'a tranché.
+
+### Une seule lecture rend des nombres parfaitement formés et parfaitement faux
+
+Sur la table réelle « CD TRACK LISTING » (22 cases en défaut), les lectures isolées donnent :
+
+| Case | Vérité imprimée | Ce qu'une manière a lu |
+|---|---|---|
+| rangée 15, colonne 2 | 13 | **« 171 »** par la ligne, « a1 » par le bloc |
+| rangée 43, colonne 2 (lue 82) | 32 | **« 327 »** par la ligne, « 3) » par le bloc |
+| page 4, rangée 11 (lue 110) | 110 | **« 710 »** par le bloc |
+
+Rien dans le texte ne distingue « 171 » d'une bonne lecture. Une règle qui retient le premier
+nombre venu aurait publié trois valeurs fausses pour en rattraper trois justes.
+
+### L'accord entre manières sépare les deux, et il le fait sans réglage
+
+Deux manières qui lisent le même nombre ne se trompent pas de la même façon. C'est le principe du
+vote déjà employé sur les marques, appliqué ici :
+
+**3 valeurs retenues, 0 contradiction, 19 sans accord** sur 22 cases.
+
+Et les deux valeurs retenues sur de vraies lignes de la table sont **exactement justes**,
+vérifiées sur la page rendue : Workout 20 → piste **20**, page **44**. Les trois lectures
+dangereuses ci-dessus sont toutes **écartées faute d'accord**.
+
+### Deux défauts que cette mesure a mis au jour
+
+**La page 8 n'est pas une table.** Le détecteur y voit « 2 colonnes, 50 rangées » : c'est le
+**chapitre 1, Workout 1**, et les colonnes sont les chiffres de la tablature. Dix cases y ont été
+relues pour rien. Vérifié en rendant la page en PNG — deux minutes, comme le veut la règle.
+
+**Les rangées fantômes.** `rangeesDeTable` construit une rangée par **ligne de la page** pour
+**chaque panneau**. Sur une page dont les panneaux n'ont pas la même longueur — ici trente
+enregistrements à gauche, vingt-deux à droite —, le panneau court reçoit des rangées sur des
+lignes où il ne porte rien. Si un nombre voisin s'y égare, la rangée devient « à trou » ou
+« suspecte » et engendre un appel sur du vide. La troisième valeur retenue est de celles-là.
+
+### Ce que cela décide pour A2
+
+La relecture locale **rattrape**, et presque gratuitement, mais seulement là où la page n'avait pas
+complètement échoué. Sur les cases vraiment abîmées — celles de Christophe — les quatre manières
+rendent du bruit sans jamais s'accorder. **C'est l'argument pour Vision, et il est maintenant
+mesuré au lieu d'être supposé** : la relecture locale d'abord, gratuite ; Vision ensuite, sur ce
+qui reste sans accord, et seulement là.
