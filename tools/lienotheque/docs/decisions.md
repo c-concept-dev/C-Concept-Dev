@@ -7035,3 +7035,46 @@ que Vision doit relire, et on sait maintenant la désigner.
 qui n'étaient qu'abîmées. Elle ne suffit pas pour les cases détruites, et une rangée ne sert que
 si **toutes** ses cellules sont lues — combler une cellule sur deux ne rapporte rien. Vision a
 donc un rôle précis, borné, et chiffrable : les cases restées sans accord, et elles seules.
+
+## 6 novembre 2026 — Le nombre dans le nom : trois propriétés écrites, deux fausses, et un signal rare
+
+Christophe a demandé d'exploiter « de façon générique » le nombre que certains noms de MP3
+portent — un numéro de page imprimée —, « jamais par un motif *Pg.* en dur ». J'ai donc relevé,
+pour chaque **place** où un nombre apparaît dans les noms d'un même vivier, la suite de ses
+valeurs, et demandé à cette suite si elle se comporte comme une pagination. Trois propriétés.
+**Deux sont fausses, et c'est un vivier réel qui les a tuées.**
+
+| Propriété | Verdict |
+|---|---|
+| **elle monte** avec l'ordre des enregistrements | **Tient.** C'est la seule |
+| ses valeurs **sont distinctes** | **Fausse.** Deux pistes consécutives portent le même numéro imprimé — elles sont sur la même page. Cette propriété décrit un **rang de piste**, pas une page |
+| elle **tient dans le document** | **Fausse.** Elle compare un numéro **imprimé** à un compte de **feuilles**, et rejette donc exactement les documents où le signal sert : un recueil annonçant « page 67 » à « page 196 » sur cinquante-sept feuilles numérisées est le cas même qu'on cherche |
+
+Un défaut de plus, de méthode : **je comptais les places depuis le début du nom**. Un vivier dont
+les titres portent eux-mêmes des nombres n'a pas le même nombre de nombres d'un nom à l'autre —
+« 12_8 Blues » en ajoute deux — et la page, toujours dernière, change alors de rang. Compter
+**aussi depuis la fin** ne suppose rien de plus qu'un nom qui finit par ce qu'il désigne. Avec ce
+comptage, le signal apparaît : `avant-dernière 0 → [67 76 94 106 …]`.
+
+### Mais il est rare, et c'est ce qui décide de la priorité
+
+| Places de nombre dans les noms | Viviers |
+|---|---|
+| **une seule** — le rang de piste, et rien d'autre | **88** sur 115 |
+| deux | 24 |
+| quatre | 1 |
+| huit | 1 |
+
+**Quatre-vingt-huit viviers sur cent quinze ne portent qu'un seul nombre dans leurs noms.** Ils ne
+peuvent pas porter de page. Le signal que Christophe a repéré est réel, et il concerne une
+poignée de documents — deux, richement numérotés, plus quelques-uns à deux places dont la seconde
+appartient au titre.
+
+**Ce que cela décide** : la corrélation nom ↔ folios reste à faire, mais elle ne devient jamais un
+mécanisme général. Elle vaut comme **second signal pour les quelques documents qui le portent**, et
+construire pour elle ce qu'on construirait pour cent quinze serait se tromper d'effort.
+
+**Et aucune propriété des noms seuls ne désigne la page.** Avec « elle monte » pour seul critère,
+114 viviers sur 115 ont une place candidate — y compris le numéro de disque, constant. Ce qui
+distingue la page du rang de piste, ce sont **les folios lus**, et rien d'autre : la confrontation
+que Christophe a nommée n'est pas un raffinement du mécanisme, elle **est** le mécanisme.
