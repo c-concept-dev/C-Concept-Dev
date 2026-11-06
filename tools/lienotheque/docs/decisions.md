@@ -7003,3 +7003,35 @@ n'a trouvé **aucun repère sur les pages** — rien à voir avec les médias. U
 « médias non interprétés » sur l'écran Vérifier ira regarder ses noms de fichiers, alors que le
 document ne porte simplement pas de numérotation lisible. C'est le cas d'Aebersold 001 **et** 041,
 dont l'un a onze médias et l'autre aucun : la même phrase pour deux situations opposées.
+
+## 6 novembre 2026 — Ce que la relecture locale rattrape vraiment : +1, et non +4
+
+Mesuré au niveau où le gain se décide, **sans toucher à la chaîne** : une rangée de table devient
+utilisable quand toutes ses cellules sont lues et qu'aucune n'est suspecte. On compte les rangées
+utilisables avant et après la relecture, et on n'attribue ainsi à A2 aucun effet venu d'ailleurs.
+
+Sur la table réelle du document du jalon :
+
+| | |
+|---|---|
+| Rangées utilisables | **43 → 44 (+1)** |
+| Valeurs retenues | 4 sur 22 cases en défaut |
+| Coût | 4 appels par case, **61 ms par appel** |
+
+**Christophe attendait 48 → 52. La relecture locale seule donne +1.** Voici pourquoi, case par
+case :
+
+| Case | Ce qui s'est passé |
+|---|---|
+| rangée 24, colonnes 2 et 3 | **les deux cellules comblées** (piste 20, page 44) → la rangée devient utilisable |
+| rangée 16, colonne 3 | page **28** comblée — mais sa colonne 2 reste un trou, donc la rangée ne sert toujours pas |
+| rangée 52, colonne 1 | une rangée fantôme : rien n'y était |
+
+La rangée 16 est **le Workout 12** de Christophe. Sa page a été rattrapée ; **sa piste, non** — les
+quatre manières n'ont jamais lu deux fois le même nombre à cet endroit. C'est exactement la case
+que Vision doit relire, et on sait maintenant la désigner.
+
+**Ce que la mesure établit** : la relecture locale est presque gratuite et elle comble les cases
+qui n'étaient qu'abîmées. Elle ne suffit pas pour les cases détruites, et une rangée ne sert que
+si **toutes** ses cellules sont lues — combler une cellule sur deux ne rapporte rien. Vision a
+donc un rôle précis, borné, et chiffrable : les cases restées sans accord, et elles seules.
