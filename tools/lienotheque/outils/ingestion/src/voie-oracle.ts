@@ -210,6 +210,9 @@ export type RejeuParOracle = {
   readonly resultat: ResultatRecette;
   readonly association: Association;
   readonly medias: readonly Media[];
+  /** Ce que chaque table globale a donné, et pourquoi elle n'a pas suffi. Description seule :
+   *  rien de ce qui est publié n'en dépend, et un contrôle l'établit. */
+  readonly constatsDeTable: readonly ConstatDeTable[];
   /** Ce que la voie a vu et décidé, en clair : de quoi expliquer un résultat sans relire le code. */
   readonly journal: readonly string[];
   /** Ce que cette lecture a appris, à garder pour ne pas l'apprendre deux fois.
@@ -341,6 +344,43 @@ export type PreuveParTable = {
   readonly signaux: readonly string[];
 };
 
+/** Ce qu'une table a donné, et pourquoi elle n'a pas suffi.
+ *
+ *  **Ce constat décrit, il ne décide pas.** Rien de ce qui est publié n'en dépend : un contrôle
+ *  l'établit en comparant la publication avec et sans collecteur, sur quatre dispositions de
+ *  tables. Il existe pour deux usages, et aucun des deux n'est de juger.
+ *
+ *  Le premier est l'écran : quand la corroboration manque, Vérifier écrit « une seule façon de
+ *  savoir appuie ces liens » — vrai, mais muet sur ce qui a manqué. Avec ce constat, il pourra
+ *  dire « la table recoupe 12 rangées, il en faudrait 26 ».
+ *
+ *  Le second est la mesure : éprouver le seuil demande de savoir ce que les tables recoupent.
+ *  Le recalculer dans un banc reviendrait à recopier les six permutations, les bornes et la
+ *  règle des neuf dixièmes — un double qui dériverait, et qui mesurerait alors autre chose que
+ *  ce que le produit fait. */
+export type ConstatDeTable = {
+  readonly page: number;
+  /** Les rangées entièrement lues et non suspectes que cette table portait. */
+  readonly utilisables: number;
+  /** Combien recoupent un repère déjà lu, dans la meilleure lecture de ses colonnes. */
+  readonly recoupees: number;
+  /** Combien il en aurait fallu. */
+  readonly minimumRequis: number;
+  /** « recevable » quand la table a produit une lecture ; sinon, ce qui l'a écartée.
+   *
+   *  Recevable ne veut pas dire publiée : plusieurs tables peuvent l'être, et c'est la plus
+   *  nombreuse qui l'emporte — ou aucune, si deux se contredisent. */
+  readonly verdict:
+    | "recevable"
+    | "pas_une_table"
+    | "pas_trois_colonnes"
+    | "trop_peu_utilisables"
+    | "valeurs_hors_bornes"
+    | "trop_peu_recoupees"
+    | "accord_trop_faible"
+    | "doublons";
+};
+
 const PERMUTATIONS_DE_TROIS = [
   [0, 1, 2],
   [0, 2, 1],
@@ -363,6 +403,9 @@ export function corroborerParTable(
   lignes: readonly LigneInterpretee[],
   tables: readonly TableObservee[],
   nombreDeMedias: number,
+  /** Un collecteur où déposer ce que chaque table a donné. Rien de ce qui est publié n'en
+   *  dépend : il décrit, il ne décide pas. */
+  constats?: ConstatDeTable[],
 ): PreuveParTable | undefined {
   if (nombreDeMedias < 4) return undefined;
   const lisibles = lignes.filter(
@@ -392,9 +435,50 @@ export function corroborerParTable(
 
   for (const observee of tables) {
     const table = observee.table;
-    if (!table.estUneTable || table.colonnes.length !== 3 || table.utilisables.length < minimum) continue;
+    const noter = (verdict: ConstatDeTable["verdict"], recoupees = 0): void => {
+      constats?.push({
+        page: observee.page,
+        utilisables: table.utilisables.length,
+        recoupees,
+        minimumRequis: minimum,
+        verdict,
+      });
+    };
+    if (!table.estUneTable) {
+      noter("pas_une_table");
+      continue;
+    }
+    if (table.colonnes.length !== 3) {
+      noter("pas_trois_colonnes");
+      continue;
+    }
+    if (table.utilisables.length < minimum) {
+      noter("trop_peu_utilisables");
+      continue;
+    }
     const rangees = table.utilisables.map((place) => table.rangees[place]!).filter((rangee) => rangee !== undefined);
-    if (rangees.length < minimum) continue;
+    if (rangees.length < minimum) {
+      noter("trop_peu_utilisables");
+      continue;
+    }
+    /** La meilleure des six lectures, pour le seul constat. Une lecture qui recoupe plus en dit
+     *  davantage sur ce qui a manqué qu'une lecture qui échoue plus tôt. */
+    let meilleur: { recoupees: number; verdict: ConstatDeTable["verdict"] } = {
+      recoupees: 0,
+      verdict: "valeurs_hors_bornes",
+    };
+    /** Une lecture recevable l'emporte toujours ; sinon, celle qui recoupe le plus, parce qu'elle
+     *  en dit davantage sur ce qui a manqué. « Hors bornes » vient en dernier : elle n'a rien
+     *  recoupé du tout, faute d'avoir pu essayer. */
+    const rang = (verdict: ConstatDeTable["verdict"]): number =>
+      verdict === "recevable" ? 2 : verdict === "valeurs_hors_bornes" ? 0 : 1;
+    const retenir = (recoupees: number, verdict: ConstatDeTable["verdict"]): void => {
+      if (
+        rang(verdict) > rang(meilleur.verdict) ||
+        (rang(verdict) === rang(meilleur.verdict) && recoupees > meilleur.recoupees)
+      )
+        meilleur = { recoupees, verdict };
+    };
 
     for (const [colonneNumero, colonnePiste, colonnePage] of PERMUTATIONS_DE_TROIS) {
       const valeurs = rangees.map((rangee) => ({
@@ -415,8 +499,10 @@ export function corroborerParTable(
             page < 1 ||
             page > pageMaximale,
         )
-      )
+      ) {
+        retenir(0, "valeurs_hors_bornes");
         continue;
+      }
 
       const correspondances = valeurs.flatMap(({ numero, piste, page }) => {
         if (numero === undefined || piste === undefined || page === undefined) return [];
@@ -432,14 +518,26 @@ export function corroborerParTable(
         // les départs que tous les pieds de page n'ont pas nécessairement permis de relire.
         return nommee === undefined ? [] : [{ ...nommee, pageImprimee: page }];
       });
-      if (correspondances.length < minimum || correspondances.length / rangees.length < 0.9) continue;
+      if (correspondances.length < minimum) {
+        retenir(correspondances.length, "trop_peu_recoupees");
+        continue;
+      }
+      if (correspondances.length / rangees.length < 0.9) {
+        retenir(correspondances.length, "accord_trop_faible");
+        continue;
+      }
       const uniques = [...new Map(correspondances.map((ligne) => [ligne.numero, ligne])).values()].sort(
         (un, autre) => un.pageImprimee - autre.pageImprimee || un.numero - autre.numero,
       );
-      if (uniques.length !== correspondances.length) continue;
+      if (uniques.length !== correspondances.length) {
+        retenir(correspondances.length, "doublons");
+        continue;
+      }
+      retenir(uniques.length, "recevable");
       const clef = uniques.map((ligne) => `${ligne.numero}:${ligne.piste}:${ligne.pageImprimee}`).join("|");
       candidats.push({ page: observee.page, lignes: uniques, clef });
     }
+    noter(meilleur.verdict, meilleur.recoupees);
   }
 
   if (candidats.length === 0) return undefined;
@@ -1064,7 +1162,10 @@ export async function rejouerParOracle(
         ? []
         : [{ page: page.page, table: lireLaTable(page.mots, { enregistrements: medias.length }) }],
     ) ?? [];
-  const preuveParTable = foliosEtablis ? corroborerParTable(lignesAvecFolio, tables, medias.length) : undefined;
+  const constatsDeTable: ConstatDeTable[] = [];
+  const preuveParTable = foliosEtablis
+    ? corroborerParTable(lignesAvecFolio, tables, medias.length, constatsDeTable)
+    : undefined;
   const lignes: LigneInterpretee[] = [...(preuveParTable?.lignes ?? lignesLues)];
   if (preuveParTable !== undefined)
     dire(
@@ -1189,7 +1290,7 @@ export async function rejouerParOracle(
         "imprimé sur la page — ou la confirmation de ces liens un par un.",
     );
 
-  return { resultat, association, medias, journal, acquis: acquisDeCetteLecture };
+  return { resultat, association, medias, journal, constatsDeTable, acquis: acquisDeCetteLecture };
 }
 
 /** Ce qu'on rend quand il n'y a rien à lire : un résultat vide et une raison, jamais un lien. */
@@ -1260,11 +1361,13 @@ function sansLien(
         ? []
         : [{ page: page.page, table: lireLaTable(page.mots, { enregistrements: medias.length }) }],
     ) ?? [];
+  const constatsDeTable: ConstatDeTable[] = [];
   const preuveLue = foliosEtablis
     ? corroborerParTable(
         candidatesNommees.map((candidate) => candidate.ligne),
         tables,
         medias.length,
+        constatsDeTable,
       )
     : undefined;
   // La table est elle-même la seconde lecture qui établit le folio de départ. Exiger en plus
@@ -1402,6 +1505,7 @@ function sansLien(
       association,
       medias,
       journal,
+      constatsDeTable,
       ...(acquis === undefined ? {} : { acquis }),
     };
   }
@@ -1437,6 +1541,7 @@ function sansLien(
     },
     medias,
     journal,
+    constatsDeTable,
     ...(acquis === undefined ? {} : { acquis }),
   };
 }

@@ -22,7 +22,16 @@ import {
   type ImageGrise,
   type ImageRvba,
 } from "@lienotheque/images";
-import { causeLisible } from "@lienotheque/noyau";
+import {
+  causeLisible,
+  orientationDUnePageSeule,
+  orientationDuDocument,
+  motsFiables,
+  pagesQuiLisentMal,
+  partHorizontale,
+  qualiteDeLecture,
+  rotationQuiVaut,
+} from "@lienotheque/noyau";
 import { rotationDePageFiable } from "@lienotheque/redresseur";
 import {
   type PageDeTexte,
@@ -115,6 +124,14 @@ export type OptionsTexte = {
 
 export type TexteDuDocument = {
   readonly pages: readonly PageDeTexte[];
+  /** Les pages qui ont été redressées avant d'être lues : laquelle, de combien, et ce que la
+   *  rotation a changé. Vide quand rien n'a été tourné. */
+  readonly redressements: readonly {
+    readonly rang: number;
+    readonly rotation: number;
+    readonly avant: number;
+    readonly apres: number;
+  }[];
   /** La lecture a-t-elle établi que chaque feuille porte deux pages logiques ? */
   readonly doublePage: boolean;
   /** Le vote à l'échelle du document a-t-il réellement établi un décalage de folio ?
@@ -159,6 +176,13 @@ function imagesParPage(objets: ReturnType<typeof objetsPdf>): Map<number, number
 }
 
 /** Lit le texte du document, page par page, en disant d'où chaque page vient. */
+/** Combien de pages le recours éprouve quand aucune ne se détache.
+ *
+ *  Trois : assez pour que des pages **s'accordent** — c'est ce que « s'accorder » demande, et non
+ *  un échantillon choisi —, et assez peu pour que le recours coûte neuf reconnaissances quelle
+ *  que soit la taille du document. Mesuré le 6 novembre 2026 : 13,7 s sur un livre de 116 pages. */
+const PAGES_DU_RECOURS = 3;
+
 export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Promise<TexteDuDocument> {
   const donnees = Buffer.from(await readFile(pdf));
 
@@ -209,6 +233,9 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
   /** Les feuilles dont rien n'a pu être lu. `source` nomme ce qui a été **tenté**, puisque rien
    *  n'a été rendu : la couche quand elle existait, la reconnaissance sinon. */
   const rangsSansTexte: { readonly rang: number; readonly source: SourceLecture }[] = [];
+  /** Ce qui a été tourné, de combien, et sur quelle preuve. Visible, et réversible : rien n'est
+   *  écrit, la rotation ne vaut que pour la lecture de ce passage. */
+  const redressements: { rang: number; rotation: number; avant: number; apres: number }[] = [];
   let parLaCouche = 0;
   let parOcr = 0;
   let sansTexte = 0;
@@ -315,6 +342,139 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
 
       options.avancement?.(rang, total);
     }
+
+    // ── Les pages mal tournées, redressées avant que tout le reste s'appuie dessus (OUT-03) ──
+    //
+    // Décision de Christophe du 6 novembre 2026. Le redresseur existait, et **rien ne le
+    // demandait** : une seule occurrence de l'option dans tout le dépôt, dans un contrôle sauté.
+    // Un document du corpus portait une page numérisée à l'envers, dont la reconnaissance rendait
+    // mille trois cent quatre-vingt-onze « mots » sans un seul mot.
+    //
+    // Ici et non plus bas : tout ce qui suit — folios, passages, repères, tables — s'appuie sur
+    // ces mots et sur leurs positions. Une page redressée après coup aurait des coordonnées
+    // justes dans un document qui l'a déjà lue de travers.
+    //
+    // Une page venue de la **couche texte** n'est jamais redressée : elle est lue, pas reconnue,
+    // et ses mots sont exacts.
+    const aRedresser = feuilles
+      .map((feuille, place) => ({ feuille, place }))
+      .filter(({ feuille }) => feuille.page.source !== "couche_texte");
+    if (aRedresser.length > 0) {
+      const qualites = feuilles.map(({ page }) => qualiteDeLecture(page.mots));
+      const suspectes = new Set(pagesQuiLisentMal(qualites));
+      const voisines = qualites.filter((_, place) => !suspectes.has(place));
+      /** Ce qu'une page normale de ce document donne : sa qualité et son nombre de mots. */
+      const profilDesVoisines = feuilles
+        .map((feuille, place) => ({ qualite: qualites[place]!, mots: feuille.page.mots.length, place }))
+        .filter(({ place }) => !suspectes.has(place))
+        .map(({ qualite, mots }) => ({ qualite, mots }));
+      // La norme du document : la **médiane** de ses pages normales, jamais leur minimum.
+      // Règle du 6 novembre 2026 — trois fois ce jour-là, une page aberrante a tiré un minimum
+      // vers le bas. Un mot qui atteint cette norme est fiable, et c'est le document qui dit ce
+      // que « fiable » veut dire ici, non un réglage.
+      const triees = [...voisines].sort((un, autre) => un - autre);
+      const norme = triees[Math.floor(triees.length / 2)] ?? 0;
+      /** Lire une feuille tournée, sans rien écrire de définitif : la rotation ne vaut que pour
+       *  la lecture, et reste donc réversible. */
+      const essayer = async (rang: number, sens: readonly (0 | 90 | 180 | 270)[]) => {
+        dossier ??= mkdtempSync(join(tmpdir(), "lienotheque-texte-"));
+        renduComplet ??= await ouvrirRenduPdf(pdf);
+        const pixels = await renduComplet.page(rang, 1800);
+        return sens.map((rotation) => {
+          const lueTournee = ocrDUnePageGrise(
+            enGris(rotation === 0 ? pixels : tournerRvba(pixels, rotation)),
+            rang,
+            dossier!,
+            options,
+          );
+          return {
+            rotation,
+            qualite: qualiteDeLecture(lueTournee.mots),
+            mots: lueTournee.mots.length,
+            motsFiables: motsFiables(lueTournee.mots, norme),
+            partHorizontale: partHorizontale(lueTournee.mots),
+            page: lueTournee,
+          };
+        });
+      };
+
+      for (const { feuille, place } of aRedresser) {
+        if (!suspectes.has(place)) continue;
+        try {
+          const essais = await essayer(feuille.rang, [90, 180, 270]);
+          const retenue = rotationQuiVaut(
+            {
+              qualite: qualites[place]!,
+              motsFiables: motsFiables(feuille.page.mots, norme),
+              partHorizontale: partHorizontale(feuille.page.mots),
+            },
+            essais,
+            profilDesVoisines,
+          );
+          if (retenue === undefined) continue;
+          const gagnante = essais.find((essai) => essai.rotation === retenue)!;
+          feuilles[place] = { rang: feuille.rang, page: gagnante.page };
+          redressements.push({
+            rang: feuille.rang,
+            rotation: retenue,
+            avant: Number(qualites[place]!.toFixed(3)),
+            apres: Number(gagnante.qualite.toFixed(3)),
+          });
+          options.surAvertissement?.(
+            `Page ${feuille.rang} redressée de ${retenue}° : sa lecture passe de ` +
+              `${qualites[place]!.toFixed(2)} à ${gagnante.qualite.toFixed(2)}, là où les autres pages varient de ` +
+              `${(Math.max(...voisines) - Math.min(...voisines)).toFixed(2)}.`,
+          );
+        } catch (cause) {
+          options.surAvertissement?.(`Page ${feuille.rang} : redressement impossible (${causeLisible(cause)})`);
+        }
+      }
+
+      // ── Le recours : un document retourné tout entier, ou tenant en une page ────────────────
+      //
+      // Aucune page ne s'y détache, puisqu'elles sont toutes dans le même sens. On essaie donc
+      // les quatre sens sur les pages les plus bavardes — le raisonnement d'`orientationDuLot` :
+      // un livre est photographié en une séance, et les pages bavardes décident pour les muettes.
+      if (redressements.length === 0) {
+        const bavardes = [...aRedresser]
+          .sort((un, autre) => autre.feuille.page.mots.length - un.feuille.page.mots.length)
+          .slice(0, PAGES_DU_RECOURS);
+        try {
+          const essais = await Promise.all(
+            bavardes.map(async ({ feuille }) => ({
+              feuille,
+              sens: await essayer(feuille.rang, [0, 90, 180, 270]),
+            })),
+          );
+          const parSens = essais.map(({ sens }) =>
+            Object.fromEntries(sens.map((essai) => [essai.rotation, essai.qualite])),
+          );
+          const sens =
+            parSens.length >= 2 ? orientationDuDocument(parSens) : orientationDUnePageSeule(parSens[0] ?? {});
+          if (sens !== undefined) {
+            options.surAvertissement?.(
+              `Document redressé de ${sens}° : aucune page ne se détachait, et les ${bavardes.length} pages éprouvées s'accordent.`,
+            );
+            for (const { feuille, place } of aRedresser) {
+              const dejaEssayee = essais.find((essai) => essai.feuille.rang === feuille.rang);
+              const gagnante =
+                dejaEssayee?.sens.find((essai) => essai.rotation === sens) ??
+                (await essayer(feuille.rang, [sens as 0 | 90 | 180 | 270]))[0];
+              if (gagnante === undefined) continue;
+              feuilles[place] = { rang: feuille.rang, page: gagnante.page };
+              redressements.push({
+                rang: feuille.rang,
+                rotation: sens,
+                avant: Number(qualites[place]!.toFixed(3)),
+                apres: Number(gagnante.qualite.toFixed(3)),
+              });
+            }
+          }
+        } catch (cause) {
+          options.surAvertissement?.(`Redressement du document impossible (${causeLisible(cause)})`);
+        }
+      }
+    }
   } finally {
     await renduComplet?.fermer();
     if (dossier !== undefined) rmSync(dossier, { recursive: true, force: true });
@@ -369,7 +529,7 @@ export async function lireLeTexte(pdf: string, options: OptionsTexte = {}): Prom
         return folio === undefined ? sansNumero : { ...sansNumero, pageImprimee: folio };
       });
 
-  return { pages: numerotees, doublePage, foliosEtablis: voteAParle, parLaCouche, parOcr, sansTexte };
+  return { pages: numerotees, redressements, doublePage, foliosEtablis: voteAParle, parLaCouche, parOcr, sansTexte };
 }
 
 /** En deçà de quelle part des mots de la couche une reconnaissance n'a **pas vraiment lu**.
@@ -418,7 +578,8 @@ async function lireUnEpub(chemin: string): Promise<TexteDuDocument> {
     emplacement: feuillet.chapitre,
     mots: [],
   }));
-  return { pages, doublePage: false, foliosEtablis: false, parLaCouche: pages.length, parOcr: 0, sansTexte: 0 };
+  // Un EPUB n'a pas de pixels : rien à redresser, et le dire plutôt que de l'omettre.
+  return { pages, redressements: [], doublePage: false, foliosEtablis: false, parLaCouche: pages.length, parOcr: 0, sansTexte: 0 };
 }
 
 /** Sous combien de pages un décalage ne se vote pas.

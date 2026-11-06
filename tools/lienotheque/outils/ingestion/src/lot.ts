@@ -20,7 +20,12 @@ import {
 import { type AdresseRecurrente, adressesRecurrentes, enPassages, langueOcr } from "@lienotheque/lecteur-texte";
 import { construireVue } from "./instantane.js";
 import { lireLeTexte } from "./texte.js";
-import { rejouerParOracle, SEUIL_SANS_MANIERE_DE_LIRE, type RejeuParOracle } from "./voie-oracle.js";
+import {
+  rejouerParOracle,
+  SEUIL_SANS_MANIERE_DE_LIRE,
+  type ConstatDeTable,
+  type RejeuParOracle,
+} from "./voie-oracle.js";
 import { causeLisible } from "@lienotheque/noyau";
 
 /** D'un lot réel à l'instantané que lisent les écrans (correction 8).
@@ -169,6 +174,9 @@ export type LotTraite = {
   readonly resultat: ResultatRecette;
   readonly association: Association;
   readonly medias: readonly Media[];
+  /** Ce que chaque table globale a donné, et pourquoi elle n'a pas suffi. Vide quand une manière
+   *  de lire a mené le travail : ce constat appartient à la voie oracle. Description seule. */
+  readonly constatsDeTable: readonly ConstatDeTable[];
   /** Le texte cherchable du document, un passage par page (RCH-07).
    *
    *  Produit par la même passe que le reste : un instantané doit venir du même traitement que la
@@ -287,6 +295,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     } else issu = parLaRecette;
   }
   const { resultat, association, medias } = issu;
+  const constatsDeTable = "constatsDeTable" in issu ? issu.constatsDeTable : [];
   const acquis = acquisRendu(issu);
 
   lot.surPhase?.(`repères lus : ${resultat.pages.length} page(s), ${resultat.lignes.length} élément(s)`);
@@ -309,7 +318,14 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   if (lot.images !== undefined) {
     const adresse = lot.adresseImages ?? "/donnees/pages";
     try {
-      for (const page of (await exporterPages(lot.pdf, lot.images, { doublePage: lu.doublePage })).pages)
+      for (const page of (
+        await exporterPages(lot.pdf, lot.images, {
+          doublePage: lu.doublePage,
+          // Les rotations que la lecture a décidées : l'image affichée et les positions des mots
+          // doivent être dans le même repère, sans quoi un mot surligné tombe à côté.
+          rotations: new Map(lu.redressements.map((redressement) => [redressement.rang, redressement.rotation])),
+        })
+      ).pages)
         parRang.set(page.index + PREMIER_RANG, {
           image: `${adresse}/${page.fichier}`,
           largeur: page.largeur,
@@ -381,6 +397,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     resultat,
     association,
     medias,
+    constatsDeTable,
     passages,
     lecture: { parLaCouche: lu.parLaCouche, parOcr: lu.parOcr, sansTexte: lu.sansTexte },
     filigranes: adressesRecurrentes(passages),

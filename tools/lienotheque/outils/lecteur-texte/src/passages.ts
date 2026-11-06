@@ -30,6 +30,17 @@ export type PageDeTexte = {
    *  Les passages n'en ont pas besoin ; les relire par OCR pour une table contredirait en revanche
    *  la lecture que la chaîne vient de retenir. */
   readonly mots?: readonly MotLu[] | undefined;
+  /** Les dimensions du **repère** où ces mots ont été mesurés.
+   *
+   *  Sans elles, rien en aval ne peut situer un mot sur une image : il faudrait connaître la
+   *  largeur du rendu, qui était jusqu'ici une convention tacite. Elle s'est brisée le 6 novembre
+   *  2026, quand la lecture s'est mise à redresser les pages — une page tournée d'un quart de
+   *  tour a pour largeur la **hauteur** du rendu, et un découpage calculé sur l'ancienne
+   *  convention tombait ailleurs sur la page.
+   *
+   *  Absentes d'un format sans pixels, un EPUB par exemple. */
+  readonly largeur?: number | undefined;
+  readonly hauteur?: number | undefined;
   /** D'où cette page vient dans le document, quand le format le nomme : un chapitre pour un
    *  EPUB, rien pour une page de PDF. Voir `Passage.emplacement`. */
   readonly emplacement?: string | undefined;
@@ -376,6 +387,9 @@ export function pageDeTexte(page: PageLue): PageDeTexte {
     texte: texteDePage(page),
     source: page.source,
     mots: page.mots,
+    // Le repère des mots voyage avec eux : une page tournée n'a pas la largeur du rendu.
+    largeur: page.largeur,
+    hauteur: page.hauteur,
     ...(imprimee === undefined ? {} : { pageImprimee: imprimee }),
     ...(confiance === undefined ? {} : { confiance }),
   };

@@ -7597,3 +7597,249 @@ mise à l'index le fait rougir, en la nommant avec sa raison.
 Catalogue-UI.pdf`, le catalogue du kit d'interface, écrit pour ce projet et par lui. Un contrôle
 exige que chaque tolérance soit motivée — allonger cette liste est une décision, pas une
 commodité.
+
+## 6 novembre 2026 — Les numérisations partielles : un fait de contenu, pas un défaut
+
+Aebersold 017 annonce ses sections aux pages imprimées 1, 10, 19, 28, 37 et 38 ; le PDF de
+l'archive porte **quatorze feuilles** — la couverture, le sommaire, l'introduction, la seule
+section en clé de do, une page scannée à l'envers, et la page 38. Les trois sections transposées
+manquent.
+
+### Ce que la mesure a pu dire, et ce qu'elle n'a pas pu dire
+
+Relevé sur les **106 archives Aebersold** (la collection en porte 106, dont 51 dans la tranche de
+neuf à douze enregistrements). La méthode lit la première page dont les fins de ligne sont des
+nombres qui montent, et compare le plus grand folio annoncé au nombre de feuilles.
+
+**Le premier chiffre était faux, et il accusait.** Règle brute : 90 partiels sur 92. Les « folios »
+étaient des adresses — `1244` est une boîte postale, `47150` le code postal de New Albany,
+`84001` et `84250` des références de disques. **C'est l'adresse de l'éditeur, la même qui avait
+failli faire perdre une vraie liste au détecteur de tables.**
+
+Deux garde-fous tirés du document, sans nombre choisi : le sommaire **commence par une petite
+page**, et un folio **ne saute jamais de plus que toute l'étendue déjà parcourue**.
+
+| | |
+|---|---|
+| documents | 106 |
+| jugeables | **12** |
+| **partiels** | **7** |
+| complets | 5 |
+| indéterminés | 94 — la colonne de folios ne se lit pas assez bien |
+
+Là où la règle parle, elle **concorde avec l'image** : Aebersold 017 (14 feuilles, 38 annoncé) et
+Aebersold 002 (23 feuilles, 40 annoncé), tous deux vérifiés à l'œil.
+
+### Ce que Christophe en décide
+
+**Aucune action.** Ses originaux sont en double sur une clé USB ; les numérisations partielles
+sont un **fait de contenu**, pas un défaut de la chaîne. Le produit doit les lire telles qu'elles
+sont, et ne rien promettre des pages qui n'y sont pas.
+
+La leçon de méthode reste, et elle vaut plus que le chiffre : **le premier instrument accusait
+90 documents sur 92, et il avait tort.** Un chiffre qui accuse mérite la même défiance qu'un
+chiffre qui rassure.
+
+## 6 novembre 2026 — Les autorisations de push, et un écart au protocole
+
+Le registre dit : « Chaque porte se demande à Christophe dans la fenêtre de cette session, on
+attend sa réponse, et **elle s'inscrit au registre avec sa date** » (5 novembre 2026, règle 3).
+
+**Les cinq push de ce jour ont tous été autorisés, et aucun n'avait été inscrit.** Christophe l'a
+relevé. L'écart est consigné ici, et les autorisations avec lui.
+
+| # | commits poussés | autorisation | origine |
+|---|---|---|---|
+| 1 | treize commits, `1612fb25..fc77b6df` | « Push des treize commits autorisé » | message de Christophe dans la fenêtre de la session, 6 novembre 2026 |
+| 2 | `ae6e072f`, `8f839726`, `9c0dd797` | « Push des trois commits autorisé (ae6e072f, 8f839726, 9c0dd797) » — nommés un par un | même fenêtre, même jour |
+| 3 | `75a46e71`, le garde-fou des fuites | « Pousser maintenant » | **porte posée par Claude dans la fenêtre, réponse de Christophe**, même jour |
+
+Trois poussées, cinq autorisations si l'on compte les commits nommés séparément — et c'est bien
+ainsi qu'il faut les compter : **une autorisation porte sur des commits nommés, jamais sur « la
+suite »**.
+
+### Ce que l'écart enseigne
+
+Une porte demandée et obtenue, mais non inscrite, **ne laisse aucune trace** : à la session
+suivante, rien ne distingue un push autorisé d'un push pris. L'inscription n'est pas une
+formalité, c'est **ce qui rend l'autorisation vérifiable après coup** — par Christophe, et par
+le Claude qui reprendra.
+
+Règle de tenue, à partir d'ici : **l'inscription au registre se fait dans le même geste que le
+push**, et non « plus tard ».
+
+## 6 novembre 2026 — RÈGLE : une référence tirée du document se prend à la médiane
+
+**Trois fois dans la même journée, le minimum s'est fait tirer vers le bas par une page
+aberrante.** Christophe en fait une règle.
+
+| où | ce que le minimum donnait | ce qu'il coûtait |
+|---|---|---|
+| la coupure des pages qui lisent mal | le groupe du dessus se réduisait à une page, d'étendue nulle | **cinq pages sur six** désignées dans un document qui lit également mal partout |
+| la norme de fiabilité d'un mot | la page normale la plus faible | une seule page médiocre rendait presque tout « fiable », y compris le bruit d'une page couchée |
+| le plancher de « assez de mots » | la couverture, qui rend **deux** mots | une version tournée qui n'en rendait que **trois** passait le plancher |
+
+**Une référence tirée du document se prend à la médiane, jamais au minimum.** Le minimum suit
+l'aberration ; la médiane suit le document.
+
+Et une raison de plus, de forme : deux normes qui emploient la même logique se relisent
+ensemble. Deux normes qui emploient chacune la sienne finissent par diverger sans qu'on sache
+laquelle avait raison.
+
+### La réserve, consignée sans correctif
+
+« Assez de mots », rapporté à la page médiane, **peut refuser une page couchée peu dense dans un
+document mixte** — un recueil où la prose et les partitions se succèdent, et dont la page médiane
+est bavarde. Une page de partition couchée y rendrait moins de mots que la médiane, et ne serait
+pas redressée.
+
+**Aucun correctif aujourd'hui** : le cas n'est pas rencontré, et une règle écrite pour un cas
+supposé est une règle qu'aucune mesure ne tient. **À ajouter au banc dès qu'on en croise un**, et
+c'est alors la mesure qui dira ce qu'il faut.
+
+## 6 novembre 2026 — Le redressement des pages mal tournées, et ce qu'il a fallu quatre réécritures pour voir
+
+Décision de Christophe : activer le redressement, qui était **construit et éteint** — une seule
+occurrence de l'option dans tout le dépôt, dans un contrôle sauté. Un gain de lecture net peut
+décider seul quand l'avis d'orientation se tait, sous trois garde-fous ; le motif tient en une
+phrase : **une page mal tournée se relit, elle ne publie rien de faux.**
+
+### La règle, en quatre conditions et sans un nombre choisi
+
+| condition | sa référence | le défaut qu'elle empêche |
+|---|---|---|
+| assez de mots | la page normale **médiane** du document | une proportion calculée sur trois mots |
+| lignes horizontales | une majorité, au sens du mot | une rotation qui lit bien **en laissant la page couchée** |
+| pas de perte de mots fiables | la confiance **médiane** des pages normales | une page tournée parce qu'elle rendait **un** mot noté 0,892 |
+| gain > variation | ce que les pages normales varient entre elles | tourner pour trois points de mieux |
+
+Et trois cas, parce qu'il n'y a pas toujours de voisine : une page dans un document (on la compare
+à ses voisines), un document entièrement mal tourné (ses pages doivent s'accorder), un document
+d'une seule page (ses quatre sens).
+
+### Quatre fois réécrite, et chaque fois par une mesure
+
+| ce que j'avais écrit | ce qui l'a réfuté |
+|---|---|
+| qualité = part des suites de trois lettres | la page couchée notait **45 %**, ses voisines de partition 44 à 46 % : indistinguables. Du texte retourné produit quantité de fausses syllabes |
+| détachement = le saut dépasse tous les autres écarts réunis | le saut valait **0,328** et la somme **0,397** : la règle se taisait sur le seul cas qu'elle visait |
+| la meilleure confiance gagne | **180° l'emportait sur 90° par deux millièmes**, en laissant la page couchée |
+| « ne pas perdre de texte » | 1 391 « mots » dont **244 fiables** : du bruit comparé à du signal |
+
+**Et une conclusion que j'ai soutenue deux fois et qui était fausse.** J'ai écrit que cette page
+était à l'envers, et deux mesures le confirmaient : tournée de 180°, elle se lit, et bien. C'est
+faux — l'outil déchiffre aussi un texte vertical renversé. **La page est couchée**, c'est une
+double page scannée de travers, et seule la **géométrie des boîtes** le dit : 87 % de mots plus
+larges que hauts à 90°, 12 % à 180°. Vérifié à l'image ensuite. C'est Christophe qui l'a vue.
+
+### Le contrôle qui a trouvé ce qu'aucun autre ne voyait
+
+Trente-sept contrôles tenaient la règle. Christophe en a demandé un de plus : **découper l'image
+exportée à la boîte d'un mot lu, et relire le découpage.** Il doit rendre ce mot.
+
+Il a échoué, et il a trouvé **trois manques réels** :
+
+1. **J'avais supposé le repère à 1 800 px.** Une page tournée d'un quart de tour a pour largeur la
+   **hauteur** du rendu — 2 358 ici. Tout découpage calculé sur l'ancienne convention tombait
+   ailleurs sur la page.
+2. **`PageDeTexte` ne portait pas les dimensions de son repère.** La convention « le rendu à
+   1 800, non tourné » était tacite, et elle se brise en silence dès qu'une page tourne. Rien ne
+   cassait : les mots étaient justes, l'image était juste, et **seul leur rapprochement était
+   faux** — le genre de défaut qui n'apparaît qu'au moment où quelqu'un clique sur un mot.
+3. **Le dépôt encodait sans savoir décoder.** Un dérivé qu'on ne sait pas relire est un dérivé
+   qu'on ne peut pas éprouver : on en vérifiait les dimensions, jamais ce qu'il montre.
+
+Une fois les trois corrigés : `LE DÉCOUPAGE REND : « INTRODUCTION TO SCALE SYLLABUS »`.
+
+### Une seule décision, portée de la lecture à l'affichage
+
+`exporterPages` portait sa **propre** qualification d'orientation, indépendante de celle de la
+lecture. Deux décisions prises séparément finissent par diverger, et le défaut ne se verrait que
+sur la page où elles se contredisent. Désormais **la lecture décide, l'export applique**, et un
+contrôle vérifie que la page dont la lecture a décidé ne repasse pas par la qualification de
+l'export — sans quoi elle partirait de travers deux fois.
+
+### Ce que le redressement coûte
+
+| | |
+|---|---|
+| sur 116 pages de tablature | **0 page déclenchée**, 0 rotation retenue |
+| le recours document entier | **neuf reconnaissances, quelle que soit la taille du document** — 13,7 s sur ce livre |
+| sur le document au cas réel | 2 pages déclenchées, **1 seule retenue** : déclencher n'est pas retenir |
+
+### Compatibilité du repère : rien à changer, et le dire vaut mieux que de le supposer
+
+Christophe a demandé lequel des deux il fallait faire — une relecture tolérante, ou passer
+`VERSION_LECTURE` à 12. **Ni l'un ni l'autre**, et pour des raisons vérifiées, non supposées.
+
+| | pourquoi |
+|---|---|
+| pas de relecture tolérante | `PageDeTexte` n'est **jamais écrite nulle part**. Elle est dérivée de `PageLue` à chaque lecture. Il n'existe aucune page ancienne « sans repère » à relire |
+| pas de `VERSION_LECTURE` 12 | le cache garde des `PageLue`, qui portent `largeur` et `hauteur` **obligatoirement depuis toujours** (contrat `lecture.ts`). Monter la version invaliderait tous les caches du corpus pour un champ qui n'y est pas |
+
+**Et les versions déjà écrites s'affichent à l'identique** — non par chance, mais par une décision
+prise avant ce travail et écrite dans le contrat `ZoneRelative` :
+
+> *Relative, et pas en pixels : l'image lue, l'image affichée et l'image agrandie n'ont pas les
+> mêmes dimensions, et seule la part est comparable entre les trois.*
+
+Rien de persisté n'est en pixels. Une zone est une **part**, calculée depuis les dimensions que
+la page a toujours portées ; `PageAffichee.largeur` et `hauteur` sont celles de l'**image
+exportée**, et suivent donc la rotation du même geste. Le champ neuf ne fait que rendre le repère
+visible plus loin dans la chaîne — il n'en change aucun.
+
+Trois contrôles le tiennent, dont celui qui le prouve : **une part ne dépend que de la page, et le
+champ neuf ne la change pas.**
+
+### Et CLA-01 m'a repris une seconde fois, sur un commentaire
+
+« les pages de partition voisines ». Le mot venait de la mesure que je décrivais — et c'est le
+piège exact : **on nomme ce qu'on a mesuré, et ce qu'on a mesuré appartient à un domaine.**
+Corrigé en « pages gravées », qui dit la même chose sans le nommer.
+
+## 6 novembre 2026 — Le seuil de corroboration n'a pas été éprouvé : la détection échoue avant lui
+
+Christophe demandait depuis le matin si le `8` — le nombre de rangées qu'une table doit recouper
+pour valoir seconde lecture — retenait des documents qui lisent pourtant juste. **La mesure ne
+peut pas répondre, et c'est cela qu'elle établit.**
+
+Huit documents **entiers**, extraits des archives en lecture seule. Un extrait de huit pages sur
+cent seize ne peut structurellement pas porter huit rangées de table : le banc d'extraits ne
+mesurait donc pas le seuil, il mesurait sa propre découpe.
+
+| document | enregistrements | seuil requis | meilleure table | issue |
+|---|---|---|---|---|
+| **Jon Liebman - Bass Aerobics** | 52 | **26** | **44 recoupées sur 45** | **publie** |
+| J.S. Bach for Electric Bass | 9 | 8 | 0 recoupée sur 21 | corroboration insuffisante |
+| 70 Funk & Disco Bass | 99 | 50 | 0 recoupée | — |
+| Aebersold 002, 017, 042, 062, 097 | 9 à 12 | 0 ou 8 | 0 recoupée | — |
+
+### Ce que cela établit, et ce que cela n'établit pas
+
+**Aucun document ne s'arrête près du seuil** — mais aucun ne l'atteint non plus. Le seul qui
+publie le fait avec 44 rangées pour 26 requises ; les sept autres ne recoupent **rien du tout**.
+
+Il serait faux d'en conclure que le seuil a tenu, ou qu'il n'a jamais été le verrou : **il n'a pas
+été éprouvé.** La détection échoue avant lui, et la question de savoir ce qu'il coûterait à un
+document qui s'arrêterait à six rangées reste entière.
+
+### Bach, vivier de neuf, est le seul juge possible — et la détection le lui interdit
+
+**Bach porte une liste** — « Page · Titre · CD Track », vérifiée à l'image — et un vivier de neuf,
+donc un seuil de 8. C'est le seul document du lot qui pourrait réellement éprouver ce seuil.
+
+Le détecteur ne retient pas sa liste. Les colonnes qu'il trouve sur cette page sont celles du
+**pied de page** : l'adresse de l'éditeur, 7777 et 53213. **Défaut de rappel de la détection**,
+et non du seuil — la distinction que Christophe a exigé de tenir depuis le début.
+
+Tant qu'il n'est pas corrigé, **le seuil reste non éprouvé**.
+
+Les six autres n'ont pas de liste du tout : pour eux, zéro recoupé est la vérité, et le second
+signal doit venir d'ailleurs — ou du mode manuel.
+
+### Ce que le `8` et le `4` deviennent au recensement
+
+Ils restent des **nombres nus** sans nom, en priorité haute, et pour la même raison qu'avant :
+**on ne sait toujours pas ce qu'ils coûtent.** La mesure n'a pas pu les éprouver — elle a montré
+pourquoi. Le jour où la détection retiendra la liste de Bach, ce document les éprouvera : vivier
+de neuf, seuil de 8, et une liste réelle à recouper.

@@ -15,6 +15,7 @@ import {
 } from "../src/index.js";
 import type { LigneInterpretee } from "@lienotheque/contrats";
 import type { TableLue } from "@lienotheque/noyau";
+import type { ConstatDeTable } from "../src/index.js";
 
 /** Lire un document sans manière de lire écrite à la main (OUT-10, REC-02).
  *
@@ -140,6 +141,93 @@ describe("une table globale corrobore sans jamais décider seule (OUT-10, REC-02
     expect(
       corroborerParTable(lignes, [{ page: 5, table: { ...horsBornes, rangees } }], 52),
     ).toBeUndefined();
+  });
+
+  describe("le constat : la table dit ce qu'elle a trouvé, et ne décide rien de plus", () => {
+    // Pourquoi il existe : quand la corroboration échoue, l'écran écrit « une seule façon de
+    // savoir appuie ces liens » — vrai, mais muet sur ce qui a manqué. Le constat permettra de
+    // dire « la table recoupe 6 rangées, il en faudrait 8 ». Il sert aussi à mesurer le seuil
+    // lui-même sans recopier la logique de cette fonction dans un banc, où elle dériverait.
+    //
+    // **Contrainte posée par Christophe, et c'est elle qui tient ce bloc : le constat décrit,
+    // il ne décide pas.** Le premier contrôle le prouve, et il passe avant les autres.
+
+    const cas = [
+      { nom: "une table qui recoupe tout", tables: [{ page: 5, table: table(43) }] },
+      { nom: "une table trop courte", tables: [{ page: 4, table: table(4, 3) }] },
+      { nom: "plusieurs tables dont une seule tient", tables: [
+        { page: 4, table: table(4, 2) },
+        { page: 5, table: table(43) },
+        { page: 9, table: table(2, 2) },
+      ] },
+      { nom: "aucune table", tables: [] },
+    ] as const;
+
+    it.each(cas)("publie exactement la même chose avec et sans collecteur : $nom", ({ tables }) => {
+      const sansCollecteur = corroborerParTable(lignes, tables, 52);
+      const constats: ConstatDeTable[] = [];
+      const avecCollecteur = corroborerParTable(lignes, tables, 52, constats);
+      expect(avecCollecteur).toEqual(sansCollecteur);
+    });
+
+    it("dit combien il faudrait de rangées, quand la table n'en a pas assez", () => {
+      const constats: ConstatDeTable[] = [];
+      corroborerParTable(lignes, [{ page: 5, table: table(6) }], 52, constats);
+      const sien = constats.find((constat) => constat.page === 5);
+      expect(sien?.utilisables, "la table a six rangées pleines").toBe(6);
+      expect(sien?.minimumRequis, "il en faudrait vingt-six pour un vivier de cinquante-deux").toBe(26);
+      expect(sien?.verdict).toBe("trop_peu_utilisables");
+    });
+
+    it("dit combien de rangées recoupent vraiment, quand la table est assez longue", () => {
+      // Trente rangées pleines, toutes dans les bornes, mais dix-huit donnent un folio que
+      // personne n'a lu : la table passe le premier filtre et échoue au second. C'est le cas
+      // que l'écran doit savoir dire — et non « une seule façon de savoir appuie ces liens ».
+      //
+      // Réduire les repères lus ne marcherait pas : cela resserre aussi les bornes, et la
+      // table sortirait pour « hors bornes » avant d'être comptée.
+      const longue = table(30);
+      const rangees = longue.rangees.map((rangee, place) =>
+        place < 12 ? rangee : { ...rangee, cellules: [place + 1, place + 1, 8] },
+      );
+      const constats: ConstatDeTable[] = [];
+      corroborerParTable(lignes, [{ page: 5, table: { ...longue, rangees } }], 52, constats);
+      const sien = constats.find((constat) => constat.page === 5);
+      expect(sien?.utilisables).toBe(30);
+      expect(sien?.recoupees, "douze rangées seulement trouvent leur repère").toBe(12);
+      expect(sien?.minimumRequis).toBe(26);
+      expect(sien?.verdict).toBe("trop_peu_recoupees");
+    });
+
+    it("dit « recevable » de celle qui a produit une lecture, et nomme les autres", () => {
+      const constats: ConstatDeTable[] = [];
+      const preuve = corroborerParTable(
+        lignes,
+        [
+          { page: 4, table: table(4, 2) },
+          { page: 5, table: table(43) },
+        ],
+        52,
+        constats,
+      );
+      expect(preuve?.page, "et c'est elle qui publie").toBe(5);
+      expect(constats.find((constat) => constat.page === 5)?.verdict).toBe("recevable");
+      expect(constats.find((constat) => constat.page === 5)?.recoupees).toBe(43);
+      expect(
+        constats.find((constat) => constat.page === 4)?.verdict,
+        "deux colonnes ne font pas un triplet",
+      ).toBe("pas_trois_colonnes");
+    });
+
+    it("nomme une valeur hors des bornes plutôt que de la taire", () => {
+      const horsBornes = table(43);
+      const rangees = horsBornes.rangees.map((rangee, place) =>
+        place === 12 ? { ...rangee, cellules: [13, 113, 32] } : rangee,
+      );
+      const constats: ConstatDeTable[] = [];
+      corroborerParTable(lignes, [{ page: 5, table: { ...horsBornes, rangees } }], 52, constats);
+      expect(constats.find((constat) => constat.page === 5)?.verdict).toBe("valeurs_hors_bornes");
+    });
   });
 
   it("sait confronter la table aux candidats venus des noms, sans exiger une marque", () => {

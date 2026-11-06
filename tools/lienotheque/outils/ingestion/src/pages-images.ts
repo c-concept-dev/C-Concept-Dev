@@ -80,6 +80,18 @@ export type OptionsExport = {
   /** Une feuille du PDF porte deux pages du livre. Le rendu PDF est alors obligatoire : lui
    * seul applique la rotation déclarée par la page avant que la planche soit coupée. */
   readonly doublePage?: boolean;
+  /** Les rotations **déjà décidées par la lecture**, par rang de feuille (à partir de 1).
+   *
+   *  ## Pourquoi reçues, et non redécidées
+   *
+   *  La lecture a redressé certaines pages avant de les lire : les positions de leurs mots sont
+   *  donc dans le repère **tourné**. Si l'image exportée restait dans le repère d'origine, un mot
+   *  surligné tomberait à côté, et une zone tracée désignerait autre chose que ce qu'on voit.
+   *
+   *  Décider une seconde fois ici serait pire que de ne rien faire : deux décisions prises
+   *  séparément finissent par diverger, et le défaut ne se verrait que sur la page où elles se
+   *  contredisent. **Une seule décision, prise à la lecture, et portée jusqu'à l'affichage.** */
+  readonly rotations?: ReadonlyMap<number, number>;
 };
 
 function redresserSiProuve(image: ImageRvba, actif: boolean): ImageRvba {
@@ -228,7 +240,13 @@ export async function exporterPages(pdf: string, dossier: string, options: Optio
           continue;
         }
 
-      preparee = redresserSiProuve(preparee, options.redresser === true);
+      // La rotation décidée par la lecture l'emporte : image et coordonnées des mots dans le
+      // même repère. À défaut, l'ancienne qualification bornée, qui décide seule.
+      const rotationDeLaLecture = options.rotations?.get(index + 1);
+      preparee =
+        rotationDeLaLecture === undefined || rotationDeLaLecture === 0
+          ? redresserSiProuve(preparee, options.redresser === true)
+          : tournerRvba(preparee, rotationDeLaLecture as 90 | 180 | 270);
       const logiques = options.doublePage === true ? couperPlanche(preparee) : [preparee];
       for (const [cote, logique] of logiques.entries()) {
         const indexLogique = options.doublePage === true ? index * 2 + cote : index;

@@ -53,6 +53,24 @@ export async function encoderWebp(image: ImageRvba, options: Record<string, unkn
   return Buffer.from(await encodeur(image as never, options as never));
 }
 
+/** Relire une image qu'on a écrite.
+ *
+ *  Le dépôt encodait sans savoir décoder. Un dérivé qu'on ne sait pas relire est un dérivé qu'on
+ *  ne sait pas **éprouver** : on vérifie alors ses dimensions et sa taille, jamais ce qu'il
+ *  montre. Écrit le 6 novembre 2026 pour une preuve précise — découper l'image exportée à la
+ *  boîte d'un mot lu, et vérifier que le découpage rend ce mot. C'est ainsi qu'on établit que
+ *  l'image affichée et les positions des mots sont dans le même repère. */
+export async function decoderWebp(octets: Buffer): Promise<ImageRvba> {
+  const decodeur = await uneSeuleFois("webp-dec", async () => {
+    const module = await import("@jsquash/webp/decode.js");
+    await module.init(await compile(join(racine("@jsquash/webp"), "codec/dec/webp_dec.wasm")));
+    return module.default;
+  });
+  const copie = octets.buffer.slice(octets.byteOffset, octets.byteOffset + octets.byteLength) as ArrayBuffer;
+  const image = (await decodeur(copie)) as ImageRvba;
+  return image;
+}
+
 export async function encoderAvif(image: ImageRvba, options: Record<string, unknown> = {}): Promise<Buffer> {
   const encodeur = await uneSeuleFois("avif", async () => {
     const module = await import("@jsquash/avif/encode.js");
