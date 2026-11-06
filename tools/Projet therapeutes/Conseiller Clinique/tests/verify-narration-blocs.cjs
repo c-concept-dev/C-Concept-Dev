@@ -73,6 +73,39 @@ const { doc, open } = require('./presentation-edit-fixtures.cjs');
     assert.match(context, /Contexte de la présentation, dans l’ordre/);
     assert.match(context, /La suite du document développe cette idée/);
     assert.match(context, /Ne commentez que ce bloc/);
+    const click = await page.evaluate(async () => {
+      const errors = [];
+      window.addEventListener('error', e => errors.push(e.message), { once: true });
+      window.NarrationIA._transportDEssai = async () => JSON.stringify([{
+        stepId: 'q1', text: 'Cette citation invite à réfléchir à la manière dont une relation se construit dans le temps. Elle rejoint le titre de la diapositive et prépare le développement clinique qui suit, sans répéter les mots affichés ni ajouter un fait étranger au document. Laissez un temps de réflexion avant de poursuivre.',
+      }]);
+      document.getElementById('q1').click();
+      const panel = document.querySelector('.cc-editor-narration');
+      panel.querySelector('summary').click();
+      panel.querySelector('.nia-paragraphe-bouton').click();
+      panel.querySelector('.nia-paragraphe-generer').click();
+      await new Promise(r => setTimeout(r, 100));
+      return { errors, status: panel.querySelector('.nia-paragraphe-panneau .nia-etat').textContent,
+        enabled: !panel.querySelector('.nia-paragraphe-appliquer').disabled };
+    });
+    assert.deepEqual(click.errors, []);
+    assert.equal(click.enabled, true, click.status);
+    const titleClick = await page.evaluate(async () => {
+      window.NarrationIA._transportDEssai = async () => JSON.stringify([{
+        stepId: 'root:card-title:card-01',
+        text: 'Cette première diapositive présente le sujet de la rencontre et du lien entre deux personnes. Elle annonce le parcours qui suivra, depuis ses premiers repères jusqu’aux questions d’aujourd’hui. Prenez un instant pour situer le thème, puis invitez le public à regarder la suite de la présentation.',
+      }]);
+      document.getElementById('root:card-title:card-01').click();
+      const panel = document.querySelector('.cc-editor-narration');
+      if (!panel.open) panel.querySelector('summary').click();
+      const button = panel.querySelector('.nia-paragraphe-bouton');
+      if (panel.querySelector('.nia-paragraphe-panneau').hidden) button.click();
+      panel.querySelector('.nia-paragraphe-generer').click();
+      await new Promise(r => setTimeout(r, 100));
+      return { status: panel.querySelector('.nia-paragraphe-panneau .nia-etat').textContent,
+        enabled: !panel.querySelector('.nia-paragraphe-appliquer').disabled };
+    });
+    assert.equal(titleClick.enabled, true, titleClick.status);
     console.log('PASS narration individuelle : titre, en-tête, paragraphe, citation ; schéma et export.');
   } finally { await browser.close(); }
 })().catch((e) => { console.error('FAIL', e); process.exitCode = 1; });

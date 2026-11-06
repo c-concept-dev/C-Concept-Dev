@@ -1241,6 +1241,7 @@
     BUDGET_PLANCHER_MS: BUDGET_PLANCHER_MS, BUDGET_PLAFOND_MS: BUDGET_PLAFOND_MS,
     ENTREE_MAX_CARACTERES: ENTREE_MAX_CARACTERES, MODELE: MODELE, pauseRe: pauseRe,
     compterMots: compterMots, dureeSecondes: dureeSecondes,
+    cartes: cartes, texteDuBloc: texteDuBloc,
     contenuParEtape: contenuParEtape, repartirMots: repartirMots,
     jetonsPour: jetonsPour, budgetDelaiMs: budgetDelaiMs,
     promptSysteme: promptSysteme, construireMessage: construireMessage,
@@ -1324,12 +1325,12 @@
   function blocNarrationCible(doc, id) {
     if (!doc || !id) return null;
     if (id.indexOf('root:card-title:') === 0) {
-      var carte = cartes(doc).find(function (c) { return c.id === id.slice(16); });
+      var carte = IA.cartes(doc).find(function (c) { return c.id === id.slice(16); });
       return carte ? { id: id, type: 'heading', texte: carte.content.title || '', bloc: null } : null;
     }
-    for (var carte of cartes(doc)) {
+    for (var carte of IA.cartes(doc)) {
       var bloc = ((carte.content && carte.content.blocks) || []).find(function (b) { return b.id === id; });
-      if (bloc) return { id: id, type: bloc.type, texte: texteDuBloc(bloc), bloc: bloc };
+      if (bloc) return { id: id, type: bloc.type, texte: IA.texteDuBloc(bloc), bloc: bloc };
     }
     return null;
   }
@@ -1526,6 +1527,7 @@
     seul.onclick = function () { seulPanneau.hidden = !seulPanneau.hidden; panneau.hidden = true; };
     seulPanneau.querySelector('.nia-paragraphe-fermer').onclick = function () { seulPanneau.hidden = true; };
     seulPanneau.querySelector('.nia-paragraphe-generer').onclick = async function () {
+      try {
       var doc = docCourant();
       var zone = boite.querySelector('[data-editor-narration]');
       var stepId = zone && zone.dataset.stepId;
@@ -1577,6 +1579,10 @@
           : 'Une proposition pour ce seul bloc. Relisez-la puis appliquez-la. Rien n’est encore écrit.');
       } catch (e) { dire(seulPanneau, 'Proposition impossible : ' + IA.sansCle(e && e.message || String(e)), true); }
       finally { btn.disabled = false; }
+      } catch (e) {
+        // Même une erreur de préparation doit être visible : le clic ne peut rester muet.
+        dire(seulPanneau, 'Proposition impossible : ' + IA.sansCle(e && e.message || String(e)), true);
+      }
     };
     seulPanneau.querySelector('.nia-paragraphe-appliquer').onclick = function () {
       if (!proposition || docCourant() !== proposition.doc) { dire(seulPanneau, 'Document changé : rien n’a été écrit.', true); return; }
