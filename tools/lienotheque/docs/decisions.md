@@ -6936,6 +6936,11 @@ enregistrements à gauche, vingt-deux à droite —, le panneau court reçoit de
 lignes où il ne porte rien. Si un nombre voisin s'y égare, la rangée devient « à trou » ou
 « suspecte » et engendre un appel sur du vide. La troisième valeur retenue est de celles-là.
 
+**Compté : 5 des 22 cases en défaut de cette page** tombent sur une rangée sans intitulé et à
+cellule unique — presque un quart des appels dépensés sur du vide, et sur la seule page du
+document qui porte une vraie table. Ce n'est pas corrigé : c'est mesuré, et la correction touche
+`rangeesDeTable`, qui porte déjà la lecture de toutes les tables du produit.
+
 ### Ce que cela décide pour A2
 
 La relecture locale **rattrape**, et presque gratuitement, mais seulement là où la page n'avait pas

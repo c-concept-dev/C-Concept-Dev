@@ -78,6 +78,8 @@ for (const maniere of MANIERES) gains.set(maniere.nom, { retenues: 0, secondes: 
  *  marques. */
 const ACCORD_MINIMAL = 2;
 const accord = { retenues: 0, contradictions: 0, sansAccord: 0 };
+/** Les cases en défaut qui tombent sur une rangée probablement fantôme. */
+let fantomes = 0;
 
 try {
   for (let rang = premiere; rang <= jusqua; rang += 1) {
@@ -99,6 +101,14 @@ try {
     if (parLaCouche) continue;
     zonesEnTout += table.aRelire.length;
     for (const zone of table.aRelire) {
+      // Une rangée fantôme : `rangeesDeTable` construit une rangée par ligne de la page pour
+      // **chaque** panneau. Sur une page dont les panneaux n'ont pas la même longueur, le
+      // panneau court reçoit des rangées là où il ne porte rien. Une rangée dont une seule
+      // cellule est remplie, sans intitulé, en est très probablement une — et la relire coûte
+      // un appel sur du vide. On compte, on ne corrige pas encore.
+      const sienne = table.rangees[zone.rangee]!;
+      const remplies = sienne.cellules.filter((cellule) => cellule !== undefined).length;
+      if (remplies <= 1 && sienne.intitule === "") fantomes += 1;
       const actuelle = table.rangees[zone.rangee]?.cellules[zone.colonne];
       const lectures: string[] = [];
       const nombres: (number | undefined)[] = [];
@@ -144,7 +154,10 @@ try {
   rmSync(bac, { recursive: true, force: true });
 }
 
-console.log(`\n${zonesEnTout} case(s) en défaut sur des pages reconnues.\n`);
+console.log(
+  `\n${zonesEnTout} case(s) en défaut sur des pages reconnues, ` +
+    `dont ${fantomes} sur une rangée sans intitulé et à cellule unique — probablement fantôme.\n`,
+);
 console.log(
   `  par accord d'au moins ${ACCORD_MINIMAL} manières : ${accord.retenues} valeur(s) retenue(s), ` +
     `${accord.contradictions} contradiction(s), ${accord.sansAccord} sans accord\n`,
