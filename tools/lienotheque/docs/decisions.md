@@ -8271,3 +8271,71 @@ portant sur un état déjà périmé. D'où la seconde moitié de la règle.
 **Ce qu'il ne faut pas faire dans ce cas**, et qui n'a pas été fait : épingler le rouge (une
 épingle sert à un échec compris, pas à un échec inexpliqué) ou allonger le délai de 360 s (ce
 serait supprimer le seul signal qui a dit que la machine était saturée).
+---
+
+## 6 novembre 2026 — une promesse est toujours vraie, et n'a rien à faire dans une condition
+
+Christophe l'a demandé après une remarque exacte : j'avais annoncé que `sansLien` était devenue
+asynchrone « sans changer ses quatre appels », et il a relevé le risque — *une promesse utilisée
+sans attente dans une condition est toujours vraie, et le compilateur ne le voit pas toujours.*
+
+### Les quatre appels, montrés un par un
+
+| Ligne | Forme | Fonction englobante |
+|---|---|---|
+| 752 | `return sansLien(` | `export async function rejouerParOracle` |
+| 773 | `return sansLien(` | la même |
+| 833 | `return sansLien(` | la même |
+| 1012 | `return sansLien(` | la même |
+
+Les quatre sont des `return` dans une fonction `async` typée `Promise<RejeuParOracle>` : la
+promesse est **rendue à l'appelant**, jamais lue comme valeur, jamais rangée, jamais dans une
+condition. Et c'est le **type de retour** qui le garantit, pas ma bonne volonté.
+
+### Le dépôt n'a aucun outil de vérification
+
+`pnpm check` est un typage et des contrôles — ni ESLint, ni Biome. Avant de proposer d'en ajouter
+un, la mesure : **zéro** appel asynchrone dans une condition, sur **301** fonctions et ports
+asynchrones repérés dans le dépôt. Le défaut n'existe pas encore.
+
+Le garde-fou est donc posé **vert**, et c'est le bon moment : il attrape le premier, pas le
+centième. Il est écrit dans l'idiome des autres — une fonction pure, sa mesure, et la liste des
+fonctions asynchrones **lue dans le code** plutôt qu'écrite à la main. Une liste écrite à la main
+vieillit en silence.
+
+**Ce qu'il ne prétend pas faire**, et qui est écrit dans le fichier : il ne remplace pas une
+analyse de types, ne voit ni les promesses rangées dans une variable puis mal employées plus
+loin, ni les méthodes d'objets. Il tient **une** forme, celle qui ment sans bruit. Mieux vaut un
+garde-fou étroit qui ne se trompe pas qu'un large qu'on désarme — la leçon du matin sur
+« desserte ».
+
+### Deux défauts trouvés en l'éprouvant
+
+**Un numéro de ligne faux pour `while`.** Le calcul recomposait la longueur de l'en-tête en
+supposant `if (`. Prouvé par un contrôle : ligne 2 au lieu de 3. La condition porte désormais le
+décalage de son propre texte.
+
+**Deux règles sur quatre n'étaient prouvées par rien.** La contre-épreuve entrée par entrée :
+
+| Mutation | avant | après |
+|---|---|---|
+| l'appel attendu n'est plus toléré | 2 morts | 2 morts |
+| une méthode de même nom est accusée | 2 morts | 2 morts |
+| **les ports asynchrones ne comptent plus** | **0 mort** | 1 mort |
+| **la parenthèse imbriquée n'est plus comptée** | **0 mort** | 1 mort |
+
+Les deux règles non prouvées méritaient un contrôle plutôt que la suppression : un **port** est
+exactement ce qu'on branche, donc ce qu'on risque d'appeler sans attendre, et son nom n'apparaît
+nulle part comme `async function`. Sans cette forme, le garde-fou serait aveugle à la moitié du
+risque.
+
+### Un incident de méthode, qui vaut d'être écrit
+
+Mes trois premières mutations **n'ont pas été appliquées** — un échappement du shell — et le banc
+affichait tranquillement « 7 passed ». Lu sans méfiance, cela voulait dire « ces trois règles ne
+servent à rien », et j'aurais pu en supprimer quatre.
+
+Une mutation qui ne s'applique pas est **indiscernable d'une mutation qui ne tue rien**. Les deux
+affichent du vert. Le script de mutation vérifie maintenant que le motif existe **avant** de
+jouer, et le dit quand il est absent. C'est encore la même famille : le silence qui ressemble au
+succès.
