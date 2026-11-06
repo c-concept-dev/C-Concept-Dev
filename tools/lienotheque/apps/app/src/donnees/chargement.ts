@@ -30,19 +30,21 @@ export async function chargerBibliothequeDemonstration(recherche: string): Promi
       readonly exemples: readonly { readonly titre: string; readonly situation: string; readonly valeurs: readonly string[] }[];
       readonly file: readonly Travail[];
       readonly accompagnements: readonly { readonly nom: string; readonly contenu: TypeDeContenu }[];
+      readonly documentATracer: string;
       readonly pagesATracer: readonly { readonly rang: number; readonly image: string }[];
       readonly zonesTracees: readonly { readonly cle: string; readonly role: "element" | "page_imprimee"; readonly rectangle: { readonly x: number; readonly y: number; readonly l: number; readonly h: number } }[];
     }
   | undefined
 > {
   if (!(import.meta.env.DEV && demonstrationDemandee(recherche))) return undefined;
-  const { ACCOMPAGNEMENTS, BIBLIOTHEQUE, EXEMPLES_ORGANISATION, FILE, PAGES_A_TRACER, ZONES_TRACEES } =
+  const { ACCOMPAGNEMENTS, BIBLIOTHEQUE, DOCUMENT_A_TRACER, EXEMPLES_ORGANISATION, FILE, PAGES_A_TRACER, ZONES_TRACEES } =
     await import("./demonstration.js");
   return {
     ...BIBLIOTHEQUE,
     exemples: EXEMPLES_ORGANISATION,
     file: FILE,
     accompagnements: ACCOMPAGNEMENTS,
+    documentATracer: DOCUMENT_A_TRACER,
     pagesATracer: PAGES_A_TRACER,
     zonesTracees: ZONES_TRACEES,
   };

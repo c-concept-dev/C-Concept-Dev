@@ -1,5 +1,5 @@
 {
-  "description": "Garde-fou CLA-01 : aucun mot de domaine dans le code générique. Cette liste est une donnée, pas du code : on l'allonge à chaque nouveau domaine du banc d'universalité, sans toucher au garde-fou.",
+  "description": "Garde-fou CLA-01 : aucun mot de domaine dans le code générique. Cette liste est une donnée, pas du code : on l'allonge à chaque nouveau domaine du banc d'universalité, sans toucher au garde-fou. Elle porte aussi les titres d'ouvrages et les noms d'auteurs du corpus de mesure : un titre dans le code du produit est un domaine en dur, même quand il n'est là que pour illustrer (règle du 6 novembre 2026).",
   "zones": [
     { "chemin": "packages/contrats/src" },
     { "chemin": "packages/jetons/src" },
@@ -16,7 +16,10 @@
     "philatélie", "oblitéré", "timbre-poste",
     "pokémon", "rareté",
     "exercice", "partition", "solfège", "tonalité", "accord mineur", "accord majeur",
-    "aebersold", "realbook", "westwood"
+    "aebersold", "realbook", "westwood",
+    "liebman", "rosier", "rollins", "rosenberg", "bach",
+    "bass aerobics", "funk fusion", "bass bible", "jump'n'blues", "bass play along",
+    "scale syllabus", "body and soul", "nothin but blues"
   ],
   "exceptions": [
     {

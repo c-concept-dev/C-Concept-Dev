@@ -355,6 +355,9 @@ function pageDessinee(): string {
   )}`;
 }
 
+/** Le document que l'écran « manière de lire » trace. Inventé, comme toute cette donnée. */
+export const DOCUMENT_A_TRACER = "Méthode d’instrument — volume 1.pdf";
+
 export const PAGES_A_TRACER = [
   { rang: 14, image: pageDessinee() },
   { rang: 15, image: pageDessinee() },

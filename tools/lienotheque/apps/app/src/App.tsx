@@ -213,7 +213,7 @@ export function App(): JSX.Element {
       setAccompagnements(bibliotheque.accompagnements);
       setManiere((avant) => ({
         ...avant,
-        document: "Funk Fusion Bass.pdf",
+        document: bibliotheque.documentATracer,
         pages: bibliotheque.pagesATracer,
         brouillon: { ...avant.brouillon, zones: bibliotheque.zonesTracees, exempleDeNumero: "2.1" },
       }));

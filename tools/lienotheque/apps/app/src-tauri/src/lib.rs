@@ -1293,8 +1293,8 @@ mod greffe {
     #[test]
     fn un_media_propose_a_la_verification_recoit_aussi_son_adresse_anc_05() {
         // La voie oracle garde les liens publiables dans `douteux` pour que l'humain puisse
-        // encore les vérifier. Bass Aerobics porte ses quarante-quatre liens sous cette forme,
-        // sans aucun élément directement publié dans les pages.
+        // encore les vérifier. Le document témoin porte ses quarante-quatre liens sous cette
+        // forme, sans aucun élément directement publié dans les pages.
         let empreinte = "c".repeat(64);
         let mut vue = serde_json::json!({
             "pages": [{ "elements": [] }],

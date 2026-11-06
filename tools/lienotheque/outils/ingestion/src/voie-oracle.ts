@@ -1453,8 +1453,8 @@ function sansLien(
         );
   // Le nom situe l'élément sur une page physique ; la table, elle, corrige son folio. Garder
   // seulement le folio fait perdre le pont entre les deux : l'association existe alors dans le
-  // bilan mais aucune page du Lecteur ne peut la porter. C'était exactement le cas des
-  // quarante-quatre liens Bass Aerobics (Workout 2 : folio 8, page 10 du PDF).
+  // bilan mais aucune page du Lecteur ne peut la porter. C'était exactement le cas du document
+  // témoin : quarante-quatre liens dont le folio annoncé (8) et la feuille (10) diffèrent.
   const pages = Array.from({ length: combienDePages }, (_, place) => ({
     feuille: place,
     rang: place,
