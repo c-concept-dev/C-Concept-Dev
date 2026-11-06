@@ -91,6 +91,7 @@
 | 2026-10-08 | **Fusionner et retirer une valeur sont deux gestes**, pas un : le contrat a refusé qu'une clé vive à deux endroits, et il avait raison — ils ne montrent pas la même chose | Lot D2, étape 2, section ci-dessous |
 | 2026-10-08 | **Les écrans se photographient dans l'application de bureau**, en clair et en hybride : le thème hybride est ce qui montre les défauts de charte, qu'aucun test ne voit | Lot D2, étape 2 |
 | 2026-10-06 | **Les critères des corpus remontent à la porte de l'application** : F1, F3 et F4 se mesurent sur `executerTravail`, dans `outils/ingestion`, et nulle part ailleurs. Un seul test de critère par corpus | Lot D2, étape 1, section ci-dessous |
+| 2026-11-06 | **Titres et auteurs : deux régimes, selon le lieu.** **Code du produit** (y compris ses commentaires et ses données de démonstration) : **aucun titre, aucun auteur, jamais** — c'est la doctrine anti-codage en dur de CLA-01, indépendante du caractère public du dépôt. **Registre, documentation, tests et programmes de mesure** : les titres d'ouvrages du commerce **sont acceptés**, ils donnent leur sens aux décisions. Restent interdits partout : les **fichiers** (PDF, MP3, extraits) et l'**inventaire nominatif complet** de la collection | Décision de Christophe du 06/11, après le relevé des titres en dur dans les programmes de mesure |
 
 
 
@@ -7847,3 +7848,67 @@ Ils restent des **nombres nus** sans nom, en priorité haute, et pour la même r
 **on ne sait toujours pas ce qu'ils coûtent.** La mesure n'a pas pu les éprouver — elle a montré
 pourquoi. Le jour où la détection retiendra la liste de Bach, ce document les éprouvera : vivier
 de neuf, seuil de 8, et une liste réelle à recouper.
+
+---
+
+## 6 novembre 2026 — titres et auteurs : la règle du dépôt public
+
+Christophe a posé la question dans le bon ordre : d'abord **quoi**, en lecture seule, avant
+toute règle. Le relevé a donné une réponse que je n'attendais pas.
+
+**Les sept programmes de mesure poussés dans `b4980976` sont propres.** Un seul titre, dans un
+commentaire : `numerisations-partielles.ts:3`. Les six autres prennent leurs documents en
+argument et n'écrivent aucun nom. Ce n'était donc pas là qu'il y avait un problème.
+
+**Il était dans le code du produit.** Trois lignes, dans des zones que CLA-01 inspecte
+pourtant :
+
+| Fichier | Ce qu'il portait |
+|---|---|
+| `outils/ingestion/src/voie-oracle.ts:1457` | le titre du jalon dans un commentaire d'explication |
+| `apps/app/src-tauri/src/lib.rs:1296` | le même, dans un commentaire de test |
+| `apps/app/src/App.tsx:216` | `document: "Funk Fusion Bass.pdf"` — **une donnée**, pas un commentaire |
+
+Elles passaient parce que `fixtures/termes-de-domaine.json` listait `aebersold` et `westwood`
+mais **aucun des autres titres ni aucun nom d'auteur**. Le garde-fou fonctionnait ; **sa liste
+était trop courte**. Défaut de la donnée, pas du code — exactement ce que la règle 1 du CDC
+prévoit : « on l'allonge à chaque nouveau domaine, sans toucher au code ».
+
+La troisième est la plus instructive. `apps/app/src/donnees/demonstration.ts` porte en tête
+« **elle est inventée de bout en bout : aucune œuvre, aucune donnée réelle** », et ses noms le
+tiennent (`Méthode d'instrument — volume 1.pdf`). Mais `App.tsx` **ne lisait pas cette donnée
+pour le nom du document** : il l'écrivait en dur, et il y avait écrit un vrai titre. Un champ
+oublié dans le passage de la donnée à l'écran, et le vrai nom s'est installé à la place de
+l'inventé. La correction n'est donc pas de remplacer le titre par un autre titre, c'est de
+**faire venir le nom d'où viennent déjà les quinze autres champs** : `DOCUMENT_A_TRACER` dans
+la donnée de démonstration, porté par `chargerBibliothequeDemonstration`.
+
+### La règle, telle que Christophe l'a tranchée
+
+1. **Code du produit** — commentaires et données de démonstration compris : **aucun titre,
+   aucun auteur, jamais.** Ce n'est pas une règle de confidentialité, c'est la doctrine
+   anti-codage en dur : un titre dans le code générique annonce une branche spécifique qui
+   cassera au domaine suivant. **Elle vaudrait dans un dépôt privé.**
+2. **Registre, documentation, tests et programmes de mesure** : les titres d'ouvrages du
+   commerce **sont acceptés**. Ils donnent leur sens aux décisions — « 0 recoupée sur 21 »
+   ne s'interprète pas sans savoir que c'est un recueil de transcriptions.
+3. **Interdits partout, et inchangés** : les **fichiers** (PDF, MP3, extraits) et
+   l'**inventaire nominatif complet** de la collection. Le garde-fou `rien-de-lourd` tient le
+   premier point ; le second reste un interdit de jugement, sans mécanique.
+
+**Ce que la règle 2 dispense de faire** : les 66 lignes de ce registre, les 14 de
+`c9-3-cinq-methodes.ts`, les 11 de `eprouver-le-detecteur.ts` et de
+`degrader-une-vraie-liste.ts`, les dix programmes de `outils/vision/mesures/` dont quatre
+portent un titre jusque dans leur **nom de fichier**, les deux descriptions `F4.json` et
+`F5.json` — tout cela reste. C'est une décision, pas un oubli.
+
+Un point qui tenait déjà : `fixtures/bibliotheques/banc-extraits.json`, la description qui sert
+au banc d'universalité, est **entièrement neutre** (`Axe 1`, `Valeur 2.1`). Les noms de
+documents que mes relevés affichent viennent des **dossiers sur disque**, hors dépôt.
+
+### Portée du garde-fou, après
+
+`fixtures/termes-de-domaine.json` porte treize termes de plus : cinq noms d'auteurs et huit
+titres. Le test a **rougi avant la correction** (`voie-oracle.ts emploie un vocabulaire de
+domaine`) et passe après. Il ne couvre toujours ni `mesures/`, ni `test/`, ni `docs/` — et par
+la règle 2, **c'est maintenant voulu, et non plus une lacune**.
