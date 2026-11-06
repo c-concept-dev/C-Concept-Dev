@@ -55,7 +55,12 @@ export function lignesDeMots(mots: readonly MotLu[], recouvrementMinimal = 0.5):
 
 /** Un nombre seul, sans rien d'autre que d'éventuels signes de ponctuation en bordure. */
 const EST_UN_NOMBRE = /^\d+[.,:;]?$/;
-const valeurDe = (texte: string): number | undefined => {
+/** Ce que ce texte vaut comme nombre de cellule, ou rien.
+ *
+ *  Exporté parce qu'une relecture doit juger ce qu'elle a lu **du même juge** que la table :
+ *  deux définitions du mot « nombre » feraient entrer dans une cellule ce que la lecture
+ *  première en aurait écarté. */
+export const valeurDeCellule = (texte: string): number | undefined => {
   if (!EST_UN_NOMBRE.test(texte)) return undefined;
   const valeur = Number.parseInt(texte, 10);
   return Number.isFinite(valeur) ? valeur : undefined;
@@ -84,7 +89,7 @@ export function colonnesDeNombres(lignes: readonly LigneDeTable[]): readonly Col
   const largeurs: number[] = [];
   for (const ligne of lignes)
     for (const mot of ligne.mots)
-      if (valeurDe(mot.texte) !== undefined) {
+      if (valeurDeCellule(mot.texte) !== undefined) {
         abscisses.push(mot.x);
         largeurs.push(mot.l);
       }
@@ -203,7 +208,7 @@ export function panneauxDeColonnes(
 function uneLigneRepeteSesLibelles(lignes: readonly LigneDeTable[], large: number, combien: number): boolean {
   for (const ligne of lignes) {
     const libelles = ligne.mots
-      .filter((mot) => valeurDe(mot.texte) === undefined)
+      .filter((mot) => valeurDeCellule(mot.texte) === undefined)
       .map((mot) => mot.texte.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ""))
       .filter((mot) => mot.length > 0);
     if (libelles.length !== large * combien) continue;
@@ -247,7 +252,7 @@ export function rangeesDeTable(
     const cellules: (number | undefined)[] = colonnes.map(() => undefined);
     const avant: string[] = [];
     for (const mot of ligne.mots) {
-      const valeur = valeurDe(mot.texte);
+      const valeur = valeurDeCellule(mot.texte);
       if (valeur === undefined) {
         if (mot.x >= depuisX && mot.x < premiere) avant.push(mot.texte);
         continue;
@@ -467,7 +472,7 @@ function largeurDUnNombre(ligne: readonly LigneDeTable[], panneau: readonly Colo
   const derniere = (panneau.at(-1)?.x ?? Number.POSITIVE_INFINITY) + (panneau.at(-1)?.etendue ?? 0);
   const largeurs = ligne
     .flatMap((une) => une.mots)
-    .filter((mot) => valeurDe(mot.texte) !== undefined && mot.x >= premiere - 1 && mot.x <= derniere + 1)
+    .filter((mot) => valeurDeCellule(mot.texte) !== undefined && mot.x >= premiere - 1 && mot.x <= derniere + 1)
     .map((mot) => mot.l)
     .sort((un, autre) => un - autre);
   // Sans un seul nombre dans ce panneau il n'y aurait pas de panneau : le repli ne sert qu'à
@@ -549,6 +554,13 @@ export function lireLaTable(mots: readonly MotLu[]): TableLue {
       // Un nombre ne s'écarte pas de sa colonne de plus que sa propre largeur : la bande part
       // d'une demi-largeur avant le centre du groupe et court jusqu'au bout de son étendue, plus
       // une largeur et demie pour contenir le nombre lui-même.
+      //
+      // Le centre de la colonne n'est pas rendu à part. Il a d'abord été ajouté « pour que la
+      // valeur relue retombe au bon endroit », et il ne servait à rien : la bande commence
+      // toujours exactement une demi-largeur avant lui, et une valeur posée à son bord gauche
+      // est rangée dans la même colonne — la tolérance est la moitié de l'écart entre colonnes,
+      // et cet écart n'est jamais plus petit que la largeur d'un nombre. Aucune mutation ne
+      // mourait de son retrait.
       aRelire.push({
         rangee,
         colonne,

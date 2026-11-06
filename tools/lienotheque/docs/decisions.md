@@ -6855,3 +6855,37 @@ Et les deux jeux qui ont abouti ont dit quelque chose de vrai : Aebersold 001 et
 **zéro élément**, avec `medias_non_interpretes` et un doute `maniere_inadaptee`. L'archive
 d'Aebersold 041 n'a d'ailleurs **aucun audio** — c'est le « 1 PDF seul » de l'inventaire des 116,
 vérifié dans l'archive. Il ne peut pas servir à mesurer une association.
+
+## 6 novembre 2026 — A2, pièce 3 : la relecture d'une zone, et la règle que j'avais écrite à l'envers
+
+`outils/ingestion/src/relire-les-zones.ts` fait le pont qui manquait entre « la table se dit en
+défaut » et « quelque chose relit ». Le relecteur est un **port** : ce module n'appelle rien par
+lui-même, ne connaît ni réseau ni clé, et sans relecteur il rend les zones qu'il aurait relues et
+le compte de ce que l'étape aurait coûté. Les quinze contrôles passent un faux relecteur : aucun
+appel en ligne.
+
+Trois règles, et la troisième était fausse à ma première écriture :
+
+1. **On ne relit que la zone**, jamais la page.
+2. **Tout appel est tracé** — celui qui n'a rien rendu comme celui qui a rendu, et ce qu'il a
+   rendu quand ce n'était pas un nombre. Le coût de l'étape est le compte des appels.
+3. **Une valeur relue ne remplace que ce que la table a elle-même déclaré suspect.**
+
+J'avais écrit la troisième « ne remplace jamais une valeur lue ». Elle ne tient pas : une cellule
+suspecte est **déjà remplie**, et ajouter la valeur relue à côté ne faisait rien du tout — la
+table garde la première valeur qu'elle range dans une cellule, donc la mauvaise. Le contrôle de la
+cellule suspecte a attrapé cela : elle restait suspecte après sa relecture. La règle juste est
+plus étroite et plus utile : le démenti est autorisé **par le constat de la table**, et jamais
+ailleurs. Les deux lectures restent au rapport (`lu`, `retenu`, `remplace`).
+
+### Deux règles retirées, une garde gagnée
+
+| Ce que j'avais écrit | Verdict |
+|---|---|
+| `centreColonne` sur chaque zone, « pour que la valeur relue retombe au bon endroit » | **Retiré.** Il vaut toujours `zone.x` plus une demi-largeur de nombre, et cet écart ne peut jamais faire changer de colonne : la tolérance est la moitié de l'écart entre colonnes, qui n'est jamais plus petit qu'une largeur de nombre. Aucune mutation ne mourait |
+| Une condition de remontage en deux moitiés | **Simplifiée.** Un démenti ne survient jamais sans l'ajout qui le remplace, sur la même page : la seconde moitié ne pouvait pas servir |
+| La garde « le mot d'origine est introuvable » | **Gardée, et désormais éprouvée.** Le cas existe : `colonnesDeNombres` coupe un groupe à une largeur et demie, `rangeesDeTable` range jusqu'à la moitié de l'écart entre colonnes. Entre les deux il y a de la place — avec des colonnes très écartées, un nombre égaré forme son propre groupe, trop petit pour être une colonne, et se retrouve pourtant rangé dans la colonne voisine. L'étendue de la colonne l'ignore, donc la zone ne le contient pas. On ne remplace alors rien, et on le dit |
+
+**Sur les trois commits d'A2, cinq règles écrites par moi sont parties et deux ont été gardées
+parce qu'un vrai cas les tue.** La doctrine du 5 novembre ne vaut pas seulement contre les
+constantes du produit.
