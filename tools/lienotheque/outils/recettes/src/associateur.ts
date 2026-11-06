@@ -41,7 +41,15 @@ export type Association = {
   /** Le lot entier ne permet pas d'appliquer honnêtement cette manière de lire. Les lectures
    *  brutes restent disponibles pour le diagnostic, mais rien n'est présenté comme acquis. */
   readonly abstention?: {
-    readonly raison: "medias_non_interpretes" | "vivier_non_borne" | "corroboration_insuffisante";
+    readonly raison:
+      // Le vivier est vide : rien à relier, et rien à explorer non plus.
+      | "aucun_media"
+      // La lecture n'a trouvé aucun repère. Les enregistrements n'y sont pour rien.
+      | "aucun_repere_lu"
+      // Des enregistrements sont là, lus, et cette manière de lire n'en fait rien.
+      | "medias_non_interpretes"
+      | "vivier_non_borne"
+      | "corroboration_insuffisante";
     readonly combien: number;
     /** De quoi l'écrire en clair à qui lit l'écran, sans que l'écran ait à le deviner. */
     readonly pourquoi?: string;

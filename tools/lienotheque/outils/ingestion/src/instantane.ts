@@ -234,40 +234,63 @@ export function construireVue(entree: Entree): VueBibliotheque {
     // Deux causes bien distinctes, et les confondre égare : soit la manière de lire ne sait rien
     // faire des médias présents, soit ces médias n'ont pas été prouvés appartenir au document.
     // Dans le second cas il n'y a pas d'autre manière à choisir — c'est le dépôt qu'il faut refaire.
-    const nonBorne = entree.association.abstention.raison === "vivier_non_borne";
+    const pluriel = combien > 1 ? "s" : "";
     // `corroboration_insuffisante` ne veut **pas** dire que rien n'a été lu : la confrontation
     // l'émet précisément quand *une* façon de savoir appuie ces liens et qu'aucun œil ne les a
     // vérifiés (`confrontation.ts`). Cette branche s'appelait `sansLecture` et écrivait « Rien
     // n'a été lu sur ces pages » juste à côté du motif du moteur, qui disait l'inverse : « Une
     // seule façon de savoir appuie ces liens ». Mesuré le 30 octobre 2026 sur quatre documents
     // réels de la bibliothèque d'essai.
-    const appuiUnique = entree.association.abstention.raison === "corroboration_insuffisante";
+    //
+    // Une cause par entrée, et non une cascade de conditions : confondre deux causes égare qui
+    // lit, et c'est arrivé deux fois. Une cause de plus s'écrit ici en une ligne, sans toucher
+    // au reste.
+    const DITES = {
+      aucun_media: {
+        libelle: "Aucun enregistrement dans ce document",
+        proposition: "Déposer ce document avec ses enregistrements",
+        motif: "sans enregistrement, aucun lien n’est possible — rien n’a été exploré",
+        details: ["aucun enregistrement à relier"],
+      },
+      aucun_repere_lu: {
+        libelle: "Aucun repère lu sur ces pages",
+        proposition: "Choisir une autre manière de lire",
+        motif: "la lecture n’a trouvé aucun repère sur ces pages",
+        details: [`${combien} enregistrement${pluriel} en attente, aucun repère lu`],
+      },
+      medias_non_interpretes: {
+        libelle: "Lecture non applicable",
+        proposition: "Choisir une autre manière de lire",
+        motif: "aucun des médias présents n’a pu être interprété par cette manière de lire",
+        details: [`${combien} média${pluriel} présent${pluriel}, aucun interprété`],
+      },
+      vivier_non_borne: {
+        libelle: "Rien ne prouve à qui appartiennent ces enregistrements",
+        proposition: "Déposer ce document avec ses propres enregistrements",
+        motif: "l’appartenance de ces enregistrements à ce document n’est pas établie",
+        details: [`${combien} enregistrement${pluriel} dont l’appartenance n’est pas établie`],
+      },
+      corroboration_insuffisante: {
+        libelle: "Ces liens n’ont qu’un seul appui",
+        proposition: "Vérifier ce document, ou lui apporter un second signal indépendant",
+        motif: "une seule façon de savoir appuie ces liens",
+        details: [
+          `${combien} proposition${pluriel} non vérifiée${pluriel}, ${
+            combien > 1 ? "appuyées" : "appuyée"
+          } par une seule lecture`,
+        ],
+      },
+    } as const;
+    const dite = DITES[entree.association.abstention.raison];
     douteux.push({
       id: identifiantDe(`${entree.id}/maniere-inadaptee`),
       nature: "information",
       etat: "maniere_inadaptee",
-      libelle: appuiUnique
-        ? "Ces liens n’ont qu’un seul appui"
-        : nonBorne
-          ? "Rien ne prouve à qui appartiennent ces enregistrements"
-          : "Lecture non applicable",
-      proposition: appuiUnique
-        ? "Vérifier ce document, ou lui apporter un second signal indépendant"
-        : nonBorne
-          ? "Déposer ce document avec ses propres enregistrements"
-          : "Choisir une autre manière de lire",
-      motif:
-        entree.association.abstention.pourquoi ??
-        "aucun des médias présents n’a pu être interprété par cette manière de lire",
-      details: appuiUnique
-        ? [
-            `${combien} proposition${combien > 1 ? "s" : ""} non vérifiée${combien > 1 ? "s" : ""}, ${
-              combien > 1 ? "appuyées" : "appuyée"
-            } par une seule lecture`,
-          ]
-        : nonBorne
-          ? [`${combien} enregistrement${combien > 1 ? "s" : ""} dont l’appartenance n’est pas établie`]
-          : [`${combien} média${combien > 1 ? "s" : ""} présent${combien > 1 ? "s" : ""}, aucun interprété`],
+      libelle: dite.libelle,
+      proposition: dite.proposition,
+      // Le moteur dit souvent lui-même ce qu'il a constaté, et le sien est toujours plus précis.
+      motif: entree.association.abstention.pourquoi ?? dite.motif,
+      details: [...dite.details],
     });
   }
 

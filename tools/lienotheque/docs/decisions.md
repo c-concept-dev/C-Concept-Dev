@@ -7119,3 +7119,50 @@ l'autre. Rien de tout cela n'est propre à un domaine : ce sont des propriétés
 
 Le chiffrage est fait, et il vaut pour la décision : **23 minutes et vingt-trois mille
 reconnaissances pour un livre, afin de gagner une rangée dans la seule table qui compte.**
+
+## 6 novembre 2026 — Deux défauts d'abstention, corrigés sur décision de Christophe
+
+Les deux défauts avaient été **mesurés** sur le banc des 115 méthodes le 5 novembre, rapportés
+sans être corrigés, et Christophe a tranché : les corriger, test rouge d'abord.
+
+### Le vivier était regardé à la fin
+
+`rejouerParOracle` connaît le compte des enregistrements à sa deuxième ligne. Il ne s'en servait
+qu'à la fin, quand `corroborerParTable` examine le vivier. Entre les deux : le rendu de chaque
+page, les formes sombres, l'élection des endroits, les reconnaissances. **Aebersold 041 — zéro
+enregistrement — a été exploré dix-neuf minutes** pour conclure ce que son vivier disait avant la
+première page.
+
+Le contrôle rouge l'a dit sans qu'on ait à le croire : il a **expiré à 5 s et la série a duré
+82 s**. Avec la porte, **0,5 s**. Le contrôle ne vérifie pas un temps — il vérifie qu'aucune
+feuille n'est regardée (`avancement` n'est jamais appelé) et qu'aucune forme n'est cherchée.
+
+### La cause nommée était fausse
+
+`medias_non_interpretes` était rendue pour un document portant onze enregistrements **et** pour un
+document n'en portant aucun. L'écran écrivait dans les deux cas « aucun des médias présents n'a pu
+être interprété » : faux dans le premier cas — les enregistrements n'y sont pour rien, la lecture
+n'a trouvé aucun repère — et sans objet dans le second. Qui lit ne pouvait pas savoir s'il devait
+déposer des enregistrements ou changer de manière de lire.
+
+Trois causes là où il y en avait une :
+
+| Cause | Ce qui s'est passé | Ce que l'écran propose |
+|---|---|---|
+| `aucun_media` | le vivier est vide | déposer ce document avec ses enregistrements |
+| `aucun_repere_lu` | la lecture n'a trouvé aucun repère | choisir une autre manière de lire |
+| `medias_non_interpretes` | des enregistrements lus, dont cette manière ne fait rien | choisir une autre manière de lire |
+
+La cascade de conditions de `instantane.ts` est devenue **une table, une entrée par cause**.
+Confondre deux causes égare qui lit, et c'est arrivé deux fois : une cause de plus s'écrit
+maintenant en une ligne, sans toucher au reste.
+
+### Contre-épreuve par mutation
+
+| Mutation | Ce qui meurt |
+|---|---|
+| la porte du vivier retirée | le contrôle expire à 30 s — toute sa valeur est le coût |
+| la cause redevient `medias_non_interpretes` | `expected 'medias_non_interpretes' to be 'aucun_media'` |
+| les trois lignes de la table fondues en une | les trois libellés d'écran |
+
+Restauré octet pour octet après chaque mutation.

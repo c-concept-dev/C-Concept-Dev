@@ -750,3 +750,58 @@ describe("lire ce qui est écrit autour d'un signe (OUT-10)", () => {
     expect(BUDGET_EXPLORATION.paires / MOTIFS.length, "128 endroits, soit 1,4 fois le maximum observé").toBe(128);
   });
 });
+
+describe("ce que la voie fait avant d'explorer, et la cause qu'elle nomme (OUT-10, REC-02)", () => {
+  // Deux défauts mesurés le 5 novembre 2026 sur le banc des 115 méthodes, et corrigés ici.
+  //
+  // Le premier coûte du temps : un document sans un seul enregistrement a été exploré pendant
+  // dix-neuf minutes — formes, endroits, reconnaissances — pour conclure ce que le vivier disait
+  // avant la première page. Le vivier n'était regardé qu'à la fin, par la corroboration.
+  //
+  // Le second égare : la même abstention, `medias_non_interpretes`, était rendue pour un document
+  // portant onze enregistrements et pour un document n'en portant aucun. Elle dit « aucun des
+  // médias présents n'a pu être interprété » là où la vérité est tout autre — aucun repère n'a
+  // été lu, et les enregistrements n'y sont pour rien.
+
+  it("ne regarde pas une seule page d'un document dont le vivier est vide (OUT-10)", { timeout: 30_000 }, async () => {
+    const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
+    const pdf = pdfDePages("vivier-vide.pdf", pages);
+    const feuillesRegardees: number[] = [];
+
+    const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
+      inventaireMedias: [],
+      provenancesMedias: ["lot:epreuve"],
+      avancement: (feuille) => void feuillesRegardees.push(feuille),
+    });
+
+    expect(rejeu.association.abstention?.raison, "la cause est le vivier, pas la lecture").toBe("aucun_media");
+    expect(rejeu.association.abstention?.combien).toBe(0);
+    expect(feuillesRegardees, "pas une feuille regardée").toEqual([]);
+    expect(rejeu.journal.join(" "), "ni une forme cherchée").not.toMatch(/forme\(s\) dans les bornes/);
+    expect(rejeu.journal.join(" "), "ni un endroit proposé").not.toMatch(/endroit\(s\) proposé\(s\)/);
+    expect(rejeu.resultat.pages.length, "le document garde pourtant toutes ses pages").toBe(4);
+  });
+
+  siTesseract(
+    "nomme « aucun repère lu » quand la lecture n'a rien trouvé, le vivier étant plein (OUT-10)",
+    { timeout: 360_000 },
+    async () => {
+      // Quatre pages de prose : rien de numéroté à y lire, et onze enregistrements qui attendent.
+      const pdf = pdfDePages("rien-a-lire.pdf", [prose(700), prose(500), prose(300), prose(200)]);
+      const vivier = Array.from({ length: 11 }, (_, place) => ({
+        nom: `${String(place + 1).padStart(2, "0")}.mp3`,
+        empreinte: `${place}`.repeat(64).slice(0, 64),
+        provenances: ["lot:epreuve"],
+      }));
+
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
+        inventaireMedias: vivier,
+        provenancesMedias: ["lot:epreuve"],
+      });
+
+      expect(rejeu.resultat.lignes, "rien n'a été lu").toEqual([]);
+      expect(rejeu.association.abstention?.raison).toBe("aucun_repere_lu");
+      expect(rejeu.association.abstention?.combien, "les enregistrements sont bien là").toBe(11);
+    },
+  );
+});

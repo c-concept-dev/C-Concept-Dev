@@ -496,6 +496,27 @@ export async function rejouerParOracle(
     );
   const acquis = acquisUtilisable(options.acquis, empreinte, combienDePages, dire);
 
+  // Première question, avant toute exploration : y a-t-il quelque chose à relier ?
+  //
+  // Un repère ne vaut que par l'enregistrement qu'il désigne. Sans un seul enregistrement, aucun
+  // lien n'est possible — et aucune lecture, aussi réussie soit-elle, ne changera cela. Le vivier
+  // n'était pourtant regardé qu'à la fin, par la corroboration : mesuré le 5 novembre 2026 sur le
+  // banc des 115 méthodes, un document sans aucun enregistrement a été exploré dix-neuf minutes —
+  // formes, endroits, reconnaissances — pour conclure ce que son vivier disait avant la première
+  // page. Le compte des enregistrements est connu ici, dès la deuxième ligne de cette fonction.
+  if (medias.length === 0) {
+    await rendu.fermer();
+    return sansLien(
+      medias,
+      options,
+      journal,
+      combienDePages,
+      "Ce document ne porte aucun enregistrement : il n'y a rien à relier, et rien n'a été exploré.",
+      acquis,
+    );
+  }
+
+
   // Un document dont il est **déjà établi** qu'aucun endroit n'y porte de numérotation n'a rien à
   // relire : ni ses pages, ni ses formes, ni une seule reconnaissance. C'est là qu'est l'essentiel
   // du gain — mesuré le 31 octobre 2026, seize documents sur vingt sont dans ce cas, et ce sont
@@ -1353,7 +1374,18 @@ function sansLien(
       appariements: [],
       orphelins: [],
       manquants: [],
-      abstention: { raison: "medias_non_interpretes", combien: medias.length, pourquoi },
+      // Deux causes bien distinctes, et la même phrase les disait toutes les deux. Mesuré le
+      // 5 novembre 2026 : `medias_non_interpretes` était rendue pour un document portant onze
+      // enregistrements comme pour un document n'en portant aucun, et l'écran écrivait dans les
+      // deux cas « aucun des médias présents n'a pu être interprété ». Dans le premier cas c'est
+      // faux — les enregistrements n'y sont pour rien, la lecture n'a trouvé aucun repère ; dans
+      // le second il n'y a pas de média du tout. Qui lit ne pouvait pas savoir s'il devait
+      // déposer des enregistrements ou changer de manière de lire.
+      abstention: {
+        raison: medias.length === 0 ? "aucun_media" : "aucun_repere_lu",
+        combien: medias.length,
+        pourquoi,
+      },
     },
     medias,
     journal,

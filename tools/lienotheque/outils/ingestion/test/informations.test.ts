@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CasDouteux, VueBibliotheque } from "@lienotheque/contrats";
+import type { Association } from "@lienotheque/recettes";
 import { construireVue, suites } from "../src/index.js";
 import { entreeMinimale, ligne, media } from "./aide-instantane.js";
 
@@ -289,5 +290,46 @@ describe("le contrat d'un cas", () => {
 
   it("refuse un doute sur un lien qui ne porte aucun élément", () => {
     expect(CasDouteux.safeParse({ ...base, nature: "lien", etat: "confiance", libelle: "Plage 3" }).success).toBe(false);
+  });
+});
+
+describe("l'écran nomme la vraie cause d'une abstention (OUT-01, UX-03)", () => {
+  // La même phrase — « aucun des médias présents n'a pu être interprété » — était rendue pour un
+  // document portant onze enregistrements et pour un document n'en portant aucun. Qui lit l'écran
+  // ne pouvait pas savoir s'il devait déposer des enregistrements ou changer de manière de lire.
+
+  const vue = (abstention: NonNullable<Association["abstention"]>) =>
+    construireVue(
+      entreeMinimale({
+        lignes: [],
+        association: { appariements: [], orphelins: [], manquants: [], abstention },
+      }),
+    ).douteux.find((cas) => cas.etat === "maniere_inadaptee");
+
+  it("dit qu'il manque les enregistrements quand le vivier est vide", () => {
+    const cas = vue({ raison: "aucun_media", combien: 0 });
+    expect(cas?.nature).toBe("information");
+    expect(cas?.libelle).toBe("Aucun enregistrement dans ce document");
+    expect(cas?.proposition).toBe("Déposer ce document avec ses enregistrements");
+    expect(
+      [cas?.motif ?? "", ...(cas?.details ?? [])].join(" "),
+      "et ne reproche rien à la lecture",
+    ).not.toMatch(/interprét/i);
+  });
+
+  it("dit que rien n'a été lu quand le vivier est plein", () => {
+    const cas = vue({ raison: "aucun_repere_lu", combien: 11 });
+    expect(cas?.libelle).toBe("Aucun repère lu sur ces pages");
+    expect(cas?.details.join(" ")).toMatch(/11/);
+    expect(
+      [cas?.motif ?? "", ...(cas?.details ?? [])].join(" "),
+      "et n'accuse pas les enregistrements",
+    ).not.toMatch(/interprét/i);
+  });
+
+  it("garde « aucun interprété » pour le cas qui le mérite vraiment", () => {
+    const cas = vue({ raison: "medias_non_interpretes", combien: 37 });
+    expect(cas?.libelle).toBe("Lecture non applicable");
+    expect(cas?.details.join(" ")).toMatch(/aucun interprété/);
   });
 });
