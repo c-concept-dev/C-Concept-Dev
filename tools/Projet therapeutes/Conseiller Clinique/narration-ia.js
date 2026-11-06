@@ -1170,6 +1170,19 @@
       lignes.push('  contenu de cette étape : ' + (etape.texte || '(pas de texte, image ou titre seul)'));
       if (o.blocCible) {
         lignes.push('  Type du bloc sélectionné : ' + etape.type + '. Ne commentez que ce bloc.');
+        if (etape.type === 'quote') {
+          lignes.push('  C’est une CITATION : présentez-la comme des mots cités, puis éclairez leur portée.');
+          lignes.push('  Si vous en reprenez les mots, citez-les exactement ; n’inventez ni auteur ni attribution.');
+        } else if (etape.type === 'heading') {
+          lignes.push('  C’est un TITRE : annoncez oralement le thème qu’il ouvre en une introduction concise.');
+          lignes.push('  Ne le transformez pas en paragraphe explicatif et ne répétez pas seulement son libellé.');
+        } else if (etape.type === 'list' || etape.type === 'bullets') {
+          lignes.push('  C’est une LISTE : expliquez son idée directrice sans lire ses éléments un par un.');
+        } else if (etape.type === 'quiz' || etape.type === 'questionnaire') {
+          lignes.push('  Ce sont des QUESTIONS : invitez à réfléchir, sans donner de réponse à la place du public.');
+        } else if (etape.type === 'paragraph') {
+          lignes.push('  C’est un PARAGRAPHE : apportez une transition ou une nuance, sans le relire.');
+        }
         var voisinsDiapo = toutes.filter(function (autre) { return autre.cardId === etape.cardId; });
         var voisinIndex = voisinsDiapo.findIndex(function (autre) { return autre.stepId === stepId; });
         if (o.blocCible.id.indexOf('root:card-title:') === 0) voisinIndex = -1;

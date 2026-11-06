@@ -73,6 +73,24 @@ const { doc, open } = require('./presentation-edit-fixtures.cjs');
     assert.match(context, /Contexte de la présentation, dans l’ordre/);
     assert.match(context, /La suite du document développe cette idée/);
     assert.match(context, /Ne commentez que ce bloc/);
+    assert.match(context, /C’est une CITATION/);
+    assert.match(context, /citez-les exactement/);
+    const titleContext = await page.evaluate(async () => {
+      const d = window._adocArtifacts['narration-blocs']._adocStructuredDoc;
+      let prompt = '';
+      const firstStepId = window.adocPresentStepList(d)[0].stepId;
+      await window.NarrationIA.reecrireEtape(d, firstStepId, '', {
+        cible: 45,
+        blocCible: { id: 'root:card-title:card-01', type: 'heading', texte: d.blocks[0].content.title },
+        transport: async (req) => {
+          prompt = req.messages[0].content;
+          return JSON.stringify([{ stepId: 'root:card-title:card-01', text: 'Cette première diapositive présente le sujet de la rencontre et du lien entre deux personnes. Elle annonce le parcours qui suivra, depuis ses premiers repères jusqu’aux questions d’aujourd’hui. Prenez un instant pour situer le thème, puis invitez le public à regarder la suite de la présentation.' }]);
+        },
+      });
+      return prompt;
+    });
+    assert.match(titleContext, /C’est un TITRE/);
+    assert.match(titleContext, /introduction concise/);
     const click = await page.evaluate(async () => {
       const errors = [];
       window.addEventListener('error', e => errors.push(e.message), { once: true });
