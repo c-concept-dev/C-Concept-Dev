@@ -10318,17 +10318,31 @@ ${recent}`;
         } catch (e) { console.warn('[narration-ia] ' + (e && e.message)); }
       }
       const paragrapheBtn = narrBoite.querySelector('.nia-paragraphe-bouton');
-      if (paragrapheBtn) paragrapheBtn.hidden = !(etape && ctx.block && ctx.block.type === 'paragraph' && ctx.block.id === etape.stepId);
+      const narrationBlocEcrit = !!(etape && ctx.block &&
+        ['heading', 'paragraph', 'callout', 'quote', 'list', 'table', 'quiz', 'questionnaire'].includes(ctx.block.type));
+      if (paragrapheBtn) {
+        paragrapheBtn.hidden = !narrationBlocEcrit;
+        paragrapheBtn.textContent = 'Rédiger la narration de ce bloc';
+      }
       if (etape) {
         const zone = narrBoite.querySelector('[data-editor-narration]');
+        const narrationId = ctx.st.blockId.indexOf('root:card-title:') === 0
+          ? ctx.st.blockId : etape.stepId;
+        const titreSelectionne = narrationId !== etape.stepId;
+        narrBoite.querySelector('summary').textContent = titreSelectionne ? 'Narration de ce titre' : 'Narration de cette étape';
+        const narrationGlobaleBtn = narrBoite.querySelector('.nia-bouton');
+        if (narrationGlobaleBtn) narrationGlobaleBtn.hidden = titreSelectionne;
         const sur = etape.surRang > 1 ? ', étape ' + etape.rang + ' sur ' + etape.surRang : ', étape unique';
         narrBoite.querySelector('.cc-editor-narration-etape').textContent =
           'Diapositive « ' + (etape.cardTitle || 'sans titre') + ' »' + sur + '.';
         // Jamais écrasé pendant la frappe — même garde que les champs de style ci-dessus.
         if (document.activeElement !== zone) {
-          zone.value = adocNarrationRead(ctx.art._adocStructuredDoc, etape.stepId);
+          zone.value = adocNarrationRead(ctx.art._adocStructuredDoc, narrationId);
         }
-        zone.dataset.stepId = etape.stepId;
+        zone.dataset.stepId = narrationId;
+        zone.dataset.sourceStepId = etape.stepId;
+        zone.dataset.blockId = narrationBlocEcrit ? ctx.st.blockId : '';
+        zone.dataset.blockType = narrationBlocEcrit ? ctx.block.type : '';
         adocEditorRefreshNarrationCount(narrBoite, zone.value);
       }
     }
@@ -19290,7 +19304,11 @@ ${recent}`;
     return etapes;
   }
   function adocNarrationStepIds(doc) {
-    return new Set(adocPresentStepList(doc).map(function (e) { return e.stepId; }));
+    const ids = new Set(adocPresentStepList(doc).map(function (e) { return e.stepId; }));
+    (doc && doc.blocks || []).forEach(function (card) {
+      if (card && card.type === 'card') ids.add('root:card-title:' + card.id);
+    });
+    return ids;
   }
   function adocNarrationRead(doc, stepId) {
     const e = ((doc && doc.narration) || []).find(function (n) { return n.stepId === stepId; });
@@ -23817,6 +23835,15 @@ ${recent}`;
     cartes.forEach(function (carte, i) {
       const d = { numero: i + 1, total: cartes.length,
         titre: String(carte.content && carte.content.title || '(sans titre)'), elements: [] };
+      const narrationTitre = adocNarrationRead(doc, 'root:card-title:' + carte.id);
+      if (narrationTitre) {
+        const compteTitre = adocNarrationCount(narrationTitre);
+        struct.totalMots += compteTitre.mots;
+        d.elements.push({ genre: 'etape', rang: 'titre', surRang: 1 });
+        d.elements.push({ genre: 'narration', texte: narrationTitre });
+        d.elements.push({ genre: 'narration-meta', texte: compteTitre.mots + ' mots · '
+          + compteTitre.secondes + ' s — estimation indicative' });
+      }
       etapes.filter(function (e) { return e.cardId === carte.id; }).forEach(function (e) {
         const narration = adocNarrationRead(doc, e.stepId);
         const compte = adocNarrationCount(narration);

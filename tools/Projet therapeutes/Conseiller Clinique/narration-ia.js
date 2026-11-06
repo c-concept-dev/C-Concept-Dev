@@ -150,6 +150,9 @@
       return typeof x === 'string' ? x : (x && x.text) || ''; }).join(' — ');
     if (Array.isArray(c.questions)) return c.questions.map(function (q) {
       return (q && q.text) || ''; }).join(' — ');
+    if (Array.isArray(c.rows)) return [c.headers || [], ...c.rows].flat().join(' — ');
+    if (typeof c.question === 'string') return [c.question, ...(c.options || [])].join(' — ');
+    if (typeof c.title === 'string') return c.title;
     return '';
   }
 
@@ -1127,7 +1130,9 @@
     var i = -1;
     for (var k = 0; k < toutes.length; k++) { if (toutes[k].stepId === stepId) { i = k; break; } }
     if (i === -1) throw new Error('étape inconnue : ' + stepId);
-    var etape = toutes[i];
+    var etape = o.blocCible
+      ? Object.assign({}, toutes[i], { stepId: o.blocCible.id, type: o.blocCible.type,
+          texte: o.blocCible.texte, contenuBrut: o.blocCible.bloc && o.blocCible.bloc.content || null }) : toutes[i];
     var cible = (o.cible > 0) ? o.cible
       : repartirMots([etape], (typeof o.minutes === 'number' ? o.minutes : DUREE_DEFAUT_MIN)).cibles[0].mots;
     var dejaEcrites = o.dejaEcrites || {};
@@ -1163,6 +1168,24 @@
       lignes.push('  Ne présentez pas le texte provisoire comme un contenu et n’ajoutez aucun fait absent du contexte.');
     } else {
       lignes.push('  contenu de cette étape : ' + (etape.texte || '(pas de texte, image ou titre seul)'));
+      if (o.blocCible) {
+        lignes.push('  Type du bloc sélectionné : ' + etape.type + '. Ne commentez que ce bloc.');
+        var voisinsDiapo = toutes.filter(function (autre) { return autre.cardId === etape.cardId; });
+        var voisinIndex = voisinsDiapo.findIndex(function (autre) { return autre.stepId === stepId; });
+        if (o.blocCible.id.indexOf('root:card-title:') === 0) voisinIndex = -1;
+        var precedent = voisinIndex > 0 ? voisinsDiapo[voisinIndex - 1] : null;
+        var suivant = voisinsDiapo[voisinIndex + 1] || null;
+        if (precedent && precedent.texte) lignes.push('  Bloc immédiatement AVANT : ' + precedent.texte);
+        if (suivant && suivant.texte) lignes.push('  Bloc immédiatement APRÈS : ' + suivant.texte);
+        lignes.push('  Appuyez-vous d’abord sur ces voisins et les autres blocs de la diapositive, puis sur le fil du document entier.');
+        lignes.push('  Contexte de la présentation, dans l’ordre :');
+        toutes.forEach(function (autre, rang) {
+          if (!autre.texte || !autre.texte.trim() ||
+              (rang === i && autre.stepId === etape.stepId)) return;
+          lignes.push('  ' + (rang < i ? 'AVANT' : rang > i ? 'APRÈS' : 'MÊME DIAPOSITIVE')
+            + ' — ' + (autre.cardTitle || 'sans titre') + ' : ' + autre.texte.trim());
+        });
+      }
     }
     lignes.push('');
     lignes.push('Consigne de l’auteur : ' + (String(consigne || '').trim() || 'réécrivez autrement.'));
@@ -1173,7 +1196,7 @@
     var budgetMs = budgetDelaiMs(maxTokens);
     var system = promptSysteme(Object.assign({}, o, { titre: doc.title, public: doc.audience }));
     var transport = o.transport || transportReel;
-    var repartition = { cibles: [{ stepId: stepId, mots: cible }] };
+    var repartition = { cibles: [{ stepId: etape.stepId, mots: cible }] };
     // DEUX FORMES du même document, chacune pour son usage : le tableau de mots pour comparer
     // une citation mot à mot, la chaîne brute pour en découper les PHRASES. Une seule source,
     // deux dérivations — et non deux sources qui finiraient par différer.
@@ -1295,6 +1318,18 @@
     for (var carte of ((doc && doc.blocks) || []).filter(function (b) { return b && b.type === 'card'; })) {
       var bloc = ((carte.content && carte.content.blocks) || []).find(function (b) { return b.id === stepId; });
       if (bloc && bloc.type === 'paragraph') return bloc;
+    }
+    return null;
+  }
+  function blocNarrationCible(doc, id) {
+    if (!doc || !id) return null;
+    if (id.indexOf('root:card-title:') === 0) {
+      var carte = cartes(doc).find(function (c) { return c.id === id.slice(16); });
+      return carte ? { id: id, type: 'heading', texte: carte.content.title || '', bloc: null } : null;
+    }
+    for (var carte of cartes(doc)) {
+      var bloc = ((carte.content && carte.content.blocks) || []).find(function (b) { return b.id === id; });
+      if (bloc) return { id: id, type: bloc.type, texte: texteDuBloc(bloc), bloc: bloc };
     }
     return null;
   }
@@ -1470,21 +1505,21 @@
     var seul = document.createElement('button');
     seul.type = 'button';
     seul.className = 'nia-paragraphe-bouton';
-    seul.textContent = 'Rédiger seulement ce paragraphe';
+    seul.textContent = 'Rédiger la narration de ce bloc';
     seul.hidden = true;
     seul.style.cssText = 'margin:6px 0 0 8px;font:inherit;padding:4px 10px;cursor:pointer;';
     var seulPanneau = document.createElement('div');
     seulPanneau.className = 'nia-panneau nia-paragraphe-panneau';
     seulPanneau.hidden = true;
-    seulPanneau.innerHTML = '<p>La proposition vise ce paragraphe uniquement. Si son texte est encore « Nouveau paragraphe. », l’application le remplacera aussi. Les autres étapes ne changeront pas.</p>'
+    seulPanneau.innerHTML = '<p>La proposition vise ce bloc uniquement, avec le contexte de toute la présentation. Un paragraphe encore provisoire sera remplacé lors de l’application.</p>'
       + '<div class="nia-ligne"><label>Longueur visée <input type="number" class="nia-paragraphe-mots" min="15" max="120" value="45"> mots</label>'
       + '<label>Adresse <select class="nia-paragraphe-adresse"><option value="vous">vous</option><option value="tu">tu</option></select></label></div>'
       + '<div class="nia-ligne"><button type="button" class="nia-paragraphe-generer">Proposer</button>'
-      + '<button type="button" class="nia-paragraphe-appliquer" disabled>Appliquer à ce paragraphe</button>'
+      + '<button type="button" class="nia-paragraphe-appliquer" disabled>Appliquer à ce bloc</button>'
       + '<button type="button" class="nia-paragraphe-annuler" disabled>Annuler ce geste</button>'
       + '<button type="button" class="nia-paragraphe-fermer">Fermer</button></div>'
       + '<p class="nia-etat" role="status" aria-live="polite"></p>'
-      + '<textarea class="nia-paragraphe-apercu" aria-label="Aperçu de la narration de ce paragraphe" hidden></textarea>';
+      + '<textarea class="nia-paragraphe-apercu" aria-label="Aperçu de la narration de ce bloc" hidden></textarea>';
     boite.appendChild(seul);
     boite.appendChild(seulPanneau);
     var proposition = null;
@@ -1494,10 +1529,12 @@
       var doc = docCourant();
       var zone = boite.querySelector('[data-editor-narration]');
       var stepId = zone && zone.dataset.stepId;
+      var sourceStepId = zone && zone.dataset.sourceStepId;
+      var blocCible = blocNarrationCible(doc, stepId);
       var etapes = doc && IA.contenuParEtape(doc);
-      var etape = etapes && etapes.find(function (e) { return e.stepId === stepId; });
-      if (!etape || etape.type !== 'paragraph') { dire(seulPanneau, 'Sélectionnez un paragraphe de la présentation.', true); return; }
-      var provisoire = texteProvisoire(etape.texte);
+      var etape = etapes && etapes.find(function (e) { return e.stepId === sourceStepId; });
+      if (!etape || !blocCible) { dire(seulPanneau, 'Sélectionnez un bloc écrit de la présentation.', true); return; }
+      var provisoire = blocCible.type === 'paragraph' && texteProvisoire(blocCible.texte);
       if (provisoire) {
         var voisins = etapes.filter(function (e) {
           return e.stepId !== stepId && e.texte
@@ -1518,45 +1555,49 @@
       proposition = null;
       dire(seulPanneau, provisoire
         ? 'Paragraphe provisoire : proposition fondée sur les blocs voisins et toute la présentation…'
-        : 'Proposition en cours pour ce paragraphe…');
+        : 'Proposition en cours pour ce bloc…');
       try {
-        var res = await IA.reecrireEtape(doc, stepId, 'Rédigez la narration orale de ce paragraphe uniquement.', {
+        var res = await IA.reecrireEtape(doc, sourceStepId, 'Rédigez la narration orale de ce bloc uniquement.', {
           cible: cible, adresse: seulPanneau.querySelector('.nia-paragraphe-adresse').value,
+          blocCible: blocCible,
           transport: window.NarrationIA._transportDEssai || undefined,
           dejaEcrites: Object.fromEntries((doc.narration || []).map(function (n) { return [n.stepId, n.text]; })),
           contexteNouveauParagraphe: provisoire,
         });
-        if (docCourant() !== doc || !IA.contenuParEtape(doc).some(function (e) { return e.stepId === stepId && e.type === 'paragraph'; })) {
-          dire(seulPanneau, 'Le document ou le paragraphe a changé : proposition écartée.', true); return;
+        if (docCourant() !== doc || !blocNarrationCible(doc, stepId)) {
+          dire(seulPanneau, 'Le document ou le bloc a changé : proposition écartée.', true); return;
         }
-        proposition = { doc: doc, stepId: stepId, paragraphText: etape.texte, provisoire: provisoire };
+        proposition = { doc: doc, stepId: stepId, paragraphText: blocCible.texte, provisoire: provisoire };
         var apercu = seulPanneau.querySelector('.nia-paragraphe-apercu');
         apercu.value = res.entree.text;
         apercu.hidden = false;
         seulPanneau.querySelector('.nia-paragraphe-appliquer').disabled = false;
         dire(seulPanneau, provisoire
           ? 'Proposition fondée sur les blocs voisins et toute la présentation. En l’appliquant, vous remplacerez aussi « Nouveau paragraphe. » par ce texte, sans les marques de pause.'
-          : 'Une proposition pour ce seul paragraphe. Relisez-la puis appliquez-la. Rien n’est encore écrit.');
+          : 'Une proposition pour ce seul bloc. Relisez-la puis appliquez-la. Rien n’est encore écrit.');
       } catch (e) { dire(seulPanneau, 'Proposition impossible : ' + IA.sansCle(e && e.message || String(e)), true); }
       finally { btn.disabled = false; }
     };
     seulPanneau.querySelector('.nia-paragraphe-appliquer').onclick = function () {
       if (!proposition || docCourant() !== proposition.doc) { dire(seulPanneau, 'Document changé : rien n’a été écrit.', true); return; }
+      if (boite.querySelector('[data-editor-narration]').dataset.stepId !== proposition.stepId) {
+        dire(seulPanneau, 'Un autre bloc est sélectionné : recommencez la proposition.', true); return;
+      }
       var apercu = seulPanneau.querySelector('.nia-paragraphe-apercu');
       var texte = apercu.value.trim();
       if (!texte) { dire(seulPanneau, 'La narration est vide : rien n’a été écrit.', true); return; }
-      var etape = IA.contenuParEtape(proposition.doc).find(function (e) { return e.stepId === proposition.stepId && e.type === 'paragraph'; });
-      if (!etape) { dire(seulPanneau, 'Le paragraphe n’existe plus : rien n’a été écrit.', true); return; }
-      if (etape.texte !== proposition.paragraphText) { dire(seulPanneau, 'Le paragraphe a changé depuis la proposition : recommencez.', true); return; }
-      var bloc = paragrapheDuDocument(proposition.doc, proposition.stepId);
+      var etape = blocNarrationCible(proposition.doc, proposition.stepId);
+      if (!etape) { dire(seulPanneau, 'Le bloc n’existe plus : rien n’a été écrit.', true); return; }
+      if (etape.texte !== proposition.paragraphText) { dire(seulPanneau, 'Le bloc a changé depuis la proposition : recommencez.', true); return; }
+      var bloc = etape.bloc;
       var remplacerProvisoire = proposition.provisoire && texteProvisoire(etape.texte);
       var leaf = remplacerProvisoire ? feuilleDuParagraphe(proposition.stepId) : null;
       var texteVisible = remplacerProvisoire ? texte.replace(IA.pauseRe(), ' ').replace(/\s+/g, ' ').trim() : '';
-      if (!bloc || (remplacerProvisoire && (!leaf || !texteVisible))) {
+      if (remplacerProvisoire && (!bloc || !leaf || !texteVisible)) {
         dire(seulPanneau, 'Le bloc visible est introuvable ou la proposition est vide : rien n’a été écrit.', true); return;
       }
       var ancienne = window.adocNarrationRead(proposition.doc, proposition.stepId);
-      if (ancienne && ancienne !== texte && !window.confirm('Ce paragraphe porte déjà une narration. Remplacer uniquement celle-ci ?')) return;
+      if (ancienne && ancienne !== texte && !window.confirm('Ce bloc porte déjà une narration. Remplacer uniquement celle-ci ?')) return;
       if (ancienne === texte && !remplacerProvisoire) { dire(seulPanneau, 'Cette narration est déjà appliquée.'); return; }
       dernierGeste = { source: 'single', doc: proposition.doc, stepId: proposition.stepId,
         avant: JSON.parse(JSON.stringify(proposition.doc.narration || [])),
@@ -1571,7 +1612,7 @@
       this.disabled = true;
       dire(seulPanneau, remplacerProvisoire
         ? 'Texte provisoire remplacé et narration appliquée à ce bloc uniquement. Sauvegardez pour les conserver.'
-        : 'Narration appliquée à ce paragraphe uniquement. Sauvegardez pour la conserver.');
+        : 'Narration appliquée à ce bloc uniquement. Sauvegardez pour la conserver.');
       rafraichirChamp();
     };
     seulPanneau.querySelector('.nia-paragraphe-annuler').onclick = function () {
