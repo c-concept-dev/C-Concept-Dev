@@ -7563,3 +7563,37 @@ une seule lecture n'est pas un geste à prendre seul.
 **Ce qui reste à décider** : faut-il y inscrire la règle du 6 novembre — « les étiquettes d'un
 fichier ne sont pas un second signal » — le jour où la capacité « tags » sera construite ? Porte
 ouverte, non tranchée.
+
+## 6 novembre 2026 — Une règle qu'on doit se rappeler n'est pas une règle
+
+En préparant un commit, un `git add` désignant un **dossier** — `mesures/` — au lieu de fichiers a
+happé tout un arbre de sorties non suivi : des centaines de fichiers, **dont deux PDF**, vers ce
+dépôt **public**. Rattrapé avant le commit, à la relecture de `git status`. C'est-à-dire par
+l'attention, qui n'est pas un mécanisme.
+
+Ce n'était pas la première fois. Le `.gitignore` porte déjà la trace d'une copie de **582 Mo**
+d'œuvres sous droits, née d'un mauvais chemin relatif, « à un `git add -A` près d'un dépôt
+public ». La règle « chemins explicites » de `CLAUDE.md` existait, et elle n'a pas suffi : **un
+dossier est déjà un chemin trop large.**
+
+### Deux barrières, décidées par Christophe
+
+| | |
+|---|---|
+| `.gitignore` | `**/mesures/sorties/` — la première barrière, celle qui empêche d'ajouter |
+| `packages/banc` — contrôle « rien de lourd » | la seconde, celle qui refuse de passer au vert |
+
+Le contrôle lit **l'index**, non les commits : un fichier ajouté et pas encore commité est déjà
+refusé, ce qui est le seul moment où le refus sert encore à quelque chose. Il refuse les œuvres —
+`.pdf`, `.mp3`, `.m4a`, `.wav`, `.flac`, `.ogg`, `.aac` — et tout ce qui vient d'un
+`mesures/sorties/`.
+
+La règle est une **fonction pure**, éprouvée sur une liste fabriquée avant d'être lancée sur
+l'index : un garde-fou qui ne s'éprouve que sur l'état réel du dépôt passerait au vert le jour où
+il cesserait de voir quoi que ce soit. Et il a été éprouvé pour de bon — une œuvre réellement
+mise à l'index le fait rougir, en la nommant avec sa raison.
+
+**Une seule tolérance**, et elle porte sa justification écrite dans le code : `docs/ui-kit/
+Catalogue-UI.pdf`, le catalogue du kit d'interface, écrit pour ce projet et par lui. Un contrôle
+exige que chaque tolérance soit motivée — allonger cette liste est une décision, pas une
+commodité.

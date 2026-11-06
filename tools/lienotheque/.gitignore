@@ -12,6 +12,14 @@ dist/
 **/fixtures/fichiers/
 **/fixtures/fichiers
 *.zip
+
+# Les sorties de mesure : volumineuses, régénérables, et pleines de ce qu'on vient de lire.
+#
+# Le 6 novembre 2026, un « git add » désignant le dossier « mesures/ » a happé tout cet arbre —
+# des centaines de fichiers, dont deux PDF — vers ce dépôt public. Rattrapé à la relecture,
+# c'est-à-dire par l'attention, qui n'est pas un mécanisme. En voici un ; le second est le
+# contrôle « rien-de-lourd », qui lit l'index et refuse œuvres et sorties de mesure.
+**/mesures/sorties/
 target/
 **/src-tauri/moteurs/
 **/src-tauri/gen/
