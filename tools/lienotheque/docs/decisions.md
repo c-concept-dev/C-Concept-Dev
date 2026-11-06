@@ -7166,3 +7166,92 @@ maintenant en une ligne, sans toucher au reste.
 | les trois lignes de la table fondues en une | les trois libellés d'écran |
 
 Restauré octet pour octet après chaque mutation.
+
+## 6 novembre 2026 — Ce qui distingue une table d'une page qui n'en est pas une
+
+Priorité posée par Christophe : **le détecteur doit cesser de voir des tables dans la musique
+avant qu'on branche Vision**. Critères de forme seulement, éprouvés sur au moins trois familles.
+
+### L'instrument avant la conclusion
+
+La reconnaissance d'un livre de 116 pages coûte vingt minutes. Éprouver une idée ne doit pas les
+coûter à nouveau : les mots de **250 pages** — le livre du jalon entier plus seize familles de la
+bibliothèque d'essai — ont été lus une fois et gardés. Tout ce qui suit se rejoue en une seconde.
+
+Le volume externe a décroché en cours de première passe et a emporté cinquante-sept pages déjà
+reconnues. Le programme écrit désormais après **chaque** document.
+
+### La vérité de terrain, et d'où elle vient
+
+Le texte trie, **l'image tranche**. Chaque page porte la source de sa vérité, et **le rappel ne se
+mesure que sur des pages confirmées à l'image**.
+
+| catégorie | familles confirmées à l'image |
+|---|---|
+| liste de pistes | Bass Aerobics p5 (52 enregistrements, 2 panneaux), Vol 5 FUNK p2, Bach p2 |
+| partition | 70s Funk & Disco p9, Keith Rosier p10, Bass Aerobics p8, Westwood 2 p9 |
+| sommaire | Bass Aerobics p4, Funk Fusion p3, Jon Liebman Funk Fusion p2 |
+| catalogue | Aebersold 008 p5 — une vraie table dont aucune valeur ne peut désigner un enregistrement |
+
+### Deux taux, et jamais un seul
+
+Rejeter une fausse table économise des reconnaissances ; manquer une vraie liste **perd des
+liens**. Les confondre dans un seul chiffre les rend tous les deux invisibles.
+
+| règle | pages gardées | cases à relire | listes gardées | partitions gardées |
+|---|---|---|---|---|
+| l'actuelle — 2 colonnes, 4 rangées | 87 | **6 578** | 4/4 | 4/5 |
+| **la retenue** | **12** | **176** | **4/4** | **0/5** |
+
+**−97,3 % du coût, sans perdre une liste et sans garder une partition confirmée.**
+
+### La règle retenue, et ce que chaque critère gagne
+
+Une table d'enregistrements, dit en forme et sans une constante choisie :
+
+1. **une suite de rangées à pas constant** — la tolérance est la hauteur d'une rangée, que la page
+   imprime elle-même ; c'est elle qui dit *quelles rangées sont la table* ;
+2. **au moins un enregistrement complet** parmi elles — une rangée qui remplit toutes ses
+   colonnes ; ce n'est pas un seuil, c'est un « il en existe » ;
+3. **au moins une colonne dont toutes les valeurs tiennent dans le vivier** — un nombre qui
+   désigne un enregistrement ne peut pas dépasser leur compte.
+
+Contre-épreuve, une mutation à la fois :
+
+| privée de… | pages | cases | listes | partitions |
+|---|---|---|---|---|
+| rien | 12 | 176 | 4/4 | 0/5 |
+| la suite à pas constant | 20 | 338 | **3/4** | 0/5 |
+| l'enregistrement complet | 29 | **2 991** | 4/4 | 0/5 |
+| la colonne dans le vivier | 15 | 218 | 4/4 | **1/5** |
+
+**La suite gagne sa place pour une raison que je n'avais pas prévue.** Je la croyais là pour
+trancher ; elle est là pour dire *sur quoi les deux autres se calculent*. Sans elle, les nombres
+du pied de page de Bach — l'adresse de l'éditeur, 7777 et 53213 — entrent dans le test du vivier
+et **font perdre une vraie liste**.
+
+L'enregistrement complet vaut dix-sept fois le prix. Le vivier rattrape la partition la plus dure :
+Westwood 2 p9, dont les numéros d'exercice en marge sont parfaitement réguliers et parfaitement
+hors du vivier.
+
+### Trois règles écrites et réfutées par la mesure
+
+- **« la moitié des rangées sont pleines »** : perd Bach p2, dont deux rangées sur dix-sept
+  seulement sont complètes. Une vraie liste mal reconnue reste une vraie liste.
+- **« ne relire que les rangées de la suite »** : la liste du jalon a 52 enregistrements et sa plus
+  longue suite n'en fait que 13 — les intertitres de chapitre cassent le pas. Ses cases en défaut
+  tomberaient de 22 à 3, en abandonnant 39 rangées de vraie table.
+- **« ne relire que les rangées posées sur la grille »** : même défaut, 24 rangées sur 52.
+
+Les cases à relire restent donc celles de **toute la page** ; c'est la page entière qui est
+retenue ou écartée.
+
+### Et le troisième critère de Christophe
+
+« Une colonne qui suit les folios » **ne gagne pas sa place** : le vivier suffit, et aucune
+mutation ne la réclame. Elle n'est pas écrite. Son idée reste vraie — c'est elle qui distingue la
+page du rang de piste — mais elle appartient à la corrélation nom ↔ folios, pas au détecteur.
+
+Rappel d'une règle déjà réfutée le 5 novembre, et qu'il ne faut pas ressusciter : **« les valeurs
+tiennent dans le nombre de feuilles » est faux**. Vol 5 FUNK renvoie à la page 57 dans un extrait
+de douze feuilles. Le folio n'est pas la feuille.
