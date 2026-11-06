@@ -8193,3 +8193,30 @@ un en-tête décrivait encore « environnement d'abord, trousseau ensuite ». C'
 vraies le matin et fausses l'après-midi. Un message d'erreur qui nomme une source que le code ne
 lit plus envoie chercher au mauvais endroit — et c'est précisément quand on cherche un jeton
 manquant qu'on n'a pas de temps à perdre.
+---
+
+## 6 novembre 2026 — A2 a DEUX déclencheurs, pas un
+
+Rappel de Christophe, au moment d'attaquer la fin d'A2. Je n'en avais retenu qu'un, et la
+différence porte loin.
+
+| # | Déclencheur | Ce qu'on relit | Où il se mesure |
+|---|---|---|---|
+| 1 | **une case de repère** restée sans accord après la relecture locale | la case seule, agrandie | le jalon, mesure 48 → 52 |
+| 2 | **le texte d'une page** qui lit nettement moins bien que les pages comparables du même document | la page entière | un livre de la **Bibliothèque Studio Clinique** |
+
+Les deux partagent l'étage payant et la règle d'économie, mais **rien d'autre** : l'un relit une
+boîte de quelques dizaines de pixels, l'autre une page ; l'un se juge sur des liens justes,
+l'autre sur du texte lisible.
+
+**« Comparables » est une donnée de bibliothèque, pas une constante.** Ce qui fait qu'une page se
+compare à une autre dépend du type de document — et ce type vient du schéma de la bibliothèque,
+jamais du code. C'est la règle 1 du CDC appliquée à la comparaison elle-même : une méthode
+illustrée et un recueil de texte n'ont pas la même page normale, et le code n'a pas à le savoir.
+
+Le second déclencheur se mesure **hors de la bibliothèque musicale**, sur Studio Clinique. Ce
+n'est pas un détail de commodité : un seuil de lisibilité trouvé sur un seul corpus serait
+exactement le genre de constante calibrée que la doctrine du 5 novembre interdit. Deux familles
+de documents, deux natures de page.
+
+Ordre arrêté : **48 → 52 d'abord**, le second déclencheur ensuite.
