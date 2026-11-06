@@ -7655,13 +7655,15 @@ relevé. L'écart est consigné ici, et les autorisations avec lui.
 | 2 | `ae6e072f`, `8f839726`, `9c0dd797` | « Push des trois commits autorisé (ae6e072f, 8f839726, 9c0dd797) » — nommés un par un | même fenêtre, même jour |
 | 3 | `75a46e71`, le garde-fou des fuites | « Pousser maintenant » | **porte posée par Claude dans la fenêtre, réponse de Christophe**, même jour |
 | 4 | `b4980976`, le redressement des pages mal tournées | « Pousser b4980976 » — le commit nommé | **porte posée par Claude dans la fenêtre, réponse de Christophe**, 6 novembre 2026, contrôle complet accepté à 2 960 contrôles |
+| 5 | `7904eb66` (titres hors du code du produit) et `38001a1f` (la règle au registre) | « Push autorisé : 7904eb66 puis 38001a1f. Inscris l'autorisation dans le même geste » — les deux commits nommés, dans l'ordre | message de Christophe dans la fenêtre de la session, 6 novembre 2026, contrôle complet accepté avant |
 
-Quatre poussées, six autorisations si l'on compte les commits nommés séparément — et c'est bien
+Cinq poussées, huit autorisations si l'on compte les commits nommés séparément — et c'est bien
 ainsi qu'il faut les compter : **une autorisation porte sur des commits nommés, jamais sur « la
 suite »**.
 
 La quatrième est la première inscrite **dans le même geste que le push**, comme la règle de tenue
-ci-dessous l'exige.
+ci-dessous l'exige ; la cinquième l'est aussi, et Christophe l'a cette fois demandé dans la phrase
+même de l'autorisation.
 
 ### Ce que l'écart enseigne
 
