@@ -7657,8 +7657,9 @@ relevé. L'écart est consigné ici, et les autorisations avec lui.
 | 3 | `75a46e71`, le garde-fou des fuites | « Pousser maintenant » | **porte posée par Claude dans la fenêtre, réponse de Christophe**, même jour |
 | 4 | `b4980976`, le redressement des pages mal tournées | « Pousser b4980976 » — le commit nommé | **porte posée par Claude dans la fenêtre, réponse de Christophe**, 6 novembre 2026, contrôle complet accepté à 2 960 contrôles |
 | 5 | `7904eb66` (titres hors du code du produit) et `38001a1f` (la règle au registre) | « Push autorisé : 7904eb66 puis 38001a1f. Inscris l'autorisation dans le même geste » — les deux commits nommés, dans l'ordre | message de Christophe dans la fenêtre de la session, 6 novembre 2026, contrôle complet accepté avant |
+| 6 | `07f0e2f4`, CLA-01 cherche des mots entiers | « Push de 07f0e2f4 autorisé (inscris-le dans le même geste) » — le commit nommé | message de Christophe dans la fenêtre de la session, 6 novembre 2026, contrôle complet accepté avant (2973 lus, 1 rouge épinglé) |
 
-Cinq poussées, huit autorisations si l'on compte les commits nommés séparément — et c'est bien
+Six poussées, neuf autorisations si l'on compte les commits nommés séparément — et c'est bien
 ainsi qu'il faut les compter : **une autorisation porte sur des commits nommés, jamais sur « la
 suite »**.
 
