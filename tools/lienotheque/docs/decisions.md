@@ -8547,3 +8547,80 @@ méfiance, elles disaient « cette règle ne sert à rien ».
 
 Une mutation qui ne s'applique pas est **indiscernable d'une mutation qui ne tue rien**. Les scripts
 vérifient maintenant que le motif existe **avant** de jouer, et le disent quand il est absent.
+---
+
+## 7 novembre 2026 — l'index est préparé AVANT le contrôle, pas après
+
+**Règle de tenue posée par Christophe**, et elle vise la cause de deux rouges du jour :
+
+> Avant le contrôle complet, les fichiers du lot — **et eux seuls** — sont ajoutés à l'index, pour
+> que l'index soit exactement le commit. Le contrôle juge alors ce qui partira, et voit ce que la
+> CI verra.
+
+### Pourquoi, mesuré deux fois
+
+Les garde-fous qui parcourent le dépôt lisent **l'index**. Un contrôle lancé avant d'indexer les
+fichiers du lot les juge donc sur un index qui ne les contient pas : il ne voit pas ce que la CI
+verra, et il passe au vert sur un état qui n'existera jamais.
+
+Deux rouges de CI en sont venus, et tous deux portaient sur le fichier de contrôle d'un garde-fou,
+non indexé pendant la course locale :
+
+| Garde-fou | Local, avant indexation | CI, le fichier commité |
+|---|---|---|
+| les promesses (6 novembre) | **vert** | **rouge** — il accusait ses propres fixtures |
+| les fichiers non suivis (7 novembre) | **vert** | **rouge** — six fantômes, tous des chaînes de son contrôle |
+
+Le piège est **à retardement** : le garde-fou est vert tant que son propre fichier n'est pas suivi,
+et rouge à la course suivante. Aucune relecture ne l'attrape ; seul l'ordre des gestes l'évite.
+
+### Ce que la règle coûte, et ce qu'elle rend
+
+Elle coûte un `git add` de plus, avant le contrôle au lieu d'après. Elle rend la propriété qui
+manquait : **le contrôle local et la CI jugent le même état**. Les vingt-cinq minutes d'un contrôle
+complet ne valent que si ce qu'il juge est ce qui part.
+
+Elle complète les deux autres règles de la journée, et les trois ne forment qu'une discipline :
+
+1. **chemins explicites** — n'emporter que ce qu'on nomme ;
+2. **aucun fichier suivi n'importe un fichier non suivi** — ne pas oublier d'emporter ;
+3. **l'index préparé avant le contrôle** — juger ce qu'on emporte, et non ce qu'on a sous la main.
+---
+
+## 7 novembre 2026 — le garde-fou des fantômes s'est lu lui-même, et le remède était faux
+
+Le garde-fou posé le matin a annoncé **six fantômes** sur la CI, tous des fixtures de son propre
+fichier de contrôle, écrites entre guillemets. Même défaut que le garde-fou des promesses la
+veille, **un lot plus tard**, alors que la leçon était écrite au registre.
+
+### Deux erreurs de remède, l'une après l'autre
+
+**Première** : appliquer le remède des promesses — blanchir les chaînes. Or **un chemin d'import
+EST une chaîne**. Blanchir détruisait exactement ce que ce garde-fou cherche, et le contrôle
+« attrape un module importé mais non suivi » est tombé aussitôt.
+
+**Seconde** : interroger le masque sur le motif **entier** (`from "./absent.js"`), dont le chemin
+est blanchi — donc plus aucun import véritable ne passait.
+
+La forme juste : chercher le motif dans le **texte brut**, et demander au masque si son **mot-clé
+seul** est du code. **Le masque sert à situer un motif, pas à le lire.**
+
+### Une pièce partagée, et une faille latente corrigée en passant
+
+`packages/banc/src/lire-du-code.ts` porte désormais `sansLitteraux` — deux usages réels — et en
+plus `sansCommentaires` : **un `// if (f())` n'est pas plus du code qu'un `"if (f())"`**. C'était
+une faille du garde-fou des promesses que personne n'avait vue.
+
+Son en-tête raconte le défaut deux fois et en tire la règle : **tout garde-fou qui parcourt les
+sources du dépôt blanchit les chaînes et les commentaires avant de lire.**
+
+### Contre-épreuve
+
+| Mutation | Tests morts |
+|---|---|
+| le masque n'est plus interrogé | 2 |
+| le motif entier est interrogé au lieu du mot-clé | 1 |
+| les commentaires ne sont plus blanchis | 2 |
+
+Le blanchiment des commentaires n'était d'abord tenu **que par un commentaire du dépôt réel** —
+creux dès que quelqu'un le réécrirait. Il a désormais son propre cas.

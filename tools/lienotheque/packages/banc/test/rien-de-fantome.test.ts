@@ -165,6 +165,29 @@ describe("aucun fichier suivi n'importe un fichier non suivi", () => {
     }
   });
 
+  /** Un garde-fou qui parcourt le dépôt se lit lui-même : ses fixtures citent des imports entre
+   *  guillemets. Le 7 novembre 2026, il a annoncé **six fantômes**, tous des chaînes de ce fichier
+   *  — et seulement sur la CI, parce qu'un contrôle local lancé avant le commit ne voit pas encore
+   *  son propre fichier dans l'index. Même piège que le garde-fou des promesses la veille. */
+  it("ne lit pas un import cité dans une chaîne", () => {
+    const sources = ["paquet/src/citation.ts"];
+    const contenus = new Map([
+      ["paquet/src/citation.ts", 'const exemple = \'export * from "./absent.js";\';\nconst autre = `from "./aussi.js"`;\n'],
+    ]);
+    expect(importsFantomes(sources, (c) => contenus.get(c) ?? "")).toEqual([]);
+  });
+
+  /** Un `// from "./x.js"` n'est pas un import. Cette règle n'était tenue que par un commentaire
+   *  du dépôt réel : si quelqu'un le réécrivait, la règle devenait creuse sans que rien ne le
+   *  dise. Elle a désormais son propre cas. */
+  it("ne lit pas un import écrit dans un commentaire", () => {
+    const sources = ["paquet/src/commente.ts"];
+    const contenus = new Map([
+      ["paquet/src/commente.ts", 'export const x = 1;\n// export * from "./absent.js";\n/* from "./aussi.js" */\n'],
+    ]);
+    expect(importsFantomes(sources, (c) => contenus.get(c) ?? "")).toEqual([]);
+  });
+
   it("justifie chacune de ses tolérances", () => {
     for (const tolere of TOLERES_FANTOMES) expect(tolere.raison.length, tolere.motif).toBeGreaterThan(40);
   });

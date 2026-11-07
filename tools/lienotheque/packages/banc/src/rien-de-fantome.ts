@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { estDuCode, masqueDeCode } from "./lire-du-code.js";
 
 /** Aucun fichier suivi par Git n'importe un fichier qui ne l'est pas.
  *
@@ -188,8 +189,17 @@ export function importsFantomes(
   const sources = suivis.filter((chemin) => /\.(ts|tsx)$/.test(chemin) && !chemin.includes("/dist/"));
   const fantomes: ImportFantome[] = [];
   for (const chemin of sources) {
-    for (const trouve of lire(chemin).matchAll(/\bfrom\s+"(\.{1,2}\/[^"]+)"|\bimport\s+"(\.{1,2}\/[^"]+)"/gu)) {
+    const contenu = lire(chemin);
+    const masque = masqueDeCode(contenu);
+    for (const trouve of contenu.matchAll(/\bfrom\s+"(\.{1,2}\/[^"]+)"|\bimport\s+"(\.{1,2}\/[^"]+)"/gu)) {
       const importe = trouve[1] ?? trouve[2]!;
+      // Un fichier qui CITE un import n'en fait pas un. On interroge le masque sur le **mot-clé
+      // seul** — `from` ou `import` — et jamais sur le chemin : le chemin EST une chaîne, donc
+      // blanchi dans le masque, et le comparer ferait échouer tous les imports véritables. C'est
+      // l'erreur suivante, commise juste après celle du remède : interroger le masque sur le motif
+      // entier au lieu de son mot-clé.
+      const motCle = trouve[0].slice(0, trouve[0].indexOf('"'));
+      if (!estDuCode(masque, trouve.index, motCle)) continue;
       if (TOLERES_FANTOMES.some((tolere) => importe.includes(tolere.motif))) continue;
       const cible = resoudre(chemin, importe);
       // Un import en `.js` désigne un source TypeScript ; tout autre suffixe se prend tel quel,
