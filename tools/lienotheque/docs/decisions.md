@@ -8443,3 +8443,106 @@ accuse une citation. Son contrôle est écrit.
 **Troisième fois ce jour** qu'une contre-épreuve entrée par entrée révèle une règle que rien ne
 tenait — après `es`/`x` dans les flexions, et les ports asynchrones. La contre-épreuve globale
 (« une mutation, un test mort ») ne suffit pas : c'est **entrée par entrée** qu'elle parle.
+---
+
+## 7 novembre 2026 — aucun fichier suivi n'importe un fichier non suivi
+
+Né de l'incident du matin : la CI rouge quatre lots durant, pour un `index.ts` commité qui
+exportait un module que personne n'avait commité. Ce garde-fou rougit **avant** le push, sur le
+disque, là où la correction coûte un `git add` au lieu d'une branche cassée.
+
+C'est le pendant exact de la règle « jamais `git add -A` » : **les chemins explicites empêchent
+d'emporter ce qui ne doit pas partir, ce garde-fou attrape ce qu'on a oublié d'emporter.** Il
+manquait la seconde moitié.
+
+### Il a mordu avant d'être commité
+
+Premier passage sur le dépôt réel :
+
+```
+{ chemin: "outils/ingestion/test/voie-oracle.test.ts", importe: "./aides/pdf.js" }
+```
+
+`aides/pdf.ts` n'était pas suivi, et `voie-oracle.test.ts` l'importe depuis l'extraction de la
+veille. **Au prochain push, la branche recassait exactement de la même façon.**
+
+### Il juge l'index, pas le disque — correction de Christophe
+
+Première version : il lisait les fichiers sur le disque. Ma première réaction a été d'indexer le
+fichier manquant pour faire passer le contrôle — **j'ai ajusté l'index au garde-fou au lieu
+d'ajuster le garde-fou à la question.** Christophe l'a corrigé à la racine.
+
+Lire le disque était faux **dans les deux sens** :
+
+- **faux positif** — un import ajouté sur le disque, qui ne partira pas dans ce commit, annoncé
+  comme fantôme ;
+- **faux négatif** — un module présent sur le disque mais non indexé faisant passer pour résolu un
+  import qui aurait cassé le clone.
+
+La question n'est pas « qu'y a-t-il sur cette machine ? » mais **« que contiendra le prochain
+commit ? »**. Seul l'index y répond.
+
+### Le contrôle anti-aveuglement : trois formes, deux écartées
+
+Une mutation a révélé la pire panne possible : en cassant l'avance par taille annoncée, le lecteur
+ne chargeait plus que **la première entrée** et rendait du vide pour toutes les autres. Aucun
+import trouvé nulle part, et le garde-fou **vert**. Aveugle et silencieux, indiscernable du succès.
+
+Trois formes de contrôle, dans l'ordre où elles ont été écrites puis écartées :
+
+| Forme | Ce qu'elle supposait |
+|---|---|
+| « plus de cent sources lues » | une **constante calibrée** — vieillit sans rien dire, et laisse passer un chargement d'une entrée sur deux |
+| « aucun fichier suivi n'est vide » | une **hypothèse sur le dépôt**, pas sur le lecteur — un `.gitkeep` légitime la casserait, et un garde-fou qui accuse à tort finit par être désarmé |
+| **« chaque contenu a la taille que Git annonce »** | **rien** |
+
+`git cat-file --batch-check` ne lit aucun contenu : il rend l'en-tête des objets. C'est **la seule
+mesure extérieure au lecteur**, donc la seule qui puisse le contredire. Un fichier vide a une
+taille de zéro des deux côtés.
+
+**Et cette forme a imposé une correction du lecteur, pas seulement du test** : il ne peut plus
+décoder en UTF-8 au chargement, parce que décoder un PNG ou une police est irréversible et que la
+taille du texte décodé ne vaut plus celle que Git annonce. Le chargeur garde des **octets**, et le
+décodage se fait à la demande. Sans cela, le contrôle aurait été inapplicable sur toute image du
+dépôt.
+
+### Deux défauts de performance et de justesse, attrapés en route
+
+**Un dépassement de délai** : un `git show` par fichier, cinq secondes dépassées sur quelques
+centaines de sources. Remplacé par `git ls-files -s` puis `git cat-file --batch` — **deux appels
+pour tout l'index**, 688 ms.
+
+**Un test dont le nom mentait** : « accepte qu'un dossier réponde par son index » ne vérifiait rien
+de tel — son import nomme l'index explicitement, et c'est le premier candidat qui répond. Découvert
+parce qu'une mutation de la règle du dossier ne tuait aucun test. La règle a été **supprimée** et
+le test renommé.
+
+### Contre-épreuve
+
+| Mutation | Tests morts |
+|---|---|
+| le `.tsx` ne répond plus pour un `.js` | 2 |
+| la tolérance `node_modules` est retirée | 1 |
+| les imports de paquets sont examinés | 2 |
+| le `.json` n'est plus pris tel quel | 2 |
+| remonter d'un dossier est ignoré | 1 |
+| le disque est lu au lieu de l'index | 2 |
+| HEAD est lu au lieu de l'index | 3 |
+| la taille annoncée n'est plus suivie | 1 |
+| une entrée sur deux est chargée | 1 |
+| **le contenu est tronqué d'un seul octet** | **1** |
+| les contenus reviennent vides | 2 |
+| le décodage UTF-8 sert de mesure | 3 |
+| ~~le dossier répond par son index~~ | **0 — supprimée** |
+
+La dixième montre le gain de la forme retenue : **un seul octet manquant** est détecté. Ni le seuil
+de cent, ni « aucun fichier vide » ne l'auraient vu.
+
+### Une note de méthode, la seconde en deux jours
+
+Plusieurs mutations ont d'abord affiché `Tests no tests` ou « 7 passed » **sans avoir été
+appliquées** — un échappement de shell, puis un motif disparu après une réécriture. Lues sans
+méfiance, elles disaient « cette règle ne sert à rien ».
+
+Une mutation qui ne s'applique pas est **indiscernable d'une mutation qui ne tue rien**. Les scripts
+vérifient maintenant que le motif existe **avant** de jouer, et le disent quand il est absent.
