@@ -28,7 +28,7 @@ Le glissement reprend sur le bord, avec curseur main visible ; le texte reste s�
 - `verify-panel-image-no-overlap.cjs` dans WebKit : 3 largeurs.
 - `verify-contextual-ux.cjs` dans WebKit : références et approfondissements manuels.
 - `verify-editor-parity-six-kinds.cjs` : six types, blocs écrits, correction contextuelle, image et couverture.
-- `verify-narration-six-kinds.cjs` dans WebKit : ouverture des six types ; titre, paragraphe et citation ; saisie directe, schéma, purge, proposition IA, voisins, application au seul bloc, sérialisation JSON et réouverture dans un contexte neuf ; absence des notes de travail dans l'export.
+- `verify-narration-six-kinds.cjs` dans WebKit : ouverture des six types ; titre, paragraphe, citation, encadré, liste et tableau là où le schéma l'autorise ; saisie directe, schéma, purge, proposition IA, voisins, application au seul bloc, sérialisation JSON et réouverture dans un contexte neuf ; absence des notes de travail dans l'export.
 - `verify-resize-handles-selected-only.cjs`, `verify-narration-blocs.cjs`, `verify-acte3-deepdive-cycle.cjs` et `verify-acte3-export-standalone.cjs` : réussis.
 
 ## Limites relevées dans les contrôles complémentaires

@@ -13,10 +13,13 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
       const d = doc(kind);
       const blocks = ['carrousel', 'presentation'].includes(kind) ? d.blocks[0].content.blocks : d.blocks;
       blocks.push({ id: 'q1', type: 'quote', content: { text: 'Une citation à commenter.' }, citationIds: [], validation: {} });
+      blocks.push({ id: 'c1', type: 'callout', content: { text: 'Un repère clinique.', visualRole: 'info' }, citationIds: [], validation: {} });
+      blocks.push({ id: 'l1', type: 'list', content: { items: ['Premier point'], ordered: false }, citationIds: [], validation: {} });
+      if (!['carrousel', 'presentation'].includes(kind)) blocks.push({ id: 't1', type: 'table', content: { headers: ['Colonne'], rows: [['Valeur']] }, citationIds: [], validation: {} });
       const key = 'narration-six-' + kind;
       assert.equal(await open(page, d, key), true, kind + ' : ouverture');
       const ui = await page.evaluate(() => {
-        return ['h1', 'p1', 'q1'].map(id => {
+        return ['h1', 'p1', 'q1', 'c1', 'l1', ...(['carrousel', 'presentation'].includes(window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc.documentKind) ? [] : ['t1'])].map(id => {
           document.getElementById(id).click();
           const panel = document.querySelector('.cc-editor-narration');
           const zone = panel?.querySelector('[data-editor-narration]');
@@ -38,8 +41,9 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
           removed: window.adocNarrationPurge(d), after: d.narration.map(n => n.stepId),
           exportNotes: !!window.adocDocumentPourExport(d).narration };
       }, key);
-      assert.deepEqual(result.ids, ['h1', 'p1', 'q1'], kind + ' : liste des blocs');
-      assert.deepEqual(result.notes, ['h1', 'p1', 'q1'], kind + ' : saisie');
+      const expected = ['h1', 'p1', 'q1', 'c1', 'l1', ...(['carrousel', 'presentation'].includes(kind) ? [] : ['t1'])];
+      assert.deepEqual(result.ids, expected, kind + ' : liste des blocs');
+      assert.deepEqual(result.notes, expected, kind + ' : saisie');
       assert.deepEqual(result.removed, [], kind + ' : purge destructive');
       assert.deepEqual(result.after, result.notes, kind + ' : persistance');
       assert.equal(result.valid, true, kind + ' : schéma');
