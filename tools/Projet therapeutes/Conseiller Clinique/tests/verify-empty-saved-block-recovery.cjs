@@ -31,9 +31,11 @@ const { ROOT, doc } = require('./presentation-edit-fixtures.cjs');
       const art = window._adocArtifacts[window._adocWsState.storeKey];
       return { text: art._adocStructuredDoc.blocks[0].content.blocks[0].content.text,
         dirty: art._ccEditorDirty, count: art._adocRecoveredEmptyBlocks,
-        status: document.getElementById('cc-ws-save-status').textContent };
+        status: document.getElementById('cc-ws-save-status').textContent,
+        outline: document.getElementById('h1').style.outlineStyle };
     });
-    assert.deepEqual(recovered, { text: 'Titre à compléter', dirty: true, count: 1, status: 'Modifications non sauvegardées' });
+    assert.deepEqual(recovered, { text: 'Titre à compléter', dirty: true, count: 1,
+      status: 'Modifications non sauvegardées', outline: 'solid' });
     assert.equal(saved.blocks[0].content.blocks[0].content.text, '');
     assert.ok(dialogs.some(s => s.includes('version précédente est conservée')));
     await page.evaluate(() => {
@@ -44,7 +46,7 @@ const { ROOT, doc } = require('./presentation-edit-fixtures.cjs');
     });
     await page.waitForTimeout(100);
     assert.equal(posts.length, 0, 'aucune sauvegarde invalide envoyée au Worker : ' + posts.join(', '));
-    assert.ok(dialogs.some(s => s.includes('Document non conforme')));
+    assert.ok(dialogs.some(s => s.includes('Un bloc de texte est vide')));
     console.log('PASS récupération explicite sans sauvegarde silencieuse ; bloc vide refusé avant POST');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

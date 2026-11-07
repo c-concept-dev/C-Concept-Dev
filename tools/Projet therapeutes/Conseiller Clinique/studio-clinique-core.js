@@ -17980,6 +17980,7 @@ ${recent}`;
     if (!doc || adocValidateSchemaTolerant('clinicalDocument', doc).valid) return null;
     const candidate = JSON.parse(JSON.stringify(doc));
     let repaired = 0;
+    const ids = [];
     function visit(blocks) {
       if (!Array.isArray(blocks)) return;
       blocks.forEach(function (block) {
@@ -17988,6 +17989,7 @@ ${recent}`;
             typeof block.content.text === 'string' && !block.content.text.trim()) {
           block.content.text = block.type === 'heading' ? 'Titre à compléter' : 'Texte à compléter';
           repaired++;
+          ids.push(block.id);
         }
         visit(block.content.blocks);
       });
@@ -17995,9 +17997,31 @@ ${recent}`;
     visit(candidate.blocks);
     // Ne répare QUE ce cas connu. Toute autre erreur de schéma reste bloquante.
     if (!repaired || !adocValidateSchemaTolerant('clinicalDocument', candidate).valid) return null;
-    return { document: candidate, count: repaired };
+    return { document: candidate, count: repaired, ids: ids };
+  }
+  function adocShowEmptyTextBlock(id) {
+    const el = id && document.getElementById(id);
+    if (!el) return;
+    el.style.outline = '3px solid #b34d39';
+    el.style.outlineOffset = '3px';
+    el.scrollIntoView({ block: 'center', behavior: 'auto' });
   }
   function adocAssertSavableClinicalDocument(doc) {
+    let emptyId = null;
+    function findEmpty(blocks) {
+      if (!Array.isArray(blocks) || emptyId) return;
+      blocks.forEach(function (block) {
+        if (!block || !block.content || emptyId) return;
+        if (['heading', 'paragraph', 'callout', 'quote'].includes(block.type) &&
+            typeof block.content.text === 'string' && !block.content.text.trim()) emptyId = block.id;
+        findEmpty(block.content.blocks);
+      });
+    }
+    findEmpty(doc && doc.blocks);
+    if (emptyId) {
+      adocShowEmptyTextBlock(emptyId);
+      throw new Error('Un bloc de texte est vide. Il est signalé dans le document ; renseignez-le ou supprimez-le avant de sauvegarder');
+    }
     const check = adocValidateSchemaTolerant('clinicalDocument', doc);
     if (!check.valid || check.skipped) {
       const first = check.errors && check.errors[0] || 'schéma indisponible';
@@ -18038,6 +18062,7 @@ ${recent}`;
       art._adocStructuredDoc = recovery ? recovery.document : savedDoc;
       if (recovery) {
         art._adocRecoveredEmptyBlocks = recovery.count;
+        art._adocRecoveredEmptyBlockIds = recovery.ids;
         art._ccEditorDirty = true; // jamais de sauvegarde silencieuse
       }
       art._adocStructuredSnapshot = data.version.document.sourceSnapshot || null;
@@ -18099,7 +18124,10 @@ ${recent}`;
       window._adocArtifacts[storeKey] = art;
       const opened = await window.adocOpenWorkspace(storeKey);
       if (!opened) throw new Error('Ouverture impossible');
-      if (art._adocRecoveredEmptyBlocks) alert(art._adocRecoveredEmptyBlocks + ' bloc(s) de texte vide(s) récupéré(s). Repérez « Texte à compléter » ou « Titre à compléter », puis sauvegardez après vérification. La version précédente est conservée.');
+      if (art._adocRecoveredEmptyBlocks) {
+        alert(art._adocRecoveredEmptyBlocks + ' bloc(s) de texte vide(s) récupéré(s). Le premier est affiché et signalé ; renseignez les repères « Texte à compléter » ou « Titre à compléter », puis sauvegardez après vérification. La version précédente est conservée.');
+        adocShowEmptyTextBlock(art._adocRecoveredEmptyBlockIds[0]);
+      }
       return true;
     } catch (e) {
       alert('Impossible de rouvrir cette création : ' + (e && e.message || 'erreur inconnue') + '.');
