@@ -970,6 +970,19 @@
         }
       ]
     },
+    "deepDiveBlock": {
+      "$comment": "Les mêmes huit types que l'insertion manuelle, sans carte imbriquée. La page d'approfondissement peut ainsi contenir aussi un tableau.",
+      "oneOf": [
+        { "$ref": "#/$defs/headingBlock" },
+        { "$ref": "#/$defs/paragraphBlock" },
+        { "$ref": "#/$defs/calloutBlock" },
+        { "$ref": "#/$defs/listBlock" },
+        { "$ref": "#/$defs/tableBlock" },
+        { "$ref": "#/$defs/quoteBlock" },
+        { "$ref": "#/$defs/imageBlock" },
+        { "$ref": "#/$defs/videoBlock" }
+      ]
+    },
     "nestedBlock": {
       "$comment": "Blocs autorisés dans card.content.blocks[] (imbriqué) : mêmes types que l'ensemble éditorial, sauf `table` (non imbriquée) et `card` (jamais imbriquée dans une autre carte). LOT 3 Présentation — quizBlock ajouté ici (jamais à editorialBlock/cardOnlyBlock, cf. quizBlock.$comment) : un quiz n'a de sens qu'à l'intérieur d'une diapositive. LOT 5 Présentation — questionnaireBlock ajouté selon le même principe (cf. questionnaireBlock.$comment).",
       "oneOf": [

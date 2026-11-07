@@ -59,7 +59,10 @@ const DOC = {
   deepDives: [
     { id: 'n1', title: 'Niveau 1', paragraphs: [{ text: "Le cortisol et la boucle de retour.", deepDiveLinks: [lien('boucle de retour', 'n2')] }] },
     { id: 'n2', title: 'Niveau 2', paragraphs: [{ text: "L'hippocampe cesse de freiner l'axe.", deepDiveLinks: [lien("l'axe", 'n3')] }] },
-    { id: 'n3', title: 'Niveau 3', paragraphs: ['Terminus de la branche.'] },
+    { id: 'n3', title: 'Niveau 3', paragraphs: ['Terminus de la branche.'], blocks: [
+      { id: 'deep-heading-01', type: 'heading', content: { text: 'Titre du complément', level: 2 } },
+      { id: 'deep-quote-02', type: 'quote', content: { text: 'Terminus de la branche.' } },
+    ] },
   ],
 };
 
@@ -137,6 +140,7 @@ const DOC = {
     assert.equal(await titre(), 'Niveau 2');
     await page.evaluate(() => document.querySelector('.cc-ws-present-door-text .adoc-sc-deepdive-chip').click());
     assert.equal(await titre(), 'Niveau 3');
+    assert.equal(await page.locator('#cc-ws-present-door .adoc-sc-block').count(), 2, 'les blocs complets sont rendus dans le fichier autonome');
     assert.deepEqual(await pile(), ['n1', 'n2', 'n3']);
     assert.equal(erreurs.length, 0, 'erreur pendant la descente : ' + erreurs.join(' | '));
     assert.equal(await diapo(), REFERENCE, 'la diapositive a été modifiée dans le fichier exporté');

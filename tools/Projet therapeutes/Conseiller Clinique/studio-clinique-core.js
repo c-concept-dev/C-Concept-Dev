@@ -17564,17 +17564,121 @@ ${recent}`;
       pages.map(function (page, index) {
         return '<details data-deep-dive-index="' + index + '"><summary>' + adocEsc(page.title) + '</summary>' +
           '<label>Titre<input data-deep-dive-title value="' + adocEsc(page.title) + '"></label>' +
+          (Array.isArray(page.blocks) ? '<div class="cc-deep-dive-blocks">' + page.blocks.map(adocDeepDiveBlockEditorHTML).join('') + '</div>' +
+            '<label>Insérer un bloc dans cette page<select data-deep-dive-insert-type>' +
+            ADOC_BLOCK_INSERT_TYPES.map(function (item) { return '<option value="' + item.type + '">' + item.label + '</option>'; }).join('') +
+            '</select></label><button type="button" onclick="adocWorkspaceDeepDiveAddBlock(' + index + ')">Insérer un bloc</button>' :
           (page.paragraphs || []).map(function (paragraph, paragraphIndex) {
             const value = typeof paragraph === 'string' ? paragraph : paragraph.text;
             return '<label>Paragraphe ' + (paragraphIndex + 1) + '<textarea data-deep-dive-paragraph="' + paragraphIndex + '">' + adocEsc(value || '') + '</textarea></label>' +
               '<button type="button" onclick="adocWorkspaceDeepDiveDraft(' + index + ',' + paragraphIndex + ')">Rédiger ce paragraphe</button>';
           }).join('') +
           '<button type="button" onclick="adocWorkspaceDeepDiveAddParagraph(' + index + ')">Ajouter un paragraphe</button>' +
+          '<button type="button" onclick="adocWorkspaceDeepDiveToBlocks(' + index + ')">Transformer en page à blocs</button>') +
           '<button type="button" onclick="adocWorkspaceDeepDiveSave(' + index + ')">Appliquer</button>' +
           '<button type="button" onclick="adocWorkspaceDeepDiveRemove(' + index + ')">Retirer cet approfondissement</button>' +
           '<span class="cc-deep-dive-status" role="status"></span></details>';
       }).join('') + '</details>' : '';
   }
+  function adocDeepDiveBlockEditorHTML(block) {
+    const c = block.content || {};
+    const field = function (name, value, multiline) {
+      return '<label>' + name + (multiline ? '<textarea data-deep-dive-field="' + name + '">' + adocEsc(value || '') + '</textarea>' :
+        '<input data-deep-dive-field="' + name + '" value="' + adocEsc(value || '') + '">') + '</label>';
+    };
+    let fields = '';
+    if (['heading','paragraph','callout','quote'].includes(block.type)) fields = field('Texte', c.text, true);
+    if (block.type === 'heading') fields += '<label>Niveau<select data-deep-dive-field="Niveau">' + [1,2,3].map(function (n) { return '<option value="' + n + '"' + (c.level === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></label>';
+    if (block.type === 'callout') fields += '<label>Rôle<select data-deep-dive-field="Rôle">' + ['info','warning','critical','success'].map(function (role) { return '<option value="' + role + '"' + (c.visualRole === role ? ' selected' : '') + '>' + role + '</option>'; }).join('') + '</select></label>';
+    if (block.type === 'list') fields += field('Éléments (un par ligne)', (c.items || []).join('\n'), true) + '<label><input type="checkbox" data-deep-dive-field="Numérotée"' + (c.ordered ? ' checked' : '') + '> Liste numérotée</label>';
+    if (block.type === 'table') fields += field('En-têtes (séparés par |)', (c.headers || []).join(' | '), false) + field('Lignes (une par ligne, cellules séparées par |)', (c.rows || []).map(function (row) { return row.join(' | '); }).join('\n'), true);
+    if (block.type === 'image') fields += field('Recherche image', c.query, false) + field('Texte alternatif', c.alt, false);
+    if (block.type === 'video') fields += field('URL', c.url, false) + field('Titre vidéo', c.title, false);
+    const label = (ADOC_BLOCK_INSERT_TYPES.find(function (item) { return item.type === block.type; }) || {}).label || block.type;
+    return '<section class="cc-deep-dive-block" data-deep-dive-block-id="' + adocEsc(block.id) + '" data-deep-dive-block-type="' + adocEsc(block.type) + '"><strong>' + adocEsc(label) + '</strong>' +
+      '<div class="cc-deep-dive-block-actions"><button type="button" onclick="adocWorkspaceDeepDiveMoveBlock(this,-1)" aria-label="Monter ce bloc">↑</button>' +
+      '<button type="button" onclick="adocWorkspaceDeepDiveMoveBlock(this,1)" aria-label="Descendre ce bloc">↓</button>' +
+      '<button type="button" onclick="adocWorkspaceDeepDiveRemoveBlock(this)">Retirer ce bloc</button></div>' + fields +
+      (['heading','paragraph','callout','list','table','quote'].includes(block.type) ?
+        '<button type="button" onclick="adocWorkspaceDeepDiveDraftBlock(this)">Rédiger ce bloc</button><span class="cc-deep-dive-block-status" role="status"></span>' : '') + '</section>';
+  }
+  window.adocWorkspaceDeepDiveDraftBlock = async function (button) {
+    const form = button.closest('.cc-deep-dive-block');
+    const section = button.closest('[data-deep-dive-index]');
+    const index = Number(section?.dataset.deepDiveIndex);
+    const art = adocEditorArt(), doc = art && art._adocStructuredDoc;
+    const page = doc?.deepDives?.[index];
+    const status = form?.querySelector('.cc-deep-dive-block-status');
+    if (!page || !status) return;
+    status.textContent = 'Rédaction en cours…';
+    try {
+      adocEditorSync();
+      const forms = Array.from(section.querySelectorAll('.cc-deep-dive-block'));
+      const position = forms.indexOf(form);
+      const describe = function (node) {
+        return node ? node.dataset.deepDiveBlockType + ' : ' + Array.from(node.querySelectorAll('[data-deep-dive-field]'))
+          .filter(function (field) { return field.type !== 'checkbox'; })
+          .map(function (field) { return field.value; }).join(' | ') : '(aucun)';
+      };
+      const context = adocParagraphDraftContext(doc, null) + '\n\nPAGE D’APPROFONDISSEMENT : ' + page.title +
+        '\nBLOC PRÉCÉDENT : ' + describe(forms[position - 1]) +
+        '\nBLOC CIBLE : ' + describe(form) +
+        '\nBLOC SUIVANT : ' + describe(forms[position + 1]);
+      if (context.length > 60000) throw new Error('Document trop long pour une rédaction contextualisée.');
+      const type = form.dataset.deepDiveBlockType;
+      const prompt = adocBuildBlockCorrectionSystemPrompt(doc, 'Rédige uniquement le bloc de type « ' + type + ' » dans la page d’approfondissement « ' + page.title + ' ». Garde son type, sa fonction et sa structure. Tiens compte des blocs voisins, des diapositives et du document entier, sans inventer de source ni répéter le texte voisin.');
+      const result = await adocCallBlockCorrectionModel(prompt, context);
+      if (['heading','paragraph','callout','quote'].includes(type)) {
+        if (!result.text?.trim()) throw new Error('Aucun texte proposé.');
+        form.querySelector('[data-deep-dive-field="Texte"]').value = adocStripEmoji(result.text.trim());
+      } else if (type === 'list') {
+        if (!result.items?.length) throw new Error('Aucun élément proposé.');
+        form.querySelector('[data-deep-dive-field="Éléments (un par ligne)"]').value = result.items.join('\n');
+      } else if (type === 'table') {
+        if (!result.headers?.length) throw new Error('Aucun tableau proposé.');
+        form.querySelector('[data-deep-dive-field="En-têtes (séparés par |)"]').value = result.headers.join(' | ');
+        form.querySelector('[data-deep-dive-field="Lignes (une par ligne, cellules séparées par |)"]').value = (result.rows || []).map(function (row) { return row.join(' | '); }).join('\n');
+      }
+      status.textContent = 'Proposition dans le bloc. Relisez, puis cliquez « Appliquer ».';
+    } catch (error) { status.textContent = error.message || 'Rédaction impossible.'; }
+  };
+  window.adocWorkspaceDeepDiveMoveBlock = function (button, direction) {
+    const block = button.closest('.cc-deep-dive-block');
+    const other = direction < 0 ? block.previousElementSibling : block.nextElementSibling;
+    if (other) block.parentNode.insertBefore(block, direction < 0 ? other : other.nextElementSibling);
+  };
+  window.adocWorkspaceDeepDiveRemoveBlock = function (button) { button.closest('.cc-deep-dive-block').remove(); };
+  window.adocWorkspaceDeepDiveAddBlock = function (index) {
+    const section = document.querySelector('#cc-ws-deepdives [data-deep-dive-index="' + index + '"]');
+    if (!section) return;
+    const type = section.querySelector('[data-deep-dive-insert-type]').value;
+    const content = type === 'video' ? { url: '', title: '' } : type === 'image' ? { query: '', alt: '' } : adocDefaultBlockContent(type);
+    const host = section.querySelector('.cc-deep-dive-blocks');
+    host.insertAdjacentHTML('beforeend', adocDeepDiveBlockEditorHTML({ id: 'deep-block-' + adocUUID(), type: type, content: content }));
+    host.lastElementChild.querySelector('textarea,input')?.focus();
+  };
+  window.adocWorkspaceDeepDiveToBlocks = async function (index) {
+    const art = adocEditorArt(), doc = art && art._adocStructuredDoc, page = doc && doc.deepDives && doc.deepDives[index];
+    const section = document.querySelector('#cc-ws-deepdives [data-deep-dive-index="' + index + '"]');
+    if (!page || !section) return;
+    const values = Array.from(section.querySelectorAll('[data-deep-dive-paragraph]')).map(function (el) { return el.value.trim(); });
+    if (values.some(function (value) { return !value; })) { section.querySelector('.cc-deep-dive-status').textContent = 'Renseignez les paragraphes avant la transformation.'; return; }
+    page.title = section.querySelector('[data-deep-dive-title]').value.trim();
+    page.paragraphs = values.map(function (value, i) {
+      const old = page.paragraphs[i];
+      return typeof old === 'object' ? Object.assign({}, old, { text: value }) : value;
+    });
+    page.blocks = values.map(function (value, i) {
+      const links = page.paragraphs[i]?.deepDiveLinks;
+      return Object.assign({ id: 'deep-block-' + adocUUID(), type: 'paragraph', content: { text: value } },
+        links ? { deepDiveLinks: links } : {});
+    });
+    adocEditorMarkDirty();
+    adocRenderWorkspaceDeepDives(art);
+    const reopened = document.querySelector('#cc-ws-deepdives [data-deep-dive-index="' + index + '"]');
+    document.querySelector('#cc-ws-deepdives > details').open = true; reopened.open = true;
+    reopened.scrollIntoView({ block: 'nearest' });
+  };
   window.adocWorkspaceDeepDiveAddParagraph = function (index) {
     const section = document.querySelector('#cc-ws-deepdives [data-deep-dive-index="' + index + '"]');
     if (!section) return;
@@ -17623,16 +17727,56 @@ ${recent}`;
     if (!page || !section) return;
     const title = section.querySelector('[data-deep-dive-title]').value.trim();
     const texts = Array.from(section.querySelectorAll('[data-deep-dive-paragraph]')).map(function (el) { return el.value.trim(); });
-    if (!title || texts.some(function (text) { return !text; })) { alert('Le titre et les paragraphes doivent rester renseignés.'); return; }
+    const blockForms = Array.from(section.querySelectorAll('.cc-deep-dive-block'));
+    if (!title || (Array.isArray(page.blocks) ? !blockForms.length : texts.some(function (text) { return !text; }))) {
+      section.querySelector('.cc-deep-dive-status').textContent = 'Le titre et au moins un bloc renseigné sont nécessaires.'; return;
+    }
     adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
+    const beforePage = JSON.parse(JSON.stringify(page));
     page.title = title;
-    page.paragraphs = texts.map(function (text, i) {
+    if (Array.isArray(page.blocks)) {
+      try {
+        page.blocks = blockForms.map(function (form) {
+          const type = form.dataset.deepDiveBlockType, id = form.dataset.deepDiveBlockId;
+          const original = page.blocks.find(function (block) { return block.id === id; });
+          const value = function (name) { return (form.querySelector('[data-deep-dive-field="' + name + '"]')?.value || '').trim(); };
+          const nonEmpty = function (name) { const result = value(name); if (!result) throw new Error('Renseignez « ' + name + ' » dans le bloc ' + type + '.'); return result; };
+          let content;
+          if (type === 'heading') content = { text: nonEmpty('Texte'), level: Number(value('Niveau')) };
+          else if (type === 'paragraph' || type === 'quote') content = { text: nonEmpty('Texte') };
+          else if (type === 'callout') content = { text: nonEmpty('Texte'), visualRole: value('Rôle') };
+          else if (type === 'list') content = { items: nonEmpty('Éléments (un par ligne)').split('\n').map(function (item) { return item.trim(); }).filter(Boolean), ordered: !!form.querySelector('[data-deep-dive-field="Numérotée"]')?.checked };
+          else if (type === 'table') content = { headers: nonEmpty('En-têtes (séparés par |)').split('|').map(function (cell) { return cell.trim(); }), rows: value('Lignes (une par ligne, cellules séparées par |)').split('\n').filter(Boolean).map(function (row) { return row.split('|').map(function (cell) { return cell.trim(); }); }) };
+          else if (type === 'image') content = Object.assign({}, original?.content || {}, { query: nonEmpty('Recherche image'), alt: nonEmpty('Texte alternatif') });
+          else if (type === 'video') content = { url: nonEmpty('URL'), title: nonEmpty('Titre vidéo') };
+          else throw new Error('Type de bloc inconnu : ' + type);
+          return Object.assign({}, original || {}, { id: id, type: type, content: content });
+        });
+      } catch (error) { doc.deepDives[index] = beforePage; section.querySelector('.cc-deep-dive-status').textContent = error.message; return; }
+      page.paragraphs = page.blocks.map(function (block) {
+        const c = block.content || {};
+        const text = c.text || (c.items || []).join(' ; ') || c.title || c.alt || (c.headers || []).join(' ; ');
+        return !text ? '' : (block.deepDiveLinks?.length ? { text: text, deepDiveLinks: block.deepDiveLinks } : text);
+      }).filter(Boolean);
+      if (!page.paragraphs.length) page.paragraphs = [page.title];
+    } else page.paragraphs = texts.map(function (text, i) {
       const paragraph = page.paragraphs[i];
       return !paragraph || typeof paragraph === 'string' ? text : Object.assign({}, paragraph, { text: text });
     });
-    adocEditorMarkDirty();
-    await window.adocOpenWorkspace(window._adocWsState.storeKey);
-    document.getElementById('cc-ws-deepdives')?.scrollIntoView({ block: 'nearest' });
+    try {
+      if (!await window.adocOpenWorkspace(window._adocWsState.storeKey)) throw new Error('La page ne respecte pas le schéma du document.');
+      adocEditorMarkDirty();
+    } catch (error) {
+      doc.deepDives[index] = beforePage;
+      section.querySelector('.cc-deep-dive-status').textContent = error.message || 'Modifications non appliquées.';
+      return;
+    }
+    const host = document.getElementById('cc-ws-deepdives');
+    if (host) {
+      host.querySelector(':scope > details').open = true;
+      host.querySelector('[data-deep-dive-index="' + index + '"]').open = true;
+      host.scrollIntoView({ block: 'nearest' });
+    }
   };
   window.adocWorkspaceDeepDiveRemove = async function (index, returnBlockId) {
     const art = adocEditorArt(), doc = art && art._adocStructuredDoc;
@@ -17650,6 +17794,9 @@ ${recent}`;
     removeLinks(doc.blocks);
     doc.deepDives.splice(index, 1);
     doc.deepDives.forEach(function (other) {
+      (other.blocks || []).forEach(function (block) {
+        if (Array.isArray(block.deepDiveLinks)) block.deepDiveLinks = block.deepDiveLinks.filter(function (link) { return link.targetId !== targetId; });
+      });
       other.paragraphs = other.paragraphs.map(function (paragraph) {
         if (typeof paragraph === 'string' || !Array.isArray(paragraph.deepDiveLinks)) return paragraph;
         return Object.assign({}, paragraph, { deepDiveLinks: paragraph.deepDiveLinks.filter(function (link) { return link.targetId !== targetId; }) });
@@ -18902,6 +19049,9 @@ ${recent}`;
     // espacements et rayons, c'est-à-dire exactement ce que la référence fixe existe pour éviter.
     // Même variable que le transform juste au-dessus — un seul facteur, jamais deux réglages.
     '.cc-ws-present-door-text{max-width:640px;max-height:calc((100% - 60px) / var(--adoc-present-echelle-agrandir,1));overflow-y:auto;color:#fff;text-align:left;}' +
+    '.cc-ws-present-door-text.cc-ws-present-door-fullpage{box-sizing:border-box;width:min(1100px,92vw);max-width:1100px;padding:28px 34px;background:#fff;color:#173f42;border-radius:12px;}' +
+    '.cc-ws-present-door-fullpage>.adoc-sc-block{max-width:100%;margin:12px 0;}' +
+    '.cc-ws-present-door-fullpage .adoc-sc-block-drag-handle,.cc-ws-present-door-fullpage .adoc-sc-nested-resize-handle{display:none!important;}' +
     // display:none, et JAMAIS visibility/opacity comme la révélation de diapositive
     // (.adoc-sc-reveal) : mesuré sur une page de 14 paragraphes, visibility:hidden laisse le
     // contenu à 1047 px — aucune place libérée, la colonne défile toujours autant, et la lectrice
@@ -20017,6 +20167,13 @@ ${recent}`;
     return morceaux.join('');
   }
   window.adocDeepDiveParagraphesHTML = adocDeepDiveParagraphesHTML;
+  function adocDeepDiveBlocksHTML(entry) {
+    if (!Array.isArray(entry && entry.blocks) || !entry.blocks.length) return adocDeepDiveParagraphesHTML(entry && entry.paragraphs);
+    const previous = _adocRenderingForPresentDoor;
+    _adocRenderingForPresentDoor = true;
+    try { return entry.blocks.map(adocRenderBlockHTML).join('\n'); }
+    finally { _adocRenderingForPresentDoor = previous; }
+  }
 
   // L'illustration d'une page. `imageQuery` est une REQUÊTE, jamais une URL : elle est résolue
   // exactement comme une couverture de carte — `<img data-pexels="…">` que adocResolveImages
@@ -20050,7 +20207,7 @@ ${recent}`;
   // l'image (<img>) et les actions (<div>) ne peuvent donc pas être masqués par erreur.
   function adocDoorRevealUnites(textEl) {
     if (!textEl) return [];
-    return Array.from(textEl.querySelectorAll(':scope > p, :scope > ul.cc-ws-present-door-list'));
+    return Array.from(textEl.querySelectorAll(':scope > p, :scope > ul.cc-ws-present-door-list, :scope > .adoc-sc-block'));
   }
 
   // conserverIndex : à la réécriture asynchrone du contenu (résolution d'image), on ne repart PAS de
@@ -20106,6 +20263,8 @@ ${recent}`;
     if (!door || !entry) return;
     const img = door.querySelector('img');
     const textEl = door.querySelector('.cc-ws-present-door-text');
+    const fullPage = Array.isArray(entry.blocks) && entry.blocks.length > 0;
+    textEl?.classList.toggle('cc-ws-present-door-fullpage', fullPage);
     if (img) img.hidden = true;
     // Absent d'une coquille d'export incomplète : on le dit plutôt que d'échouer en silence.
     if (!textEl) { console.warn('[Présentation] .cc-ws-present-door-text absent de cette page — approfondissement non affichable.'); return; }
@@ -20114,7 +20273,7 @@ ${recent}`;
       // Rendu extrait dans adocDeepDiveParagraphesHTML : une fonction PURE, éprouvable sans ouvrir
       // de porte, et qui porte désormais le regroupement des puces.
       adocDeepDiveImageHTML(entry) +
-      adocDeepDiveParagraphesHTML(entry.paragraphs) +
+      adocDeepDiveBlocksHTML(entry) +
       adocDeepDiveActionsHTML();
     // La porte n'emprunte PAS adocPresentResolveSlideHTML : elle a son propre remplissage, et doit
     // donc appeler la résolution elle-même. Asynchrone et volontairement NON attendue — la page
@@ -20127,7 +20286,7 @@ ${recent}`;
     // aucun pixel au plafond de hauteur, donc ne déplace pas le seuil de révélation. Relue à chaque
     // peuplement — c'est ce qui la fait disparaître dès que le geste de retour a eu lieu.
     adocPresentMajAmorcePorte(!!state && !state.amorcePorteFaite);
-    adocDoorRevealApply(textEl, (entry.paragraphs || []).length, false);
+    adocDoorRevealApply(textEl, fullPage ? entry.blocks.length : (entry.paragraphs || []).length, false);
     if (textEl.querySelector('img[data-pexels]')) {
       adocResolveImages('<!DOCTYPE html><html><body>' + textEl.innerHTML + '</body></html>')
         .then(function (html) {
@@ -20141,7 +20300,7 @@ ${recent}`;
             // innerHTML vient d'être REMPLACÉ : sans cette réapplication, tout le masquage posé au
             // montage disparaît et la page longue s'affiche d'un coup. conserverIndex=true pour ne
             // pas annuler les révélations déjà demandées pendant que l'image chargeait.
-            adocDoorRevealApply(textEl, (entry.paragraphs || []).length, true);
+            adocDoorRevealApply(textEl, fullPage ? entry.blocks.length : (entry.paragraphs || []).length, true);
           }
         })
         .catch(function () {});
@@ -20541,6 +20700,7 @@ ${recent}`;
       // Appelée par adocDeepDivePopulateDoor, elle-même embarquée : sans elle ici, la première
       // page d'approfondissement ouverte dans un export lèverait une ReferenceError.
       adocDeepDiveParagraphesHTML: adocDeepDiveParagraphesHTML,
+      adocDeepDiveBlocksHTML: adocDeepDiveBlocksHTML,
       // Appelée par adocDeepDivePopulateDoor au même titre que la précédente.
       adocDeepDiveImageHTML: adocDeepDiveImageHTML,
       adocDeepDivePopulateDoor: adocDeepDivePopulateDoor,
@@ -20809,9 +20969,18 @@ ${recent}`;
     // page dans un export réellement produit.
     (doc.deepDives || []).forEach(function (page) {
       const q = adocRequeteImageUtilisable(page && page.imageQuery);
-      if (!q || vues.has(q)) return;
-      vues.set(q, { q: q, isGen: false, type: 'img',
+      if (q && !vues.has(q)) vues.set(q, { q: q, isGen: false, type: 'img',
                     alt: (page.imageAlt ? String(page.imageAlt) : '').trim() });
+      (page.blocks || []).forEach(function (block) {
+        if (block.type !== 'image') return;
+        if (block.content?.assetId) {
+          const assetKey = 'asset:' + block.content.assetId;
+          if (!vues.has(assetKey)) vues.set(assetKey, { q: assetKey, assetId: block.content.assetId, isGen: false, type: 'img', alt: block.content.alt || '' });
+          return;
+        }
+        const blockQuery = adocRequeteImageUtilisable(block.content?.query);
+        if (blockQuery && !vues.has(blockQuery)) vues.set(blockQuery, { q: blockQuery, isGen: false, type: 'img', alt: block.content.alt || '' });
+      });
     });
     (doc.blocks || []).forEach(function (card, i) {
       let html;
@@ -22042,6 +22211,7 @@ ${recent}`;
       const isLinked = links.some(function (link) { return link.targetId === page.id; });
       return '<div class="cc-block-deep-dive-linked"><span>' + adocEsc(page.title) +
         (isLinked ? ' · lié à ce bloc' : '') + '</span> ' +
+        '<button type="button" onclick="window.adocBlockDeepDiveEdit(' + pages.indexOf(page) + ')">Éditer la page</button> ' +
         '<button type="button" onclick="window.adocBlockDeepDiveRemove(\'' + adocEsc(page.id) + '\',\'' + adocEsc(blockId) + '\')">Retirer cet approfondissement</button></div>';
     }).join('');
     return (existing ? '<details class="cc-block-deep-dive-links"><summary>Voir ou retirer un approfondissement (' + pages.length + ')</summary>' + existing + '</details>' : '') +
@@ -22052,6 +22222,15 @@ ${recent}`;
       '<button type="button" onclick="adocBlockDeepDiveCreate(this)">Ajouter et lier à ce bloc</button>' +
       '<span class="cc-deep-dive-status" role="status"></span></details>';
   }
+  window.adocBlockDeepDiveEdit = function (index) {
+    const host = document.getElementById('cc-ws-deepdives');
+    const section = host?.querySelector('[data-deep-dive-index="' + index + '"]');
+    if (!section) return;
+    host.querySelector(':scope > details').open = true;
+    section.open = true;
+    section.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    section.querySelector('[data-deep-dive-title]')?.focus({ preventScroll: true });
+  };
   window.adocBlockDeepDiveCreate = async function (button) {
     const ctx = adocEditorContext();
     if (!ctx || ctx.legacy || !ctx.block) return;
@@ -22073,7 +22252,8 @@ ${recent}`;
       if (!block) throw new Error('Le bloc a changé.');
       doc.deepDives = doc.deepDives || [];
       const id = 'deepdive-' + adocUUID();
-      doc.deepDives.push({ id: id, title: title, paragraphs: [text] });
+      doc.deepDives.push({ id: id, title: title, paragraphs: [text],
+        blocks: [{ id: 'deep-block-' + adocUUID(), type: 'paragraph', content: { text: text } }] });
       if (card) {
         card.content.coverDeepDiveLinks = card.content.coverDeepDiveLinks || [];
         card.content.coverDeepDiveLinks.push({ text: phrase, targetId: id });

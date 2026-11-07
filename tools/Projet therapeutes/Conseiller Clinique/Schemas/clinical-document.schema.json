@@ -230,6 +230,12 @@
                 }
               ]
             }
+          },
+          "blocks": {
+            "$comment": "Page d'approfondissement éditable en blocs complets. Facultatif : les anciennes pages à paragraphes restent inchangées. paragraphs reste un repli textuel pour les anciens clients.",
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "block.schema.json#/$defs/deepDiveBlock" }
           }
         }
       }

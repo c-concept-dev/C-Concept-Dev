@@ -56,19 +56,55 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     });
     assert.equal(dive.link.targetId, dive.page.id);
     assert.equal(dive.page.paragraphs[0], 'Nouveau paragraphe.');
+    assert.equal(dive.page.blocks[0].type, 'paragraph', 'une nouvelle page a de vrais blocs');
+    const diveSection = page.locator('#cc-ws-deepdives [data-deep-dive-index="0"]');
+    await diveSection.locator('[data-deep-dive-insert-type]').selectOption('heading');
+    await diveSection.getByRole('button', { name: 'Insérer un bloc' }).click();
+    await diveSection.locator('.cc-deep-dive-block').nth(1).locator('[data-deep-dive-field="Texte"]').fill('Titre de cette page');
+    await page.evaluate(() => {
+      window.__deepDiveOriginalFetch = window.fetch;
+      window.fetch = async (url, init) => init?.method === 'POST' && JSON.parse(init.body || '{}').payload?.tools?.[0]?.name === 'emit_block_correction'
+        ? new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'emit_block_correction', input: { text: 'Titre rédigé pour cette page', items: [], headers: [], rows: [] } }] }), { status: 200 })
+        : window.__deepDiveOriginalFetch(url, init);
+    });
+    await diveSection.locator('.cc-deep-dive-block').nth(1).getByRole('button', { name: 'Rédiger ce bloc' }).click();
+    await page.waitForFunction(() => document.querySelectorAll('.cc-deep-dive-block [data-deep-dive-field="Texte"]')[1].value === 'Titre rédigé pour cette page');
+    await page.evaluate(() => { window.fetch = window.__deepDiveOriginalFetch; delete window.__deepDiveOriginalFetch; });
+    await diveSection.locator('.cc-deep-dive-block').nth(1).getByRole('button', { name: 'Monter ce bloc' }).click();
+    await diveSection.locator('[data-deep-dive-insert-type]').selectOption('quote');
+    await diveSection.getByRole('button', { name: 'Insérer un bloc' }).click();
+    await diveSection.locator('.cc-deep-dive-block').nth(2).locator('[data-deep-dive-field="Texte"]').fill('Citation de la page.');
+    for (const [type, fields] of [
+      ['callout', { Texte: 'Encadré de la page.' }],
+      ['list', { 'Éléments (un par ligne)': 'Premier\nDeuxième' }],
+      ['table', { 'En-têtes (séparés par |)': 'A | B', 'Lignes (une par ligne, cellules séparées par |)': '1 | 2' }],
+      ['image', { 'Recherche image': 'couple en promenade', 'Texte alternatif': 'Deux personnes marchent.' }],
+      ['video', { URL: 'https://example.com/video.mp4', 'Titre vidéo': 'Exemple vidéo' }],
+    ]) {
+      await diveSection.locator('[data-deep-dive-insert-type]').selectOption(type);
+      await diveSection.getByRole('button', { name: 'Insérer un bloc' }).click();
+      const form = diveSection.locator('.cc-deep-dive-block').last();
+      for (const [name, value] of Object.entries(fields)) await form.locator('[data-deep-dive-field="' + name + '"]').fill(value);
+    }
+    await diveSection.getByRole('button', { name: 'Appliquer', exact: true }).click();
+    await page.waitForFunction(() => window._adocArtifacts['test-dive']._adocStructuredDoc.deepDives[0].blocks.length === 8);
+    assert.deepEqual(await page.evaluate(() => window._adocArtifacts['test-dive']._adocStructuredDoc.deepDives[0].blocks.map(b => b.type)),
+      ['heading','paragraph','quote','callout','list','table','image','video'], 'les huit types conservent leur ordre');
     await page.evaluate(() => window.adocPresentOpenWithDoc(window._adocArtifacts['test-dive']._adocStructuredDoc));
     const divesButton = page.locator('#cc-ws-present-deepdives-btn');
     assert.equal(await divesButton.isVisible(), true, 'les approfondissements sont visibles dans la barre de présentation');
     await divesButton.click();
     await page.locator('#cc-ws-present-toc .cc-ws-present-toc-dive').click();
     assert.match(await page.locator('#cc-ws-present-door').innerText(), /Complément clinique/);
+    assert.equal(await page.locator('#cc-ws-present-door .adoc-sc-block').count(), 8, 'la page présente tous ses blocs');
+    assert.match(await page.locator('#cc-ws-present-door h2.adoc-sc-heading').innerText(), /Titre rédigé pour cette page/);
     await page.evaluate(() => window.adocPresentClose());
     await page.locator('#cc-workspace #p1').first().click();
     await page.locator('.cc-block-deep-dive-links summary').click();
-    assert.equal(await page.getByRole('button', { name: 'Retirer cet approfondissement' }).count(), 2,
+    assert.equal(await page.locator('#cc-workspace button').filter({ hasText: 'Retirer cet approfondissement' }).count(), 2,
       'le retrait est disponible près du bloc et dans la liste générale');
     page.once('dialog', dialog => dialog.accept());
-    await page.locator('.cc-block-deep-dive-links button').click();
+    await page.locator('.cc-block-deep-dive-links').getByRole('button', { name: 'Retirer cet approfondissement' }).click();
     await page.waitForFunction(() => window._adocArtifacts['test-dive']._adocStructuredDoc.deepDives.length === 0);
     const removed = await page.evaluate(() => window._adocArtifacts['test-dive']._adocStructuredDoc.blocks[0].content.blocks[1].deepDiveLinks);
     assert.deepEqual(removed, [], 'le retrait supprime aussi le lien du bloc');
@@ -85,10 +121,10 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     assert.equal(await page.evaluate(() => window._adocArtifacts['test-title-dive']._adocStructuredDoc.blocks[0].content.coverDeepDiveLinks.length), 1);
     await page.locator('[id="root:card-title:card-01"]').first().click();
     await page.locator('.cc-block-deep-dive-links summary').click();
-    assert.equal(await page.locator('.cc-block-deep-dive-links button').count(), 1,
+    assert.equal(await page.locator('.cc-block-deep-dive-links').getByRole('button', { name: 'Retirer cet approfondissement' }).count(), 1,
       'le titre de la diapositive possède aussi sa commande de retrait');
     page.once('dialog', dialog => dialog.accept());
-    await page.locator('.cc-block-deep-dive-links button').click();
+    await page.locator('.cc-block-deep-dive-links').getByRole('button', { name: 'Retirer cet approfondissement' }).click();
     await page.waitForFunction(() => window._adocArtifacts['test-title-dive']._adocStructuredDoc.deepDives.length === 0);
     const overviewDoc = doc();
     const nextCard = JSON.parse(JSON.stringify(overviewDoc.blocks[0]));
