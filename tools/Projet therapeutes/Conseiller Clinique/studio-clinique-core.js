@@ -13451,17 +13451,16 @@ ${recent}`;
           nb.content = Object.assign({}, b.content, { blocks: walkBlocks(b.content.blocks) });
         }
         const links = checkLinks(b.validation && b.validation.citationLinks);
-        // UX-11 (correction ciblée d'un bloc) — citationReviewRequired est un drapeau DISTINCT
-        // de claimSupport : il signale qu'une édition récente du TEXTE du bloc ne permet plus de
-        // garantir avec confiance le lien avec ses citations d'origine (jamais l'inverse, jamais
-        // utilisé pour modifier une citation elle-même). Préservé à travers cette revalidation
-        // (sinon perdu à chaque rendu/export, qui reconstruit toujours nb.validation depuis
-        // zéro) et force _status à 'needs-review' même si toutes les citations restent
-        // techniquement valides — jamais une validation automatique qui masquerait ce doute.
+        // Compatibilité avec un éventuel ancien drapeau local hors schéma : le doute sur les
+        // sources devient claimSupport='needs-review', seul état persistable du contrat partagé.
         const reviewRequired = !!(b.validation && b.validation.citationReviewRequired);
-        const baseValidation = links.length ? { citationLinks: links } : (b.validation || {});
-        nb.validation = reviewRequired ? Object.assign({}, baseValidation, { citationReviewRequired: true }) : baseValidation;
-        nb._status = reviewRequired ? 'needs-review' : aggregateStatus(links);
+        const safeLinks = reviewRequired ? links.map(function (link) {
+          return Object.assign({}, link, { claimSupport: 'needs-review' });
+        }) : links;
+        // Le schéma partagé ne connaît que citationLinks dans validation. Un ancien drapeau
+        // local est traduit vers son état normalisé avant tout nouveau rendu ou enregistrement.
+        nb.validation = safeLinks.length ? { citationLinks: safeLinks } : {};
+        nb._status = aggregateStatus(safeLinks);
         // Point 1 (fermeture de la faille) : citationIds déclaré mais jamais mirroré dans
         // validation.citationLinks — ni affiché (le rendu ignore désormais citationIds),
         // ni silencieux : remonté au contrôle qualité comme référence non vérifiée.
@@ -23447,19 +23446,24 @@ ${recent}`;
       const substantial = forceReview || (similarity < ADOC_BLOCK_EDIT_SIMILARITY_THRESHOLD &&
         !(drafting && !(block.citationIds || []).length && /^Nouveau paragraphe\.?$/i.test((block.content.text || '').trim())));
       // citationIds JAMAIS modifiés ici (aucune modification directe d'une citation elle-même) ;
-      // citationReviewRequired ajouté SEULEMENT si substantiel, jamais retiré s'il était déjà
-      // présent (un doute déjà signalé ne redevient jamais silencieusement "réglé" tout seul).
-      const newValidation = substantial
-        ? Object.assign({}, block.validation || {}, { citationReviewRequired: true })
-        : (block.validation || {});
+      // Le schéma partagé n'autorise pas citationReviewRequired. Une correction importante
+      // marque les liens de citation existants avec l'état normalisé needs-review ; un bloc
+      // sans lien n'acquiert pas de propriété hors schéma.
+      const previousLinks = (block.validation && block.validation.citationLinks) || [];
+      const newValidation = previousLinks.length
+        ? { citationLinks: substantial ? previousLinks.map(function (link) {
+            return Object.assign({}, link, { claimSupport: 'needs-review' });
+          }) : previousLinks }
+        : {};
       const newBlock = { id: block.id, type: block.type, content: newContent, citationIds: block.citationIds || [], validation: newValidation };
       if (block.style) newBlock.style = Object.assign({}, block.style); // Manual block styling survives IA; obsolete rich text does not.
+      if (block.deepDiveLinks) newBlock.deepDiveLinks = block.deepDiveLinks.map(function (link) { return Object.assign({}, link); });
       st.pendingBlock = newBlock;
       resultEl.innerHTML =
         '<div class="cc-block-edit-diff">' +
           '<div class="cc-block-edit-before"><div class="cc-block-edit-label">Avant</div><div class="cc-block-edit-text">' + adocEsc(oldText) + '</div></div>' +
           '<div class="cc-block-edit-after"><div class="cc-block-edit-label">Après</div><div class="cc-block-edit-text">' + adocEsc(newText) + '</div></div>' +
-          (substantial ? '<div class="cc-block-edit-flag">' + adocIconSvg('icon-warning') +
+          (substantial && previousLinks.length ? '<div class="cc-block-edit-flag">' + adocIconSvg('icon-warning') +
             " Correction importante — ce passage sera marqué « à vérifier » : le lien avec ses sources d'origine n'est plus garanti avec confiance.</div>" : '') +
         '</div>' +
         '<div class="cc-block-edit-actions" style="display:flex;gap:8px;margin-top:10px;">' +

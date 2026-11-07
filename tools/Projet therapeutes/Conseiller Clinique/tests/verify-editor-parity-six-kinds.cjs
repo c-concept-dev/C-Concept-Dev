@@ -10,11 +10,18 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     await page.goto('file://' + path.join(ROOT, 'studio-clinique.html'));
     for (const kind of ['fiche', 'carrousel', 'tableau', 'script', 'liens', 'presentation']) {
       const d = doc(kind);
+      const nested = ['carrousel', 'presentation'].includes(kind);
+      const writtenBlocks = [
+        { id: 'q99', type: 'quote', content: { text: 'Une citation à commenter.' } },
+        { id: 'c99', type: 'callout', content: { text: 'Un repère clinique.', visualRole: 'info' } },
+        { id: 'l99', type: 'list', content: { items: ['Premier point'], ordered: false } },
+        ...(!nested ? [{ id: 't99', type: 'table', content: { headers: ['Colonne'], rows: [['Valeur']] } }] : []),
+      ].map(b => ({ ...b, citationIds: [], validation: {} }));
       const imageBlock = { id: 'image-99', type: 'image',
         content: { query: 'photo clinique', alt: 'Photo clinique', assetId: 'fixture-asset' },
         citationIds: [], validation: {} };
-      if (['carrousel', 'presentation'].includes(kind)) d.blocks[0].content.blocks.push(imageBlock);
-      else d.blocks.push(imageBlock);
+      if (nested) d.blocks[0].content.blocks.push(...writtenBlocks, imageBlock);
+      else d.blocks.push(...writtenBlocks, imageBlock);
       if (['carrousel', 'presentation'].includes(kind)) {
         d.blocks[0].content.imageAssetId = 'fixture-asset';
         d.blocks[0].content.imageAlt = 'Image de couverture';
@@ -33,6 +40,42 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
         };
       });
       assert.deepEqual(textTools, { draft: true, rewrite: true, reference: true, insert: true }, kind);
+      const parity = await page.evaluate(nested => ['h1', 'p1', 'q99', 'c99', 'l99', ...(!nested ? ['t99'] : [])].map(id => {
+        document.getElementById(id).click();
+        const panel = document.querySelector('.cc-block-edit-panel');
+        const text = panel?.textContent || '';
+        return { id, draft: /Rédiger ce (bloc|paragraphe)/.test(text), rewrite: /Réécrire/.test(text),
+          sources: /Ajouter une référence/.test(text), insert: /Insérer un bloc après/.test(text),
+          style: !!panel?.querySelector('[data-block-style]') || /Texte et mise en forme/.test(text) };
+      }), nested);
+      for (const item of parity) assert.deepEqual(item,
+        { id: item.id, draft: true, rewrite: true, sources: true, insert: true, style: true },
+        kind + ' : outils incomplets pour ' + item.id);
+      const draft = await page.evaluate(async kind => {
+        const originalFetch = window.fetch;
+        let sent = '';
+        window.fetch = async (_url, options) => {
+          sent = JSON.parse(options.body).payload.messages[0].content;
+          return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'emit_block_correction',
+            input: { text: 'Texte rédigé pour ' + kind + '.' } }] }), { status: 200 });
+        };
+        try {
+          document.getElementById('p1').click();
+          await window.adocRequestBlockCorrection('Rédiger ce paragraphe',
+            'Rédige ce bloc avec les blocs voisins et le document entier.');
+          const proposed = window._adocBlockEditState.pendingBlock?.content?.text;
+          await window.adocConfirmBlockCorrection();
+          const doc = window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc;
+          const block = kind === 'presentation' || kind === 'carrousel'
+            ? doc.blocks[0].content.blocks.find(b => b.id === 'p1') : doc.blocks.find(b => b.id === 'p1');
+          return { proposed, applied: block?.content?.text,
+            context: sent.includes('Introduction') && sent.includes('Une citation à commenter.'),
+            valid: window.adocValidateSchema('clinicalDocument', doc).valid };
+        } finally { window.fetch = originalFetch; }
+      }, kind);
+      assert.deepEqual(draft, { proposed: 'Texte rédigé pour ' + kind + '.',
+        applied: 'Texte rédigé pour ' + kind + '.', context: true, valid: true },
+      kind + ' : rédaction contextuelle du bloc inopérante');
       const imageTools = await page.evaluate(() => {
         document.querySelector('#image-99 img').click();
         const button = document.querySelector('.cc-block-edit-panel [data-image-add-text]');
@@ -81,6 +124,30 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
         }
       }
     }
-    console.log('PASS parité : 6 types, rédaction de bloc ; texte sur couverture Présentation et Carrousel, schéma, étapes et export.');
+    const cited = doc('fiche');
+    cited.citations = [{ citationId: 'citation-001', sourceSnapshotEntryId: 'entry-001', displayLabel: 'Source test' }];
+    cited.blocks[1].citationIds = ['citation-001'];
+    cited.blocks[1].validation = { citationLinks: [{ citationId: 'citation-001',
+      claimText: 'Contenu clinique de la diapositive.', claimSupport: 'pass' }] };
+    assert.equal(await open(page, cited, 'parity-cited'), true, 'Fiche sourcée ne s’ouvre pas');
+    const citedDraft = await page.evaluate(async () => {
+      const originalFetch = window.fetch;
+      window.fetch = async () => new Response(JSON.stringify({ content: [{ type: 'tool_use',
+        name: 'emit_block_correction', input: { text: 'Une correction clinique substantielle.' } }] }), { status: 200 });
+      try {
+        document.getElementById('p1').click();
+        await window.adocRequestBlockCorrection('Rédiger ce paragraphe', 'Rédige ce bloc.');
+        const pending = window._adocBlockEditState.pendingBlock;
+        const status = pending?.validation?.citationLinks?.[0]?.claimSupport;
+        await window.adocConfirmBlockCorrection();
+        const doc = window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc;
+        return { status, valid: window.adocValidateSchema('clinicalDocument', doc).valid,
+          savedStatus: doc.blocks[1].validation.citationLinks?.[0]?.claimSupport,
+          noExtraFlag: !('citationReviewRequired' in doc.blocks[1].validation) };
+      } finally { window.fetch = originalFetch; }
+    });
+    assert.deepEqual(citedDraft, { status: 'needs-review', valid: true,
+      savedStatus: 'needs-review', noExtraFlag: true }, 'Les sources corrigées sortent du schéma');
+    console.log('PASS parité : 6 types et blocs écrits ; rédaction contextuelle appliquée ; image et couverture ; citations conformes au schéma.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
