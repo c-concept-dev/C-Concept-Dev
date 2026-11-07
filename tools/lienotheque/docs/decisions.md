@@ -7362,6 +7362,7 @@ Relevé du 5 novembre, recompté le 6. **1 979 enregistrements**, médiane **13*
 | 17 | 3 | 95 |
 | 18 | 2 | 97 |
 | 20 | 3 | 100 |
+| 9 | `786a60d4` (le module que `index.ts` exportait sans qu'il existe) et `6d235943` (le garde-fou ne lit plus les chaînes comme du code) | « Push autorisé dès le contrôle accepté » — les deux réparations d'une même branche cassée, vérifiées par **un seul** contrôle sur l'arbre les portant toutes deux, puis commitées séparément | message de Christophe dans la fenêtre de la session, 7 novembre 2026, contrôle accepté avant (2992 lus, 1 rouge épinglé, lancé à charge 6,62) |
 | 8 | `1f5f3379`, aucune promesse dans une condition | « Push de 1f5f3379 autorisé : inscris-le dans le même geste, puis rapporte la CI sur ce commit précis » | message de Christophe dans la fenêtre de la session, 6 novembre 2026. Contrôle local accepté avant (2989 lus, 1 rouge épinglé), **mais il a vu l'arbre entier** : la garantie de l'état commité seul vient de la CI sur ce commit |
 | 21 | 1 | 101 |
 | 22 | 2 | 103 |
