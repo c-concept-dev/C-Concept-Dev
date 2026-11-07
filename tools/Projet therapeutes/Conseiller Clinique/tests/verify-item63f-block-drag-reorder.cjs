@@ -48,17 +48,36 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   await page.evaluate(() => { window._adocWsState = window._adocWsState || {}; });
 
   // Refonte du geste (Sujet 1, étendue à Item 63f) — plus de poignée carrée visible : le
-  // déclenchement se fait par géométrie, dans les ADOC_DRAG_EDGE_ZONE_PX (10px) le long du bord
-  // GAUCHE de l'élément (bloc structuré OU enveloppe .adoc-sc-block-drag-wrap legacy — les deux
+  // déclenchement se fait par géométrie, dans les ADOC_DRAG_EDGE_ZONE_PX (7px) le long du bord
+  // DROIT de l'élément (bloc structuré OU enveloppe .adoc-sc-block-drag-wrap legacy — les deux
   // fonctionnent avec le même point de départ, jamais deux helpers séparés). Mêmes seuil 3px et
   // séquence mousedown/move/up que l'ancien helper.
-  async function dragEdgeTo(blockLocatorSelector, targetY) {
+  async function findDragEdge(blockLocatorSelector) {
     const blockBox = await page.locator(blockLocatorSelector).boundingBox();
-    const startX = blockBox.x + 12, startY = blockBox.y + blockBox.height / 2;
+    const candidates = [
+      [blockBox.x + 3, blockBox.y + blockBox.height * 0.7],
+      [blockBox.x + blockBox.width - 3, blockBox.y + blockBox.height * 0.7],
+      [blockBox.x + blockBox.width * 0.75, blockBox.y + 2],
+      [blockBox.x + blockBox.width * 0.75, blockBox.y + blockBox.height - 2],
+      [blockBox.x + blockBox.width - 3, blockBox.y + blockBox.height - 3],
+    ];
+    for (const [x, y] of candidates) {
+      await page.mouse.move(x, y);
+      const eligible = await page.evaluate(({ x, y }) => {
+        const target = document.elementFromPoint(x, y);
+        return !!target?.closest('.cc-drag-edge-hover') && !target.closest('button, .cc-flow-resize-handle, .adoc-sc-nested-resize-handle');
+      }, { x, y });
+      if (eligible) return { x, y };
+    }
+    assert.fail('un bord libre doit permettre de déplacer ' + blockLocatorSelector);
+  }
+  async function dragEdgeTo(blockLocatorSelector, targetY) {
+    const { x: startX, y: startY } = await findDragEdge(blockLocatorSelector);
+    const sourceBox = await page.locator(blockLocatorSelector).boundingBox();
     await page.mouse.move(startX, startY);
     await page.mouse.down();
     await page.mouse.move(startX + 8, startY + 8); // franchit le seuil de 3px
-    await page.mouse.move(startX, targetY, { steps: 6 });
+    await page.mouse.move(sourceBox.x + sourceBox.width / 2, targetY, { steps: 6 });
     await page.mouse.up();
     await page.waitForTimeout(60); // laisse adocOpenWorkspace (async) se terminer
   }
@@ -205,19 +224,14 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   }));
   assert.ok(!/↕/.test(grip.selected + grip.unselected), 'aucun pictogramme de déplacement ne doit apparaître');
   const edgeBox = await page.locator('#slide-p1').boundingBox();
-  await page.mouse.move(edgeBox.x + 12, edgeBox.y + edgeBox.height / 2);
+  await page.mouse.move(edgeBox.x + edgeBox.width * 0.75, edgeBox.y + edgeBox.height - 2);
   const edgeCursor = await page.evaluate(({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor,
+    { x: edgeBox.x + edgeBox.width * 0.75, y: edgeBox.y + edgeBox.height - 2 });
+  assert.notEqual(edgeCursor, 'text', 'le bord hors du texte reste distinct de la sélection');
+  await page.mouse.move(edgeBox.x + 12, edgeBox.y + edgeBox.height / 2);
+  const edgeTextCursor = await page.evaluate(({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor,
     { x: edgeBox.x + 12, y: edgeBox.y + edgeBox.height / 2 });
-  assert.equal(edgeCursor, 'grab', 'la main ouverte apparaît au survol du bord du bloc');
-  for (const [edge, x, y] of [
-    ['haut', edgeBox.x + edgeBox.width / 4, edgeBox.y + 4],
-    ['droite', edgeBox.x + edgeBox.width - 12, edgeBox.y + edgeBox.height / 2],
-    ['bas', edgeBox.x + edgeBox.width / 4, edgeBox.y + edgeBox.height - 4],
-  ]) {
-    await page.mouse.move(x, y);
-    const cursor = await page.evaluate(({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor, { x, y });
-    assert.equal(cursor, 'grab', 'main ouverte sur le bord ' + edge);
-  }
+  assert.equal(edgeTextCursor, 'text', 'le texte conserve son curseur de sélection');
   await page.mouse.move(edgeBox.x + 4, edgeBox.y + edgeBox.height / 2);
   const resizeCursor = await page.evaluate(({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor,
     { x: edgeBox.x + 4, y: edgeBox.y + edgeBox.height / 2 });
@@ -252,10 +266,11 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   await page.click('#slide-p2');
   const sourceSmall = await page.locator('#slide-p2').boundingBox();
   const scrollBox = await page.locator('.cc-ws-doc-area').boundingBox();
-  const dropX = sourceSmall.x + 12, dropY = scrollBox.y + scrollBox.height - 20;
-  await page.mouse.move(dropX, sourceSmall.y + sourceSmall.height / 2);
+  const dragStart = await findDragEdge('#slide-p2');
+  const dropX = dragStart.x, dropY = scrollBox.y + scrollBox.height - 20;
+  await page.mouse.move(dropX, dragStart.y);
   await page.mouse.down();
-  await page.mouse.move(dropX + 8, sourceSmall.y + sourceSmall.height / 2 + 8);
+  await page.mouse.move(dropX + 8, dragStart.y + 8);
   await page.mouse.move(dropX, dropY);
   await page.waitForFunction(({ x, y }) => document.elementFromPoint(x, y)?.closest('.adoc-sc-card[id]')?.id === 'slide-2', { x: dropX, y: dropY }, { timeout: 4000 });
   await page.mouse.up();
@@ -278,10 +293,10 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   await page.setViewportSize({ width: 1400, height: 2400 });
   await page.evaluate(() => { document.querySelector('.cc-ws-doc-area').scrollTop = 0; });
   const emptySlide = await page.locator('#slide-1').boundingBox();
-  const sourceToEmpty = await page.locator('#slide-p1').boundingBox();
-  await page.mouse.move(sourceToEmpty.x + 12, sourceToEmpty.y + sourceToEmpty.height / 2);
+  const sourceToEmpty = await findDragEdge('#slide-p1');
+  await page.mouse.move(sourceToEmpty.x, sourceToEmpty.y);
   await page.mouse.down();
-  await page.mouse.move(sourceToEmpty.x + 20, sourceToEmpty.y + sourceToEmpty.height / 2 + 8);
+  await page.mouse.move(sourceToEmpty.x + 8, sourceToEmpty.y + 8);
   await page.mouse.move(emptySlide.x + 30, emptySlide.y + 100, { steps: 8 });
   await page.mouse.up();
   await page.waitForTimeout(60);
@@ -314,6 +329,15 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   });
   assert.ok(cardOverflows, 'la diapositive de test doit vraiment défiler intérieurement');
   await page.locator('#overflow-p16').scrollIntoViewIfNeeded();
+  await page.locator('#overflow-p16').click();
+  const contextPanel = await page.evaluate(() => {
+    const panel = document.querySelector('.cc-block-edit-panel');
+    const box = panel?.getBoundingClientRect();
+    return { floating: panel?.matches(':popover-open'), top: box?.top, bottom: box?.bottom };
+  });
+  assert.ok(contextPanel.floating && contextPanel.top >= 0 && contextPanel.bottom <= 900,
+    'le panneau de correction reste visible à côté du bloc profond sans défilement');
+  await page.evaluate(() => window.adocCloseBlockEditPanel());
   const deepNeighbor = await page.locator('#overflow-p17').boundingBox();
   await dragEdgeTo('#overflow-p16', deepNeighbor.y + deepNeighbor.height + 4);
   const afterInnerDrag = await page.evaluate((key) => {

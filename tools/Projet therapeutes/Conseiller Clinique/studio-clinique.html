@@ -2319,8 +2319,8 @@
     .cc-drag-edge-hover { cursor: grab; }
     /* La main n'apparaît que sous le pointeur sur l'un des quatre bords.
        Aucun pictogramme n'est ajouté au bloc, sélectionné ou non. */
-    .cc-ws-doc-card .cc-drag-edge-hover,
-    .cc-ws-doc-card .cc-drag-edge-hover * { cursor: grab !important; }
+    .cc-ws-doc-card .cc-drag-edge-hover { cursor: grab; }
+    .cc-ws-doc-card .cc-drag-edge-hover [contenteditable] { cursor: text; }
     html.cc-block-reordering, html.cc-block-reordering * { cursor: grabbing !important; }
     #cc-preview-doc-card .adoc-sc-block::before {
       content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px;
@@ -2359,6 +2359,12 @@
       max-height: min(50vh, 480px); overflow-y: auto; overscroll-behavior: contain;
       box-shadow: 0 8px 24px rgba(16,47,49,.15);
     }
+    .cc-block-edit-panel--floating:popover-open {
+      position: fixed; inset: 230px 14px auto auto; box-sizing: border-box;
+      width: min(420px, calc(100vw - 28px)); max-height: calc(100vh - 244px);
+      margin: 0; z-index: 100; border: 1px solid #d9d5cc;
+    }
+    .cc-block-edit-panel--card:popover-open { inset: 230px auto auto 14px; width: min(320px, calc(100vw - 28px)); }
     .cc-block-edit-panel .cc-block-edit-target {
       position: relative; background: var(--ivory);
     }

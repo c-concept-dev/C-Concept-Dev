@@ -6,8 +6,9 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
 (async () => {
   const browser = await webkit.launch();
   try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({ viewport: { width: 1400, height: 1000 } });
     await page.goto('file://' + path.join(ROOT, 'studio-clinique.html'));
+    await page.evaluate(() => { document.getElementById('cc-login-screen').style.display = 'none'; });
     for (const kind of ['fiche', 'carrousel', 'tableau', 'script', 'liens', 'presentation']) {
       const d = doc(kind);
       const nested = ['carrousel', 'presentation'].includes(kind);
@@ -29,6 +30,20 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
       }
       const key = 'parity-' + kind;
       assert.equal(await open(page, d, key), true, kind + ' ne s’ouvre pas');
+      if (kind === 'presentation') {
+        const point = await page.evaluate(() => {
+          const el = document.getElementById('p1');
+          el.scrollIntoView({ block: 'center' });
+          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+          const node = walker.nextNode();
+          const range = document.createRange(); range.setStart(node, 0); range.setEnd(node, Math.min(3, node.length));
+          const r = range.getBoundingClientRect();
+          return { x: r.left + 3, y: r.top + r.height / 2 };
+        });
+        await page.mouse.move(point.x, point.y); await page.mouse.down();
+        await page.mouse.move(point.x + 55, point.y, { steps: 5 }); await page.mouse.up();
+        assert((await page.evaluate(() => String(window.getSelection()))).length > 0, 'Sélection du texte gênée par la main');
+      }
       const textTools = await page.evaluate(() => {
         document.getElementById('p1').click();
         const panel = document.querySelector('.cc-block-edit-panel');
@@ -103,6 +118,50 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
         assert.equal(result.overImage, true, kind + ' : texte hors image');
         assert.equal(result.draft, true, kind + ' : rédaction absente');
         assert.deepEqual(result.steps, before, kind + ' : le texte décoratif crée une étape');
+        if (kind === 'presentation') {
+          assert.equal(await page.locator('.cc-block-edit-panel [data-editor-opacity]').first().evaluate(el => el.closest('details').open), true,
+            'Les réglages d’opacité du texte sur image doivent être visibles dès la sélection');
+          const opacity = await page.evaluate(() => {
+            const input = document.querySelector('.cc-block-edit-panel [data-editor-opacity="backgroundOpacity"]');
+            input.value = '25'; input.dispatchEvent(new Event('input', { bubbles: true }));
+            const el = document.querySelector('.adoc-sc-cover-text');
+            const block = window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc.blocks[0].content.blocks.find(b => b.id === el.id);
+            return { stored: block.style.backgroundOpacity, color: getComputedStyle(el).backgroundColor };
+          });
+          assert.deepEqual(opacity, { stored: 25, color: 'rgba(0, 0, 0, 0.25)' }, 'Opacité du fond superposé');
+          const textOpacity = await page.evaluate(() => {
+            const input = document.querySelector('.cc-block-edit-panel [data-editor-opacity="textOpacity"]');
+            input.value = '40'; input.dispatchEvent(new Event('input', { bubbles: true }));
+            const el = document.querySelector('.adoc-sc-cover-text');
+            return { opacity: getComputedStyle(el.querySelector(':scope > .adoc-sc-fg-content')).opacity,
+              handles: el.querySelectorAll(':scope > .cc-flow-resize-handle').length };
+          });
+          assert.deepEqual(textOpacity, { opacity: '0.4', handles: 8 }, 'Opacité des lettres et poignées indépendantes');
+          for (const dir of ['n', 'e', 's', 'w', 'nw', 'ne', 'se', 'sw']) {
+            const el = page.locator('.adoc-sc-cover-text');
+            await el.evaluate(e => {
+              const block = window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc.blocks[0].content.blocks.find(b => b.id === e.id);
+              Object.assign(block.style, { x: 42, y: 42, width: 600, height: 80 });
+              Object.assign(e.style, { left: '42px', top: '42px', width: '600px', height: '80px' });
+            });
+            await el.evaluate(e => e.scrollIntoView({ block: 'center' }));
+            const beforeRect = await el.boundingBox();
+            const handle = el.locator('.cc-flow-resize-' + dir);
+            const box = await handle.boundingBox();
+            assert(box, 'Poignée ' + dir + ' absente');
+            await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+            await page.mouse.down();
+            const dx = dir.includes('w') ? -12 : dir.includes('e') ? 12 : 0;
+            const dy = dir.includes('n') ? -12 : dir.includes('s') ? 12 : 0;
+            await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2 + dy, { steps: 3 });
+            await page.mouse.up();
+            const afterRect = await el.boundingBox();
+            if (dir.includes('w')) { assert(afterRect.x < beforeRect.x - 8, dir + ' : bord gauche'); assert(Math.abs(afterRect.x + afterRect.width - beforeRect.x - beforeRect.width) < 2, dir + ' : bord droit fixe'); }
+            if (dir.includes('e')) assert(afterRect.width > beforeRect.width + 8, dir + ' : bord droit');
+            if (dir.includes('n')) { assert(afterRect.y < beforeRect.y - 8, dir + ' : bord haut'); assert(Math.abs(afterRect.y + afterRect.height - beforeRect.y - beforeRect.height) < 2, dir + ' : bord bas fixe'); }
+            if (dir.includes('s')) assert(afterRect.height > beforeRect.height + 8, dir + ' : bord bas');
+          }
+        }
         const rendered = await page.evaluate(async () => {
           const key = window._adocWsState.storeKey;
           const art = window._adocArtifacts[key];
@@ -111,6 +170,10 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
         });
         assert.match(rendered, /adoc-sc-cover-text/, kind + ' : texte perdu au rendu partagé');
         assert.match(rendered, /adoc-sc-card-img/, kind + ' : image perdue au rendu partagé');
+        if (kind === 'presentation') {
+          assert.match(rendered, /rgba\(0, 0, 0, 0\.25\)/, 'Opacité du fond perdue au rendu');
+          assert.match(rendered, /adoc-sc-fg-content[^>]*opacity:0\.4/, 'Opacité des lettres perdue au rendu');
+        }
         if (kind === 'presentation') {
           const shown = await page.evaluate(async () => {
             const d = window._adocArtifacts[window._adocWsState.storeKey]._adocStructuredDoc;

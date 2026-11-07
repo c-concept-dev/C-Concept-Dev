@@ -8213,6 +8213,11 @@ ${recent}`;
       el.style.boxSizing = 'border-box';
     }
     if (Number.isFinite(style.flowMinHeightPx)) el.style.minHeight = Math.max(0, Math.min(1200, style.flowMinHeightPx)) + 'px';
+    // Le fond du texte posé sur une photo a sa propre opacité, indépendante des lettres.
+    if (style.backgroundColor && style.backgroundOpacity != null && /^rgba?\(/i.test(style.backgroundColor)) {
+      const channels = style.backgroundColor.match(/[\d.]+/g);
+      if (channels && channels.length >= 3) el.style.backgroundColor = 'rgba(' + channels.slice(0, 3).join(',') + ',' + Math.max(0, Math.min(100, Number(style.backgroundOpacity))) / 100 + ')';
+    }
     if (style.borderWidth) el.style.borderStyle = 'solid';
     return el.style.cssText;
   }
@@ -10287,8 +10292,12 @@ ${recent}`;
     tools.querySelectorAll('[data-editor-opacity]').forEach(function (input) {
       const field = input.dataset.editorOpacity;
       if (document.activeElement === input) return;
-      input.value = style[field] == null ? '100' : style[field];
+      const rgba = field === 'backgroundOpacity' && style.backgroundColor && style.backgroundColor.match(/^rgba\([^)]*,\s*([\d.]+)\s*\)$/i);
+      input.value = style[field] == null ? (rgba ? String(Math.round(Number(rgba[1]) * 100)) : '100') : style[field];
     });
+    // Sur un texte posé sur photo, afficher immédiatement les deux réglages utiles.
+    const opacityDetails = tools.querySelector('[data-editor-opacity]')?.closest('details');
+    if (opacityDetails && ctx.block && /^covertext-\d+$/.test(ctx.block.id)) opacityDetails.open = true;
     // LOT 3 — "Ajouter une image" n'a de sens que si le bloc n'a pas déjà un fond (rien à
     // ajouter sinon) : même patron que data-image-add-text (adocEditorRefreshImageControls).
     const addImageBtn = panel.querySelector('[data-block-add-image]');
@@ -10629,6 +10638,10 @@ ${recent}`;
     if (field === 'backgroundOpacity') {
       const overlay = ctx.el.querySelector(':scope > .adoc-sc-bg-overlay');
       if (overlay) overlay.style.opacity = String(clamped / 100);
+      if (style.backgroundColor && /^rgba?\(/i.test(style.backgroundColor)) {
+        const channels = style.backgroundColor.match(/[\d.]+/g);
+        if (channels && channels.length >= 3) ctx.el.style.backgroundColor = 'rgba(' + channels.slice(0, 3).join(',') + ',' + clamped / 100 + ')';
+      }
     } else if (field === 'textOpacity') {
       // Premier réglage sur un bloc qui n'a encore ni fond ni opacité de texte : le calque
       // .adoc-sc-fg-content n'existe pas encore dans le DOM (posé au rendu seulement quand l'un
@@ -10641,7 +10654,10 @@ ${recent}`;
         wrap = document.createElement('span');
         wrap.className = 'adoc-sc-fg-content';
         wrap.style.display = 'block';
-        while (ctx.el.firstChild) wrap.appendChild(ctx.el.firstChild);
+        Array.from(ctx.el.childNodes).forEach(function (node) {
+          if (node.nodeType === 1 && node.matches('.cc-flow-resize-handle, .cc-block-delete, .adoc-sc-nested-resize-handle, .adoc-sc-block-drag-handle')) return;
+          wrap.appendChild(node);
+        });
         ctx.el.appendChild(wrap);
       }
       if (wrap) wrap.style.opacity = String(clamped / 100);
@@ -18521,7 +18537,7 @@ ${recent}`;
   // pictogramme dans le bloc. La zone centrale garde la sélection de texte et
   // les huit poignées de taille conservent leur priorité. Cette détection est
   // partagée par les glissements structurés, anciens et depuis l'aperçu.
-  const ADOC_DRAG_EDGE_ZONE_PX = 16;
+  const ADOC_DRAG_EDGE_ZONE_PX = 7;
   function adocDragInEdgeZone(el, clientX, clientY) {
     const r = el.getBoundingClientRect();
     const x = clientX - r.left, y = clientY - r.top;
@@ -18529,9 +18545,22 @@ ${recent}`;
     // Quatre bords ; le haut/bas d'un paragraphe court restent étroits afin
     // de conserver une vraie zone centrale pour placer le curseur de texte.
     const horizontalEdge = Math.min(ADOC_DRAG_EDGE_ZONE_PX, r.width / 4);
-    const verticalEdge = Math.min(12, r.height / 4);
-    return x <= horizontalEdge || x >= r.width - horizontalEdge ||
+    const verticalEdge = Math.min(5, r.height / 6);
+    const inEdge = x <= horizontalEdge || x >= r.width - horizontalEdge ||
       y <= verticalEdge || y >= r.height - verticalEdge;
+    if (!inEdge) return false;
+    // La poignée invisible ne doit jamais voler un début de sélection sur des lettres.
+    // Les rectangles réels des lignes tiennent aussi compte des retours et des spans.
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (!node.textContent.trim() || node.parentElement?.closest('.cc-flow-resize-handle, .cc-block-delete, .cc-block-edit-panel')) continue;
+      const range = document.createRange(); range.selectNodeContents(node);
+      for (const box of range.getClientRects()) {
+        if (clientX >= box.left - 2 && clientX <= box.right + 2 && clientY >= box.top - 2 && clientY <= box.bottom + 2) return false;
+      }
+    }
+    return true;
   }
   // Fantôme — clone RÉEL du DOM (jamais une reconstruction par type de bloc : un bloc image porte
   // ainsi sa vraie miniature, un tableau ses vraies cellules, un bloc legacy son enveloppe réelle —
@@ -22035,10 +22064,22 @@ ${recent}`;
   // (régression #6).
   function adocMountContextualBlockEditPanel(panel, anchorEl) {
     function revealBesideSelectedBlock() {
+      if (!panel.isConnected || !anchorEl.isConnected) return;
+      const selected = anchorEl.getBoundingClientRect();
+      const controls = panel.getBoundingClientRect();
+      // Le basculement est immédiat : pendant un glissement, le clic synthétique
+      // sélectionne le bloc et le panneau ne doit pas décaler les cibles de dépôt.
+      const canFloat = anchorEl.matches('.adoc-sc-block, .adoc-sc-card, .adoc-sc-card-img, .adoc-sc-cover, [data-cc-legacy-block-id]');
+      if (canFloat && (anchorEl.matches('.adoc-sc-card') || selected.height + controls.height >= window.innerHeight * .8 ||
+          controls.bottom > window.innerHeight - 8)) {
+        panel.classList.add('cc-block-edit-panel--floating');
+        if (anchorEl.matches('.adoc-sc-card')) panel.classList.add('cc-block-edit-panel--card');
+        panel.setAttribute('popover', 'manual');
+        if (typeof panel.showPopover === 'function') panel.showPopover();
+        return;
+      }
       requestAnimationFrame(function () {
         if (!panel.isConnected || !anchorEl.isConnected) return;
-        const selected = anchorEl.getBoundingClientRect();
-        const controls = panel.getBoundingClientRect();
         // Ne déplace la vue que lorsque le bloc et le panneau compact peuvent tenir ensemble.
         // scrollIntoView choisit aussi le bon conteneur lorsque l'espace de travail défile en interne.
         if (selected.height + controls.height < window.innerHeight * .8 && controls.bottom > window.innerHeight - 8)
@@ -22551,6 +22592,39 @@ ${recent}`;
     window.addEventListener('mousemove', move, true);
     window.addEventListener('mouseup', up, true);
   }
+  // Un texte superposé est positionné dans sa diapositive : chaque prise déplace
+  // uniquement le bord correspondant, en laissant le bord opposé fixe.
+  function adocStartCoverTextResize(e, blockEl, block) {
+    const direction = e.target.dataset.flowResize;
+    const card = blockEl.parentElement;
+    if (!direction || !card) return;
+    e.preventDefault(); e.stopPropagation();
+    const rect = blockEl.getBoundingClientRect();
+    const scale = rect.width / blockEl.offsetWidth || 1;
+    const start = { x: blockEl.offsetLeft, y: blockEl.offsetTop, width: blockEl.offsetWidth, height: blockEl.offsetHeight };
+    const pointerX = e.clientX, pointerY = e.clientY;
+    let changed = false;
+    function move(ev) {
+      if (!(ev.buttons & 1)) { up(); return; }
+      const dx = (ev.clientX - pointerX) / scale, dy = (ev.clientY - pointerY) / scale;
+      if (!changed && Math.abs(dx) < 2 && Math.abs(dy) < 2) return;
+      if (!changed) { adocEditorCheckpoint(); changed = true; }
+      let left = start.x, right = start.x + start.width;
+      let top = start.y, bottom = start.y + start.height;
+      if (direction.includes('w')) left = Math.max(0, Math.min(right - 40, start.x + dx));
+      if (direction.includes('e')) right = Math.max(left + 40, Math.min(card.clientWidth, start.x + start.width + dx));
+      if (direction.includes('n')) top = Math.max(0, Math.min(bottom - 40, start.y + dy));
+      if (direction.includes('s')) bottom = Math.max(top + 40, Math.min(card.clientHeight, start.y + start.height + dy));
+      const style = Object.assign({}, block.style, { x: Math.round(left), y: Math.round(top),
+        width: Math.round(right - left), height: Math.round(bottom - top) });
+      block.style = style;
+      adocApplyCardPositionToElement(blockEl, style);
+      adocEditorSync(); adocEditorMarkDirty();
+    }
+    function up() { window.removeEventListener('mousemove', move, true); window.removeEventListener('mouseup', up, true); }
+    window.addEventListener('mousemove', move, true);
+    window.addEventListener('mouseup', up, true);
+  }
   function adocDeleteControlLabel(kind, index, text) {
     const excerpt = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 40);
     return 'Supprimer ' + kind + ' ' + (index + 1) + (excerpt ? ' : ' + excerpt : '');
@@ -22857,7 +22931,8 @@ ${recent}`;
         const blockEl = flowHandle.closest('.adoc-sc-block[id]');
         const currentArt = window._adocArtifacts && window._adocArtifacts[window._adocWsState.storeKey];
         const block = blockEl && currentArt && adocFindEditableBlock(currentArt._adocStructuredDoc, blockEl.id);
-        if (block && [...ADOC_DIRECT_TYPES, 'video', 'quiz', 'questionnaire'].includes(block.type)) adocStartFlowResize(e, blockEl, currentArt, block, false, null);
+        if (block && /^covertext-\d+$/.test(block.id)) adocStartCoverTextResize(e, blockEl, block);
+        else if (block && [...ADOC_DIRECT_TYPES, 'video', 'quiz', 'questionnaire'].includes(block.type)) adocStartFlowResize(e, blockEl, currentArt, block, false, null);
         return;
       }
       const imageHandle = e.target.closest('.cc-image-resize-handle');
