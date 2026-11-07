@@ -164,11 +164,11 @@
   // déjà révélés avant elle. Le modèle a besoin des deux : ce qu'il doit commenter, et ce que le
   // spectateur a déjà entendu commenter — sans quoi il répète.
   function contenuParEtape(doc) {
-    var etapes = window.adocPresentStepList(doc);
+    var etapes = window.adocNarrationStepList(doc);
     var cs = cartes(doc);
     return etapes.map(function (e) {
       var carte = cs.filter(function (c) { return c.id === e.cardId; })[0];
-      var sous = (carte && carte.content && carte.content.blocks) || [];
+      var sous = carte ? ((carte.content && carte.content.blocks) || []) : (doc.blocks || []);
       var i = -1;
       for (var k = 0; k < sous.length; k++) { if (sous[k] && sous[k].id === e.stepId) { i = k; break; } }
       var propre = (i >= 0) ? texteDuBloc(sous[i]) : '';
@@ -1126,6 +1126,7 @@
   // coûteraient des jetons sans rien apporter, et le modèle n'a pas à les réécrire.
   async function reecrireEtape(doc, stepId, consigne, options) {
     var o = options || {};
+    var presentation = doc.documentKind === 'presentation';
     var toutes = contenuParEtape(doc);
     var i = -1;
     for (var k = 0; k < toutes.length; k++) { if (toutes[k].stepId === stepId) { i = k; break; } }
@@ -1143,7 +1144,7 @@
     var apres = i + 1 < toutes.length ? dejaEcrites[toutes[i + 1].stepId] : null;
 
     var lignes = [];
-    lignes.push('Titre de la présentation : ' + (doc.title || 'sans titre'));
+    lignes.push('Titre ' + (presentation ? 'de la présentation' : 'du document') + ' : ' + (doc.title || 'sans titre'));
     if (doc.audience) lignes.push('Public : ' + doc.audience);
     if (doc.purpose) lignes.push('Objectif : ' + doc.purpose);
     lignes.push('');
@@ -1153,12 +1154,12 @@
     if (avant) lignes.push('Commentaire de l’étape PRÉCÉDENTE (ne le répétez pas) : ' + avant);
     if (apres) lignes.push('Commentaire de l’étape SUIVANTE (n’empiétez pas dessus) : ' + apres);
     if (avant || apres) lignes.push('');
-    lignes.push('Diapositive : ' + (etape.cardTitle || 'sans titre'));
+    lignes.push((presentation ? 'Diapositive' : 'Document') + ' : ' + (etape.cardTitle || 'sans titre'));
     lignes.push('  stepId: ' + etape.stepId);
     lignes.push('  cible: ' + cible + ' mots');
     if (o.contexteNouveauParagraphe) {
       lignes.push('  Ce paragraphe contient encore un texte provisoire, sans contenu à commenter.');
-      lignes.push('  Contexte de toute la présentation, dans l’ordre des diapositives :');
+      lignes.push('  Contexte de tout le ' + (presentation ? 'document, dans l’ordre des diapositives' : 'document, dans l’ordre des blocs') + ' :');
       toutes.forEach(function (autre, rang) {
         if (rang === i || !autre.texte || !autre.texte.trim()
           || autre.texte.trim() === 'Nouveau paragraphe.') return;
@@ -1166,7 +1167,7 @@
           + (autre.cardId === etape.cardId ? ', même diapositive' : ', autre diapositive')
           + ' — ' + (autre.cardTitle || 'sans titre') + ' : ' + autre.texte.trim());
       });
-      lignes.push('  Inspirez-vous d’abord des blocs voisins, puis du fil général de toutes les diapositives.');
+      lignes.push('  Inspirez-vous d’abord des blocs voisins, puis du fil général du document.');
       lignes.push('  Proposez une transition orale pour cette nouvelle étape, sans répéter la narration des étapes voisines.');
       lignes.push('  Ne présentez pas le texte provisoire comme un contenu et n’ajoutez aucun fait absent du contexte.');
     } else {
@@ -1194,7 +1195,7 @@
         if (precedent && precedent.texte) lignes.push('  Bloc immédiatement AVANT : ' + precedent.texte);
         if (suivant && suivant.texte) lignes.push('  Bloc immédiatement APRÈS : ' + suivant.texte);
         lignes.push('  Appuyez-vous d’abord sur ces voisins et les autres blocs de la diapositive, puis sur le fil du document entier.');
-        lignes.push('  Contexte de la présentation, dans l’ordre :');
+        lignes.push('  Contexte ' + (presentation ? 'de la présentation' : 'du document') + ', dans l’ordre :');
         toutes.forEach(function (autre, rang) {
           if (!autre.texte || !autre.texte.trim() ||
               (rang === i && autre.stepId === etape.stepId)) return;
@@ -1332,6 +1333,8 @@
   }
 
   function paragrapheDuDocument(doc, stepId) {
+    var racine = (doc && doc.blocks || []).find(function (b) { return b && b.id === stepId && b.type === 'paragraph'; });
+    if (racine) return racine;
     for (var carte of ((doc && doc.blocks) || []).filter(function (b) { return b && b.type === 'card'; })) {
       var bloc = ((carte.content && carte.content.blocks) || []).find(function (b) { return b.id === stepId; });
       if (bloc && bloc.type === 'paragraph') return bloc;
@@ -1348,6 +1351,8 @@
       var bloc = ((carte.content && carte.content.blocks) || []).find(function (b) { return b.id === id; });
       if (bloc) return { id: id, type: bloc.type, texte: IA.texteDuBloc(bloc), bloc: bloc };
     }
+    var racine = (doc.blocks || []).find(function (b) { return b && b.id === id; });
+    if (racine) return { id: id, type: racine.type, texte: IA.texteDuBloc(racine), bloc: racine };
     return null;
   }
 
@@ -1551,7 +1556,7 @@
       var blocCible = blocNarrationCible(doc, stepId);
       var etapes = doc && IA.contenuParEtape(doc);
       var etape = etapes && etapes.find(function (e) { return e.stepId === sourceStepId; });
-      if (!etape || !blocCible) { dire(seulPanneau, 'Sélectionnez un bloc écrit de la présentation.', true); return; }
+      if (!etape || !blocCible) { dire(seulPanneau, 'Sélectionnez un bloc écrit du document.', true); return; }
       var provisoire = blocCible.type === 'paragraph' && texteProvisoire(blocCible.texte);
       if (provisoire) {
         var voisins = etapes.filter(function (e) {
@@ -1559,7 +1564,7 @@
             && e.texte.trim() && e.texte.trim() !== 'Nouveau paragraphe.';
         });
         if (!voisins.length) {
-          dire(seulPanneau, 'La présentation ne contient pas encore de texte à commenter. Rédigez le paragraphe ou ajoutez du contenu.', true); return;
+          dire(seulPanneau, 'Le document ne contient pas encore de texte à commenter. Rédigez le paragraphe ou ajoutez du contenu.', true); return;
         }
       }
       var cible = Number(seulPanneau.querySelector('.nia-paragraphe-mots').value);
@@ -1572,7 +1577,7 @@
       seulPanneau.querySelector('.nia-paragraphe-apercu').hidden = true;
       proposition = null;
       dire(seulPanneau, provisoire
-        ? 'Paragraphe provisoire : proposition fondée sur les blocs voisins et toute la présentation…'
+        ? 'Paragraphe provisoire : proposition fondée sur les blocs voisins et tout le document…'
         : 'Proposition en cours pour ce bloc…');
       try {
         var res = await IA.reecrireEtape(doc, sourceStepId, 'Rédigez la narration orale de ce bloc uniquement.', {
@@ -1591,7 +1596,7 @@
         apercu.hidden = false;
         seulPanneau.querySelector('.nia-paragraphe-appliquer').disabled = false;
         dire(seulPanneau, provisoire
-          ? 'Proposition fondée sur les blocs voisins et toute la présentation. En l’appliquant, vous remplacerez aussi « Nouveau paragraphe. » par ce texte, sans les marques de pause.'
+          ? 'Proposition fondée sur les blocs voisins et tout le document. En l’appliquant, vous remplacerez aussi « Nouveau paragraphe. » par ce texte, sans les marques de pause.'
           : 'Une proposition pour ce seul bloc. Relisez-la puis appliquez-la. Rien n’est encore écrit.');
       } catch (e) { dire(seulPanneau, 'Proposition impossible : ' + IA.sansCle(e && e.message || String(e)), true); }
       finally { btn.disabled = false; }

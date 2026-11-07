@@ -8481,6 +8481,7 @@ ${recent}`;
   // LOT 1a — exposées pour les tests, comme adocRunGenerationPipeline l'est plus bas : c'est ce
   // qui permet d'éprouver la règle d'étape et la purge sans aucun appel au modèle.
   window.adocPresentStepList = adocPresentStepList;
+  window.adocNarrationStepList = adocNarrationStepList;
   window.adocNarrationRead = adocNarrationRead;
   window.adocNarrationWrite = adocNarrationWrite;
   window.adocNarrationApply = adocNarrationApply;
@@ -10203,7 +10204,7 @@ ${recent}`;
       '</div></details>' +
       '<div class="cc-editor-list-tools cc-editor-row">' + button('list-add','Ajouter un élément') + button('list-remove','Retirer l’élément') + button('indent','Augmenter le niveau') + button('outdent','Réduire le niveau') + button('bullets','Puces') + button('numbered','Numéros') + '</div>' +
       '<div class="cc-editor-table-tools"><strong>Tableau — cellule active</strong><div class="cc-editor-row">' + button('row-before','Ligne avant') + button('row-after','Ligne après') + button('row-delete','Supprimer la ligne') + button('col-before','Colonne avant') + button('col-after','Colonne après') + button('col-delete','Supprimer la colonne') + button('merge-right','Fusionner à droite') + button('merge-down','Fusionner en dessous') + button('split','Dissocier') + button('sort-asc','Trier A → Z') + button('sort-desc','Trier Z → A') + '</div><details><summary>Mise en forme conditionnelle de la colonne active</summary><div class="cc-editor-row"><select aria-label="Condition" data-rule-op><option value="gt">Supérieur à</option><option value="lt">Inférieur à</option><option value="eq">Égal à</option></select><input type="number" aria-label="Seuil" data-rule-value value="0"><input type="color" aria-label="Couleur conditionnelle" data-rule-color value="#fff1b8">' + button('rule-add','Appliquer la règle') + button('rule-clear','Retirer les règles') + '</div></details></div>' +
-      // LOT 1a — narration de l'étape sélectionnée. Masquée partout ailleurs, exactement comme
+      // Narration du bloc sélectionné. Masquée si aucun bloc compatible n'est sélectionné, comme
       // .cc-editor-list-tools l'est hors d'une liste : un seul mécanisme de révélation, celui
       // déjà en place dans adocEditorRefreshControls. Aucune règle CSS nouvelle — .adoc-textarea
       // et .cc-editor-row existent déjà, et aucun pictogramme n'est ajouté ici.
@@ -10234,7 +10235,7 @@ ${recent}`;
     const leaf = (node.nodeType === 1 ? node : node.parentElement).closest('[data-cc-editor-leaf][contenteditable="true"]');
     if (leaf && leaf.closest('#cc-ws-doc-card')) { _adocEditorRange = range.cloneRange(); _adocEditorLeaf = leaf; }
   }
-  // LOT 1a — de la SÉLECTION à l'ÉTAPE. Le panneau sélectionne un bloc ; une étape de
+  // De la SÉLECTION à la narration. Le panneau sélectionne un bloc ; une étape de
   // Présentation est soit un bloc, soit la carte entière quand elle n'en a qu'un ou aucun.
   // Sélectionner le titre d'une diapositive ('root:card-title:<cardId>', identifiant réservé déjà
   // existant) désigne la PREMIÈRE étape de cette diapositive — jamais rien, ce qui laisserait une
@@ -10244,7 +10245,7 @@ ${recent}`;
     if (!doc || !blockId) return null;
     const id = blockId.indexOf('root:card-title:') === 0
       ? blockId.slice('root:card-title:'.length) : blockId;
-    const etapes = adocPresentStepList(doc);
+    const etapes = adocNarrationStepList(doc);
     return etapes.find(function (e) { return e.stepId === id; })
         || etapes.find(function (e) { return e.cardId === id; })
         || null;
@@ -10303,9 +10304,7 @@ ${recent}`;
     const addImageBtn = panel.querySelector('[data-block-add-image]');
     if (addImageBtn) addImageBtn.hidden = !!(ctx.block && ctx.block.style && ctx.block.style.backgroundAssetId);
     adocRefreshBlockSurfaceControls();
-    // LOT 1a — narration : visible UNIQUEMENT dans une Présentation du moteur structuré, et
-    // seulement quand la sélection désigne une étape. adocPresentStepList rend déjà [] pour tout
-    // autre documentKind, donc la condition de type de document n'est pas répétée ici.
+    // La narration suit le bloc sélectionné dans chaque type de document structuré.
     const narrBoite = tools.querySelector('.cc-editor-narration');
     if (narrBoite) {
       const etape = ctx.legacy ? null : adocEditorStepRef(ctx.art._adocStructuredDoc, ctx.st.blockId);
@@ -10338,12 +10337,14 @@ ${recent}`;
         const narrationId = ctx.st.blockId.indexOf('root:card-title:') === 0
           ? ctx.st.blockId : etape.stepId;
         const titreSelectionne = narrationId !== etape.stepId;
-        narrBoite.querySelector('summary').textContent = titreSelectionne ? 'Narration de ce titre' : 'Narration de cette étape';
+        const presentation = ctx.art._adocStructuredDoc.documentKind === 'presentation';
+        narrBoite.querySelector('summary').textContent = titreSelectionne ? 'Narration de ce titre' : presentation ? 'Narration de cette étape' : 'Narration de ce bloc';
         const narrationGlobaleBtn = narrBoite.querySelector('.nia-bouton');
-        if (narrationGlobaleBtn) narrationGlobaleBtn.hidden = titreSelectionne;
+        if (narrationGlobaleBtn) narrationGlobaleBtn.hidden = titreSelectionne || !presentation;
         const sur = etape.surRang > 1 ? ', étape ' + etape.rang + ' sur ' + etape.surRang : ', étape unique';
-        narrBoite.querySelector('.cc-editor-narration-etape').textContent =
-          'Diapositive « ' + (etape.cardTitle || 'sans titre') + ' »' + sur + '.';
+        narrBoite.querySelector('.cc-editor-narration-etape').textContent = presentation
+          ? 'Diapositive « ' + (etape.cardTitle || 'sans titre') + ' »' + sur + '.'
+          : 'Document « ' + (ctx.art._adocStructuredDoc.title || 'sans titre') + ' »' + sur + '.';
         // Jamais écrasé pendant la frappe — même garde que les champs de style ci-dessus.
         if (document.activeElement !== zone) {
           zone.value = adocNarrationRead(ctx.art._adocStructuredDoc, narrationId);
@@ -19597,8 +19598,25 @@ ${recent}`;
     });
     return etapes;
   }
+  // Étapes de narration pour les autres formats : les blocs éditoriaux gardent leur id stable.
+  // La règle de révélation de Présentation reste intacte.
+  function adocNarrationStepList(doc) {
+    if (!doc) return [];
+    if (doc.documentKind === 'presentation') return adocPresentStepList(doc);
+    if (doc.documentKind === 'carrousel') {
+      const etapes = [];
+      (doc.blocks || []).filter(function (b) { return b && b.type === 'card'; }).forEach(function (card) {
+        const blocs = ((card.content && card.content.blocks) || []).filter(function (b) { return b && !/^covertext-\d+$/.test(b.id); });
+        if (!blocs.length) etapes.push({ cardId: card.id, cardTitle: card.content.title || '', stepId: card.id, blockId: null, rang: 1, surRang: 1 });
+        blocs.forEach(function (b, i) { etapes.push({ cardId: card.id, cardTitle: card.content.title || '', stepId: b.id, blockId: b.id, rang: i + 1, surRang: blocs.length }); });
+      });
+      return etapes;
+    }
+    const blocs = (doc.blocks || []).filter(function (b) { return b && b.id; });
+    return blocs.map(function (b, i) { return { cardId: null, cardTitle: doc.title || '', stepId: b.id, blockId: b.id, rang: i + 1, surRang: blocs.length }; });
+  }
   function adocNarrationStepIds(doc) {
-    const ids = new Set(adocPresentStepList(doc).map(function (e) { return e.stepId; }));
+    const ids = new Set(adocNarrationStepList(doc).map(function (e) { return e.stepId; }));
     (doc && doc.blocks || []).forEach(function (card) {
       if (card && card.type === 'card') ids.add('root:card-title:' + card.id);
     });
