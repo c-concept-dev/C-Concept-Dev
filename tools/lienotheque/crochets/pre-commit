@@ -1,0 +1,32 @@
+#!/bin/sh
+# Crochet de pré-commit de la Liénothèque — versionné, donc partagé et relisible.
+#
+# POURQUOI IL COMMENCE PAR SORTIR
+#
+# `core.hooksPath` est un réglage du DÉPÔT, pas d'un sous-dossier. Ce dépôt porte neuf projets ;
+# ce crochet s'exécute donc aussi pour les commits d'Atelier Prompts, de Studio Clinique et des
+# autres. Il doit leur coûter zéro : s'il ne voit aucun chemin de la Liénothèque dans l'index, il
+# sort avant de lancer quoi que ce soit — pas de Node, pas de lecture de l'index.
+#
+# CE QU'IL JUGE
+#
+# L'INDEX, c'est-à-dire ce que le commit contiendra. Jamais le disque. Les règles elles-mêmes sont
+# dans `verdictAvantCommit`, pure et éprouvée ; ce fichier ne décide rien.
+#
+# MISE EN PLACE (une fois par copie du dépôt, le réglage n'est pas versionnable) :
+#
+#     git config core.hooksPath tools/lienotheque/crochets
+#
+# POURQUOI IL EXISTE
+#
+# Deux erreurs du 7 novembre 2026 ont traversé deux contrôles complets : un commit qui a emporté
+# quatre-vingt-seize lignes d'un autre lot (`git apply --3way` indexe son résultat), et une section
+# de registre effacée par un `cp`. Les deux avaient leur sortie sous les yeux.
+# Un garde-fou qui demande qu'on lise attentivement n'est pas un garde-fou.
+
+chemins=$(git diff --cached --name-only -- tools/lienotheque)
+[ -z "$chemins" ] && exit 0
+
+racine=$(git rev-parse --show-toplevel) || exit 1
+cd "$racine/tools/lienotheque" || exit 1
+exec npx tsx packages/banc/scripts/avant-commit.ts

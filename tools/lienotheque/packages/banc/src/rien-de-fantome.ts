@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { indexDuProjet, type EntreeDIndex } from "./index-du-projet.js";
 import { estDuCode, masqueDeCode } from "./lire-du-code.js";
 
 /** Aucun fichier suivi par Git n'importe un fichier qui ne l'est pas.
@@ -72,25 +73,16 @@ export function taillesDeLIndex(racine: string, executer = execFileSync): Readon
   );
 }
 
-/** Les entrées de l'index : un chemin, une empreinte. Lues une fois, par les deux mesures. */
+/** Les entrées de l'index DU PROJET : un chemin, une empreinte. Lues une fois, par les deux mesures.
+ *
+ *  La lecture passe par `indexDuProjet`, parce qu'un `git ls-files` lancé ici rendrait **tout le
+ *  dépôt**, nommé depuis sa racine, dès que `GIT_DIR` se trouve dans l'environnement — 8147
+ *  chemins au lieu de 852, mesurés le 7 novembre 2026. */
 function entreesDeLIndex(
   racine: string,
   executer: typeof execFileSync,
-): readonly { readonly empreinte: string; readonly chemin: string }[] {
-  const sortieListe = executer("git", ["ls-files", "-s"], {
-    cwd: racine,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  }) as string;
-  return sortieListe
-    .split("\n")
-    .filter((ligne) => ligne !== "")
-    .flatMap((ligne) => {
-      // « <mode> <empreinte> <étage>\t<chemin> »
-      const [infos, chemin] = ligne.split("\t");
-      const empreinte = infos?.split(" ")[1];
-      return empreinte === undefined || chemin === undefined ? [] : [{ empreinte, chemin }];
-    });
+): readonly EntreeDIndex[] {
+  return indexDuProjet(racine, executer).entrees;
 }
 
 export function contenuDeLIndex(racine: string, executer = execFileSync): (chemin: string) => string {

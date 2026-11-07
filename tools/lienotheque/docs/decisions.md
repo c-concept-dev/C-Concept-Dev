@@ -9042,3 +9042,130 @@ Les littéraux d'expression régulière : `/don't/` y ouvre une apostrophe. Aucu
 porte, et distinguer une barre oblique de division d'un début d'expression demande de savoir si l'on
 attend une valeur ou un opérateur — c'est-à-dire d'analyser le langage. C'est écrit dans l'en-tête
 du module pour que la prochaine inversion ait un suspect nommé.
+
+## 7 novembre 2026 — le crochet de pré-commit juge l'index du commit, quoi qu'il y ait dans l'environnement
+
+### Deux affirmations à moi, corrigées par la mesure
+
+J'avais inscrit que `GIT_DIR` rendait le crochet aveugle. **Faux** : git **n'exporte pas** `GIT_DIR`
+aux crochets. Mesuré sur un dépôt fabriqué — pendant un `pre-commit`, `GIT_DIR` est vide, et
+`git ls-files` lancé depuis le projet rend bien les 852 chemins du projet, nommés depuis lui.
+
+Ce que git exporte, c'est **`GIT_INDEX_FILE`**, et la prémisse de Christophe est confirmée : sur un
+`git commit -- <chemins>`, il désigne un `next-index-*.lock` qui contient **exactement** le commit.
+`git diff --cached` n'y voit que les chemins nommés — c'est ce qui permet au crochet de sortir sans
+rien lancer quand le commit ne touche pas la Liénothèque, et c'est pour cela qu'on le garde.
+
+### Le vrai défaut : conditionnel, donc invisible
+
+Dès que `GIT_DIR` se trouve dans l'environnement — un geste à la main (`GIT_DIR=… git …`, que
+j'emploie), une enveloppe, un alias, un autre type de crochet —, git cesse de chercher le dépôt
+depuis le dossier courant : il prend ce dossier pour la racine, `rev-parse --show-prefix` répond
+**vide**, et `ls-files` rend **tout le dépôt**, nommé depuis sa racine.
+
+Mesuré sur ce dépôt : **852** chemins du projet sans, **8147** du dépôt avec. Les zones de
+`termes-de-domaine.json` (`packages/`, `apps/`…) ne correspondent alors plus à rien, et CLA-01
+devient **vert sans rien regarder**. Un garde-fou dont la justesse dépend de qui l'appelle n'est pas
+un garde-fou.
+
+### La forme retenue : une invocation qui ne dépend pas de l'environnement
+
+`git ls-files -s --full-name` lancé depuis la **racine du dépôt** rend les mêmes chemins avec ou
+sans `GIT_DIR`. On retient ceux du projet, on retire le préfixe, et la traduction est explicite.
+`GIT_DIR` et `GIT_INDEX_FILE` restent en place, comme Christophe l'a demandé.
+
+Et la racine du dépôt est trouvée sur le **disque**, en remontant jusqu'à une entrée `.git` : sous
+`GIT_DIR`, `rev-parse --show-toplevel` répond le dossier courant, c'est-à-dire la mauvaise réponse à
+la question posée. **Quand l'environnement est le suspect, on ne prend pas son témoignage.**
+
+Le juge dit maintenant son compte : « N chemin(s) du projet sur M dans l'index du commit (préfixe
+« tools/lienotheque » retiré) ». Jamais tout le dépôt, jamais zéro — et le contrôle lit ces deux
+nombres.
+
+### Une règle fausse, trouvée en cherchant la mutation qui l'aurait tuée
+
+J'avais ajouté un second refus : « les chemins lus sont ceux du dépôt entier ». **Aucune mutation ne
+le tuait.** En cherchant laquelle l'aurait tué, j'ai trouvé qu'il était **faux** : un dépôt dont
+tout le contenu vit sous le préfixe du projet est parfaitement légitime, et ce refus l'aurait
+accusé. Supprimé.
+
+La doctrine disait « une règle qu'aucune mutation ne tue est supprimée ». Elle dit en plus quelque
+chose qu'on n'avait pas vu : **chercher la mutation manquante, c'est chercher le cas où la règle se
+tromperait.** Les deux questions n'en font qu'une.
+
+### Un contrôle qui regardait au mauvais endroit
+
+Le contrôle « le juge n'a pas tourné » passait **sans rien prouver** : `execFileSync` ne rend que la
+sortie standard, et **git renvoie la sortie d'un crochet sur l'erreur standard**, même quand le
+commit réussit. Il cherchait une phrase là où elle ne pouvait pas être. Découvert parce qu'un autre
+contrôle du même bloc, qui attendait un compte, a échoué. Corrigé avec `spawnSync` et les deux
+sorties réunies.
+
+Troisième fois en deux jours qu'un contrôle est vert parce qu'il regarde ailleurs. La contre-mesure
+qui a marché les trois fois est la même : **un contrôle qui attend une valeur précise**, et non une
+absence.
+
+### Les mutations, cinq sur cinq
+
+| Mutation | Ce qui meurt |
+|---|---|
+| le filtre du préfixe retiré | trois contrôles, dont le commit fautif |
+| lu depuis le projet au lieu de la racine du dépôt | le contrôle `GIT_DIR`, et le compte |
+| la place du projet devinée vide | le contrôle `GIT_DIR`, et le compte |
+| le refus « aucun chemin du projet » retiré | le contrôle de l'index vide |
+| la sortie immédiate du crochet retirée | le commit d'un autre projet, qui lançait le juge |
+
+Le script de mutation refuse de jouer un motif absent : **une mutation qui ne s'applique pas ne se
+distingue pas d'une mutation qui ne tue rien** — et il l'a signalé pour la règle supprimée.
+
+### En conditions réelles
+
+Le contrôle fabrique un dépôt à l'image du nôtre — le projet dans `tools/lienotheque`, un autre
+projet à côté —, y **copie le crochet tel quel** (et vérifie l'égalité octet pour octet, sinon il
+éprouverait autre chose), installe `core.hooksPath`, et laisse **git** l'appeler par un
+`git commit -- <chemins>`.
+
+Un commit fautif est refusé et le commit n'a pas lieu. Un commit d'un autre projet passe, et le juge
+**ne tourne même pas** : mesuré à 30–40 ms, c'est-à-dire un `git diff --cached` et rien d'autre. Un
+commit hors Liénothèque passe donc même si Node manque — ce dépôt porte neuf projets, et le crochet
+ne doit rien leur coûter.
+
+### L'installation, autorisée après trois vérifications
+
+`core.hooksPath` n'est **pas versionnable** et vit dans `.git/config`, **partagé entre les huit
+copies** du dépôt : l'installer touche les neuf projets, partout. Christophe l'a autorisée le
+7 novembre 2026 — « Installation de core.hooksPath : AUTORISÉE, après une vérification » — en
+exigeant ceci, et l'ordre importe : les vérifications **avant** le geste.
+
+**1. Aucun vrai crochet ne serait désactivé.** `core.hooksPath` ne s'ajoute pas aux crochets
+existants : il **remplace** le dossier `$GIT_COMMON_DIR/hooks`, en silence. Relevé avant
+installation : quinze fichiers, **tous `.sample`**, intacts depuis le 3 décembre 2025, et aucune
+copie liée ne porte de dossier `hooks` propre. Rien à désactiver. Si un jour un autre projet y
+installe un crochet, cette installation-ci le fera taire sans rien dire — c'est écrit ici pour que
+le prochain le sache.
+
+**2. Un commit hors Liénothèque passe même SANS Node.** Contrôle à l'appui, à deux faces : avec un
+`PATH` dépourvu de Node (prouvé dépourvu, `npx --version` échoue), un commit d'un autre projet
+**passe**, et un commit d'un chemin de la Liénothèque **échoue fermé** — sans juge, pas de commit.
+Le coût pour les autres projets est donc nul, et la sévérité ne s'applique qu'à nous. Mesuré par
+ailleurs à 30–40 ms : un `git diff --cached`, et rien d'autre.
+
+**3. Le retrait tient en une commande**, et elle est ici pour n'avoir pas à la chercher un jour où
+le crochet gênerait :
+
+    git config --unset core.hooksPath
+
+Elle rend aux neuf projets le dossier `hooks` d'origine. Le pendant, pour (ré)installer depuis une
+copie quelconque du dépôt :
+
+    git config core.hooksPath tools/lienotheque/crochets
+
+Une conséquence mesurée dans la minute : le réglage est partagé, mais le **fichier** du crochet ne
+l'est pas. Les copies posées sur une branche qui ne porte pas encore `crochets/pre-commit` — la
+copie principale, sur `main` — voient un dossier inexistant, et git n'y lance alors **aucun**
+crochet, sans un mot. La protection n'existe que là où le fichier existe. C'est la même leçon que
+les réglages actifs, deux heures plus tôt : **un garde-fou absent ne se signale pas, il manque.**
+
+**`--no-verify` reste INTERDIT** : contourner le crochet pour un commit est une décision de
+Christophe, le retirer aussi. Ce qui est écrit ici est la porte, pas le raccourci.
+
