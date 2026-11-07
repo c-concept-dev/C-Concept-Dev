@@ -11540,6 +11540,38 @@ ${recent}`;
     (fg || el).click();
   };
 
+  // Une couverture de carte reste une image. Le texte superposé est un vrai bloc
+  // paragraphe du schéma existant : il se corrige, se rédige et s'exporte comme
+  // les autres blocs, sans ajouter de champ que le Worker ancien refuserait.
+  window.adocAddTextToCardCover = async function () {
+    const st = window._adocBlockEditState || {};
+    if (st.zone !== 'cover') return false;
+    const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
+    const doc = art && art._adocStructuredDoc;
+    const card = doc && adocFindEditableBlock(doc, st.blockId);
+    const image = document.querySelector('#' + CSS.escape(st.blockId) + ' > .adoc-sc-card-img');
+    if (!card || card.type !== 'card' || !image) return false;
+    const id = adocNextBlockId(doc, 'covertext');
+    const width = Math.max(120, Math.min(600, Math.round(image.offsetWidth - 48)));
+    const block = { id: id, type: 'paragraph', content: { text: 'Texte sur l’image' },
+      style: { x: Math.round(image.offsetLeft + 24), y: Math.round(image.offsetTop + 24),
+        width: width, zIndex: 2, color: '#ffffff', backgroundColor: 'rgba(0,0,0,0.55)',
+        fontSizePt: doc.documentKind === 'carrousel' ? 16 : 22 },
+      citationIds: [], validation: {} };
+    adocEditorCheckpoint();
+    card.content.blocks.push(block);
+    const storeKey = st.storeKey;
+    adocWsClearBlockSelection();
+    if (!await window.adocOpenWorkspace(storeKey)) {
+      card.content.blocks.pop();
+      alert('Impossible d’ajouter le texte sur cette image.');
+      return false;
+    }
+    adocEditorMarkDirty();
+    document.getElementById(id)?.click();
+    return true;
+  };
+
   // LOT 3 — symétrique de adocConvertImageBlockToText : rend DÉCOUVRABLE le glisser-déposer de
   // fond déjà pleinement fonctionnel (docCard.ondragover/ondrop, Lot E) sur un bloc texte, sans
   // créer un second mécanisme de dépôt. Ne fait qu'ajouter une classe de surlignage (le bloc
@@ -14266,7 +14298,13 @@ ${recent}`;
   }
   // ── Pilote 2 : Carrousel (modèle minimal unique, structure imbriquée card > blocks[]) ──
   function adocRenderCardHTML(card, index, total) {
-    const nested = (card.content.blocks || []).map(adocRenderBlockHTML).join('\n');
+    const nested = (card.content.blocks || []).map(function (block) {
+      const html = adocRenderBlockHTML(block);
+      return block.type === 'paragraph' && /^covertext-\d+$/.test(block.id)
+        ? html.replace('class="adoc-sc-block ', 'class="adoc-sc-block adoc-sc-cover-text ')
+          .replace(' style="', ' style="box-sizing:border-box;padding:12px;border-radius:6px;')
+        : html;
+    }).join('\n');
     // Couverture de carte — même convention que le bloc image inline (case 'image' ci-dessus) :
     // data-pexels="<requête>" ici, JAMAIS un src résolu à la volée ; adocResolveImages (mécanisme
     // déjà existant et éprouvé) le résout partout où le HTML de carte est réellement affiché/exporté.
@@ -19514,7 +19552,7 @@ ${recent}`;
     (doc.blocks || []).forEach(function (card) {
       if (!card || card.type !== 'card') return;
       const titre = (card.content && card.content.title) || '';
-      const blocs = (card.content && card.content.blocks) || [];
+      const blocs = ((card.content && card.content.blocks) || []).filter(function (b) { return !/^covertext-\d+$/.test(b.id); });
       if (blocs.length <= 1) {
         const bloc = blocs[0] || null;
         etapes.push({ cardId: card.id, cardTitle: titre, stepId: bloc ? bloc.id : card.id,
@@ -19645,7 +19683,7 @@ ${recent}`;
   function adocPresentApplyReveal(inner, card, fullyRevealed) {
     const state = window._adocPresentState;
     if (!state) return;
-    const blockEls = Array.from(inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block'));
+    const blockEls = Array.from(inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block:not(.adoc-sc-cover-text)'));
     if (blockEls.length <= 1) { state.revealIndex = null; state.revealTotal = 0; return; }
     blockEls.forEach(function (el) { el.classList.add('adoc-sc-reveal'); });
     state.revealTotal = blockEls.length;
@@ -19717,12 +19755,12 @@ ${recent}`;
     if (!state || state.revealIndex == null || state.revealIndex >= state.revealTotal - 1) return false;
     state.revealIndex++;
     const inner = innerEl || document.getElementById('cc-ws-present-slide-inner');
-    const blockEls = inner ? inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block') : [];
+    const blockEls = inner ? inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block:not(.adoc-sc-cover-text)') : [];
     const el = blockEls[state.revealIndex];
     if (el) {
       el.classList.add('adoc-sc-reveal-shown');
       const card = state.doc.blocks[state.index];
-      const blockData = card && card.content && card.content.blocks && card.content.blocks[state.revealIndex];
+      const blockData = card && card.content && card.content.blocks && card.content.blocks.filter(function (b) { return !/^covertext-\d+$/.test(b.id); })[state.revealIndex];
       adocPresentAnimateNumberIfEligible(el, blockData);
     }
     return true;
@@ -19731,7 +19769,7 @@ ${recent}`;
     const state = window._adocPresentState;
     if (!state || state.revealIndex == null || state.revealIndex <= 0) return false;
     const inner = document.getElementById('cc-ws-present-slide-inner');
-    const blockEls = inner ? inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block') : [];
+    const blockEls = inner ? inner.querySelectorAll('.adoc-sc-card > .adoc-sc-block:not(.adoc-sc-cover-text)') : [];
     const el = blockEls[state.revealIndex];
     if (el) el.classList.remove('adoc-sc-reveal-shown');
     state.revealIndex--;
@@ -22641,7 +22679,9 @@ ${recent}`;
         panel.setAttribute('role', 'group');
         panel.setAttribute('aria-label', 'Image de couverture sélectionnée');
         panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(card.content.imageAlt || card.content.title)) +
-          adocImageDisplayControlsHTML() + adocImageReplacementButtonsHTML(true) + adocBlockSurfaceControlsHTML() + '<div class="cc-block-edit-result" hidden></div>';
+          adocImageDisplayControlsHTML() +
+          '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocAddTextToCardCover()">Ajouter du texte sur l’image</button>' +
+          adocImageReplacementButtonsHTML(true) + adocBlockSurfaceControlsHTML() + '<div class="cc-block-edit-result" hidden></div>';
         adocMountContextualBlockEditPanel(panel, cover);
         window._adocBlockEditState = { storeKey: key, blockId: card.id, panelEl: panel, originalBlock: card, zone: 'cover' };
         adocRefreshImageDisplayControls();
