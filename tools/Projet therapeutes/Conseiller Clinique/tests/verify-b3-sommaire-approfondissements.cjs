@@ -164,7 +164,8 @@ const filAriane = page => page.evaluate(() =>
     const expErreurs = [];
     exp.on('pageerror', x => expErreurs.push(x.message));
     await preparer(exp, 'file://' + fichier, null);
-    await exp.click('#cc-ws-present-toc-btn, [onclick*="adocPresentToggleToc"]');
+    assert.equal(await exp.locator('#cc-ws-present-deepdives-btn').isVisible(), true);
+    await exp.click('#cc-ws-present-deepdives-btn');
     const eExp = await etatSommaire(exp);
     assert.deepEqual(eExp.entrees, ['Le cortisol', 'La boucle de retour', 'Page sans aucun renvoi vers elle'],
       'la section doit exister À L\'IDENTIQUE dans l\'export');

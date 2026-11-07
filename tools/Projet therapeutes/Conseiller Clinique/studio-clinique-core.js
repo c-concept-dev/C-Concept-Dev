@@ -17634,7 +17634,7 @@ ${recent}`;
     await window.adocOpenWorkspace(window._adocWsState.storeKey);
     document.getElementById('cc-ws-deepdives')?.scrollIntoView({ block: 'nearest' });
   };
-  window.adocWorkspaceDeepDiveRemove = async function (index) {
+  window.adocWorkspaceDeepDiveRemove = async function (index, returnBlockId) {
     const art = adocEditorArt(), doc = art && art._adocStructuredDoc;
     const page = doc && doc.deepDives && doc.deepDives[index];
     if (!page || !confirm('Retirer « ' + page.title + ' » et ses liens dans les diapositives ?')) return;
@@ -17657,7 +17657,15 @@ ${recent}`;
     });
     adocEditorMarkDirty();
     await window.adocOpenWorkspace(window._adocWsState.storeKey);
-    document.getElementById('cc-ws-deepdives')?.scrollIntoView({ block: 'nearest' });
+    if (returnBlockId && document.getElementById(returnBlockId)) {
+      document.getElementById(returnBlockId).click();
+      document.getElementById(returnBlockId)?.scrollIntoView({ block: 'nearest' });
+    } else document.getElementById('cc-ws-deepdives')?.scrollIntoView({ block: 'nearest' });
+  };
+  window.adocBlockDeepDiveRemove = function (targetId, blockId) {
+    const doc = adocEditorArt()?._adocStructuredDoc;
+    const index = (doc?.deepDives || []).findIndex(function (page) { return page.id === targetId; });
+    if (index >= 0) return window.adocWorkspaceDeepDiveRemove(index, blockId);
   };
 
   function adocWsOverviewClose() {
@@ -19734,6 +19742,11 @@ ${recent}`;
     }
     const toc = document.getElementById('cc-ws-present-toc');
     if (toc) { toc.innerHTML = adocPresentBuildTocHTML(doc); toc.hidden = true; }
+    const divesButton = document.getElementById('cc-ws-present-deepdives-btn');
+    if (divesButton) {
+      divesButton.hidden = !(doc.deepDives || []).length;
+      divesButton.textContent = 'Approfondissements (' + (doc.deepDives || []).length + ')';
+    }
     adocPresentUpdateCounter();
     overlay.hidden = false;
     overlay.classList.add('open');
@@ -19807,6 +19820,13 @@ ${recent}`;
   window.adocPresentToggleToc = function () {
     const toc = document.getElementById('cc-ws-present-toc');
     if (toc) toc.hidden = !toc.hidden;
+  };
+  window.adocPresentShowDeepDives = function () {
+    const toc = document.getElementById('cc-ws-present-toc');
+    if (!toc) return;
+    toc.hidden = false;
+    toc.querySelector('.cc-ws-present-toc-titre')?.scrollIntoView({ block: 'nearest' });
+    toc.querySelector('.cc-ws-present-toc-dive')?.focus();
   };
   // Ouverture d'une page DEPUIS LE SOMMAIRE. Trois différences avec un clic sur une puce, et
   // c'est pourquoi cette fonction existe plutôt qu'un appel direct :
@@ -20591,7 +20611,7 @@ ${recent}`;
     // alors qu'elle est appelée par chaque puce "↳ Approfondir" et par chaque lien enrichi en
     // ligne : tout approfondissement d'une présentation exportée était donc mort au clic. Angle
     // mort corrigé ici, en même temps que les deux gestes de retour ajoutés par ce lot.
-    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat', 'adocPresentOpenImageDoor', 'adocPresentCloseImageDoor', 'adocPresentOpenDeepDive', 'adocPresentDeepDiveBack', 'adocPresentDeepDiveHome', 'adocPresentOpenDeepDiveFromToc',
+    const windowFnNames = ['adocQuizSelectOption', 'adocPresentClose', 'adocPresentToggleToc', 'adocPresentShowDeepDives', 'adocPresentGoTo', 'adocPresentNext', 'adocPresentPrev', 'adocQuestionnaireSelectOption', 'adocQuestionnaireSwitchPartner', 'adocQuestionnaireCalculerResultat', 'adocPresentOpenImageDoor', 'adocPresentCloseImageDoor', 'adocPresentOpenDeepDive', 'adocPresentDeepDiveBack', 'adocPresentDeepDiveHome', 'adocPresentOpenDeepDiveFromToc',
       // Le bouton « Démarrer » de l'écran d'accueil de l'export : c'est un onclick, donc ici.
       'adocPresentDemarrerExport'];
     const windowFnsText = windowFnNames.map(function (name) { return 'window.' + name + ' = ' + window[name].toString() + ';'; }).join('\n');
@@ -20652,6 +20672,7 @@ ${recent}`;
         '<div class="cc-ws-present-toolbar">' +
           '<span class="cc-ws-present-counter" id="cc-ws-present-counter">1 / 1</span>' +
           '<button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentToggleToc()">Sommaire</button>' +
+          ((doc.deepDives || []).length ? '<button type="button" class="cc-ws-present-toolbar-btn" id="cc-ws-present-deepdives-btn" onclick="window.adocPresentShowDeepDives()">Approfondissements (' + doc.deepDives.length + ')</button>' : '') +
           '<button type="button" class="cc-ws-present-toolbar-btn" onclick="window.adocPresentClose()">Fermer</button>' +
         '</div>' +
         // Attribution Pexels — obligation de leurs conditions d'API, absente de tout export produit
@@ -22007,11 +22028,24 @@ ${recent}`;
     adocEditorMarkDirty();
     await window.adocOpenWorkspace(ctx.st.storeKey);
   };
-  function adocBlockDeepDiveControlsHTML(blockType, storeKey) {
+  function adocBlockDeepDiveControlsHTML(blockType, storeKey, blockId) {
     const art = window._adocArtifacts && window._adocArtifacts[storeKey];
     if (!art || !art._adocStructuredDoc || art._adocStructuredDoc.documentKind !== 'presentation' ||
         !['heading', 'paragraph', 'callout', 'list', 'quote'].includes(blockType)) return '';
-    return '<details class="cc-block-deep-dive"><summary>Ajouter un approfondissement</summary>' +
+    if (blockId === 'root:doc-title') return '';
+    const card = blockId.startsWith('root:card-title:')
+      ? adocFindEditableBlock(art._adocStructuredDoc, blockId.slice('root:card-title:'.length)) : null;
+    const block = card || adocFindEditableBlock(art._adocStructuredDoc, blockId);
+    const pages = art._adocStructuredDoc.deepDives || [];
+    const links = (card ? card.content.coverDeepDiveLinks : block && block.deepDiveLinks) || [];
+    const existing = pages.map(function (page) {
+      const isLinked = links.some(function (link) { return link.targetId === page.id; });
+      return '<div class="cc-block-deep-dive-linked"><span>' + adocEsc(page.title) +
+        (isLinked ? ' · lié à ce bloc' : '') + '</span> ' +
+        '<button type="button" onclick="window.adocBlockDeepDiveRemove(\'' + adocEsc(page.id) + '\',\'' + adocEsc(blockId) + '\')">Retirer cet approfondissement</button></div>';
+    }).join('');
+    return (existing ? '<details class="cc-block-deep-dive-links"><summary>Voir ou retirer un approfondissement (' + pages.length + ')</summary>' + existing + '</details>' : '') +
+      '<details class="cc-block-deep-dive"><summary>Ajouter un approfondissement</summary>' +
       '<label>Expression exacte dans ce bloc<input data-deep-dive-link-text type="text"></label>' +
       '<label>Titre de la page<input data-deep-dive-new-title type="text"></label>' +
       '<label>Premier paragraphe<textarea data-deep-dive-new-text rows="2" placeholder="Écrivez ici, ou utilisez ensuite « Rédiger ce paragraphe ».">Nouveau paragraphe.</textarea></label>' +
@@ -22033,13 +22067,20 @@ ${recent}`;
     const before = JSON.parse(JSON.stringify(doc));
     try {
       adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
-      const block = adocFindEditableBlock(doc, blockId);
+      const card = blockId.startsWith('root:card-title:')
+        ? adocFindEditableBlock(doc, blockId.slice('root:card-title:'.length)) : null;
+      const block = card || adocFindEditableBlock(doc, blockId);
       if (!block) throw new Error('Le bloc a changé.');
       doc.deepDives = doc.deepDives || [];
       const id = 'deepdive-' + adocUUID();
       doc.deepDives.push({ id: id, title: title, paragraphs: [text] });
-      block.deepDiveLinks = block.deepDiveLinks || [];
-      block.deepDiveLinks.push({ text: phrase, targetId: id });
+      if (card) {
+        card.content.coverDeepDiveLinks = card.content.coverDeepDiveLinks || [];
+        card.content.coverDeepDiveLinks.push({ text: phrase, targetId: id });
+      } else {
+        block.deepDiveLinks = block.deepDiveLinks || [];
+        block.deepDiveLinks.push({ text: phrase, targetId: id });
+      }
       if (!await window.adocOpenWorkspace(storeKey)) throw new Error('Cette page est invalide.');
       adocEditorMarkDirty();
       const list = document.getElementById('cc-ws-deepdives');
@@ -22101,7 +22142,7 @@ ${recent}`;
       // 57f — the same controls apply to every directly editable block.
       (ADOC_DIRECT_TYPES.includes(blockType) ? adocBuildBlockStyleControlsHTML('adocApplyBlockStyle') : '') +
       adocBlockSourcesControlsHTML(blockId, storeKey) +
-      adocBlockDeepDiveControlsHTML(blockType, storeKey) +
+      adocBlockDeepDiveControlsHTML(blockType, storeKey, blockId) +
       '<div class="cc-block-edit-result" hidden></div>';
   }
 
