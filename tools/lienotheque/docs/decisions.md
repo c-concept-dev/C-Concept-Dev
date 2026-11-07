@@ -8404,3 +8404,41 @@ Le second part avec le lot Vision. Le premier est réparé ici.
 Un garde-fou « **aucun fichier suivi n'importe un fichier non suivi** » entre dans la file, avant
 le lot Vision : il ajoute trois fichiers neufs, dont un déjà importé par un fichier suivi. Un
 garde-fou local qui tient cette règle aurait rougi au premier commit, sur le disque, avant le push.
+---
+
+## 7 novembre 2026 — le garde-fou des promesses lisait ses propres exemples comme du code
+
+Posé la veille, vert au moment du commit, **rouge une seconde après** : son fichier de contrôle
+n'était pas encore suivi par Git, donc il ne se voyait pas lui-même. Le commit `1f5f3379` l'a rendu
+visible, et il a immédiatement accusé ses propres fixtures — elles portent `if (…)` **dans des
+chaînes de caractères**.
+
+C'est exactement le défaut dont ce registre disait le matin même, à propos de « desserte », qu'il
+désarme un garde-fou. Reproduit dans le garde-fou suivant, le jour même.
+
+### La cause, pas le symptôme
+
+L'exemption du fichier aurait marché et aurait été fausse : **tout fichier qui cite du code** — un
+contrôle, une documentation, un message d'erreur — a la même forme. Exempter l'aurait désarmé là
+où il devait apprendre à lire.
+
+**Un garde-fou qui lit du code ne doit pas lire les chaînes comme du code.** `sansLitteraux`
+blanchit le contenu des chaînes caractère par caractère, **sauts de ligne gardés**, pour que les
+numéros de ligne restent ceux du fichier réel : un relevé juste qui désigne la mauvaise ligne ne
+vaut pas beaucoup mieux qu'un relevé faux.
+
+### Et une règle de plus que rien ne tenait
+
+| Mutation | avant | après |
+|---|---|---|
+| les chaînes sont relues comme du code | — | **3 morts** |
+| les sauts de ligne sont effacés | 1 mort | 1 mort |
+| **l'échappement n'est plus respecté** | **0 mort** | **1 mort** |
+
+L'échappement protège un cas réel : `const dit = "il a dit \"if (lireQuelqueChose())\" hier";`.
+Sans lui, le lecteur croit la chaîne fermée au guillemet échappé, lit la suite comme du code, et
+accuse une citation. Son contrôle est écrit.
+
+**Troisième fois ce jour** qu'une contre-épreuve entrée par entrée révèle une règle que rien ne
+tenait — après `es`/`x` dans les flexions, et les ports asynchrones. La contre-épreuve globale
+(« une mutation, un test mort ») ne suffit pas : c'est **entrée par entrée** qu'elle parle.

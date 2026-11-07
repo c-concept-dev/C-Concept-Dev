@@ -35,6 +35,49 @@ export function fonctionsAsynchrones(sources: readonly Source[]): ReadonlySet<st
   return noms;
 }
 
+/** Le contenu des chaînes, remplacé par des blancs — les sauts de ligne gardés.
+ *
+ *  **Un garde-fou qui lit du code ne doit pas lire les chaînes comme du code.** Trouvé par ce
+ *  garde-fou sur lui-même, une fois son propre contrôle suivi par Git : les fixtures y portent
+ *  `if (…)` dans des littéraux, et il les accusait. Ce n'est pas un cas tordu — tout fichier qui
+ *  cite du code, contrôle, documentation ou message d'erreur, a la même forme. L'exempter aurait
+ *  désarmé le garde-fou là où il devait apprendre à lire.
+ *
+ *  Les blancs remplacent caractère par caractère, et les sauts de ligne survivent : les numéros de
+ *  ligne restent ceux du fichier réel. Un relevé juste qui désigne la mauvaise ligne ne vaut pas
+ *  beaucoup mieux qu'un relevé faux. */
+export function sansLitteraux(contenu: string): string {
+  const sortie: string[] = [];
+  let delimiteur: string | undefined;
+  let place = 0;
+  while (place < contenu.length) {
+    const caractere = contenu[place]!;
+    if (delimiteur === undefined) {
+      if (caractere === '"' || caractere === "'" || caractere === "`") {
+        delimiteur = caractere;
+        sortie.push(caractere);
+      } else sortie.push(caractere);
+      place += 1;
+      continue;
+    }
+    // Dans une chaîne : l'échappement emporte le caractère suivant, sinon le délimiteur ferme.
+    if (caractere === "\\") {
+      sortie.push(" ", " ");
+      place += 2;
+      continue;
+    }
+    if (caractere === delimiteur) {
+      delimiteur = undefined;
+      sortie.push(caractere);
+      place += 1;
+      continue;
+    }
+    sortie.push(caractere === "\n" ? "\n" : " ");
+    place += 1;
+  }
+  return sortie.join("");
+}
+
 /** La condition d'un `if` ou d'un `while`, parenthèse par parenthèse.
  *
  *  Compter les parenthèses au lieu de s'arrêter à la première fermante : une condition porte des
@@ -64,7 +107,8 @@ export function promessesDansUneCondition(sources: readonly Source[]): readonly 
   const asynchrones = fonctionsAsynchrones(sources);
   const mal: PromesseMalPlacee[] = [];
   for (const source of sources) {
-    for (const condition of conditions(source.contenu)) {
+    const code = sansLitteraux(source.contenu);
+    for (const condition of conditions(code)) {
       for (const nom of asynchrones) {
         // `(?<!await )` : l'appel attendu est correct. `(?<![.\w])` : une méthode de même nom
         // appartient à un objet, et ce garde-fou ne sait rien de son type — il se taira plutôt
@@ -72,7 +116,7 @@ export function promessesDansUneCondition(sources: readonly Source[]): readonly 
         const appel = new RegExp(`(?<!await )(?<![.\\w])\\b${nom}\\s*\\(`, "u");
         const trouve = appel.exec(condition.texte);
         if (trouve === null) continue;
-        const avant = source.contenu.slice(0, condition.debutDuTexte + trouve.index);
+        const avant = code.slice(0, condition.debutDuTexte + trouve.index);
         mal.push({ chemin: source.chemin, ligne: avant.split("\n").length, nom });
       }
     }

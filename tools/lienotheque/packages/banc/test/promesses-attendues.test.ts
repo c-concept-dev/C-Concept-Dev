@@ -102,6 +102,44 @@ describe("aucune promesse dans une condition", () => {
     expect(promessesDansUneCondition(faux)).toEqual([{ chemin: "faux/usage.ts", ligne: 1, nom: "encore" }]);
   });
 
+  /** Un garde-fou qui lit du code ne doit pas lire les **chaînes** comme du code.
+   *
+   *  Trouvé par le garde-fou sur lui-même, une fois son propre contrôle suivi par Git : les
+   *  fixtures de ce fichier portent `if (…)` dans des littéraux, et il les accusait. Ce n'est pas
+   *  un cas tordu — tout fichier qui cite du code (contrôle, documentation, message d'erreur) a
+   *  la même forme. L'exempter aurait désarmé le garde-fou là où il devait apprendre à lire. */
+  it("ne lit pas le code cité dans une chaîne", () => {
+    const faux = [
+      { chemin: "faux/async.ts", contenu: "export async function lireQuelqueChose() { return true; }\n" },
+      {
+        chemin: "faux/citation.ts",
+        contenu: 'const exemple = "if (lireQuelqueChose()) { partir(); }";\nconst autre = `if (lireQuelqueChose()) {}`;\n',
+      },
+    ];
+    expect(promessesDansUneCondition(faux)).toEqual([]);
+  });
+
+  it("garde la bonne ligne quand une chaîne multiligne précède l'appel", () => {
+    const faux = [
+      { chemin: "faux/async.ts", contenu: "export async function lireQuelqueChose() { return true; }\n" },
+      {
+        chemin: "faux/melange.ts",
+        contenu: "const texte = `\n  une ligne\n  une autre\n`;\nif (lireQuelqueChose()) {\n  partir();\n}\n",
+      },
+    ];
+    expect(promessesDansUneCondition(faux)).toEqual([{ chemin: "faux/melange.ts", ligne: 5, nom: "lireQuelqueChose" }]);
+  });
+
+  /** Un guillemet échappé ne ferme pas la chaîne. Sans cette règle, le lecteur croirait la
+   *  chaîne terminée au milieu, puis lirait la suite comme du code — et accuserait une citation. */
+  it("ne se laisse pas fermer une chaîne par un guillemet échappé", () => {
+    const faux = [
+      { chemin: "faux/async.ts", contenu: "export async function lireQuelqueChose() { return true; }\n" },
+      { chemin: "faux/echappe.ts", contenu: 'const dit = "il a dit \\"if (lireQuelqueChose())\\" hier";\n' },
+    ];
+    expect(promessesDansUneCondition(faux)).toEqual([]);
+  });
+
   it("ne confond pas une méthode de même nom avec la fonction", () => {
     const faux = [
       { chemin: "faux/async.ts", contenu: "export async function ouvrir() { return true; }\n" },
