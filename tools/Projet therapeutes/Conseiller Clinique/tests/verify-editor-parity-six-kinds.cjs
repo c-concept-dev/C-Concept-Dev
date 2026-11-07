@@ -31,6 +31,8 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
       const key = 'parity-' + kind;
       assert.equal(await open(page, d, key), true, kind + ' ne s’ouvre pas');
       if (kind === 'presentation') {
+        await page.locator('#p1').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(100);
         const point = await page.evaluate(() => {
           const el = document.getElementById('p1');
           el.scrollIntoView({ block: 'center' });

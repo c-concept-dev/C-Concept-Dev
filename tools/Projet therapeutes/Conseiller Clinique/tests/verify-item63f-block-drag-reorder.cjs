@@ -67,7 +67,11 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
         const target = document.elementFromPoint(x, y);
         return !!target?.closest('.cc-drag-edge-hover') && !target.closest('button, .cc-flow-resize-handle, .adoc-sc-nested-resize-handle');
       }, { x, y });
-      if (eligible) return { x, y };
+      if (eligible) {
+        const cursor = await page.evaluate(({ x, y }) => getComputedStyle(document.elementFromPoint(x, y)).cursor, { x, y });
+        assert.equal(cursor, 'grab', 'la main doit être visible sur le bord du bloc : ' + blockLocatorSelector);
+        return { x, y };
+      }
     }
     assert.fail('un bord libre doit permettre de déplacer ' + blockLocatorSelector);
   }
@@ -333,13 +337,16 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
   const contextPanel = await page.evaluate(() => {
     const panel = document.querySelector('.cc-block-edit-panel');
     const box = panel?.getBoundingClientRect();
-    return { floating: panel?.matches(':popover-open'), top: box?.top, bottom: box?.bottom };
+    const block = document.querySelector('#overflow-p16').getBoundingClientRect();
+    return { floating: panel?.matches(':popover-open'), top: box?.top, bottom: box?.bottom,
+      blockBottom: block.bottom };
   });
-  assert.ok(contextPanel.floating && contextPanel.top >= 0 && contextPanel.bottom <= 900,
-    'le panneau de correction reste visible à côté du bloc profond sans défilement');
+  assert.ok(!contextPanel.floating && contextPanel.top >= contextPanel.blockBottom - 1,
+    'le panneau de correction suit le bloc profond sans le recouvrir : ' + JSON.stringify(contextPanel));
   await page.evaluate(() => window.adocCloseBlockEditPanel());
+  await findDragEdge('#overflow-p16'); // stabilise le défilement intérieur après fermeture du panneau en flux
   const deepNeighbor = await page.locator('#overflow-p17').boundingBox();
-  await dragEdgeTo('#overflow-p16', deepNeighbor.y + deepNeighbor.height + 4);
+  await dragEdgeTo('#overflow-p16', deepNeighbor.y + deepNeighbor.height * .9 + 2);
   const afterInnerDrag = await page.evaluate((key) => {
     const ids = window._adocArtifacts[key]._adocStructuredDoc.blocks[0].content.blocks.map((b) => b.id);
     const card = document.querySelector('#overflow-slide');
@@ -350,7 +357,7 @@ function table(id) { return { id: id, type: 'table', content: { headers: ['A', '
       insideCard: blockRect.top >= cardRect.top && blockRect.top < cardRect.bottom,
       insideWorkspace: blockRect.top >= areaRect.top && blockRect.top < areaRect.bottom };
   }, storeKeyOverflow);
-  assert.equal(afterInnerDrag.ids.indexOf('overflow-p16'), 17, 'le bloc profond doit changer de place');
+  assert.equal(afterInnerDrag.ids.indexOf('overflow-p16'), 17, 'le bloc profond doit changer de place : ' + JSON.stringify(afterInnerDrag));
   assert.ok(afterInnerDrag.innerScroll > 0 && afterInnerDrag.insideCard && afterInnerDrag.insideWorkspace,
     'le bloc déplacé doit rester visible à la fois dans la diapositive et dans le document');
   console.log('PASS présentation — bloc déplacé visible malgré le défilement intérieur de sa diapositive');

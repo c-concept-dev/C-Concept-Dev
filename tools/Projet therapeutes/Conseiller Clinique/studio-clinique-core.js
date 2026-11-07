@@ -10448,9 +10448,12 @@ ${recent}`;
       button.hidden = !(h && h.undo.length);
     });
   }
-  function adocEditorCheckpoint() {
-    const ctx = adocEditorContext(); if (!ctx) return;
-    const snap = adocEditorSnapshot(); const h = ctx.art._ccEditorHistory || (ctx.art._ccEditorHistory = {undo:[],redo:[]});
+  function adocEditorCheckpoint(allowUnselected) {
+    const ctx = adocEditorContext();
+    const art = ctx ? ctx.art : (allowUnselected ? adocEditorArt() : null);
+    if (!art) return;
+    const snap = adocEditorSnapshot(); if (!snap) return;
+    const h = art._ccEditorHistory || (art._ccEditorHistory = {undo:[],redo:[]});
     if (!h.undo.length || h.undo[h.undo.length-1].html !== snap.html) { h.undo.push(snap); if(h.undo.length > 50) h.undo.shift(); }
     h.redo = [];
     adocRefreshHistoryButtons();
@@ -22065,24 +22068,13 @@ ${recent}`;
   function adocMountContextualBlockEditPanel(panel, anchorEl) {
     function revealBesideSelectedBlock() {
       if (!panel.isConnected || !anchorEl.isConnected) return;
-      const selected = anchorEl.getBoundingClientRect();
-      const controls = panel.getBoundingClientRect();
-      // Le basculement est immédiat : pendant un glissement, le clic synthétique
-      // sélectionne le bloc et le panneau ne doit pas décaler les cibles de dépôt.
-      const canFloat = anchorEl.matches('.adoc-sc-block, .adoc-sc-card, .adoc-sc-card-img, .adoc-sc-cover, [data-cc-legacy-block-id]');
-      if (canFloat && (anchorEl.matches('.adoc-sc-card') || selected.height + controls.height >= window.innerHeight * .8 ||
-          controls.bottom > window.innerHeight - 8)) {
-        panel.classList.add('cc-block-edit-panel--floating');
-        if (anchorEl.matches('.adoc-sc-card')) panel.classList.add('cc-block-edit-panel--card');
-        panel.setAttribute('popover', 'manual');
-        if (typeof panel.showPopover === 'function') panel.showPopover();
-        return;
-      }
       requestAnimationFrame(function () {
         if (!panel.isConnected || !anchorEl.isConnected) return;
-        // Ne déplace la vue que lorsque le bloc et le panneau compact peuvent tenir ensemble.
-        // scrollIntoView choisit aussi le bon conteneur lorsque l'espace de travail défile en interne.
-        if (selected.height + controls.height < window.innerHeight * .8 && controls.bottom > window.innerHeight - 8)
+        const selected = anchorEl.getBoundingClientRect();
+        const controls = panel.getBoundingClientRect();
+        // Le panneau reste dans le flux juste sous son bloc. S'il passe sous la fenêtre,
+        // le montrer sans déplacer inutilement un bloc encore entièrement visible.
+        if (controls.top >= window.innerHeight - 48 && selected.bottom >= window.innerHeight - 48)
           panel.scrollIntoView({ block: 'nearest' });
       });
     }
@@ -23114,15 +23106,9 @@ ${recent}`;
           pointerX = ev.clientX; pointerY = ev.clientY;
           if (!moved && Math.abs(ev.clientX - pointerStartX) < 3 && Math.abs(ev.clientY - pointerStartY) < 3) return;
           if (!moved) {
-            // Établit le contexte de correction (adocEditorContext) sur CE bloc — seul moyen déjà
-            // existant de rendre adocEditorCheckpoint() opérant ici (il exige un bloc "sélectionné"),
-            // jamais une 2e voie de sélection ni un accès direct à _adocBlockEditState : même geste
-            // que adocConfirmBlockInsert (el.click() pour réutiliser la sélection déjà câblée).
-            // ORDRE IMPORTANT : le piège suppressNextClick n'est posé qu'APRÈS ce clic synthétique,
-            // jamais avant — sinon il intercepterait ce clic-ci au lieu du seul qu'il doit viser
-            // (celui, natif, émis par le navigateur au relâchement de la souris qui suit).
-            blockEl.click();
-            adocEditorCheckpoint();
+            // Le point d'annulation se prend sans sélectionner le bloc : ouvrir son panneau
+            // en plein geste décalerait les zones de dépôt calculées sous le pointeur.
+            adocEditorCheckpoint(true);
             document.addEventListener('click', suppressNextClick, true);
             window._adocAnyDragActive = true; // Fusion Phase 2 — verrou partagé, posé au même moment que le checkpoint (mouvement réel confirmé)
             document.documentElement.classList.add('cc-block-reordering');
