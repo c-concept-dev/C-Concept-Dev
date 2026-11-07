@@ -1,4 +1,4 @@
-import { sansLitteraux } from "./lire-du-code.js";
+import { masqueDeCode } from "./lire-du-code.js";
 /** Une promesse est toujours vraie : elle n'a rien à faire dans une condition.
  *
  *  `if (faireQuelqueChose())` sur une fonction asynchrone **passe toujours**, quelle que soit la
@@ -65,7 +65,10 @@ export function promessesDansUneCondition(sources: readonly Source[]): readonly 
   const asynchrones = fonctionsAsynchrones(sources);
   const mal: PromesseMalPlacee[] = [];
   for (const source of sources) {
-    const code = sansLitteraux(source.contenu);
+    // Le masque entier, et non les seuls littéraux : une apostrophe dans un commentaire — « n'y
+    // touche pas » — ouvrirait un littéral qui blanchirait le code suivant, et ce garde-fou serait
+    // AVEUGLE sans le dire. Corrigé le 7 novembre 2026, avec le passage du masque à une seule passe.
+    const code = masqueDeCode(source.contenu);
     for (const condition of conditions(code)) {
       for (const nom of asynchrones) {
         // `(?<!await )` : l'appel attendu est correct. `(?<![.\w])` : une méthode de même nom

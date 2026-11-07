@@ -19,85 +19,96 @@
  *  n'est pas une précaution contre un cas tordu : tout fichier qui cite du code — un contrôle, une
  *  documentation, un message d'erreur — a cette forme. */
 
-/** Le contenu des chaînes, remplacé par des blancs — les sauts de ligne gardés.
+/** Le masque : commentaires et contenus de littéraux remplacés par des blancs, en UNE passe.
  *
- *  **Un garde-fou qui lit du code ne doit pas lire les chaînes comme du code.** Trouvé par ce
- *  garde-fou sur lui-même, une fois son propre contrôle suivi par Git : les fixtures y portent
- *  `if (…)` dans des littéraux, et il les accusait. Ce n'est pas un cas tordu — tout fichier qui
- *  cite du code, contrôle, documentation ou message d'erreur, a la même forme. L'exempter aurait
- *  désarmé le garde-fou là où il devait apprendre à lire.
+ *  **Celui des deux qui commence gagne.** Un `//` dans une chaîne n'ouvre pas un commentaire, une
+ *  apostrophe dans un commentaire n'ouvre pas une chaîne. C'est tout ce que ce module a à savoir,
+ *  et deux passes ne pouvaient pas le savoir : la première ignorait les chaînes.
  *
- *  Les blancs remplacent caractère par caractère, et les sauts de ligne survivent : les numéros de
- *  ligne restent ceux du fichier réel. Un relevé juste qui désigne la mauvaise ligne ne vaut pas
- *  beaucoup mieux qu'un relevé faux. */
-export function sansLitteraux(contenu: string): string {
+ *  Le défaut, trouvé le 7 novembre 2026 : un contrôle suivi portait `"// une approche…"`. La passe
+ *  des commentaires blanchissait jusqu'au bout de la ligne, **guillemet fermant compris**, et la
+ *  passe des littéraux voyait ensuite une chaîne ouverte qui ne se refermait jamais. À partir de
+ *  là tout s'inversait : le code masqué, les chaînes lues comme du code — et un fantôme accusé qui
+ *  n'était qu'une faute factice de fixture.
+ *
+ *  Les blancs remplacent **caractère par caractère** et les sauts de ligne survivent : les numéros
+ *  de ligne et les décalages restent ceux du fichier réel. Un relevé juste qui désigne la mauvaise
+ *  ligne ne vaut pas beaucoup mieux qu'un relevé faux — et ici le décalage est ce qui dit si un
+ *  motif est du code.
+ *
+ *  Ce que le masque ne sait pas : les littéraux d'expression régulière. `/don't/` y ouvre une
+ *  apostrophe. Aucun fichier du dépôt n'en porte, et deviner une barre oblique sans analyser
+ *  l'expression entière demanderait de savoir si l'on attend une valeur ou un opérateur. Un filet,
+ *  pas un mur — et c'est écrit pour que la prochaine inversion ait un suspect. */
+export function masqueDeCode(contenu: string): string {
   const sortie: string[] = [];
-  let delimiteur: string | undefined;
+  let etat: "code" | "chaine" | "ligne" | "bloc" = "code";
+  let delimiteur = "";
   let place = 0;
+  const blanchir = (caractere: string): string => (caractere === "\n" ? "\n" : " ");
+
   while (place < contenu.length) {
     const caractere = contenu[place]!;
-    if (delimiteur === undefined) {
+    const deux = contenu.slice(place, place + 2);
+
+    if (etat === "code") {
+      if (deux === "//" || deux === "/*") {
+        etat = deux === "//" ? "ligne" : "bloc";
+        sortie.push(" ", " ");
+        place += 2;
+        continue;
+      }
       if (caractere === '"' || caractere === "'" || caractere === "`") {
+        etat = "chaine";
         delimiteur = caractere;
-        sortie.push(caractere);
-      } else sortie.push(caractere);
-      place += 1;
-      continue;
-    }
-    // Dans une chaîne : l'échappement emporte le caractère suivant, sinon le délimiteur ferme.
-    if (caractere === "\\") {
-      sortie.push(" ", " ");
-      place += 2;
-      continue;
-    }
-    if (caractere === delimiteur) {
-      delimiteur = undefined;
+      }
       sortie.push(caractere);
       place += 1;
       continue;
     }
-    sortie.push(caractere === "\n" ? "\n" : " ");
-    place += 1;
-  }
-  return sortie.join("");
-}
 
-/** Les chaînes ET les commentaires blanchis : un `// if (f())` n'est pas plus du code qu'un
- *  `"if (f())"`. Les sauts de ligne survivent, pour que les numéros de ligne restent justes. */
-export function sansCommentaires(contenu: string): string {
-  const sortie: string[] = [];
-  let place = 0;
-  while (place < contenu.length) {
-    const deux = contenu.slice(place, place + 2);
-    if (deux === "//") {
-      while (place < contenu.length && contenu[place] !== "\n") {
-        sortie.push(" ");
-        place += 1;
+    if (etat === "ligne") {
+      if (caractere === "\n") etat = "code";
+      sortie.push(blanchir(caractere));
+      place += 1;
+      continue;
+    }
+
+    if (etat === "bloc") {
+      if (deux === "*/") {
+        etat = "code";
+        sortie.push(" ", " ");
+        place += 2;
+        continue;
       }
+      sortie.push(blanchir(caractere));
+      place += 1;
       continue;
     }
-    if (deux === "/*") {
-      const fin = contenu.indexOf("*/", place + 2);
-      const borne = fin === -1 ? contenu.length : fin + 2;
-      for (let p = place; p < borne; p += 1) sortie.push(contenu[p] === "\n" ? "\n" : " ");
-      place = borne;
+
+    // Dans un littéral : l'échappement emporte le caractère suivant, sinon le délimiteur ferme.
+    if (caractere === "\\") {
+      // Un échappement en dernier caractère n'emporte rien : pousser deux blancs allongerait le
+      // masque, et tous les décalages d'après seraient faux.
+      sortie.push(" ");
+      if (place + 1 < contenu.length) sortie.push(" ");
+      place += 2;
       continue;
     }
-    sortie.push(contenu[place]!);
+    if (caractere === delimiteur) {
+      etat = "code";
+      sortie.push(caractere);
+      place += 1;
+      continue;
+    }
+    sortie.push(blanchir(caractere));
     place += 1;
   }
+
   return sortie.join("");
 }
 
-/** Le masque de code : chaînes et commentaires blanchis, longueurs et lignes préservées.
- *
- *  Il sert à **situer** un motif, pas à le lire. Un chemin d'import EST une chaîne : le blanchir
- *  détruirait ce qu'on cherche. On cherche donc le motif dans le texte brut, et on demande au
- *  masque si son **mot-clé** est du code. C'est l'erreur que ce module a d'abord faite, le
- *  7 novembre 2026 : appliquer aux imports le remède des promesses. */
-export const masqueDeCode = (contenu: string): string => sansLitteraux(sansCommentaires(contenu));
-
-/** Vrai si ce qui commence à cette place est du code, et non une citation. */
+/** Le motif trouvé à cette place est-il du code, et non une citation ? */
 export function estDuCode(masque: string, place: number, motif: string): boolean {
   return masque.slice(place, place + motif.length) === motif;
 }

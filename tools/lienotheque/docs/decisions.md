@@ -8916,3 +8916,129 @@ lecture de sa règle, non son exécution, qui le révèle.
 Une session lancée dans une copie **liée** lirait ses réglages là, et le contrôle ne la regarderait
 pas : c'est l'agencement du 29 octobre qui désigne la copie principale, pas une déduction. Un
 filet, ici encore.
+
+## 7 novembre 2026 — le masque de code lisait les chaînes comme du code, une passe plus tôt
+
+### Comment il s'est montré
+
+Le contrôle complet du lot 0c est parti rouge : le garde-fou des fichiers fantômes accusait
+`./absent.js` dans **son propre fichier de contrôle** — une faute factice de fixture, écrite entre
+guillemets. Le fichier venait d'entrer à l'index ; il n'avait jamais été lu auparavant.
+
+### La cause
+
+Le masque était construit en **deux passes** : `sansLitteraux(sansCommentaires(…))`. La première
+blanchit les commentaires — et ne sait rien des chaînes. Une chaîne qui porte `//` — et un contrôle
+du dépôt en portait une, `"// une approche…"` — lui fait blanchir jusqu'au bout de la ligne,
+**guillemet fermant compris**. La seconde passe voit alors un littéral ouvert qui ne se referme
+jamais : **tout s'inverse**, le code est masqué et les chaînes sont lues comme du code.
+
+C'est, au mot près, le défaut que ce module existe pour empêcher — un étage plus bas. J'avais appris
+à la seconde passe à ne pas lire les chaînes comme du code, et laissé la première le faire.
+
+**Troisième fois en deux jours, et la troisième avec la même horloge** : 6 novembre, le garde-fou
+des promesses accusait ses fixtures ; 7 novembre, celui des fichiers fantômes accusait les siennes ;
+7 novembre, le masque bâti pour les deux premiers. Chaque fois vert **tant que le fichier de
+contrôle n'était pas suivi**, rouge à la course suivante.
+
+### L'autre caller était AVEUGLE, et c'est pire
+
+Le garde-fou des promesses appelait `sansLitteraux` **seul**, sans blanchir les commentaires. Une
+apostrophe française dans un `//` — « n'y touche pas » — y ouvrait un littéral qui blanchissait
+**tout le reste du fichier**. Mesuré en rejouant l'ancienne fonction sur les 568 sources suivies :
+
+| | Code lisible |
+|---|---|
+| nouveau masque, une passe | 1 945 056 caractères |
+| ancien, littéraux seuls | 1 532 234 caractères, soit **79 %** |
+| sources dont l'ancien cachait **plus de la moitié** | **121 sur 568** |
+
+Un garde-fou qui accuse à tort se fait remarquer dans l'heure. Un garde-fou **aveugle** reste vert
+et on le croit. Celui-ci était vert depuis son premier jour, et il l'était pour les deux raisons :
+il ne lisait qu'une source sur cinq en moyenne, et personne ne le lui demandait.
+
+### Le remède : une seule passe, et celui des deux qui commence gagne
+
+Un `//` dans une chaîne n'ouvre pas un commentaire ; une apostrophe dans un commentaire n'ouvre pas
+une chaîne. Deux passes ne pouvaient pas le savoir — la première ignorait les chaînes. Une seule
+machine à états le sait, et `sansLitteraux` comme `sansCommentaires` ont disparu : laisser en place
+une fonction qui lit les chaînes comme du code, c'est laisser un piège au prochain appelant.
+
+Le bord « apostrophe dans un commentaire » tenait avant, mais **par accident d'ordre** et non par
+choix : les commentaires étant blanchis d'abord, leurs apostrophes avaient disparu. Corriger un bord
+ne doit pas découvrir l'autre — les deux ont donc leur contrôle.
+
+### Deux défauts de plus, trouvés par les contrôles eux-mêmes
+
+**La longueur.** Un échappement en **dernier caractère** poussait deux blancs pour un caractère : le
+masque s'allongeait, et tous les décalages d'après devenaient faux. Or le décalage est précisément
+ce qui dit si un motif est du code. Trouvé par le contrôle qui compare la longueur du masque à celle
+du texte.
+
+**Un contrôle trop court.** La mutation « un seul délimiteur reconnu pour fermer » ne tuait rien :
+mon contrôle écrivait `const a = 'x';` et rien après. Un littéral qui ne se referme jamais y est
+indiscernable d'un littéral bien lu. **Le code d'après est ce qui prouve la fermeture** — ajouté, et
+la mutation tue. Quatre mutations sur quatre tuent maintenant.
+
+### La remesure, exigée par Christophe
+
+Un zéro obtenu par un garde-fou aveugle ne vaut rien. La mesure « aucune promesse dans une
+condition » a donc été refaite sur tout le dépôt avec le masque corrigé :
+
+| | Masque aveugle | Masque corrigé |
+|---|---|---|
+| conditions `if` / `while` examinées | **1 278** | **2 668** |
+| promesses mal placées | 0 | **0** |
+
+Le zéro tient, et il couvre **plus du double** du code. Aucune faute réelle ne dormait dans la
+moitié cachée.
+
+Une précision qui corrige le chiffre de 301 : le recensement des fonctions asynchrones ne passe
+**pas** par le masque — il lit la source brute. Il voyait donc bien les 301 noms de l'époque, et on
+en compte 304 aujourd'hui, les trois de plus étant du code écrit depuis. C'est la recherche des
+**conditions**, elle seule, qui était aveugle à 52 %. Lire les noms sans masque fait pencher ce
+garde-fou vers **chercher trop**, jamais vers chercher trop peu : c'est le bon côté pour un filet.
+
+### L'autre garde-fou remesuré : il accusait, il n'était pas aveugle
+
+Le garde-fou des fichiers fantômes emploie le masque pour **situer** les imports. Relevé sur les 569
+sources — les suivies plus celles du lot 0c, où le défaut s'était vu :
+
+| | Masque ancien | Masque corrigé |
+|---|---|---|
+| sources dont le masque diffère | — | **37** |
+| imports tenus pour du code | **744** | **743** |
+| imports qui apparaissent avec la correction | — | **0** |
+| fantômes qui se cachaient | — | **0** |
+| imports tenus pour du code **à tort** | **1** | 0 |
+
+Le seul écart est `./absent.js` dans `crochet-pre-commit.test.ts` : le rouge qui a tout déclenché.
+Aucun import véritable n'était caché, aucun fantôme ne dormait.
+
+**Et la raison vaut mieux que le résultat** : les imports vivent en **tête** de fichier, avant la
+première chaîne portant `//`. L'inversion ne pouvait donc pas les cacher — elle ne pouvait qu'en
+inventer. Les conditions `if` / `while`, elles, sont réparties sur toute la hauteur du fichier :
+d'où un garde-fou **accusateur** et l'autre **aveugle à 52 %**, pour un seul et même défaut.
+
+La leçon est générale : **la gravité d'un masque faux dépend de l'endroit du fichier où vit le motif
+qu'on cherche.** Un garde-fou qui lit le haut d'un fichier survit à un masque approximatif ; un
+garde-fou qui lit partout n'y survit pas, et se taira sans le dire.
+
+### CLA-01 ne passe PAS par ce masque, et ne doit pas y passer
+
+Vérifié par l'exécution, et non par une lecture d'imports : en donnant à `termesTrouves` un terme de
+la liste placé dans un commentaire, puis dans une chaîne, il le **trouve les deux fois** — là où le
+masque blanchirait les deux.
+
+C'est ce que le CDC exige : aucun mot de domaine « ni dans le code, ni dans les commentaires, ni
+dans les exemples ». Les deux garde-fous lisent le même dépôt avec des yeux opposés, et c'est
+voulu : l'un cherche ce que le code **fait**, l'autre ce que le fichier **dit**. Le masque est donc
+réservé aux garde-fous du premier genre, et cette phrase est là pour qu'on ne l'étende pas « par
+cohérence » au second.
+
+### Ce que le masque ne sait toujours pas
+
+Les littéraux d'expression régulière : `/don't/` y ouvre une apostrophe. Aucune source du dépôt n'en
+porte, et distinguer une barre oblique de division d'un début d'expression demande de savoir si l'on
+attend une valeur ou un opérateur — c'est-à-dire d'analyser le langage. C'est écrit dans l'en-tête
+du module pour que la prochaine inversion ait un suspect nommé.
