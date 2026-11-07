@@ -8340,3 +8340,67 @@ Une mutation qui ne s'applique pas est **indiscernable d'une mutation qui ne tue
 affichent du vert. Le script de mutation vérifie maintenant que le motif existe **avant** de
 jouer, et le dit quand il est absent. C'est encore la même famille : le silence qui ressemble au
 succès.
+---
+
+## 7 novembre 2026 — la CI était rouge depuis quatre commits, pour un fichier jamais commité
+
+**Première application de la règle « après chaque push, lire la CI »**, posée par Christophe le
+6 novembre. Elle a trouvé quelque chose dès son premier usage.
+
+### Ce que la CI disait
+
+| Commit | Lot | CI |
+|---|---|---|
+| `bc380f93` | titres hors du code du produit | **échec** |
+| `ace92eb7` | CLA-01 cherche des mots entiers | **échec** |
+| `c5643bc5` | jeton du trousseau + registres | annulée, remplacée |
+| `8473bdab` | garde-fou des promesses | **échec** |
+
+Cause unique, identique sur les deux systèmes, aux quatre courses :
+
+```
+outils/ingestion typecheck:
+  src/index.ts(264,15): error TS2307: Cannot find module './relire-sur-place.js'
+```
+
+**`outils/ingestion/src/index.ts` était commité et exportait `./relire-sur-place.js` ; le module
+ne l'était pas.** Mon arbre de travail le portait, un clone non.
+
+### Ce que cela coûtait vraiment
+
+Pas quatre voyants rouges. Un typage qui s'arrête à `outils/ingestion` **n'exécute pas les tests de
+ce paquet** : ce que la CI avait vérifié, ce sont les paquets qui passent avant. **Les contrôles du
+paquet le plus lourd du projet n'ont tourné que sur un seul disque, pendant quatre lots.**
+
+La réparation ne corrige donc pas un voyant ; elle rend ces quatre lots vérifiables pour la
+première fois.
+
+### Pourquoi le contrôle local ne pouvait pas le voir
+
+Il part du disque, pas d'un clone. Il disait « ce disque passe », et je l'ai lu huit fois comme
+« ce commit passe ». La différence est un fichier qu'on oublie d'ajouter — **et c'est un oubli que
+les chemins explicites rendent possible**, puisque c'est l'auteur qui nomme les chemins.
+
+Les deux disciplines se complètent donc, et il m'en manquait une moitié : les chemins explicites
+empêchent d'emporter ce qui ne doit pas partir ; la CI attrape ce qu'on a oublié d'emporter.
+
+### Toutes les occurrences, cherchées d'un coup
+
+Première mesure : **694** — absurde, le script comparait des chemins de deux origines. Corrigée :
+**7**, dont 5 faux positifs (`node_modules`, et des `.json` qu'un remplacement `.js` → `.ts`
+abîmait en `.tson`).
+
+**Deux vrais, tous deux de moi :**
+
+| Fichier non suivi | Importé par | Cassant ? |
+|---|---|---|
+| `outils/ingestion/src/relire-sur-place.ts` | `src/index.ts`, **commité** | **oui, tout de suite** |
+| `outils/ingestion/test/aides/pdf.ts` | `test/voie-oracle.test.ts`, pas encore commité | pas encore |
+
+Le second part avec le lot Vision. Le premier est réparé ici.
+
+### Ce qui en découle
+
+Un garde-fou « **aucun fichier suivi n'importe un fichier non suivi** » entre dans la file, avant
+le lot Vision : il ajoute trois fichiers neufs, dont un déjà importé par un fichier suivi. Un
+garde-fou local qui tient cette règle aurait rougi au premier commit, sur le disque, avant le push.
