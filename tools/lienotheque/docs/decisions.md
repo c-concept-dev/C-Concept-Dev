@@ -8801,3 +8801,117 @@ mécanique ne les tenait : elles reposaient sur ma lecture d'une sortie.
 dans la file : un crochet de pré-commit qui passe les garde-fous rapides sur l'index **avant chaque
 commit**, y compris les commits d'autorisation — ceux qu'on croit anodins, et qui sont justement
 ceux qu'on commet sans regarder.
+
+## 7 novembre 2026 — un crochet qui refuse les gestes destructeurs, et la copie qui agit
+
+### Pourquoi une mécanique, et non une règle écrite
+
+Trois gestes de la journée ont détruit du travail **en réussissant en silence** : un
+`git reset --hard` dans un essai jetable (sept fichiers modifiés), un `cp` depuis une copie plus
+ancienne (une section de registre), un `git apply --3way` qui a indexé son résultat (quatre-vingt-
+seize lignes d'un autre lot dans un commit d'autorisation).
+
+La règle était écrite — `CLAUDE.md` l'interdit — et je les ai faits quand même. **Un garde-fou qui
+demande qu'on lise attentivement n'est pas un garde-fou.** D'où un crochet `PreToolUse` sur l'outil
+Bash, versionné dans `.claude/`, qui refuse ces commandes avec le code 2.
+
+Le code 2 agit, d'après la documentation, **avant** l'évaluation des règles de permission : donc
+quel que soit le mode, « Ignorer les permissions » compris — c'est-à-dire le mode dans lequel les
+dégâts se sont produits. Christophe a demandé cette vérification **avant** l'installation.
+
+### Ce qu'il refuse, et ce qu'il dit à la place
+
+`reset --hard`, `stash`, `clean`, `checkout -f` / `switch -f`, `checkout -- <chemins>`,
+`checkout .`, `restore <chemins>`, `push --force`, `commit --no-verify`, `add -A` / `add .` /
+`add --all`, `rm -rf`. Chaque refus nomme le remplacement : une branche locale de sauvegarde au
+lieu d'une remise, `--soft` au lieu de `--hard`, `cherry-pick --no-commit` ou `apply --3way` au
+lieu d'un `checkout --`, des chemins nommés un par un au lieu de `-A`. Un refus sec se contourne ;
+un refus qui montre la sortie s'utilise.
+
+Éprouvé sur **48 cas** dans un fichier d'essai : les refus, les gestes légitimes voisins
+(`reset --soft`, `restore --staged`, `commit -- <chemins>`, `cherry-pick --no-commit`), et les
+formes habillées.
+
+### Les deux faux positifs, et ce qu'ils ont appris
+
+**`git stash list` ne fait que lire.** Le refuser était un faux positif, et un garde-fou qui accuse
+à tort finit désarmé. Voir si une autre session a laissé une remise est un diagnostic légitime,
+justement parce que les remises sont partagées.
+
+**Écrire un texte n'est pas l'exécuter.** La première version portait ses motifs sur la ligne
+entière : elle a refusé la commande qui **corrigeait le crochet**, parce que cette commande
+*écrivait* les mots « git stash » dans un fichier. C'est le même défaut que les garde-fous qui
+lisaient leurs propres exemples entre guillemets, trois fois dans la même journée. Corrigé en
+découpant la ligne aux séparateurs et en ne jugeant que les segments qui **commencent** par la
+commande visée.
+
+**Et un segment commence rarement par la commande.** `GIT_INDEX_FILE=… git …` est un geste
+quotidien ; `sudo`, `time`, `command`, `env`, `nice` et une parenthèse ouvrante sont des enveloppes
+courantes. Sans les éplucher, le crochet devient aveugle précisément là où la commande est un peu
+plus habillée que la moyenne. L'épluchage tourne en boucle, et consomme les options de l'enveloppe
+(`nice -n 5`) : sans cela il s'arrête sur la première option et le segment ne commence plus par la
+commande.
+
+### Les mailles du filet, mesurées
+
+Un filtre par motif est **un filet, pas un mur**. Les mailles ont été mesurées en donnant les
+commandes au crochet, jamais en les exécutant :
+
+| Commande | Verdict |
+|---|---|
+| `git -C /autre/depot reset --hard` | **arrêtée** |
+| `git --git-dir=… --work-tree=… reset --hard` | **arrêtée** |
+| `sudo -u root rm -rf /x` | passe |
+| `bash -c "git clean -fd"`, `sh -c "git reset --hard"` | passent |
+| `find . -name "*.ts" -delete` | passe |
+| `sh script-qui-detruit.sh` | passe |
+| `xargs rm < liste.txt` | passe |
+| `printf "" > docs/decisions.md` | passe |
+
+Les deux premières contredisent mon pari : j'avais inscrit `git -C` comme un trou, et le segment
+commence bien par `git`, donc il est jugé. **`sudo -u root rm -rf` passe** en revanche :
+l'épluchage consomme `-u` mais pas son argument, le segment devient `root rm -rf /x` et ne commence
+plus par `rm`. La classe entière des options à argument reste ouverte, et refermer un cas sans
+refermer la classe donnerait une fausse impression de mur.
+
+Ce que le filet arrête : **le geste distrait**, qui est celui qui a causé les dégâts. Ce qu'il
+n'arrête pas : une volonté de contourner. `--no-verify` et tout contournement restent une décision
+de Christophe.
+
+### Une seule copie fait foi, et un contrôle le vérifie tout seul
+
+La copie **versionnée** fait foi ; la copie où une session lit ses réglages doit lui être
+identique, octet pour octet. Sinon la session obéit à un crochet que personne ne relit et que le
+dépôt ne porte pas — l'inverse exact de ce qu'un garde-fou versionné garantit.
+
+La vérification existait d'abord en shell, `.claude/crochets/verifier-reglages.sh`, qu'on lançait
+en y pensant. Remarque de Christophe : **« sinon il dépend de l'attention, et ce n'est plus un
+garde-fou »**. Elle est donc devenue `packages/banc/src/reglages-actifs.ts`, un contrôle du
+contrôle complet, prouvé rouge en ajoutant **un seul octet** à la copie active — il nomme le
+fichier et la copie.
+
+### Huit copies ne sont pas comparables entre elles
+
+Premier jet : comparer **toutes** les copies que `git worktree list` nomme. Il y en a **huit**, et
+Christophe a vu le faux rouge avant qu'il ne tombe : une copie posée sur une autre branche ou sur un
+ancien commit — un bissectage, le travail d'une autre session — porte **légitimement** une autre
+version du crochet, celle que son commit contient. Rougir là-dessus, c'est accuser git d'avoir fait
+son travail.
+
+Le contrôle ne compare donc que la copie **où une session lit ses réglages** : la copie principale,
+celle que `git rev-parse --git-common-dir` nomme — et quelle que soit sa branche, car ce qu'elle
+porte est ce qui agit. Si elle est en retard, c'est précisément la divergence qu'on cherche.
+
+Le contrôle de ce cas porte sa propre mutation : la même copie factice, déclarée principale, **fait
+rougir**. Sans elle, le silence prouverait seulement que le bac à sable est vide.
+
+**Ce que ce faux positif apprend** : au moment de la remarque, aucune autre copie ne portait le
+fichier — mesuré, sept sur sept. Le faux rouge était **latent**, et n'aurait sauté qu'au premier
+bissectage créé après ce commit. Un garde-fou juste aujourd'hui peut accuser demain, et c'est la
+lecture de sa règle, non son exécution, qui le révèle.
+
+### La maille de celui-ci
+
+Une session lancée dans une copie **liée** lirait ses réglages là, et le contrôle ne la regarderait
+pas : c'est l'agencement du 29 octobre qui désigne la copie principale, pas une déduction. Un
+filet, ici encore.
