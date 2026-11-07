@@ -14,6 +14,23 @@ import { afterAll, describe, expect, it } from "vitest";
  *  pour corriger, un étage plus haut. */
 
 const JUGE = fileURLToPath(new URL("../scripts/avant-commit.ts", import.meta.url));
+
+/** L'outil INSTALLÉ du projet. Le lanceur de paquets, lui, résout un nom et, faute de le trouver,
+ *  TÉLÉCHARGE : un garde-fou ne doit pas pouvoir chercher son juge sur le réseau, et un contrôle
+ *  ne doit pas dépendre d'une résolution. Mesuré : la résolution coûte 0,5 s par commit. */
+const OUTIL = fileURLToPath(new URL("../node_modules/.bin/tsx", import.meta.url));
+const OUTILS_INSTALLES = fileURLToPath(new URL("../node_modules", import.meta.url));
+
+/** Le délai des contrôles qui lancent un vrai `git commit`.
+ *
+ *  Le délai par défaut est de 5 000 ms. Sur le coureur macOS, ce contrôle a mis **4 945 ms** dans
+ *  une course verte, puis **7 704 ms** dans la suivante : la course verte était passée à 55 ms
+ *  près. C'est, mot pour mot, la leçon inscrite le matin même — « un délai égal au coût est un
+ *  tirage au sort » — et je l'avais commise en déclarant cette CI verte sans regarder la marge.
+ *
+ *  180 000 est le nombre que les voisins de `voie-oracle.test.ts` emploient déjà : on ne calibre
+ *  pas un nombre neuf sur la mesure du jour, sous peine de refaire le même tirage au sort. */
+const DELAI = 180_000;
 const bacs: string[] = [];
 afterAll(() => {
   for (const bac of bacs) rmSync(bac, { recursive: true, force: true });
@@ -39,7 +56,7 @@ function depot(fichiers: Record<string, string>): string {
 
 const juger = (bac: string): { readonly code: number; readonly dit: string } => {
   try {
-    const sortie = execFileSync("npx", ["tsx", JUGE, "--racine", bac], { encoding: "utf8", stdio: "pipe" });
+    const sortie = execFileSync(OUTIL, [JUGE, "--racine", bac], { encoding: "utf8", stdio: "pipe" });
     return { code: 0, dit: sortie };
   } catch (souci) {
     const echec = souci as { status?: number; stdout?: string; stderr?: string };
@@ -142,7 +159,10 @@ function depotAvecProjet(fichiers: Record<string, string>): string {
   // vrai juge voit le dossier du projet fabriqué comme dossier courant.
   mkdirSync(join(bac, PROJET, "packages/banc/scripts"), { recursive: true });
   writeFileSync(join(bac, PROJET, "packages/banc/scripts/avant-commit.ts"), `import ${JSON.stringify(JUGE)};\n`);
-  symlinkSync(fileURLToPath(new URL("../../../node_modules", import.meta.url)), join(bac, PROJET, "node_modules"));
+  // Le crochet cherche son juge dans les outils INSTALLÉS du projet : le dépôt fabriqué doit
+  // porter ce chemin, sinon le contrôle éprouverait un crochet qui n'a pas de juge.
+  mkdirSync(join(bac, PROJET, "packages/banc"), { recursive: true });
+  symlinkSync(OUTILS_INSTALLES, join(bac, PROJET, "packages/banc/node_modules"));
 
   git("config", "core.hooksPath", `${PROJET}/crochets`);
   return bac;
@@ -181,7 +201,7 @@ describe("le crochet, appelé par git lui-même", () => {
     expect(verdict.dit).toContain("--no-verify est INTERDIT");
     // Et le commit n'a pas eu lieu.
     expect(execFileSync("git", ["log", "--oneline"], { cwd: bac, encoding: "utf8" }).trim().split("\n")).toHaveLength(1);
-  });
+  }, DELAI);
 
   it("laisse passer un commit qui ne touche pas la Liénothèque, sans rien lancer", () => {
     // La faute est sur le disque ET dans l'index du dépôt, mais pas dans l'index DE CE COMMIT :
@@ -197,7 +217,7 @@ describe("le crochet, appelé par git lui-même", () => {
     // Le juge n'a pas tourné : un commit d'un autre projet ne doit rien coûter, même si Node
     // manque. S'il avait tourné, il aurait parlé.
     expect(verdict.dit).not.toContain("avant-commit :");
-  });
+  }, DELAI);
 
   it("accepte un index propre, et compte les chemins DU PROJET, non ceux du dépôt", () => {
     const bac = depotAvecProjet({ "paquet/src/index.ts": "export const a = 1;\n" });
@@ -210,12 +230,12 @@ describe("le crochet, appelé par git lui-même", () => {
     expect(Number(projet)).toBeGreaterThan(0);
     expect(Number(projet)).toBeLessThan(Number(total)); // jamais tout le dépôt
     expect(verdict.dit).toContain(`préfixe « ${PROJET} » retiré`);
-  });
+  }, DELAI);
 
   it("laisse passer un commit hors Liénothèque même SANS Node, et refuse le nôtre", () => {
     const bac = depotAvecProjet({ "paquet/src/index.ts": "export const a = 1;\n" });
     // La preuve que l'environnement est bien dépourvu : sans Node, le juge ne peut pas démarrer.
-    expect(spawnSync("npx", ["--version"], { env: SANS_NODE }).status, "npx reste atteignable").not.toBe(0);
+    expect(spawnSync(OUTIL, ["--version"], { env: SANS_NODE }).status, "l outil reste utilisable").not.toBe(0);
 
     writeFileSync(join(bac, "autre-projet/fichier.txt"), "autre chose\n");
     const dehors = commiter(bac, ["autre-projet/fichier.txt"], SANS_NODE);
@@ -225,7 +245,7 @@ describe("le crochet, appelé par git lui-même", () => {
     writeFileSync(join(bac, PROJET, "paquet/src/index.ts"), "export const a = 2;\n");
     const dedans = commiter(bac, [`${PROJET}/paquet/src/index.ts`], SANS_NODE);
     expect(dedans.code, dedans.dit).not.toBe(0);
-  });
+  }, DELAI);
 
   it("refuse tout court si l'index du commit ne porte aucun chemin du projet", () => {
     // Un juge qui ne lit rien est vert pour rien. Le dossier du projet existe, mais aucun de ses
@@ -241,15 +261,15 @@ describe("le crochet, appelé par git lui-même", () => {
     );
     execFileSync("git", ["add", "--", "autre-projet.txt"], { cwd: bac });
 
-    const rendu = spawnSync("npx", ["tsx", JUGE, "--racine", join(bac, PROJET)], { encoding: "utf8" });
+    const rendu = spawnSync(OUTIL, [JUGE, "--racine", join(bac, PROJET)], { encoding: "utf8" });
     expect(rendu.status).toBe(2);
     expect(`${rendu.stdout}${rendu.stderr}`).toContain("AUCUN chemin du projet");
-  });
+  }, DELAI);
 
   it("lit la même chose avec GIT_DIR dans l'environnement que sans", () => {
     const bac = depotAvecProjet({ "paquet/src/index.ts": "export const a = 1;\n" });
     const compter = (env?: Record<string, string>): string => {
-      const sortie = execFileSync("npx", ["tsx", JUGE, "--racine", join(bac, PROJET)], {
+      const sortie = execFileSync(OUTIL, [JUGE, "--racine", join(bac, PROJET)], {
         encoding: "utf8",
         stdio: "pipe",
         env: { ...process.env, ...env },
@@ -260,5 +280,5 @@ describe("le crochet, appelé par git lui-même", () => {
     const avec = compter({ GIT_DIR: join(bac, ".git") });
     expect(avec, "GIT_DIR faisait lire tout le dépôt, nommé depuis sa racine").toBe(sans);
     expect(sans).toMatch(/[1-9]\d* chemin\(s\) du projet sur [1-9]\d*/u);
-  });
+  }, DELAI);
 });

@@ -9139,3 +9139,58 @@ ensuite, **et lesquels**. Un chiffre seul dirait « il en reste douze » sans di
 contrôles qu'on a renoncé à tenir ou des contrôles qui n'avaient pas à tourner là.
 
 ---
+
+## 7 novembre 2026 — un délai par défaut est un délai calibré par quelqu'un d'autre
+### Ce qui s'est passé
+
+J'ai rapporté « CI verte, les trois travaux » pour `b6cde2c8`. La course suivante, qui ne touchait
+qu'un fichier de documentation, est partie **rouge** sur le même contrôle.
+
+| Machine | Durée du contrôle « refuse un commit fautif nommé par ses chemins » | Marge sur 5 000 ms |
+|---|---|---|
+| ce disque | 1 348 ms | ×3,7 |
+| coureur ubuntu | 1 560 ms | ×3,2 |
+| coureur macOS, course **verte** | **4 945 ms** | **55 ms** |
+| coureur macOS, course **rouge** | 7 704 ms | dépassée |
+
+**La course que j'avais déclarée verte était passée à cinquante-cinq millisecondes près.** Le rouge
+suivant n'était pas une régression : c'était le même tirage au sort, tombé de l'autre côté.
+
+C'est, mot pour mot, la leçon inscrite le matin même — « un délai égal au coût est un tirage au
+sort ». Je l'avais écrite à propos d'un délai que **j'avais** choisi. Celui-ci, je ne l'avais pas
+choisi : c'était **le délai par défaut**, et c'est ce qui l'a rendu invisible. Un délai par défaut
+est un délai calibré par quelqu'un d'autre, pour une autre machine, sur une autre tâche.
+
+**La règle de tenue qui en sort**, demandée par Christophe : *quand on rapporte une CI verte, on
+signale tout contrôle passé près de son délai.* Un vert à 1 % de marge n'est pas un vert, c'est un
+sursis.
+
+### Deux corrections, pas une
+
+**Le délai explicite : 180 000 ms**, le nombre que les voisins de `voie-oracle.test.ts` emploient
+déjà. On ne calibre pas un nombre neuf sur la mesure du jour : ce serait refaire le tirage au sort
+avec un dé plus grand.
+
+**Et la cause du coût, retirée.** Le crochet lançait son juge par le **lanceur de paquets**, qui
+résout un nom et, faute de le trouver, **télécharge**. Deux défauts en un : un garde-fou qui garde
+les commits ne doit pas pouvoir chercher son juge sur le réseau, et la résolution coûte, à chaque
+commit, plus que le travail lui-même.
+
+Il lance désormais l'outil **installé** du projet, `packages/banc/node_modules/.bin/tsx`, et refuse
+le commit si cet outil manque — fermé, avec le remède nommé. Mesuré sur un dépôt fabriqué, moyenne
+de trois commits :
+
+| Chemin du juge | Durée d'un commit |
+|---|---|
+| lanceur de paquets | **0,700 s** |
+| outil installé | **0,233 s** |
+
+Trois fois moins, soit exactement les 0,47 s de résolution. Le fichier de contrôle entier passe de
+7,80 s à **4,37 s**.
+
+### Et un garde-fou qui a lu une chaîne comme du code, dans mon script à moi
+
+Le script de correction s'assurait qu'aucun appel au lanceur ne subsistait. Il a buté sur le mot,
+**écrit dans le commentaire qui explique pourquoi on ne l'emploie plus**. Quatrième occurrence de la
+même classe dans la journée, et la première dans un script jetable : la leçon du masque de code
+valait au-delà du dépôt. Le script blanchit maintenant les commentaires avant de chercher.

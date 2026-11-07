@@ -29,4 +29,18 @@ chemins=$(git diff --cached --name-only -- tools/lienotheque)
 
 racine=$(git rev-parse --show-toplevel) || exit 1
 cd "$racine/tools/lienotheque" || exit 1
-exec npx tsx packages/banc/scripts/avant-commit.ts
+
+# L'OUTIL INSTALLÉ DU PROJET, ET JAMAIS `npx`
+#
+# `npx` résout un nom, et s'il ne le trouve pas il TÉLÉCHARGE. Un crochet qui garde les commits ne
+# doit pas pouvoir chercher son juge sur le réseau : ce qu'il exécute doit être ce que le dépôt a
+# installé, ou rien. Mesuré le 7 novembre 2026 : la résolution de `npx` coûte 0,5 s par commit ici,
+# et c'est elle qui a fait dépasser le délai d'un contrôle sur le coureur macOS.
+juge=packages/banc/node_modules/.bin/tsx
+if [ ! -x "$juge" ]; then
+  printf '\nCOMMIT REFUSÉ — l outil du projet est absent : %s\n' "$juge" >&2
+  printf 'Lancer « pnpm install » dans tools/lienotheque, puis recommencer.\n' >&2
+  printf 'Le crochet ne cherche PAS son juge ailleurs : il exécute ce que le dépôt a installé.\n\n' >&2
+  exit 1
+fi
+exec "$juge" packages/banc/scripts/avant-commit.ts
