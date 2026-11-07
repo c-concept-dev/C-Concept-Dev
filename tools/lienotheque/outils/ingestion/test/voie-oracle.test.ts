@@ -298,7 +298,21 @@ describe("un document sans manière de lire (OUT-10)", () => {
     expect(rejeu.association.appariements).toHaveLength(8);
   });
 
-  it("apprend un repère numérique récurrent des accords prouvés et récupère un départ absent de la table", async () => {
+  /** Le délai de ses huit voisins, pour la raison qu'il n'en avait aucun.
+   *
+   *  Il tournait dans le délai par défaut de cinq secondes et coûte deux secondes ici, cinq
+   *  virgule neuf sur l'agent macOS de la CI — soit **cent pour cent du délai**. Un délai égal au
+   *  coût est un tirage au sort : il est passé sur une course, il a échoué sur la suivante, sans
+   *  qu'une ligne de ce paquet ait changé entre les deux.
+   *
+   *  Ce n'est pas le cas d'un délai qui signale une machine saturée : celui-là dit quelque chose
+   *  de vrai et ne doit pas être allongé. Ici le coût est régulier et le délai était un oubli —
+   *  ses huit voisins en portent un explicite.
+   *
+   *  **Aucun nombre nouveau n'entre** : c'est le délai des voisins, pas un chiffre trouvé sur une
+   *  machine. Pourquoi ce contrôle coûte deux secondes est une autre question, inscrite à la file
+   *  avec la lenteur de ce fichier. */
+  it("apprend un repère numérique récurrent des accords prouvés et récupère un départ absent de la table", { timeout: 180_000 }, async () => {
     const pdf = pdfDePages("repere-appris.pdf", Array.from({ length: 23 }, () => prose(700)));
     const motsDeTable = Array.from({ length: 20 }, (_, place) =>
       [place + 1, place + 1, place + 8].map((valeur, colonne) => ({

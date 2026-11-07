@@ -8625,3 +8625,60 @@ sources du dépôt blanchit les chaînes et les commentaires avant de lire.**
 
 Le blanchiment des commentaires n'était d'abord tenu **que par un commentaire du dépôt réel** —
 creux dès que quelqu'un le réécrirait. Il a désormais son propre cas.
+---
+
+## 7 novembre 2026 — un délai égal au coût est un tirage au sort
+
+La CI de `44726ce2` : **Ubuntu accepté, macOS refusé**, sur une régression qui ne venait pas du lot
+poussé.
+
+```
+× apprend un repère numérique récurrent des accords prouvés et récupère un départ
+  absent de la table                                                     5935 ms
+  → Test timed out in 5000ms
+```
+
+**Pas une assertion : un dépassement.** Le contrôle tournait dans le délai par défaut de cinq
+secondes.
+
+### Le coût réel
+
+| Machine | Durée |
+|---|---|
+| le disque de développement | **2,08 s** |
+| agent Ubuntu de la CI | passe, sous 5 s |
+| **agent macOS de la CI** | **5 935 ms — dépasse** |
+
+L'agent macOS est environ **trois fois plus lent** que la machine de développement sur ce travail.
+Le contrôle ne fait rien d'anormal : il explore avec un budget de 256 paires, et ce coût est réel.
+
+### Pourquoi ce n'est PAS le cas du matin
+
+Le même jour, un délai de 360 s avait été dépassé parce que la machine était à **90 de charge**.
+Là, le délai disait quelque chose de vrai, et l'allonger aurait effacé le seul signal de la
+saturation. C'était écrit : « ne pas allonger le délai, ce serait supprimer le signal ».
+
+Ici, le coût est **régulier** et le délai était posé à **cent pour cent** de ce coût. Un délai égal
+au coût est un tirage au sort : il est passé sur la course `45294a61`, il a échoué sur
+`44726ce2`, **sans qu'une ligne de ce paquet ait changé entre les deux**.
+
+La distinction tient donc en une question : *le dépassement m'apprend-il quelque chose sur la
+machine, ou seulement que la marge était nulle ?* Dans le premier cas on garde le délai ; dans le
+second, c'était un oubli.
+
+### La correction, et ce qu'elle n'introduit pas
+
+Décision de Christophe : **le délai de ses huit voisins, `180_000`**. Les huit contrôles qui lisent
+avec Tesseract dans ce fichier en portent un explicite ; celui-ci n'en avait aucun, et c'est
+l'oubli.
+
+**Aucun nombre nouveau n'entre dans le dépôt.** Un délai de « dix fois le pire relevé » aurait été
+défendable mais aurait fait entrer un facteur dix choisi sur deux machines — exactement la
+constante calibrée que la doctrine du 5 novembre interdit. Reprendre le délai des voisins ne
+calibre rien : il aligne un contrôle oublié sur la règle que son voisinage applique déjà.
+
+### Ce qui reste ouvert, et qui est inscrit
+
+**Pourquoi ce contrôle coûte deux secondes sans rien lire** n'est pas résolu, et ne doit pas l'être
+par un délai. La question entre à la file, avec la lenteur des dix-neuf contrôles de lecture du
+même fichier (20 à 25 minutes). Un délai rend un contrôle fiable ; il n'explique pas son coût.
