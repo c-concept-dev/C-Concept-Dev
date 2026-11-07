@@ -8684,3 +8684,120 @@ calibre rien : il aligne un contrôle oublié sur la règle que son voisinage ap
 **Pourquoi ce contrôle coûte deux secondes sans rien lire** n'est pas résolu, et ne doit pas l'être
 par un délai. La question entre à la file, avec la lenteur des dix-neuf contrôles de lecture du
 même fichier (20 à 25 minutes). Un délai rend un contrôle fiable ; il n'explique pas son coût.
+---
+
+## 7 novembre 2026 — comment récupérer un travail mis de côté, et comment NE PAS le faire
+
+Un lot en cours a dû être mis de côté pour qu'un contrôle complet juge exactement ce qui part. Il
+l'a été sur une **branche locale**, `sauvegarde/lot-vision-07nov`, sans suivi distant, donc
+impossible à pousser par accident.
+
+**Pas `git stash`** : les remises sont partagées entre toutes les sessions et toutes les copies de
+ce dépôt (CLAUDE.md). Un `stash push` sur un fichier neuf ne met rien de côté — il n'est pas
+suivi — et le `pop` qui suit dépile celle de quelqu'un d'autre.
+
+**Construite sans toucher à rien** : un contrôle tournait et lisait la copie de travail. Les objets
+ont été écrits directement dans la base (`git hash-object -w`), l'arbre assemblé dans un index
+temporaire (`GIT_INDEX_FILE`), le commit posé par `commit-tree`. Index réel et copie de travail
+vérifiés intacts après coup.
+
+### La procédure que j'avais notée était dangereuse
+
+J'avais écrit `git checkout <sauvegarde> -- $(git diff --name-only …)`. **Christophe l'a arrêtée.**
+
+`git checkout -- <chemins>` **écrase**, il ne fusionne pas : il annule tout ce que ces fichiers
+auront gagné depuis la sauvegarde. Et le piège est plus sournois qu'il n'y paraît — **la commande
+réussit sans rien dire**. Elle ne signale aucun conflit : elle écrase et se tait.
+
+Vérifié ici : la sauvegarde contenait bien le délai, donc ce cas précis n'aurait rien perdu. Mais
+c'est une chance, pas une propriété, et elle disparaît au commit suivant.
+
+### La procédure juste
+
+Réappliquer les **changements**, non remplacer les fichiers :
+
+```bash
+git cherry-pick --no-commit sauvegarde/lot-vision-07nov
+```
+
+Le commit de sauvegarde a pour parent le HEAD du moment : son **diff** est exactement le travail
+mis de côté. `cherry-pick` l'applique sur l'état courant et **s'arrête** sur les conflits au lieu
+de les écraser — c'est ce qu'on veut, un conflit étant l'endroit où les deux versions ont quelque
+chose à dire.
+
+**Et il s'est arrêté.** Les fichiers non suivis du lot étaient restés dans la copie de travail :
+`cherry-pick` a refusé plutôt que de les écraser. Seul `voie-oracle.test.ts` manquait réellement,
+et son changement a été réappliqué par `git apply --3way` — qui aurait conflité, lui aussi, en cas
+de divergence.
+
+### Puis vérifier, et c'est là que ça s'est joué
+
+```bash
+grep -c "timeout: 180_000" outils/ingestion/test/voie-oracle.test.ts
+grep -c "un délai égal au coût"  docs/decisions.md
+```
+
+**La vérification a trouvé une perte, et elle était de moi.** Après le commit, j'ai restauré le
+registre complet depuis une copie de travail antérieure — et cette copie précédait l'écriture de
+la présente section. Je l'ai donc **écrasée**, exactement le geste que la section condamne, dans la
+minute où je l'écrivais.
+
+La section a dû être réécrite. Elle n'était nulle part sur le disque : ni dans le bac de session,
+ni sur la branche de sauvegarde, qui la précède elle aussi.
+
+### Les deux leçons, dont la seconde est la plus coûteuse
+
+**Une commande qui écrase sans se plaindre est pire qu'une commande qui refuse.** `checkout --` et
+`cherry-pick` font tous deux « récupérer mon travail » dans la tête de qui les tape ; l'un perd des
+choses en silence, l'autre s'arrête pour demander. Entre les deux, il n'y a pas de préférence de
+style.
+
+**Et `cp` est un `checkout --` sans Git.** Restaurer un fichier par copie a exactement le défaut
+qu'on vient de nommer : aucun conflit, aucun avertissement, la perte en silence. La vérification
+que Christophe a exigée est la seule chose qui l'ait révélée — sans elle, cette entrée aurait
+disparu sans trace, et personne n'aurait su qu'elle avait existé.
+---
+
+## 7 novembre 2026 — deux gestes qui agissent sans le dire
+
+Deux règles demandées par Christophe, chacune payée d'une erreur le même jour. Elles ont la même
+forme : **un geste dont l'effet dépasse ce qu'on croit lui demander, et qui ne s'en explique pas.**
+
+### `cp` est un `checkout --` sans Git
+
+Restaurer un fichier par copie a exactement le défaut de `git checkout -- <chemins>` : **il écrase,
+sans conflit, sans avertissement, sans trace.** Git au moins consigne ce qu'il avait ; une copie
+ne laisse rien.
+
+Ce jour-là, une section du registre a disparu ainsi — restaurée depuis une copie antérieure à son
+écriture. Elle n'était nulle part : ni dans le bac de session, ni sur la branche de sauvegarde, qui
+la précédait aussi. Elle a dû être réécrite.
+
+**La règle** : après toute restauration par copie, vérifier la présence de ce qui devait survivre,
+et pas seulement de ce qu'on voulait récupérer. Le `grep -c` que Christophe a exigé est la seule
+chose qui l'ait révélée.
+
+### `git apply --3way` indexe son résultat
+
+Réappliquer un changement avec `--3way` **met le fichier à l'index**. Ce n'est pas écrit dans ce
+qu'on croit demander — « applique ce diff » —, et la conséquence est qu'un `git commit` ultérieur
+l'emporte, même si on ne l'a pas nommé dans un `git add`.
+
+Un commit d'autorisation qui devait porter **une ligne** de registre en a emporté **quatre-vingt-
+seize** d'un autre lot. Corrigé par un commit, sans réécrire l'historique — un dépôt partagé ne se
+réécrit pas pour cacher une erreur.
+
+**La règle** : `git diff --cached --stat` **avant** le commit, et le lire en se demandant pourquoi
+il montre ce qu'il montre. Il affichait deux fichiers au lieu d'un. Je l'ai lu sans m'arrêter —
+l'avoir sous les yeux ne suffit pas, encore faut-il que son contenu ait à répondre d'une attente.
+
+### Ce que les deux disent ensemble
+
+La discipline de la journée s'est construite sur des garde-fous **mécaniques** : un contrôle qui
+rougit, une mutation qui tue, une CI qui refuse. Ces deux erreurs-ci ont traversé parce qu'aucune
+mécanique ne les tenait : elles reposaient sur ma lecture d'une sortie.
+
+**Un garde-fou qui demande qu'on lise attentivement n'est pas un garde-fou.** D'où le lot suivant
+dans la file : un crochet de pré-commit qui passe les garde-fous rapides sur l'index **avant chaque
+commit**, y compris les commits d'autorisation — ceux qu'on croit anodins, et qui sont justement
+ceux qu'on commet sans regarder.
