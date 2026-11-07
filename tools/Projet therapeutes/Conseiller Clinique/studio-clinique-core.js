@@ -17158,6 +17158,10 @@ ${recent}`;
         }
         default: return null;
       }
+      // Un bloc textuel vide (ou composé uniquement d'emoji retirés ci-dessus) rendrait
+      // toute la présentation impossible à rouvrir après sauvegarde.
+      if (['heading', 'paragraph', 'callout', 'quote'].includes(b.type) && !content.text.trim()) return null;
+      if (b.type === 'list' && (!content.items.length || content.items.some(function (item) { return !item.trim(); }))) return null;
       const validEntryIds = (b.citationEntryIds || []).filter(function(eid) {
         return sourceSnapshot.entries.some(function(e) { return e.sourceSnapshotEntryId === eid; });
       });
@@ -17972,6 +17976,34 @@ ${recent}`;
   // remplace le document courant) et adocPreviewSavedClinicalDocument (aperçu EN PARALLÈLE,
   // lecture seule, ne remplace jamais rien) — jamais deux implémentations divergentes de cette
   // résolution (fetch + capacités + reconstruction du renderManifestOverride + charte réelle).
+  function adocRecoverEmptySavedTextBlocks(doc) {
+    if (!doc || adocValidateSchemaTolerant('clinicalDocument', doc).valid) return null;
+    const candidate = JSON.parse(JSON.stringify(doc));
+    let repaired = 0;
+    function visit(blocks) {
+      if (!Array.isArray(blocks)) return;
+      blocks.forEach(function (block) {
+        if (!block || !block.content) return;
+        if (['heading', 'paragraph', 'callout', 'quote'].includes(block.type) &&
+            typeof block.content.text === 'string' && !block.content.text.trim()) {
+          block.content.text = block.type === 'heading' ? 'Titre à compléter' : 'Texte à compléter';
+          repaired++;
+        }
+        visit(block.content.blocks);
+      });
+    }
+    visit(candidate.blocks);
+    // Ne répare QUE ce cas connu. Toute autre erreur de schéma reste bloquante.
+    if (!repaired || !adocValidateSchemaTolerant('clinicalDocument', candidate).valid) return null;
+    return { document: candidate, count: repaired };
+  }
+  function adocAssertSavableClinicalDocument(doc) {
+    const check = adocValidateSchemaTolerant('clinicalDocument', doc);
+    if (!check.valid || check.skipped) {
+      const first = check.errors && check.errors[0] || 'schéma indisponible';
+      throw new Error('Document non conforme, aucune donnée envoyée : ' + first + '. Corrigez le bloc concerné avant de sauvegarder');
+    }
+  }
   async function adocResolveSavedClinicalDocumentArt(documentId) {
     const workerUrlClean = adocGetWorkerUrl().replace(/\/+$/, '');
     const r = await fetch(workerUrlClean + '/clinical-documents/' + encodeURIComponent(documentId), {
@@ -18001,7 +18033,13 @@ ${recent}`;
       // adocOpenWorkspace retombe alors correctement sur le rendu HTML générique, cf. investigation).
       art._adocCapabilities = { workspace: true, persist: true, fineCitations: false, blockEditing: false, legacyBlockEditing: true, transform: false, export: true, qualityControlledExport: false };
     } else {
-      art._adocStructuredDoc = data.version.document.clinicalDocument;
+      const savedDoc = data.version.document.clinicalDocument;
+      const recovery = adocRecoverEmptySavedTextBlocks(savedDoc);
+      art._adocStructuredDoc = recovery ? recovery.document : savedDoc;
+      if (recovery) {
+        art._adocRecoveredEmptyBlocks = recovery.count;
+        art._ccEditorDirty = true; // jamais de sauvegarde silencieuse
+      }
       art._adocStructuredSnapshot = data.version.document.sourceSnapshot || null;
       // Même enveloppe de capacités que adocDeliverStructuredFicheArtifact, appliquée à TOUT
       // documentKind structuré (fiche/carrousel/tableau/script/liens — un seul point de
@@ -18061,6 +18099,7 @@ ${recent}`;
       window._adocArtifacts[storeKey] = art;
       const opened = await window.adocOpenWorkspace(storeKey);
       if (!opened) throw new Error('Ouverture impossible');
+      if (art._adocRecoveredEmptyBlocks) alert(art._adocRecoveredEmptyBlocks + ' bloc(s) de texte vide(s) récupéré(s). Repérez « Texte à compléter » ou « Titre à compléter », puis sauvegardez après vérification. La version précédente est conservée.');
       return true;
     } catch (e) {
       alert('Impossible de rouvrir cette création : ' + (e && e.message || 'erreur inconnue') + '.');
@@ -26697,6 +26736,7 @@ ${recent}`;
       const apiKey = adocGetApiKey();
       const revision = art._ccEditorRevision || 0;
       const content = adocBuildClinicalDocumentContent(art);
+      if (!isLegacy) adocAssertSavableClinicalDocument(content.clinicalDocument);
       // Audit correctif, Partie B point 12 — même mécanisme UX-10A Étape 2 pour les deux moteurs
       // (POST création puis POST .../versions en re-sauvegarde), jamais dupliqué : seuls le
       // titre/type/enveloppe de contenu diffèrent selon le moteur.
@@ -26788,6 +26828,7 @@ ${recent}`;
       // de « Mes créations ». Préparer une copie évite de renommer l'original en mémoire si le
       // POST échoue ; l'artefact actif ne bascule qu'après la réponse de création réussie.
       if (!isLegacy) content.clinicalDocument = { ...content.clinicalDocument, title: trimmedTitle };
+      if (!isLegacy) adocAssertSavableClinicalDocument(content.clinicalDocument);
       await adocCreateNewClinicalDocument(workerUrl, apiKey, art, content, trimmedTitle, saveKind);
       if (!isLegacy) {
         art._adocStructuredDoc.title = trimmedTitle;
