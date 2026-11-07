@@ -14,7 +14,6 @@ import {
   rejouerParOracle,
 } from "../src/index.js";
 import type { LigneInterpretee } from "@lienotheque/contrats";
-import { marque, pdfDePages, prose, titre } from "./aides/pdf.js";
 import type { TableLue } from "@lienotheque/noyau";
 import type { ConstatDeTable } from "../src/index.js";
 
@@ -33,6 +32,55 @@ it("le vivier ne peut pas abaisser le plancher tant que les petits échantillons
   expect(source).toContain("zonesRecurrentes(formes, combienDePages)");
   expect(source).not.toMatch(/zonesRecurrentes\(formes, combienDePages,\s*medias\.length\)/u);
 });
+
+/** Un PDF dont chaque page porte le contenu donné, en coordonnées PDF (origine en bas à gauche). */
+function pdfDePages(
+  nom: string,
+  contenus: readonly string[],
+  dimensions: { readonly largeur: number; readonly hauteur: number } = { largeur: 595, hauteur: 842 },
+): string {
+  const objets: string[] = [];
+  const ajouter = (contenu: string): number => objets.push(contenu);
+
+  const catalogue = ajouter("");
+  const racinePages = ajouter("");
+  const police = ajouter("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const pages = contenus.map((contenu) => {
+    const flux = ajouter(`<< /Length ${contenu.length} >>\nstream\n${contenu}\nendstream`);
+    return ajouter(
+      `<< /Type /Page /Parent ${racinePages} 0 R /MediaBox [0 0 ${dimensions.largeur} ${dimensions.hauteur}]` +
+        ` /Resources << /Font << /F1 ${police} 0 R >> >> /Contents ${flux} 0 R >>`,
+    );
+  });
+  objets[catalogue - 1] = `<< /Type /Catalog /Pages ${racinePages} 0 R >>`;
+  objets[racinePages - 1] =
+    `<< /Type /Pages /Count ${pages.length} /Kids [${pages.map((n) => `${n} 0 R`).join(" ")}] >>`;
+
+  let corps = "%PDF-1.4\n";
+  const decalages: number[] = [];
+  objets.forEach((objet, rang) => {
+    decalages.push(corps.length);
+    corps += `${rang + 1} 0 obj\n${objet}\nendobj\n`;
+  });
+  const xref = corps.length;
+  corps += `xref\n0 ${objets.length + 1}\n0000000000 65535 f \n`;
+  for (const d of decalages) corps += `${String(d).padStart(10, "0")} 00000 n \n`;
+  corps += `trailer\n<< /Size ${objets.length + 1} /Root ${catalogue} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+
+  const chemin = join(bac, nom);
+  writeFileSync(chemin, corps, "latin1");
+  return chemin;
+}
+
+/** Un pavé sombre portant un nombre en clair, à l'abscisse `x` : la forme même d'une marque. */
+const marque = (x: number, y: number, valeur: number): string =>
+  `0 g ${x} ${y} 54 34 re f 1 g BT /F1 22 Tf ${x + 12} ${y + 9} Td (${valeur}) Tj ET`;
+
+/** Un intitulé imprimé, assez gros pour être du titre : ce que la couche texte doit rendre. */
+const titre = (y: number, texte: string): string => `0 g BT /F1 18 Tf 120 ${y} Td (${texte}) Tj ET`;
+
+/** Du texte ordinaire, en noir : ce qui doit rester du texte et non devenir une marque. */
+const prose = (y: number): string => `0 g BT /F1 12 Tf 180 ${y} Td (une page ordinaire de ce document) Tj ET`;
 
 const dossierSansPiste = mkdtempSync(join(tmpdir(), "lienotheque-sans-piste-"));
 afterAll(() => rmSync(dossierSansPiste, { recursive: true, force: true }));
@@ -200,7 +248,7 @@ describe("une table globale corrobore sans jamais décider seule (OUT-10, REC-02
 
 describe("un document sans manière de lire (OUT-10)", () => {
   it("publie l'accord noms-table même si les pages liminaires n'ont pas de folio (REC-02, OUT-15)", async () => {
-    const pdf = pdfDePages(bac, "noms-et-table.pdf", Array.from({ length: 10 }, () => prose(700)));
+    const pdf = pdfDePages("noms-et-table.pdf", Array.from({ length: 10 }, () => prose(700)));
     const motsDeTable = Array.from({ length: 8 }, (_, place) =>
       [place + 1, place + 1, place + 8].map((valeur, colonne) => ({
         texte: String(valeur),
@@ -265,7 +313,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
    *  machine. Pourquoi ce contrôle coûte deux secondes est une autre question, inscrite à la file
    *  avec la lenteur de ce fichier. */
   it("apprend un repère numérique récurrent des accords prouvés et récupère un départ absent de la table", { timeout: 180_000 }, async () => {
-    const pdf = pdfDePages(bac, "repere-appris.pdf", Array.from({ length: 23 }, () => prose(700)));
+    const pdf = pdfDePages("repere-appris.pdf", Array.from({ length: 23 }, () => prose(700)));
     const motsDeTable = Array.from({ length: 20 }, (_, place) =>
       [place + 1, place + 1, place + 8].map((valeur, colonne) => ({
         texte: String(valeur),
@@ -314,7 +362,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
     const pages = [0, 1, 2, 3].map((rang) =>
       [marque(70, 620, rang * 2 + 1), marque(70, 320, rang * 2 + 2), prose(760)].join("\n"),
     );
-    const pdf = pdfDePages(bac, "avec-marques.pdf", pages);
+    const pdf = pdfDePages("avec-marques.pdf", pages);
     const inventaire = Array.from({ length: 8 }, (_, place) => ({
       nom: `${String(place + 1).padStart(2, "0")}.mp3`,
       empreinte: `${place}`.repeat(64).slice(0, 64),
@@ -332,7 +380,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
   });
 
   siTesseract("s'abstient, et dit pourquoi, quand rien ne revient", { timeout: 180_000 }, async () => {
-    const pdf = pdfDePages(bac, "sans-marque.pdf", [prose(700), prose(500), prose(300), prose(200)]);
+    const pdf = pdfDePages("sans-marque.pdf", [prose(700), prose(500), prose(300), prose(200)]);
     const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
       inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
       provenancesMedias: ["lot:epreuve"],
@@ -350,7 +398,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
       // Aucune marque ne revient dans ce document. Le texte déjà lu retrouve pourtant deux noms
       // du vivier, chacun sur une seule page : ce sont des pistes de vérification humaine, pas
       // deux preuves. Elles doivent donc rester visibles tout en laissant zéro lien actif.
-      const pdf = pdfDePages(bac, "noms-seuls.pdf", [prose(700), prose(500), prose(300), prose(200)]);
+      const pdf = pdfDePages("noms-seuls.pdf", [prose(700), prose(500), prose(300), prose(200)]);
       const noms = ["01 - Doxy.mp3", "02 - Autre chose.mp3", "03 - Encore autre.mp3", "04 - Solitude.mp3"];
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         inventaireMedias: noms.map((nom, place) => ({
@@ -392,7 +440,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
           "0 g 592 0 6 842 re f",
         ].join("\n"),
       );
-      const pdf = pdfDePages(bac, "doubles-pages-oracle.pdf", feuilles, { largeur: 1190, hauteur: 842 });
+      const pdf = pdfDePages("doubles-pages-oracle.pdf", feuilles, { largeur: 1190, hauteur: 842 });
       const options = {
         inventaireMedias: Array.from({ length: 8 }, (_, place) => ({
           nom: `${String(place + 1).padStart(2, "0")}.mp3`,
@@ -427,7 +475,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
           "\n",
         ),
       );
-      const pdf = pdfDePages(bac, "folios-non-etablis.pdf", pages);
+      const pdf = pdfDePages("folios-non-etablis.pdf", pages);
       const noms = ["01 - Doxy.mp3", "02 - Autre chose.mp3", "03 - Encore autre.mp3", "04 - Solitude.mp3"];
       const options = {
         inventaireMedias: noms.map((nom, place) => ({
@@ -459,7 +507,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
     { timeout: 180_000 },
     async () => {
       const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
-      const pdf = pdfDePages(bac, "vivier-non-borne.pdf", pages);
+      const pdf = pdfDePages("vivier-non-borne.pdf", pages);
       // Un inventaire sans provenance : rien ne dit que ces pistes appartiennent à ce document.
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64) }],
@@ -471,7 +519,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
 
   siTesseract("tient ses pages pour déduites, n'ayant lu aucun folio (OUT-15)", { timeout: 180_000 }, async () => {
     const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
-    const pdf = pdfDePages(bac, "folios.pdf", pages);
+    const pdf = pdfDePages("folios.pdf", pages);
     const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
       inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
       provenancesMedias: ["lot:epreuve"],
@@ -489,7 +537,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
       // même nombre. C'est ce qu'une forme de notation donne à la reconnaissance : elle se lit,
       // et elle ne numérote rien. L'ancienne règle, qui ne pesait que « ça se lit », l'élisait.
       const pages = [0, 1, 2, 3].map(() => [marque(70, 620, 7), marque(70, 320, 7), prose(760)].join("\n"));
-      const pdf = pdfDePages(bac, "sans-numerotation.pdf", pages);
+      const pdf = pdfDePages("sans-numerotation.pdf", pages);
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         inventaireMedias: Array.from({ length: 8 }, (_, place) => ({
           nom: `${String(place + 1).padStart(2, "0")}.mp3`,
@@ -516,7 +564,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
       const pages = [0, 1, 2, 3].map((rang) =>
         [marque(70, 620, rang * 2 + 1), marque(70, 320, rang * 2 + 2), prose(760)].join("\n"),
       );
-      const pdf = pdfDePages(bac, "une-seule-lecture.pdf", pages);
+      const pdf = pdfDePages("une-seule-lecture.pdf", pages);
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         inventaireMedias: Array.from({ length: 8 }, (_, place) => ({
           nom: `${String(place + 1).padStart(2, "0")}.mp3`,
@@ -554,7 +602,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
       // qualifier, quel que soit le nombre d'essais. Avec un budget d'un seul essai, la voie doit
       // s'arrêter avant d'avoir tout vu — et le dire autrement que « j'ai tout essayé ».
       const pages = [0, 1, 2, 3].map(() => [marque(70, 620, 7), marque(70, 320, 7), prose(760)].join("\n"));
-      const pdf = pdfDePages(bac, "budget-epuise.pdf", pages);
+      const pdf = pdfDePages("budget-epuise.pdf", pages);
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
         provenancesMedias: ["lot:epreuve"],
@@ -580,7 +628,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
       // seconde borne est une horloge : avec zéro seconde accordée, pas une reconnaissance ne
       // doit être lancée, et l'abstention doit le dire.
       const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
-      const pdf = pdfDePages(bac, "budget-horloge.pdf", pages);
+      const pdf = pdfDePages("budget-horloge.pdf", pages);
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         inventaireMedias: [{ nom: "01 - a.mp3", empreinte: "a".repeat(64), provenances: ["lot:epreuve"] }],
         provenancesMedias: ["lot:epreuve"],
@@ -608,7 +656,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
           "\n",
         ),
       );
-      const pdf = pdfDePages(bac, "noms-imprimes.pdf", pages);
+      const pdf = pdfDePages("noms-imprimes.pdf", pages);
       const noms = ["01 - Doxy.mp3", "02 - Autre chose.mp3", "03 - Encore autre.mp3", "04 - Solitude.mp3"];
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         inventaireMedias: noms.map((nom, place) => ({
@@ -641,7 +689,7 @@ describe("un document sans manière de lire (OUT-10)", () => {
       // en amont par `instantaneDeLot` : si la voie relit le document au lieu de réutiliser cette
       // donnée, elle ne trouvera aucun second signal et devra s'abstenir.
       const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
-      const pdf = pdfDePages(bac, "texte-deja-lu.pdf", pages);
+      const pdf = pdfDePages("texte-deja-lu.pdf", pages);
       const noms = ["01 - Doxy.mp3", "02 - Autre chose.mp3", "03 - Encore autre.mp3", "04 - Solitude.mp3"];
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         inventaireMedias: noms.map((nom, place) => ({
@@ -683,7 +731,7 @@ describe("ce que la voie retient d'un document, pour ne pas l'apprendre deux foi
       const pages = [0, 1, 2, 3].map((rang) =>
         [marque(70, 620, rang * 2 + 1), marque(70, 320, rang * 2 + 2), prose(760)].join("\n"),
       );
-      const pdf = pdfDePages(bac, "acquis-endroit.pdf", pages);
+      const pdf = pdfDePages("acquis-endroit.pdf", pages);
 
       const premier = await rejouerParOracle(pdf, dossierSansPiste, commun);
       expect(premier.acquis?.etat, "une lecture qui trouve retient ce qu'elle a trouvé").toBe("endroit_trouve");
@@ -706,7 +754,7 @@ describe("ce que la voie retient d'un document, pour ne pas l'apprendre deux foi
       // Le cas qui pèse le plus : seize documents sur vingt mesurés. La seconde lecture ne doit
       // rendre aucune page, ne chercher aucune forme et ne lancer aucune reconnaissance.
       const pages = [0, 1, 2, 3].map(() => [marque(70, 620, 7), marque(70, 320, 7), prose(760)].join("\n"));
-      const pdf = pdfDePages(bac, "acquis-aucun-endroit.pdf", pages);
+      const pdf = pdfDePages("acquis-aucun-endroit.pdf", pages);
 
       const premier = await rejouerParOracle(pdf, dossierSansPiste, commun);
       expect(premier.acquis?.etat).toBe("aucun_endroit");
@@ -732,7 +780,7 @@ describe("ce que la voie retient d'un document, pour ne pas l'apprendre deux foi
       // Le garde-fou le plus important de cette mémoire : l'empreinte est recalculée ici. Une
       // erreur de clé chez l'appelant appliquerait l'endroit d'un document à un autre, et
       // produirait des liens faux et réguliers — exactement ce que tout le reste empêche.
-      const pdf = pdfDePages(bac, "acquis-etranger.pdf", [prose(700), prose(500), prose(300), prose(200)]);
+      const pdf = pdfDePages("acquis-etranger.pdf", [prose(700), prose(500), prose(300), prose(200)]);
       const menteur = {
         etat: "aucun_endroit" as const,
         conteneur: "f".repeat(64),
@@ -755,7 +803,7 @@ describe("ce que la voie retient d'un document, pour ne pas l'apprendre deux foi
     async () => {
       // Sans ce contrôle, améliorer la lecture laisserait les documents déjà vus sur les
       // conclusions de l'ancienne, pour toujours et sans que rien ne le dise.
-      const pdf = pdfDePages(bac, "acquis-perime.pdf", [prose(700), prose(500), prose(300), prose(200)]);
+      const pdf = pdfDePages("acquis-perime.pdf", [prose(700), prose(500), prose(300), prose(200)]);
       const premier = await rejouerParOracle(pdf, dossierSansPiste, commun);
       expect(premier.acquis).toBeDefined();
       const vieilli = { ...premier.acquis!, voie: { id: "voie-sans-maniere-de-lire", version: VERSION_DE_LA_VOIE + 1 } };
@@ -771,7 +819,7 @@ describe("ce que la voie retient d'un document, pour ne pas l'apprendre deux foi
       // Se souvenir de « je n'ai pas fini » autoriserait plus tard à conclure de ce qu'on n'a pas
       // vu. Le filet ne doit donc jamais produire d'acquis, même quand il s'est refermé près du but.
       const pages = [0, 1, 2, 3].map(() => [marque(70, 620, 7), marque(70, 320, 7), prose(760)].join("\n"));
-      const pdf = pdfDePages(bac, "acquis-budget.pdf", pages);
+      const pdf = pdfDePages("acquis-budget.pdf", pages);
       const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
         ...commun,
         budgetExploration: { paires: 1, secondes: 3600 },
@@ -819,7 +867,7 @@ describe("ce que la voie fait avant d'explorer, et la cause qu'elle nomme (OUT-1
 
   it("ne regarde pas une seule page d'un document dont le vivier est vide (OUT-10)", { timeout: 30_000 }, async () => {
     const pages = [0, 1, 2, 3].map((rang) => [marque(70, 620, rang + 1), prose(760)].join("\n"));
-    const pdf = pdfDePages(bac, "vivier-vide.pdf", pages);
+    const pdf = pdfDePages("vivier-vide.pdf", pages);
     const feuillesRegardees: number[] = [];
 
     const rejeu = await rejouerParOracle(pdf, dossierSansPiste, {
@@ -841,7 +889,7 @@ describe("ce que la voie fait avant d'explorer, et la cause qu'elle nomme (OUT-1
     { timeout: 360_000 },
     async () => {
       // Quatre pages de prose : rien de numéroté à y lire, et onze enregistrements qui attendent.
-      const pdf = pdfDePages(bac, "rien-a-lire.pdf", [prose(700), prose(500), prose(300), prose(200)]);
+      const pdf = pdfDePages("rien-a-lire.pdf", [prose(700), prose(500), prose(300), prose(200)]);
       const vivier = Array.from({ length: 11 }, (_, place) => ({
         nom: `${String(place + 1).padStart(2, "0")}.mp3`,
         empreinte: `${place}`.repeat(64).slice(0, 64),
@@ -870,7 +918,7 @@ describe("présents et interprétés sont deux comptes (OUT-10, REC-02)", () => 
   // Attrapé par le contrôle complet, et par lui seul : la mesure sur 250 pages ne pouvait pas
   // le voir, puisque les vrais noms de fichiers portent tous un numéro.
 
-  const page = (): string => pdfDePages(bac, `presents-${Math.random()}.pdf`, [prose(700), prose(500), prose(300), prose(200)]);
+  const page = (): string => pdfDePages(`presents-${Math.random()}.pdf`, [prose(700), prose(500), prose(300), prose(200)]);
 
   it("dit « aucun enregistrement » quand le document n'en porte aucun", async () => {
     const rejeu = await rejouerParOracle(page(), dossierSansPiste, {
