@@ -96,10 +96,7 @@
 | 2026-11-06 | **Le jeton d'accès ne vient que du TROUSSEAU.** Le chemin par la variable `LIENOTHEQUE_JETON` est **retiré** : aucun des quinze appelants ne s'en gardait, aucune intégration continue ne la pose, et il était **silencieux** — un jeton qui traîne l'emportait sur le trousseau sans rien dire. La variable garde **un seul** rôle, le signal qui fait refuser de démarrer les douze programmes de mesure hors ligne : un signal de refus ne doit pas pouvoir servir d'accès | Voie 1 choisie par Christophe le 06/11, sur relevé des appelants ; deux contrôles tués par la mutation qui le réinstalle |
 | 2026-11-06 | **Renouvellement du jeton d'accès autorisé**, selon `docs/renouveler-le-jeton.md`, dans la fenêtre où aucune mesure en ligne ne tourne (avant 48 → 52) ; vérification par `verifier-route.ts`. Motif : le fragment de 37 caractères sur 64 passé par le **contexte du modèle**, non exploitable mais ayant voyagé. **Les deux gestes qui installent le secret sont faits par Christophe** — Claude n'entre pas un secret dans un champ, même autorisé | Autorisation de Christophe dans la fenêtre de la session, 06/11/2026 |
 
-
-
 ## Lot D2, étape 0 — où tourne la chaîne
-
 Le CDC avait déjà tranché la coquille : application locale en **Tauri 2 + hôte Rust + binaires
 annexes**, base locale en **SQLite et FTS5 *via l'hôte***, et trois implémentations pour le port de
 dépôt. Restait une question, et une seule : **où s'exécutent les 9 173 lignes de TypeScript de la
@@ -175,9 +172,7 @@ mesurés le jour où l'allègement sera à l'ordre du jour.
 - **La validation Apple d'un binaire Node annexe se mesure tôt**, sur un paquet d'essai : c'est le
   seul risque de cette décision qui ne se chiffre pas sans l'essayer, et il conditionne l'étape 6.
 
-
 ## Lot D2, étape 1 — une seule porte, et les critères devant
-
 La chaîne avait trois entrées : le banc de mesure appelait `rejouer`, l'application appelait
 `instantaneDeLot`, la mesure F4 orchestrait elle-même. Trois portes pour un seul traitement, et
 donc trois choses mesurables là où il n'y en a qu'une à prouver.
@@ -236,7 +231,6 @@ Le coût d'une passe de relecture part au journal, et de là à l'écran de trai
 qu'on ne voit pas est une dépense qu'on ne surveille pas.
 
 ## Lot D2, étape 2 — créer une bibliothèque, et l'organiser sans rien perdre
-
 Les deux premiers écrans de l'administrateur, portés des maquettes 1 et 2 : l'assistant en quatre
 temps et l'organisation. Ce qui a été tranché en chemin.
 
@@ -314,9 +308,7 @@ l'autorisation d'enregistrement d'écran au programme qu'on lance soi-même.
 - **Les exemples sous l'organisation** ne s'affichent que si la bibliothèque a de quoi les nourrir.
   Tant qu'elle n'a rien, l'écran ne montre rien plutôt que d'inventer.
 
-
 ## Lot D2, étape 3 — déposer, et regarder la file tourner
-
 L'écran de dépôt et de traitement, branché sur la file durable et le moteur embarqué. Ce qui a
 été tranché en chemin.
 
@@ -414,9 +406,7 @@ binaire Node déjà signé laisse macOS avec une signature en cache qui ne corre
 - **Le compteur de l'en-tête de l'application** affiche encore une valeur de démonstration, qui ne
   s'accorde pas avec la file en dessous.
 
-
 ## Lot D2, étape 4 — chercher sur la machine
-
 La recherche ⌘K. Ce qui a été tranché.
 
 ### L'index, c'est la vue
@@ -462,9 +452,7 @@ L'extrait portait le serif de marque, comme la maquette le suggérait. Le garde-
 l'a refusé : il ne sert qu'au logo et au « Bonjour ». Les maquettes sont illustratives, jamais
 typographiques — et c'est un test qui l'a rappelé, pas une relecture.
 
-
 ## Lot D2, étape 5 — montrer où regarder, et l'épreuve REC-07 sur F5
-
 L'éditeur visuel de manière de lire, puis l'épreuve : apprendre à lire un document que
 l'application n'a jamais vu, en direct, sans recette écrite à l'avance.
 
@@ -566,9 +554,7 @@ zone proche du bord droit se faisait couper. Les deux sont corrigés. La page mo
 l'éditeur est dessinée et prend ses couleurs des jetons : elle suit le thème, et le garde-fou des
 couleurs en dur n'a pas eu à être desserré pour elle.
 
-
 ## Lot D2, étape 6 — les écrans lisent la bibliothèque, et non un instantané
-
 Cette étape devait être un allègement et des finitions. Elle a surtout servi à trouver trois trous
 qu'aucun test ne montrait, **parce que chaque écran, pris seul, fonctionnait**. C'est le parcours
 complet qui les aurait rencontrés, et c'est pour cela qu'il a été fait ensuite.
@@ -590,7 +576,6 @@ Quant à l'allègement lui-même, il reste où la décision du 6 octobre l'a mis
 et sans toucher la chaîne. Rien dans cette étape n'a donné de raison de l'avancer.
 
 ## Lot D2, étape 7 — le parcours entier, sans ligne de commande
-
 De la création à la lecture, sur F3, chaque pas étant exactement ce qu'une commande de l'hôte
 fait quand un écran l'appelle. Aucun chemin propre à l'essai :
 `apps/app/src-tauri/examples/parcours-complet.rs`.
@@ -619,9 +604,7 @@ même machine à dix secondes près — un parcours de cet ordre ne se mesure pa
 deux ensemble couvrent le parcours ; ni l'un ni l'autre ne le couvre seul, et il faut le dire
 plutôt que de laisser croire qu'une main a tenu la souris.
 
-
 ## Prototype du socle local — mesures du 3 octobre 2026
-
 Mesuré sur **macOS 26.3, Apple Silicon (arm64)**, Tauri 2.12, Rust 1.99, Tesseract 5.5.1.
 Reproductible : `python3 fixtures/generer-locales.py`, puis
 `python3 apps/app/src-tauri/outils/preparer-moteurs.py`, puis
@@ -683,7 +666,6 @@ compris dans cette mesure.
   être manqués avant que le bail ne tombe.
 
 ## Stratégie de plateformes
-
 **Liénothèque est multiplateforme par conception.** macOS et Windows sont tous deux visés : aucun
 code ni outil propre à un seul système n'entre dans le projet sans que son équivalent soit prévu.
 C'est déjà le cas de `preparer-moteurs.py`, qui couvre les deux voies (réécriture `@rpath` et
@@ -790,7 +772,6 @@ l'exécutable et ses moteurs, pas un installateur.
 - Les autres moteurs du lot C : ONNX (OUT-06), Whisper (OUT-09).
 
 ## Centrage du premier lancement — mesures du 3 octobre 2026
-
 Mesuré dans le navigateur, écart entre le centre du contenu et le centre de la fenêtre :
 
 | Largeur de fenêtre | Panneau d'accroche | Zone de dépôt |
@@ -810,7 +791,6 @@ ne calculant aucune mise en page, c'est la règle qui est tenue, pas le pixel. U
 près demanderait un vrai navigateur (Playwright), non installé.
 
 ## Stockage local : `node:sqlite` plutôt qu'un module natif
-
 Le dépôt local a d'abord été écrit sur `better-sqlite3`. Il se construit sans peine sur ce Mac,
 mais l'intégration continue l'a refusé sur `windows-latest` : `node-gyp` n'y trouve aucune
 installation de Visual Studio et le paquet se replie sur une compilation depuis les sources.
@@ -859,7 +839,6 @@ Changer de version, c'est relever les nouvelles empreintes et les inscrire : rie
 téléchargé sans contrôle.
 
 ## Tests de rendu : Playwright et trois moteurs
-
 jsdom n'a pas de moteur de mise en page : il sait qu'un élément existe, pas où il tombe à
 l'écran. Toute exigence de placement — contenu centré, rien qui déborde — y est invérifiable.
 Playwright mesure.
@@ -884,7 +863,6 @@ décentrent pas — sur trois largeurs de fenêtre (820, 1024, 1600 px) et dans 
 ont une mise en page propre, clair et hybride.
 
 ## Noir et blanc 1 bit : groupe 4, et pourquoi pas JBIG2
-
 @jsquash couvre AVIF, WebP, JPEG et PNG — rien pour le bilevel compressé. Mesuré sur cinq pages
 réelles de F2, reconstituées à partir des bandes du PDF d'origine (2465 × 3520, environ 9 %
 d'encre ; la reconstitution a été vérifiée à l'œil, elle rend des pages exactes) :
@@ -926,7 +904,6 @@ la visionneuse, pour un gain réel mais modeste sur le groupe 4 : à reconsidér
 poids des pages devient la contrainte qui commande.
 
 ## Échantillon F7 : ce que l'optimiseur gagne vraiment
-
 Le CDC ne fournit pas F7. Il a été prélevé sur les fixtures, cinq pages par nature, et mesuré par
 `outils/optimiseur/test/mesures-f7.test.ts` — qui échoue si le gain s'effondre, et dont la sortie
 est recopiée ici.
@@ -958,7 +935,6 @@ trop lourd vaut mieux qu'une facture trop légère.
 PDF natif — relevé en mesurant, contre l'attente.
 
 ## Port du prototype de lecture de repères : 95 sur 95
-
 `docs/prototypes/ocr_methode.py` a servi d'oracle, étape par étape. Dès les quatre premières
 pages de F3, le port rend exactement ce que lui rend : mêmes numéros, mêmes pastilles, mêmes
 provenances, mêmes confiances. Sur les 29 pages :
@@ -992,7 +968,6 @@ s'étonne ensuite de ce que leur absence provoque. Sur une page consécutive, ri
 saut de 40 reste un saut de 40.
 
 ## Deuxième corpus : ce que Westwood a appris à l'interpréteur
-
 F4 est une méthode photographiée en doubles pages, posée de travers, sans couche texte et sans
 libellé devant ses numéros. La porter n'a demandé aucune branche de code : la recette v4 la
 décrivait déjà. Elle a en revanche révélé trois choses que F3 cachait.
@@ -1137,7 +1112,6 @@ que deux cas : le segment est connu, avec ses bornes, ou il est inconnu — et l
 alors au début de la piste, en le disant. Il n'y a pas de place pour une position approchée.
 
 ## F4 : état du critère et écarts relevés
-
 Le critère d'A5 — au moins 83 premiers éléments sur 92 et 89 pages sur 92 — **n'est pas tenu**. Il
 a été approché par deux itérations guidées par l'oracle, selon la méthode convenue : faire tourner
 `docs/prototypes/westwood_*.py` sur les mêmes clichés, relever ce qu'ils détectent élément par
@@ -1196,7 +1170,6 @@ c'est précisément ce que cet écran est là pour recevoir. Le prototype, lui, 
 automatiques.
 
 ## Les mots du schéma n'ont pas de genre
-
 Le schéma d'une bibliothèque fournit les mots — « élément », « clause », « diapositive » — au
 singulier et au pluriel, mais pas leur genre. Toute tournure qui en demande un est donc fautive
 dès qu'on change de domaine : « cet élément » devient « cet clause ».
@@ -1210,7 +1183,6 @@ C'est la contrepartie de la règle 1 : si le vocabulaire vient des données, la 
 l'entoure doit s'en passer.
 
 ## Les écrans : ce que les trois moteurs ont trouvé
-
 Les tests de rendu ne doublent pas les tests de composants : ils mesurent ce que jsdom ignore —
 contrastes réels, fonds calculés, mise en page sous contrainte. Quatre défauts qu'eux seuls
 pouvaient voir.
@@ -1240,7 +1212,6 @@ chaque mesure attend que les polices soient posées avant de lire une largeur. U
 vaut mieux qu'un contrôle qui vacille : un test instable finit toujours par être ignoré.
 
 ## Les bancs de mesure sortent de la vérification courante
-
 Deux bancs encodent ou décodent des fichiers entiers : l'échantillon F7 et la justesse du
 découpage. Chacun dure des minutes, et le rapporteur de vitest abandonne quand un seul test occupe
 un ouvrier aussi longtemps — « Timeout calling onTaskUpdate » —, rendant la vérification rouge
@@ -1255,7 +1226,6 @@ quatre minutes à onze secondes. C'est la bonne réponse quand elle est possible
 minutes finit par être désactivé, et un test désactivé ne protège plus rien.
 
 ## Un instantané ne passe pas par `public/`
-
 `public/` est recopié tel quel dans la construction et publié avec elle. L'instantané y était
 écrit, dans un sous-dossier ignoré par Git : le dépôt était protégé, la construction ne l'était
 pas — un `pnpm build` l'emportait dans `dist/`, et avec lui des numéros de page et des empreintes
@@ -1271,7 +1241,6 @@ Le jeu de démonstration suit le même chemin : il reste réservé au développe
 plus par `public/` non plus.
 
 ## Lire un lot en flux, pas en tableau
-
 La préparation d'un lot chargeait toutes les pages décodées avant d'en lire une seule. Mesuré sur
 F3 : 15 Mo d'images pour 4 pages, 68 Mo pour 29 — deux mégaoctets et demi la page, soit plus d'un
 gigaoctet pour le scan de cinq cents pages qui dort dans les fixtures.
@@ -1290,7 +1259,6 @@ page, il s'abandonne en cours de route — et non le chiffre : une mesure de mé
 ramasse-miettes et de la machine, et un contrôle qui vacille finit ignoré.
 
 ## Deux numérotations pour un même document finissent par diverger
-
 Pour donner à chaque page son image, il fallait relier le rang d'une page dans le document à son
 numéro imprimé. Le décalage majoritaire semblait suffire : il valait +2 sur tout F3.
 
@@ -1303,7 +1271,6 @@ d'élément, et l'interprète dit sur quelle page imprimée chacun tombe. Une pa
 n'a pas d'image : mieux vaut pas d'image qu'une image attribuée à la mauvaise page.
 
 ## Ce que F3 réel a montré des écrans
-
 **Un écran peut n'avoir aucune action principale.** Les 95 liens de F3 passent tous le seuil de la
 recette : la file de Vérifier est vide, et l'écran n'a donc pas de bouton cuivre plein. Le contrôle
 exigeait « exactement un » par écran et échouait. La règle est « un seul » (UX-09) : deux actions
@@ -1328,7 +1295,6 @@ zones cliquables. Les deux demandent d'étendre le contrat, l'instantané et l'i
 des fonctionnalités, pas des corrections.
 
 ## L'orientation d'un lot se vote, elle ne se croit pas sur parole
-
 En préparant la relecture ciblée des numéros illisibles de F4, les recadrages ont montré autre
 chose que ce qu'on cherchait : les pages dont la lecture ne rendait rien n'étaient pas illisibles.
 Elles étaient **couchées ou retournées**. « 227 — CD 1 Piste 20 » s'y lit parfaitement, de travers.
@@ -1381,7 +1347,6 @@ qu'elle lit. Sans cette version, la mesure aurait resservi les lectures d'avant 
 montré — c'est exactement ce qui était arrivé aux zones d'élément quelques jours plus tôt.
 
 ## Le reliquat de F4 ne relève pas d'un manque de lecture
-
 Quarante écarts restent après la correction d'orientation. Leur analyse contredit l'hypothèse qui
 avait conduit à proposer la vision ciblée.
 
@@ -1409,7 +1374,6 @@ réserve**, sans Worker, sans clé, et sans plafond écrit dans une recette tant
 mesuré par `count_tokens`.
 
 ## La fenêtre de pastille ne déborde pas : l'hypothèse est écartée
-
 Le reliquat de F4 — vingt-sept erreurs d'attribution sur quarante, toutes à −1 piste — avait une
 explication plausible : la fenêtre où l'on cherche le repère, posée **sous** le numéro d'élément,
 pouvait déborder sur l'élément suivant et lui emprunter le sien. Mesuré sur les treize clichés de
@@ -1462,7 +1426,6 @@ La partie corrective a donc été arrêtée sans toucher à la fenêtre : corrig
 cassé aurait coûté une régression pour rien.
 
 ## Les pastilles à deux chiffres, et ce que le prototype avait de plus
-
 Le reliquat de F4 tenait au rendement de lecture des pastilles. Restait à savoir où exactement.
 
 ### Ce n'est pas la couverture
@@ -1544,7 +1507,6 @@ l'ordre de deux cents pour le lot : moins que les neuf cents zones du plan initi
 ciblées.
 
 ## Compter les chiffres d'un repère, et ce que les modèles du document ne savent pas faire
-
 Dernière tentative locale avant la vision ciblée, d'une autre nature que les réglages d'OCR : ne
 plus chercher à mieux lire, mais à savoir **quand on a mal lu**.
 
@@ -1649,7 +1611,6 @@ lui manque, et le savoir ne suffit pas à l'attribution. F4 reste à 61 premiers
 77 pages sur 92, pour un critère de 83 et 89.
 
 ## La relecture ciblée : ce que la mesure a imposé contre le plan
-
 Le plan `docs/plan-vision-ciblee-f4.md` a été écrit avant d'avoir une seule image sous les yeux.
 Trois de ses affirmations étaient fausses, et elles l'étaient de façons instructives.
 
@@ -1773,7 +1734,6 @@ plafond de 0,20. Un rejeu complet ne dépense **rien** : les 139 réponses vienn
 mesure entière retombe à soixante secondes de rendu.
 
 ## L'inventaire des médias présents comme indice (REC-05)
-
 Après la relecture ciblée, il restait 25 pistes de F4 hors du compte. Le diagnostic les a séparées :
 
 | Cause | Pistes |
@@ -1824,7 +1784,6 @@ connaît, c'est l'inventaire qui est incomplet, pas la page : la piste lue est a
 retient, parce que c'est la différence entre un indice et une vérité.
 
 ## Les dix pistes qui commencent trop tôt : l'ordre est hors de cause
-
 Il restait, après l'inventaire, dix pistes justes dont le **premier** élément était faux. L'hypothèse
 à éprouver d'abord était un problème d'ordre de lecture — double page, bas de page gauche suivi du
 haut de page droite, colonnes.
@@ -1873,7 +1832,6 @@ refasse pas sous cette forme.
 éléments et 6 pages, et aucune des causes restantes n'est un défaut de lecture de repère.
 
 ## Où en est-on vraiment : le lot C est clos, F4 relève du lot D
-
 Une précision de statut, prise à la source. La feuille de route du CDC normatif v2.0 donne, lot par
 lot, un critère de passage :
 
@@ -1904,7 +1862,6 @@ repère : elles butent sur la distinction entre un vrai repère et une forme qui
 des éléments que la lecture ne voit pas du tout.
 
 ## La dette du test de présence : une correction, et une erreur de ma part
-
 Le lecteur acceptait encore des éclats du seuillage — trois pixels de large pour dix-huit de haut —
 parce que son test de présence jugeait le remplissage et la hauteur, jamais la largeur. La sélection
 des pavés s'en protégeait de son côté, ce qui soignait le symptôme.
@@ -1951,7 +1908,6 @@ Un élément et une page. La dette était réelle — deux faux repères sur 141
 qui tiendra le critère : il manque encore 9 premiers éléments.
 
 ## La relecture dit aussi si un repère est là (lot D, étape 3)
-
 Le reste de F4 ne venait plus d'un défaut de lecture mais d'un défaut de **jugement** : une lecture
 seule ne dit pas si ce qu'elle a lu **est** un repère, et la détection locale tirait trois fois trop
 souvent — 288 repères localisés pour 92 pistes. La relecture rend donc, pour chaque pavé, un verdict
@@ -2022,7 +1978,6 @@ La passe invalide est comptée : elle a été dépensée. Un rejeu complet coût
 353 réponses sont en cache.
 
 ## L'oracle de F4 était faux sur sept pistes, et la page l'a tranché
-
 Le CSV `Westwood_Vol1_CD1_pistes.csv` porte trois colonnes qu'il ne faut pas confondre :
 `premier_exercice_detecte` est une **détection du prototype**, `exercice_selon_nom_mp3` est ce que
 le **nom du fichier** annonce, et `accord` dit si les deux coïncident. Ce que nous appelions
@@ -2097,7 +2052,6 @@ seuillage d'énergie, et la machine n'a ni ffmpeg ni ffprobe. En l'état, l'audi
 d'indice à l'attribution.
 
 ## Le troisième témoin tient le critère : F4 à 84/92, partie 1 du lot D close
-
 Deux témoins qui se contredisent ne se départagent pas. La lecture locale et une première relecture
 en font deux ; il en faut un troisième, et il doit **regarder autrement** — redemander la même image
 rendrait la même réponse, et la troisième voix n'en serait pas une.
@@ -2159,7 +2113,6 @@ détection de contradiction, elles, sont dans la bibliothèque et testées. Port
 la chaîne de lecture est un travail d'intégration, pas de recherche.
 
 ## La dette d'intégration levée : un seul chemin de code, du lot aux écrans
-
 L'enchaînement de la relecture ciblée vivait dans le banc de mesure. Le critère du lot D était donc
 tenu par un script, pas par le produit. Trois choses ont été portées, et une quatrième est apparue
 en chemin.
@@ -2248,7 +2201,6 @@ Le contrôle complet passe dans les conditions de l'intégration continue : fixt
 `pnpm install --frozen-lockfile`, aucun cache de travail.
 
 ## Lot D2 — clôture
-
 Quatre questions attendaient une décision à la fin du lot. Aucune n'appelle de code ; toutes
 appellent d'être écrites, faute de quoi elles se reposeront.
 
@@ -2271,7 +2223,6 @@ d'un lot futur, pas une dette de celui-ci.
 est confirmée telle quelle.
 
 ## Lot E1 — journal de construction
-
 Le plan approuvé est `docs/lot-e-proposition.md`. Ce journal dit ce qui existe réellement, étape
 par étape. Chaque étape vérifie, et consigne, que **rien de réel n'a bougé** : l'ancienne base de
 Studio Clinique doit porter 22 022 passages et peser 168 738 816 octets, comme au 9 octobre 2026.
@@ -2649,7 +2600,6 @@ dérivés injoignables suspendent, la base injoignable ne se suspend pas — la 
 ne peut ni lire ce qui restait à faire ni écrire qu'on attend.
 
 ## Architecture — Windows cesse d'être un contrôle bloquant
-
 **Décidé le 17 octobre 2026.** Windows n'est pas, et ne sera pas, un système que nous utilisons.
 L'architecture multiplateforme reste en place : elle est gratuite avec Tauri, et rien de propre à
 un seul système n'entre dans le code sans son équivalent prévu. Mais Windows **n'est plus une
@@ -2707,7 +2657,6 @@ Windows. Il dit que deux de nos tests ne savent pas y poser le cas qu'ils veulen
 couverture Windows des critères est donc, à ce jour, de 89 tests sur 91 — et non nulle.
 
 ## La version en ligne lit par la façade (18 octobre 2026)
-
 **Décision : la façade Worker sur D1. La décision du 3 octobre — SQLite en WebAssembly pour la
 version en ligne — est remplacée.** Les deux autres implémentations du port de dépôt tiennent :
 `node:sqlite` pour les tests, l'hôte Rust pour le bureau.
@@ -2732,7 +2681,6 @@ aller-retour, mesuré à 165 ms. Ce n'est pas un détail d'implémentation — c
 en ligne sera, et ce qu'elle ne sera pas.
 
 ## « Lot E2 » : une étiquette pour deux choses (18 octobre 2026)
-
 Le mot a servi à deux choses sans rapport, et la confusion a failli faire écrire le plan du
 mauvais lot.
 
@@ -2750,7 +2698,6 @@ de capacité, et cette ligne-ci le dit. **Aucun nouveau document n'emploiera « 
 autre chose que BAS-02.
 
 ## Quatre portes, et aucune route n'en accepte deux (18 octobre, élargi le 19)
-
 | route | porte |
 |---|---|
 | les quatre de la façade — `/search-library`, `/rag-search`, `/d1-query`, `/library-facets` | **session personnelle** |
@@ -2835,9 +2782,7 @@ et vient **après** la vérification du jeton. Un appelant anonyme n'apprend ni 
 bibliothèque existe, ni pourquoi elle lui est refusée. C'est le défaut d'ordre qu'E1 avait
 corrigé le 10 octobre, et qu'aucun test ne voyait alors ; celui-ci le vérifie.
 
-
 ## 20 octobre 2026 — la fenêtre est refermée : `SESSIONS_EXIGEES` passe à vrai
-
 La garde ci-dessus tenait un intervalle. L'intervalle est terminé, et il l'est sur une mesure et
 non sur une intention.
 
@@ -2870,7 +2815,6 @@ constante. Un défaut de serrure et un défaut de réponse ne doivent pas échou
 on ne saurait pas lequel des deux on vient de casser.
 
 ## 20 octobre 2026 — la version en ligne montrait un écran de bureau
-
 Trouvé par l'usage, et par rien d'autre : ouvrir `#catalogue` en ligne montrait « Créer ma
 première bibliothèque » et « Choisir un dossier ». Le premier geste lève — l'hôte seul écrit sur
 le disque —, le second n'est même pas offert faute de disque à parcourir.
@@ -2912,9 +2856,7 @@ puisque aucune version ne s'est activée en ligne — le geste de publication n'
 tourné contre le seau déployé. L'écran le dit maintenant, au lieu de proposer de créer une
 bibliothèque.
 
-
 ## 20 octobre 2026 — la couche texte des documents photographiés ne fait pas foi
-
 Le premier des trois bloquants de BAS-02, mesuré. **Verdict : pour un document photographié, la
 reconnaissance refaite l'emporte sur la couche existante, et la chaîne doit cesser de préférer
 la seconde.**
@@ -3036,9 +2978,7 @@ imprimé après OCR reste couvert par `500-pages-scan.pdf`, dont les pages sont 
 jusqu'au folio ; en poser une seconde épreuve ici n'aurait prouvé qu'une chose, qu'on sait écrire
 un test rouge.
 
-
 ## 20 octobre 2026 — la dégradation de F4 : la cause est le vote d'orientation
-
 Réserve 9.1, ouverte depuis le 17 octobre, et deuxième bloquant de BAS-02. **La cause est
 trouvée, et ce n'était aucune des quatre hypothèses envisagées.**
 
@@ -3187,9 +3127,7 @@ soit **votée sur le document entier et transmise à chaque tranche**, jamais re
 Tant que ce n'est pas fait, une découpe fine produit silencieusement des lectures fausses, et
 c'est pire que la lenteur qu'elle évite.
 
-
 ## 20 octobre 2026 — le premier document réel traité en entier
-
 Troisième bloquant de BAS-02. *Théorie ACT* — 66 feuilles, 37,5 Mo, choisi pour être le **pire
 cas** du chemin du texte : sa couche n'a pas un seul accent.
 
@@ -3236,9 +3174,7 @@ en lecture simple, 1 477 en double. Sur un document de 480 pages et 410 Mo — l
 rien ne dit où elle s'arrête. Le plafond du projet est à 8 Go. À mesurer avant de traiter les
 gros, et à ne pas supposer.
 
-
 ## 20 octobre 2026 — étape 6 faite, et l'ampleur de la double page mesurée
-
 ### Étape 6 : une manière de lire sans zone d'élément est légitime
 
 La règle exigeait une zone d'élément, **toujours**. Elle refusait donc un document ordinaire
@@ -3292,9 +3228,7 @@ rangés dans l'autre sens. Le relevé ne le dit pas : il cherche une **preuve de
 une preuve de page simple, parce que c'est la double page non détectée qui abîme les citations.
 L'asymétrie est volontaire.
 
-
 ## 20 octobre 2026 — la double page se détecte seule, et le premier livre ordinaire passe
-
 ### La détection, et sa vérification
 
 `deuxPagesParFeuille` vit dans `passages.ts`, à côté de `numeroImprime` dont elle lit les restes :
@@ -3344,9 +3278,7 @@ page, ou celui dont la valeur **progresse** avec le rang de la feuille. Le secon
 — un folio avance d'un en un, un appel de note non — et le plus coûteux, puisqu'il demande de
 voir le document avant de trancher. À éprouver, pas à supposer.
 
-
 ## 20 octobre 2026 — le folio se tranche sur le document, plus sur la page seule
-
 Quatrième chantier de la journée. `numeroImprime` refuse de trancher entre deux nombres de la
 marge, et c'est juste pour une page seule : elle n'a aucun moyen de savoir lequel est son folio.
 Mesuré sur un livre ordinaire, cela coûtait **39 % des numéros** — les 173 pages portaient toutes
@@ -3389,9 +3321,7 @@ marge ne tient pas le décalage portait un numéro de partie ou un appel de note
 l'avait pris pour un folio. Mieux vaut pas de numéro qu'un faux — une citation renvoyée à la
 mauvaise page est pire qu'une citation renvoyée à un rang assumé comme tel (RCH-09).
 
-
 ## 20 octobre 2026 — la chaîne océrise en anglais, et personne ne lui dit la langue
-
 Trouvé en faisant le bilan des trois bloquants, et c'est une zone d'ombre que les mesures de la
 journée **masquaient** : `lireParOcr` emploie `options.langue ?? "eng"`, et **rien dans `lot.ts`
 ne passe de langue**. La chaîne réelle lit donc un corpus français avec le modèle anglais.
@@ -3423,9 +3353,7 @@ Faut-il la deviner du texte lu ? Aucune de ces réponses n'est évidente, et auc
 Ce qui est sûr, c'est qu'un défaut à `eng` dans un outil générique est une hypothèse de domaine
 déguisée (CLA-01) — au même titre que les zones d'élément obligatoires l'étaient ce matin.
 
-
 ## 20 octobre 2026 — le plus gros document du corpus : la mémoire plafonne à 3,2 Go
-
 480 pages, 391 Mo — le plus lourd des 250. Lancé pour sonder la seule ombre qui pouvait arrêter
 le réimport net.
 
@@ -3466,9 +3394,7 @@ lu**. Si cette piste se confirme, le remède n'est pas dans le vote mais dans la
 demande la lecture des marges — une segmentation serrée sur la bande, comme la lecture d'un repère
 le fait déjà.
 
-
 ## 20 octobre 2026 — le chaînon manquant : du dépôt à la recherche
-
 ### Ce qui n'existait pas, et que personne n'avait vu
 
 Relevé sur `origin/main` en préparant le plan : `executerTravail` lisait un document, construisait
@@ -3520,9 +3446,7 @@ dans le texte : la phrase n'existait nulle part et la recherche ne la trouvait p
 instant cela ressemblait à un défaut d'indexation. C'était le banc qui avait tort, et il cherche
 désormais des mots **contigus**.
 
-
 ## 20 octobre 2026 — un document numérisé jusqu'à la recherche, et l'EPUB qui n'existe pas
-
 ### 1. Le numérisé : trois citations prêtes à vérifier à l'œil
 
 *Théorie ACT* traverse la chaîne entière — lecture, dépôt, activation, recherche — et rend trois
@@ -3568,9 +3492,7 @@ Il **n'est pas clos**. Le chaînon fonctionne, et il est prouvé sur deux docume
 de bout en bout, un numérisé jusqu'à la citation. Mais la moitié de ce que les bibliothèques
 porteront ne franchit pas la première étape.
 
-
 ## 20 octobre 2026 — la chaîne lit les EPUB : des feuillets, pas des pages
-
 L'étape 7 du chemin du texte, avancée parce que la composition réelle attendue est **50 % PDF /
 50 % EPUB** et non les 7,6 % du corpus d'essai.
 
@@ -3639,9 +3561,7 @@ est `.strict()` et n'a pas de champ pour lui. Le montrer à l'écran demande don
 contrat, une colonne au dépôt et une migration. C'est le tiers de la décision du 20 octobre qui
 n'est pas livré, et il est dit ici plutôt que tu.
 
-
 ## 20 octobre 2026 — un passage dit d'où il vient (contrat, colonne, migration 7)
-
 Le tiers manquant de la décision sur les EPUB. `Passage` gagne **`emplacement`**, une chaîne
 facultative : le chapitre pour un EPUB, rien pour une page de PDF.
 
@@ -3677,9 +3597,7 @@ text/part0033.html** ». Le chapitre traverse la lecture, le découpage, le dép
 **Aucun écran ne le montre encore.** `citerPage` ne connaît pas `emplacement` : il dit « page 162
 du document » là où il pourrait dire où. La donnée est là, sa mise à l'écran ne l'est pas.
 
-
 ## 20 octobre 2026 — la porte franchie pour de vrai, et une correction de mon diagnostic
-
 ### Ce que j'avais conclu, et qui était faux
 
 J'ai relevé que `enregistrerLeTraitement` n'est appelée par rien dans le produit. **Le constat est
@@ -3744,9 +3662,7 @@ document trouve en une minute. D'où la nouvelle épreuve `de-la-porte-a-la-rech
 emprunte le chemin entier — porte, aller-retour JSON de l'hôte, contrats de relecture, `chercher` —
 sur une fixture qui dit elle-même quelle page porte quoi.
 
-
 ## 21 octobre 2026 — les trois bloquants de BAS-02 sont clos, avec leurs réserves
-
 Décision de Christophe. Le réimport des deux cent cinquante peut être envisagé : les trois
 conditions qu'on s'était données sont tenues.
 
@@ -3785,9 +3701,7 @@ donc tomber juste et rester illisible comme phrase. Rien n'est fait de ce consta
 retirer le texte de figure changerait l'extrait exact que RCH-07 promet, et une légende de figure
 est parfois exactement ce qu'on cherche.
 
-
 ## 21 octobre 2026 — un livre composé en texte n'avait rien à montrer, et ne le disait pas
-
 Relevé en passant un document du corpus par la porte réelle : sa vue sort avec **zéro page**. Ce
 n'est pas un accident de banc, c'est structurel, et cela vaut pour la moitié du corpus.
 
@@ -3848,9 +3762,7 @@ recherche qui ne rendrait rien sur un document que la chaîne n'a pas su lire.
   fenêtre de course qui précède ce chargement. Constaté, non corrigé : cela ne touche que la
   démonstration.
 
-
 ## 21 octobre 2026 — l'état du corpus, mesuré plutôt que supposé
-
 Trois inconnues de l'état des lieux ont été mesurées avant d'en faire une recommandation. Deux se
 dissolvent, une se réduit à un document.
 
@@ -3903,9 +3815,7 @@ qu'une archive ZIP. Le message le dit correctement — « la chaîne ne sait pas
 (Archive ZIP) » — il n'accuse rien à tort. Le correctif est une condition : devant une archive ZIP,
 chercher `mimetype` ou `META-INF/container.xml` dans le catalogue central avant de renoncer.
 
-
 ## 21 octobre 2026 — ce que coûte un réimport, et le document que la chaîne refuse
-
 ### Le chiffre : une nuit, pas un après-midi
 
 Dix documents pris en travers des familles, chronométrés par la **porte réelle**, cache neuf.
@@ -3983,9 +3893,7 @@ et l'espace de couleur sont dans le dictionnaire — et `@lienotheque/images` sa
 encoder. Les pages en `JPXDecode` (JPEG 2000) tombent sous la même limite : 23 pages d'un document
 de 594, qui se lit par ailleurs.
 
-
 ## 21 octobre 2026 — la détection de la double page ne sert à rien : la porte ne la consulte pas
-
 Relevé en abordant le point 2. Le problème n'est pas celui qu'on croyait, et il est plus grave.
 
 ### Le troisième mécanisme juste que la porte ne franchit pas
@@ -4043,9 +3951,7 @@ de contrat : `preparation.double_page` est-il une **décision de l'administrateu
 absence doit être permise, pour laisser voir le document) ou un **réglage toujours présent** (et
 alors la détection n'a pas lieu d'être) ? Soumis avant d'écrire.
 
-
 ## 21 octobre 2026 — la double page se déclare ou se laisse voir, et un garde-fou pour la porte
-
 Décision de Christophe : **option A**, la déclaration devient facultative, **avec le garde-fou de
 forme**. Implémentée, épreuves avant code.
 
@@ -4115,9 +4021,7 @@ dessus.
 - **Le garde-fou ne couvre que la lecture du texte.** Le chemin des images a ses propres réglages,
   et rien n'exige encore qu'ils passent par la porte.
 
-
 ## 21 octobre 2026 — les deux conditions réglées avant l'essai de la file
-
 ### 1. L'EPUB mal rangé se lit
 
 La reconnaissance par signature lit les premiers octets, et la convention veut qu'un EPUB y range
@@ -4163,9 +4067,7 @@ que le vote de folio rejette ensuite est un verdict douteux. Croiser les deux re
 inutile. Ce n'est pas fait, et cela demanderait de voir le résultat du vote avant de décider de la
 coupe — soit l'inverse de l'ordre actuel.
 
-
 ## 21 octobre 2026 — l'essai de la file : elle tient, et elle fait gagner du temps
-
 Dix documents, les **mêmes** que la mesure de coût, par le **vrai `Roulement`** — son fil, ses
 baux, ses reprises — avec le moteur rassemblé comme le paquet le rassemble.
 
@@ -4242,9 +4144,7 @@ pour faire taire une phrase **exacte** : le rendu *serait* cassé si on le deman
 avertissement vrai à un paquet plus lourd, et la mesure ci-dessus dit pourquoi il est sans
 conséquence.
 
-
 ## 21 octobre 2026 — BAS-02 : le réimport des 250 a eu lieu
-
 Accord de Christophe, lancé à 13 h 58, terminé à 19 h 19. Bibliothèque d'essai sur volume externe —
 le disque interne n'avait que 13 Gio libres pour 12 à 15 attendus.
 
@@ -4325,9 +4225,7 @@ sur aucune page.
 **L'écran de dépôt n'a toujours pas été franchi sur une création complète.** C'est la dernière
 porte, et c'est celle que Christophe poussera lui-même.
 
-
 ## 21 octobre 2026 — les deux défauts du réimport, corrigés
-
 ### La course à l'activation, et une seconde course dessous
 
 `VERROU_ACTIVES`, un verrou de processus, rend **indivisible la mise à jour** de la table des
@@ -4396,9 +4294,7 @@ lance ; il faut rejouer `preparer-moteur-node.py`. La chaîne et le paquet sont 
 Les quatre documents invisibles sont revenus. Le trentième n'a pas assez de mots pour qu'on lui
 pose une question, ce qui n'est pas un échec de la recherche.
 
-
 ## 21 octobre 2026 — dette : la vraie cause d'un moteur qui meurt
-
 Décision de Christophe : **dette séparée, pas urgente.** Notée pour ne pas l'oublier, pas traitée.
 
 ### Ce qu'on sait
@@ -4435,9 +4331,7 @@ Trois documents, une cause reconnaissable, aucun silence : on sait les nommer et
 échouent. Cette dette rejoint celle du raster `FlateDecode` — même famille, même urgence, c'est-à-
 dire aucune.
 
-
 ## 21 octobre 2026 — une porte peinte sur le mur, et le traceur qui l'a montrée
-
 ### Le défaut
 
 Le bouton **« Nouvelle bibliothèque »** de l'accueil n'avait **aucun gestionnaire de clic**.
@@ -4488,7 +4382,6 @@ n'empêche le prochain bouton muet. C'est un garde-fou à écrire.
 ---
 
 ## 22 octobre 2026 — la version en ligne : trois décisions, et un ordre
-
 Demande : employer Cloudflare — Stream pour les vidéos, D1, R2 et du RAG — sur le modèle de
 `tools/Projet therapeutes/bibliotheque-admin.html` et du Worker `clone-proxy`, pour des
 bibliothèques consultables en ligne et non plus seulement sur l'ordinateur.
@@ -4547,7 +4440,6 @@ d'écrire la première route publique — pas avant, puisque le lot attend.
 ---
 
 ## 22 octobre 2026 — « sans avoir à entrer » : ce que le plan disait déjà, et les deux manques
-
 Précision apportée : « sans avoir à entrer, depuis n'importe quel appareil ; Liénothèque sera
 utilisée par des applications ou systèmes type Studio Clinique ou prof de basse, et d'autres à
 venir — coaching de remise en forme, autre. » Et, aussitôt après : **c'est sa fonction première,
@@ -4623,7 +4515,6 @@ L'ordre reste celui fixé le même jour : le bureau d'abord. Les deux manques so
 ---
 
 ## 22 octobre 2026 — la trace s'écrit dans un fichier, et dans le paquet livré aussi
-
 Le paquet signé n'a ni console, ni inspecteur, ni « Inspecter l'élément » au clic droit. Le
 traceur du 21 octobre existait pour cette situation exactement, et il n'y parlait à personne.
 
@@ -4680,7 +4571,6 @@ désormais la sienne.
 ---
 
 ## 22 octobre 2026 — le paquet n'avait jamais exécuté la même chaîne que les bancs
-
 Trouvé en faisant exactement ce que `LIV-07` demande : Christophe ouvre le paquet signé lui-même,
 s'en sert, et rapporte ce qu'il voit. Message à l'écran : `spawnSync tesseract ENOENT`, sur
 l'essai d'une manière de lire, dans l'application installée sous `/Applications`.
@@ -4744,7 +4634,6 @@ La réserve reste ouverte, et elle est de la même nature que celle qu'on vient 
 ---
 
 ## 23 octobre 2026 — le nom du média voyage avec son empreinte, son adresse non
-
 ### Mesuré avant
 
 Un média était bien copié sous `sources/<préfixe>/<empreinte>.mp3`, mais le dépôt ne gardait pas
@@ -4772,7 +4661,6 @@ service du son, pas la qualité de l'association automatique.
 ---
 
 ## 23 octobre 2026 — une décision de vérification appartient à la bibliothèque
-
 ### Mesuré avant
 
 `App.tsx` gardait les décisions dans un état React. Quitter le document ou l'application
@@ -4798,7 +4686,6 @@ file vient d'être vidée. Cette preuve technique ne remplace pas l'usage demand
 ---
 
 ## 23 octobre 2026 — le corpus démonté borne la correction du texte
-
 Le volume qui porte les 243 documents et les 32 052 passages n'est pas monté. La population des
 50 documents presque sans texte ne peut donc ni être relue ni être remesurée honnêtement.
 
@@ -4815,7 +4702,6 @@ cassée. Organisation et Dépôt ont été ouverts sur cette bibliothèque tempo
 ---
 
 ## 26 octobre 2026 — dette prioritaire séparée : progression fausse pour les doubles pages
-
 Le dépôt réel de Paul Westwood contient **143 feuilles**, que la recette découpe en **286 pages
 logiques**. Le travail annonce pourtant un total de 143 puis atteint le point de reprise 286 :
 l'interface affiche donc 100 % à mi-parcours. Cette dette concerne uniquement le décompte de
@@ -4835,7 +4721,6 @@ la double page : le total annoncé est donc 286. Le garde-fou inverse sur F3 con
 recettes à une page par feuille conservent leur total, et le critère F3 reste à 95/95.
 
 ## Dette — « Réglages → mes clés d'accès » (29 octobre 2026)
-
 **Ce qui a été fait ce soir, et ce qui ne l'a pas été.** Les boutons d'enrôlement existaient,
 étaient éprouvés, construits et déployés — et aucun écran ne les rendait jamais : `Entrer` ne les
 propose que si on lui passe `identifie`, et `App.tsx` ne le passait à aucun de ses deux rendus.
@@ -4868,7 +4753,6 @@ répond, et une seconde refuse les boutons à qui n'est pas entré — sans quoi
 dur ferait passer la première. Les deux ont été vérifiées rouges avant d'être vertes.
 
 ## Dette — le job « Rendu » de l'intégration continue n'a jamais abouti (29 octobre 2026)
-
 **Constat, mesuré et non supposé.** Le job « Rendu (Chromium, Firefox, WebKit) » de
 `lienotheque-ci.yml` échoue à l'étape « Mesurer le rendu ». Quatre passages examinés — 26, 28 et
 29 octobre — et **aucun n'a jamais abouti, pas une seule fois depuis la création du job**. Ce
@@ -4907,7 +4791,6 @@ intégration continue déjà rouge. C'est le coût réel de cette dette, et il g
   disparue** : zéro occurrence dans le passage du 29 octobre.
 
 ## 5 novembre 2026 — A1 : l'ampleur du compactage, révisée à la baisse
-
 **Décision : le correctif reste prioritaire, mais sur un seul document visible.** Plan complet :
 `docs/plan-a1-feuille.md`.
 
@@ -4972,7 +4855,6 @@ F3 et F4 n'ont aucune feuille sans image : leurs critères ne peuvent pas bouger
 rejoués avant tout retraitement (gardien de la tâche A4).
 
 ## 5 novembre 2026 — A1, le correctif : la feuille voyage avec la page
-
 **Décision de Christophe, maintenue contre ma proposition de la reporter : le renommage
 `index` → `feuille` fait partie du correctif.** J'avais proposé de le remettre à plus tard sans
 signaler que le registre portait déjà la décision contraire — faute de méthode, signalée par
@@ -5030,7 +4912,6 @@ identiques octet pour octet à la version commitée. Le 89 d'hier était un mauv
 part, pas une perte.
 
 ## 5 novembre 2026 — A1 : la mise en page du document, confirmée par Christophe (niveau 3 sur le document)
-
 **Christophe, 5 novembre 10:38.** Vérification dans un lecteur PDF qui compte les feuilles
 (« 12 de 116 »), hors Liénothèque :
 
@@ -5067,7 +4948,6 @@ par le contenu, deux fois indépendamment.
 l'« après », et c'est Christophe qui la fait.
 
 ## 5 novembre 2026 — `pnpm check` est rouge, et il l'était déjà
-
 **`pnpm check` sur l'arbre du correctif A1 : `CHECK=1`.** Code lu sur la commande, pas au bout
 d'un tuyau. 16 paquets verts, 2 711 tests passés, **un** échec — et c'est le critère F3.
 
@@ -5105,7 +4985,6 @@ a lu son cache d'avant. Les deux jeux d'entrées coexistent sans se gêner, et l
 retrouvera sa vitesse.
 
 ## 5 novembre 2026 — la règle des échecs épinglés
-
 **Décision de Christophe.** Un contrôle rouge pour une cause connue, antérieure, et dont la levée
 est une étape identifiée, s'**épingle** dans une liste versionnée :
 `fixtures/references/echecs-connus.json`. Cette liste est une **donnée**, pas du code — comme
@@ -5141,7 +5020,6 @@ Texte proposé :
 Je ne touche pas au CLAUDE.md avant son accord.
 
 ## 5 novembre 2026 — règle 4 du CLAUDE.md : appliquée
-
 **Décision de Christophe : la formulation proposée est acceptée.** Elle est inscrite au
 CLAUDE.md, règle 4. La proposition consignée plus haut dans ce registre devient donc le texte en
 vigueur, et non plus une proposition.
@@ -5159,7 +5037,6 @@ L'épingle porte maintenant aussi un champ `ce_qui_ne_le_levera_pas` : une épin
 fausses sorties autant qu'ouvrir la bonne.
 
 ## 5 novembre 2026 — le job « Rendu » : la cause, en une ligne de journal
-
 **Lecture seule. Aucun correctif appliqué.** L'hypothèse du 29 octobre était fausse sur les deux
 suspects qu'elle nommait, et la vraie cause est dans le journal du dernier passage
 (`gh run view --job 123696833388 --log`, exécution 40944685964 du 29 octobre 19:57) :
@@ -5209,7 +5086,6 @@ vu du travail des 30 octobre au 5 novembre**, correctif A1 compris. Ce n'est pas
 le déclencheur — mais il faut le savoir avant de se croire couvert.
 
 ## 5 novembre 2026 — Bass Aerobics par la voie oracle : 48 liens, et pourquoi pas 52
-
 **Mesure, aucune écriture.** Référence : `sorties/mesures-3nov/bass-apres.json` (même voie,
 `voie-sans-maniere-de-lire` v3, 3 novembre). Nouveau :
 `sorties/a1-r1-5nov/ca36cf98-oracle-avec-provenance.json`.
@@ -5268,7 +5144,6 @@ non vérifiée y ressemble à un lien publié. Les deux faits sont vrais et dist
 reste une dette.
 
 ## 5 novembre 2026 — RÈGLE : aucun retraitement par la voie recette avant A1b
-
 **Décision de Christophe, prise après la mesure R1-recette du jour.**
 
 **A1 se scinde en deux :**
@@ -5301,7 +5176,6 @@ du document, et elle pose bien le folio 10 sur la feuille 12. **R2-oracle reste 
 indépendante de ce défaut.
 
 ## 5 novembre 2026 — la propagation des éléments : ce n'est pas A1a, c'est `e7adc9b8`
-
 **Question de Christophe : pourquoi `elementsActifs` ne propageait-il pas avant ? Preuve par le
 code et la donnée.**
 
@@ -5346,7 +5220,6 @@ exercice.
 maintenant sur plusieurs pages. Aucun correctif écrit ; lecture seule.
 
 ## 5 novembre 2026 — le rouge clavier : hypothèse de Christophe, PROUVÉE
-
 **Hypothèse à vérifier, pas à adopter.** Vérifiée, et juste.
 
 **Par le code.** `61d516bc` (3 novembre, « ouvrir le Lecteur à la vitesse originale ») change une
@@ -5378,7 +5251,6 @@ but du commit. C'est le contrôle qui dit une chose fausse depuis le 3 novembre.
 réécriture du contrôle — à décider.
 
 ## 5 novembre 2026 — la CI lit l'épingle : le garde-fou
-
 **Demandé par Christophe.** `packages/banc/scripts/controle-epingles.ts` lance le contrôle complet
 puis le juge contre `fixtures/references/echecs-connus.json`. Il remplace `pnpm test` dans
 `pnpm check`, en local **et** en intégration continue — même commande, même règle.
@@ -5401,7 +5273,6 @@ L'épingle porte désormais quatre champs que la machine compare — `paquet`, `
 `message` — le reste restant pour nous.
 
 ## 5 novembre 2026 — ce que l'intégration continue ne contrôle PAS
-
 **À consigner, parce qu'un silence ressemble à un succès.**
 
 - **Elle n'a pas Tesseract.** Un contrôle qui en dépend y échoue ou s'y saute. C'est ce qui fait
@@ -5420,7 +5291,6 @@ ou une œuvre.
 la lecture honnête d'un document sans texte soient éprouvés là où personne ne les a sous la main.
 
 ## 5 novembre 2026 — Windows suspendu, non abandonné (REMPLACE la décision du 28 octobre)
-
 **Décision de Christophe.** Windows était une erreur d'aiguillage. Il sort du périmètre de la
 Liénothèque **pour l'instant** : **suspendu, pas abandonné**. La nuance n'est pas de politesse —
 c'est elle qui explique qu'on ne retire ni code ni script, et qu'on les laisse lisibles pour le
@@ -5488,7 +5358,6 @@ dit : hors périmètre depuis le 5 novembre 2026, texte conservé, décision au 
 **Accepté par Christophe le 5 novembre : appliqué.**
 
 ## 5 novembre 2026 — LE CAP : la Liénothèque de base doit marcher avant toute extension
-
 **Décision de Christophe, et elle commande tout le reste.**
 
 **Premier jalon « ça marche »** : **Bass Aerobics avec ses liens publiés dans la vraie
@@ -5518,7 +5387,6 @@ un document qu'on ouvre, dont on écoute une piste, et dont on voit le lien sur 
 je le dis au lieu de la faire.
 
 ## 5 novembre 2026 — OUBLI GRAVE RÉPARÉ : les quatre travaux essentiels du kit du 3 novembre
-
 **Faute de ma part, signalée par Christophe.** Ma feuille de route reportait « l'estimation (B),
 les familles (C), la reconstruction (D) » et ne nommait **nulle part** les quatre travaux que le
 kit du 3 novembre pose comme **essentiels**. Les reporter sans les nommer, c'est les oublier.
@@ -5597,6 +5465,7 @@ tourner sans aucune dépendance externe.
 > **jalon Bass Aerobics** (borne de fin de propagation, puis R2-oracle) → **A1b** → **A2** →
 > **mode manuel** → **estimation marquée** → **mémoire d'apprentissage** → **Expert**
 
+
 Ce qui ne veut pas dire « plus tard et on verra » : les quatre derniers sont les travaux qui
 mènent à l'objectif du 30 octobre, et ils sont désormais écrits ici pour qu'on ne les oublie
 plus. Chaque étape dépend structurellement de la précédente — c'est le § 8 du cahier des charges
@@ -5617,7 +5486,6 @@ correctif appartient donc au lot E du mode manuel, avec un test rouge d'abord ; 
 lui, fait déjà son travail.
 
 ## 5 novembre 2026 — LES APPELS EN LIGNE SONT AUTORISÉS pour éprouver le système
-
 **Décision de Christophe. Elle remplace la règle « aucun appel en ligne par les agents ».**
 Motif, qui est une règle du 29 octobre : **« le réel reste le réel »** — un système qu'on
 n'éprouve que hors ligne n'est pas éprouvé.
@@ -5678,7 +5546,6 @@ dans les bibliothèques connues (constat du v24, corpus F5 / REC-07) — c'est l
 régler avant de pouvoir la lancer, et ce n'est pas une question d'autorisation.
 
 ## 5 novembre 2026 — incident : le volume externe démonté, et le message que je n'ai pas lu
-
 **Le produit a eu raison, et moi tort.** Le disque « Macbook Pro » — qui porte la Bibliothèque
 musicale, Studio Clinique, les archives ZIP et le cache des lectures — s'est démonté en cours de
 session. **La chaîne l'a dit, exactement comme il faut :**
@@ -5712,7 +5579,6 @@ chemin de machine inscrit dans le code, et c'est la troisième fois qu'il se man
 n'y touche pas.** Inventaire plus tard, sur le mot de Christophe.
 
 ## 5 novembre 2026 — RÈGLE : aucun contrôle de référence sur un arbre portant une modification non commitée du produit
-
 **Faute de ma part, relevée par Christophe.** Le contrôle complet a validé un arbre contenant
 `outils/ingestion/src/lot.ts` **modifié et non commité** ; le push a envoyé un arbre qui ne le
 contenait pas. Le verdict ne portait donc pas sur ce qui a été poussé.
@@ -5744,7 +5610,6 @@ unique : il revient pour les dix-neuf autres documents compactés et pour la vé
    fait que poser piste égale numéro cède la place à l'oracle »). Je ne l'ai pas doublé.
 
 ## 5 novembre 2026 — F5 passe 98/98, et une piste pour la publier
-
 **Premier appel en ligne réel du chantier.** `EPREUVE_F5=0`, 989 s, aucun écart sur les cinq
 lignes : 98 justes, 0 manquant, 0 fautif, 0 supplémentaire, 0 orphelin.
 
@@ -5782,7 +5647,6 @@ concordait 48 fois sur 48.
 > rangement n'a pas glissé. Il n'entrera pas dans la chaîne à ce titre.
 
 ## 5 novembre 2026 — la clef du cache de lecture emploie la forme faible
-
 **Mesuré, pas supposé.** `clefDeLecture` (`outils/recettes/src/banc.ts`) compose sa clef avec le
 **chemin**, la **taille** et le **`mtimeMs`** du fichier :
 
@@ -5801,7 +5665,6 @@ l'empreinte du contenu** — le document est déjà adressé par son empreinte p
 projet, y compris dans le nom de son fichier source. Reporté : cela ne sert pas le jalon.
 
 ## 5 novembre 2026 — PROTOCOLE : échange direct entre cette session et un Claude de claude.ai
-
 **Décision de Christophe.** Cette session échange directement avec un Claude dans la conversation
 claude.ai ouverte dans le navigateur, sans relais de Christophe.
 
@@ -5828,7 +5691,6 @@ formulation : pousser, supprimer, écrire dans une bibliothèque, toucher à `th
 inscrite ici. Je demanderai, et j'attendrai.
 
 ## 5 novembre 2026 — DÉCISION : la borne de fin de propagation, variante C
-
 **Décision de Christophe du 5 novembre 2026.** La règle retenue, en cinq points, et aucun chiffre
 n'y est commun à tous les documents :
 
@@ -5910,7 +5772,6 @@ meilleure** — elle retire un faux lien sur F5 et ne change rien sur les trois 
 l'inverse de ma recommandation. **Porte de Christophe**, et elle lui est posée.
 
 ## 5 novembre 2026 — DÉCISION : le dernier élément reçoit la médiane, les autres le maximum
-
 **Décision de Christophe, dans sa fenêtre, le 5 novembre 2026**, prise après la correction de ma
 mesure fausse (entrée précédente, section « À RELIRE »).
 
@@ -5959,7 +5820,6 @@ contradiction interne. La règle « vérifier la base avant de comparer deux sui
 déjà écrite ; je ne l'ai pas appliquée à ma propre phrase.
 
 ## 5 novembre 2026 — précisions techniques de la borne de fin, et une faute que le garde-fou a trouvée
-
 **Ce ne sont pas des décisions nouvelles** : la doctrine est celle du 5 novembre (le dernier
 élément à la médiane, les autres au maximum). Deux points n'étaient pas tranchés par elle, et le
 code devait bien trancher. Ils ont été soulevés par le Claude de claude.ai, à qui je n'avais donné
@@ -6033,7 +5893,6 @@ document repose sur un écart qui ne ressemble pas aux autres, et qu'un œil fer
 les numéros lus. Le document F5 le déclenche : écarts 2, 2, 2 et 5.
 
 ## 5 novembre 2026 — DOCTRINE : rien de calibré sur un document, et trois familles avant d'adopter
-
 **Décision de Christophe, et elle commande la suite.** L'association d'un fichier et de ses médias
 doit être intelligente, adaptative, universelle, et fonctionner sans faille. Aucun ajustement en
 dur lié à un document, quel qu'il soit.
@@ -6104,7 +5963,6 @@ pas balayés par CLA-01, donc rien ne l'a vu.
 acceptable le temps du jalon. C'est une porte, et elle est à Christophe.
 
 ## 5 novembre 2026 — la borne mesurée sur la vraie bibliothèque : deux structures, pas une
-
 **Correction de ce que j'ai écrit une heure plus tôt.** J'avais dit « un témoin, trois fois ». La
 mesure, faite en lecture seule sur les deux vraies bibliothèques, dit mieux que mon jugement.
 
@@ -6156,7 +6014,6 @@ déclenche, avec des écarts 2, 2, 2, 5. Sa valeur reste un « par exemple » et
 calibrer quand assez de documents porteront des repères, ou à retirer s'il ne sert jamais.
 
 ## 5 novembre 2026 — R2-oracle : la première version écrite dans une vraie bibliothèque
-
 **Autorisé par Christophe le 5 novembre.** Sauvegarde vérifiée d'abord, puis écriture, puis
 contrôle du critère.
 
@@ -6217,7 +6074,6 @@ et du texte lu. C'est Christophe qui fera le niveau 3, et ce sera le premier de 
 écran du produit.
 
 ## 5 novembre 2026 — l'application installée était trop vieille pour lire ce que R2 a écrit
-
 **Soulevé par Christophe avant de regarder l'écran, et il avait raison.** J'avais écrit « vous
 pouvez ouvrir l'application » sans vérifier que l'application installée savait lire la version que
 je venais d'écrire. C'est la faute symétrique de celle du 3 novembre : la file lance `moteur.js`,
@@ -6296,7 +6152,6 @@ par `.mise-a-jour-<id>.app` puis en gardant `.precedente-<id>.app`.
 toute façon l'application le fait mieux que moi.
 
 ## 5 novembre 2026 — l'ouverture d'une bibliothèque n'écrit rien, et R2 tient
-
 **Question de Christophe avant d'ouvrir** : `migrer_les_actives` peut-il remettre `ca36cf98` sur
 l'ancienne version ? **Non.** Posé au code en l'exécutant, sur des copies, jamais sur la vraie.
 
@@ -6345,7 +6200,6 @@ retirait ensuite le document, `07451d43` resterait orpheline sur le disque.**
 est une écriture dans une vraie bibliothèque, donc une porte, et elle n'a aucune urgence.
 
 ## 5 novembre 2026 — JALON ATTEINT : le premier niveau 3 sur un écran du produit
-
 **Christophe a ouvert Bass Aerobics dans l'application installée, sur `Bibliotheque Musique`, et a
 dit : « tout est bon, tout fonctionne ».**
 
@@ -6380,7 +6234,6 @@ structures l'ont éprouvée, il en faut trois. Et les 82 seuils de jugement sont
 **La file reprend** : A1b (source du folio), puis A2.
 
 ## 5 novembre 2026 — A1b, mesure d'ouverture : le folio est presque toujours inventé
-
 **Avant de corriger quoi que ce soit, l'ampleur.** Relevé sur les 250 documents actifs de la
 bibliothèque musicale, en lisant chaque version active.
 
@@ -6441,7 +6294,6 @@ vérité attendue** — elle compte des folios « écartés » et « gagnés » 
 justes. Il faut une référence avant de mesurer une règle.
 
 ## 5 novembre 2026 — A2 passe devant A1b, et pourquoi
-
 **Décision de Christophe.** A2 — délai effectif sur Tesseract et repli Vision obligatoire,
 exigence 0 — se fait **maintenant** ; A1b ensuite.
 
@@ -6463,7 +6315,6 @@ Trois conditions, et la première est la plus importante :
    référence machine.
 
 ## 5 novembre 2026 — A2, mesure d'ouverture : Tesseract dit lui-même où il a échoué
-
 **Deux questions, une seule passe** (`mesures/a2-ce-que-tesseract-dit-de-lui-meme.ts`), sur le
 document du jalon.
 
@@ -6516,7 +6367,6 @@ franchement inférieure à celle de la même colonne ailleurs dans le document e
 document**, comme la doctrine du 5 novembre l'exige.
 
 ## 5 novembre 2026 — A2 : trois précisions de Christophe, et ce qu'elles changent
-
 **Décisions, et elles rendent le dispositif universel là où mon premier dessin ne l'était pas.**
 
 ### 1. « Comparable » ne veut pas dire « même colonne »
@@ -6556,7 +6406,6 @@ lisible, sept cases ne le sont pas.
 | **le coût de l'étape** | en dollars, au rapport et au journal |
 
 ## 5 novembre 2026 — A2, pièce 1 : le délai, et ce que quatre familles disent de sa valeur
-
 **Le défaut, démontré par le test avant d'être corrigé** : le contrôle qui éprouve la coupure a
 d'abord attendu **30 306 ms** — la durée entière d'un faux outil qui dort trente secondes. Rien ne
 coupait. Après correctif : **304 ms**.
@@ -6591,7 +6440,6 @@ deux ferait passer une page illisible pour une page « sans texte » — le repl
 règle du 5 novembre interdit — ou ferait relire par Vision une page qui n'a jamais été lente.
 
 ## 5 novembre 2026 — à faire après A2 : passer des Aebersold par la voie oracle, à blanc
-
 **Constat de Christophe** : dans la vraie bibliothèque, seuls deux documents sont reconnus comme
 PDF + MP3. **Les Aebersold ne le sont pas** — ils n'ont jamais été traités par la voie oracle.
 
@@ -6607,7 +6455,6 @@ PDF + MP3. **Les Aebersold ne le sont pas** — ils n'ont jamais été traités 
 **Une écriture réelle viendra ensuite, sur son mot.** Elle n'est pas comprise dans cette demande.
 
 ## 5 novembre 2026 — A2, pièce 2 : mon premier critère est RÉFUTÉ, et c'est la mesure qui le dit
-
 **Le critère éprouvé** : grouper les mots d'une page par **gabarit** — hauteur de glyphes
 relative, ce qui distingue un rôle d'un autre sans rien savoir du domaine — puis, dans chaque
 groupe, couper à **la plus grande rupture** de la suite triée des confiances. Aucun seuil posé :
@@ -6643,7 +6490,6 @@ les deux défauts : sur une partition, aucune lecture n'attend rien, donc rien n
 **Rien n'a été codé sur le critère réfuté.** La mesure a servi à ça.
 
 ## 5 novembre 2026 — inventaire des 116 méthodes : le verrou n'est pas celui qu'on croyait
-
 **Lecture seule, rien extrait, rien déplacé.** Les PDF des archives ont été empreintés **en flux**,
 sans rien écrire. La liste nominative des 116 méthodes **n'est pas versionnée** : ce dépôt est
 public, et la collection de Christophe n'a pas à y figurer. Elle lui a été remise à part.
@@ -6692,7 +6538,6 @@ exactement ce qu'A2 vise : la corroboration vient de la lecture, et la lecture �
 | les 113 autres | **0** | `corroboration_insuffisante` |
 
 ## 5 novembre 2026 — correction de Christophe : le verrou n'est pas la corroboration
-
 **J'ai écrit « le verrou est `corroboration_insuffisante` ». C'est le symptôme, pas la cause.**
 
 Sa correction : **ces 113 méthodes ne proposent AUCUN élément.** Il n'y a donc rien à corroborer —
@@ -6714,7 +6559,6 @@ eux est corrélé aux folios** du document. C'est le document qui répond, et la
 aucun mot. Même esprit que la borne de fin : la régularité se mesure, elle ne se déclare pas.
 
 ## 5 novembre 2026 — le banc d'extraits, rodé sur six méthodes
-
 **Six méthodes, une par famille, extraites hors de toute bibliothèque.** 136 Mo, 57 fichiers,
 sept jeux avec celui du rodage. Les archives n'ont pas été touchées.
 
@@ -6746,7 +6590,6 @@ de le cacher, et **il faut le corriger avant d'étendre aux 115** : un extrait �
 n'éprouve pas grand-chose.
 
 ## 5 novembre 2026 — le banc d'extraits, construit sur 115 méthodes
-
 **115 jeux sur 116**, chacun huit pages choisies par mesure et onze médias — huit retenus, trois
 en trop. **7,6 Go**, dont la quasi-totalité est de l'audio : un PDF extrait pèse 5,5 Mo, ses onze
 médias 107 Mo. « Un petit bout » vaut pour les pages, pas pour l'audio, et c'est un point à
@@ -6773,7 +6616,6 @@ fonctionnent. La voie oracle d'abord — seule, comme Christophe l'a demandé �
 gain d'A2 se lise et ne se suppose pas.
 
 ## 5 novembre 2026 — A2, pièce 2 : le déclencheur existe déjà dans le code, et personne ne s'en sert
-
 **Après avoir réfuté mon critère par gabarit, j'ai cherché où « la lecture attendue a échoué » se
 décide. C'était déjà écrit.**
 
@@ -6806,7 +6648,6 @@ de pistes — une cellule **suspecte**, pas absente. Les deux catégories sont d
 elles suffisent.
 
 ## 6 novembre 2026 — A2, pièce 2 : la zone sort des mots, pas d'un réglage
-
 `lireLaTable` disait **qu'une** case était en défaut, jamais **où**. Relire voulait donc dire
 relire la page entière : le prix d'une page pour rattraper une case. `TableLue` rend maintenant
 `aRelire`, une entrée par case en défaut — les cellules non lues des rangées à trou, et les
@@ -6836,7 +6677,6 @@ Le contrôle du dédoublonnage ne vérifiait rien : il comparait deux cases **di
 maintenant ce qui est vrai — les deux causes désignent nécessairement deux cases distinctes.
 
 ## 6 novembre 2026 — Ce que la voie oracle coûte vraiment : cinq reconnaissances par seconde
-
 Le premier passage du banc sur six familles a donné **1 599 s et 1 101 s pour huit pages** — deux
 cents secondes par page, là où les durées mesurées le 5 novembre sur quatre familles donnaient
 des médianes de 0,4 à 1,1 s. L'écart n'est pas une lenteur : c'est une autre unité de travail.
@@ -6856,7 +6696,6 @@ L'unité de la voie oracle est la **fenêtre**, et il y en a des milliers par do
 appel, oui ; un plafond par page n'a pas de sens ici.
 
 ## 6 novembre 2026 — Mon banc mesurait son propre défaut : une empreinte fabriquée depuis un nom
-
 Quatre des six jeux ont échoué sur un refus de contrat : `pages[n] … /^[0-9a-f]{64}$/`. La cause
 était dans **ma mesure**, pas dans le produit — `banc-voie-oracle.ts` fabriquait l'empreinte d'un
 média en complétant son **nom** à soixante-quatre caractères. Un nom de fichier n'est pas de
@@ -6878,7 +6717,6 @@ d'Aebersold 041 n'a d'ailleurs **aucun audio** — c'est le « 1 PDF seul » de 
 vérifié dans l'archive. Il ne peut pas servir à mesurer une association.
 
 ## 6 novembre 2026 — A2, pièce 3 : la relecture d'une zone, et la règle que j'avais écrite à l'envers
-
 `outils/ingestion/src/relire-les-zones.ts` fait le pont qui manquait entre « la table se dit en
 défaut » et « quelque chose relit ». Le relecteur est un **port** : ce module n'appelle rien par
 lui-même, ne connaît ni réseau ni clé, et sans relecteur il rend les zones qu'il aurait relues et
@@ -6912,7 +6750,6 @@ parce qu'un vrai cas les tue.** La doctrine du 5 novembre ne vaut pas seulement 
 constantes du produit.
 
 ## 6 novembre 2026 — A2 : mesurer avant de dépenser une clé, et ce que la page a dit
-
 Avant d'appeler Vision, j'ai demandé à **Tesseract lui-même** de relire les cases que la table dit
 en défaut : la même reconnaissance, mais sur **la zone seule et en segmentation serrée** au lieu
 de la page entière en blocs. Quatre manières — ligne (7), mot (8), mot ×3, bloc (6) ×3 —, chacune
@@ -6971,7 +6808,6 @@ mesuré au lieu d'être supposé** : la relecture locale d'abord, gratuite ; Vis
 qui reste sans accord, et seulement là.
 
 ## 6 novembre 2026 — La voie oracle sur six familles du banc : le tableau, et ce qu'il ne mesure pas
-
 Voie oracle **seule**, sans A2, sans relecture ciblée, sans aucun appel en ligne — la référence
 d'avant A2 que Christophe a demandée le 5 novembre.
 
@@ -7026,7 +6862,6 @@ document ne porte simplement pas de numérotation lisible. C'est le cas d'Aebers
 dont l'un a onze médias et l'autre aucun : la même phrase pour deux situations opposées.
 
 ## 6 novembre 2026 — Ce que la relecture locale rattrape vraiment : +1, et non +4
-
 Mesuré au niveau où le gain se décide, **sans toucher à la chaîne** : une rangée de table devient
 utilisable quand toutes ses cellules sont lues et qu'aucune n'est suspecte. On compte les rangées
 utilisables avant et après la relecture, et on n'attribue ainsi à A2 aucun effet venu d'ailleurs.
@@ -7058,7 +6893,6 @@ si **toutes** ses cellules sont lues — combler une cellule sur deux ne rapport
 donc un rôle précis, borné, et chiffrable : les cases restées sans accord, et elles seules.
 
 ## 6 novembre 2026 — Le nombre dans le nom : trois propriétés écrites, deux fausses, et un signal rare
-
 Christophe a demandé d'exploiter « de façon générique » le nombre que certains noms de MP3
 portent — un numéro de page imprimée —, « jamais par un motif *Pg.* en dur ». J'ai donc relevé,
 pour chaque **place** où un nombre apparaît dans les noms d'un même vivier, la suite de ses
@@ -7101,7 +6935,6 @@ distingue la page du rang de piste, ce sont **les folios lus**, et rien d'autre 
 que Christophe a nommée n'est pas un raffinement du mécanisme, elle **est** le mécanisme.
 
 ## 6 novembre 2026 — A2 sur un livre entier : 99,5 % du coût part dans des pages qui ne sont pas des tables
-
 Le document du jalon, 116 pages, relecture locale sur **toutes** ses cases en défaut :
 
 | | |
@@ -7142,7 +6975,6 @@ Le chiffrage est fait, et il vaut pour la décision : **23 minutes et vingt-troi
 reconnaissances pour un livre, afin de gagner une rangée dans la seule table qui compte.**
 
 ## 6 novembre 2026 — Deux défauts d'abstention, corrigés sur décision de Christophe
-
 Les deux défauts avaient été **mesurés** sur le banc des 115 méthodes le 5 novembre, rapportés
 sans être corrigés, et Christophe a tranché : les corriger, test rouge d'abord.
 
@@ -7189,7 +7021,6 @@ maintenant en une ligne, sans toucher au reste.
 Restauré octet pour octet après chaque mutation.
 
 ## 6 novembre 2026 — Ce qui distingue une table d'une page qui n'en est pas une
-
 Priorité posée par Christophe : **le détecteur doit cesser de voir des tables dans la musique
 avant qu'on branche Vision**. Critères de forme seulement, éprouvés sur au moins trois familles.
 
@@ -7362,14 +7193,6 @@ Relevé du 5 novembre, recompté le 6. **1 979 enregistrements**, médiane **13*
 | 17 | 3 | 95 |
 | 18 | 2 | 97 |
 | 20 | 3 | 100 |
-| 15 | `8f3403ff`, le masque de code en une seule passe, et `0f572722`, le crochet qui juge l'index du commit | « Push autorisé : 8f3403ff et 0f572722 (inscris-le dans le même geste), puis CI rapportée » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. **Deux contrôles complets, un par lot** : 3041 lus, 1 rouge épinglé (F3) chacun, 25 min 00 s puis 25 min 28 s, charges 6,30 et 4,47, index à quatre puis huit fichiers. Les deux premiers commits **jugés par le crochet de pré-commit** en production, qui a annoncé 853 chemins du projet sur 8148, puis 859 sur 8154 — le compte du projet, non celui du dépôt. Le masque est passé devant le 0c parce qu'il le bloquait : son rouge accusait une faute factice de fixture |
-| 14 | `c0da137d`, registre de la récupération et des deux gestes silencieux, et `03a3c4a9`, le crochet qui refuse les gestes destructeurs | « Push autorisé : c0da137d et 03a3c4a9 (inscris-le dans le même geste), puis CI rapportée » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Contrôle accepté avant (3026 lus, 1 rouge épinglé — F3 —, charge 10,5 venue de la fenêtre Claude et non du contrôle, index à six fichiers, registre monté par blob pour ne porter que la section du lot). **Ce push ne change rien à la copie principale** : elle est sur `main`, le lot est sur `wip/lienotheque-2026-10-29`, et un `git pull` n'y ramènerait rien. Ses trois fichiers `.claude/` restent une installation à la main, tenue en accord par le contrôle des réglages actifs — qui est désormais la seule chose qui les y tienne, et qui rougira si le crochet versionné change sans que l'installation suive |
-| 13 | `f29ce343`, retirer du commit d'autorisation l'extraction du lot Vision | « Push de f29ce343 autorisé tout de suite (inscris-le) » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Correction de `4c9b8ea0`, qui avait emporté 96 lignes du lot Vision parce que `git apply --3way` indexe son résultat. **Sans réécriture d'historique** : la trace reste, l'état est corrigé |
-| 12 | `42f5f229`, un délai égal au coût est un tirage au sort | « Push autorisé (inscris-le) » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Contrôle accepté avant (3005 lus, 1 rouge épinglé, charge 6,27, index à deux fichiers) ; **premier lot dont la copie de travail aussi était ramenée à l'état du commit**, le travail du lot Vision mis à l'abri sur la branche locale `sauvegarde/lot-vision-07nov` |
-| 11 | `24417e48`, le masque situe un motif sans le lire | « Push autorisé dès le contrôle accepté » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Premier lot vérifié avec **l'index préparé avant le contrôle** : 3005 lus, 1 rouge épinglé, charge 4,58, index à cinq fichiers — donc le contrôle a jugé exactement ce qui part |
-| 10 | `3905891b`, aucun fichier suivi n'importe un fichier non suivi | « Push de 3905891b autorisé : inscris-le dans le même geste, puis rapporte la CI » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Contrôle accepté avant (3003 lus, 1 rouge épinglé, charge 5,67) ; contenu vérifié par `git show --name-only` — trois fichiers, `aides/pdf.ts` exclu |
-| 9 | `786a60d4` (le module que `index.ts` exportait sans qu'il existe) et `6d235943` (le garde-fou ne lit plus les chaînes comme du code) | « Push autorisé dès le contrôle accepté » — les deux réparations d'une même branche cassée, vérifiées par **un seul** contrôle sur l'arbre les portant toutes deux, puis commitées séparément | message de Christophe dans la fenêtre de la session, 7 novembre 2026, contrôle accepté avant (2992 lus, 1 rouge épinglé, lancé à charge 6,62) |
-| 8 | `1f5f3379`, aucune promesse dans une condition | « Push de 1f5f3379 autorisé : inscris-le dans le même geste, puis rapporte la CI sur ce commit précis » | message de Christophe dans la fenêtre de la session, 6 novembre 2026. Contrôle local accepté avant (2989 lus, 1 rouge épinglé), **mais il a vu l'arbre entier** : la garantie de l'état commité seul vient de la CI sur ce commit |
 | 21 | 1 | 101 |
 | 22 | 2 | 103 |
 | 23 | 1 | 104 |
@@ -7401,7 +7224,6 @@ Et le seuil de corroboration — `Math.min(vivier, Math.max(8, vivier / 2))` —
 cinquante-deux documents de la tranche 9 à 12, c'est-à-dire pour la moitié de la collection.
 
 ## 6 novembre 2026 — PORTE : Vision active par défaut, sans plafond en euros
-
 **Question posée à Christophe dans la fenêtre de la session, réponse reçue le 6 novembre 2026.**
 
 D'où venait le plafond sur la voie oracle ? De nulle part :
@@ -7431,7 +7253,6 @@ leurs propres contrôles. Les cases refusées par un plafond sont nommées, puis
 d'abord.
 
 ## 6 novembre 2026 — Le contrôle attrape ce que 250 pages de mesure ne pouvaient pas voir
-
 Le contrôle complet a **refusé** le lot du détecteur. Deux régressions, toutes deux de ma main.
 
 ### Un mot de domaine dans un commentaire
@@ -7525,7 +7346,6 @@ archives n'a de dossier `CD n`, donc le résultat est identique — mais il l'es
 que la question a été posée, et non par chance.
 
 ## 6 novembre 2026 — Les étiquettes ID3 ne sont pas un second signal
-
 **Consigné sans rien coder.** Deux passages du registre, datés du 5 novembre, disaient de `TRCK`
 qu'il était « le seul signal entièrement indépendant » et en tiraient qu'un document qui en
 porterait pourrait publier. Les deux sont corrigés sur place, à leur date.
@@ -7577,7 +7397,6 @@ fichier ne sont pas un second signal » — le jour où la capacité « tags » 
 ouverte, non tranchée.
 
 ## 6 novembre 2026 — Une règle qu'on doit se rappeler n'est pas une règle
-
 En préparant un commit, un `git add` désignant un **dossier** — `mesures/` — au lieu de fichiers a
 happé tout un arbre de sorties non suivi : des centaines de fichiers, **dont deux PDF**, vers ce
 dépôt **public**. Rattrapé avant le commit, à la relecture de `git status`. C'est-à-dire par
@@ -7611,7 +7430,6 @@ exige que chaque tolérance soit motivée — allonger cette liste est une déci
 commodité.
 
 ## 6 novembre 2026 — Les numérisations partielles : un fait de contenu, pas un défaut
-
 Aebersold 017 annonce ses sections aux pages imprimées 1, 10, 19, 28, 37 et 38 ; le PDF de
 l'archive porte **quatorze feuilles** — la couverture, le sommaire, l'introduction, la seule
 section en clé de do, une page scannée à l'envers, et la page 38. Les trois sections transposées
@@ -7653,7 +7471,6 @@ La leçon de méthode reste, et elle vaut plus que le chiffre : **le premier ins
 chiffre qui rassure.
 
 ## 6 novembre 2026 — Les autorisations de push, et un écart au protocole
-
 Le registre dit : « Chaque porte se demande à Christophe dans la fenêtre de cette session, on
 attend sa réponse, et **elle s'inscrit au registre avec sa date** » (5 novembre 2026, règle 3).
 
@@ -7669,10 +7486,23 @@ relevé. L'écart est consigné ici, et les autorisations avec lui.
 | 5 | `7904eb66` (titres hors du code du produit) et `38001a1f` (la règle au registre) | « Push autorisé : 7904eb66 puis 38001a1f. Inscris l'autorisation dans le même geste » — les deux commits nommés, dans l'ordre | message de Christophe dans la fenêtre de la session, 6 novembre 2026, contrôle complet accepté avant |
 | 6 | `07f0e2f4`, CLA-01 cherche des mots entiers | « Push de 07f0e2f4 autorisé (inscris-le dans le même geste) » — le commit nommé | message de Christophe dans la fenêtre de la session, 6 novembre 2026, contrôle complet accepté avant (2973 lus, 1 rouge épinglé) |
 | 7 | `114bf9a4` (le jeton vient du trousseau), `27d43b37` et `a3e126d7` (registre : A2 à deux déclencheurs, discipline de tenue) | « Push autorisé : 114bf9a4, 27d43b37, a3e126d7 (inscris-le dans le même geste) » — les trois commits nommés | message de Christophe dans la fenêtre de la session, 6 novembre 2026, contrôle complet accepté avant (2974 lus, 1 rouge épinglé) |
+| 8 | `1f5f3379`, aucune promesse dans une condition | « Push de 1f5f3379 autorisé : inscris-le dans le même geste, puis rapporte la CI sur ce commit précis » | message de Christophe dans la fenêtre de la session, 6 novembre 2026. Contrôle local accepté avant (2989 lus, 1 rouge épinglé), **mais il a vu l'arbre entier** : la garantie de l'état commité seul vient de la CI sur ce commit |
+| 9 | `786a60d4` (le module que `index.ts` exportait sans qu'il existe) et `6d235943` (le garde-fou ne lit plus les chaînes comme du code) | « Push autorisé dès le contrôle accepté » — les deux réparations d'une même branche cassée, vérifiées par **un seul** contrôle sur l'arbre les portant toutes deux, puis commitées séparément | message de Christophe dans la fenêtre de la session, 7 novembre 2026, contrôle accepté avant (2992 lus, 1 rouge épinglé, lancé à charge 6,62) |
+| 10 | `3905891b`, aucun fichier suivi n'importe un fichier non suivi | « Push de 3905891b autorisé : inscris-le dans le même geste, puis rapporte la CI » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Contrôle accepté avant (3003 lus, 1 rouge épinglé, charge 5,67) ; contenu vérifié par `git show --name-only` — trois fichiers, `aides/pdf.ts` exclu |
+| 11 | `24417e48`, le masque situe un motif sans le lire | « Push autorisé dès le contrôle accepté » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Premier lot vérifié avec **l'index préparé avant le contrôle** : 3005 lus, 1 rouge épinglé, charge 4,58, index à cinq fichiers — donc le contrôle a jugé exactement ce qui part |
+| 12 | `42f5f229`, un délai égal au coût est un tirage au sort | « Push autorisé (inscris-le) » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Contrôle accepté avant (3005 lus, 1 rouge épinglé, charge 6,27, index à deux fichiers) ; **premier lot dont la copie de travail aussi était ramenée à l'état du commit**, le travail du lot Vision mis à l'abri sur la branche locale `sauvegarde/lot-vision-07nov` |
+| 15 | `8f3403ff`, le masque de code en une seule passe, et `0f572722`, le crochet qui juge l'index du commit | « Push autorisé : 8f3403ff et 0f572722 (inscris-le dans le même geste), puis CI rapportée » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. **Deux contrôles complets, un par lot** : 3041 lus, 1 rouge épinglé (F3) chacun, 25 min 00 s puis 25 min 28 s, charges 6,30 et 4,47, index à quatre puis huit fichiers. Les deux premiers commits **jugés par le crochet de pré-commit** en production, qui a annoncé 853 chemins du projet sur 8148, puis 859 sur 8154 — le compte du projet, non celui du dépôt. Le masque est passé devant le 0c parce qu'il le bloquait : son rouge accusait une faute factice de fixture |
+| 14 | `c0da137d`, registre de la récupération et des deux gestes silencieux, et `03a3c4a9`, le crochet qui refuse les gestes destructeurs | « Push autorisé : c0da137d et 03a3c4a9 (inscris-le dans le même geste), puis CI rapportée » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Contrôle accepté avant (3026 lus, 1 rouge épinglé — F3 —, charge 10,5 venue de la fenêtre Claude et non du contrôle, index à six fichiers, registre monté par blob pour ne porter que la section du lot). **Ce push ne change rien à la copie principale** : elle est sur `main`, le lot est sur `wip/lienotheque-2026-10-29`, et un `git pull` n'y ramènerait rien. Ses trois fichiers `.claude/` restent une installation à la main, tenue en accord par le contrôle des réglages actifs — qui est désormais la seule chose qui les y tienne, et qui rougira si le crochet versionné change sans que l'installation suive |
+| 13 | `f29ce343`, retirer du commit d'autorisation l'extraction du lot Vision | « Push de f29ce343 autorisé tout de suite (inscris-le) » | message de Christophe dans la fenêtre de la session, 7 novembre 2026. Correction de `4c9b8ea0`, qui avait emporté 96 lignes du lot Vision parce que `git apply --3way` indexe son résultat. **Sans réécriture d'historique** : la trace reste, l'état est corrigé |
 
-Sept poussées, douze autorisations si l'on compte les commits nommés séparément — et c'est bien
-ainsi qu'il faut les compter : **une autorisation porte sur des commits nommés, jamais sur « la
-suite »**.
+Le tableau ci-dessus fait foi, et cette phrase ne recompte plus ce qu'il dit : **le numéro de sa
+dernière ligne est le nombre de poussées**. Un décompte recopié à côté d'un tableau devient faux à
+la ligne suivante — celui-ci l'était trois fois de suite, et le recalculer a fait trébucher sur
+mieux : ce dépôt porte **plusieurs** tableaux dont les lignes se ressemblent, et un compte par la
+forme des lignes les mélange.
+
+Ce qui reste à dire, et qui ne se compte pas : **une autorisation porte sur des commits nommés,
+jamais sur « la suite »**.
 
 La quatrième est la première inscrite **dans le même geste que le push**, comme la règle de tenue
 ci-dessous l'exige ; la cinquième l'est aussi, et Christophe l'a cette fois demandé dans la phrase
@@ -7689,7 +7519,6 @@ Règle de tenue, à partir d'ici : **l'inscription au registre se fait dans le m
 push**, et non « plus tard ».
 
 ## 6 novembre 2026 — RÈGLE : une référence tirée du document se prend à la médiane
-
 **Trois fois dans la même journée, le minimum s'est fait tirer vers le bas par une page
 aberrante.** Christophe en fait une règle.
 
@@ -7718,7 +7547,6 @@ supposé est une règle qu'aucune mesure ne tient. **À ajouter au banc dès qu'
 c'est alors la mesure qui dira ce qu'il faut.
 
 ## 6 novembre 2026 — Le redressement des pages mal tournées, et ce qu'il a fallu quatre réécritures pour voir
-
 Décision de Christophe : activer le redressement, qui était **construit et éteint** — une seule
 occurrence de l'option dans tout le dépôt, dans un contrôle sauté. Un gain de lecture net peut
 décider seul quand l'avis d'orientation se tait, sous trois garde-fous ; le motif tient en une
@@ -7818,7 +7646,6 @@ piège exact : **on nomme ce qu'on a mesuré, et ce qu'on a mesuré appartient �
 Corrigé en « pages gravées », qui dit la même chose sans le nommer.
 
 ## 6 novembre 2026 — Le seuil de corroboration n'a pas été éprouvé : la détection échoue avant lui
-
 Christophe demandait depuis le matin si le `8` — le nombre de rangées qu'une table doit recouper
 pour valoir seconde lecture — retenait des documents qui lisent pourtant juste. **La mesure ne
 peut pas répondre, et c'est cela qu'elle établit.**
@@ -7867,7 +7694,6 @@ de neuf, seuil de 8, et une liste réelle à recouper.
 ---
 
 ## 6 novembre 2026 — titres et auteurs : la règle du dépôt public
-
 Christophe a posé la question dans le bon ordre : d'abord **quoi**, en lecture seule, avant
 toute règle. Le relevé a donné une réponse que je n'attendais pas.
 
@@ -7931,7 +7757,6 @@ la règle 2, **c'est maintenant voulu, et non plus une lacune**.
 ---
 
 ## 6 novembre 2026 — le garde-fou cherchait des suites de lettres, pas des mots
-
 Christophe a posé la question juste après le push : « vérifie que CLA-01 cherche des **mots
 entiers** ; *rosier* est un mot français courant, *bach* peut figurer dans d'autres mots ».
 
@@ -8035,7 +7860,6 @@ inoffensive par construction — mais il fallait le vérifier plutôt que le sup
 ---
 
 ## 6 novembre 2026 — A2 a DEUX déclencheurs, pas un
-
 Rappel de Christophe, au moment d'attaquer la fin d'A2. Je n'en avais retenu qu'un, et la
 différence porte loin.
 
@@ -8063,7 +7887,6 @@ Ordre arrêté : **48 → 52 d'abord**, le second déclencheur ensuite.
 ---
 
 ## 6 novembre 2026 — le jeton ne vient plus que du trousseau
-
 Christophe a demandé un relevé avant de décider : quels appelants de `jetonDacces()` existent,
 lesquels portent la garde contre un jeton d'environnement, et pourquoi l'environnement passait
 devant. Le relevé a donné une réponse nette, et la décision a suivi : **voie 1, le chemin par
@@ -8152,7 +7975,6 @@ directement et ne passaient pas par elle.
 ---
 
 ## 6 novembre 2026 — renouvellement du jeton d'accès : autorisé
-
 **Autorisation de Christophe**, dans la fenêtre de la session, le 6 novembre 2026 :
 
 > « Renouvellement du jeton AUTORISÉ, selon `docs/renouveler-le-jeton.md`, au moment où aucune
@@ -8237,7 +8059,6 @@ manquant qu'on n'a pas de temps à perdre.
 ---
 
 ## 6 novembre 2026 — discipline de tenue : un lot à la fois, et la charge avant un contrôle
-
 Deux règles posées par Christophe après trois incidents de la même journée. Elles sont ici parce
 qu'elles ont chacune un coût mesuré.
 
@@ -8279,10 +8100,10 @@ portant sur un état déjà périmé. D'où la seconde moitié de la règle.
 **Ce qu'il ne faut pas faire dans ce cas**, et qui n'a pas été fait : épingler le rouge (une
 épingle sert à un échec compris, pas à un échec inexpliqué) ou allonger le délai de 360 s (ce
 serait supprimer le seul signal qui a dit que la machine était saturée).
+
 ---
 
 ## 6 novembre 2026 — une promesse est toujours vraie, et n'a rien à faire dans une condition
-
 Christophe l'a demandé après une remarque exacte : j'avais annoncé que `sansLien` était devenue
 asynchrone « sans changer ses quatre appels », et il a relevé le risque — *une promesse utilisée
 sans attente dans une condition est toujours vraie, et le compilateur ne le voit pas toujours.*
@@ -8347,10 +8168,11 @@ Une mutation qui ne s'applique pas est **indiscernable d'une mutation qui ne tue
 affichent du vert. Le script de mutation vérifie maintenant que le motif existe **avant** de
 jouer, et le dit quand il est absent. C'est encore la même famille : le silence qui ressemble au
 succès.
+
+
 ---
 
 ## 7 novembre 2026 — la CI était rouge depuis quatre commits, pour un fichier jamais commité
-
 **Première application de la règle « après chaque push, lire la CI »**, posée par Christophe le
 6 novembre. Elle a trouvé quelque chose dès son premier usage.
 
@@ -8411,10 +8233,10 @@ Le second part avec le lot Vision. Le premier est réparé ici.
 Un garde-fou « **aucun fichier suivi n'importe un fichier non suivi** » entre dans la file, avant
 le lot Vision : il ajoute trois fichiers neufs, dont un déjà importé par un fichier suivi. Un
 garde-fou local qui tient cette règle aurait rougi au premier commit, sur le disque, avant le push.
+
 ---
 
 ## 7 novembre 2026 — le garde-fou des promesses lisait ses propres exemples comme du code
-
 Posé la veille, vert au moment du commit, **rouge une seconde après** : son fichier de contrôle
 n'était pas encore suivi par Git, donc il ne se voyait pas lui-même. Le commit `1f5f3379` l'a rendu
 visible, et il a immédiatement accusé ses propres fixtures — elles portent `if (…)` **dans des
@@ -8449,10 +8271,10 @@ accuse une citation. Son contrôle est écrit.
 **Troisième fois ce jour** qu'une contre-épreuve entrée par entrée révèle une règle que rien ne
 tenait — après `es`/`x` dans les flexions, et les ports asynchrones. La contre-épreuve globale
 (« une mutation, un test mort ») ne suffit pas : c'est **entrée par entrée** qu'elle parle.
+
 ---
 
 ## 7 novembre 2026 — aucun fichier suivi n'importe un fichier non suivi
-
 Né de l'incident du matin : la CI rouge quatre lots durant, pour un `index.ts` commité qui
 exportait un module que personne n'avait commité. Ce garde-fou rougit **avant** le push, sur le
 disque, là où la correction coûte un `git add` au lieu d'une branche cassée.
@@ -8552,10 +8374,10 @@ méfiance, elles disaient « cette règle ne sert à rien ».
 
 Une mutation qui ne s'applique pas est **indiscernable d'une mutation qui ne tue rien**. Les scripts
 vérifient maintenant que le motif existe **avant** de jouer, et le disent quand il est absent.
+
 ---
 
 ## 7 novembre 2026 — l'index est préparé AVANT le contrôle, pas après
-
 **Règle de tenue posée par Christophe**, et elle vise la cause de deux rouges du jour :
 
 > Avant le contrôle complet, les fichiers du lot — **et eux seuls** — sont ajoutés à l'index, pour
@@ -8590,10 +8412,10 @@ Elle complète les deux autres règles de la journée, et les trois ne forment q
 1. **chemins explicites** — n'emporter que ce qu'on nomme ;
 2. **aucun fichier suivi n'importe un fichier non suivi** — ne pas oublier d'emporter ;
 3. **l'index préparé avant le contrôle** — juger ce qu'on emporte, et non ce qu'on a sous la main.
+
 ---
 
 ## 7 novembre 2026 — le garde-fou des fantômes s'est lu lui-même, et le remède était faux
-
 Le garde-fou posé le matin a annoncé **six fantômes** sur la CI, tous des fixtures de son propre
 fichier de contrôle, écrites entre guillemets. Même défaut que le garde-fou des promesses la
 veille, **un lot plus tard**, alors que la leçon était écrite au registre.
@@ -8629,10 +8451,10 @@ sources du dépôt blanchit les chaînes et les commentaires avant de lire.**
 
 Le blanchiment des commentaires n'était d'abord tenu **que par un commentaire du dépôt réel** —
 creux dès que quelqu'un le réécrirait. Il a désormais son propre cas.
+
 ---
 
 ## 7 novembre 2026 — un délai égal au coût est un tirage au sort
-
 La CI de `44726ce2` : **Ubuntu accepté, macOS refusé**, sur une régression qui ne venait pas du lot
 poussé.
 
@@ -8686,10 +8508,10 @@ calibre rien : il aligne un contrôle oublié sur la règle que son voisinage ap
 **Pourquoi ce contrôle coûte deux secondes sans rien lire** n'est pas résolu, et ne doit pas l'être
 par un délai. La question entre à la file, avec la lenteur des dix-neuf contrôles de lecture du
 même fichier (20 à 25 minutes). Un délai rend un contrôle fiable ; il n'explique pas son coût.
+
 ---
 
 ## 7 novembre 2026 — comment récupérer un travail mis de côté, et comment NE PAS le faire
-
 Un lot en cours a dû être mis de côté pour qu'un contrôle complet juge exactement ce qui part. Il
 l'a été sur une **branche locale**, `sauvegarde/lot-vision-07nov`, sans suivi distant, donc
 impossible à pousser par accident.
@@ -8758,10 +8580,10 @@ style.
 qu'on vient de nommer : aucun conflit, aucun avertissement, la perte en silence. La vérification
 que Christophe a exigée est la seule chose qui l'ait révélée — sans elle, cette entrée aurait
 disparu sans trace, et personne n'aurait su qu'elle avait existé.
+
 ---
 
 ## 7 novembre 2026 — deux gestes qui agissent sans le dire
-
 Deux règles demandées par Christophe, chacune payée d'une erreur le même jour. Elles ont la même
 forme : **un geste dont l'effet dépasse ce qu'on croit lui demander, et qui ne s'en explique pas.**
 
@@ -8805,7 +8627,6 @@ commit**, y compris les commits d'autorisation — ceux qu'on croit anodins, et 
 ceux qu'on commet sans regarder.
 
 ## 7 novembre 2026 — un crochet qui refuse les gestes destructeurs, et la copie qui agit
-
 ### Pourquoi une mécanique, et non une règle écrite
 
 Trois gestes de la journée ont détruit du travail **en réussissant en silence** : un
@@ -8919,7 +8740,6 @@ pas : c'est l'agencement du 29 octobre qui désigne la copie principale, pas une
 filet, ici encore.
 
 ## 7 novembre 2026 — le masque de code lisait les chaînes comme du code, une passe plus tôt
-
 ### Comment il s'est montré
 
 Le contrôle complet du lot 0c est parti rouge : le garde-fou des fichiers fantômes accusait
@@ -9045,7 +8865,6 @@ attend une valeur ou un opérateur — c'est-à-dire d'analyser le langage. C'es
 du module pour que la prochaine inversion ait un suspect nommé.
 
 ## 7 novembre 2026 — le crochet de pré-commit juge l'index du commit, quoi qu'il y ait dans l'environnement
-
 ### Deux affirmations à moi, corrigées par la mesure
 
 J'avais inscrit que `GIT_DIR` rendait le crochet aveugle. **Faux** : git **n'exporte pas** `GIT_DIR`
@@ -9170,3 +8989,152 @@ les réglages actifs, deux heures plus tôt : **un garde-fou absent ne se signal
 **`--no-verify` reste INTERDIT** : contourner le crochet pour un commit est une décision de
 Christophe, le retirer aussi. Ce qui est écrit ici est la porte, pas le raccourci.
 
+## 6 novembre 2026 — ce qu'un contrôle local couvre, et où est la garantie stricte
+**Le contrôle local voit l'arbre entier.** Celui qui a précédé ce commit portait donc sur le
+garde-fou **plus le lot Vision en cours**, non commité. Un vert sur un ensemble ne prouve pas le
+vert sur une partie : il n'établit pas que l'état commité du garde-fou seul passe. C'est écrit ici
+parce que le dire après coup n'aurait rien valu.
+
+Ce qui l'établit malgré tout, et qui est propre à ce lot : ses contrôles ne touchent aucun fichier
+du lot Vision, et ses mutations ont été rejouées entrée par entrée.
+
+**La garantie stricte vient de l'intégration continue**, décision de Christophe du 6 novembre :
+`lienotheque-ci.yml` tourne sur le **commit poussé**, donc sur l'état commité et rien d'autre.
+
+J'avais écrit « sur trois systèmes » ; Christophe l'a corrigé, et le fichier le confirme —
+`os: [ubuntu-latest, macos-latest]`, plus un travail de **rendu** sur Chromium, Firefox et WebKit.
+**Windows a été retiré le 5 novembre 2026.** Deux systèmes et trois moteurs de rendu, donc, et
+pas trois systèmes : la confusion venait des trois moteurs.
+
+**Au passage, `CLAUDE.md` est périmé sur ce point** : son tableau des deux intégrations continues
+annonce encore « `pnpm check` sur Linux, macOS et Windows » pour `lienotheque-ci.yml`. Ce n'est
+plus vrai. Inscrit dans la file plutôt que corrigé au passage — la règle du jour est qu'une
+découverte faite au milieu d'un lot entre dans la file et n'en démarre pas un autre. Une copie détachée locale a été écartée — elle coûterait une
+installation complète de dépendances pour refaire moins bien ce que l'atelier fait déjà.
+
+**Conséquence de tenue** : après chaque autorisation de push, le résultat de la CI **sur ce commit
+précis** est rapporté. Un push sans ce retour laisse l'état commité non vérifié.
+
+
+---
+
+## 6 novembre 2026 — Vérifier montrera la case non relue, le Lecteur non
+J'avais écrit que `relecture_non_faite` « irait dans un compteur que personne ne lit ». C'est faux,
+et il l'a corrigé : il faut distinguer les deux écrans.
+
+| Écran | L'état y sera-t-il visible ? |
+|---|---|
+| **Vérifier** | **oui**, une fois la remontée faite — c'est un point du lot Vision en cours, et son libellé « Case non relue » est déjà posé |
+| **Lecteur** | **non** : il n'affiche toujours pas `aVerifier`, et c'est le **mode manuel** (file, 6) |
+
+Ce qui manque n'est donc pas la visibilité de l'état, mais celle du compteur **dans le Lecteur**.
+Confondre les deux aurait fait croire que le lot en cours livre une pièce invisible, alors qu'il
+livre une pièce visible là où on la cherche d'abord.
+
+---
+
+## 7 novembre 2026 — la machine à 90 de charge : Spotlight indexait la bibliothèque
+**Relevé au moment de lancer un contrôle complet**, en application de la règle de Christophe du
+6 novembre : relever `uptime` avant, et si la charge est anormale, attendre ou le signaler.
+
+```
+load averages: 90.13 41.03 23.70
+```
+
+Plus du double de la charge qui avait fait dépasser un délai la veille. Le contrôle **n'a pas été
+lancé** — il aurait été refusé pour une raison étrangère au code, c'est-à-dire exactement le faux
+signal que cette règle existe pour éviter.
+
+### Ce que la mesure a montré
+
+Ce n'était **pas du calcul** : les processus de tête ne dépassaient pas 40 %. Une charge de 90 avec
+des processeurs peu occupés, c'est de l'**attente disque** — beaucoup de processus bloqués sur
+l'entrée-sortie.
+
+| Processus | Depuis | Ce qu'il faisait |
+|---|---|---|
+| `mds_stores` | instance neuve | Spotlight **indexait** |
+| `mediaanalysisd` | 11 h | analyse des photos et vidéos |
+| `backupd-helper` | 11 h | travail d'instantané local (aucune destination configurée) |
+| `duetexpertd` | 11 h | ordonnanceur de maintenance |
+
+Les travaux de nuit de macOS. **Rien du projet ne tournait.**
+
+### Ce que Christophe a fait
+
+Il a **exclu de Spotlight les dossiers lourds de la Liénothèque** : `lienotheque-cache`, les deux
+bibliothèques, `fixtures/fichiers` et `Lienotheque-sauvegardes`.
+
+Le motif est structurel, pas conjoncturel : ces dossiers contiennent des **PDF, des MP3 et des
+images de page par dizaines de milliers**, régénérés à chaque traitement. Spotlight les réindexait
+donc en boucle, pour un contenu que personne ne cherche par Spotlight.
+
+**Effet mesuré :** charge **90,13 → 14,35** en cinq minutes, alors que `mds_stores` et
+`mediaanalysisd` **tournaient encore**. L'exclusion n'a donc pas arrêté les travaux : elle leur a
+retiré du travail. C'est la distinction qui fait que le gain tiendra.
+
+### Pourquoi c'est sans risque pour le produit
+
+Vérifié dans les sources : **aucun `mdfind`, aucun `kMDItem`, aucun `NSMetadata`**. La Liénothèque
+ne s'appuie nulle part sur Spotlight — elle a sa propre recherche, sur son propre index. Exclure
+ces dossiers ne retire donc rien au produit, et rien à ses mesures.
+
+### Ce que cela change pour la tenue
+
+La règle de la charge avant un contrôle complet **reste**, et elle vient de servir une seconde fois
+en moins de douze heures : la première pour expliquer un refus après coup, celle-ci pour éviter un
+refus avant. Un garde-fou qui n'a servi qu'à expliquer n'a pas encore prouvé sa valeur ; celui-ci
+vient de le faire.
+
+---
+
+## 7 novembre 2026 — la CI est verte, et ce qu'elle ne couvre pas
+Première course verte de la branche depuis `bc380f93`, sur `45294a61` : les deux vérifications et
+le rendu. Et la réponse à la question qui mesurait la réparation est **oui** —
+
+```
+@lienotheque/ingestion@0.1.0 : test outils/ingestion
+  Tests  2 failed | 229 passed | 47 skipped (278)
+```
+
+**229 contrôles exécutés sur la machine de vérification**, là où pendant quatre lots le typage
+s'arrêtait avant de les atteindre. Et le garde-fou des épingles tranche correctement là-bas :
+
+```
+2981 contrôle(s) lu(s) · 2 rouge(s) · 97 sauté(s) · 2 épingle(s)
+  épinglé, toujours rouge — tesseract-absent-aucune-page-lue
+  épinglé, non rencontré (sauté ou absent de ce passage) — critere-f3-orphelins-93-98
+Contrôle accepté : aucun rouge hors épingles, aucune épingle périmée.
+```
+
+### La nuance, et elle est importante
+
+| | local | CI |
+|---|---|---|
+| contrôles lus | 2992 | 2981 |
+| **sautés** | **5** | **97** |
+
+**Quatre-vingt-douze contrôles de plus sont sautés sur la CI**, parce qu'elle n'a pas Tesseract.
+Ce sont ceux qui lisent de vraies pages — c'est-à-dire **le cœur d'A2 et de la voie oracle**.
+
+La garantie que la CI apporte est donc réelle pour le **typage** et pour la **logique pure**, et
+nulle pour la **reconnaissance**. Pour les contrôles qui lisent des pages, **un seul disque reste
+juge**. C'est conforme à `CLAUDE.md`, qui dit que `lienotheque-ci.yml` « n'a ni Rust ni
+Tesseract », et c'était un choix assumé — mais il ne faut plus dire « la CI couvre l'état
+commité » sans ajouter « sauf les quatre-vingt-douze contrôles qui demandent Tesseract ».
+
+### Ce que Christophe en décide
+
+**Installer Tesseract et ses langues sur les machines de la CI** devient un lot, placé juste après
+le garde-fou des fichiers non suivis et **avant le lot Vision** (file, 0b).
+
+Le motif est celui que l'incident vient de démontrer : une branche a pu rester rouge quatre lots
+durant **parce que la vérification extérieure ne regardait pas assez loin**. Laisser
+quatre-vingt-douze contrôles hors de sa portée, juste avant d'ouvrir le lot qui touche le plus à la
+lecture, serait répéter la même imprudence d'un étage plus haut.
+
+**Sa mesure est posée d'avance, et elle est la bonne** : combien de contrôles sautés restent
+ensuite, **et lesquels**. Un chiffre seul dirait « il en reste douze » sans dire si ce sont des
+contrôles qu'on a renoncé à tenir ou des contrôles qui n'avaient pas à tourner là.
+
+---
