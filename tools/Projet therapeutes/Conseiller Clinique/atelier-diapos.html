@@ -31496,6 +31496,12 @@ function adocRenderCardHTML(card, index, total) {
     <button id="cv-zip" type="button" disabled style="font:inherit;font-size:19px;font-weight:600;
       padding:17px 30px;border-radius:12px;border:0;background:#c9c3b8;color:#fff;cursor:not-allowed;
       width:100%;">Télécharger tous les JPEG en ZIP</button>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;">
+      <button id="cv-mp4" type="button" disabled style="font:inherit;font-weight:600;padding:13px 22px;border-radius:10px;border:0;background:#bdafa4;color:#fff;cursor:not-allowed;">Exporter la présentation en MP4</button>
+      <label for="cv-duree">Durée par étape</label>
+      <input id="cv-duree" type="number" min="1" max="30" value="4" style="width:58px;font:inherit;padding:7px;">
+      <span>secondes</span>
+    </div>
 
     <div id="cv-vignettes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));
          gap:14px;margin-top:26px;"></div>
@@ -31683,6 +31689,10 @@ function adocRenderCardHTML(card, index, total) {
     bouton.textContent = 'Télécharger tous les JPEG en ZIP (' + n + ' image' + (n > 1 ? 's' : '') + ')';
     bouton.style.background = '#1f5053';
     bouton.style.cursor = 'pointer';
+    var mp4 = $('cv-mp4');
+    mp4.disabled = false;
+    mp4.style.background = '#a84f34';
+    mp4.style.cursor = 'pointer';
     $('cv-avancement-texte').textContent = n + ' image' + (n > 1 ? 's' : '') + ' prêtes';
     $('cv-barre').style.width = '100%';
     // L'IMAGE HAUTE, DITE EN FRANÇAIS SIMPLE.
@@ -31804,6 +31814,75 @@ function adocRenderCardHTML(card, index, total) {
       if (++tours > 3000) return;
       setTimeout(attendre, 100);
     })();
+  };
+
+  // L'enregistrement est fait à vitesse réelle : chaque image rendue est dessinée sur le
+  // même canvas 1920x1080. Aucun recadrage supplémentaire ni étirement n'est appliqué.
+  $('cv-mp4').onclick = async function () {
+    var d = window.__chutier && window.__chutier.dernier();
+    if (!d || !d.res.images.length) return;
+    var types = ['video/mp4;codecs=avc1.42E01E', 'video/mp4'];
+    var mime = types.find(function (t) { return window.MediaRecorder && MediaRecorder.isTypeSupported(t); });
+    if (!mime || !HTMLCanvasElement.prototype.captureStream) {
+      dire('Ce navigateur ne sait pas enregistrer un MP4 H.264. Ouvrez Atelier Diapos dans Safari récent.', 'rouge');
+      return;
+    }
+    var seconds = Math.max(1, Math.min(30, Number($('cv-duree').value) || 4));
+    var canvas = document.createElement('canvas');
+    canvas.width = 1920; canvas.height = 1080;
+    var ctx = canvas.getContext('2d');
+    var image = null, currentIndex = -1;
+    try { image = await createImageBitmap(d.res.images[0].blob); currentIndex = 0; }
+    catch (e) { dire('Impossible de lire la première étape : ' + e.message, 'rouge'); return; }
+    var self = this;
+    self.disabled = true;
+    var stream = canvas.captureStream(0);
+    var videoTrack = stream.getVideoTracks()[0];
+    var recorder;
+    try { recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4000000 }); }
+    catch (e) { image.close(); stream.getTracks().forEach(function (t) { t.stop(); }); self.disabled = false; dire('Enregistrement MP4 indisponible : ' + e.message, 'rouge'); return; }
+    var chunks = [];
+    recorder.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+    recorder.onerror = function () { dire('L’enregistrement MP4 a échoué.', 'rouge'); };
+    recorder.onstop = function () {
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      if (image) image.close();
+      self.disabled = false;
+      if (!chunks.length) { dire('Aucune vidéo n’a été produite.', 'rouge'); return; }
+      var blob = new Blob(chunks, { type: 'video/mp4' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'presentation-studio-clinique.mp4';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      dire('MP4 téléchargé (' + d.res.images.length + ' étapes, 1920 × 1080).', 'vert');
+    };
+    recorder.start(1000);
+    var start = performance.now();
+    async function frame(now) {
+      try {
+        var elapsed = Math.max(0, now - start);
+        var idx = Math.min(d.res.images.length - 1, Math.floor(elapsed / (seconds * 1000)));
+        if (idx !== currentIndex) {
+          var next = await createImageBitmap(d.res.images[idx].blob);
+          image.close(); image = next; currentIndex = idx;
+        }
+        ctx.fillStyle = '#fffdf9'; ctx.fillRect(0, 0, 1920, 1080);
+        var scale = Math.min(1920 / image.width, 1080 / image.height);
+        var w = image.width * scale, h = image.height * scale;
+        ctx.drawImage(image, (1920 - w) / 2, (1080 - h) / 2, w, h);
+        videoTrack.requestFrame();
+        $('cv-avancement-texte').textContent = 'MP4 : étape ' + (idx + 1) + ' sur ' + d.res.images.length;
+        $('cv-avancement').style.display = 'block';
+        $('cv-barre').style.width = Math.min(100, Math.round(elapsed / (d.res.images.length * seconds * 10))) + '%';
+        if (elapsed < d.res.images.length * seconds * 1000) requestAnimationFrame(frame);
+        else recorder.stop();
+      } catch (e) {
+        dire('Export MP4 interrompu : ' + e.message, 'rouge');
+        if (recorder.state !== 'inactive') recorder.stop();
+      }
+    }
+    requestAnimationFrame(frame);
   };
 
   // ── LE GLISSER-DÉPOSER ET LES DEUX ZONES CLIQUABLES ──────────────────────────────────

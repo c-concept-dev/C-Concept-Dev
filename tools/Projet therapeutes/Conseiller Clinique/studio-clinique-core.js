@@ -25492,6 +25492,75 @@ ${recent}`;
     return res.json();
   }
 
+  window.adocVideoUploadLocal = async function (file) {
+    if (!file) return;
+    const status = document.getElementById('cc-ws-video-upload-status');
+    const input = document.getElementById('cc-ws-video-file');
+    if (status) { status.hidden = false; status.textContent = 'Import de « ' + file.name + ' »…'; }
+    try {
+      if (!/\.mp4$/i.test(file.name) || file.size > 50 * 1024 * 1024) throw new Error('Choisissez un MP4 de 50 Mo maximum.');
+      const form = new FormData();
+      form.append('file', file);
+      form.append('title', file.name.replace(/\.mp4$/i, ''));
+      const res = await fetch(adocGetWorkerUrl() + '/video-assets/upload', {
+        method: 'POST', headers: { 'X-API-Key': adocGetApiKey() }, body: form,
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' : ' + (await res.text()).slice(0, 220));
+      const data = await res.json();
+      if (status) status.textContent = 'Vidéo importée : ' + data.title + '. Sélectionnez un bloc, puis cliquez sur Insérer.';
+      await window.adocVideoLoadHistory();
+    } catch (e) {
+      if (status) status.textContent = 'Import impossible : ' + e.message;
+    } finally { if (input) input.value = ''; }
+  };
+
+  let _adocVideoHoverTimer = null, _adocVideoHoverThumb = null, _adocVideoHoverPopup = null;
+  function adocHideVideoHover() {
+    clearTimeout(_adocVideoHoverTimer); _adocVideoHoverTimer = null;
+    _adocVideoHoverThumb = null;
+    if (_adocVideoHoverPopup) {
+      const video = _adocVideoHoverPopup.querySelector('video');
+      if (video) { video.pause(); video.removeAttribute('src'); video.load(); }
+      _adocVideoHoverPopup.remove(); _adocVideoHoverPopup = null;
+    }
+  }
+  function adocInstallVideoHover() {
+    if (document.body.dataset.videoHoverReady) return;
+    document.body.dataset.videoHoverReady = 'true';
+    document.addEventListener('pointerover', function (e) {
+      if (e.pointerType === 'touch') return;
+      const thumb = e.target.closest && e.target.closest('.cc-media-grid .cc-media-thumb[data-video-hover-src]');
+      if (!thumb || thumb === _adocVideoHoverThumb) return;
+      adocHideVideoHover(); _adocVideoHoverThumb = thumb;
+      _adocVideoHoverTimer = setTimeout(function () {
+        if (!thumb.isConnected || _adocVideoHoverThumb !== thumb) return;
+        const popup = document.createElement('figure');
+        popup.className = 'cc-media-hover-preview';
+        const video = document.createElement('video');
+        video.muted = true; video.loop = true; video.playsInline = true; video.preload = 'metadata';
+        if (thumb.dataset.videoHoverPoster) video.poster = thumb.dataset.videoHoverPoster;
+        video.src = thumb.dataset.videoHoverSrc;
+        const caption = document.createElement('figcaption');
+        caption.textContent = thumb.dataset.videoHoverCredit || 'Vidéo';
+        video.onerror = function () {
+          video.onerror = null;
+          video.pause(); video.removeAttribute('src'); video.load();
+          caption.textContent = 'Vidéo indisponible pour le moment';
+        };
+        popup.append(video, caption); document.body.appendChild(popup);
+        const anchor = thumb.getBoundingClientRect();
+        let left = anchor.right + 12;
+        if (left + popup.offsetWidth > innerWidth - 12) left = anchor.left - popup.offsetWidth - 12;
+        popup.style.left = Math.round(Math.max(12, left)) + 'px';
+        popup.style.top = Math.round(Math.max(12, Math.min(anchor.top, innerHeight - popup.offsetHeight - 12))) + 'px';
+        _adocVideoHoverPopup = popup;
+        video.play().catch(function () { /* L'image de couverture reste visible si lecture refusée. */ });
+      }, 900);
+    });
+    document.addEventListener('pointerout', function (e) { if (e.target === _adocVideoHoverThumb) adocHideVideoHover(); });
+    document.addEventListener('scroll', adocHideVideoHover, true);
+  }
+
   // LOT VIDÉO-1 — recherche Pexels Vidéos, symétrique de adocMediaFetchSearch (Photos). Route
   // Worker propre à Studio Clinique (/fetch-video), jamais le proxy VideoBox (cf. rapport
   // d'investigation — deux logiciels distincts, décision confirmée par Christophe).
@@ -25516,6 +25585,7 @@ ${recent}`;
   function adocVideoRenderGrid(containerId, items, opts) {
     const el = document.getElementById(containerId);
     if (!el) return;
+    adocHideVideoHover(); adocInstallVideoHover();
     opts = opts || {};
     if (!items || !items.length) {
       el.innerHTML = '<p class="cc-media-empty">Aucune vidéo enregistrée pour l’instant.</p>';
@@ -25530,7 +25600,7 @@ ${recent}`;
       // même obligation déjà tenue pour les photos (adocMediaRenderGrid ci-dessus).
       const creditLine = item.attribution ? (item.title + ' — ' + item.attribution) : item.title;
       return '<div class="cc-media-item" data-video-item="' + i + '">' +
-        '<video class="cc-media-thumb" muted preload="metadata" playsinline src="' + adocEsc(item.url) + '" ' +
+        '<video class="cc-media-thumb" muted preload="metadata" playsinline src="' + adocEsc(item.url) + '" data-video-hover-src="' + adocEsc(item.url) + '" data-video-hover-credit="' + adocEsc(creditLine) + '" ' +
           'onerror="window.adocVideoThumbFallback(this)"></video>' +
         '<p class="cc-media-credit">' + adocEsc(creditLine) + '</p>' +
         '<div class="cc-media-actions">' +
@@ -25554,23 +25624,13 @@ ${recent}`;
   };
 
   // ── Recherche Pexels + choix du stockage (LOT VIDÉO-1) ────────────────────────────────────
-  // Grille de résultats : aperçu réel à deux niveaux — image "poster" allégée (~480px, réécriture
-  // de paramètres d'URL sur le CDN Pexels, jamais un second appel réseau) affichée avant lecture,
-  // puis le fichier vidéo le plus proche de 360p (previewUrl, jamais downloadUrl ~1080p) joué au
-  // clic sur "▶ Aperçu" — jamais la définition la plus lourde pour un simple aperçu, jamais un
-  // simple survol (cf. adocVideoTogglePreview ci-dessous, correctif). Sélectionner un résultat
-  // ("Choisir") révèle le choix de stockage, jamais une modale (même patron de divulgation
-  // progressive que le reste de ce panneau, cf. rapport d'investigation).
+  // Résultats Pexels : poster léger dans la grille, grand aperçu vidéo après un survol prolongé.
+  // Le flux de prévisualisation n'est chargé qu'au moment du survol.
   function adocVideoRenderSearchGrid(containerId, items) {
     const el = document.getElementById(containerId);
     if (!el) return;
-    // Filet de sécurité (correctif aperçu) : si un aperçu était actif dans la grille précédente
-    // (une nouvelle recherche l'a remplacée), le relâcher proprement plutôt que de laisser le
-    // navigateur télécharger en arrière-plan un flux dont l'élément <video> va être détruit —
-    // sans dépendre de chaque appelant pour y penser (cf. window.adocVideoSearch ci-dessous, qui
-    // le fait déjà pour ses propres branches, mais ce filet reste nécessaire pour tout futur
-    // appelant de cette fonction).
-    adocVideoReleaseActivePreview();
+    adocHideVideoHover(); adocInstallVideoHover();
+    adocHideVideoHover();
     if (!items || !items.length) {
       el.innerHTML = '<p class="cc-media-empty">Aucun résultat.</p>';
       return;
@@ -25580,14 +25640,12 @@ ${recent}`;
       // adocMediaRenderGrid ci-dessus, même correctif) : ce résultat peut venir de l'une ou
       // l'autre source, jamais visible côté client.
       const credit = item.photographer ? ('Vidéo : ' + item.photographer) : '';
-      // Pas de `src` posé ici (correctif) : rien ne se télécharge tant que "▶ Aperçu" n'a pas été
-      // cliqué. `poster` (si connu) reste affiché nativement par le <video> lui-même tant qu'aucun
-      // `src` n'est présent — jamais besoin d'une image séparée par-dessus.
+      // Le poster est visible sans charger la vidéo ; le grand aperçu utilise previewUrl.
       return '<div class="cc-media-item" data-video-search-item="' + i + '">' +
-        '<video class="cc-media-thumb" id="cc-video-preview-' + i + '" muted loop controls preload="none" playsinline' +
+        '<video class="cc-media-thumb" id="cc-video-preview-' + i + '" muted preload="none" playsinline data-video-hover-src="' + adocEsc(item.previewUrl) + '" data-video-hover-credit="' + adocEsc(credit) + '"' +
+          (item.thumbUrl ? ' data-video-hover-poster="' + adocEsc(item.thumbUrl) + '"' : '') +
           (item.thumbUrl ? ' poster="' + adocEsc(item.thumbUrl) + '"' : '') +
           '></video>' +
-        '<button type="button" class="cc-video-preview-btn" id="cc-video-preview-btn-' + i + '" data-video-preview="' + i + '" onclick="window.adocVideoTogglePreview(' + i + ')">▶ Aperçu</button>' +
         '<p class="cc-media-video-error" id="cc-video-preview-error-' + i + '" hidden></p>' +
         '<p class="cc-media-credit">' + adocEsc(credit) + '</p>' +
         '<div class="cc-media-actions">' +
@@ -25613,10 +25671,7 @@ ${recent}`;
     const input = document.getElementById('cc-ws-video-search-input');
     const q = (input && input.value || '').trim();
     const resultsEl = document.getElementById('cc-ws-video-search-results');
-    // Filet de sécurité (correctif aperçu) : les trois branches ci-dessous remplacent
-    // resultsEl.innerHTML directement (jamais via adocVideoRenderSearchGrid) — l'aperçu actif
-    // d'une recherche précédente doit être relâché ici aussi, pas seulement dans cette dernière.
-    adocVideoReleaseActivePreview();
+    adocHideVideoHover();
     if (!q) { if (resultsEl) resultsEl.innerHTML = ''; return; }
     if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche…</p>';
     // Une nouvelle recherche invalide tout choix de stockage en attente d'un résultat précédent —
@@ -25628,77 +25683,6 @@ ${recent}`;
       adocVideoRenderSearchGrid('cc-ws-video-search-results', window._adocVideoSearchResults);
     } catch (e) {
       if (resultsEl) resultsEl.innerHTML = '<p class="cc-media-empty">Recherche impossible : ' + adocEsc(e.message) + '</p>';
-    }
-  };
-
-  // ── Aperçu vidéo déclenché par clic (correctif) ───────────────────────────────────────────
-  // Cause confirmée (citation, avant correctif) : l'ancien <video ... poster="..." src="..."
-  // onmouseenter="this.play()" onmouseleave="this.pause();this.currentTime=0;"> déclenchait play()
-  // au simple survol. Le navigateur efface nativement l'attribut/l'affichage `poster` dès l'appel
-  // à play(), qu'il réussisse ou non — sans distinction entre succès, échec réel (lien
-  // expiré/introuvable) et refus d'autoplay. Un échec réel laissait donc un cadre vide en
-  // permanence, jamais de repli honnête. Corrigé selon le même patron déjà en service dans
-  // VideoBox (internal/web/static/app.js) : déclenchement explicite par clic, trois issues
-  // distinguées, un seul aperçu actif à la fois, filet de sécurité si la grille change pendant la
-  // lecture. Note (aspect-ratio) : le patron VideoBox annonce aussi les proportions AVANT
-  // chargement pour éviter un saut visuel de la carte — inutile ici, `.cc-media-thumb` impose une
-  // hauteur fixe (70px, object-fit: cover) indépendante des dimensions réelles de la vidéo, aucun
-  // saut n'est structurellement possible dans cette grille.
-  window._adocVideoActivePreview = null;
-
-  function adocVideoReleaseActivePreview() {
-    const active = window._adocVideoActivePreview;
-    window._adocVideoActivePreview = null;
-    if (!active) return;
-    try {
-      active.videoEl.onerror = null;
-      active.videoEl.pause();
-      active.videoEl.removeAttribute('src');
-      active.videoEl.load();
-    } catch (e) { /* élément déjà retiré du DOM (grille reconstruite) — rien de plus à nettoyer */ }
-    if (active.btnEl) { active.btnEl.hidden = false; active.btnEl.textContent = '▶ Aperçu'; }
-  }
-
-  window.adocVideoTogglePreview = function (idx) {
-    const item = window._adocVideoSearchResults && window._adocVideoSearchResults[idx];
-    const videoEl = document.getElementById('cc-video-preview-' + idx);
-    const btnEl = document.getElementById('cc-video-preview-btn-' + idx);
-    const errorEl = document.getElementById('cc-video-preview-error-' + idx);
-    if (!item || !videoEl || !btnEl) return;
-    // Ce résultat a déjà son aperçu actif : un second clic l'arrête proprement (repli vers le
-    // poster natif), jamais n'en relance un second par-dessus.
-    if (window._adocVideoActivePreview && window._adocVideoActivePreview.videoEl === videoEl) {
-      adocVideoReleaseActivePreview();
-      return;
-    }
-    // Un seul aperçu actif à la fois dans toute la grille : démarrer celui-ci relâche proprement
-    // le précédent (pause + src vidé + load(), jamais un simple masquage) AVANT de toucher à
-    // celui-ci — sinon le navigateur continue de télécharger en arrière-plan un flux qu'on ne
-    // voit plus.
-    adocVideoReleaseActivePreview();
-    if (errorEl) { errorEl.hidden = true; errorEl.textContent = ''; }
-    window._adocVideoActivePreview = { videoEl: videoEl, btnEl: btnEl };
-    videoEl.onerror = function () {
-      // Échec RÉEL de chargement (lien expiré/introuvable) — jamais confondu avec un refus
-      // d'autoplay ci-dessous. `removeAttribute('src')` + `load()` fait réapparaître le poster
-      // natif (jamais un cadre vide) ; message honnête affiché, bouton repassé en "Réessayer".
-      videoEl.removeAttribute('src');
-      videoEl.load();
-      btnEl.hidden = false;
-      btnEl.textContent = '▶ Réessayer';
-      if (errorEl) { errorEl.hidden = false; errorEl.textContent = 'Aperçu indisponible (lien expiré ou introuvable).'; }
-      if (window._adocVideoActivePreview && window._adocVideoActivePreview.videoEl === videoEl) window._adocVideoActivePreview = null;
-    };
-    videoEl.src = item.previewUrl;
-    videoEl.load();
-    btnEl.hidden = true;
-    const playResult = videoEl.play();
-    if (playResult && typeof playResult.catch === 'function') {
-      playResult.catch(function () {
-        // Refus d'autoplay (politique du navigateur, jamais une vraie erreur) — ignoré
-        // silencieusement : la vidéo et ses contrôles natifs (`controls`) restent affichés,
-        // l'utilisateur peut lancer la lecture lui-même, jamais de message d'échec ici.
-      });
     }
   };
 

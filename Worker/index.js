@@ -55951,6 +55951,8 @@ var Worker_default = {
     // /video-assets/:id ci-dessous (même discipline d'ordre que /brand-kits/analyze plus haut).
     if (p === "/video-assets/from-url" && request2.method === "POST")
       return handleVideoAssetFromUrl(request2, env2);
+    if (p === "/video-assets/upload" && request2.method === "POST")
+      return handleVideoAssetUpload(request2, env2);
     // GET seule rejoint l'exception publique via ADOC_PUBLIC_VIDEO_ASSET_GET_RE (cf.
     // adocIsPublicRoute) : un <video src="…"> rendu par le navigateur, y compris via Browser
     // Rendering pour l'export PDF, n'envoie jamais l'en-tête X-API-Key — même correctif déjà
@@ -56997,6 +56999,38 @@ async function handleVideoAssetFromUrl(request2, env2) {
   }
 }
 __name(handleVideoAssetFromUrl, "handleVideoAssetFromUrl");
+
+// Import d'un MP4 produit localement, dans le même stockage et la même bibliothèque que
+// les vidéos Pexels. Le plafond reste sous la limite de requête habituelle de Cloudflare.
+async function handleVideoAssetUpload(request2, env2) {
+  if (!env2.DB) return jsonErr("D1 not configured", 500);
+  if (!env2.BRAND_ASSETS) return jsonErr("R2 binding BRAND_ASSETS not configured", 500);
+  const maxBytes = 50 * 1024 * 1024;
+  const declaredLength = Number(request2.headers.get("Content-Length") || 0);
+  if (declaredLength > maxBytes + 1024 * 1024) return jsonErr("Video too large (50 MB maximum)", 413);
+  let form;
+  try { form = await request2.formData(); } catch { return jsonErr("Invalid multipart form", 400); }
+  const file = form.get("file");
+  const title = String(form.get("title") || "").trim().slice(0, 200);
+  if (!file || typeof file.arrayBuffer !== "function" || !title) return jsonErr("file and title are required", 400);
+  if (!file.size || file.size > maxBytes) return jsonErr("Video too large or empty (50 MB maximum)", 413);
+  const bytes = await file.arrayBuffer();
+  const signature = new Uint8Array(bytes, 0, Math.min(bytes.byteLength, 12));
+  const isMp4 = signature.length >= 12 && String.fromCharCode(...signature.slice(4, 8)) === "ftyp";
+  if (!isMp4) return jsonErr("Only MP4 video files are supported", 415);
+  const mimeType = "video/mp4";
+  try {
+    const { r2Key, deduplicated, sizeBytes } = await adocPersistVideoAsset(env2, bytes, mimeType);
+    const id = crypto.randomUUID();
+    const servedUrl = new URL(request2.url).origin + "/video-assets/" + id;
+    await env2.DB.prepare(
+      `INSERT INTO video_links (id, url, title, attribution, storage_type, checksum, r2_key, mime_type, size_bytes)
+       VALUES (?,?,?,NULL,'cloudflare',?,?,?,?)`
+    ).bind(id, servedUrl, title, r2Key, r2Key, mimeType, sizeBytes).run();
+    return json({ id, url: servedUrl, title, storage_type: "cloudflare", size_bytes: sizeBytes, deduplicated });
+  } catch (err2) { return jsonErr(err2.message, 500); }
+}
+__name(handleVideoAssetUpload, "handleVideoAssetUpload");
 
 // LOT VIDÉO-2 — parse un en-tête HTTP Range (RFC 7233, forme "bytes=start-end") en {offset,length}
 // exploitable par R2Bucket.get(key, {range}). Gère les trois formes réelles envoyées par un

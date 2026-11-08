@@ -73,7 +73,7 @@ function heading(id, text) { return { id: id, type: 'heading', content: { text: 
     // Correctif aperçu (clic sur "▶ Aperçu") — répond réellement à FIXTURE.previewUrl plutôt que
     // de laisser échouer une vraie requête réseau bloquée dans ce bac à sable : jamais une course
     // entre lecture de l'attribut src et l'échec réseau qui le viderait avant l'assertion. Le
-    // contenu réel du flux n'est pas testé ici (déjà couvert par verify-video-preview-click.cjs).
+    // La lecture du flux est contrôlée séparément dans verify-video-hover-upload.cjs.
     if (url === FIXTURE.previewUrl) return route.fulfill({ status: 200, contentType: 'video/mp4', body: Buffer.from([0]) });
     return route.continue();
   });
@@ -110,28 +110,23 @@ function heading(id, text) { return { id: id, type: 'heading', content: { text: 
   await page.waitForFunction(() => document.getElementById('cc-ws-video-history').children.length >= 1);
 
   // ── Test 1 : recherche réelle, un résultat avec un vrai aperçu allégé (poster) + vidéo ~360p ──
-  // Correctif aperçu (déclenchement par clic, plus par survol) : rien ne se télécharge tant que
-  // "▶ Aperçu" n'a pas été cliqué explicitement — le src n'apparaît qu'à ce moment-là, jamais posé
-  // eagerly dans le HTML généré. Détail du nouveau mécanisme (trois issues, aperçu unique, filet de
-  // sécurité) testé séparément et en profondeur dans verify-video-preview-click.cjs — ce test-ci ne
-  // vérifie ici que la non-régression du contenu consommé (previewUrl/downloadUrl/attribution).
+  // L'aperçu différé est vérifié dans verify-video-hover-upload.cjs.
   await page.fill('#cc-ws-video-search-input', 'respiration');
   await page.locator('#cc-ws-media-subpanel-videos .cc-media-search-btn', { hasText: /^Rechercher$/ }).click();
   await page.waitForSelector('#cc-ws-video-search-results [data-video-search-item="0"]');
   assert.equal(fetchVideoCalls, 1, 'la recherche doit appeler réellement /fetch-video');
-  const previewSrcBeforeClick = await page.locator('#cc-ws-video-search-results video').first().getAttribute('src');
-  assert.equal(previewSrcBeforeClick, null, 'aucun téléchargement ne doit démarrer avant le clic explicite sur "▶ Aperçu" (correctif — plus de survol)');
+  const previewSrcBeforeHover = await page.locator('#cc-ws-video-search-results video').first().getAttribute('src');
+  assert.equal(previewSrcBeforeHover, null, 'aucun téléchargement ne doit démarrer avant le survol prolongé');
   const previewPoster = await page.locator('#cc-ws-video-search-results video').first().getAttribute('poster');
   assert.equal(previewPoster, FIXTURE.thumbUrl, 'l’image fixe avant lecture doit être la vignette allégée renvoyée par le Worker');
-  await page.click('#cc-video-preview-btn-0');
-  const previewSrc = await page.locator('#cc-ws-video-search-results video').first().getAttribute('src');
-  assert.equal(previewSrc, FIXTURE.previewUrl, 'le clic sur "▶ Aperçu" doit charger le fichier ~360p (previewUrl), jamais downloadUrl (~1080p)');
-  assert.notEqual(previewSrc, FIXTURE.downloadUrl, 'jamais la définition lourde comme source d’aperçu');
+  assert.equal(await page.locator('#cc-video-preview-btn-0').count(), 0, 'le bouton Aperçu devenu inutile doit être absent');
+  const hoverSrc = await page.locator('#cc-ws-video-search-results video').first().getAttribute('data-video-hover-src');
+  assert.equal(hoverSrc, FIXTURE.previewUrl, 'le survol doit utiliser le fichier ~360p, jamais downloadUrl (~1080p)');
   const creditText1 = await page.locator('#cc-ws-video-search-results .cc-media-credit').first().textContent();
   // Correctif Pexels+Pixabay — jamais de nom de plateforme en dur (un résultat futur pourrait
   // venir de Pixabay) : seul le nom du photographe/vidéaste est affiché.
   assert.equal(creditText1, 'Vidéo : Jane Doe', 'l’attribution doit être visible sur le résultat de recherche, sans nom de plateforme en dur');
-  console.log('PASS 1/9 — recherche réelle (/fetch-video), aperçu = fichier ~360p (jamais ~1080p) chargé au clic, vignette allégée en poster avant clic, attribution visible');
+  console.log('PASS 1/9 — recherche réelle (/fetch-video), aperçu différé = fichier ~360p, vignette allégée en poster, attribution visible');
 
   // ── Test 2 : "Choisir" révèle le choix de stockage, bouton Cloudflare visible et actif ──
   // LOT VIDÉO-2 — le bouton "Stockage Cloudflare" est désormais réellement fonctionnel (jamais

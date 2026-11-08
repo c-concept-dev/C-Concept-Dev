@@ -1,4 +1,4 @@
-// Fixtures vidéo des tests d'aperçu (verify-video-preview-click) et de stockage Cloudflare
+// Fixtures vidéo du test de stockage Cloudflare
 // (verify-video-cloudflare-storage) — GÉNÉRÉES AU LANCEMENT dans un dossier ignoré par git, jamais
 // commitées : le dépôt est public et aucun binaire média n'y a jamais été versé.
 //
