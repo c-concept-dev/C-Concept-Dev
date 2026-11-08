@@ -4,7 +4,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ channel: 'chrome' });
   try {
     const page = await browser.newPage({ acceptDownloads: true });
     await page.goto('file://' + join(__dirname, '../atelier-diapos.html'));
