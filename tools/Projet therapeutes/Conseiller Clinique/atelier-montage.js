@@ -50,10 +50,11 @@
 
   const css = document.createElement('style');
   css.textContent = `
-    #am-workbench{margin:12px 0;padding:12px;background:#fffdf9;border:1px solid #c9c3b8;border-radius:16px;box-shadow:0 8px 28px #322b2314;color:#273331;height:calc(100vh - 20px);min-height:680px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+    #am-workbench{margin:12px 0;padding:12px;background:#fffdf9;border:1px solid #c9c3b8;border-radius:16px;box-shadow:0 8px 28px #322b2314;color:#273331;min-height:680px;display:flex;flex-direction:column;gap:6px}
     #am-workbench.am-focused{position:fixed;inset:0;z-index:99999;margin:0;width:100vw;height:100vh;min-height:0;border-radius:0;padding:12px 18px}
-    #am-workbench.am-focused .am-grid{flex-basis:min(48vh,480px)}
-    #am-workbench.am-focused .am-timeline{min-height:190px}
+    #am-workbench.am-focused .am-grid{flex-basis:min(26vh,250px)}
+    #am-workbench.am-focused .am-sources{height:min(23vh,190px)}
+    #am-workbench.am-focused .am-timeline{min-height:165px}
     #am-workbench *{box-sizing:border-box} #am-workbench h2{font:600 29px/1.15 'Source Serif 4',Georgia,serif;margin:0 0 7px;color:#102f31}
     #am-workbench p{margin:0;color:#5d6966;font-size:12px}
     .am-toolbar{display:flex;gap:5px;flex-direction:column;margin:3px 0}
@@ -65,12 +66,12 @@
     #am-workbench button.am-export-button{background:#a34d30;color:#fff;border-color:#a34d30}
     #am-workbench button:focus-visible,#am-workbench input:focus-visible{outline:3px solid #8a3f29;outline-offset:2px}
     #am-workbench button:disabled{opacity:.45;cursor:not-allowed}
-    .am-file-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.am-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:10px;min-height:0;flex:0 0 min(40vh,390px)}
+    .am-file-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.am-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:10px;min-height:0;flex:0 0 min(30vh,280px)}
     #am-workbench:not(.am-has-selection) .am-grid{grid-template-columns:1fr}#am-workbench:not(.am-has-selection) .am-inspector{display:none}
     .am-panel{border:1px solid #c9c3b8;border-radius:12px;padding:13px;background:#f6f2ea;min-width:0}
     .am-panel h3{font:700 15px/1.3 -apple-system,system-ui,sans-serif;margin:0 0 10px}
     .am-grid .am-panel:first-child{display:flex;flex-direction:column;min-height:0;overflow:hidden}
-    #am-preview{width:auto;max-width:100%;height:calc(40vh - 70px);max-height:100%;aspect-ratio:16/9;display:block;background:#fffdf9;border-radius:9px;margin:auto}
+    #am-preview{width:auto;max-width:100%;height:calc(30vh - 70px);max-height:100%;aspect-ratio:16/9;display:block;background:#fffdf9;border-radius:9px;margin:auto}
     #am-preview:fullscreen{width:100vw;height:100vh;max-width:none;max-height:none;object-fit:contain;background:#102f31}
     #am-seek{width:100%;margin:12px 0 2px}.am-track{border:1px solid #5d6966;background:#fffdf9;border-radius:9px;padding:10px;margin-bottom:9px}
     .am-track[data-kind=voice]{border-left:5px solid #1f5053}.am-track[data-kind=music]{border-left:5px solid #8a3f29}
@@ -81,7 +82,7 @@
     .am-track input[type=range]{width:100%}.am-wave{display:block;width:100%;height:38px;background:#dce8e6;border-radius:4px;margin-top:9px}
     .am-step{display:grid;grid-template-columns:42px minmax(0,1fr) 100px 66px;align-items:center;gap:7px;border-bottom:1px solid #ddd7cc;padding:7px 0;font-size:12px}
     .am-step img{width:42px;height:30px;object-fit:contain;background:#e9e4d9}.am-step button{padding:4px 7px!important}
-    .am-timeline{margin:0;border:1px solid #b6afa4;border-radius:12px;background:#eee9df;padding:12px;overflow:auto;flex:1;min-height:150px}
+    .am-timeline{margin:0;border:1px solid #b6afa4;border-radius:12px;background:#eee9df;padding:12px;overflow:auto;flex:1;min-height:190px}
     .am-ruler,.am-lane{min-width:600px;position:relative;margin-left:110px}
     .am-ruler{height:25px;border-bottom:1px solid #9a938a;font-size:11px;color:#52615f}
     .am-tick{position:absolute;top:0;transform:translateX(-50%);border-left:1px solid #9a938a;padding-left:4px;height:25px}
@@ -100,14 +101,17 @@
     .am-master-picker>span{font-size:12px;color:#52615f}
     #am-workbench .am-master-picker button{padding:5px 8px;font-size:11px;flex:0 0 auto}
     #am-workbench .am-master-picker button[aria-pressed=true]{background:#1f5053;color:#fff}
-    .am-sources{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:0 0 auto;min-height:75px;max-height:125px}
-    .am-source-lane{border:1px solid #c9c3b8;border-radius:9px;padding:5px 8px;overflow:auto;background:#f6f2ea;font-size:13px}
-    .am-source-lane strong{display:block;margin-bottom:4px}.am-source-list{display:flex;gap:5px;min-height:35px;align-items:center;flex-wrap:wrap}
-    .am-source-clip{background:#1f5053;color:#fff;border-radius:6px;padding:5px 7px;cursor:grab;display:flex;align-items:center;gap:5px;max-width:100%}
-    .am-source-clip[data-kind=music]{background:#8a3f29}.am-source-clip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
-    #am-workbench .am-source-clip button{padding:3px 5px;font-size:11px;background:#fffdf9;border-color:#fffdf9}
-    #am-workbench .am-source-clip .am-source-remove{padding:0 3px;border:0;background:transparent;color:#fff;font-size:11px;opacity:.7}
-    #am-workbench .am-source-clip .am-source-remove:hover{opacity:1;background:transparent;color:#fff}
+    .am-sources{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:0 0 205px;height:205px;min-height:0}
+    .am-source-lane{border:1px solid #c9c3b8;border-radius:9px;padding:7px 8px;overflow:auto;min-height:0;background:#f6f2ea;font-size:13px}
+    .am-source-lane strong{display:block;margin-bottom:6px}.am-source-list{display:flex;gap:7px;flex-direction:column;align-items:stretch}
+    .am-source-clip{background:#e4efee;color:#17393b;border:1px solid #1f5053;border-radius:8px;padding:7px;cursor:grab;display:grid;gap:4px;min-width:0}
+    .am-source-clip[data-kind=music]{background:#f3e5df;border-color:#8a3f29;color:#652c1c}.am-source-clip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .am-source-head,.am-source-actions{display:flex;align-items:center;gap:5px;min-width:0}.am-source-head span{flex:1;font-weight:700}.am-source-actions{flex-wrap:wrap}
+    .am-source-wave{width:100%;height:30px;display:block;background:#fffdf9;border-radius:4px;cursor:crosshair;touch-action:manipulation}
+    .am-source-cut-time{font-size:11px;white-space:nowrap}.am-source-clip input[type=number]{width:58px;min-width:0;padding:3px;border:1px solid #83918c;border-radius:4px}
+    #am-workbench .am-source-clip button{padding:4px 7px;font-size:11px;background:#fffdf9;border-color:currentColor}
+    #am-workbench .am-source-clip .am-source-remove{padding:0 3px;border:0;background:transparent;color:inherit;font-size:12px;opacity:.7}
+    #am-workbench .am-source-clip .am-source-remove:hover{opacity:1;background:transparent;color:inherit}
     .am-lane[data-master-lane]{outline-offset:-3px}.am-lane.am-drop-target{outline:3px dashed #e6b15c;background:#f8edcf}
     .am-inspector{overflow:auto;min-height:0}.am-inspector .am-track{margin-bottom:0}
     .am-automation{height:90px;position:relative;background:linear-gradient(#f8f6f0,#e7ecea);border:1px solid #adb9b6;border-radius:6px;margin:7px 0;touch-action:none;cursor:crosshair}
@@ -141,7 +145,7 @@
     <label style="font-size:12px">Durée du film (s) <input id="am-total" type="number" min="1" step="0.1" style="width:78px" aria-label="Durée totale du film"></label>
     <label style="font-size:12px">Zoom <input id="am-zoom" type="range" min="2" max="40" step="1" value="20" aria-label="Zoom de la chronologie"></label>
     <span id="am-clock">00:00 / 00:00</span></div></div>
-    <div class="am-grid"><div class="am-panel"><div class="am-track-head"><h3>Aperçu vidéo</h3><button id="am-preview-fullscreen" type="button" title="Agrandir l’aperçu pour vérifier la synchronisation">Agrandir l’aperçu</button></div><canvas id="am-preview" width="960" height="540"></canvas>
+    <div class="am-grid"><div class="am-panel"><div class="am-track-head"><h3>Aperçu vidéo</h3><button id="am-preview-fullscreen" type="button" title="Agrandir l’aperçu pour vérifier la synchronisation">Agrandir l’aperçu</button></div><canvas id="am-preview" width="1920" height="1080"></canvas>
       <input id="am-seek" type="range" min="0" max="1" step="0.01" value="0" aria-label="Position de lecture">
       </div>
     <div class="am-panel am-inspector"><h3>Réglages du clip sur le Master</h3><div id="am-tracks"></div></div></div>
@@ -171,7 +175,7 @@
     $('am-step-count').textContent = state.images.length;
     $('am-empty').hidden = !!state.images.length;
     for (const kind of ['voice','music']) {
-      const sourceClips = state.sources.filter(s=>s.kind===kind).map(s => `<div class="am-source-clip" data-source="${s.id}" data-kind="${kind}" title="Glisser vers le Master final"><span>${esc(s.name)} · ${time(s.out-s.in)}</span><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce clip sur le Master final">→ Master</button><button type="button" data-source-action="cut" data-source-id="${s.id}" title="Couper la source en deux au temps indiqué">✂</button><input type="number" min="0.05" max="${(s.out-s.in-0.05).toFixed(2)}" step="0.1" value="${((s.out-s.in)/2).toFixed(1)}" aria-label="Point de coupe en secondes" style="width:48px"><button type="button" data-source-action="copy" data-source-id="${s.id}" title="Copier le clip">Copier</button><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}" aria-label="Effacer la piste annexe ${esc(s.name)}" title="Effacer cette piste annexe">×</button></div>`).join('');
+      const sourceClips = state.sources.filter(s=>s.kind===kind).map(s => `<div class="am-source-clip" data-source="${s.id}" data-kind="${kind}" title="Glisser ce morceau vers le Master final"><div class="am-source-head"><span>${esc(s.name)} · ${time(s.out-s.in)}</span><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}" aria-label="Effacer la piste annexe ${esc(s.name)}" title="Effacer ce morceau annexe">×</button></div><canvas class="am-source-wave" data-source-wave="${s.id}" width="500" height="30" aria-label="Forme d’onde de ${esc(s.name)} ; cliquer pour choisir où couper" title="Cliquez sur la forme d’onde à l’endroit où couper"></canvas><div class="am-source-actions"><label class="am-source-cut-time">Coupe à <input type="number" min="0.05" max="${(s.out-s.in-0.05).toFixed(2)}" step="0.1" value="${((s.out-s.in)/2).toFixed(1)}" aria-label="Point de coupe en secondes"> s</label><button type="button" data-source-action="cut" data-source-id="${s.id}">✂ Couper ici</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce morceau au curseur sur le Master final">Placer sur Master</button></div></div>`).join('');
       root.querySelector(`[data-source-lane="${kind}"]`).innerHTML = (sourceClips || `<span>Aucun MP3 importé. Utilisez le bouton « Importer » ci-dessus ou déposez un fichier ici.</span>`) + (state.copiedSource ? `<button type="button" data-source-action="paste" data-source-kind="${kind}">Coller</button>` : '');
     }
     $('am-steps').innerHTML = state.images.map((im, i) => `<div class="am-step" data-step="${i}">
@@ -196,6 +200,10 @@
       <strong style="font-size:12px">Automatisation du volume · glissez les points</strong><div class="am-automation" role="img" aria-label="Courbe de volume du clip"><svg viewBox="0 0 500 90" preserveAspectRatio="none"><polyline points="${(t.automation||[]).map(p=>`${p.time/clipLength(t)*500},${(12-p.db)/72*90}`).join(' ')}" fill="none" stroke="#b44e30" stroke-width="3"/>${(t.automation||[]).map((p,j)=>`<circle data-point="${j}" cx="${p.time/clipLength(t)*500}" cy="${(12-p.db)/72*90}" r="6"/>`).join('')}</svg></div>
       <small>Double-cliquez sur la courbe pour ajouter un point ; double-cliquez sur un point pour le retirer.</small></article>`;
     if (t) drawWave(t, root.querySelector(`[data-wave="${i}"]`));
+    for (const source of state.sources) {
+      const wave = root.querySelector(`[data-source-wave="${source.id}"]`);
+      if (wave) drawWave(source, wave);
+    }
     for (const kind of ['voice','music']) {
       root.querySelector(`[data-master-db="${kind}"]`).value = state.master[kind].db;
       $(`am-${kind}-db`).textContent = `${state.master[kind].db} dB`;
@@ -282,6 +290,16 @@
     lane.ondrop=e=>{if(!e.dataTransfer?.files?.length)return;e.preventDefault();lane.classList.remove('am-drop-target');importFiles([...e.dataTransfer.files],lane.dataset.importLane);};
   });
   root.querySelector('.am-sources').onclick = e => {
+    const wave=e.target.closest('[data-source-wave]');
+    if (wave) {
+      const source=state.sources.find(s=>s.id===wave.dataset.sourceWave);
+      if (!source) return;
+      const rect=wave.getBoundingClientRect(), seconds=(source.out-source.in)*clamp((e.clientX-rect.left)/rect.width,0,1);
+      const field=wave.closest('.am-source-clip').querySelector('input[type=number]');
+      field.value=clamp(seconds,0.05,source.out-source.in-0.05).toFixed(1);
+      badge(`Coupe choisie à ${field.value} s dans « ${source.name} ». Cliquez sur « Couper ici » pour créer deux morceaux.`,false);
+      return;
+    }
     const action=e.target.dataset.sourceAction; if (!action) return;
     const source=state.sources.find(s=>s.id===e.target.dataset.sourceId);
     if (action==='place' && source) { const lane=root.querySelector(`[data-master-lane="${source.kind}"]`);const r=lane.getBoundingClientRect();placeSource(source,lane,r.left+r.width*state.previewAt/duration()); }
@@ -324,7 +342,7 @@
     state.selectedId=clip.id;render();
   };
   root.querySelector('.am-sources').onpointerdown = e => {
-    if(e.target.closest('button,input'))return;
+    if(e.target.closest('button,input,canvas'))return;
     const clip=e.target.closest('[data-source]');if(!clip)return;
     const id=clip.dataset.source,startX=e.clientX,startY=e.clientY;
     clip.setPointerCapture(e.pointerId);
@@ -508,6 +526,7 @@
       if (state.bitmap) state.bitmap.close(); state.bitmap = next; state.bitmapIndex = idx;
     }
     const canvas = $('am-preview'), c = canvas.getContext('2d'), im = state.bitmap;
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
     c.fillStyle = '#fffdf9'; c.fillRect(0, 0, canvas.width, canvas.height);
     const ratio = Math.min(canvas.width / im.width, canvas.height / im.height);
     c.drawImage(im, (canvas.width-im.width*ratio)/2, (canvas.height-im.height*ratio)/2, im.width*ratio, im.height*ratio);

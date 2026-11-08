@@ -10,6 +10,7 @@ const { join } = require('node:path');
     const errors = [];
     page.on('pageerror', e => errors.push(e.stack || e.message));
     await page.goto('file://' + join(__dirname, '../atelier-diapos.html'));
+    assert.deepEqual(await page.locator('#am-preview').evaluate(el => [el.width, el.height]), [1920, 1080], 'aperçu haute définition');
     await page.evaluate(async () => {
       const images = [];
       for (const color of ['#a52a2a', '#204c91']) {
@@ -26,8 +27,15 @@ const { join } = require('node:path');
     await page.waitForFunction(() => document.querySelectorAll('[data-source-lane="voice"] [data-source]').length === 1);
     await page.locator('#am-add-music').setInputFiles([mp3,mp3]);
     await page.waitForFunction(() => document.querySelectorAll('[data-source-lane="music"] [data-source]').length === 2);
+    assert.equal(await page.locator('[data-source-lane="voice"] .am-source-wave').count(), 1, 'forme d’onde de la source visible');
+    await page.locator('[data-source-lane="voice"] [data-source] input[type="number"]').fill('0.1');
+    await page.locator('[data-source-lane="voice"] [data-source-action="cut"]').click();
+    assert.equal(await page.locator('[data-source-lane="voice"] [data-source]').count(), 2, 'source coupée en deux morceaux');
+    await page.locator('[data-source-lane="voice"] [data-source-action="copy"]').first().click();
+    await page.locator('[data-source-lane="voice"] [data-source-action="paste"]').click();
+    assert.equal(await page.locator('[data-source-lane="voice"] [data-source]').count(), 3, 'morceau copié et collé');
     assert.equal(await page.locator('[data-clip]').count(), 0, 'importer conserve le son en bibliothèque');
-    await page.locator('[data-source-lane="voice"] [data-source] span').first().dragTo(page.locator('[data-master-lane="voice"]'));
+    await page.locator('[data-source-lane="voice"] [data-source] span').nth(1).dragTo(page.locator('[data-master-lane="voice"]'));
     await page.locator('[data-source-lane="music"] [data-source] span').first().dragTo(page.locator('[data-master-lane="music"]'));
     await page.locator('[data-source-lane="music"] [data-source] span').last().dragTo(page.locator('[data-master-lane="music"]'));
     await page.waitForFunction(() => document.querySelectorAll('[data-clip]').length === 3);
@@ -95,11 +103,6 @@ const { join } = require('node:path');
     await page.locator(`[data-clip="${movedClip}"]`).click();
     await page.locator('.am-inspector [data-remove]').click();
     assert.equal(await page.locator('[data-clip]').count(),beforeRemove-1);
-    await page.locator('[data-source-lane="voice"] [data-source-action="cut"]').click();
-    assert.equal(await page.locator('[data-source-lane="voice"] [data-source]').count(),2);
-    await page.locator('[data-source-lane="voice"] [data-source-action="copy"]').first().click();
-    await page.locator('[data-source-lane="voice"] [data-source-action="paste"]').click();
-    assert.equal(await page.locator('[data-source-lane="voice"] [data-source]').count(),3);
     await page.evaluate(encoded => {
       const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));
       const transfer=new DataTransfer();transfer.items.add(new File([bytes],'glisse-depose.mp3',{type:'audio/mpeg'}));
