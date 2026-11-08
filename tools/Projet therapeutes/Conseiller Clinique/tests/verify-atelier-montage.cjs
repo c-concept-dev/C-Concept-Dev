@@ -27,6 +27,21 @@ const { join } = require('node:path');
     await page.waitForFunction(() => document.querySelectorAll('[data-source-lane="voice"] [data-source]').length === 1);
     await page.locator('#am-add-music').setInputFiles([mp3,mp3]);
     await page.waitForFunction(() => document.querySelectorAll('[data-source-lane="music"] [data-source]').length === 2);
+    for (const height of [1073, 800]) {
+      await page.setViewportSize({width:1325,height});
+      if (height === 1073) await page.locator('#am-focus').click();
+      const layout = await page.evaluate(() => {
+        const bounds = selector => {
+          const rect = document.querySelector(selector).getBoundingClientRect();
+          return {top:rect.top,bottom:rect.bottom,height:rect.height};
+        };
+        return {viewport:innerHeight,preview:bounds('#am-preview'),sources:bounds('.am-sources'),timeline:bounds('.am-timeline'),voice:bounds('[data-master-lane="voice"]'),music:bounds('[data-master-lane="music"]')};
+      });
+      assert.ok(layout.preview.height >= 90, `aperçu visible à ${height} px : ${JSON.stringify(layout)}`);
+      assert.ok(layout.sources.height >= 100, `sources visibles à ${height} px : ${JSON.stringify(layout)}`);
+      assert.ok(layout.timeline.bottom <= layout.viewport && layout.music.bottom <= layout.viewport, `pistes Master visibles à ${height} px : ${JSON.stringify(layout)}`);
+    }
+    await page.locator('#am-focus').click();
     assert.equal(await page.locator('[data-source-lane="voice"] .am-source-wave').count(), 1, 'forme d’onde de la source visible');
     await page.locator('[data-source-lane="voice"] [data-source] input[type="number"]').fill('0.1');
     await page.locator('[data-source-lane="voice"] [data-source-action="cut"]').click();
