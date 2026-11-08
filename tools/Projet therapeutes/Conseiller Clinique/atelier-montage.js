@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   const $ = id => document.getElementById(id);
-  const state = { tracks: [], images: [], cuts: [], total: 0, playing: false, started: 0,
+  const state = { tracks: [], sources: [], copiedSource: null, images: [], cuts: [], total: 0, playing: false, started: 0,
     previewAt: 0, raf: 0, bitmap: null, bitmapIndex: -1, exporting: false,
     selectedId: null, zoom: 4, master: {voice: {db: 0, muted: false}, music: {db: 0, muted: false}} };
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -27,7 +27,7 @@
 
   const css = document.createElement('style');
   css.textContent = `
-    #am-workbench{margin:28px 0;padding:12px;background:#fffdf9;border:1px solid #c9c3b8;border-radius:16px;box-shadow:0 8px 28px #322b2314;color:#273331;height:min(900px,calc(100vh - 16px));min-height:560px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+    #am-workbench{margin:12px 0;padding:12px;background:#fffdf9;border:1px solid #c9c3b8;border-radius:16px;box-shadow:0 8px 28px #322b2314;color:#273331;height:calc(100vh - 20px);min-height:680px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
     #am-workbench *{box-sizing:border-box} #am-workbench h2{font:600 29px/1.15 'Source Serif 4',Georgia,serif;margin:0 0 7px;color:#102f31}
     #am-workbench p{margin:0;color:#5d6966;font-size:12px}
     .am-toolbar{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:3px 0}
@@ -35,11 +35,11 @@
     #am-workbench button:hover,#am-workbench .am-file:hover{background:#dce8e6}
     #am-workbench button:focus-visible,#am-workbench input:focus-visible{outline:3px solid #8a3f29;outline-offset:2px}
     #am-workbench button:disabled{opacity:.45;cursor:not-allowed}
-    .am-file input{display:none}.am-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,1fr);gap:10px;min-height:0;flex:0 0 min(25vh,220px)}
+    .am-file input{display:none}.am-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:10px;min-height:0;flex:0 0 min(45vh,430px)}
     .am-panel{border:1px solid #c9c3b8;border-radius:12px;padding:13px;background:#f6f2ea;min-width:0}
     .am-panel h3{font:700 15px/1.3 -apple-system,system-ui,sans-serif;margin:0 0 10px}
     .am-grid .am-panel:first-child{display:flex;flex-direction:column;min-height:0;overflow:hidden}
-    #am-preview{width:100%;height:0;min-height:0;flex:1;object-fit:contain;display:block;background:#102f31;border-radius:9px}
+    #am-preview{width:auto;max-width:100%;height:calc(45vh - 85px);max-height:100%;aspect-ratio:16/9;display:block;background:#fffdf9;border-radius:9px;margin:auto}
     #am-seek{width:100%;margin:12px 0 2px}.am-track{border:1px solid #5d6966;background:#fffdf9;border-radius:9px;padding:10px;margin-bottom:9px}
     .am-track[data-kind=voice]{border-left:5px solid #1f5053}.am-track[data-kind=music]{border-left:5px solid #8a3f29}
     .am-track-head{display:flex;align-items:center;gap:7px;justify-content:space-between;flex-wrap:wrap}
@@ -59,8 +59,17 @@
     .am-clip[data-kind=music]{background:#8a3f29}.am-clip:active{cursor:grabbing}
     .am-clip[data-selected=true]{outline:3px solid #e6b15c;outline-offset:1px}
     .am-clip .am-envelope{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+    #am-workbench .am-clip-remove{position:absolute;top:1px;left:1px;z-index:3;padding:1px 4px;border:0;background:#fffdf9;color:#8a3f29;border-radius:4px;font-size:12px;line-height:1}
+    .am-clip-label{margin-left:20px;display:block;overflow:hidden;text-overflow:ellipsis}
     .am-master{display:flex;align-items:center;gap:7px;font-size:12px;margin:3px 0 7px;flex:0 0 auto;flex-wrap:wrap}
     .am-master input[type=range]{width:90px}.am-master strong{min-width:100px}
+    .am-sources{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:0 0 auto;min-height:75px;max-height:125px}
+    .am-source-lane{border:1px solid #c9c3b8;border-radius:9px;padding:5px 8px;overflow:auto;background:#f6f2ea;font-size:12px}
+    .am-source-lane strong{display:block;margin-bottom:4px}.am-source-list{display:flex;gap:5px;min-height:35px;align-items:center;flex-wrap:wrap}
+    .am-source-clip{background:#1f5053;color:#fff;border-radius:6px;padding:5px 7px;cursor:grab;display:flex;align-items:center;gap:5px;max-width:100%}
+    .am-source-clip[data-kind=music]{background:#8a3f29}.am-source-clip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+    #am-workbench .am-source-clip button{padding:3px 5px;font-size:11px;background:#fffdf9;border-color:#fffdf9}
+    .am-lane[data-master-lane]{outline-offset:-3px}.am-lane.am-drop-target{outline:3px dashed #e6b15c;background:#f8edcf}
     .am-inspector{overflow:auto;min-height:0}.am-inspector .am-track{margin-bottom:0}
     .am-automation{height:90px;position:relative;background:linear-gradient(#f8f6f0,#e7ecea);border:1px solid #adb9b6;border-radius:6px;margin:7px 0;touch-action:none;cursor:crosshair}
     .am-automation svg{width:100%;height:100%;overflow:visible}
@@ -73,12 +82,12 @@
     .am-clip[aria-disabled=true]{opacity:.4}.am-step-clip{background:#dce8e6;color:#102f31;border:1px solid #1f5053;cursor:pointer}
     .am-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ab4329;pointer-events:none;z-index:2}
     #am-status[data-error=1]{color:#8a3f29}#am-status{font-weight:600!important;margin:12px 0 0!important}
-    @media(max-width:760px){#am-workbench{height:calc(100vh - 20px);min-height:560px}.am-grid{grid-template-columns:1fr;flex-basis:260px}.am-grid .am-panel:first-child{display:none}.am-track-fields{grid-template-columns:repeat(2,1fr)}}`;
+    @media(max-width:760px){#am-workbench{height:auto;min-height:760px}.am-grid{grid-template-columns:1fr;flex-basis:auto}.am-grid .am-panel:first-child{display:flex}.am-sources{grid-template-columns:1fr;max-height:220px;overflow:auto}.am-track-fields{grid-template-columns:repeat(2,1fr)}}`;
   document.head.appendChild(css);
 
   const root = document.createElement('section');
   root.id = 'am-workbench';
-  root.innerHTML = `<h2>Atelier Diapos · Montage</h2><p>Montez vos clips sur les pistes Voix Master et Musique Master. Les fichiers MP3 restent sur cet ordinateur.</p>
+  root.innerHTML = `<h2>Atelier Diapos · Montage</h2><p>Importez autant de sources MP3 voix et musique que nécessaire, puis placez les passages choisis sur le Master final.</p>
     <div class="am-toolbar"><label class="am-file">+ Piste voix<input id="am-add-voice" type="file" accept=".mp3,audio/mpeg" multiple></label>
     <label class="am-file">+ Piste musique ou ambiance<input id="am-add-music" type="file" accept=".mp3,audio/mpeg" multiple></label>
     <button id="am-play" type="button">Lire</button><button id="am-stop" type="button">Arrêter</button>
@@ -94,14 +103,21 @@
       <input id="am-seek" type="range" min="0" max="1" step="0.01" value="0" aria-label="Position de lecture">
       </div>
     <div class="am-panel am-inspector"><h3>Clip sélectionné</h3><div id="am-tracks"></div></div></div>
+    <div class="am-sources" aria-label="Pistes annexes"><div class="am-source-lane" data-import-lane="voice"><strong>Annexes voix · importez ou déposez des MP3, puis glissez un clip vers le Master</strong><div class="am-source-list" data-source-lane="voice"></div></div>
+    <div class="am-source-lane" data-import-lane="music"><strong>Annexes musique · importez ou déposez des MP3, puis glissez un clip vers le Master</strong><div class="am-source-list" data-source-lane="music"></div></div></div>
     <div class="am-master"><strong>Voix Master</strong><button type="button" data-master-mute="voice">Muet</button><label>Volume <input type="range" data-master-db="voice" min="-36" max="12" value="0"></label><output id="am-voice-db">0 dB</output>
       <strong>Musique Master</strong><button type="button" data-master-mute="music">Muet</button><label>Volume <input type="range" data-master-db="music" min="-36" max="12" value="0"></label><output id="am-music-db">0 dB</output></div>
-    <div class="am-timeline" aria-label="Ligne de temps du montage"><div id="am-timeline-inner"><div id="am-ruler" class="am-ruler"></div><div id="am-lanes"></div></div></div>
+    <div class="am-timeline" aria-label="Master final du montage"><strong>Master final · voix et musique exportées en un seul mixage</strong><div id="am-timeline-inner"><div id="am-ruler" class="am-ruler"></div><div id="am-lanes"></div></div></div>
     <details class="am-panel am-steps-panel"><summary>Étapes et repères · <span id="am-step-count">0</span> images</summary><p>Chaque repère donne l’heure de début d’une image.</p>
       <div id="am-steps"></div><p id="am-empty">Importez une présentation pour régler ses étapes.</p>
     </details>
     <p id="am-status" role="status" aria-live="polite">Prêt pour l’import MP3.</p>`;
   $('cv-vignettes').before(root);
+  const vignetteDetails = document.createElement('details');
+  vignetteDetails.id = 'am-vignettes-details';
+  vignetteDetails.innerHTML = '<summary>Afficher les vignettes des diapositives</summary>';
+  root.after(vignetteDetails);
+  vignetteDetails.append($('cv-vignettes'));
 
   function render() {
     $('am-clock').textContent = `${time(state.previewAt)} / ${time(duration())}`;
@@ -109,6 +125,9 @@
     $('am-total').value = +duration().toFixed(1);
     $('am-step-count').textContent = state.images.length;
     $('am-empty').hidden = !!state.images.length;
+    for (const kind of ['voice','music']) {
+      root.querySelector(`[data-source-lane="${kind}"]`).innerHTML = state.sources.filter(s=>s.kind===kind).map(s => `<div class="am-source-clip" data-source="${s.id}" data-kind="${kind}" title="Glisser vers le Master final"><span>${esc(s.name)} · ${time(s.out-s.in)}</span><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce clip sur le Master final">→ Master</button><button type="button" data-source-action="cut" data-source-id="${s.id}" title="Couper la source en deux au temps indiqué">✂</button><input type="number" min="0.05" max="${(s.out-s.in-0.05).toFixed(2)}" step="0.1" value="${((s.out-s.in)/2).toFixed(1)}" aria-label="Point de coupe en secondes" style="width:48px"><button type="button" data-source-action="copy" data-source-id="${s.id}" title="Copier le clip">Copier</button></div>`).join('') + `<button type="button" data-source-action="paste" data-source-kind="${kind}" ${state.copiedSource ? '' : 'disabled'}>Coller</button>`;
+    }
     $('am-steps').innerHTML = state.images.map((im, i) => `<div class="am-step" data-step="${i}">
       <img src="${esc(im.url)}" alt=""><span>${i + 1}. ${esc(im.titre || 'Étape')} · diapositive ${(im.cardIndex || 0) + 1}</span>
       <label>Début (s)<input type="number" min="0" step="0.01" value="${state.cuts[i].toFixed(2)}" data-cut="${i}"></label>
@@ -149,7 +168,7 @@
       if (t.kind!==kind) return '';
       const left = Math.min(100,t.at/total*100), length = (t.loop ? total-t.at : clipLength(t))/total*100;
       const points = t.automation || [{time:0,db:0},{time:clipLength(t),db:0}];
-      return `<div class="am-clip" data-kind="${kind}" data-clip="${i}" data-selected="${t.id===state.selectedId}" aria-disabled="${t.muted}" style="left:${left}%;width:${Math.max(0,Math.min(100-left,length))}%" title="Glisser horizontalement ou vers l’autre piste Master">${esc(t.name)}<svg class="am-envelope" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${points.map(p=>`${p.time/clipLength(t)*100},${7+(12-p.db)/72*35}`).join(' ')}" fill="none" stroke="#f6d386" stroke-width="2"/></svg></div>`;
+      return `<div class="am-clip" data-kind="${kind}" data-clip="${i}" data-selected="${t.id===state.selectedId}" aria-disabled="${t.muted}" style="left:${left}%;width:${Math.max(0,Math.min(100-left,length))}%" title="Glisser horizontalement ou vers l’autre piste Master"><button type="button" class="am-clip-remove" data-clip-remove="${i}" aria-label="Retirer ${esc(t.name)} du Master">×</button><span class="am-clip-label">${esc(t.name)}</span><svg class="am-envelope" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${points.map(p=>`${p.time/clipLength(t)*100},${7+(12-p.db)/72*35}`).join(' ')}" fill="none" stroke="#f6d386" stroke-width="2"/></svg></div>`;
     }).join('')}</div>`).join('');
   }
   function drawWave(t, canvas) {
@@ -168,8 +187,6 @@
     if (!d || !d.res || !d.res.images || !d.res.images.length) return;
     state.images.forEach(im => URL.revokeObjectURL(im.url));
     state.images = d.res.images.map(im => ({...im, url: URL.createObjectURL(im.blob)}));
-    const voice = state.tracks.find(t => t.kind === 'voice');
-    if (voice) state.total = +voice.buffer.duration.toFixed(2);
     const n = state.images.length, total = duration();
     state.cuts = Array.from({length:n}, (_, i) => i * total / n);
     state.bitmapIndex = -1;
@@ -194,20 +211,12 @@
         try {
           const buffer = await ctx.decodeAudioData(await file.arrayBuffer());
           if (!buffer.duration || !Number.isFinite(buffer.duration)) throw Error('durée invalide');
-          const existing = state.tracks.filter(t=>t.kind===kind);
-          const at = existing.length ? Math.max(...existing.map(t=>t.at+clipLength(t))) : 0;
           const id = crypto.randomUUID();
-          state.tracks.push({id, name:file.name, file, buffer, kind, at, in:0,
+          state.sources.push({id, name:file.name, file, buffer, kind, at:0, in:0,
             out:+buffer.duration.toFixed(2), db:kind === 'voice' ? 0 : -18, fadeIn:0.3, fadeOut:0.5,
             loop:false, muted:false, automation:[{time:0,db:0},{time:+buffer.duration.toFixed(2),db:0}]});
-          state.selectedId = id;
-          badge(`Piste « ${file.name} » ajoutée.`, false);
+          badge(`Source « ${file.name} » prête : glissez-la vers ${kind==='voice'?'Voix':'Musique'} Master.`, false);
         } catch (e) { badge(`${file.name} : MP3 illisible (${e.message}).`, true); }
-      }
-      const voice = state.tracks.find(t => t.kind === 'voice');
-      if (voice && state.images.length && (!state.total || state.total === state.images.length * 4)) {
-        state.total = Math.round(voice.buffer.duration * 100) / 100;
-        state.cuts = state.images.map((_, i) => i * state.total / state.images.length);
       }
       if (state.images.length) state.total = Math.max(duration(), ...state.tracks.map(t => t.at + clipLength(t)));
       render();
@@ -215,6 +224,67 @@
   }
   $('am-add-voice').onchange = e => importFiles([...e.target.files], 'voice');
   $('am-add-music').onchange = e => importFiles([...e.target.files], 'music');
+  root.querySelectorAll('[data-import-lane]').forEach(lane => {
+    lane.ondragover=e=>{if([...e.dataTransfer?.types||[]].includes('Files')){e.preventDefault();lane.classList.add('am-drop-target');}};
+    lane.ondragleave=()=>lane.classList.remove('am-drop-target');
+    lane.ondrop=e=>{if(!e.dataTransfer?.files?.length)return;e.preventDefault();lane.classList.remove('am-drop-target');importFiles([...e.dataTransfer.files],lane.dataset.importLane);};
+  });
+  root.querySelector('.am-sources').onclick = e => {
+    const action=e.target.dataset.sourceAction; if (!action) return;
+    const source=state.sources.find(s=>s.id===e.target.dataset.sourceId);
+    if (action==='place' && source) { const lane=root.querySelector(`[data-master-lane="${source.kind}"]`);placeSource(source,lane,lane.getBoundingClientRect().left); }
+    if (action==='copy' && source) { state.copiedSource={...source,automation:source.automation.map(p=>({...p}))}; badge(`« ${source.name} » copié.`,false); render(); }
+    if (action==='paste' && state.copiedSource) {
+      const copy={...state.copiedSource,id:crypto.randomUUID(),kind:e.target.dataset.sourceKind,name:state.copiedSource.name+' · copie',automation:state.copiedSource.automation.map(p=>({...p}))};
+      state.sources.push(copy); badge(`Copie ajoutée aux sources ${copy.kind==='voice'?'voix':'musique'}.`,false); render();
+    }
+    if (action==='cut' && source) {
+      const field=e.target.parentElement.querySelector('input[type=number]');
+      const local=+field.value,length=source.out-source.in;
+      if (!Number.isFinite(local)||local<0.05||local>length-0.05) return badge('Point de coupe hors du clip.',true);
+      const oldOut=source.out, oldIn=source.in;
+      const level=automationDb(source,local), points=source.automation;
+      const right={...source,id:crypto.randomUUID(),name:source.name+' · suite',in:oldIn+local,out:oldOut,
+        automation:[{time:0,db:level},...points.filter(p=>p.time>local).map(p=>({time:p.time-local,db:p.db}))]};
+      source.out=oldIn+local;source.automation=[...points.filter(p=>p.time<local),{time:local,db:level}];
+      state.sources.splice(state.sources.indexOf(source)+1,0,right);
+      badge(`Source coupée en deux à ${local.toFixed(1)} s. Chaque partie peut être glissée séparément.`,false);render();
+    }
+  };
+  root.querySelector('.am-sources').ondragstart = e => {
+    const clip=e.target.closest('[data-source]'); if (!clip) return;
+    e.dataTransfer.setData('text/plain',clip.dataset.source);e.dataTransfer.effectAllowed='copy';
+  };
+  function placeSource(source,lane,clientX) {
+    const r=lane.getBoundingClientRect(),at=Math.round(clamp((clientX-r.left)/r.width*duration(),0,duration())*10)/10;
+    const clip={...source,id:crypto.randomUUID(),kind:lane.dataset.masterLane,at,automation:source.automation.map(p=>({...p}))};
+    state.tracks.push(clip);state.selectedId=clip.id;
+    badge(`« ${source.name} » placé sur ${clip.kind==='voice'?'Voix':'Musique'} Master à ${time(at)}.`,false);render();
+  }
+  root.querySelector('.am-sources').onpointerdown = e => {
+    if(e.target.closest('button,input'))return;
+    const clip=e.target.closest('[data-source]');if(!clip)return;
+    const id=clip.dataset.source,startX=e.clientX,startY=e.clientY;
+    clip.setPointerCapture(e.pointerId);
+    clip.onpointerup=up=>{
+      clip.onpointerup=null;
+      if(Math.hypot(up.clientX-startX,up.clientY-startY)<12)return;
+      const lane=[...root.querySelectorAll('[data-master-lane]')].find(row=>{const r=row.getBoundingClientRect();return up.clientX>=r.left&&up.clientX<=r.right&&up.clientY>=r.top&&up.clientY<=r.bottom;});
+      const source=state.sources.find(s=>s.id===id);
+      if(lane&&source)placeSource(source,lane,up.clientX);
+    };
+  };
+  $('am-lanes').ondragover = e => {
+    const lane=e.target.closest('[data-master-lane]'); if (!lane) return;
+    e.preventDefault();e.dataTransfer.dropEffect='copy';lane.classList.add('am-drop-target');
+  };
+  $('am-lanes').ondragleave = e => { const lane=e.target.closest('[data-master-lane]');if(lane&&!lane.contains(e.relatedTarget))lane.classList.remove('am-drop-target'); };
+  $('am-lanes').ondrop = e => {
+    const lane=e.target.closest('[data-master-lane]');if(!lane)return;
+    e.preventDefault();lane.classList.remove('am-drop-target');
+    const source=state.sources.find(s=>s.id===e.dataTransfer.getData('text/plain'));if(!source)return;
+    placeSource(source,lane,e.clientX);
+  };
   $('am-tracks').onchange = e => {
     const i = +e.target.dataset.track, t = state.tracks[i], f = e.target.dataset.field;
     if (!t || !f) return;
@@ -224,23 +294,29 @@
     t.at = Math.max(0, t.at); t.in = clamp(t.in, 0, t.buffer.duration);
     t.out = clamp(t.out, t.in + 0.01, t.buffer.duration);
     t.db = clamp(t.db, -60, 12); t.fadeIn = Math.max(0, t.fadeIn); t.fadeOut = Math.max(0, t.fadeOut);
+    updateLiveGains();
     // Laisser le contrôle natif finir son changement avant de reconstruire l'inspecteur.
     requestAnimationFrame(render);
+  };
+  $('am-tracks').oninput = e => {
+    if (e.target.dataset.field !== 'db') return;
+    const t=state.tracks[+e.target.dataset.track];if(!t)return;
+    t.db=clamp(+e.target.value,-60,12);updateLiveGains();
   };
   $('am-tracks').onclick = e => {
     const i = e.target.dataset.mute ?? e.target.dataset.remove;
     if (i === undefined) return;
-    if (e.target.dataset.mute !== undefined) state.tracks[+i].muted = !state.tracks[+i].muted;
+    if (e.target.dataset.mute !== undefined) {state.tracks[+i].muted = !state.tracks[+i].muted;updateLiveGains();}
     else { const removed = state.tracks.splice(+i, 1)[0]; if (removed.id===state.selectedId) state.selectedId=null; }
     render();
   };
   root.querySelector('.am-master').oninput = e => {
     const kind=e.target.dataset.masterDb; if (!kind) return;
-    state.master[kind].db=+e.target.value; $(`am-${kind}-db`).textContent=`${e.target.value} dB`;
+    state.master[kind].db=+e.target.value; $(`am-${kind}-db`).textContent=`${e.target.value} dB`;updateLiveGains();
   };
   root.querySelector('.am-master').onclick = e => {
     const kind=e.target.dataset.masterMute; if (!kind) return;
-    state.master[kind].muted=!state.master[kind].muted; render();
+    state.master[kind].muted=!state.master[kind].muted; updateLiveGains();render();
   };
   $('am-zoom').oninput = e => { state.zoom=+e.target.value; renderTimeline(); };
   $('am-split').onclick = () => {
@@ -295,8 +371,12 @@
     state.cuts[i] = value; render();
   };
   $('am-steps').onclick = e => { if (e.target.dataset.focus === undefined) return; seek(state.cuts[+e.target.dataset.focus]); };
-  $('am-lanes').onclick = e => { if (e.target.dataset.focus !== undefined) seek(state.cuts[+e.target.dataset.focus]); };
+  $('am-lanes').onclick = e => {
+    if(e.target.dataset.clipRemove!==undefined){const removed=state.tracks.splice(+e.target.dataset.clipRemove,1)[0];if(removed?.id===state.selectedId)state.selectedId=null;badge(`Clip « ${removed?.name||''} » retiré du Master ; sa source reste disponible.`,false);render();return;}
+    if (e.target.dataset.focus !== undefined) seek(state.cuts[+e.target.dataset.focus]);
+  };
   $('am-lanes').onpointerdown = e => {
+    if(e.target.closest('[data-clip-remove]'))return;
     const clip = e.target.closest('[data-clip]'); if (!clip) return;
     const i = +clip.dataset.clip, t = state.tracks[i], lane = clip.parentElement;
     state.selectedId=t.id;
@@ -312,7 +392,14 @@
       clip.onpointermove = null; clip.onpointerup = null; render();
     };
   };
-  $('am-seek').oninput = e => seek(+e.target.value);
+  $('am-seek').oninput = e => {
+    const at = +e.target.value;
+    if (state.playing) {
+      stopPreview();
+      seek(at);
+      $('am-play').click();
+    } else seek(at);
+  };
   $('am-total').onchange = e => {
     const proposed = +e.target.value;
     if (!Number.isFinite(proposed) || proposed < 1 || proposed <= (state.cuts.at(-1) || 0)) {
@@ -348,19 +435,26 @@
     const playhead = root.querySelector('.am-playhead');
     if (playhead) playhead.style.left = `${state.previewAt / Math.max(1, duration()) * 100}%`;
   }
-  let previewCtx = null, previewSources = [];
+  let previewCtx = null, previewSources = [], previewGains = [];
+  function updateLiveGains() {
+    if (!previewCtx) return;
+    for (const {track,gain} of previewGains) {
+      const level=(track.muted||state.master[track.kind].muted)?0:dbGain(track.db+state.master[track.kind].db);
+      gain.gain.setTargetAtTime(level,previewCtx.currentTime,0.015);
+    }
+  }
   function stopPreview() {
     state.playing = false; cancelAnimationFrame(state.raf);
-    previewSources.forEach(s => { try { s.stop(); } catch {} }); previewSources = [];
+    previewSources.forEach(s => { try { s.stop(); } catch {} }); previewSources = [];previewGains=[];
     if (previewCtx) { previewCtx.close(); previewCtx = null; }
     $('am-play').textContent = 'Lire';
   }
-  function schedule(ctx, destination, from, output) {
+  function schedule(ctx, destination, from, live) {
     const result = [];
-    for (const t of tracks()) {
+    for (const t of live ? state.tracks : tracks()) {
       const length = clipLength(t);
       if (length <= 0) continue;
-      const gain = ctx.createGain(), source = ctx.createBufferSource();
+      const gain = ctx.createGain(), volume = live ? ctx.createGain() : null, source = ctx.createBufferSource();
       source.buffer = t.buffer; source.loop = t.loop; source.loopStart = t.in; source.loopEnd = t.out;
       const begin = Math.max(t.at, from);
       const offset = t.in + (t.loop ? Math.max(0,from-t.at) % length : Math.max(0,from-t.at));
@@ -375,7 +469,7 @@
       for(let k=0;k<=steps;k++) {
         const elapsed=k/steps*maxLength, absolute=begin+elapsed;
         const local=t.loop ? (absolute-t.at)%length : absolute-t.at;
-        let level=dbGain(t.db+state.master[t.kind].db+automationDb(t,local));
+        let level=dbGain((live?0:t.db+state.master[t.kind].db)+automationDb(t,local));
         if(t.fadeIn>0) level*=clamp((absolute-t.at)/t.fadeIn,0,1);
         if(t.fadeOut>0 && !t.loop) level*=clamp((t.at+length-absolute)/t.fadeOut,0,1);
         if(t.kind==='music') {
@@ -385,7 +479,8 @@
         curve[k]=level;
       }
       gain.gain.setValueCurveAtTime(curve,when,maxLength);
-      source.connect(gain).connect(destination);
+      if (live) { source.connect(gain).connect(volume).connect(destination);previewGains.push({track:t,gain:volume}); }
+      else source.connect(gain).connect(destination);
       source.start(when, offset, maxLength);
       result.push(source);
     }
@@ -396,7 +491,7 @@
     if (!state.images.length) return badge('Importez d’abord une présentation.', true);
     previewCtx = new (window.AudioContext || window.webkitAudioContext)();
     await previewCtx.resume();
-    previewSources = schedule(previewCtx, previewCtx.destination, state.previewAt, true);
+    previewSources = schedule(previewCtx, previewCtx.destination, state.previewAt, true);updateLiveGains();
     state.playing = true; state.started = performance.now() - state.previewAt * 1000;
     $('am-play').textContent = 'Pause';
     const tick = now => { if (!state.playing) return; seek((now-state.started)/1000);
@@ -419,7 +514,7 @@
   async function mixedAudio() {
     const rate = 44100, seconds = duration();
     const offline = new OfflineAudioContext(2, Math.ceil(seconds*rate), rate);
-    schedule(offline, offline.destination, 0, true);
+    schedule(offline, offline.destination, 0, false);
     return offline.startRendering();
   }
   async function validateMp4(blob, expectedAudio) {
