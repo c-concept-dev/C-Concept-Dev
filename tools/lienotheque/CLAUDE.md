@@ -60,6 +60,8 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
     commiter que sa part, et ce découpage a produit trois incidents en une journée — des lignes
     posées sous le mauvais titre, une section effacée, un décompte faux trois fois. Supprimer le
     découpage supprime la classe entière. Décision de Christophe du 7 novembre 2026.
+    Une **autorisation de push** n'est pas une décision : elle va dans
+    `docs/autorisations-de-push.md`, qui continue la numérotation de l'archive.
 
 ## Gestes interdits et gestes autorisés
 - **Jamais `git add -A` ni `git add .`** : uniquement des chemins explicites sous
