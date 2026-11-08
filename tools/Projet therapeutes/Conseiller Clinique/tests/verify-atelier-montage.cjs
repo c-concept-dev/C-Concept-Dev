@@ -46,9 +46,13 @@ const { join } = require('node:path');
     await page.evaluate(() => { window.__liveGainCalls = 0; const p = AudioParam.prototype, original = p.setTargetAtTime; p.setTargetAtTime = function (...args) { window.__liveGainCalls++; return original.apply(this,args); }; });
     await page.locator('[data-master-db="music"]').fill('-12');
     assert.ok(await page.evaluate(() => window.__liveGainCalls) > 0, 'volume modifié pendant la lecture');
-    await page.locator('#am-seek').fill('1.2');
+    await page.locator('#am-seek').fill('2.2');
     await page.waitForFunction(() => document.querySelector('#am-play').textContent === 'Pause');
-    assert.match(await page.locator('#am-clock').innerText(), /00:01 \/ 00:04/, 'scrubbing resynchronise image et audio');
+    assert.match(await page.locator('#am-clock').innerText(), /00:02 \/ 00:04/, 'scrubbing resynchronise image et audio');
+    await page.waitForFunction(() => {
+      const pixel=document.querySelector('#am-preview').getContext('2d').getImageData(480,270,1,1).data;
+      return pixel[2] > pixel[0];
+    });
     await page.locator('#am-stop').click();
     await page.locator('[data-master-lane="voice"] [data-clip="0"]').click();
     await page.locator('[data-field="at"][data-track="0"]').fill('0');
