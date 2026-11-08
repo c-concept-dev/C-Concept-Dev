@@ -95,6 +95,8 @@
 | 2026-11-06 | **CLA-01 cherche des mots, pas des suites de lettres.** La frontière d'un mot, dans du code, est l'espace **ou le passage de casse** (`lirePartition`, `partitionDuTexte`) ; une terminaison d'une **liste fermée** (`s`, `es`) décline le mot sans en faire un autre — **ce n'est pas une longueur** : `e`, plus court que `es`, est interdit parce qu'il transforme le mot (« desserte », « bache »). Chaque entrée porte son cas réel dans la liste des termes. Les **homonymes** (`rosier`, `rareté`) restent pris, et c'est sans danger : le jour où leur domaine entre au banc, ils sont interdits pour la bonne raison | Question de Christophe du 06/11, quatre faux positifs mesurés dont un antérieur ; trois règles, chacune tuée par sa mutation |
 | 2026-11-06 | **Le jeton d'accès ne vient que du TROUSSEAU.** Le chemin par la variable `LIENOTHEQUE_JETON` est **retiré** : aucun des quinze appelants ne s'en gardait, aucune intégration continue ne la pose, et il était **silencieux** — un jeton qui traîne l'emportait sur le trousseau sans rien dire. La variable garde **un seul** rôle, le signal qui fait refuser de démarrer les douze programmes de mesure hors ligne : un signal de refus ne doit pas pouvoir servir d'accès | Voie 1 choisie par Christophe le 06/11, sur relevé des appelants ; deux contrôles tués par la mutation qui le réinstalle |
 | 2026-11-06 | **Renouvellement du jeton d'accès autorisé**, selon `docs/renouveler-le-jeton.md`, dans la fenêtre où aucune mesure en ligne ne tourne (avant 48 → 52) ; vérification par `verifier-route.ts`. Motif : le fragment de 37 caractères sur 64 passé par le **contexte du modèle**, non exploitable mais ayant voyagé. **Les deux gestes qui installent le secret sont faits par Christophe** — Claude n'entre pas un secret dans un champ, même autorisé | Autorisation de Christophe dans la fenêtre de la session, 06/11/2026 |
+| 2026-11-06 | **macOS est la seule plateforme d'usage ; Windows est SUSPENDU.** Suspendu n'est pas hors périmètre : la multiplateforme reste au CDC, la transposition attend. Et **vérification ≠ plateforme** — Ubuntu est **gardée** dans `lienotheque-ci.yml` comme machine de vérification (typage, tests, rendu Chromium/Firefox/WebKit), jamais comme plateforme supportée : personne n'y installe la Liénothèque, aucune promesse n'y est faite | Décision de Christophe du 06/11/2026 ; `CLAUDE.md` à corriger en conséquence (file, lot 9) |
+| 2026-11-06 | **Le MODE MANUEL passe devant A1b**, remplaçant sur ce point la file confirmée le 5 novembre. Motif : le mode manuel désigne des **feuilles**, pas des folios (décision du 4 novembre), donc il ne dépend pas de la source du numéro imprimé — attendre A1b le retenait sans raison. Ordre en vigueur : **fin d'A2 → Bach et seuil de 8 → mode manuel → A1b → estimation marquée → mémoire d'apprentissage → Expert**. La règle « aucun retraitement par la voie recette avant A1b » **reste en vigueur** : avancer l'écran de correction n'autorise aucun retraitement | **Décision de Christophe, message dans la fenêtre de la session, 6 novembre 2026**, confirmée une seconde fois le même jour |
 
 ## Lot D2, étape 0 — où tourne la chaîne
 Le CDC avait déjà tranché la coquille : application locale en **Tauri 2 + hôte Rust + binaires
@@ -5465,6 +5467,13 @@ tourner sans aucune dépendance externe.
 > **jalon Bass Aerobics** (borne de fin de propagation, puis R2-oracle) → **A1b** → **A2** →
 > **mode manuel** → **estimation marquée** → **mémoire d'apprentissage** → **Expert**
 
+> ⚠️ **REMPLACÉE SUR UN POINT, le 6 novembre 2026** : le **mode manuel passe devant A1b**. Motif —
+> il désigne des **feuilles**, pas des folios (décision du 4 novembre), donc il n'a pas besoin de
+> savoir d'où vient le numéro imprimé, et attendre A1b le retenait sans raison. L'ordre en vigueur
+> est : **fin d'A2 → Bach et le seuil de 8 → mode manuel → A1b → estimation marquée → mémoire
+> d'apprentissage → Expert** ; voir la file, en fin de registre. Le reste de cette ligne — l'ordre
+> estimation marquée → mémoire → Expert, et sa dépendance — est **intact**, et la règle « aucun
+> retraitement par la voie recette avant A1b » **reste en vigueur**.
 
 Ce qui ne veut pas dire « plus tard et on verra » : les quatre derniers sont les travaux qui
 mènent à l'objectif du 30 octobre, et ils sont désormais écrits ici pour qu'on ne les oublie
@@ -9020,6 +9029,93 @@ précis** est rapporté. Un push sans ce retour laisse l'état commité non vér
 
 ---
 
+## 6 novembre 2026 — la file des lots, chaque étape nommée
+Deux règles de méthode, posées par Christophe le même jour et inscrites ici parce que ce lot-ci
+était celui en main :
+
+1. **Un lot terminé et commité avant d'en commencer un autre.** Ce garde-fou et le branchement
+   Vision se sont retrouvés dans l'arbre en même temps — d'où l'impossibilité, ci-dessus, de
+   garantir localement l'état commité de chacun. C'est le coût exact du parallèle.
+2. **Une question qui fait naître un nouveau lot l'inscrit dans la file**, au lieu de le démarrer.
+   Ce garde-fou est né d'une remarque sur les promesses non attendues, au milieu du lot Vision :
+   il aurait dû entrer dans la file et attendre son tour. Il a été écrit tout de suite, et c'est
+   précisément pour cela que les deux lots se sont mêlés.
+
+**Reporter sans nommer, c'est oublier** — règle de Christophe du 6 novembre 2026.
+
+Une file qui s'arrête à « puis le mode manuel » laisse croire que la suite est connue. Elle ne
+l'est que si chaque étape **porte son nom** : une étape qu'on ne nomme pas n'est pas reportée,
+elle est perdue, et on la redécouvre plus tard comme une nouveauté. C'est pourquoi les quatre
+grandes étapes d'après le mode manuel figurent ici en entier, et non sous un « etc. ».
+
+**L'ordre des grandes étapes, décision de Christophe du 6 novembre 2026 :**
+
+> **fin d'A2** → **Bach et le seuil de 8** → **mode manuel** → **A1b** → **estimation marquée** →
+> **mémoire d'apprentissage** → **Expert**
+
+**Ce qui change par rapport au 5 novembre.** La file confirmée ce jour-là plaçait **A1b avant le
+mode manuel** (`A1b → A2 → mode manuel → …`). Elle est **remplacée sur ce point, et sur ce point
+seulement** : le mode manuel passe **devant** A1b.
+
+Le motif tient en une phrase, et il découle d'une décision déjà inscrite — celle du 4 novembre,
+« une page se désigne **toujours** par sa feuille physique » : **le mode manuel désigne des
+feuilles, pas des folios**. Il n'a donc pas besoin de savoir d'où vient le numéro imprimé pour
+fonctionner, et attendre A1b le retenait sans raison. A1b garde tout son objet — 10 418 pages de
+folio déduit sur la bibliothèque musicale — mais il ne bloque plus l'écran de correction.
+
+Le reste de l'ordre du 5 novembre est intact, et il tient par une dépendance réelle, dans les deux
+sens : *« l'Expert sans mémoire d'apprentissage reposerait les mêmes questions indéfiniment ; la
+mémoire sans écran de correction n'aurait rien à apprendre »* — et la mémoire se nourrit des
+décisions du mode manuel, donc elle n'a rien à apprendre avant qu'il existe. Cette dépendance est
+d'ailleurs ce qui rend le déplacement sûr : avancer le mode manuel **rapproche** la mémoire et
+l'Expert de ce qui les nourrit, au lieu de l'éloigner.
+
+**Reste en vigueur, et n'est pas touchée** : la règle du 5 novembre « aucun retraitement par la
+voie recette avant A1b ». Déplacer le mode manuel devant A1b ne permet aucun retraitement par la
+recette — ce sont deux choses différentes, et les confondre rouvrirait exactement le défaut que
+cette règle ferme.
+
+**Les lots techniques ne remplacent aucune de ces étapes.** Ils sont placés là où ils servent :
+avant l'étape qu'ils débloquent, ou là où leur absence ferait mal. Un lot technique qui s'insère
+ne décale pas l'ordre des grandes étapes, il le sert.
+
+| # | Lot | Nature | État |
+|---|---|---|---|
+| — | garde-fou des promesses | technique | commité, né en parallèle, à tort |
+| 0a | garde-fou « **aucun fichier suivi n'importe un fichier non suivi** » | technique — empêche la récidive de l'incident du 7 novembre | **avant le 1** |
+| 0b | **installer Tesseract et ses langues sur les machines de la CI**, pour que les 92 contrôles de lecture y tournent. Mesure : combien de contrôles sautés restent ensuite, et lesquels | technique — rend la CI juge des contrôles qui lisent des pages | **avant le 1** |
+| 0c | **crochet de pré-commit** : les garde-fous rapides (fichiers fantômes, fuites, vocabulaire) passés sur l'**index** avant CHAQUE commit, commits d'autorisation compris. Contrôle rouge : un commit fautif doit être refusé | technique — remplace une lecture attentive par une mécanique | **avant le 1**, après 0b |
+| 1 | **branchement Vision** : port des repères, remontée à Vérifier, borne de fin, deux étages, retrait de la copie | **A2** | en cours, **après 0a et 0b** |
+| 2 | mesure 48 → 52 par la chaîne, à blanc, hors bibliothèque | **A2** | en attente du 1 |
+| 3 | second déclencheur d'A2 : le texte d'une page qui lit nettement moins bien que ses comparables, sur un livre de Studio Clinique | **A2** | en file |
+| 4 | détection de la liste de Bach, et vrai test du seuil de 8 | technique — débloque la mesure du seuil, en attente depuis le 6/11 | en file |
+| 5 | rangées fantômes de `rangeesDeTable`, avec leurs contrôles | technique — même surface que le 1, à ne pas mêler | en file |
+| 6 | écriture réelle du jalon dans la bibliothèque : sauvegarde vérifiée, vérification à l'écran par Christophe | technique — clôt le jalon | en file, **sur son mot** |
+| 7 | **mode manuel** : plan par lots depuis `docs/plan-ecran-relier.md`, rapport avant le code. Il fait aussi afficher `aVerifier` au Lecteur. **Désigne des feuilles, pas des folios** — c'est ce qui le rend indépendant d'A1b. **Contrainte de conception** : une page s'y reconnaît à son **image** et à son **numéro de feuille**, jamais au folio affiché | **étape nommée** | en file |
+| 8 | **A1b — la source du folio** : il est presque toujours déduit (10 418 pages sur la bibliothèque musicale). Ne bloque plus le mode manuel ; la règle « aucun retraitement par la voie recette avant A1b » reste en vigueur | **étape nommée** | en file |
+| 9 | **estimation marquée** : le moteur publie en marquant ce qu'il estime, au lieu de s'abstenir | **étape nommée** | en file |
+| 10 | **mémoire d'apprentissage à trois niveaux** : association, exemple vérifié, généralisation **prouvée et réversible** — nourrie par les décisions du mode manuel | **étape nommée** | en file, après le 8 |
+| 11 | **l'Expert** (`docs/cdc-expert-apprentissage.md`, §3 et §8 **validés le 5/11**) : second recours, **ne publie jamais seul**, propose avec son raisonnement et Christophe tranche. Sa conception détaillée — format des questions, contrat de l'appel, budget, interrupteur global — **reste à écrire avant tout code** (§9) | **étape nommée, en dernier** | en file |
+| 12 | `CLAUDE.md` : dire **macOS seule plateforme d'usage**, Ubuntu gardé comme machine de vérification ; corriger le tableau des plateformes et celui des intégrations continues | technique | en file |
+| 13 | garde-fou « les phrases de `CLAUDE.md` décrivent-elles encore le dépôt ? » | technique | en file, **en dernier** |
+| 14 | **la lenteur de `voie-oracle.test.ts`** : les 19 contrôles qui lisent (20 à 25 min), et le contrôle « repère numérique récurrent » qui coûte 2 s sans rien lire — pourquoi, et que peut-on y faire | technique | en file, **en dernier** |
+| 15 | **un fichier par décision** : `docs/decisions/AAAA-MM-JJ-sujet.md`, avec un sommaire qui les liste, pour qu'aucun lot n'ait plus à découper un registre partagé. Demandé par Christophe le 7 novembre 2026, **à ne pas démarrer** | technique — supprime une classe de gestes fragiles, voir la section du jour sur les ancres mal placées | en file, **recommandé juste après le solde en cours** : les quatre lots qui restent ont déjà leur texte découpé, et scinder le registre avant eux les ferait recommencer |
+| 16 | **garde-fou des marges de délai** : signaler mécaniquement tout contrôle qui passe à moins d'un facteur donné de son délai, au lieu de compter sur l'attention de celui qui lit la course. Né de l'incident du 7 novembre — un vert à 55 ms de marge, rapporté comme un vert | technique — remplace une règle de tenue par une mécanique. **Premier cas déjà relevé, le 7 novembre** : `vignette et aperçu (OUT-04, OPT-05) > tient le plafond dans les deux sens` met **3 060 ms** sur le coureur macOS pour un délai par défaut de 5 000, soit une marge de ×1,6 ; deux voisins du même fichier sont à ×2,2 et ×2,7. C'est le prochain tirage au sort, et il est nommé avant d'être tombé | en file, **non démarré** |
+| 17 | **préséance des causes d'abstention** : le refus pour **vivier non borné** doit primer sur toute cause liée à la lecture. Vérifié le 7 novembre, la préséance n'est **pas uniforme** — `outils/recettes/src/associateur.ts:333` la respecte (« avant toute autre question… un score calculé dans un vivier qui déborde le document ne vaut rien »), mais le retour anticipé de `outils/ingestion/src/voie-oracle.ts:1651` rend `aucun_media` / `medias_non_interpretes` / `aucun_repere_lu` **sans jamais demander si le vivier est borné**. Deux conséquences : la vraie cause est masquée dans Vérifier, et le contrôle REC-02 **dépend de la réussite de l'OCR** — c'est ainsi qu'il a rendu `aucun_repere_lu` quand la machine s'est endormie | technique — corrige un écran qui dit une cause fausse | en file, **non démarré**, signalé par Christophe |
+
+**Deux choses à ne pas perdre de vue sur l'Expert**, parce qu'elles engagent autre chose que du
+code : c'est le **premier composant non déterministe** du projet, et **il coûte de l'argent et du
+temps à chaque appel**. Son §6 pose la gouvernance — plafond par document, conduite quand l'API ne
+répond pas, et un interrupteur global pour qu'une bibliothèque puisse tourner **sans aucune
+dépendance externe**.
+
+Et « révisable après usage réel » est à prendre au mot : une frontière jamais éprouvée n'est pas
+une frontière prouvée. Ce qui est fixé est la règle de départ, pas un dogme — et sa révision sera
+une décision de Christophe, pas une dérive d'usage.
+
+
+---
+
 ## 6 novembre 2026 — Vérifier montrera la case non relue, le Lecteur non
 J'avais écrit que `relecture_non_faite` « irait dans un compteur que personne ne lit ». C'est faux,
 et il l'a corrigé : il faut distinguer les deux écrans.
@@ -9032,6 +9128,108 @@ et il l'a corrigé : il faut distinguer les deux écrans.
 Ce qui manque n'est donc pas la visibilité de l'état, mais celle du compteur **dans le Lecteur**.
 Confondre les deux aurait fait croire que le lot en cours livre une pièce invisible, alors qu'il
 livre une pièce visible là où on la cherche d'abord.
+
+---
+
+## 6 novembre 2026 — macOS seule plateforme d'usage, Windows suspendu
+**Décision de Christophe du 6 novembre 2026.** L'usage de la Liénothèque est sur **macOS
+uniquement, pour l'instant** ; Windows est **suspendu**.
+
+### Ce que « suspendu » veut dire, et ce qu'il ne veut pas dire
+
+Ce n'est pas « hors périmètre ». Le CDC garde la multiplateforme par conception — rien de propre à
+un seul système sans son équivalent prévu —, et la décision du 17 octobre reste la base : Windows
+n'est pas un contrôle bloquant. Ce qui change aujourd'hui, c'est que **Windows ne figure plus parmi
+les plateformes d'usage** : on n'y installe pas, on n'y mesure pas, on n'y promet rien.
+
+La transposition sera reprise si et quand la complexité le justifie, comme la décision du
+17 octobre le prévoyait déjà. Elle n'est pas abandonnée ; elle attend.
+
+### Vérification et plateforme sont deux choses différentes
+
+C'est le point qui doit être écrit clairement, parce que la confusion est facile et qu'elle s'est
+déjà produite dans ce registre le même jour.
+
+| | Rôle |
+|---|---|
+| **macOS** | la **plateforme d'usage** — référence macOS Tahoe 26.3 Apple Silicon, c'est là que le produit vit |
+| **Ubuntu**, dans `lienotheque-ci.yml` | une **machine de vérification**, et rien d'autre : elle fait tourner le typage, les tests, et le rendu sur Chromium, Firefox et WebKit |
+| **Windows** | **suspendu** — retiré de la CI le 5 novembre 2026, et désormais retiré des plateformes d'usage |
+
+**Garder Ubuntu n'en fait pas une plateforme supportée.** Elle est là parce qu'une seconde machine
+attrape ce qu'une seule laisse passer — une hypothèse POSIX, un chemin sensible à la casse, un
+comportement de système de fichiers — et parce que le rendu sur trois moteurs y est bon marché.
+Personne n'installe la Liénothèque sur Ubuntu, et aucune promesse n'y est faite.
+
+Le dire ainsi évite deux erreurs symétriques : croire qu'Ubuntu est supportée parce que la CI y
+passe, et croire qu'il faudrait l'enlever puisque personne n'y installe le produit.
+
+### Ce que cela corrige dans `CLAUDE.md`
+
+Son tableau des intégrations continues annonce encore « `pnpm check` sur Linux, macOS et
+Windows ». Le fichier dit `os: [ubuntu-latest, macos-latest]`, plus un travail de rendu. La
+correction entre dans la file (lot 9) : **macOS seule plateforme d'usage, Ubuntu machine de
+vérification**, et non « trois systèmes ».
+
+### Et le garde-fou qui manque vraiment
+
+Deux fois ce jour, une consigne écrite est devenue fausse sans que rien ne le signale : les cinq
+messages « ni dans l'environnement, ni dans le trousseau » après le retrait de ce chemin, et ce
+tableau des plateformes. Les deux ont été trouvées à la main, par hasard, en vérifiant autre chose.
+
+Un garde-fou « les phrases de `CLAUDE.md` décrivent-elles encore le dépôt ? » entre dans la file
+**en dernier** (lot 10), et n'est pas démarré. Il est cité ici pour que la prochaine phrase périmée
+soit comptée comme une récidive connue, et non découverte comme une surprise.
+
+---
+
+## 6 novembre 2026 — le mode manuel passe devant A1b, et ce qu'il doit montrer
+**Décision de Christophe**, message dans la fenêtre de la session, 6 novembre 2026, confirmée une
+seconde fois le même jour. Elle remplace, **sur ce point seulement**, la file confirmée le
+5 novembre.
+
+### La décision
+
+> Le **mode manuel passe avant A1b**. Motif : la feuille physique le rend indépendant des folios.
+
+Ordre en vigueur : **fin d'A2 → Bach et le seuil de 8 → mode manuel → A1b → estimation marquée →
+mémoire d'apprentissage → Expert**.
+
+Le motif découle de la décision du 4 novembre — « une page se désigne **toujours** par sa feuille
+physique ». Le mode manuel désigne des feuilles, donc il ne dépend pas de la source du numéro
+imprimé, et attendre A1b le retenait sans raison. A1b garde tout son objet — 10 418 pages de folio
+déduit sur la bibliothèque musicale — mais il ne bloque plus l'écran de correction.
+
+Le déplacement va d'ailleurs dans le sens de la dépendance et non contre elle : avancer le mode
+manuel **rapproche** la mémoire d'apprentissage et l'Expert de ce qui les nourrit.
+
+### Ce que l'écran de correction doit montrer, et ce qu'il ne doit pas
+
+C'est la conséquence directe, et elle doit être écrite avant d'ouvrir le lot, parce qu'une fois
+l'écran dessiné il serait tentant d'afficher ce qu'on a sous la main.
+
+**Une page s'y reconnaît à deux choses, et à deux choses seulement :**
+
+| | |
+|---|---|
+| son **image** | ce que l'œil reconnaît sans rien calculer |
+| son **numéro de feuille** | la désignation qui fait foi depuis le 4 novembre |
+
+**Jamais au folio affiché.** Tant qu'A1b n'est pas fait, le folio est **déduit** dans l'immense
+majorité des cas — 10 418 pages sur la bibliothèque musicale. Un écran de correction qui
+identifierait les pages par un numéro déduit ferait **corriger une erreur à l'aide d'une
+estimation**, et une correction fondée sur une estimation n'est pas une correction : c'est une
+seconde estimation, à laquelle on a donné l'autorité d'un geste humain.
+
+C'est précisément ce que l'ordre nouveau rend possible : l'écran peut exister **avant** qu'on
+sache d'où vient le folio, à condition de ne pas s'en servir pour désigner.
+
+### Ce qui n'est pas touché
+
+**« Aucun retraitement par la voie recette avant A1b »** reste en vigueur, sans réserve. Avancer
+l'écran de correction **n'autorise aucun retraitement**. Les deux sont indépendants, et les
+confondre rouvrirait exactement le défaut que cette règle ferme : rejouer la recette sur des
+folios dont on ne sait pas encore d'où ils viennent.
 
 ---
 
@@ -9142,6 +9340,7 @@ contrôles qu'on a renoncé à tenir ou des contrôles qui n'avaient pas à tour
 ---
 
 ## 7 novembre 2026 — un délai par défaut est un délai calibré par quelqu'un d'autre
+
 ### Ce qui s'est passé
 
 J'ai rapporté « CI verte, les trois travaux » pour `b6cde2c8`. La course suivante, qui ne touchait
