@@ -16456,7 +16456,7 @@ ${recent}`;
         const imgDoorA11y = !_adocRenderingForPresentDoor ? ''
           : ' tabindex="0" role="button" aria-label="' + adocEsc(imgA11yLabel) + '"'
             + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"';
-        const imgStyle = 'width:100%;border-radius:8px;object-fit:cover;display:block;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '');
+        const imgStyle = 'width:100%;border-radius:8px;object-fit:cover;display:block;' + imgPositionedFill + imgDoorCursor + (imgOpacity < 100 ? 'opacity:' + (imgOpacity / 100) + ';' : '') + (imgRotation ? 'transform:rotate(' + imgRotation + 'deg);' : '') + adocImageDisplayStyle(b.content.imageDisplay, 'image');
         // PASTILLE « AGRANDIR » — le seul indice qu'une image zoomable est cliquable était jusqu'ici
         // le curseur (cursor:zoom-in), invisible au tactile et facile à manquer à la souris.
         // UNIQUEMENT sur l'image SANS lien : celle qui porte un renvoi affiche déjà sa puce
@@ -16798,7 +16798,57 @@ ${recent}`;
     return parts.length ? parts.join(';') + ';' : '';
   }
   // ── Pilote 2 : Carrousel (modèle minimal unique, structure imbriquée card > blocks[]) ──
-  function adocRenderCardHTML(card, index, total) {
+  function adocImageDisplayStyle(display, surface) {
+    if (!display || !Object.keys(display).length) return '';
+    const n = (key, fallback) => Number.isFinite(Number(display[key])) ? Number(display[key]) : fallback;
+    const css = [];
+    if (['contain', 'cover', 'fill'].includes(display.fit)) css.push((surface === 'background' ? 'background-size:' : 'object-fit:') + display.fit);
+    if (display.focalX != null || display.focalY != null) css.push((surface === 'background' ? 'background-position:' : 'object-position:') + n('focalX', 50) + '% ' + n('focalY', 50) + '%');
+    const filter = [];
+    if (display.brightness != null) filter.push('brightness(' + n('brightness', 100) + '%)');
+    if (display.contrast != null) filter.push('contrast(' + n('contrast', 100) + '%)');
+    if (display.saturation != null) filter.push('saturate(' + n('saturation', 100) + '%)');
+    if (display.temperature) filter.push('sepia(' + Math.abs(n('temperature', 0)) / 400 + ') hue-rotate(' + (-n('temperature', 0) * 0.12) + 'deg)');
+    if (display.grayscale != null) filter.push('grayscale(' + n('grayscale', 0) + '%)');
+    if (display.blur != null) filter.push('blur(' + n('blur', 0) + 'px)');
+    if (filter.length) css.push('filter:' + filter.join(' '));
+    if (display.opacity != null) css.push('opacity:' + n('opacity', 100) / 100);
+    const transforms = [];
+    if (display.rotation) transforms.push('rotate(' + n('rotation', 0) + 'deg)');
+    if (display.mirrorX) transforms.push('scaleX(-1)');
+    if (display.mirrorY) transforms.push('scaleY(-1)');
+    if (transforms.length) css.push('transform:' + transforms.join(' '));
+    if (display.borderWidth) css.push('border:' + n('borderWidth', 0) + 'px solid ' + (/^#[0-9a-fA-F]{6}$/.test(display.borderColor || '') ? display.borderColor : '#286b7b'));
+    if (display.shadow) css.push('box-shadow:0 4px ' + n('shadow', 0) + 'px rgba(0,0,0,.35)');
+    if (surface === 'cover' && Number.isFinite(display.sizePercent)) css.push('width:' + Math.max(10, Math.min(100, display.sizePercent)) + '%;margin-inline:auto');
+    if ((surface === 'cover' || surface === 'image') && Number.isInteger(display.heightPx)) css.push('height:' + Math.max(60, Math.min(1200, display.heightPx)) + 'px');
+    else if (surface === 'cover' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
+    else if (surface === 'image' && Number.isFinite(display.aspectRatio)) css.push('aspect-ratio:' + display.aspectRatio);
+    else if (surface === 'image' && ['contain', 'cover', 'fill'].includes(display.fit)) css.push('aspect-ratio:16/9');
+    // Le rectangle recadré fixe son ratio : une ancienne hauteur en pixels ne doit
+    // pas l'étirer lorsque la largeur de la fenêtre change.
+    if (display.crop) css.push(adocImageCropStyle(display));
+    return css.length ? css.join(';') + ';' : '';
+  }
+function adocImageCropStyle(display) {
+    const c = display && display.crop;
+    if (!c || ![c.x, c.y, c.width, c.height].every(Number.isFinite) ||
+        c.width < 1 || c.height < 1 || c.x < 0 || c.y < 0 ||
+        c.x + c.width > 100.001 || c.y + c.height > 100.001) return '';
+    const x = c.x / 100, y = c.y / 100, w = c.width / 100, h = c.height / 100;
+    const rotate = display.rotation ? 'rotate(' + display.rotation + 'deg) ' : '';
+    const mirror = (display.mirrorX ? 'scaleX(-1) ' : '') + (display.mirrorY ? 'scaleY(-1) ' : '');
+    const tx = (0.5 - x - w / 2) * 100, ty = (0.5 - y - h / 2) * 100;
+    return 'object-fit:fill;clip-path:inset(' + c.y + '% ' + (100 - c.x - c.width) + '% ' +
+      (100 - c.y - c.height) + '% ' + c.x + '%);transform-origin:center center;' +
+      'transform:' + rotate + mirror + 'scale(' + (1 / w) + ',' + (1 / h) + ') translate(' + tx + '%,' + ty + '%);' +
+      // Le plafond générique de couverture (45 % de la carte) dépend de la hauteur
+      // du mode d'affichage. Pour un recadrage explicite, il changerait le ratio
+      // entre l'atelier et la présentation : le rectangle choisi prévaut.
+      (Number.isFinite(c.aspectRatio) ? 'height:auto;max-height:none;aspect-ratio:' + c.aspectRatio + ';' : '');
+  }
+
+function adocRenderCardHTML(card, index, total) {
     const nested = (card.content.blocks || []).map(adocRenderBlockHTML).join('\n');
     // Couverture de carte — même convention que le bloc image inline (case 'image' ci-dessus) :
     // data-pexels="<requête>" ici, JAMAIS un src résolu à la volée ; adocResolveImages (mécanisme
@@ -16824,10 +16874,12 @@ ${recent}`;
       ? ' onclick="window.adocPresentOpenImageDoor(this)" tabindex="0" role="button"'
         + ' aria-label="' + adocEsc("Agrandir l'image" + (card.content.imageAlt ? ' : ' + card.content.imageAlt : '')) + '"'
         + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"'
-        + ' style="cursor:zoom-in;"'
+        + ' style="cursor:zoom-in;' + adocEsc(adocImageDisplayStyle(card.content.imageDisplay, 'cover')) + '"'
       : '';
+    const couvDisplayAttrs = (!_adocRenderingForPresentDoor && card.content.imageDisplay && Object.keys(card.content.imageDisplay).length)
+      ? ' style="' + adocEsc(adocImageDisplayStyle(card.content.imageDisplay, 'cover')) + '"' : '';
     const img = _hasCouv
-      ? '<img class="adoc-sc-card-img" ' + (_assetCouv ? 'data-asset-id="' + adocEsc(_assetCouv) + '" src="' + adocEsc(adocImageAssetUrl(_assetCouv)) + '"' : 'data-pexels="' + adocEsc(_qCouv) + '"') + ' alt="' + adocEsc(card.content.imageAlt || '') + '"' + couvDoorAttrs + '>'
+      ? '<img class="adoc-sc-card-img" ' + (_assetCouv ? 'data-asset-id="' + adocEsc(_assetCouv) + '" src="' + adocEsc(adocImageAssetUrl(_assetCouv)) + '"' : 'data-pexels="' + adocEsc(_qCouv) + '"') + ' alt="' + adocEsc(card.content.imageAlt || '') + '"' + couvDoorAttrs + couvDisplayAttrs + '>'
       : '';
     // Pastille « agrandir », même icône et même palette que celle du bloc en ligne
     // (adocIconeLoupeHTML, source unique). Ancrée sur .adoc-sc-card, déjà en position:relative, et
@@ -27204,7 +27256,7 @@ ${recent}`;
 (function () {
   'use strict';
 
-  var MOTEUR_VERSION = '2.1-atelier-diapos';          // entre dans la signature : un changement de moteur périme les images
+  var MOTEUR_VERSION = '2.2-atelier-diapos-parite';          // entre dans la signature : un changement de moteur périme les images
   var SNAPDOM_VERSION = '3.3.0';
   var SCENE = { largeur: 1422, hauteur: 800 };          // la scène du lecteur, référence
   var SORTIE = { largeur: 1920, hauteur: 1080 };
@@ -27375,7 +27427,7 @@ ${recent}`;
     // Relevée par Christophe sur sa propre présentation, diapositive 1.
     '[data-atelier-capture] .adoc-sc-deepdive-chip{display:none;}' +
     '[data-atelier-capture] .adoc-sc-card{border:0;border-radius:0;box-shadow:none;}' +
-    '[data-atelier-capture] .adoc-sc-card-img{object-fit:contain!important;object-position:center!important;}' +
+
     '[data-atelier-capture] .adoc-sc-questionnaire{border:0;border-radius:0;padding-left:0;padding-right:0;}' +
     '[data-atelier-capture] .adoc-sc-questionnaire-option-points{display:none;}' +
     '[data-atelier-capture] .adoc-sc-questionnaire-submit{display:none;}' +
@@ -27568,6 +27620,10 @@ ${recent}`;
       jamais_appelees: Object.keys(parCitation).filter(function (k) { return !parCitation[k].etapes.length; }),
     };
   }
+
+  // L'ancien lecteur embarqué par le convertisseur ne reporte pas imageDisplay sur
+  // les couvertures. Le Studio actuel le fait : largeur, rapport du recadrage et point
+  // focal doivent donc être rejoués dans la seule scène d'export.
 
   function creerScene(scene) {
     poserCssCapture();
@@ -28055,19 +28111,15 @@ ${recent}`;
       var visibleScene = hauteurVisible(sc);
       var source = await snap.toCanvas(sc.inner, { scale: echelle });
       var sortie = document.createElement('canvas');
-      sortie.width = SORTIE.largeur; sortie.height = SORTIE.hauteur;
+      sortie.width = SORTIE.largeur; sortie.height = cibleH;
       var ctx = sortie.getContext('2d');
       var fond = getComputedStyle(sc.inner).backgroundColor;
       var opaque = fond && fond !== 'transparent' && fond.indexOf('rgba(0, 0, 0, 0)') === -1;
       ctx.fillStyle = opaque ? fond : '#fffdf9';
       ctx.fillRect(0, 0, sortie.width, sortie.height);
-      // Une étape haute tient entièrement dans la diapositive 16:9. Les marges gardent
-      // son rapport largeur/hauteur ; aucun pixel du contenu n'est rogné ni étiré.
-      var rapport = Math.min(sortie.width / source.width, sortie.height / source.height);
-      var largeurPlacee = Math.round(source.width * rapport);
-      var hauteurPlacee = Math.round(source.height * rapport);
-      ctx.drawImage(source, Math.round((sortie.width - largeurPlacee) / 2),
-        Math.round((sortie.height - hauteurPlacee) / 2), largeurPlacee, hauteurPlacee);
+      // La hauteur suit celle de la scène interactive : un contenu plus haut que 16:9
+      // reste entier et à son échelle, sans réduction ni changement de cadrage.
+      ctx.drawImage(source, 0, 0, sortie.width, sortie.height);
       return { canvas: sortie, largeur: sortie.width, hauteur: sortie.height,
                photo_px: photoH, photo_plafond_calcule: photoPlafond,
                visible_scene: visibleScene, visible_sortie: Math.round(visibleScene * echelle),
@@ -31399,7 +31451,7 @@ ${recent}`;
   <div class="atelier-brand"><svg class="atelier-logo" viewBox="0 0 64 64" aria-hidden="true"><rect x="3" y="3" width="58" height="58" rx="17" fill="#F9E9D4"/><rect x="12" y="17" width="40" height="30" rx="5" fill="#A84F34"/><path d="M17 40l10-10 8 7 7-10 6 13H17z" fill="#F9E9D4"/><circle cx="25" cy="25" r="4" fill="#F9E9D4"/></svg><span>ATELIER DIAPOS <small>STUDIO CLINIQUE</small></span></div>
   <div class="atelier-hero-copy"><span class="atelier-kicker">EXPORT AUTONOME · HORS LIGNE</span>
     <h2>Vos diapositives, fidèlement en images.</h2>
-    <p>Un JPEG par étape, toutes les images dans un seul ZIP. Format 16:9 préservé.</p></div>
+    <p>Un JPEG par étape, toutes les images dans un seul ZIP. Cadrage et hauteur de la présentation conservés.</p></div>
 </section>
     <p id="cv-polices-avis" style="color:#8a5a2b;font-size:14px;margin:0 0 20px;"></p>
 
@@ -31422,7 +31474,7 @@ ${recent}`;
       <button id="cv-jpeg" type="button" style="font:inherit;padding:10px 20px;border-radius:9px;
         border:2px solid #9fb0ab;background:#fff;color:#273331;cursor:pointer;margin-left:8px;">JPEG</button>
       <div style="color:#5b6b67;font-size:14px;margin-top:8px;">PNG = qualité maximale.
-        JPEG 1920 × 1080 : format 16:9 constant, sans déformation.</div>
+        JPEG 1920 px de large ; hauteur adaptée à chaque étape, sans recadrage ajouté.</div>
     </div>
 
     <div id="cv-avancement" style="display:none;margin:0 0 20px;">
