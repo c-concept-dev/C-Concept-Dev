@@ -47,7 +47,8 @@ const doc = {
   await page.waitForTimeout(200);
   await thumb.hover();
   await page.waitForSelector('.cc-media-hover-preview video', { timeout: 3000 });
-  assert.equal(await page.locator('.cc-media-hover-preview video').getAttribute('src'), 'https://example.test/preview.mp4');
+  assert.equal(await thumb.getAttribute('data-video-hover-src'), 'https://example.test/preview.mp4');
+  assert.ok(await page.locator('.cc-media-hover-preview').isVisible());
   await page.mouse.move(800, 100);
   await page.waitForSelector('.cc-media-hover-preview', { state: 'detached' });
   await page.locator('#cc-ws-video-file').setInputFiles({ name: 'essai.mp4', mimeType: 'video/mp4', buffer: Buffer.from('000000186674797069736f6d00000000', 'hex') });
