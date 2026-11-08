@@ -310,7 +310,7 @@ test('T-PERFREAL01-15 : l’artefact frontend n’a pas bougé', () => {
      CE QUI N'A PAS CHANGÉ : les sept plages gelées (FROZEN identique, aucune réouverture), Fast,
      Deep, OPRIE, les rôles, les Workers, CONTINUITE-05, le multi-provider, et le correctif
      PDF-SAFARI-01. Mesuré avant d'être écrit : cf. docs/DOC-MULTI-01.md. */
-  assert.equal(empreinte, 'c1f6ab79752ad348703617da511b2b1de9577905a249f2bc322d176f677f1664',
+  assert.equal(empreinte, '9643c58af8b4f4c5e4db4be94c9e6298536ae877da7fb6982d7e529ef7cb0c9a',
     'CANONICAL_HTML_CHANGED = NO');
   /* Et les quatre points de terminaison qu'il déclare sont ceux de production. */
   const metas = [...HTML.matchAll(/<meta name="(atelier-[a-z-]+)" content="([^"]+)"/g)];

@@ -119,10 +119,10 @@ test('T-DDR-04 : chaque cause a sa correction, et aucune ne dicte un contenu', (
       assert.equal(new RegExp(`\\b${domaine}`, 'i').test(texte), false, `${cause} : « ${domaine} » interdit`);
     }
   }
-  /* QUATRE corrections conservent le manque, UNE seule autorise d'en changer — et c'est la seule
-     où le manque lui-même est acquis. */
+  /* Une question refusée ne valide pas, à elle seule, l'existence du manque proposé. */
   for (const cause of ['MULTIPLE_QUESTIONS', 'CATALOGUE', 'EMPTY']) {
-    assert.match(DEEP_DISPLAY_CORRECTIONS[cause], /Reprenez le MÊME manque/, `${cause} ne change pas de manque`);
+    assert.match(DEEP_DISPLAY_CORRECTIONS[cause], /Si un manque reste réellement matériel et non substituable/);
+    assert.doesNotMatch(DEEP_DISPLAY_CORRECTIONS[cause], /Reprenez le MÊME manque/);
   }
   assert.match(DEEP_DISPLAY_CORRECTIONS.ALREADY_ANSWERED, /Tenez-le pour acquis/);
 });
@@ -135,6 +135,9 @@ test('T-DDR-05 : la consigne corrigée AJOUTE, ne retire rien, et reste inchang�
   assert.ok(corrigee.startsWith(base), 'la doctrine entière est conservée en tête');
   assert.ok(corrigee.length > base.length);
   assert.match(corrigee, /manque_x/, 'l’identité du manque est rappelée quand elle existe');
+  assert.match(corrigee, /ce nom ne prouve pas que le manque existe encore/);
+  assert.match(corrigee, /besoin visé est déjà exprimé, répondu ou substituable/);
+  assert.match(corrigee, /operational_request_ready ou confirmation_required/);
   /* Sans identité, rien n'est fabriqué. */
   assert.equal(coreSystemPromptWithCorrection('MULTIPLE_QUESTIONS').includes('Le manque visé était nommé'), false);
   assert.equal(coreSystemPromptWithCorrection('MULTIPLE_QUESTIONS', '   ').includes('Le manque visé était nommé'), false);

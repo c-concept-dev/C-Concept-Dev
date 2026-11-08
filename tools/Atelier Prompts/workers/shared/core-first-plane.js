@@ -152,15 +152,14 @@ Répondez uniquement avec l'objet JSON demandé, conforme au schéma.`;
  * une suggestion de contenu. L'autorité garde la main sur ce qu'elle demande et sur la façon de le
  * demander : on lui dit ce qui a été refusé, pas quoi écrire.
  *
- * Et rien n'invite à CHANGER de manque. Le manque sélectionné était correct dans les deux cas
- * observés ; lui suggérer d'en changer déplacerait un défaut de forme vers un défaut de choix.
- * ALREADY_ANSWERED est la seule exception, et pour cause : là, le manque lui-même est acquis. */
+ * Le refus porte sur la question, pas sur la validité du manque. La reprise doit donc revérifier
+ * celui-ci à partir des sources du tour, sans ancrer la décision sur une sortie déjà refusée. */
 export const DEEP_DISPLAY_CORRECTIONS = Object.freeze({
-  MULTIPLE_QUESTIONS: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle portait plusieurs besoins à la fois. Reprenez le MÊME manque et posez-le en UNE seule question, sur un seul besoin, sans coordination ni énumération.",
-  CATALOGUE: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle proposait un catalogue d'options à choisir. Reprenez le MÊME manque et posez-le comme une question ouverte sur une variable du problème, sans énumérer de réponses possibles.",
+  MULTIPLE_QUESTIONS: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle portait plusieurs besoins à la fois. Si un manque reste réellement matériel et non substituable, posez UNE question sur UN seul besoin, sans coordination ni énumération.",
+  CATALOGUE: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle proposait un catalogue d'options à choisir. Si un manque reste réellement matériel et non substituable, posez une question ouverte sur une variable du problème, sans énumérer de réponses possibles.",
   META_OUTPUT_QUESTION: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : elle lui demandait de définir ce que nous devons produire. Portez votre question sur une variable de SA situation — ce qu'elle seule sait et qui change le résultat — ou, si aucune ne reste déterminante, ne demandez rien.",
   ALREADY_ANSWERED: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : ce manque a déjà été sollicité, et l'historique en porte la réponse. Tenez-le pour acquis. Choisissez un AUTRE manque seulement s'il est réellement non substituable ; sinon, produisez le candidat.",
-  EMPTY: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : son texte était vide. Reprenez le MÊME manque et écrivez la question, en une seule phrase interrogative."
+  EMPTY: "VOTRE QUESTION PRÉCÉDENTE N'A PAS ÉTÉ MONTRÉE À LA PERSONNE : son texte était vide. Si un manque reste réellement matériel et non substituable, écrivez UNE question en une seule phrase interrogative."
 });
 
 /**
@@ -170,12 +169,11 @@ export const DEEP_DISPLAY_CORRECTIONS = Object.freeze({
 export function coreSystemPromptWithCorrection(reason, missingDeterminantId = null) {
   const correction = DEEP_DISPLAY_CORRECTIONS[reason];
   if (!correction) return CORE_SYSTEM_PROMPT;
-  /* L'identité du manque est rappelée quand elle existe — c'est un identifiant que l'autorité a
-     elle-même forgé, jamais un mot de la personne. */
+  /* L'identité précédente est une observation, jamais une instruction de la conserver. */
   const identite = typeof missingDeterminantId === "string" && missingDeterminantId.trim()
-    ? ` Le manque visé était nommé « ${missingDeterminantId.trim()} » ; conservez cette identité si elle reste la bonne.`
+    ? ` L'identifiant du manque précédemment proposé était « ${missingDeterminantId.trim()} » ; ce nom ne prouve pas que le manque existe encore.`
     : "";
-  return `${CORE_SYSTEM_PROMPT}\n\n${correction}${identite}`;
+  return `${CORE_SYSTEM_PROMPT}\n\n${correction}${identite}\nReprenez la décision sémantique à partir de original_request, clarification_history et material_content. Vérifiez si le besoin visé est déjà exprimé, répondu ou substituable, y compris quand la demande nomme plusieurs livrables ou destinataires. S'il ne reste aucun manque matériel non substituable, rendez operational_request_ready ou confirmation_required selon la doctrine, sans question. Sinon, choisissez vous-même une seule inconnue et formulez une seule question affichable. Ne modifiez pas les faits fournis.`;
 }
 
 /** Les huit champs de l'Arbitre, plus les deux que le Core ajoute. */

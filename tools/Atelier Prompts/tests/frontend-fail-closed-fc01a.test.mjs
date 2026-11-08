@@ -64,7 +64,8 @@ test('FC01A-7 : une erreur technique neutre est rendue, sans route et sans exéc
   // CLEAN-01 : adpShowTechnicalFailure était le JUMEAU HÉRITÉ de ce rendu, sans appelant depuis
   // que oprieRunTurn porte l'échec technique. Il est retiré ; l'invariant est désormais porté par
   // le rendu RÉELLEMENT atteint, ce qui le renforce au lieu de l'affaiblir.
-  assert.match(html, /function oprieShowNetworkFailure\(\)\{\s*adpState\.pendingQuestion=false;if\(!oprieKeepFailedDialogue\(\)\)show\(null\);\s*v11ShowRapidGate\(ADP_TECHNICAL_FAILURE_UI\);/);
+  assert.match(html, /function oprieShowNetworkFailure\(\)\{\s*adpState\.pendingQuestion=false;if\(!oprieKeepFailedDialogue\(\)\)show\(null\);\s*v11ShowRapidGate\(oprieState\.lastFailureCode==='turn_contractually_unusable'\s*\? ADP_QUESTION_FAILURE_UI : ADP_TECHNICAL_FAILURE_UI\);/);
+  assert.match(html, /const ADP_QUESTION_FAILURE_UI=Object\.freeze\(\{state:'technical',title:'Question non validée'/);
   // Les trois points d'entrée traitent l'échec sans jamais router.
   // FC-01b : les trois points d'entrée passent désormais par oprieRunTurn, qui rend lui-même l'échec
   // technique. Le rendu reste garanti, en un seul endroit au lieu de trois — l'invariant (aucun point

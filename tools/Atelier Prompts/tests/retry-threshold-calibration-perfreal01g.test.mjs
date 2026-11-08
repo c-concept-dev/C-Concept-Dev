@@ -286,5 +286,5 @@ test('T-PERFREAL01G-14/15/16 : péremption, faux READY et artefact frontend', ()
      Deep, OPRIE, les rôles, les Workers, CONTINUITE-05, le multi-provider, et le correctif
      PDF-SAFARI-01. Mesuré avant d'être écrit : cf. docs/DOC-MULTI-01.md. */
   assert.equal(crypto.createHash('sha256').update(octets).digest('hex'),
-    'c1f6ab79752ad348703617da511b2b1de9577905a249f2bc322d176f677f1664', 'CANONICAL_HTML_CHANGED = NO');
+    '9643c58af8b4f4c5e4db4be94c9e6298536ae877da7fb6982d7e529ef7cb0c9a', 'CANONICAL_HTML_CHANGED = NO');
 });
