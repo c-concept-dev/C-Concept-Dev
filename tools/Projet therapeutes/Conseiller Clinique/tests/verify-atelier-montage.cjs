@@ -51,7 +51,7 @@ const { join } = require('node:path');
     assert.match(await page.locator('#am-clock').innerText(), /00:00 \/ 00:04/);
     await page.locator('#am-stop').click();
     const downloadPromise = page.waitForEvent('download', {timeout:15000});
-    await page.locator('#cv-mp4').click();
+    await page.locator('#am-export').click();
     const download = await downloadPromise.catch(async e => { console.error('STATUT EXPORT', await page.locator('#am-status').innerText()); throw e; });
     const bytes = readFileSync(await download.path());
     assert.ok(bytes.includes(Buffer.from('soun')), 'le MP4 doit contenir une piste sonore');

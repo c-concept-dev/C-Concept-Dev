@@ -32067,6 +32067,7 @@ mediabunny/dist/modules/src/index.js:
     <div class="am-toolbar"><label class="am-file">+ Piste voix<input id="am-add-voice" type="file" accept=".mp3,audio/mpeg" multiple></label>
     <label class="am-file">+ Piste musique ou ambiance<input id="am-add-music" type="file" accept=".mp3,audio/mpeg" multiple></label>
     <button id="am-play" type="button">Lire</button><button id="am-stop" type="button">Arrêter</button>
+    <button id="am-export" type="button">Exporter le montage en MP4</button>
     <button id="am-split" type="button" title="Couper le clip sélectionné au curseur de lecture">✂ Couper au curseur</button>
     <button id="am-add-point" type="button" title="Créer un point de volume sur le clip sélectionné">+ Point de volume</button>
     <button id="am-marker" type="button" title="La prochaine étape commencera à la position courante">Poser un repère</button>
@@ -32475,6 +32476,11 @@ mediabunny/dist/modules/src/index.js:
       badge(`MP4 vérifié : ${state.images.length} étapes, ${tracks().length} piste(s) audio, ${actual.toFixed(1)} s.`,false);
     } catch(e) { badge(`Aucun MP4 téléchargé : ${e.message}`,true); }
     finally { button.disabled=false;$('am-cancel-export').disabled=true;state.exporting=false; }
+  };
+  $('am-export').onclick = () => {
+    if (state.exporting) return;
+    if (!$('cv-mp4').disabled) $('cv-mp4').click();
+    else badge('Importez et préparez d’abord une présentation pour exporter le MP4.', true);
   };
   render();
 })();
