@@ -1,4 +1,24 @@
-# Journal des décisions
+# Journal des décisions — ARCHIVE GELÉE
+
+> ## Ce fichier est FERMÉ. N'y écrivez plus rien.
+>
+> Il porte les décisions jusqu'au 7 novembre 2026 inclus, et il **ne change plus** : un garde-fou
+> du contrôle complet compare son empreinte à celle qu'`fixtures/archive-gelee.json` enregistre, et
+> refuse toute modification. Ni ajout, ni découpage, ni réécriture — pas même un saut de ligne.
+>
+> **Où écrire désormais** : un fichier par décision, `docs/decisions/AAAA-MM-JJ-sujet.md`, listé
+> dans `docs/decisions/README.md`.
+>
+> **Pourquoi** : pendant deux jours, chaque lot a dû **découper ce fichier partagé** pour n'en
+> commiter que sa part. Le procédé a coûté trois incidents en une seule journée — des lignes
+> d'autorisation posées sous le mauvais titre parce que l'ancre était une ligne de tableau et non un
+> titre, une section perdue par un `cp`, un décompte recopié à côté d'un tableau et faux trois fois
+> de suite. Aucun n'était une faute d'attention isolée : tous venaient de ce qu'un fichier unique
+> de dix mille lignes doit être découpé par chaque lot. Un fichier par décision supprime le
+> découpage, donc la classe entière.
+>
+> Décision de Christophe du 7 novembre 2026.
+
 
 | Date | Décision | Référence |
 |---|---|---|

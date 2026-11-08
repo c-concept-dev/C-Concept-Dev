@@ -50,6 +50,16 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 8. **Interface en français**, vouvoiement, casse normale, aucun jargon visible (« manière de lire »
    plutôt que recette, « élément » plutôt qu'ancre).
 9. Pas d'abstraction sans deux usages réels.
+10. **Une décision, un fichier.** Toute décision nouvelle s'écrit dans
+    `docs/decisions/AAAA-MM-JJ-sujet.md` et s'ajoute au sommaire `docs/decisions/README.md`.
+    `docs/decisions.md` est une **archive gelée** : on l'y lit, on n'y écrit plus — pas même une
+    ligne, pas même un saut de ligne. Un garde-fou du contrôle complet compare son empreinte à
+    `fixtures/archive-gelee.json` et refuse toute modification, et un second vérifie que le
+    sommaire nomme chaque fichier du dossier et aucun autre.
+    **Pourquoi** : pendant deux jours, chaque lot a dû découper ce fichier partagé pour n'en
+    commiter que sa part, et ce découpage a produit trois incidents en une journée — des lignes
+    posées sous le mauvais titre, une section effacée, un décompte faux trois fois. Supprimer le
+    découpage supprime la classe entière. Décision de Christophe du 7 novembre 2026.
 
 ## Gestes interdits et gestes autorisés
 - **Jamais `git add -A` ni `git add .`** : uniquement des chemins explicites sous
@@ -97,7 +107,8 @@ Multiplateforme par conception : rien de propre à un seul système sans son éq
 « macOS puis Windows ») : `windows-latest` a quitté les deux matrices d'intégration continue. Le
 code et les scripts propres à Windows sont **conservés, inactifs, aucun retrait prévu**, et listés
 au registre — précisément parce que la question se reposera. Linux hors périmètre. Détail :
-`docs/decisions.md`.
+`docs/decisions.md` (archive gelée) et `docs/decisions/` pour les décisions postérieures au
+7 novembre 2026.
 
 ## Organisation
 ```

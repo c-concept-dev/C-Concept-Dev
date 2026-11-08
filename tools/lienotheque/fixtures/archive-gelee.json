@@ -1,0 +1,16 @@
+{
+  "description": "L'ancien registre est une ARCHIVE GELÉE : son empreinte est enregistrée ici, et le contrôle complet refuse toute modification. DONNÉE, pas du code — on gèle un autre fichier en ajoutant une ligne, sans toucher au garde-fou.",
+  "gelee_le": "2026-11-08",
+  "decidee_par": "Christophe, dans la fenêtre de la session du 7 novembre 2026",
+  "ou_ecrire_desormais": "docs/decisions/AAAA-MM-JJ-sujet.md, listé dans docs/decisions/README.md",
+  "archives": [
+    {
+      "chemin": "docs/decisions.md",
+      "octets": 589214,
+      "empreinte_sha256": "e61b4a249a182a4a37faef3a12cde095d66ce5b17e47167eac7de41b9bfc5ae8",
+      "sections": 171
+    }
+  ],
+  "si_l_empreinte_change": "Le contrôle doit ROUGIR, pas s'adapter. Une archive qu'on retouche n'est plus une archive, et le découpage que ce gel supprime reviendrait par la fenêtre. Pour écrire une décision, créer un fichier dans docs/decisions/ ; pour corriger une erreur de l'archive, écrire une décision qui la corrige, et la laisser telle quelle.",
+  "pourquoi_cette_date": "Gelé le 7 novembre par décision de Christophe, mais l'empreinte est celle du 8 : le registre a reçu ce jour-là son dernier contenu légitime — les trois décisions du 6 novembre, quatre entrées de file, et la ligne d'autorisation de ces deux commits. Le gel enregistre donc l'archive TELLE QU'ELLE EST FERMÉE, et non telle qu'elle était quand la décision a été prise."
+}
