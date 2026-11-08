@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -16,7 +17,7 @@ import {
   type FormeSombre,
   type ImageGrise,
 } from "@lienotheque/images";
-import { lireParOcr } from "@lienotheque/lecteur-texte";
+import { empreinteDuMoteur, lireParOcr } from "@lienotheque/lecteur-texte";
 import { chiffresDuMorceau } from "./chiffres.js";
 import {
   FORME_PAR_DEFAUT,
@@ -49,7 +50,43 @@ export type OptionsReperes = {
   /** Où déposer les chiffres découpés d'un repère. Les mesures s'en servent ; la lecture d'un lot
    *  ne le fournit pas, et ne paie donc pas le comptage. */
   readonly recueillir?: (depot: DepotDeChiffres) => void;
+  /** Un mémo de reconnaissance, partagé par qui le fournit. Voir `nouveauMemoDeReconnaissance`. */
+  readonly memoDeReconnaissance?: MemoDeReconnaissance;
 };
+
+/** Ce qu'une reconnaissance déjà faite a rendu, pour ne pas la refaire.
+ *
+ *  POURQUOI, ET CE QUE LA MESURE A DIT
+ *
+ *  Mesuré le 8 novembre 2026 sur les documents des deux contrôles les plus lents : l'exploration
+ *  fait **800 et 920 appels** de reconnaissance pour 124 et 123 lectures de fenêtre, et **32 % et
+ *  46 %** de ces appels portent exactement les mêmes pixels, la même segmentation et les mêmes
+ *  réglages qu'un appel déjà fait. Ils viennent d'endroits candidats voisins qui proposent la même
+ *  fenêtre — tous du **même** motif, aucun d'un motif différent. La reconnaissance pèse 54 s sur
+ *  79 ; le travail d'image, lui, pèse 0,0 s, et aucune fenêtre ne sort avant l'OCR. C'est donc là,
+ *  et nulle part ailleurs, qu'il y avait quelque chose à gagner.
+ *
+ *  **Neutre sur le résultat, par construction** : mêmes pixels, même segmentation, mêmes réglages
+ *  et même moteur rendent la même lecture. Ce n'est pas une approximation qu'on s'autorise.
+ *
+ *  **Il n'est jamais global.** Celui qui lit le fournit et en décide la durée de vie : une lecture
+ *  de document le crée pour elle, deux lectures du même document peuvent le partager (le contrôle
+ *  « écarte un acquis que la lecture a périmé depuis » appelle deux fois sur le même document), et
+ *  un contrôle qui veut compter les appels réels n'en fournit pas. Un mémo caché dans le module
+ *  ferait dépendre un résultat de ce qu'un autre contrôle a lu avant lui.
+ *
+ *  `sertes` et `faites` ne servent pas la lecture : ils rendent le gain mesurable sans sonde. */
+export type MemoDeReconnaissance = {
+  readonly lu: Map<string, readonly MotLu[]>;
+  /** L'identité du moteur, calculée une fois : version de Tesseract et empreinte des modèles. */
+  readonly moteur: Map<string, string>;
+  faites: number;
+  servies: number;
+};
+
+export function nouveauMemoDeReconnaissance(): MemoDeReconnaissance {
+  return { lu: new Map(), moteur: new Map(), faites: 0, servies: 0 };
+}
 
 /** Ce qu'une lecture de repère dépose quand on le lui demande : ce que l'OCR a voté, et l'image du
  *  repère avec les formes de la taille d'un chiffre qu'on y a comptées.
@@ -117,20 +154,65 @@ export const amorceDeSuite = (mention: string): string => (/^[\p{L}]+/u.exec(men
 let dossierDeTravail: string | undefined;
 let compteur = 0;
 
+/** La clé d'une reconnaissance : TOUT ce qui peut en changer le résultat, et rien d'autre.
+ *
+ *  Les pixels par leur empreinte **sha256**, et non par une empreinte courte : une collision
+ *  servirait la lecture d'une autre image, et le résultat serait faux **en silence** — la classe
+ *  de défaut que ce dépôt refuse. Elle coûte 0,05 ms contre 68 ms la reconnaissance.
+ *
+ *  Puis les dimensions (deux images de même contenu et de forme différente se lisent autrement),
+ *  la segmentation, l'alphabet imposé, le binaire, le dossier des modèles, la langue — et
+ *  l'**identité du moteur** : sa version et l'empreinte de ses modèles de langue. Sans elle, un
+ *  mémo survivrait à une mise à jour de Tesseract en servant les lectures de l'ancien. */
+function cleDeReconnaissance(
+  memo: MemoDeReconnaissance,
+  image: ImageGrise,
+  segmentation: number,
+  options: OptionsReperes,
+  alphabet: string | undefined,
+): string {
+  const moteurDemande = `${options.binaire ?? ""}\u0000${options.tessdata ?? ""}\u0000${options.langue ?? ""}`;
+  let moteur = memo.moteur.get(moteurDemande);
+  if (moteur === undefined) {
+    moteur = empreinteDuMoteur({
+      ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
+      ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
+      ...(options.langue === undefined ? {} : { langue: options.langue }),
+    });
+    memo.moteur.set(moteurDemande, moteur);
+  }
+  const pixels = createHash("sha256").update(Buffer.from(image.pixels)).digest("hex");
+  return [pixels, image.largeur, image.hauteur, segmentation, alphabet ?? "", moteurDemande, moteur].join("\u0001");
+}
+
 function ocr(image: ImageGrise, segmentation: number, options: OptionsReperes, alphabet?: string): readonly MotLu[] {
   if (image.largeur === 0 || image.hauteur === 0) return [];
+  const memo = options.memoDeReconnaissance;
+  const cle = memo === undefined ? undefined : cleDeReconnaissance(memo, image, segmentation, options, alphabet);
+  if (memo !== undefined && cle !== undefined) {
+    const deja = memo.lu.get(cle);
+    if (deja !== undefined) {
+      memo.servies += 1;
+      return deja;
+    }
+  }
   dossierDeTravail ??= mkdtempSync(join(tmpdir(), "lienotheque-reperes-"));
   const chemin = join(options.dossier ?? dossierDeTravail, `repere-${(compteur += 1)}.pgm`);
   writeFileSync(chemin, versPgm(image));
   try {
     // L'index de page ne veut rien dire sur un recadrage : 1 suffit au contrat.
-    return lireParOcr(chemin, image.largeur, image.hauteur, 1, {
+    const lus = lireParOcr(chemin, image.largeur, image.hauteur, 1, {
       segmentation,
       ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
       ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
       ...(options.langue === undefined ? {} : { langue: options.langue }),
       ...(alphabet === undefined ? {} : { alphabet }),
     }).mots;
+    if (memo !== undefined && cle !== undefined) {
+      memo.lu.set(cle, lus);
+      memo.faites += 1;
+    }
+    return lus;
   } finally {
     rmSync(chemin, { force: true });
   }

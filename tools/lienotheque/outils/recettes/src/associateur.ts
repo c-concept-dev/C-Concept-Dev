@@ -46,6 +46,14 @@ export type Association = {
       | "aucun_media"
       // La lecture n'a trouvé aucun repère. Les enregistrements n'y sont pour rien.
       | "aucun_repere_lu"
+      // L'exploration s'est arrêtée faute de budget, SANS avoir tout essayé. Distinct de
+      // « aucun repère lu », qui dit qu'on a regardé partout et que rien ne numérote : ici on
+      // n'a pas fini de regarder, et cela n'appelle pas le même geste — relancer la lecture
+      // peut suffire, alors qu'une absence de numérotation demande autre chose.
+      //
+      // Sans cette raison, l'écran disait « rien ne numérote » d'un document dont on n'avait vu
+      // qu'une part : une affirmation plus forte que ce que la lecture permettait.
+      | "exploration_interrompue"
       // Des enregistrements sont là, lus, et cette manière de lire n'en fait rien.
       | "medias_non_interpretes"
       | "vivier_non_borne"

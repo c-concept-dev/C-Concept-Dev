@@ -327,6 +327,26 @@ describe("l'écran nomme la vraie cause d'une abstention (OUT-01, UX-03)", () =>
     ).not.toMatch(/interprét/i);
   });
 
+  it("distingue « je n'ai pas fini de regarder » de « rien ne numérote »", () => {
+    // Les deux causes se ressemblent à l'écran et n'appellent pas le même geste. « Aucun repère
+    // lu » affirme qu'on a regardé partout ; « exploration interrompue » dit qu'on s'est arrêté
+    // en route. Confondre les deux fait dire à l'écran plus que la lecture ne permet, et c'est
+    // ainsi qu'un contrôle a rendu « rien ne numérote » le soir où la machine s'est endormie.
+    const interrompue = vue({ raison: "exploration_interrompue", combien: 11 });
+    const rienNeNumerote = vue({ raison: "aucun_repere_lu", combien: 11 });
+    expect(interrompue?.libelle).not.toBe(rienNeNumerote?.libelle);
+    expect(interrompue?.libelle).toMatch(/interrompue/i);
+    expect(interrompue?.proposition, "et la proposition est de relancer, non de changer de manière").toMatch(
+      /relancer/i,
+    );
+    expect(rienNeNumerote?.proposition).toMatch(/autre manière/i);
+    expect(
+      [interrompue?.motif ?? "", ...(interrompue?.details ?? [])].join(" "),
+      "elle n'affirme pas que rien ne numérote",
+    ).not.toMatch(/aucun repère/i);
+    expect(interrompue?.details.join(" ")).toMatch(/11/);
+  });
+
   it("garde « aucun interprété » pour le cas qui le mérite vraiment", () => {
     const cas = vue({ raison: "medias_non_interpretes", combien: 37 });
     expect(cas?.libelle).toBe("Lecture non applicable");

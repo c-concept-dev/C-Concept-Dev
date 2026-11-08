@@ -62,6 +62,8 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
     découpage supprime la classe entière. Décision de Christophe du 7 novembre 2026.
     Une **autorisation de push** n'est pas une décision : elle va dans
     `docs/autorisations-de-push.md`, qui continue la numérotation de l'archive.
+    La **file des lots** n'en est pas une non plus — c'est un état, qui change à chaque lot : elle
+    vit dans `docs/file-des-lots.md`, avec la même numérotation.
 
 ## Gestes interdits et gestes autorisés
 - **Jamais `git add -A` ni `git add .`** : uniquement des chemins explicites sous

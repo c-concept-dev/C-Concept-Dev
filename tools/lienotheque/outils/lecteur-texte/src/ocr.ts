@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { realpathSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync, realpathSync } from "node:fs";
+import { join } from "node:path";
 import { PageLue, type MotLu } from "@lienotheque/contrats";
 
 /** OCR d'une page numérisée, avec la boîte de chaque mot (OUT-05).
@@ -80,6 +82,61 @@ export function langueOcr(langue: string): string | undefined {
   if (propre === "") return undefined;
   if (Object.values(LANGUES).includes(propre)) return propre;
   return LANGUES[propre];
+}
+
+/** L'identité du moteur de lecture : sa version, et l'empreinte des modèles de langue.
+ *
+ *  POURQUOI ELLE EXISTE
+ *
+ *  Un mémo de reconnaissance ne vaut que par sa clé. Deux images identiques lues par deux
+ *  Tesseract différents, ou avec deux modèles de langue différents, ne rendent pas la même chose :
+ *  une clé qui les confondrait servirait une lecture faite par un autre moteur, en silence. C'est
+ *  la consigne de Christophe du 8 novembre 2026 — « rien de ce qui change une lecture ne doit
+ *  manquer à la clé ».
+ *
+ *  **Ce qu'elle ne fait pas** : deviner. Si la version ne se lit pas, elle le dit — et un mémo
+ *  dont la clé porte « version inconnue » ne confondra pas deux moteurs, il refusera simplement
+ *  de servir ce qu'il a appris sous un autre.
+ *
+ *  Elle est calculée **une fois par triplet** (binaire, modèles, langue) dans le processus : lire
+ *  la version coûte un lancement de Tesseract, et empreindre un modèle de 4 Mo coûte 20 ms. Ce
+ *  n'est pas un état partagé que quelqu'un modifie — c'est le même calcul, dont on garde le
+ *  résultat. */
+const identites = new Map<string, string>();
+
+export function empreinteDuMoteur(options: OptionsOcr = {}): string {
+  const binaire = options.binaire ?? "tesseract";
+  const modeles = options.tessdata;
+  const langue = options.langue ?? "";
+  const cle = `${binaire}\u0000${modeles ?? ""}\u0000${langue}`;
+  const connue = identites.get(cle);
+  if (connue !== undefined) return connue;
+
+  let version = "version inconnue";
+  try {
+    version = execFileSync(binaire, ["--version"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
+      .split(/\r?\n/)[0]
+      ?.trim() ?? "version inconnue";
+  } catch {
+    // Laissée telle quelle : une identité qui ne sait pas se nommer ne doit pas ressembler à une
+    // autre qui le sait.
+  }
+
+  // Les modèles : chacun nommé, avec son empreinte, dans l'ordre alphabétique pour que la clé ne
+  // dépende pas de l'ordre où le système les énumère.
+  const empreintes: string[] = [];
+  if (modeles !== undefined) {
+    try {
+      for (const nom of readdirSync(modeles).filter((n) => n.endsWith(".traineddata")).sort())
+        empreintes.push(`${nom}:${createHash("sha256").update(readFileSync(join(modeles, nom))).digest("hex")}`);
+    } catch {
+      empreintes.push("modèles illisibles");
+    }
+  } else empreintes.push("modèles du système, non empreints");
+
+  const identite = `${version} | ${empreintes.join(" ")}`;
+  identites.set(cle, identite);
+  return identite;
 }
 
 export function tesseractDisponible(binaire = "tesseract"): boolean {

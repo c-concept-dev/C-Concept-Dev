@@ -258,6 +258,12 @@ export function construireVue(entree: Entree): VueBibliotheque {
         motif: "la lecture n’a trouvé aucun repère sur ces pages",
         details: [`${combien} enregistrement${pluriel} en attente, aucun repère lu`],
       },
+      exploration_interrompue: {
+        libelle: "Lecture interrompue avant d’avoir tout regardé",
+        proposition: "Relancer la lecture de ce document",
+        motif: "l’exploration s’est arrêtée faute de budget, sans avoir tout essayé",
+        details: [`${combien} enregistrement${pluriel} en attente, exploration non terminée`],
+      },
       medias_non_interpretes: {
         libelle: "Lecture non applicable",
         proposition: "Choisir une autre manière de lire",

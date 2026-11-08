@@ -9,7 +9,7 @@ sur la CI.
 
 ## La raison de Christophe
 
-Le lot 0b fera tourner ces contrôles sur le coureur macOS, **environ trois fois plus lent**. À 82 s
+Le lot 0b fera tourner ces contrôles sur le coureur macOS, plus lent. À 82 s
 ici, ils dépasseraient 180 000 ms là-bas : le lot 0b rendrait la CI rouge en faisant simplement
 tourner ce qui était sauté jusque-là.
 
@@ -35,3 +35,28 @@ le budget de la voie.**
 Le remède est l'option que le code offre déjà, `budgetExploration`, et dont le commentaire dit
 l'intention mot pour mot : « *un essai qui n'a pas quarante minutes à donner* ». Ni nombre inventé,
 ni changement du produit.
+
+## Correction du 8 novembre 2026 : le facteur « trois fois plus lent » était faux
+
+Ce fichier annonçait un coureur macOS **environ trois fois plus lent**. Le chiffre n'avait jamais
+été mesuré — il venait d'une estimation reprise telle quelle, par moi, et écrite ici comme un fait.
+
+Mesuré sur les **34 fichiers de contrôle présents à la fois ici et sur la CI** (course `18bf579f`) :
+
+| | rapport CI / machine locale |
+|---|---|
+| médiane | **×1,19** |
+| le plus défavorable observé | **×1,76** (`rangement.test.tsx`) |
+| `derives.test.ts`, 7,8 s ici — le plus comparable en charge processeur | ×1,30 |
+
+**Ce que la mesure ne dit pas, et qu'il faut garder en tête** : les contrôles qui lisent sont
+**sautés** sur la CI, faute de Tesseract. Aucun de ces 34 fichiers ne mesure donc le débit d'OCR du
+coureur, qui est précisément ce que le lot 0b y fera tourner. Les rapports ci-dessus valent pour du
+JavaScript et du rendu, pas pour un sous-processus de reconnaissance.
+
+**Conséquence de tenue** : on retient le facteur **le plus défavorable observé**, ×1,76, et non la
+médiane, jusqu'à ce que le lot 0b donne une mesure directe. Un facteur médian appliqué à un travail
+qu'il n'a pas mesuré serait un délai calibré par quelqu'un d'autre, sous une autre forme.
+
+La décision elle-même ne change pas : la lenteur passe toujours devant le lot 0b. Sa raison reste
+entière — à ×1,76, un contrôle de 102 s ici dépasserait les 180 000 ms là-bas.

@@ -13,6 +13,7 @@ import {
   corroborerParTable,
   rejouerParOracle,
 } from "../src/index.js";
+import { nouveauMemoDeReconnaissance } from "@lienotheque/recettes";
 import type { LigneInterpretee } from "@lienotheque/contrats";
 import type { TableLue } from "@lienotheque/noyau";
 import type { ConstatDeTable } from "../src/index.js";
@@ -617,6 +618,13 @@ describe("un document sans manière de lire (OUT-10)", () => {
         /exploration arrêtée après 1 essai\(s\) sur les \d+ qu'offrent \d+ endroit\(s\)/,
       );
       expect(rejeu.association.appariements, "jamais un lien pour éviter d'attendre").toEqual([]);
+      // La CAUSE rendue, et non seulement le journal : c'est elle que l'écran montre. « Je n'ai
+      // pas fini de regarder » n'est pas « rien ne numérote » — la première appelle une relance,
+      // la seconde autre chose. Sans cette distinction, l'écran affirmait plus que la lecture ne
+      // permettait.
+      expect(rejeu.association.abstention?.raison, "l'exploration s'est arrêtée, elle n'a pas conclu").toBe(
+        "exploration_interrompue",
+      );
     },
   );
 
@@ -804,11 +812,24 @@ describe("ce que la voie retient d'un document, pour ne pas l'apprendre deux foi
       // Sans ce contrôle, améliorer la lecture laisserait les documents déjà vus sur les
       // conclusions de l'ancienne, pour toujours et sans que rien ne le dise.
       const pdf = pdfDePages("acquis-perime.pdf", [prose(700), prose(500), prose(300), prose(200)]);
-      const premier = await rejouerParOracle(pdf, dossierSansPiste, commun);
+      // UN MÉMO PARTAGÉ ENTRE LES DEUX LECTURES
+      //
+      // Ce contrôle lit DEUX fois le même document, et la seconde doit tout refaire — c'est son
+      // objet. Il était de ce fait le plus lent de tout le dépôt : 158 931 ms au 8 novembre 2026,
+      // pour un délai de 180 000. Le mémo ne change rien à ce qu'il prouve : l'acquis périmé est
+      // toujours écarté, le document toujours relu, et le journal le dit comme avant. Seules les
+      // reconnaissances déjà faites ne sont pas repayées.
+      const memo = nouveauMemoDeReconnaissance();
+      const avec = { ...commun, memoDeReconnaissance: memo };
+      const premier = await rejouerParOracle(pdf, dossierSansPiste, avec);
       expect(premier.acquis).toBeDefined();
       const vieilli = { ...premier.acquis!, voie: { id: "voie-sans-maniere-de-lire", version: VERSION_DE_LA_VOIE + 1 } };
-      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, { ...commun, acquis: vieilli });
+      const rejeu = await rejouerParOracle(pdf, dossierSansPiste, { ...avec, acquis: vieilli });
       expect(rejeu.journal.join(" ")).toMatch(/acquis écarté : il vient de .* et la lecture a changé depuis/);
+      // Et le mémo a bien servi : sans cela, la seconde lecture aurait tout repayé, et ce contrôle
+      // rougirait le jour où la machine est un peu plus lente. Le chiffre est un plancher mesuré,
+      // non un objectif : il vaut 537 sur ce document le 8 novembre 2026.
+      expect(memo.servies, "la seconde lecture ne repaie pas les reconnaissances de la première").toBeGreaterThan(100);
     },
   );
 

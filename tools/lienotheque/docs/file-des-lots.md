@@ -1,0 +1,44 @@
+# La file des lots
+
+Chaque étape est nommée, et l'ordre se lit ici. Un lot technique ne remplace aucune étape : il se
+place avant celle qu'il débloque, ou là où son absence ferait mal.
+
+## Pourquoi ce fichier existe
+
+La file vivait dans `decisions.md`, section « 6 novembre 2026 — la file des lots, chaque étape
+nommée ». Ce fichier est devenu une **archive gelée** le 8 novembre : le contrôle complet refuse
+de le voir modifier. Une file se change à chaque lot — c'est un **état**, pas une décision —, elle
+ne pouvait donc rester dans une archive, ni entrer dans `decisions/`, où la règle est une décision
+par fichier.
+
+Les lignes ci-dessous sont **reprises mécaniquement** de l'archive, sans récriture : seuls les
+états qui ont changé depuis sont corrigés, et chaque correction nomme son commit. La numérotation
+est celle de l'archive, pour qu'aucun lot ne porte deux numéros.
+
+**Reste en vigueur, et n'est pas touchée** : la règle du 5 novembre « aucun retraitement par la
+voie recette avant A1b ».
+
+| # | Lot | Nature | État |
+|---|---|---|---|
+| — | garde-fou des promesses | technique | commité, né en parallèle, à tort |
+| 0a | garde-fou « **aucun fichier suivi n'importe un fichier non suivi** » | technique — empêche la récidive de l'incident du 7 novembre | **avant le 1** |
+| 0b | **installer Tesseract et ses langues sur les machines de la CI**, pour que les 92 contrôles de lecture y tournent. Mesure : combien de contrôles sautés restent ensuite, et lesquels | technique — rend la CI juge des contrôles qui lisent des pages | **avant le 1** |
+| 0c | **crochet de pré-commit** : les garde-fous rapides (fichiers fantômes, fuites, vocabulaire) passés sur l'**index** avant CHAQUE commit, commits d'autorisation compris. Contrôle rouge : un commit fautif doit être refusé | technique — remplace une lecture attentive par une mécanique | **fait** le 7 novembre 2026, `0f572722` — le crochet juge l'index de CHAQUE commit |
+| 1 | **branchement Vision** : port des repères, remontée à Vérifier, borne de fin, deux étages, retrait de la copie | **A2** | en cours, **après 0a et 0b**. **À la remise depuis la sauvegarde, attendre des conflits** sur les trois édits de la cause « exploration interrompue », déjà commités avec l'entrée 14 : les résoudre en gardant **une seule** version, puis prouver par les contrôles de la cause **et** ceux d'A2 que rien n'est perdu ni doublé. Consigne de Christophe du 8 novembre 2026 |
+| 2 | mesure 48 → 52 par la chaîne, à blanc, hors bibliothèque | **A2** | en attente du 1 |
+| 3 | second déclencheur d'A2 : le texte d'une page qui lit nettement moins bien que ses comparables, sur un livre de Studio Clinique | **A2** | en file |
+| 4 | détection de la liste de Bach, et vrai test du seuil de 8 | technique — débloque la mesure du seuil, en attente depuis le 6/11 | en file |
+| 5 | rangées fantômes de `rangeesDeTable`, avec leurs contrôles | technique — même surface que le 1, à ne pas mêler | en file |
+| 6 | écriture réelle du jalon dans la bibliothèque : sauvegarde vérifiée, vérification à l'écran par Christophe | technique — clôt le jalon | en file, **sur son mot** |
+| 7 | **mode manuel** : plan par lots depuis `docs/plan-ecran-relier.md`, rapport avant le code. Il fait aussi afficher `aVerifier` au Lecteur. **Désigne des feuilles, pas des folios** — c'est ce qui le rend indépendant d'A1b. **Contrainte de conception** : une page s'y reconnaît à son **image** et à son **numéro de feuille**, jamais au folio affiché | **étape nommée** | en file |
+| 8 | **A1b — la source du folio** : il est presque toujours déduit (10 418 pages sur la bibliothèque musicale). Ne bloque plus le mode manuel ; la règle « aucun retraitement par la voie recette avant A1b » reste en vigueur | **étape nommée** | en file |
+| 9 | **estimation marquée** : le moteur publie en marquant ce qu'il estime, au lieu de s'abstenir | **étape nommée** | en file |
+| 10 | **mémoire d'apprentissage à trois niveaux** : association, exemple vérifié, généralisation **prouvée et réversible** — nourrie par les décisions du mode manuel | **étape nommée** | en file, après le 8 |
+| 11 | **l'Expert** (`docs/cdc-expert-apprentissage.md`, §3 et §8 **validés le 5/11**) : second recours, **ne publie jamais seul**, propose avec son raisonnement et Christophe tranche. Sa conception détaillée — format des questions, contrat de l'appel, budget, interrupteur global — **reste à écrire avant tout code** (§9) | **étape nommée, en dernier** | en file |
+| 12 | `CLAUDE.md` : dire **macOS seule plateforme d'usage**, Ubuntu gardé comme machine de vérification ; corriger le tableau des plateformes et celui des intégrations continues | technique | en file |
+| 13 | garde-fou « les phrases de `CLAUDE.md` décrivent-elles encore le dépôt ? » | technique | en file, **en dernier** |
+| 14 | **EN COURS (8 novembre)** — **la lenteur de `voie-oracle.test.ts`** : les 19 contrôles qui lisent (20 à 25 min), et le contrôle « repère numérique récurrent » qui coûte 2 s sans rien lire — pourquoi, et que peut-on y faire. **Mesuré le 8 novembre** : le contrôle « écarte un acquis que la lecture a périmé depuis » est passé de 143 617 à **158 931 ms** pour un délai de 180 000 — ×1,13 de marge, et il n'est pas épinglé. La cause est connue : 22 des 27 appels héritent d'un budget d'exploration dimensionné pour la production (384 paires, 3 917 s). **La cause « exploration interrompue : budget épuisé » part dans ce lot** : borner le budget rend les arrêts fréquents, et l'écran doit alors nommer la vraie cause au lieu de « aucun repère lu » | technique — **devant le 0b**, qui ferait tourner ces contrôles sur un coureur trois fois plus lent | **mémo de reconnaissance fait** le 8 novembre 2026 : 158 931 → **60 987 ms**, marge ×2,95 ici. **Reste ouvert** : au facteur le plus défavorable mesuré (×1,76, et non ×3 — voir la correction de la décision), la marge sur la CI est de ×1,68, sous la barre de ×2 que Christophe a posée. La piste suivante est nommée : **pourquoi ~6 reconnaissances par fenêtre** — `candidates × seuils × 2 segmentations` —, **à chercher avant le lot 0b** |
+| 15 | **un fichier par décision** : `docs/decisions/AAAA-MM-JJ-sujet.md`, avec un sommaire qui les liste, pour qu'aucun lot n'ait plus à découper un registre partagé. Demandé par Christophe le 7 novembre 2026, **à ne pas démarrer** | technique — supprime une classe de gestes fragiles, voir la section du jour sur les ancres mal placées | **fait** le 8 novembre 2026, `b39f9071` — l'archive est gelée, et ce fichier-ci en est une conséquence |
+| 16 | **garde-fou des marges de délai** : signaler mécaniquement tout contrôle qui passe à moins d'un facteur donné de son délai, au lieu de compter sur l'attention de celui qui lit la course. Né de l'incident du 7 novembre — un vert à 55 ms de marge, rapporté comme un vert | technique — remplace une règle de tenue par une mécanique. **Premier cas déjà relevé, le 7 novembre** : `vignette et aperçu (OUT-04, OPT-05) > tient le plafond dans les deux sens` met **3 060 ms** sur le coureur macOS pour un délai par défaut de 5 000, soit une marge de ×1,6 ; deux voisins du même fichier sont à ×2,2 et ×2,7. C'est le prochain tirage au sort, et il est nommé avant d'être tombé | en file, **non démarré** |
+| 17 | **préséance des causes d'abstention** : le refus pour **vivier non borné** doit primer sur toute cause liée à la lecture. Vérifié le 7 novembre, la préséance n'est **pas uniforme** — `outils/recettes/src/associateur.ts:333` la respecte (« avant toute autre question… un score calculé dans un vivier qui déborde le document ne vaut rien »), mais le retour anticipé de `outils/ingestion/src/voie-oracle.ts:1651` rend `aucun_media` / `medias_non_interpretes` / `aucun_repere_lu` **sans jamais demander si le vivier est borné**. Deux conséquences : la vraie cause est masquée dans Vérifier, et le contrôle REC-02 **dépend de la réussite de l'OCR** — c'est ainsi qu'il a rendu `aucun_repere_lu` quand la machine s'est endormie | technique — corrige un écran qui dit une cause fausse | en file, **non démarré**, signalé par Christophe |
+| 18 | **garde-fou du journal des autorisations** : `docs/autorisations-de-push.md` est un journal **en ajout seul**. Le garde-fou doit vérifier que les numéros sont **consécutifs et croissants**, et qu'**aucune ligne ancienne n'a été modifiée** — ce qui demande d'enregistrer leur empreinte, comme le gel de l'archive le fait pour un fichier entier. Demandé par Christophe le 8 novembre 2026. **Raison mesurée le même jour** : les rangées 13 à 17 de l'ancien tableau s'étaient retrouvées **en ordre décroissant**, et la phrase qui s'appuyait dessus annonçait 13 poussées quand il y en avait 17 — fausse sans que rien ne le signale. Un journal dont l'ordre porte du sens a besoin d'une mécanique, pas d'une relecture attentive | technique — même classe que le gel de l'archive | en file, **non démarré** |

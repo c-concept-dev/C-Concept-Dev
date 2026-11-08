@@ -44,6 +44,8 @@ import {
   type Media,
   type MediaInventorie,
   type ReglesPistes,
+  nouveauMemoDeReconnaissance,
+  type MemoDeReconnaissance,
 } from "@lienotheque/recettes";
 import { coordonnerLectureDifficile, type LectureTentative } from "@lienotheque/vision";
 import { couperDoublePage } from "@lienotheque/redresseur";
@@ -196,6 +198,14 @@ export type OptionsVoieOracle = {
   })[] | undefined;
   /** Jusqu'où chercher un endroit qui porte la numérotation. Voir `BUDGET_EXPLORATION`. */
   readonly budgetExploration?: BudgetExploration | undefined;
+  /** Un mémo de reconnaissance à partager. Sans lui, la voie en crée un pour SA lecture et le
+   *  jette en sortant : rien ne survit d'un document à l'autre.
+   *
+   *  Le fournir sert à deux choses, et à rien d'autre : relire **le même document** deux fois sans
+   *  repayer ses reconnaissances — le contrôle « écarte un acquis que la lecture a périmé depuis »
+   *  le fait, et c'est le plus lent de tous —, et compter les appels réellement faits. Deux
+   *  documents différents peuvent le partager sans risque : la clé porte les pixels. */
+  readonly memoDeReconnaissance?: MemoDeReconnaissance | undefined;
   /** Ce qu'une lecture antérieure de **ce** document a appris, s'il y en a une.
    *
    *  Rien n'est cru sur parole : l'empreinte du document est recalculée ici et comparée à celle
@@ -327,6 +337,8 @@ function lireLaMarque(
     ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
     ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
     ...(options.langue === undefined ? {} : { langue: options.langue }),
+    // Le mémo passe par les options, comme le reste : rien ici ne va chercher un état ailleurs.
+    ...(options.memoDeReconnaissance === undefined ? {} : { memoDeReconnaissance: options.memoDeReconnaissance }),
   };
   const bloc =
     motif === "nombre_ecrit_autour"
@@ -557,8 +569,18 @@ export function corroborerParTable(
 export async function rejouerParOracle(
   pdf: string,
   dossierMedias: string,
-  options: OptionsVoieOracle = {},
+  optionsRecues: OptionsVoieOracle = {},
 ): Promise<RejeuParOracle> {
+  // UN MÉMO PAR LECTURE, SAUF SI L'APPELANT EN PARTAGE UN
+  //
+  // Sans mémo fourni, cette lecture en crée un pour elle seule et le laisse partir avec elle :
+  // aucune lecture n'hérite de ce qu'une autre a lu, et aucun résultat ne dépend de l'ordre des
+  // contrôles. Avec un mémo fourni, c'est l'appelant qui décide ce qui est partagé — et c'est lui
+  // qui porte la durée de vie, jamais ce module.
+  const options: OptionsVoieOracle = {
+    ...optionsRecues,
+    memoDeReconnaissance: optionsRecues.memoDeReconnaissance ?? nouveauMemoDeReconnaissance(),
+  };
   const journal: string[] = [];
   const dire = (message: string): void => {
     journal.push(message);
@@ -907,6 +929,12 @@ export async function rejouerParOracle(
           `${possibles} qu'offrent ${proposees.length} endroit(s), ${renoncement}. ` +
           `${insuffisant[0]!.toUpperCase()}${insuffisant.slice(1)}.`,
       aRetenir,
+      medias.length,
+      // `renoncement` est précisément « l'exploration s'est arrêtée sur son budget », et c'est la
+      // même valeur qui décide, quelques lignes plus haut, de ne RIEN retenir de cette lecture.
+      // Les deux conséquences suivent donc la même cause, et aucune ne peut être posée sans
+      // l'autre.
+      renoncement !== undefined,
     );
   }
   dire(
@@ -1304,6 +1332,10 @@ function sansLien(
   /** Combien d'enregistrements le document **porte**, interprétés ou non. Par défaut, ceux qu'on
    *  a su lire : un appelant qui ne distingue pas les deux n'a rien à distinguer. */
   disponibles = medias.length,
+  /** Vraie quand l'exploration s'est arrêtée sur son budget, et non parce qu'elle avait tout vu.
+   *  La cause rendue change alors : « je n'ai pas fini de regarder » et « rien ne numérote »
+   *  n'appellent pas le même geste de la part de qui lit l'écran. */
+  explorationInterrompue = false,
 ): RejeuParOracle {
   journal.push(pourquoi);
   options.surPhase?.(pourquoi);
@@ -1534,7 +1566,12 @@ function sansLien(
             ? "aucun_media"
             : medias.length === 0
               ? "medias_non_interpretes"
-              : "aucun_repere_lu",
+              // L'ordre compte. Une exploration arrêtée se dit AVANT « aucun repère lu », parce
+              // qu'elle EXPLIQUE ce silence au lieu de le constater : « je n'ai pas fini de
+              // regarder » appelle une relance, « rien ne numérote » appelle autre chose.
+              : explorationInterrompue
+                ? "exploration_interrompue"
+                : "aucun_repere_lu",
         combien: disponibles,
         pourquoi,
       },
