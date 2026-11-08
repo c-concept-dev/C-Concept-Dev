@@ -5,7 +5,8 @@
   const $ = id => document.getElementById(id);
   const state = { tracks: [], sources: [], copiedSource: null, images: [], cuts: [], total: 0, playing: false, started: 0,
     previewAt: 0, raf: 0, bitmap: null, bitmapIndex: -1, exporting: false,
-    selectedId: null, zoom: 20, master: {voice: {db: 0, muted: false}, music: {db: 0, muted: false}} };
+    selectedId: null, zoom: 20, transitions: [], selectedTransition: 1, previewRequest: 0,
+    master: {voice: {db: 0, muted: false}, music: {db: 0, muted: false}} };
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const time = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -47,6 +48,13 @@
     return points.at(-1).db;
   };
   const duration = () => state.total || state.images.length * Math.max(1, +($('cv-duree')?.value || 4));
+  const transitionLength = i => i>0 && i<state.images.length && state.transitions[i] && state.transitions[i].type!=='cut'
+    ? Math.min(state.transitions[i].duration||0.6, (state.cuts[i]-state.cuts[i-1])*0.4,
+      ((state.cuts[i+1]??duration())-state.cuts[i])*0.4) : 0;
+  const activeTransition = at => {
+    const i=state.cuts.findIndex((v,j)=>j>0 && at>=v-transitionLength(j) && at<v);
+    return i<0?null:{i,p:(at-state.cuts[i]+transitionLength(i))/transitionLength(i)};
+  };
 
   const css = document.createElement('style');
   css.textContent = `
@@ -55,8 +63,8 @@
     #am-workbench.am-focused h2{font-size:23px;margin:0}
     #am-workbench.am-focused .am-toolbar{margin:0}
     #am-workbench.am-focused .am-toolbar-row.am-edit{padding-top:3px}
-    #am-workbench.am-focused .am-grid{flex:0 0 clamp(170px,22dvh,235px)}
-    #am-workbench.am-focused .am-sources{flex:0 0 clamp(125px,16dvh,175px);height:auto}
+    #am-workbench.am-focused .am-grid{flex:0 0 clamp(170px,20dvh,235px)}
+    #am-workbench.am-focused .am-sources{flex:0 0 clamp(105px,14dvh,175px);height:auto}
     #am-workbench.am-focused .am-master{margin:0}
     #am-workbench.am-focused .am-master-picker{min-height:24px}
     #am-workbench.am-focused .am-timeline,#am-workbench.am-focused .am-steps-panel{min-height:165px;flex:1 1 165px}
@@ -137,6 +145,11 @@
     .am-lane-name{width:112px;right:calc(100% + 7px);top:17px;text-align:left}
     .am-clip{height:38px;top:8px;padding:5px 8px}.am-step-clip{height:30px;top:8px}
     .am-clip[aria-disabled=true]{opacity:.4}.am-step-clip{background:#dce8e6;color:#102f31;border:1px solid #1f5053;cursor:pointer}
+    .am-step-resize{position:absolute;right:0;top:0;bottom:0;width:12px;cursor:ew-resize;background:rgba(31,80,83,.2);border-left:1px solid #1f5053;touch-action:none}
+    .am-transition-marker{position:absolute;top:34px;transform:translateX(-50%);z-index:3;border-radius:50%!important;padding:0!important;width:22px;height:22px;line-height:18px!important;font-size:12px!important;background:#fff8e8!important;border:2px solid #a45337!important;color:#183d3f!important}
+    .am-transition-panel{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 10px;background:#f4e8d9;border:1px solid #c4a88e;border-radius:8px;font-size:13px}
+    .am-transition-panel[hidden]{display:none}
+    .am-transition-panel label{display:flex;align-items:center;gap:5px}.am-transition-panel select,.am-transition-panel input{font:inherit}.am-transition-panel input{width:68px}
     .am-playhead{position:absolute;top:0;bottom:0;width:2px;background:#ab4329;pointer-events:none;z-index:2}
     #am-status[data-error=1]{color:#8a3f29}#am-status{font-weight:600!important;margin:12px 0 0!important}
     @media(max-width:760px){#am-workbench{height:auto;min-height:760px}.am-grid{grid-template-columns:1fr;flex-basis:auto}.am-grid .am-panel:first-child{display:flex}.am-sources{grid-template-columns:1fr;max-height:220px;overflow:auto}.am-track-fields{grid-template-columns:repeat(2,1fr)}#am-workbench.am-focused{overflow:auto}.am-toolbar-row{gap:4px}}`;
@@ -166,6 +179,7 @@
     <div class="am-master"><strong>Voix Master</strong><button type="button" data-master-mute="voice">Muet</button><label>Volume <input type="range" data-master-db="voice" min="-36" max="12" value="0"></label><output id="am-voice-db">0 dB</output>
       <strong>Musique Master</strong><button type="button" data-master-mute="music">Muet</button><label>Volume <input type="range" data-master-db="music" min="-36" max="12" value="0"></label><output id="am-music-db">0 dB</output></div>
     <div id="am-master-picker" class="am-master-picker" aria-label="Sélectionner un clip du Master"></div>
+    <div id="am-transition-panel" class="am-transition-panel" hidden><strong id="am-transition-title">Transition</strong><label>Effet <select id="am-transition-type"><option value="cut">Coupe franche</option><option value="dissolve">Fondu enchaîné</option><option value="fade-black">Fondu au noir</option><option value="fade-white">Fondu au blanc</option><option value="wipe-left">Balayage à gauche</option><option value="wipe-right">Balayage à droite</option><option value="slide-left">Glisser à gauche</option><option value="slide-right">Glisser à droite</option></select></label><label>Durée <input id="am-transition-duration" type="number" min="0.1" max="5" step="0.1" value="0.6"> s</label><button id="am-transition-all" type="button">Appliquer à toutes</button><span id="am-transition-help">Cliquez sur une jonction entre deux diapositives.</span></div>
     <div class="am-bottom-tabs" role="tablist" aria-label="Vue du montage"><button id="am-view-master" type="button" role="tab" aria-selected="true">Pistes Master</button><button id="am-view-steps" type="button" role="tab" aria-selected="false">Étapes et repères · <span id="am-step-count">0</span> images</button></div>
     <div class="am-timeline" aria-label="Master final du montage"><strong>Master final · voix et musique exportées en un seul mixage</strong><div id="am-timeline-inner"><div id="am-ruler" class="am-ruler"></div><div id="am-lanes"></div></div></div>
     <div class="am-panel am-steps-panel" aria-label="Étapes et repères"><p>Réglez l’heure de début de chaque image. « Voir » affiche l’étape dans l’aperçu.</p>
@@ -229,8 +243,8 @@
     $('am-ruler').innerHTML = Array.from({length:11}, (_, i) => `<span class="am-tick" style="left:${i*10}%">${time(total*i/10)}</span>`).join('') + `<span class="am-playhead" style="left:${state.previewAt/total*100}%"></span>`;
     const stepLane = `<div class="am-lane"><span class="am-lane-name">Diapositives</span>${state.images.map((im,i) => {
       const left = state.cuts[i]/total*100, end = (state.cuts[i+1] ?? total)/total*100;
-      return `<button type="button" class="am-clip am-step-clip" data-focus="${i}" style="left:${left}%;width:${Math.max(0,end-left)}%" title="Étape ${i+1}">${i+1}. ${esc(im.titre||'Étape')}</button>`;
-    }).join('')}</div>`;
+      return `<div class="am-clip am-step-clip" data-focus="${i}" style="left:${left}%;width:${Math.max(0,end-left)}%" title="Étape ${i+1} — glissez le bord droit pour changer sa durée">${i+1}. ${esc(im.titre||'Étape')}<span class="am-step-resize" data-resize-step="${i}" title="Étirer ou raccourcir la diapositive ${i+1}"></span></div>`;
+    }).join('')}${state.images.slice(1).map((_,j)=>{const i=j+1,t=state.transitions[i]||{type:'cut'};return `<button type="button" class="am-transition-marker" data-transition="${i}" style="left:${state.cuts[i]/total*100}%" title="Transition ${i} → ${i+1} : ${t.type==='cut'?'coupe franche':t.type}">${t.type==='cut'?'·':'✦'}</button>`;}).join('')}</div>`;
     $('am-lanes').innerHTML = stepLane + ['voice','music'].map(kind => `<div class="am-lane" data-master-lane="${kind}"><span class="am-lane-name">${kind==='voice'?'Voix':'Musique'} Master</span>${state.tracks.map((t,i) => {
       if (t.kind!==kind) return '';
       const left = Math.min(100,t.at/total*100), length = (t.loop ? total-t.at : clipLength(t))/total*100;
@@ -256,6 +270,7 @@
     state.images = d.res.images.map(im => ({...im, url: URL.createObjectURL(im.blob)}));
     const n = state.images.length, total = duration();
     state.cuts = Array.from({length:n}, (_, i) => i * total / n);
+    state.transitions = Array.from({length:n},()=>({type:'cut',duration:0.6}));
     state.bitmapIndex = -1;
     render(); drawPreview(0);
   }
@@ -469,10 +484,45 @@
     state.cuts[i] = value; render();
   };
   $('am-steps').onclick = e => { if (e.target.dataset.focus === undefined) return; seek(state.cuts[+e.target.dataset.focus]); };
+  function showTransition(i) {
+    state.selectedTransition=i;
+    const setting=state.transitions[i]||{type:'cut',duration:0.6};
+    $('am-transition-title').textContent=`Diapositives ${i} → ${i+1}`;
+    $('am-transition-type').value=setting.type;
+    $('am-transition-duration').value=setting.duration;
+    $('am-transition-panel').hidden=false;
+    seek(Math.max(0,state.cuts[i]-Math.min(0.3,transitionLength(i)/2)));
+  }
+  $('am-transition-type').onchange = e => { const i=state.selectedTransition; state.transitions[i].type=e.target.value; renderTimeline(); seek(state.cuts[i]-transitionLength(i)/2); };
+  $('am-transition-duration').onchange = e => { const i=state.selectedTransition; state.transitions[i].duration=clamp(+e.target.value||0.6,0.1,5); e.target.value=state.transitions[i].duration; seek(state.cuts[i]-transitionLength(i)/2); };
+  $('am-transition-all').onclick = () => { const chosen=state.transitions[state.selectedTransition]; for(let i=1;i<state.images.length;i++) state.transitions[i]={...chosen}; renderTimeline(); badge(`Transition appliquée aux ${state.images.length-1} jonctions.`,false); };
   $('am-lanes').onclick = e => {
-    if (e.target.dataset.focus !== undefined) seek(state.cuts[+e.target.dataset.focus]);
+    const junction=e.target.closest('[data-transition]');
+    if(junction){showTransition(+junction.dataset.transition);return;}
+    const step=e.target.closest('[data-focus]');
+    if(step)seek(state.cuts[+step.dataset.focus]);
   };
   $('am-lanes').onpointerdown = e => {
+    const handle=e.target.closest('[data-resize-step]');
+    if(handle){
+      const i=+handle.dataset.resizeStep, boundary=i+1, lane=handle.parentElement.parentElement;
+      const rect=lane.getBoundingClientRect(), initialTotal=duration();
+      handle.setPointerCapture(e.pointerId);
+      handle.onpointermove=move=>{
+        if(boundary===state.images.length){
+          state.total=Math.round(clamp((move.clientX-rect.left)/rect.width*initialTotal,state.cuts[i]+0.5,initialTotal*4)*100)/100;
+          handle.parentElement.style.width=`${(state.total-state.cuts[i])/initialTotal*100}%`;
+          return;
+        }
+        state.cuts[boundary]=Math.round(clamp((move.clientX-rect.left)/rect.width*duration(),state.cuts[i]+0.5,(state.cuts[boundary+1]??duration())-0.5)*100)/100;
+        handle.parentElement.style.width=`${(state.cuts[boundary]-state.cuts[i])/duration()*100}%`;
+        const next=lane.querySelector(`[data-focus="${boundary}"]`);
+        if(next){next.style.left=`${state.cuts[boundary]/duration()*100}%`;next.style.width=`${((state.cuts[boundary+1]??duration())-state.cuts[boundary])/duration()*100}%`;}
+        const marker=lane.querySelector(`[data-transition="${boundary}"]`);if(marker)marker.style.left=`${state.cuts[boundary]/duration()*100}%`;
+      };
+      handle.onpointerup=()=>{handle.onpointermove=null;handle.onpointerup=null;render();seek(Math.min(duration()-0.05,state.cuts[boundary]??state.cuts[i]));};
+      return;
+    }
     const clip = e.target.closest('[data-clip]'); if (!clip) return;
     const i = +clip.dataset.clip, t = state.tracks[i], lane = clip.parentElement;
     state.selectedId=t.id;
@@ -532,16 +582,24 @@
   };
   async function drawPreview(at) {
     if (!state.images.length) return;
+    const request = ++state.previewRequest;
+    const transition = activeTransition(at);
+    if (transition) {
+      const [from,to] = await Promise.all([
+        createImageBitmap(state.images[transition.i-1].blob),
+        createImageBitmap(state.images[transition.i].blob)
+      ]);
+      if (request === state.previewRequest) paintTransition($('am-preview'),from,to,state.transitions[transition.i].type,transition.p);
+      from.close(); to.close();
+      return;
+    }
     let idx = state.cuts.findLastIndex(v => v <= at); idx = Math.max(0, idx);
     if (idx !== state.bitmapIndex) {
       const next = await createImageBitmap(state.images[idx].blob);
+      if (request !== state.previewRequest) { next.close(); return; }
       if (state.bitmap) state.bitmap.close(); state.bitmap = next; state.bitmapIndex = idx;
     }
-    const canvas = $('am-preview'), c = canvas.getContext('2d'), im = state.bitmap;
-    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
-    c.fillStyle = '#fffdf9'; c.fillRect(0, 0, canvas.width, canvas.height);
-    const ratio = Math.min(canvas.width / im.width, canvas.height / im.height);
-    c.drawImage(im, (canvas.width-im.width*ratio)/2, (canvas.height-im.height*ratio)/2, im.width*ratio, im.height*ratio);
+    if (request === state.previewRequest) paint($('am-preview'),state.bitmap);
   }
   function seek(at) { state.previewAt = clamp(at, 0, duration()); drawPreview(state.previewAt); renderClock(); }
   function renderClock() {
@@ -619,12 +677,32 @@
   // Le temps réel de l'onglet ne peut donc plus sauter de diapositive.
   let cancelExport = false;
   $('am-cancel-export').onclick = () => { cancelExport = true; badge('Annulation demandée…', false); };
-  function paint(canvas, bitmap) {
+  function paint(canvas, bitmap, clear=true) {
     const c = canvas.getContext('2d', {alpha:false});
-    c.fillStyle = '#fffdf9'; c.fillRect(0,0,canvas.width,canvas.height);
+    c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
+    if(clear){c.fillStyle = '#fffdf9'; c.fillRect(0,0,canvas.width,canvas.height);}
     const width = bitmap.displayWidth || bitmap.width, height = bitmap.displayHeight || bitmap.height;
     const scale = Math.min(canvas.width/width,canvas.height/height);
     c.drawImage(bitmap,(canvas.width-width*scale)/2,(canvas.height-height*scale)/2,width*scale,height*scale);
+  }
+  function paintTransition(canvas,from,to,type,progress) {
+    const c=canvas.getContext('2d',{alpha:false}),w=canvas.width,h=canvas.height,p=clamp(progress,0,1);
+    if(type==='dissolve') { paint(canvas,from);c.save();c.globalAlpha=p;paint(canvas,to,false);c.restore();return; }
+    if(type==='fade-black'||type==='fade-white') {
+      paint(canvas,p<0.5?from:to);
+      c.fillStyle=type==='fade-black'?'#000':'#fff';c.globalAlpha=p<0.5?p*2:(1-p)*2;
+      c.fillRect(0,0,w,h);c.globalAlpha=1;return;
+    }
+    if(type==='wipe-left'||type==='wipe-right') {
+      paint(canvas,from);c.save();c.beginPath();c.rect(type==='wipe-left'?0:w*(1-p),0,w*p,h);c.clip();paint(canvas,to,false);c.restore();return;
+    }
+    if(type==='slide-left'||type==='slide-right') {
+      c.fillStyle='#fffdf9';c.fillRect(0,0,w,h);
+      const sign=type==='slide-left'?-1:1;
+      c.save();c.translate(sign*w*p,0);paint(canvas,from,false);c.restore();
+      c.save();c.translate(sign*w*(p-1),0);paint(canvas,to,false);c.restore();return;
+    }
+    paint(canvas,p<0.5?from:to);
   }
   async function mixedAudio() {
     const rate = 44100, seconds = duration();
@@ -681,10 +759,21 @@
       for (let i=0;i<state.images.length;i++) {
         if (cancelExport) throw Error('Export annulé.');
         const bitmap = await createImageBitmap(state.images[i].blob);
-        paint(canvas,bitmap); bitmap.close();
-        const span = (state.cuts[i+1] ?? duration())-state.cuts[i];
+        const start=state.cuts[i],end=state.cuts[i+1] ?? duration();
+        const span=end-start,blend=transitionLength(i+1),stillEnd=end-blend;
         if (span <= 0) throw Error(`Durée invalide pour l’étape ${i+1}.`);
-        await video.add(state.cuts[i],span);
+        if(stillEnd>start){paint(canvas,bitmap);await video.add(start,stillEnd-start);}
+        if(blend>0){
+          const next=await createImageBitmap(state.images[i+1].blob);
+          for(let at=stillEnd;at<end-0.00001;){
+            if(cancelExport){next.close();bitmap.close();throw Error('Export annulé.');}
+            const step=Math.min(1/30,end-at);
+            paintTransition(canvas,bitmap,next,state.transitions[i+1].type,(at-stillEnd+step/2)/blend);
+            await video.add(at,step);at+=step;
+          }
+          next.close();
+        }
+        bitmap.close();
         $('cv-avancement').style.display='block';
         $('cv-avancement-texte').textContent=`MP4 : étape ${i+1} sur ${state.images.length}`;
         $('cv-barre').style.width=`${Math.round((i+1)/state.images.length*100)}%`;
