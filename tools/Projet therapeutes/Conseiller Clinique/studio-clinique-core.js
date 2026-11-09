@@ -10561,6 +10561,44 @@ ${recent}`;
       if (/^#[0-9a-f]{6}$/i.test(current || '') && document.activeElement !== input) input.value = current;
     });
   }
+
+  function adocVideoPlaybackControlsHTML(block) {
+    if (!block || block.type !== 'video') return '';
+    const content = block.content || {};
+    return '<div class="cc-block-video-playback" role="group" aria-label="Lecture de cette vidéo" style="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0;">' +
+      '<label><input type="checkbox" data-video-autoplay onchange="window.adocSetVideoPlaybackOption(\'autoplay\',this.checked)"' + (content.autoplay === true ? ' checked' : '') + '> Lecture automatique (démarre sans son)</label>' +
+      '<label><input type="checkbox" data-video-loop onchange="window.adocSetVideoPlaybackOption(\'loop\',this.checked)"' + (content.loop === true ? ' checked' : '') + '> Lire cette vidéo en boucle</label>' +
+    '</div>';
+  }
+
+  window.adocSetVideoPlaybackOption = function (option, checked) {
+    if (option !== 'autoplay' && option !== 'loop') return;
+    const st = window._adocBlockEditState || {};
+    const art = adocEditorArt();
+    const block = art && art._adocStructuredDoc && adocFindEditableBlock(art._adocStructuredDoc, st.blockId);
+    if (!block || block.type !== 'video') return;
+    adocEditorCheckpoint();
+    block.content = block.content || {};
+    if (checked) block.content[option] = true; else delete block.content[option];
+    const blockEl = document.getElementById(st.blockId);
+    const video = blockEl && blockEl.querySelector('video');
+    if (video) {
+      if (option === 'loop') {
+        video.loop = !!checked;
+        video.toggleAttribute('loop', !!checked);
+      } else {
+        video.autoplay = !!checked;
+        video.muted = !!checked;
+        video.playsInline = !!checked;
+        video.toggleAttribute('autoplay', !!checked);
+        video.toggleAttribute('muted', !!checked);
+        video.toggleAttribute('playsinline', !!checked);
+        if (checked) video.play().catch(function () {});
+      }
+    }
+    adocEditorSync();
+    adocEditorMarkDirty();
+  };
   function adocSetBlockSurface(changes) {
     const ctx = adocEditorContext(); if (!ctx || (!ctx.legacy && !ctx.block)) return;
     const allowed = ['backgroundColor', 'borderColor', 'borderWidth'];
@@ -14019,11 +14057,15 @@ ${recent}`;
         const videoStyleAttr = videoCSS ? ' style="' + adocEsc(videoCSS) + '"' : '';
         const videoUrl = adocEsc(b.content.url);
         const videoTitle = adocEsc(b.content.title);
+        const videoLoopAttr = b.content.loop === true ? ' loop' : '';
+        // Safari et les autres navigateurs n'autorisent de façon fiable la lecture automatique
+        // que sans son. Les contrôles restent présents pour permettre de réactiver le son.
+        const videoAutoplayAttr = b.content.autoplay === true ? ' autoplay muted playsinline' : '';
         const videoWarning = adocIsLocalVideoUrl(b.content.url)
           ? '<p class="adoc-sc-video-warning">Vidéo locale — nécessite que le serveur vidéo tourne sur cet ordinateur.</p>'
           : '';
         return '<figure class="adoc-sc-block adoc-sc-video' + statusClass + '" id="' + adocEsc(b.id) + '"' + videoStyleAttr + '>' +
-          '<video controls src="' + videoUrl + '" style="width:100%;border-radius:8px;display:block;background:#000;"></video>' +
+          '<video controls' + videoLoopAttr + videoAutoplayAttr + ' src="' + videoUrl + '" style="width:100%;border-radius:8px;display:block;background:#000;"></video>' +
           '<figcaption class="adoc-sc-video-caption">' + videoTitle + ' — <a href="' + videoUrl + '" target="_blank" rel="noopener noreferrer">' + videoUrl + '</a></figcaption>' +
           videoWarning +
           dragHandle + nestedResizeHandle + '</figure>';
@@ -17656,7 +17698,9 @@ ${recent}`;
     if (block.type === 'list') fields += field('Éléments (un par ligne)', (c.items || []).join('\n'), true) + '<label><input type="checkbox" data-deep-dive-field="Numérotée"' + (c.ordered ? ' checked' : '') + '> Liste numérotée</label>';
     if (block.type === 'table') fields += field('En-têtes (séparés par |)', (c.headers || []).join(' | '), false) + field('Lignes (une par ligne, cellules séparées par |)', (c.rows || []).map(function (row) { return row.join(' | '); }).join('\n'), true);
     if (block.type === 'image') fields += field('Recherche image', c.query, false) + field('Texte alternatif', c.alt, false);
-    if (block.type === 'video') fields += field('URL', c.url, false) + field('Titre vidéo', c.title, false);
+    if (block.type === 'video') fields += field('URL', c.url, false) + field('Titre vidéo', c.title, false) +
+      '<label><input type="checkbox" data-deep-dive-field="Lecture automatique"' + (c.autoplay === true ? ' checked' : '') + '> Lecture automatique (démarre sans son)</label>' +
+      '<label><input type="checkbox" data-deep-dive-field="Lecture en boucle"' + (c.loop === true ? ' checked' : '') + '> Lecture en boucle</label>';
     const label = (ADOC_BLOCK_INSERT_TYPES.find(function (item) { return item.type === block.type; }) || {}).label || block.type;
     return '<section class="cc-deep-dive-block" data-deep-dive-block-id="' + adocEsc(block.id) + '" data-deep-dive-block-type="' + adocEsc(block.type) + '"><strong>' + adocEsc(label) + '</strong>' +
       '<div class="cc-deep-dive-block-actions"><button type="button" onclick="adocWorkspaceDeepDiveMoveBlock(this,-1)" aria-label="Monter ce bloc">↑</button>' +
@@ -17811,7 +17855,11 @@ ${recent}`;
           else if (type === 'list') content = { items: nonEmpty('Éléments (un par ligne)').split('\n').map(function (item) { return item.trim(); }).filter(Boolean), ordered: !!form.querySelector('[data-deep-dive-field="Numérotée"]')?.checked };
           else if (type === 'table') content = { headers: nonEmpty('En-têtes (séparés par |)').split('|').map(function (cell) { return cell.trim(); }), rows: value('Lignes (une par ligne, cellules séparées par |)').split('\n').filter(Boolean).map(function (row) { return row.split('|').map(function (cell) { return cell.trim(); }); }) };
           else if (type === 'image') content = Object.assign({}, original?.content || {}, { query: nonEmpty('Recherche image'), alt: nonEmpty('Texte alternatif') });
-          else if (type === 'video') content = { url: nonEmpty('URL'), title: nonEmpty('Titre vidéo') };
+          else if (type === 'video') {
+            content = { url: nonEmpty('URL'), title: nonEmpty('Titre vidéo') };
+            if (form.querySelector('[data-deep-dive-field="Lecture automatique"]')?.checked) content.autoplay = true;
+            if (form.querySelector('[data-deep-dive-field="Lecture en boucle"]')?.checked) content.loop = true;
+          }
           else throw new Error('Type de bloc inconnu : ' + type);
           return Object.assign({}, original || {}, { id: id, type: type, content: content });
         });
@@ -21910,7 +21958,8 @@ ${recent}`;
     { type: 'image', label: 'Image' },
     // Panneau "Médias", sous-onglet "Vidéos" — même schéma que le catalogue de types ci-dessus,
     // jamais un type inventé (block.schema.json, videoBlock/videoContent).
-    { type: 'video', label: 'Vidéo' },
+    { type: 'video', label: 'Vidéo', variant: 'manual' },
+    { type: 'video', label: 'Vidéo automatique', variant: 'autoplay' },
   ];
 
   // New blocks retain descriptive placeholders; 57f also accepts empty text while editing.
@@ -22850,7 +22899,9 @@ ${recent}`;
         panel.className = 'cc-clarity-card cc-block-edit-panel';
         panel.setAttribute('role', 'group'); panel.setAttribute('aria-label', 'Bloc sélectionné pour redimensionnement');
         panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(adocBlockPreviewText(block) || block.type)) +
-          '<p>Glissez une des huit poignées pour redimensionner ce bloc.</p>' + adocBlockSurfaceControlsHTML();
+          '<p>Glissez une des huit poignées pour redimensionner ce bloc.</p>' +
+          (block.type === 'video' ? adocVideoPlaybackControlsHTML(block) : '') +
+          adocBlockSurfaceControlsHTML();
         adocMountContextualBlockEditPanel(panel, blockEl);
         window._adocBlockEditState = { storeKey: storeKey, blockId: blockId, panelEl: panel, originalBlock: block, zone: 'resize' };
         adocRefreshBlockSurfaceControls();
@@ -23624,7 +23675,7 @@ ${recent}`;
     return '<div class="cc-block-edit-label">Type de bloc à insérer ' + positionLabel + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">' +
         ADOC_BLOCK_INSERT_TYPES.map(function (t) {
-          return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocChooseBlockInsertType(\'' + direction + '\',\'' + t.type + '\')">' + adocEsc(t.label) + '</button>';
+          return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocChooseBlockInsertType(\'' + direction + '\',\'' + t.type + '\',\'' + (t.variant || '') + '\')">' + adocEsc(t.label) + '</button>';
         }).join('') +
       '</div>' +
       '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelBlockCorrection()">Annuler</button></div>';
@@ -23654,7 +23705,7 @@ ${recent}`;
   // requête/l'alt ne peuvent pas être vides, cf. schéma et mécanisme de résolution existant) ;
   // pour tout autre type, création immédiate — pas d'étape supplémentaire nécessaire, le
   // panneau de correction déjà existant prend le relais juste après (étape 3).
-  window.adocChooseBlockInsertType = function (direction, type) {
+  window.adocChooseBlockInsertType = function (direction, type, variant) {
     const st = window._adocBlockEditState;
     if (!st.storeKey || !st.panelEl) { alert('Insertion impossible : sélectionnez un bloc à nouveau.'); return; }
     if (type === 'image') {
@@ -23713,20 +23764,23 @@ ${recent}`;
     // une ligne de cette grille crée le VRAI bloc vidéo (adocInsertVideoBlockWithLink), jamais
     // "Ajouter" lui-même — même distinction que Photos entre "Rechercher" et "Insérer".
     if (type === 'video') {
+      variant = variant === 'autoplay' ? 'autoplay' : 'manual';
+      const automatic = variant === 'autoplay';
       const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
       if (!resultEl) { alert('Insertion impossible : panneau indisponible. Sélectionnez le bloc à nouveau.'); return; }
       resultEl.innerHTML =
-        '<div class="cc-block-edit-label">Lien de la vidéo (serveur vidéo local)</div>' +
+        '<div class="cc-block-edit-label">' + (automatic ? 'Vidéo automatique — elle démarrera sans son' : 'Vidéo — lecture lancée par l’utilisatrice') + '</div>' +
+        '<div class="cc-block-edit-label" style="margin-top:6px;">Lien de la vidéo (serveur vidéo local)</div>' +
         '<input type="text" class="cc-block-edit-freetext adoc-textarea" id="cc-block-video-url-input" placeholder="http://localhost:47823/..." ' +
           'onclick="event.stopPropagation();" onkeydown="event.stopPropagation();" />' +
         '<div class="cc-block-edit-label" style="margin-top:6px;">Titre</div>' +
         '<input type="text" class="cc-block-edit-freetext adoc-textarea" id="cc-block-video-title-input" placeholder="ex. Exercice de respiration" ' +
-          'onclick="event.stopPropagation();" onkeydown="event.stopPropagation();if(event.key===\'Enter\'){event.preventDefault();window.adocBlockVideoAdd(\'' + direction + '\');}" />' +
-        '<div style="margin-top:6px;"><button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocBlockVideoAdd(\'' + direction + '\')">Ajouter</button></div>' +
+          'onclick="event.stopPropagation();" onkeydown="event.stopPropagation();if(event.key===\'Enter\'){event.preventDefault();window.adocBlockVideoAdd(\'' + direction + '\',\'' + variant + '\');}" />' +
+        '<div style="margin-top:6px;"><button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocBlockVideoAdd(\'' + direction + '\',\'' + variant + '\')">Ajouter</button></div>' +
         '<p class="cc-ws-panel-section-title cc-media-history-title">Vidéos enregistrées</p>' +
         '<div id="cc-block-video-history" class="cc-media-grid" aria-live="polite"></div>' +
         '<div style="margin-top:8px;"><button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelBlockCorrection()">Annuler</button></div>';
-      window.adocBlockVideoLoadHistory(direction);
+      window.adocBlockVideoLoadHistory(direction, variant);
       return;
     }
     window.adocConfirmBlockInsert(direction, type, '');
@@ -25041,8 +25095,11 @@ ${recent}`;
     return adocInsertStructuredBlock(direction, 'image', { query: query || label, alt: label, assetId: assetId });
   }
 
-  async function adocInsertVideoBlockWithLink(direction, url, title) {
-    return adocInsertStructuredBlock(direction, 'video', { url: url, title: title });
+  async function adocInsertVideoBlockWithLink(direction, url, title, options) {
+    const content = { url: url, title: title };
+    if (options && options.autoplay === true) content.autoplay = true;
+    if (options && options.loop === true) content.loop = true;
+    return adocInsertStructuredBlock(direction, 'video', content);
   }
 
   // LOT C (cas 4, insertion par glisser-déposer) — variante d'adocConfirmBlockInsert ci-dessus
@@ -25840,20 +25897,20 @@ ${recent}`;
   };
 
   // ── Sous-panneau d'insertion de bloc ("Insérer un bloc" → "Vidéo", adocChooseBlockInsertType) ──
-  window.adocBlockVideoLoadHistory = async function (direction) {
+  window.adocBlockVideoLoadHistory = async function (direction, variant) {
     const el = document.getElementById('cc-block-video-history');
     if (!el) return;
     try {
       window._adocBlockVideoHistoryResults = await adocVideoFetchList();
       adocVideoRenderGrid('cc-block-video-history', window._adocBlockVideoHistoryResults, {
-        insertFn: 'adocVideoInsertFromBlockPicker', deleteFn: 'adocVideoDeleteFromBlockHistory', insertArgs: ["'" + direction + "'"],
+        insertFn: 'adocVideoInsertFromBlockPicker', deleteFn: 'adocVideoDeleteFromBlockHistory', insertArgs: ["'" + direction + "'", "'" + (variant === 'autoplay' ? 'autoplay' : 'manual') + "'"],
       });
     } catch (e) {
       el.innerHTML = '<p class="cc-media-empty">Historique indisponible : ' + adocEsc(e.message) + '</p>';
     }
   };
 
-  window.adocBlockVideoAdd = async function (direction) {
+  window.adocBlockVideoAdd = async function (direction, variant) {
     const urlInput = document.getElementById('cc-block-video-url-input');
     const titleInput = document.getElementById('cc-block-video-title-input');
     const url = (urlInput && urlInput.value || '').trim();
@@ -25863,22 +25920,22 @@ ${recent}`;
       await adocVideoCreate(url, title);
       if (urlInput) urlInput.value = '';
       if (titleInput) titleInput.value = '';
-      window.adocBlockVideoLoadHistory(direction);
+      window.adocBlockVideoLoadHistory(direction, variant);
     } catch (e) {
       alert('Ajout impossible : ' + e.message);
     }
   };
 
-  window.adocVideoInsertFromBlockPicker = async function (direction, idx) {
+  window.adocVideoInsertFromBlockPicker = async function (direction, variant, idx) {
     const item = window._adocBlockVideoHistoryResults && window._adocBlockVideoHistoryResults[idx];
     if (!item) { alert('Insertion impossible : ce média est introuvable. Relancez la recherche ou l’historique.'); return false; }
     const btn = document.querySelector('#cc-block-video-history [data-video-insert="' + idx + '"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
-    const created = await adocInsertVideoBlockWithLink(direction, item.url, item.title);
+    const created = await adocInsertVideoBlockWithLink(direction, item.url, item.title, { autoplay: variant === 'autoplay' });
     if (!created && btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
   };
 
-  window.adocVideoDeleteFromBlockHistory = async function (direction, idx) {
+  window.adocVideoDeleteFromBlockHistory = async function (direction, variant, idx) {
     const item = window._adocBlockVideoHistoryResults && window._adocBlockVideoHistoryResults[idx];
     if (!item) return;
     if (!confirm('Supprimer ce lien vidéo ?')) return;

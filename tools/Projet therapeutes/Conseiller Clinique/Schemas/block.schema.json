@@ -364,7 +364,7 @@
       }
     },
     "videoContent": {
-      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — `url` pointe soit vers un lien LOCAL (servi par un programme séparé sur l'ordinateur de l'utilisatrice, ex. http://localhost:47823/...), soit, depuis le Lot Vidéo-2, vers la route de service Worker /video-assets/:id (contenu réellement stocké dans R2, table video_links dédiée — jamais render_assets, cf. migrations 0013/0014). Dans les deux cas, contrairement à imageContent, aucun champ assetId ici : ce même champ `url`, une simple chaîne, suffit à distinguer les deux cas au rendu par inspection du hostname (adocIsLocalVideoUrl, studio-clinique-core.js) — jamais un second champ de schéma pour porter cette distinction. `url` et `title` sont tous deux obligatoires et non vides : un lien sans titre n'est pas exploitable dans la grille « Vidéos enregistrées », un titre sans lien ne pointe vers rien.",
+      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — `url` pointe soit vers un lien LOCAL (servi par un programme séparé sur l'ordinateur de l'utilisatrice, ex. http://localhost:47823/...), soit, depuis le Lot Vidéo-2, vers la route de service Worker /video-assets/:id. `url` et `title` restent obligatoires. Les booléens facultatifs `autoplay` et `loop` conservent respectivement le choix « Vidéo automatique » et la lecture en boucle jusque dans l'export interactif. Pour respecter les règles des navigateurs, une vidéo automatique est rendue muette et `playsinline`; l'utilisatrice peut ensuite réactiver le son dans les contrôles natifs.",
       "type": "object",
       "required": [
         "url",
@@ -379,6 +379,12 @@
         "title": {
           "type": "string",
           "minLength": 1
+        },
+        "autoplay": {
+          "type": "boolean"
+        },
+        "loop": {
+          "type": "boolean"
         }
       }
     },
@@ -725,7 +731,7 @@
       }
     },
     "videoBlock": {
-      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — mêmes contraintes que imageBlock (id/type/content requis, additionalProperties false, style facultatif pour redimensionner le bloc dans l’atelier. Contenu via videoContent (url+title), jamais assetId — aucun fichier réel derrière un lien local (cf. commentaire de videoContent).",
+      "$comment": "Panneau « Médias », sous-onglet « Vidéos » — mêmes contraintes que imageBlock (id/type/content requis, additionalProperties false, style facultatif pour redimensionner le bloc dans l’atelier). Contenu via videoContent (url+title et options facultatives autoplay/loop), jamais assetId.",
       "type": "object",
       "required": [
         "id",

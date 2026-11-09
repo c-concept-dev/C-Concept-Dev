@@ -13,12 +13,13 @@ function sse(events) {
 function flatBlock(overrides) {
   return Object.assign({
     type: 'paragraph', text: '', level: 2, visualRole: 'info', items: [], ordered: false,
-    imageQuery: '', imageAlt: '', quizOptions: [], quizCorrectIndex: 0, quizExplanation: '',
+    imageQuery: '', imageAlt: '', questionnaireQuestions: [], questionnaireProfiles: [],
+    questionnaireTwoPartners: false, deepDiveLinks: [],
     citationEntryIds: [],
   }, overrides);
 }
 function presentationSSE(cards) {
-  const input = JSON.stringify({ title: 'Présentation — export autonome', purpose: 'formation', audience: 'praticien', cards });
+  const input = JSON.stringify({ title: 'Présentation — export autonome', purpose: 'formation', audience: 'praticien', cards, deepDives: [] });
   return sse([
     { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_standalone', name: 'emit_presentation_document' } },
     { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: input } },
@@ -41,13 +42,16 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adoc-standalone-'));
   }
   try {
     // ══════════════════════════════════════════════════════════════════════
-    // ÉTAPE 1 — génération réelle d'une Présentation (quiz + couverture + vidéo locale), puis
+    // ÉTAPE 1 — génération réelle d'une Présentation (couverture), puis ajout de deux blocs
+    // manuels pris en charge par le document (quiz + vidéo locale), avant l'export autonome.
     // génération du fichier autonome via le point d'accès réel (bouton → adocWsExportStandalonePresentation).
     // ══════════════════════════════════════════════════════════════════════
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     const liveErrors = [];
+    const browserWarnings = [];
     const KNOWN_ENV_FLAKE = "Failed to read the 'localStorage' property from 'Window': The document is sandboxed and lacks the 'allow-same-origin' flag.";
     page.on('pageerror', (e) => { if (e.message !== KNOWN_ENV_FLAKE) liveErrors.push(e.message); });
+    page.on('console', (msg) => { if (msg.type() === 'error' || msg.type() === 'warning') browserWarnings.push(msg.text()); });
     await page.addInitScript(() => localStorage.setItem('workerApiKey', 'test-key'));
     await page.goto('file://' + path.join(__dirname, '../studio-clinique.html'));
 
@@ -62,6 +66,12 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adoc-standalone-'));
         fetchImageCalls.push(q);
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ photos: [{ url: 'https://images.pexels.test/' + encodeURIComponent(q) + '.jpg' }] }) });
       }
+      if (url.endsWith('/media-assets/from-url')) {
+        const posted = route.request().postDataJSON() || {};
+        const slug = Buffer.from(String(posted.url || '')).toString('base64url').slice(0, 24) || 'image';
+        return route.fulfill({ status: 200, contentType: 'application/json',
+          body: JSON.stringify({ asset_id: 'asset-' + slug, deduplicated: false }) });
+      }
       if (url.includes('/browser-rendering/generate-carrousel-pdf')) {
         let body = {};
         try { body = route.request().postDataJSON() || {}; } catch {}
@@ -70,7 +80,17 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adoc-standalone-'));
       }
       let body = {};
       try { body = route.request().postDataJSON() || {}; } catch {}
-      if (body.payload && body.payload.tool_choice && body.payload.tool_choice.type === 'tool') {
+      if (body.payload && body.payload.tool_choice && body.payload.tool_choice.type === 'auto') {
+        return route.fulfill({ status: 200, contentType: 'text/event-stream', body: [
+          { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+          { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Entendu.' } },
+          { type: 'content_block_stop', index: 0 },
+          { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
+          { type: 'message_stop' },
+        ].map((event) => 'data: ' + JSON.stringify(event) + '\n\n').join('') });
+      }
+      if (body.payload && body.payload.tool_choice && body.payload.tool_choice.type === 'tool'
+          && body.payload.tool_choice.name === 'emit_presentation_document') {
         return route.fulfill({ status: 200, contentType: 'text/event-stream', body: currentSSE });
       }
       // Le faux CDN sert de VRAIS octets. Depuis l'embarquement des images, l'export ne se
@@ -78,6 +98,10 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adoc-standalone-'));
       // placer dans le fichier. Sans octets ici, l'export embarquerait l'aplat de repli —
       // comportement correct en cas d'échec, mais qui ne prouverait pas la résolution.
       if (url.startsWith('https://images.pexels.test/')) {
+        return route.fulfill({ status: 200, contentType: 'image/png',
+          body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') });
+      }
+      if (url.includes('/brand-assets/')) {
         return route.fulfill({ status: 200, contentType: 'image/png',
           body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') });
       }
@@ -89,11 +113,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adoc-standalone-'));
         title: 'Le stress chronique', coverImageQuery: 'chronic stress illustration', coverImageAlt: 'Illustration du stress chronique',
         blocks: [
           flatBlock({ type: 'heading', text: 'Le stress chronique', level: 2 }),
-          flatBlock({
-            type: 'quiz', text: 'Quelle hormone est associée au stress chronique ?',
-            quizOptions: ['Dopamine', 'Cortisol'], quizCorrectIndex: 1,
-            quizExplanation: "Le cortisol est l'hormone de stress principale.",
-          }),
+          flatBlock({ type: 'paragraph', text: 'Le cortisol intervient dans la réponse au stress.' }),
         ],
       },
       {
@@ -115,11 +135,14 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adoc-standalone-'));
       );
       return Object.keys(window._adocArtifacts || {}).slice(-1)[0];
     });
+    if (!storeKey) {
+      console.error('Diagnostic génération :', await page.locator('#adoc-messages').innerText(), liveErrors, browserWarnings);
+    }
     assert.ok(storeKey, 'un artefact Présentation doit avoir été créé');
 
-    // Insère un bloc vidéo local RÉEL sur la 2e diapositive, via le mécanisme existant du panneau
-    // Médias (même convention que les tests précédents de ce projet) — jamais un objet construit à
-    // la main hors du pipeline réel.
+    // Insère les blocs manuels quiz et vidéo dans le document structuré réellement ouvert. Le quiz
+    // reste un type de document pris en charge, mais n'est volontairement plus produit par le petit
+    // schéma de génération automatique ; la vidéo est elle aussi un ajout manuel de l'éditeur.
     await page.route('**/video-links', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ videos: [{ id: 'vid-1', url: 'http://localhost:47823/seance1.mp4', title: 'Extrait de séance' }] }) }));
     const openOk = await page.evaluate((sk) => window.adocOpenWorkspace(sk), storeKey);
     assert.equal(openOk, true, 'adocOpenWorkspace doit réussir');
@@ -129,8 +152,18 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adoc-standalone-'));
     // panneau Médias (hors périmètre de ce lot) — vérifié ensuite via le VRAI rendu partagé.
     await page.evaluate((sk) => {
       const art = window._adocArtifacts[sk];
+      const slide1 = art._adocStructuredDoc.blocks[0];
       const slide2 = art._adocStructuredDoc.blocks[1];
-      slide2.content.blocks.push({ id: 'video-1', type: 'video', content: { url: 'http://localhost:47823/seance1.mp4', title: 'Extrait de séance' }, citationIds: [], validation: {} });
+      slide1.content.blocks[1] = {
+        id: 'quiz-1', type: 'quiz',
+        content: {
+          question: 'Quelle hormone est associée au stress chronique ?',
+          options: ['Dopamine', 'Cortisol'], correctIndex: 1,
+          explanation: "Le cortisol est l'hormone de stress principale.",
+        },
+        citationIds: [], validation: {},
+      };
+      slide2.content.blocks.push({ id: 'video-1', type: 'video', content: { url: 'http://localhost:47823/seance1.mp4', title: 'Extrait de séance', autoplay: true, loop: true }, citationIds: [], validation: {} });
     }, storeKey);
 
     // Capture le Blob réellement passé à adocDownloadArtifact (URL.createObjectURL), via le VRAI
@@ -295,9 +328,17 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adoc-standalone-'));
       counter: document.getElementById('cc-ws-present-counter')?.textContent,
       videoWarning: document.querySelector('#cc-ws-present-slide-inner .adoc-sc-video-warning')?.textContent,
       hasVideoTag: !!document.querySelector('#cc-ws-present-slide-inner video'),
+      videoLoops: document.querySelector('#cc-ws-present-slide-inner video')?.loop === true,
+      videoAutoplays: document.querySelector('#cc-ws-present-slide-inner video')?.autoplay === true,
+      videoMuted: document.querySelector('#cc-ws-present-slide-inner video')?.muted === true,
+      videoPlaysInline: document.querySelector('#cc-ws-present-slide-inner video')?.playsInline === true,
     }));
     check(slide2State.counter === '2 / 2', 'ÉTAPE 4 — sommaire cliquable : saut réussi vers la diapositive 2');
     check(slide2State.hasVideoTag, 'ÉTAPE 4 — le bloc vidéo est bien rendu sur la diapositive 2');
+    check(slide2State.videoLoops, 'ÉTAPE 4 — la boucle choisie dans Studio est conservée dans le HTML interactif exporté');
+    check(slide2State.videoAutoplays, 'ÉTAPE 4 — la vidéo automatique reste automatique dans le HTML interactif exporté');
+    check(slide2State.videoMuted, 'ÉTAPE 4 — la vidéo automatique exportée démarre muette pour respecter la politique autoplay de Safari');
+    check(slide2State.videoPlaysInline, 'ÉTAPE 4 — la vidéo automatique exportée reste intégrée à la diapositive');
     check(slide2State.videoWarning === 'Vidéo locale — nécessite que le serveur vidéo tourne sur cet ordinateur.',
       'ÉTAPE 4 — repli honnête vidéo locale affiché correctement (aucun travail nécessaire, déjà géré par le rendu partagé)');
 
