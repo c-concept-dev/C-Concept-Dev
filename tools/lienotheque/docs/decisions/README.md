@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-09 | Les licences se collectent par mesure, et s'embarquent dans le paquet | [2026-11-09-licences-collectees-et-embarquees.md](2026-11-09-licences-collectees-et-embarquees.md) |
 | 2026-11-09 | Le rang des deux CDC : le v2.0 dit quoi, le v24 dit où on en est | [2026-11-09-rang-des-deux-cdc.md](2026-11-09-rang-des-deux-cdc.md) |
 | 2026-11-09 | Le cahier de pilotage, et l'ordre de préséance des documents | [2026-11-09-cahier-de-pilotage-et-ordre-de-preseance.md](2026-11-09-cahier-de-pilotage-et-ordre-de-preseance.md) |
 | 2026-11-09 | Étape 0 : le paquet des moteurs doit être hermétique, et le prouver | [2026-11-09-etape-0-paquet-des-moteurs-hermetique.md](2026-11-09-etape-0-paquet-des-moteurs-hermetique.md) |

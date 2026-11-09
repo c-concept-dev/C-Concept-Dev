@@ -62,6 +62,33 @@ C'est une preuve **par contraste**, et elle valait mieux que ses 269 Mo : neuf l
 entièrement. Ce qu'elle ne dit pas reste inchangé — elle montre que l'ancien paquet **chargeait**
 depuis `/opt/homebrew`, pas qu'il **échouait** sans lui.
 
+## L'archive des moteurs : fabriquée et soumise, PAS publiée
+
+Christophe, le 9 novembre : « Archive des moteurs : fabrique-la et soumets-moi son empreinte ;
+aucune publication. » Elle est fabriquée, et rien n'est publié.
+
+| | |
+|---|---|
+| fichier | `~/Documents/Lienotheque-sauvegardes/archive-moteurs-2026-11-09/moteurs-macos-arm64-2026-11-09.tar.gz` |
+| empreinte sha256 | `024b1fca40b533876d9ab3873b00525295f284e46ce41b767143bdf0751a7e82` |
+| poids | 96 Mo comprimés, 269 Mo déployés, 141 entrées |
+| contenu | le paquet des moteurs **entier**, tel que l'application le porte : `bin` (tesseract, node, sf, et les deux binaires annexes), `lib` (15 bibliothèques), `tessdata`, `siegfried`, `licences`, `chaine` |
+
+**Pourquoi entier, et non réduit au seul lecteur.** La dernière case de l'étape 0 demande que la CI
+macOS lise « avec le **même programme** que l'application ». Une archive amputée de `node` et de la
+chaîne pèserait 55 Mo au lieu de 96, mais la CI lirait alors les PDF natifs avec le Node du coureur
+— exactement la sorte d'écart que la dette D1 décrit. L'archive porte donc les mêmes octets que le
+paquet, sans exception.
+
+**Éprouvée, et pas seulement pesée.** Déployée dans un dossier neuf et vide, elle rend le paquet
+`diff -r` muet, fichier par fichier ; le `tesseract` extrait démarre et annonce 5.5.1 /
+leptonica 1.86.0 ; et le relevé des références donne **0** chargement hors du paquet. Une empreinte
+d'archive ne prouve rien si l'archive ne se redéploie pas.
+
+**Ce qui n'est pas fait, et attend son mot** : la publication en *release*, et l'inscription de
+cette empreinte dans `fixtures/moteurs-de-lecture.json`. Épingler l'empreinte d'un objet qui n'est
+à aucune adresse ferait une donnée que rien ne peut vérifier.
+
 ## Ce qui est tenu, et ce qui ne l'est pas
 
 Tenu, par `28baedaf` (intégration continue 42540275093 verte) : la préparation réécrit sur le nom

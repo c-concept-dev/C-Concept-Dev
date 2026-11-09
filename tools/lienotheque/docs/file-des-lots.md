@@ -26,6 +26,8 @@ voie recette avant A1b ».
 | — | — *garde-fou, § 4.6* | garde-fou des promesses | technique | commité, né en parallèle, à tort |
 | 0a | — *garde-fou, § 4.3* | garde-fou « **aucun fichier suivi n'importe un fichier non suivi** » | technique — empêche la récidive de l'incident du 7 novembre | **fait** le 7 novembre 2026, `3905891b` — le garde-fou est lancé sur l'index par le crochet du lot 0c, à chaque commit |
 | 0b | **0** — absorbé par sa dernière case (voie 3) | **installer Tesseract et ses langues sur les machines de la CI**, pour que les 92 contrôles de lecture y tournent. Mesure : combien de contrôles sautés restent ensuite, et lesquels | technique — rend la CI juge des contrôles qui lisent des pages | **écarté** le 9 novembre 2026, absorbé par la dernière case de l'étape 0 : voie 1 (pas de Tesseract sur la CI) puis voie 3 (archive de release, empreinte vérifiée). Voir [la décision](decisions/2026-11-09-tesseract-sur-la-ci-voie-1-puis-voie-3.md) |
+| 0d | **0** | **textes de licence** de tout ce que le paquet redistribue, collectés par mesure (le Cellar de Homebrew nomme la formule et la version ; trois textes viennent de l'amont à empreinte épinglée) et embarqués dans l'application | **étape 0**, dette D2 | **fait** le 9 novembre 2026 — 17 composants, 30 textes, 356 ko ; garde-fou `licences-embarquees` qui part des fichiers présents et non d'une liste. Voir [la décision](decisions/2026-11-09-licences-collectees-et-embarquees.md) |
+| 0e | **0** | **archive des moteurs** : la fabriquer, l'éprouver par redéploiement, la publier en release et épingler son empreinte dans `fixtures/moteurs-de-lecture.json`, pour que la CI macOS lise avec le même programme que l'application | **étape 0**, dernière case ; absorbe le lot 0b | **fabriquée et soumise** le 9 novembre 2026 — 96 Mo, `sha256 024b1fca…`, redéploiement `diff -r` muet, 0 chargement hors du paquet. **Publication non faite : porte de Christophe.** L'empreinte n'est pas encore épinglée, un objet sans adresse ne se vérifiant pas |
 | 0c | — *garde-fou, § 4.6* | **crochet de pré-commit** : les garde-fous rapides (fichiers fantômes, fuites, vocabulaire) passés sur l'**index** avant CHAQUE commit, commits d'autorisation compris. Contrôle rouge : un commit fautif doit être refusé | technique — remplace une lecture attentive par une mécanique | **fait** le 7 novembre 2026, `0f572722` — le crochet juge l'index de CHAQUE commit |
 | 1 | **1** | **branchement Vision** : port des repères, remontée à Vérifier, borne de fin, deux étages, retrait de la copie | **A2** | en cours, **après 0a et 0b**. **À la remise depuis la sauvegarde, attendre des conflits** sur les trois édits de la cause « exploration interrompue », déjà commités avec l'entrée 14 : les résoudre en gardant **une seule** version, puis prouver par les contrôles de la cause **et** ceux d'A2 que rien n'est perdu ni doublé. Consigne de Christophe du 8 novembre 2026 |
 | 2 | **1** | mesure 48 → 52 par la chaîne, à blanc, hors bibliothèque | **A2** | en attente du 1 |
@@ -51,8 +53,11 @@ voie recette avant A1b ».
 Reporter sans nommer, c'est oublier. Ces travaux portent leur nom dans le cahier de pilotage et
 **aucune ligne ci-dessus** :
 
-- **étape 0**, deux cases sur cinq : les **textes de licence** embarqués dans l'application et
-  dans l'archive, et l'**archive des moteurs** publiée en release avec son empreinte — la
-  publication est une porte de Christophe, deux fois ;
+- **étape 0** : les deux cases qui restaient portent désormais les lots **0d** et **0e**
+  ci-dessus. Il ne reste de l'étape 0 que ce qui appartient à Christophe — la **publication** de
+  l'archive — et ce qui en découle : l'empreinte épinglée, et la CI macOS lisant avec le même
+  programme que l'application. Deux écarts signalés et non tranchés : le paquet de l'application
+  n'emporte **pas** Siegfried, que la règle 3.6 nomme ; et les conditions des licences elles-mêmes
+  (attribution, copyleft de `liblzma` et de `lz4`) restent à lire ;
 - **étape 9** — intégration de toutes les méthodes, famille par famille ;
 - **étape 10** — Prof de Basse et Studio Clinique par les jetons C3.
