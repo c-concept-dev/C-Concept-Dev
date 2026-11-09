@@ -15,7 +15,10 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  # A second run can be started when Generate Index finishes.  Let the first
+  # deployment complete instead of cancelling it inside actions/deploy-pages:
+  # cancelling that step can leave the Pages environment locked for minutes.
+  cancel-in-progress: false
 
 jobs:
   deploy:
