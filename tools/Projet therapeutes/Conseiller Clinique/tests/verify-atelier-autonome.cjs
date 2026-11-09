@@ -39,7 +39,7 @@ const server = http.createServer((req, res) => {
   });
   await page.goto(`http://127.0.0.1:${server.address().port}/atelier-diapos.html`, { waitUntil: 'networkidle' });
   await page.locator('#am-workbench').waitFor({ state: 'visible' });
-  assert.equal(await page.title(), 'Atelier Diapos');
+  assert.equal(await page.title(), 'Trame — images, voix, rythme');
   assert.deepEqual(await page.evaluate(() => window.__anciensEcransVus), []);
   assert.equal(await page.locator('text=Studio Clinique').count(), 0);
   assert.equal(await page.locator('#cc-login-screen,#cc-landing,#assistdoc-screen').count(), 0);
