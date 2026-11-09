@@ -1,14 +1,14 @@
 # Liénothèque — Cahier des charges de pilotage
 
-**Version 25.1 — 9 novembre 2026**
+**Version 25.2 — 9 novembre 2026**
 Rédigé à partir des sessions du 3 au 9 novembre 2026 (Christophe, Claude, Claude Desktop).
-La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20).
+La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`.
 
 ---
 
 ## 0. Comment lire ce document
 
-Ce cahier ne remplace pas le CDC v24 (`cdc-audit-complet-24.md`), qui reste la référence **fonctionnelle**. Il le complète sur trois points :
+Ce cahier ne remplace ni le **CDC normatif v2.0** (la liste numérotée des exigences, 135 identifiants, citée par les noms de contrôles) ni le **CDC v24** (`cdc-audit-complet-24.md`, l'audit et la reconstruction). Il les complète sur trois points :
 
 1. **la feuille de route jusqu'à la version définitive**, étape par étape, avec pour chaque étape ce que « fini » veut dire ;
 2. **les règles non négociables**, de produit et de méthode, nées des incidents des derniers jours ;
@@ -17,10 +17,11 @@ Ce cahier ne remplace pas le CDC v24 (`cdc-audit-complet-24.md`), qui reste la r
 **Ordre de préséance.** En cas de contradiction :
 1. une décision de Christophe, datée et inscrite dans `docs/decisions/` ;
 2. ce cahier ;
-3. le CDC v24 (`cdc-audit-complet-24.md`) — **à verser dans le dépôt** (`docs/`), il n'y est pas encore (dette D18) ;
-4. l'archive gelée `docs/decisions.md` (historique jusqu'au **7 novembre inclus**).
+3. le **CDC normatif v2.0** : ce que le produit doit faire, exigence par exigence (les noms de contrôles citent ses identifiants) ;
+4. le **CDC v24** (`docs/cdc-audit-complet-24.md`) : l'audit, l'état constaté et la reconstruction ;
+5. l'archive gelée `docs/decisions.md` (historique jusqu'au **7 novembre inclus**).
 
-Le « CDC normatif v2.0 » cité par `CLAUDE.md` emploie les mêmes identifiants d'exigences (CLA-01, REC-07, OUT-15…). Son rang par rapport au v24 reste à établir (dette D18) ; d'ici là, une divergence entre les deux se signale.
+Les deux CDC ne sont pas deux versions l'une de l'autre : le v2.0 dit **quoi**, le v24 dit **où on en est**. Une exigence du v2.0 ne se modifie que par une décision datée.
 
 Une contradiction se **signale** à Christophe ; elle ne se tranche jamais en silence.
 
@@ -147,7 +148,7 @@ Une recommandation de Claude **n'est jamais** une autorisation. Une autorisation
 | crochet `PreToolUse` de Claude Code | refuse `git reset --hard`, `git stash`, `git clean`, `git checkout … --`, `git restore` sur chemins, `push --force`, `add -A`/`.`, `rm -rf`, `--no-verify` — **un filet, pas un mur** |
 | garde-fou des fuites | refuse PDF, MP3 et sorties de mesure dans le dépôt public |
 | garde-fou des réglages actifs | la copie où la session lit ses réglages = la version de référence. **Attention** : les fichiers de `.claude/` ne sont aujourd'hui suivis par Git nulle part ; le crochet `PreToolUse` n'existe que sur cette machine (dette D19) |
-| `paquet-hermetique` | aucun binaire embarqué ne charge de bibliothèque hors du paquet (né le 8 novembre, vert sur la CI) |
+| `paquet-hermetique` | aucun binaire embarqué ne charge de bibliothèque hors du paquet (né le 9 novembre, `28baedaf`, vert sur la CI) |
 | garde-fou de l'archive gelée | refuse toute modification de `docs/decisions.md` |
 | garde-fou des épingles | ne tolère que les échecs épinglés ; une épingle dont le contrôle passe est périmée |
 | fidélité de lecture | fichiers de langue et version de Tesseract identiques à ceux de l'application, rouge en cas d'écart, **jamais d'ajustement de l'attendu** |
@@ -308,7 +309,7 @@ Chaque dette porte sa raison et l'étape où elle doit être levée. Aucune ne d
 | D4 | 82 seuils de jugement écrits en dur (34 géométriques, 12 de lecture, 34 de structure, 2 d'alphabet), dont `LIGNES_POUR_UNE_COLONNE = 4` (priorité haute) et les huit poids de l'associateur | au fil des étapes 3 à 7 |
 | D5 | Six seuils suspects d'être inversés par rapport à leur nom (`PENALITE_SAUT_CORROBORE`, `ACCORD_SUR`, `PRIME_DERNIERE`, `SEUIL_LISIBILITE`, `FEUILLES_A_DEUX_FOLIOS`, `PAGE_MAX`/`PAGE_MAXIMUM`) | à vérifier, étape 3 |
 | D6 | « Rangées fantômes » de `rangeesDeTable` | avec l'étape 3 |
-| D7 | Tests proches de leur délai (« vignette et aperçu (OUT-04, OPT-05) > tient le plafond dans les deux sens » ~×1,6 sur la CI) ; garde-fou des marges à écrire (entrée 16) | prochainement |
+| D7 | Tests proches de leur délai : le plus court mesuré est « compte des pages, et n'en double pas le nombre sur une feuille double » (OUT-05, OUT-15), 2 770 ms pour 5 000, soit ×1,81. (Le ×1,6 attribué à « tient le plafond dans les deux formats » était faux : son délai est de 3 600 000.) Garde-fou des marges à écrire, qui lit le délai réel de chaque contrôle (entrée 16) | prochainement |
 | D8 | Clé du cache de lecture fondée sur chemin + taille + date, et non sur le contenu | plus tard |
 | D9 | Épingle F3 (`critere-f3-orphelins-93-98`) : levée par la voie oracle + confirmation lien par lien | Étape 4 |
 | D10 | Épingle « Tesseract absent » : levée par le repli correct quand Tesseract manque | Étape 1 |
@@ -319,7 +320,7 @@ Chaque dette porte sa raison et l'étape où elle doit être levée. Aucune ne d
 | D15 | « Assez de mots » du redressement rapporté à la page médiane : peut refuser une page couchée peu dense dans un document mixte | quand un tel cas sera au banc |
 | D16 | Numérisations partielles de certains Aebersold (sections Bb, Eb, clé de fa absentes) : fait de contenu, pas de code | aucune action logicielle |
 | D17 | Le crochet de pré-commit n'existe que sur la branche de travail ; la copie principale (sur `main`) n'est pas protégée | à la fusion dans `main` |
-| D18 | Le CDC v24 (rang 3 de la préséance) n'est pas dans le dépôt ; le « CDC normatif v2.0 » de `CLAUDE.md` coexiste sans rang établi | verser le v24 dans `docs/`, puis Christophe tranche le rang du v2.0 |
+| D18 | Rang des deux CDC tranché (v2.0 au rang 3, v24 au rang 4). Le v24 est versé ; le **CDC normatif v2.0 n'est pas encore dans le dépôt** (il est désigné par une adresse d'artefact) | verser le v2.0 dans `docs/`, intact |
 | D19 | Les fichiers de `.claude/` (réglages, crochet `PreToolUse`) ne sont suivis par Git nulle part ; le garde-fou des réglages actifs compare une copie non suivie ; un clone neuf n'a pas le crochet | versionner `.claude/` dans le dépôt et faire comparer le garde-fou à la version commitée |
 | D20 | Les décisions du 8 et du 9 novembre (voie 1 puis voie 3 pour Tesseract, étape 0 autorisée, ce cahier) n'ont pas encore leur fichier dans `docs/decisions/` | immédiatement |
 
