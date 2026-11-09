@@ -31990,7 +31990,7 @@ mediabunny/dist/modules/src/index.js:
   const $ = id => document.getElementById(id);
   const state = { tracks: [], sources: [], copiedSource: null, images: [], cuts: [], total: 0, playing: false, started: 0,
     previewAt: 0, raf: 0, bitmap: null, bitmapIndex: -1, exporting: false,
-    selectedId: null, zoom: 20, transitions: [], selectedTransition: 1, previewRequest: 0,
+    selectedId: null, zoom: 20, annexZoom: 1, transitions: [], selectedTransition: 1, previewRequest: 0,
     master: {voice: {db: 0, muted: false}, music: {db: 0, muted: false}} };
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const time = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -32000,6 +32000,8 @@ mediabunny/dist/modules/src/index.js:
   const selected = () => state.tracks.find(t => t.id === state.selectedId);
   const clipLength = t => t.out - t.in;
   const dbGain = db => Math.pow(10, db / 20);
+  const trackColors = ['#0072B2','#D55E00','#009E73','#CC79A7','#E69F00','#56B4E9','#7A5195','#8C564B'];
+  const nextTrackColor = kind => trackColors[state.sources.filter(s => s.kind === kind).length % trackColors.length];
   function voiceLevel(buffer, inSeconds=0, outSeconds=buffer.duration) {
     const channels=Array.from({length:buffer.numberOfChannels},(_,i)=>buffer.getChannelData(i));
     const frame=Math.max(1,Math.round(buffer.sampleRate*0.1)),stride=Math.max(1,Math.floor(buffer.sampleRate/8000));
@@ -32048,11 +32050,11 @@ mediabunny/dist/modules/src/index.js:
     #am-workbench.am-focused h2{font-size:23px;margin:0}
     #am-workbench.am-focused .am-toolbar{margin:0}
     #am-workbench.am-focused .am-toolbar-row.am-edit{padding-top:3px}
-    #am-workbench.am-focused .am-grid{flex:0 0 clamp(170px,20dvh,235px)}
-    #am-workbench.am-focused .am-sources{flex:0 0 clamp(105px,14dvh,175px);height:auto}
+    #am-workbench.am-focused .am-grid{flex:0 0 clamp(185px,23dvh,250px)}
+    #am-workbench.am-focused .am-sources{flex:0 0 clamp(190px,24dvh,270px);height:auto}
     #am-workbench.am-focused .am-master{margin:0}
     #am-workbench.am-focused .am-master-picker{min-height:24px}
-    #am-workbench.am-focused .am-timeline,#am-workbench.am-focused .am-steps-panel{min-height:165px;flex:1 1 165px}
+    #am-workbench.am-focused .am-timeline,#am-workbench.am-focused .am-steps-panel{min-height:125px;flex:0 0 clamp(130px,17dvh,165px)}
     #am-workbench.am-focused .am-timeline{padding:7px 10px}
     #am-workbench.am-focused .am-lane{height:42px}
     #am-workbench.am-focused .am-lane-name{top:11px}
@@ -32093,8 +32095,8 @@ mediabunny/dist/modules/src/index.js:
     .am-tick{position:absolute;top:0;transform:translateX(-50%);border-left:1px solid #9a938a;padding-left:4px;height:25px}
     .am-lane{height:48px;border-bottom:1px solid #d5cec2;background:repeating-linear-gradient(to right,transparent 0,transparent calc(10% - 1px),#d5cec2 calc(10% - 1px),#d5cec2 10%)}
     .am-lane-name{position:absolute;right:calc(100% + 10px);top:13px;width:100px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;font-weight:700;color:#183b3d}
-    .am-clip{position:absolute;top:8px;height:31px;border-radius:5px;background:#1f5053;color:#fff;padding:7px 8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;cursor:grab;touch-action:none;box-shadow:0 2px 5px #102f3130}
-    .am-clip[data-kind=music]{background:#8a3f29}.am-clip:active{cursor:grabbing}
+    .am-clip{position:absolute;top:8px;height:31px;border-radius:5px;background:var(--track-color,#1f5053);color:#fff;padding:7px 8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:11px;cursor:grab;touch-action:none;box-shadow:0 2px 5px #102f3130}
+    .am-clip[data-kind=music]{background:var(--track-color,#8a3f29)}.am-clip:active{cursor:grabbing}
     .am-clip[data-selected=true]{outline:3px solid #e6b15c;outline-offset:1px}
     .am-clip .am-envelope{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
     #am-workbench .am-source-remove{padding:0 3px;border:0;background:transparent;color:#806e65;font-size:11px;line-height:1;opacity:.65}
@@ -32106,14 +32108,17 @@ mediabunny/dist/modules/src/index.js:
     .am-master-picker>span{font-size:12px;color:#52615f}
     #am-workbench .am-master-picker button{padding:5px 8px;font-size:11px;flex:0 0 auto}
     #am-workbench .am-master-picker button[aria-pressed=true]{background:#1f5053;color:#fff}
+    .am-zone-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px;flex-wrap:wrap;font-size:12px}.am-zone-head h3{margin:0;font:700 15px/1.2 -apple-system,system-ui,sans-serif}.am-zoom-tools{display:flex;align-items:center;gap:5px}.am-zoom-tools input[type=range]{width:150px}.am-zoom-tools output{min-width:46px;text-align:right}
+    #am-workbench .am-zoom-tools button{padding:5px 8px;font-size:12px}
     .am-sources{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:0 0 205px;height:205px;min-height:0}
     .am-source-lane{border:1px solid #c9c3b8;border-radius:9px;padding:7px 8px;overflow:auto;min-height:0;background:#f6f2ea;font-size:13px}
-    .am-source-lane strong{display:block;margin-bottom:6px}.am-source-list{display:flex;gap:7px;flex-direction:column;align-items:stretch}
-    .am-source-clip{background:#e4efee;color:#17393b;border:1px solid #1f5053;border-radius:8px;padding:7px;cursor:grab;display:grid;gap:4px;min-width:0}
-    .am-source-clip[data-kind=music]{background:#f3e5df;border-color:#8a3f29;color:#652c1c}.am-source-clip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .am-source-lane strong{display:block;margin-bottom:6px}.am-source-list{display:flex;gap:7px;flex-direction:column;align-items:flex-start;min-width:100%}.am-source-paste{position:sticky;left:0;top:0;z-index:4;align-self:flex-start;background:#fff7df!important;box-shadow:0 2px 6px #0002}
+    .am-source-clip{width:calc(100% * var(--annex-zoom,1));background:#e4efee;background:color-mix(in srgb,var(--track-color,#1f5053) 13%,white);color:#17393b;border:2px solid var(--track-color,#1f5053);border-radius:8px;padding:7px;cursor:grab;display:grid;gap:4px;min-width:100%}
+    .am-source-clip[data-kind=music]{background:#f3e5df;background:color-mix(in srgb,var(--track-color,#8a3f29) 13%,white);border-color:var(--track-color,#8a3f29);color:#4f2d22}.am-source-clip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .am-track-badge{display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 5px;border-radius:12px;background:var(--track-color);color:#fff;font-size:11px;font-weight:800;flex:0 0 auto}
     .am-source-head,.am-source-actions{display:flex;align-items:center;gap:5px;min-width:0}.am-source-head span{flex:1;font-weight:700}.am-source-actions{flex-wrap:wrap}
     .am-source-wave{width:100%;height:30px;display:block;background:#fffdf9;border-radius:4px;cursor:crosshair;touch-action:manipulation}
-    .am-source-cut-time{font-size:11px;white-space:nowrap}.am-source-clip input[type=number]{width:58px;min-width:0;padding:3px;border:1px solid #83918c;border-radius:4px}
+    .am-source-cut-time{font-size:11px;white-space:nowrap}.am-source-clip input[type=number]{width:72px;min-width:0;padding:3px;border:1px solid #83918c;border-radius:4px}
     #am-workbench .am-source-clip button{padding:4px 7px;font-size:11px;background:#fffdf9;border-color:currentColor}
     #am-workbench .am-source-clip .am-source-remove{padding:0 3px;border:0;background:transparent;color:inherit;font-size:12px;opacity:.7}
     #am-workbench .am-source-clip .am-source-remove:hover{opacity:1;background:transparent;color:inherit}
@@ -32153,23 +32158,24 @@ mediabunny/dist/modules/src/index.js:
     <label style="font-size:12px">Baisse musique sous la voix <select id="am-duck"><option value="0.126">−18 dB</option><option value="0.251">−12 dB</option><option value="1">Aucune</option></select></label>
     <label style="font-size:12px" title="Ajuste les fichiers voix à un niveau moyen proche de −20 dBFS, sans pousser leurs crêtes au-delà de −3 dBFS"><input id="am-uniform-voices" type="checkbox" checked> Uniformiser les voix</label>
     <label style="font-size:12px">Durée du film (s) <input id="am-total" type="number" min="1" step="0.1" style="width:78px" aria-label="Durée totale du film"></label>
-    <label style="font-size:12px">Zoom <input id="am-zoom" type="range" min="2" max="40" step="1" value="20" aria-label="Zoom de la chronologie"></label>
     <span id="am-clock">00:00 / 00:00</span></div></div>
     <div class="am-grid"><div class="am-panel"><div class="am-track-head"><h3>Aperçu vidéo</h3><button id="am-preview-fullscreen" type="button" title="Agrandir l’aperçu pour vérifier la synchronisation">Agrandir l’aperçu</button></div><canvas id="am-preview" width="1920" height="1080"></canvas>
       <input id="am-seek" type="range" min="0" max="1" step="0.01" value="0" aria-label="Position de lecture">
       </div>
     <div class="am-panel am-inspector"><h3>Réglages du clip sur le Master</h3><div id="am-tracks"></div></div></div>
-    <div class="am-sources" aria-label="Pistes annexes"><div class="am-source-lane" data-import-lane="voice"><strong>Annexes voix · importez ou déposez des MP3, puis glissez un clip vers le Master</strong><div class="am-source-list" data-source-lane="voice"></div></div>
-    <div class="am-source-lane" data-import-lane="music"><strong>Annexes musique · importez ou déposez des MP3, puis glissez un clip vers le Master</strong><div class="am-source-list" data-source-lane="music"></div></div></div>
+    <div class="am-zone-head"><h3>Timeline Master</h3><div class="am-zoom-tools" aria-label="Zoom précis du Master"><button id="am-zoom-out" type="button" title="Dézoomer le Master">−</button><label>Zoom Master <input id="am-zoom" type="range" min="2" max="240" step="1" value="20" aria-label="Zoom précis de la timeline Master"></label><button id="am-zoom-in" type="button" title="Zoomer le Master">+</button><button id="am-zoom-fit" type="button">Tout voir</button><output id="am-zoom-value">20 px/s</output></div></div>
     <div class="am-master"><strong>Voix Master</strong><button type="button" data-master-mute="voice">Muet</button><label>Volume <input type="range" data-master-db="voice" min="-36" max="12" value="0"></label><output id="am-voice-db">0 dB</output>
       <strong>Musique Master</strong><button type="button" data-master-mute="music">Muet</button><label>Volume <input type="range" data-master-db="music" min="-36" max="12" value="0"></label><output id="am-music-db">0 dB</output></div>
     <div id="am-master-picker" class="am-master-picker" aria-label="Sélectionner un clip du Master"></div>
-    <div id="am-transition-panel" class="am-transition-panel" hidden><strong id="am-transition-title">Transition</strong><label>Effet <select id="am-transition-type"><option value="cut">Coupe franche</option><option value="dissolve">Fondu enchaîné</option><option value="fade-black">Fondu au noir</option><option value="fade-white">Fondu au blanc</option><option value="wipe-left">Balayage à gauche</option><option value="wipe-right">Balayage à droite</option><option value="slide-left">Glisser à gauche</option><option value="slide-right">Glisser à droite</option></select></label><label>Durée <input id="am-transition-duration" type="number" min="0.1" max="5" step="0.1" value="0.6"> s</label><button id="am-transition-all" type="button">Appliquer à toutes</button><span id="am-transition-help">Cliquez sur une jonction entre deux diapositives.</span></div>
+    <div id="am-transition-panel" class="am-transition-panel" hidden><strong id="am-transition-title">Transition</strong><label>Effet <select id="am-transition-type"><option value="cut">Coupe franche</option><option value="dissolve">Fondu enchaîné</option><option value="fade-black">Fondu au noir</option><option value="fade-white">Fondu au blanc</option><option value="wipe-left">Balayage à gauche</option><option value="wipe-right">Balayage à droite</option><option value="slide-left">Glisser à gauche</option><option value="slide-right">Glisser à droite</option></select></label><label>Durée <input id="am-transition-duration" type="number" min="0.1" max="5" step="0.1" value="0.6"> s</label><button id="am-transition-all" type="button">Appliquer à toutes</button><label>Pause <input id="am-pause-duration" type="number" min="0.1" max="30" step="0.1" value="1"> s</label><button id="am-add-pause" type="button" title="Prolonger la diapositive avant cette jonction">Ajouter la pause</button><span id="am-transition-help">Cliquez sur une jonction entre deux diapositives.</span></div>
     <div class="am-bottom-tabs" role="tablist" aria-label="Vue du montage"><button id="am-view-master" type="button" role="tab" aria-selected="true">Pistes Master</button><button id="am-view-steps" type="button" role="tab" aria-selected="false">Étapes et repères · <span id="am-step-count">0</span> images</button></div>
     <div class="am-timeline" aria-label="Master final du montage"><strong>Master final · voix et musique exportées en un seul mixage</strong><div id="am-timeline-inner"><div id="am-ruler" class="am-ruler"></div><div id="am-lanes"></div></div></div>
     <div class="am-panel am-steps-panel" aria-label="Étapes et repères"><p>Réglez l’heure de début de chaque image. « Voir » affiche l’étape dans l’aperçu.</p>
       <div id="am-steps"></div><p id="am-empty">Importez une présentation pour régler ses étapes.</p>
     </div>
+    <div class="am-zone-head"><h3>Pistes annexes · coupe et copie précises</h3><div class="am-zoom-tools" aria-label="Zoom puissant des pistes annexes"><button id="am-annex-zoom-out" type="button" title="Dézoomer les annexes">−</button><label>Zoom annexes <input id="am-annex-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom puissant des pistes annexes, jusqu’à cent fois"></label><button id="am-annex-zoom-in" type="button" title="Zoomer les annexes">+</button><button id="am-annex-zoom-precision" type="button" title="Afficher dix fois plus large pour couper au centième de seconde">Précision ×10</button><button id="am-annex-zoom-fit" type="button">Tout voir</button><output id="am-annex-zoom-value">×1</output></div></div>
+    <div class="am-sources" aria-label="Pistes annexes"><div class="am-source-lane" data-import-lane="voice"><strong>Annexes voix · importez ou déposez des MP3, puis glissez un clip vers le Master</strong><div class="am-source-list" data-source-lane="voice"></div></div>
+    <div class="am-source-lane" data-import-lane="music"><strong>Annexes musique · importez ou déposez des MP3, puis glissez un clip vers le Master</strong><div class="am-source-list" data-source-lane="music"></div></div></div>
     <p id="am-status" role="status" aria-live="polite">Prêt pour l’import MP3.</p>`;
   $('cv-vignettes').before(root);
   const vignetteDetails = document.createElement('details');
@@ -32185,9 +32191,12 @@ mediabunny/dist/modules/src/index.js:
     $('am-total').value = +duration().toFixed(1);
     $('am-step-count').textContent = state.images.length;
     $('am-empty').hidden = !!state.images.length;
+    $('am-zoom-value').textContent = `${state.zoom} px/s`;
+    $('am-annex-zoom-value').textContent = `×${state.annexZoom}`;
     for (const kind of ['voice','music']) {
-      const sourceClips = state.sources.filter(s=>s.kind===kind).map(s => `<div class="am-source-clip" data-source="${s.id}" data-kind="${kind}" title="Glisser ce morceau vers le Master final"><div class="am-source-head"><span>${esc(s.name)} · ${time(s.out-s.in)}</span><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}" aria-label="Effacer la piste annexe ${esc(s.name)}" title="Effacer ce morceau annexe">×</button></div><canvas class="am-source-wave" data-source-wave="${s.id}" width="500" height="30" aria-label="Forme d’onde de ${esc(s.name)} ; cliquer pour choisir où couper" title="Cliquez sur la forme d’onde à l’endroit où couper"></canvas><div class="am-source-actions"><label class="am-source-cut-time">Coupe à <input type="number" min="0.05" max="${(s.out-s.in-0.05).toFixed(2)}" step="0.1" value="${((s.out-s.in)/2).toFixed(1)}" aria-label="Point de coupe en secondes"> s</label><button type="button" data-source-action="cut" data-source-id="${s.id}">✂ Couper ici</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce morceau au curseur sur le Master final">Placer sur Master</button></div></div>`).join('');
-      root.querySelector(`[data-source-lane="${kind}"]`).innerHTML = (sourceClips || `<span>Aucun MP3 importé. Utilisez le bouton « Importer » ci-dessus ou déposez un fichier ici.</span>`) + (state.copiedSource ? `<button type="button" data-source-action="paste" data-source-kind="${kind}">Coller</button>` : '');
+      const sourceClips = state.sources.filter(s=>s.kind===kind).map((s,index) => `<div class="am-source-clip" data-source="${s.id}" data-kind="${kind}" style="--track-color:${s.color};--annex-zoom:${state.annexZoom}" title="Glisser ce morceau vers le Master final"><div class="am-source-head"><b class="am-track-badge" style="--track-color:${s.color}" title="Couleur de cette piste">${kind==='voice'?'V':'M'}${index+1}</b><span>${esc(s.name)} · ${time(s.out-s.in)}</span><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}" aria-label="Effacer la piste annexe ${esc(s.name)}" title="Effacer ce morceau annexe">×</button></div><canvas class="am-source-wave" data-source-wave="${s.id}" width="${Math.min(16000,Math.max(500,Math.ceil(500*state.annexZoom)))}" height="30" aria-label="Forme d’onde de ${esc(s.name)} ; cliquer pour choisir où couper" title="Cliquez sur la forme d’onde à l’endroit où couper"></canvas><div class="am-source-actions"><label class="am-source-cut-time">Coupe à <input type="number" min="0.01" max="${(s.out-s.in-0.01).toFixed(2)}" step="0.01" value="${((s.out-s.in)/2).toFixed(2)}" aria-label="Point de coupe précis en secondes"> s</label><button type="button" data-source-action="cut" data-source-id="${s.id}">✂ Couper ici</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier le bloc</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce morceau au curseur sur le Master final">Placer sur Master</button></div></div>`).join('');
+      const paste = state.copiedSource ? `<button class="am-source-paste" type="button" data-source-action="paste" data-source-kind="${kind}">Coller le bloc copié ici</button>` : '';
+      root.querySelector(`[data-source-lane="${kind}"]`).innerHTML = paste + (sourceClips || `<span>Aucun MP3 importé. Utilisez le bouton « Importer » ci-dessus ou déposez un fichier ici.</span>`);
     }
     $('am-steps').innerHTML = state.images.map((im, i) => `<div class="am-step" data-step="${i}">
       <img src="${esc(im.url)}" alt=""><span>${i + 1}. ${esc(im.titre || 'Étape')} · diapositive ${(im.cardIndex || 0) + 1}</span>
@@ -32234,12 +32243,12 @@ mediabunny/dist/modules/src/index.js:
       if (t.kind!==kind) return '';
       const left = Math.min(100,t.at/total*100), length = (t.loop ? total-t.at : clipLength(t))/total*100;
       const points = t.automation || [{time:0,db:0},{time:clipLength(t),db:0}];
-      return `<div class="am-clip" data-kind="${kind}" data-clip="${i}" data-selected="${t.id===state.selectedId}" aria-disabled="${t.muted}" style="left:${left}%;width:${Math.max(0,Math.min(100-left,length))}%" title="Glisser horizontalement ou vers l’autre piste Master"><span class="am-clip-label">${esc(t.name)}</span><svg class="am-envelope" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${points.map(p=>`${p.time/clipLength(t)*100},${7+(12-p.db)/72*35}`).join(' ')}" fill="none" stroke="#f6d386" stroke-width="2"/></svg></div>`;
+      return `<div class="am-clip" data-kind="${kind}" data-clip="${i}" data-selected="${t.id===state.selectedId}" aria-disabled="${t.muted}" style="--track-color:${t.color};left:${left}%;width:${Math.max(0,Math.min(100-left,length))}%" title="Glisser horizontalement ou vers l’autre piste Master"><span class="am-clip-label">${esc(t.name)}</span><svg class="am-envelope" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${points.map(p=>`${p.time/clipLength(t)*100},${7+(12-p.db)/72*35}`).join(' ')}" fill="none" stroke="#f6d386" stroke-width="2"/></svg></div>`;
     }).join('')}</div>`).join('');
   }
   function drawWave(t, canvas) {
     const c = canvas.getContext('2d'), data = t.buffer.getChannelData(0), mid = canvas.height / 2;
-    c.clearRect(0, 0, canvas.width, canvas.height); c.fillStyle = t.kind === 'voice' ? '#1f5053' : '#8a3f29';
+    c.clearRect(0, 0, canvas.width, canvas.height); c.fillStyle = t.color || (t.kind === 'voice' ? '#1f5053' : '#8a3f29');
     const first = Math.floor(t.in * t.buffer.sampleRate), last = Math.min(data.length, Math.floor(t.out * t.buffer.sampleRate));
     const stride = Math.max(1, Math.floor((last - first) / canvas.width));
     for (let x = 0; x < canvas.width; x++) {
@@ -32280,7 +32289,7 @@ mediabunny/dist/modules/src/index.js:
           if (!buffer.duration || !Number.isFinite(buffer.duration)) throw Error('durée invalide');
           const id = crypto.randomUUID();
           const level = kind==='voice' ? voiceLevel(buffer) : {rmsDb:null,autoGainDb:0};
-          state.sources.push({id, name:file.name, file, buffer, kind, at:0, in:0,
+          state.sources.push({id, name:file.name, file, buffer, kind, color:nextTrackColor(kind), at:0, in:0,
             out:+buffer.duration.toFixed(2), db:kind === 'voice' ? 0 : -18, fadeIn:0.3, fadeOut:0.5,
             loop:false, muted:false, ...level, automation:[{time:0,db:0},{time:+buffer.duration.toFixed(2),db:0}]});
           badge(`Source « ${file.name} » prête : glissez-la vers ${kind==='voice'?'Voix':'Musique'} Master.`, false);
@@ -32308,7 +32317,7 @@ mediabunny/dist/modules/src/index.js:
       if (!source) return;
       const rect=wave.getBoundingClientRect(), seconds=(source.out-source.in)*clamp((e.clientX-rect.left)/rect.width,0,1);
       const field=wave.closest('.am-source-clip').querySelector('input[type=number]');
-      field.value=clamp(seconds,0.05,source.out-source.in-0.05).toFixed(1);
+      field.value=clamp(seconds,0.01,source.out-source.in-0.01).toFixed(2);
       badge(`Coupe choisie à ${field.value} s dans « ${source.name} ». Cliquez sur « Couper ici » pour créer deux morceaux.`,false);
       return;
     }
@@ -32324,7 +32333,7 @@ mediabunny/dist/modules/src/index.js:
     if (action==='cut' && source) {
       const field=e.target.parentElement.querySelector('input[type=number]');
       const local=+field.value,length=source.out-source.in;
-      if (!Number.isFinite(local)||local<0.05||local>length-0.05) return badge('Point de coupe hors du clip.',true);
+      if (!Number.isFinite(local)||local<0.01||local>length-0.01) return badge('Point de coupe hors du clip.',true);
       const oldOut=source.out, oldIn=source.in;
       const level=automationDb(source,local), points=source.automation;
       const right={...source,id:crypto.randomUUID(),name:source.name+' · suite',in:oldIn+local,out:oldOut,
@@ -32412,7 +32421,27 @@ mediabunny/dist/modules/src/index.js:
     const kind=e.target.dataset.masterMute; if (!kind) return;
     state.master[kind].muted=!state.master[kind].muted; updateLiveGains();render();
   };
-  $('am-zoom').oninput = e => { state.zoom=+e.target.value; renderTimeline(); };
+  function setMasterZoom(value) {
+    state.zoom=clamp(Math.round(value),2,240);
+    $('am-zoom').value=state.zoom;
+    $('am-zoom-value').textContent=`${state.zoom} px/s`;
+    renderTimeline();
+  }
+  function setAnnexZoom(value) {
+    state.annexZoom=clamp(Math.round(value*2)/2,1,100);
+    $('am-annex-zoom').value=state.annexZoom;
+    $('am-annex-zoom-value').textContent=`×${state.annexZoom}`;
+    root.querySelectorAll('.am-source-clip').forEach(clip=>clip.style.setProperty('--annex-zoom',state.annexZoom));
+  }
+  $('am-zoom').oninput = e => setMasterZoom(+e.target.value);
+  $('am-zoom-out').onclick = () => setMasterZoom(state.zoom-5);
+  $('am-zoom-in').onclick = () => setMasterZoom(state.zoom+5);
+  $('am-zoom-fit').onclick = () => setMasterZoom(clamp((root.querySelector('.am-timeline').clientWidth-160)/Math.max(1,duration()),2,240));
+  $('am-annex-zoom').oninput = e => setAnnexZoom(+e.target.value);
+  $('am-annex-zoom-out').onclick = () => setAnnexZoom(state.annexZoom-(state.annexZoom>=10?5:0.5));
+  $('am-annex-zoom-in').onclick = () => setAnnexZoom(state.annexZoom+(state.annexZoom>=10?5:0.5));
+  $('am-annex-zoom-precision').onclick = () => setAnnexZoom(10);
+  $('am-annex-zoom-fit').onclick = () => setAnnexZoom(1);
   $('am-split').onclick = () => {
     const t=selected(); if (!t) return badge('Sélectionnez un clip à couper.',true);
     if (t.loop) return badge('Désactivez la boucle avant de couper ce clip.',true);
@@ -32481,6 +32510,14 @@ mediabunny/dist/modules/src/index.js:
   $('am-transition-type').onchange = e => { const i=state.selectedTransition; state.transitions[i].type=e.target.value; renderTimeline(); seek(state.cuts[i]-transitionLength(i)/2); };
   $('am-transition-duration').onchange = e => { const i=state.selectedTransition; state.transitions[i].duration=clamp(+e.target.value||0.6,0.1,5); e.target.value=state.transitions[i].duration; seek(state.cuts[i]-transitionLength(i)/2); };
   $('am-transition-all').onclick = () => { const chosen=state.transitions[state.selectedTransition]; for(let i=1;i<state.images.length;i++) state.transitions[i]={...chosen}; renderTimeline(); badge(`Transition appliquée aux ${state.images.length-1} jonctions.`,false); };
+  $('am-add-pause').onclick = () => {
+    const i=state.selectedTransition, seconds=clamp(+$('am-pause-duration').value||1,0.1,30);
+    if(!i||i>=state.images.length)return badge('Choisissez une jonction entre deux diapositives.',true);
+    for(let j=i;j<state.cuts.length;j++)state.cuts[j]+=seconds;
+    state.total=duration()+seconds;
+    badge(`Pause de ${seconds.toFixed(1)} s ajoutée après la diapositive ${i}.`,false);
+    render();seek(Math.max(0,state.cuts[i]-seconds/2));
+  };
   $('am-lanes').onclick = e => {
     const junction=e.target.closest('[data-transition]');
     if(junction){showTransition(+junction.dataset.transition);return;}
