@@ -588,6 +588,12 @@
   let adocStatsPromise = null;
   let adocStatsAt = 0;
   function adocLoadLibraryStats() {
+    // Atelier Diapos réutilise uniquement le moteur de rendu documentaire. Sa page
+    // autonome ne doit ni contacter le Worker clinique, ni dépendre des widgets de
+    // statistiques de l'ancienne interface Studio Clinique.
+    if (document.documentElement.dataset.atelierDiaposStandalone === 'true') {
+      return Promise.resolve(null);
+    }
     if (adocStatsPromise) return adocStatsPromise;
     if (adocLibStats && Date.now() - adocStatsAt < 60000) return Promise.resolve(adocLibStats);
     const workerUrl = adocGetWorkerUrl();

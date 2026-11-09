@@ -1,0 +1,61 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
+const base = path.join(__dirname, '..');
+const html = `<!doctype html>
+<html lang="fr" data-atelier-diapos-standalone="true">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Atelier Diapos</title>
+  <style>
+    :root{--petrole:#173f42;--petrole2:#1f5053;--bleu:#147db3;--rouge:#b64b2f;--ivoire:#f6f2ea;--papier:#fffdf9;--trait:#c9c3b8;--texte:#273331;--muet:#5d6966}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--ivoire);color:var(--texte);font:16px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,select{font:inherit}button{border:2px solid var(--petrole2);border-radius:10px;background:var(--papier);color:var(--petrole);font-weight:700;padding:.6rem .85rem;cursor:pointer}button:hover{background:#eaf2f1}button:disabled{opacity:.45;cursor:not-allowed}
+    #cv-ecran{width:min(1800px,100%);margin:auto;padding:18px}.cv-entete{display:flex;align-items:center;gap:18px;justify-content:space-between;border-bottom:1px solid var(--trait);padding:0 0 12px}.cv-entete h1{font:700 clamp(25px,3vw,38px)/1.1 Georgia,serif;color:#17383a;margin:0}.cv-entete p{margin:.3rem 0 0;color:var(--muet)}
+    .cv-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.cv-export{background:#a84f34;color:white;border-color:#a84f34}.cv-import{margin:14px 0;border:1px solid var(--trait);border-radius:14px;background:var(--papier);padding:14px}.cv-import h2{font-size:18px;margin:0 0 8px}.cv-import-barre{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.cv-import-barre label{font-weight:700}.cv-import-barre input[type=number]{width:70px;padding:.45rem;border:1px solid var(--trait);border-radius:7px}
+    #cv-zone{flex:1;min-width:320px;border:2px dashed var(--petrole2);border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f7fbfa}.cv-zone-texte{font-weight:650}.cv-zone-texte small{display:block;color:var(--muet);font-weight:400}.survol{outline:4px solid #9bc9df!important;background:#eaf6fb!important}
+    #cv-message{margin-top:9px;padding:8px 10px;border-left:4px solid var(--petrole2);background:#eef5f4}.erreur{border-color:var(--rouge)!important;background:#fff1ed!important;color:#7e2e1d}.cv-progres{margin-top:8px}.cv-progres-piste{height:7px;background:#ddd;border-radius:9px;overflow:hidden}.cv-progres-piste span{display:block;height:100%;width:0;background:var(--petrole2);transition:width .15s}
+    #cv-vignettes{display:flex;gap:10px;overflow:auto;padding:10px 0}#cv-vignettes figure{margin:0;min-width:150px}#cv-vignettes img{display:block;width:150px;aspect-ratio:16/9;object-fit:contain;background:white;border:1px solid var(--trait)}#cv-vignettes figcaption{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #cv-voile{position:fixed;inset:0;background:rgba(23,63,66,.18);z-index:999;pointer-events:none}.cv-pied{color:var(--muet);font-size:12px;padding:12px 0;text-align:center}
+    @media(max-width:760px){#cv-ecran{padding:8px}.cv-entete{align-items:flex-start;flex-direction:column}#cv-zone{min-width:100%;flex-direction:column;align-items:stretch}.cv-actions{justify-content:flex-start}}
+  </style>
+  <script type="application/json" id="adoc-sc-render-manifests">{"manifest-default-001":{"id":"manifest-default-001","schemaVersion":1,"rendererVersion":"1.0.0","templateRef":{"id":"fiche-editoriale","version":1},"brandKitRef":{"id":"atelier-diapos-default","version":1},"tokensSnapshotId":"tokens-atelier-diapos-default-v1","assetsSnapshotId":null,"createdAt":"2026-09-03T09:00:00Z","manifestChecksum":"sha256:531d86a80100df4c521d59e4541e65f4f95893f807061b14511c3830521d59e4"}}</script>
+  <script type="application/json" id="adoc-sc-tokens-snapshots">{"tokens-atelier-diapos-default-v1":{"tokensSnapshotId":"tokens-atelier-diapos-default-v1","colors":{"petrol950":"#102f31","petrol900":"#173f42","petrol800":"#1f5053","petrol100":"#dce8e6","terracotta700":"#8a3f29","terracotta600":"#9b4e36","terracotta100":"#f4e5de","ink":"#273331","muted":"#5d6966","stone400":"#a9a49a","stone300":"#c9c3b8","stone200":"#ddd7cc","ivory":"#f6f2ea","paper":"#fffdf9","white":"#ffffff"},"typography":{"headingFontFamily":"Source Serif 4, Georgia, serif","bodyFontFamily":"IBM Plex Sans, system-ui, sans-serif"}}}</script>
+</head>
+<body>
+  <main id="cv-ecran">
+    <header class="cv-entete">
+      <div><h1>Atelier Diapos</h1><p>Montez simplement vos diapositives, vos voix et vos musiques.</p></div>
+      <div class="cv-actions"><button id="cv-zip" type="button" disabled>JPEG 1920 × 1080 en ZIP</button><button id="cv-mp4" class="cv-export" type="button" disabled>Exporter le film en MP4</button></div>
+    </header>
+    <section class="cv-import" aria-labelledby="cv-import-titre">
+      <h2 id="cv-import-titre">Présentation</h2>
+      <div class="cv-import-barre">
+        <div id="cv-zone" tabindex="0">
+          <span class="cv-zone-texte">Déposez ici votre présentation<small>Fichier « -interactive.html » ou document de travail JSON</small></span>
+          <button id="cv-importer" type="button">Choisir le fichier</button>
+        </div>
+        <label>Durée initiale <input id="cv-duree" type="number" min="1" max="60" step=".5" value="4"> s</label>
+        <label>Images <select id="cv-cadrage"><option value="imovie">iMovie 1920 × 1080</option><option value="fidele">Format fidèle</option></select></label>
+      </div>
+      <input id="cv-fichier" type="file" accept=".html,.htm,.json,text/html,application/json" hidden>
+      <p id="cv-message" hidden role="status"></p>
+      <div id="cv-avancement" class="cv-progres" hidden><span id="cv-avancement-texte">Préparation…</span><div class="cv-progres-piste"><span id="cv-barre"></span></div></div>
+      <div id="cv-vignettes" aria-live="polite"></div>
+    </section>
+    <footer class="cv-pied">Traitement local dans votre navigateur. Vos fichiers ne sont pas envoyés sur Internet.</footer>
+  </main>
+  <div id="cv-voile" hidden></div>
+  <script src="studio-clinique-core.js"></script>
+  <script src="atelier-images.js"></script>
+  <script src="atelier-muxer.bundle.js"></script>
+  <script src="zip-stocke.js"></script>
+  <script src="atelier-diapos-base.js"></script>
+  <script src="atelier-montage.js"></script>
+</body>
+</html>
+`;
+
+fs.writeFileSync(path.join(base, 'atelier-diapos.html'), html);
+console.log(`Atelier autonome généré (${Buffer.byteLength(html)} octets)`);

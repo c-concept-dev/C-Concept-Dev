@@ -209,6 +209,8 @@
     .am-clip-label{margin-left:20px;display:block;overflow:hidden;text-overflow:ellipsis}
     .am-master{display:flex;align-items:center;gap:7px;font-size:12px;margin:3px 0 7px;flex:0 0 auto;flex-wrap:wrap}
     .am-final-timeline-head{position:sticky;left:0;z-index:14;display:flex;align-items:center;gap:4px;min-width:600px;margin-bottom:3px;flex-wrap:nowrap;white-space:nowrap}.am-final-timeline-head>strong{font-size:11px;margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis}.am-final-timeline-head .am-master-actions{display:flex;align-items:center;gap:2px;flex:0 0 auto;flex-wrap:nowrap}.am-final-timeline-head .am-master-actions button{min-height:23px!important;padding:2px 4px!important;font-size:9px!important}.am-final-timeline-head .am-cursor-readout{font-size:10px;gap:3px}.am-final-timeline-head .am-cursor-dot{width:7px;height:7px}.am-final-timeline-head .am-command-label{font-size:9px}.am-final-timeline-head .am-command-label select{width:112px;font-size:9px;padding:2px}.am-final-timeline-head .am-zoom-tools{margin-left:2px;flex:0 0 auto;font-size:9px;gap:2px}.am-final-timeline-head .am-zoom-tools label{display:flex;align-items:center;gap:2px}.am-final-timeline-head .am-zoom-tools input[type=range]{width:68px}.am-final-timeline-head .am-zoom-tools output{font-size:9px;min-width:34px}.am-final-timeline-head .am-zoom-tools button{min-width:23px;min-height:23px!important;padding:2px 4px!important;font-size:9px!important}.am-final-timeline-head>.am-local-history{margin-left:2px}
+    .am-final-timeline-head .am-cursor-readout{min-height:23px}
+    .am-final-timeline-head #am-cursor-time{display:inline-flex;align-items:center;min-height:23px}
     .am-master input[type=range]{width:90px}.am-master strong{min-width:100px}
     .am-master-mix-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}.am-bus{display:flex;align-items:center;gap:8px;min-height:48px;padding:5px 8px;border:1px solid #c9c3b8;border-radius:9px;background:#f6f2ea}.am-bus label{display:flex;align-items:center;gap:6px}.am-bus-voice{border-left:5px solid #1f5053}.am-bus-music{border-left:5px solid #a34d30}.am-master-settings-row{align-items:flex-start;padding:4px 0;border-top:1px solid #e5ded3;border-bottom:1px solid #e5ded3}.am-master-settings-row .am-zoom-tools{margin-right:auto}.am-settings-disclosure{position:static;flex:1 1 520px;min-width:min(360px,100%);max-width:100%;border:1px solid #c9c3b8;border-radius:8px;background:#f6f2ea;padding:5px 7px;font-size:11px}.am-settings-disclosure summary{cursor:pointer;font-size:11px;line-height:1.15;font-weight:750;color:#1f5053}.am-advanced-grid{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;max-width:100%;padding-top:6px;overflow:hidden}.am-advanced-grid label{display:flex;align-items:center;gap:4px;font-size:11px;max-width:100%}.am-advanced-grid button{min-height:28px!important;padding:4px 7px!important;font-size:11px!important}
     .am-master-shell{display:block;min-height:0;flex:1}.am-master-main{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:0;height:100%;overflow:hidden}.am-master-main .am-timeline,.am-master-main .am-steps-panel{flex:1 1 auto}.am-workspace-sources .am-sources{flex:1 1 auto;height:auto;min-height:420px}
@@ -480,15 +482,20 @@
     if(local>=length-0.01)local=0;
     const ctx=new Audio(),node=ctx.createBufferSource(),gain=ctx.createGain();
     node.buffer=source.buffer;gain.gain.value=dbGain(source.db+voiceGain(source));node.connect(gain).connect(ctx.destination);
-    const audition={source,ctx,node,gain,startLocal:local,startedAt:ctx.currentTime,raf:0};sourceAudition=audition;
+    const audition={source,ctx,node,gain,startLocal:local,startedAt:ctx.currentTime,startedWall:performance.now(),raf:0};sourceAudition=audition;
     updateSourceAuditionUI(source,local,true);node.start(0,source.in+local,length-local);
     await ctx.resume();
     if(sourceAudition!==audition){try{node.stop();}catch{}ctx.close().catch(()=>{});return;}
     audition.startedAt=ctx.currentTime;
+    audition.startedWall=performance.now();
     badge(`Lecture du bloc « ${source.name} ». Le petit curseur rouge indique la position d’écoute et de scission.`,false);
     const tick=()=>{
       if(sourceAudition!==audition)return;
-      const position=Math.min(length,audition.startLocal+ctx.currentTime-audition.startedAt);
+      // Certains Safari/Chromium sans sortie audio font progresser currentTime
+      // avec retard. L'horloge monotone conserve un curseur visible et fiable,
+      // sans modifier le point de départ réel du BufferSource.
+      const elapsed=Math.max(ctx.currentTime-audition.startedAt,(performance.now()-audition.startedWall)/1000);
+      const position=Math.min(length,audition.startLocal+elapsed);
       updateSourceAuditionUI(source,position,true);
       if(position>=length-0.01){stopSourceAudition();return;}
       audition.raf=requestAnimationFrame(tick);
