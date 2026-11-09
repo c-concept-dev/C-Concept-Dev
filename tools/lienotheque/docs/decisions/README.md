@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-09 | Le rang des deux CDC : le v2.0 dit quoi, le v24 dit où on en est | [2026-11-09-rang-des-deux-cdc.md](2026-11-09-rang-des-deux-cdc.md) |
 | 2026-11-09 | Le cahier de pilotage, et l'ordre de préséance des documents | [2026-11-09-cahier-de-pilotage-et-ordre-de-preseance.md](2026-11-09-cahier-de-pilotage-et-ordre-de-preseance.md) |
 | 2026-11-09 | Étape 0 : le paquet des moteurs doit être hermétique, et le prouver | [2026-11-09-etape-0-paquet-des-moteurs-hermetique.md](2026-11-09-etape-0-paquet-des-moteurs-hermetique.md) |
 | 2026-11-09 | Tesseract sur l'intégration continue : voie 1 maintenant, voie 3 ensuite | [2026-11-09-tesseract-sur-la-ci-voie-1-puis-voie-3.md](2026-11-09-tesseract-sur-la-ci-voie-1-puis-voie-3.md) |

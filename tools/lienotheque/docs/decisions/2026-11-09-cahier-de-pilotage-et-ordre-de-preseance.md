@@ -32,6 +32,14 @@ davantage entre un de ces documents et l'état réel du dépôt.
 
 ## Le rang 3 n'est pas encore attribué
 
+> **Tranché le même jour, après l'écriture de ce fichier.** Christophe a donné le rang 3 au **CDC
+> normatif v2.0** et le rang 4 au **CDC d'audit v24** :
+> [`2026-11-09-rang-des-deux-cdc.md`](2026-11-09-rang-des-deux-cdc.md). La préséance compte donc
+> **cinq** rangs, et non quatre. **Les deux chiffres de cette section sont faux** : le v2.0 porte
+> **175** exigences, non 135, et **82** de ses identifiants sont cités dans un titre de contrôle,
+> non 78. La section reste telle qu'elle a été écrite, avec sa date ; la correction est détaillée
+> dans la décision qui la remplace.
+
 Le rang 3 dit « le CDC » au singulier, mais deux documents le revendiquent, et **Christophe
 tranchera** (dette D18) :
 

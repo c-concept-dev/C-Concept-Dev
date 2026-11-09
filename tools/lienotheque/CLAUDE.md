@@ -4,22 +4,30 @@
 retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au vrai minutage.
 
 ## Sources qui font foi
-- **Cahier des charges de pilotage**, version 25.1 du 9 novembre 2026 : `docs/cdc-pilotage.md`.
+- **Cahier des charges de pilotage**, version 25.2 du 9 novembre 2026 : `docs/cdc-pilotage.md`.
   Il porte la **feuille de route jusqu'à la version définitive** — chaque étape avec sa définition
   de « fini » —, les **règles non négociables** de produit et de méthode, et les **dettes connues**.
   Il **se relit en tête de chaque session**, avant toute décision, et **se met à jour le jour
   même** : toute étape commencée, finie ou reportée y est inscrite le jour où elle bouge.
   « Reporter sans nommer, c'est oublier » — une étape n'existe que si elle porte son nom là.
-- **Le CDC — deux documents, et leur rang reste à trancher par Christophe** (dette D18) :
-  - **CDC normatif v2.0**, la liste numérotée des exigences (ID, JOB, ANC, REC, OUT, HER, OPT, HEB,
-    SYN, RCH, UX, SEC) : https://claude.ai/code/artifact/0ea6d832-3c0c-4602-9c4d-ae3bbfcfed74.
-    Il porte **135 exigences**, dont **78 sont citées dans des noms de contrôles** du dépôt.
+- **Le CDC — deux documents, de rang différent** (tranché par Christophe le 9 novembre 2026) :
+  - **CDC normatif v2.0** : `docs/cdc-normatif-v2.0.md`. Ce que le produit **doit faire**, exigence
+    par exigence — **rang 3**. Il porte **175 exigences** numérotées, chacune définie une fois, en
+    19 familles : `ID` identités, `JOB` travaux, `ANC` ancres et liens, `REC` manières de lire,
+    `OUT` outils, `HER` fonctions héritées, `OPT` optimisation, `HEB` hébergement,
+    `SYN` synchronisation, `RCH` recherche, `UX` interface, `SEC` sécurité,
+    `CLA` classement universel, `KIT` kit de construction, `FMT` formats et ressources,
+    `PLT` plateformes, `INT` plugin d'intégration, `MCP` serveur MCP, `LIV` livraison.
+    **82** de ces identifiants sont cités dans un **titre de contrôle** du dépôt (93 si l'on compte
+    partout dans un fichier de contrôle) ; aucun contrôle ne cite d'identifiant qui n'existe pas
+    chez lui. Une exigence du v2.0 ne se modifie que par une **décision datée**.
   - **CDC d'audit v24** : `docs/cdc-audit-complet-24.md` (écrit le 4 novembre 2026 ; il contient le
-    v23 intégral). Le cahier de pilotage le nomme comme référence fonctionnelle. Il ne cite que
-    **6** des exigences numérotées du v2.0 : les deux documents ne sont pas deux versions l'un de
-    l'autre.
+    v23 intégral). **Où on en est** : l'audit, l'état constaté et la reconstruction — **rang 4**.
+    Il ne cite que **6** des exigences du v2.0 (`CLA-01`, `ID-01`, `JOB-06`, `OUT-15`, `REC-06`,
+    `REC-07`) : les deux documents ne sont pas deux versions l'un de l'autre.
 
-  D'ici le verdict de Christophe, une divergence entre les deux **se signale** et ne se tranche pas.
+  Les deux sont dans le dépôt, versés intacts. Le v2.0 est l'export Markdown d'un Claude Doc : ses
+  trois schémas embarqués y sont réduits à un texte entre crochets (lignes 78, 575 et 711).
 - **Charte graphique graphite et cuivre v3** : `docs/charte/` ; jetons sources dans
   `packages/jetons/src/tokens.json` (v3.0.1, réserves appliquées, jetons du kit inclus). Les maquettes
   sont illustratives, jamais typographiques.
@@ -27,12 +35,13 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
   comportementale des composants (états, clavier, accessibilité). On le **porte en composants React**,
   on ne le copie pas tel quel. Logo vectoriel validé : `docs/ui-kit/assets/` (emblèmes et logos
   horizontaux clair/sombre). Polices WOFF2 : `docs/ui-kit/assets/fonts/`.
-- En cas de doute entre une maquette, un ancien document et le CDC, **le CDC gagne**.
+- En cas de doute entre une maquette, un ancien document et le CDC, **le CDC normatif v2.0 gagne**.
 - **Ordre de préséance**, tel que le cahier de pilotage le décrit (§ 0). En cas de contradiction :
   1. une **décision de Christophe**, datée et inscrite dans `docs/decisions/` ;
   2. le **cahier de pilotage** ;
-  3. le **CDC** ;
-  4. l'**archive gelée** `docs/decisions.md`.
+  3. le **CDC normatif v2.0** ;
+  4. le **CDC d'audit v24** ;
+  5. l'**archive gelée** `docs/decisions.md` (historique jusqu'au 7 novembre 2026 inclus).
 
   Une contradiction se **signale** à Christophe ; elle ne se tranche **jamais** en silence — pas
   davantage entre un de ces documents et l'état réel du dépôt.
