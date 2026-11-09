@@ -40,7 +40,8 @@
     "resources": {
       "moteurs/lib": "moteurs/lib",
       "moteurs/tessdata": "moteurs/tessdata",
-      "moteurs/chaine": "moteurs/chaine"
+      "moteurs/chaine": "moteurs/chaine",
+      "moteurs/licences": "moteurs/licences"
     },
     "macOS": {
       "minimumSystemVersion": "26.0",

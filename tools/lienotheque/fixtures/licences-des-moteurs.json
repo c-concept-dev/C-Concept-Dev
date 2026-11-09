@@ -1,0 +1,54 @@
+{
+ "description": "Les textes de licence que le paquet doit embarquer, et les empreintes de ceux qui viennent de l'amont. DONNÉE, pas du code : la collecte les vérifie et s'arrête si l'un a changé. Relevé le 9 novembre 2026, dette D2 de l'étape 0.",
+ "pourquoi": "Le paquet redistribue des programmes et des bibliothèques écrits par d'autres. La règle 3.6 du cahier de pilotage demande que l'application embarque les textes de licence de tout ce qu'elle redistribue. Ce qui est sous Homebrew se lit sur la machine, et le chemin du Cellar dit à quelle formule et à quelle version appartient chaque fichier : rien n'est deviné. Ce qui n'y est pas se télécharge depuis l'amont, à version figée.",
+ "amont": {
+  "leptonica": {
+   "version": "1.86.0",
+   "url": "https://raw.githubusercontent.com/DanBloomberg/leptonica/1.86.0/leptonica-license.txt",
+   "empreinte_sha256": "87829abb5bbb00b55a107365da89e9a33f86c4250169e5a1e5588505be7d5806",
+   "octets": 1521,
+   "couvre": "libleptonica.6.dylib",
+   "pourquoi_l_amont": "la formule Homebrew de leptonica ne livre aucun texte de licence"
+  },
+  "node": {
+   "version": "24.11.1",
+   "url": "https://raw.githubusercontent.com/nodejs/node/v24.11.1/LICENSE",
+   "empreinte_sha256": "537308465103a306d0e3eecf42632b4ff1b48aaaec044e9fc10a78c81fd00b34",
+   "octets": 143310,
+   "couvre": "bin/node et son binaire annexe",
+   "pourquoi_l_amont": "node est installé hors Homebrew ; seul le texte de npm est sur la machine"
+  },
+  "siegfried": {
+   "version": "1.11.9",
+   "url": "https://raw.githubusercontent.com/richardlehane/siegfried/v1.11.9/LICENSE.txt",
+   "empreinte_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+   "octets": 11358,
+   "couvre": "bin/sf et siegfried/default.sig",
+   "pourquoi_l_amont": "siegfried vient d'une version publiée sur GitHub, pas d'une formule"
+  }
+ },
+ "si_une_empreinte_change": "La collecte doit S'ARRÊTER, pas s'adapter. Un texte de licence ne change pas tout seul : relever le nouveau, le comparer, et décider. Jamais ajuster l'attendu pour faire passer la collecte — c'est la règle du § 8 du cahier de pilotage.",
+ "attendu_dans_le_paquet": {
+  "pourquoi": "Le contrôle du dépôt lit cette liste et vérifie que chaque composant a bien son dossier de textes dans moteurs/licences. Un composant qui disparaîtrait de la collecte sans disparaître du paquet serait un fichier redistribué sans licence.",
+  "composants": [
+   "chaine",
+   "giflib",
+   "jpeg-turbo",
+   "leptonica",
+   "libarchive",
+   "libb2",
+   "libpng",
+   "libtiff",
+   "lz4",
+   "node",
+   "openjpeg",
+   "siegfried",
+   "tessdata",
+   "tesseract",
+   "webp",
+   "xz",
+   "zstd"
+  ]
+ },
+ "ce_que_ce_fichier_ne_dit_pas": "Il ne dit pas si le paquet a le DROIT de redistribuer : il dit que le texte qui l'accorde est embarqué. La lecture des conditions elles-mêmes — attribution, copyleft de liblzma et de lz4 — appartient à Christophe."
+}

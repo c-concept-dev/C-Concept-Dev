@@ -486,11 +486,22 @@ def main(argv: list[str]) -> int:
         # qui ne se chargerait pas ailleurs vaut moins que rien, il rassure.
         verifier_hermetique()
 
+    # Les licences se collectent ICI, et non « plus tard » : un paquet préparé sans elles est un
+    # paquet qu'on ne peut pas distribuer, et rien ne le dirait au moment de la distribution.
+    licences = subprocess.run(
+        [sys.executable, "-I", str(pathlib.Path(__file__).parent / "collecter-licences.py")],
+        capture_output=True,
+        text=True,
+    )
+    if licences.returncode != 0:
+        raise SystemExit(f"la collecte des licences a échoué :\n{licences.stdout}{licences.stderr}")
+
     print(controle.stdout.splitlines()[0])
     print(f"{nombre} bibliothèques embarquées, langues : {', '.join(langues)}")
     print(f"binaire annexe : {sidecar.name}")
     print(siegfried)
-    for sous in ("bin", "lib", "tessdata"):
+    print(licences.stdout.splitlines()[0])
+    for sous in ("bin", "lib", "tessdata", "licences"):
         octets = sum(f.stat().st_size for f in (MOTEURS / sous).rglob("*") if f.is_file())
         print(f"  {sous:<9} {octets / 1_000_000:7.2f} Mo")
     return 0
