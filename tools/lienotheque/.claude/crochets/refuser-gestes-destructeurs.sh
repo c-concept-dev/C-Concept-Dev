@@ -115,7 +115,11 @@ juger_segment() {
   *git*commit*--no-verify*|*git*commit*" -n "*)
     refuser "--no-verify contourne le crochet de pré-commit" \
       "corriger ce que le crochet signale. Le contourner est une décision de Christophe." ;;
-  *"git add -A"*|*"git add --all"*|*"git add ."*)
+  # Le point doit être l'argument ENTIER. Un chemin qui commence par un point en est un, et le
+  # refuser est un faux positif — rencontré le 9 novembre 2026, en versionnant .claude/ lui-même :
+  # le crochet interdisait le geste qui l'aurait mis dans le dépôt. Un garde-fou qui accuse à tort
+  # finit désarmé, et celui-ci s'accusait lui-même.
+  *"git add -A"*|*"git add --all"*|*"git add ."|*"git add . "*)
     refuser "git add -A happe le travail des autres sessions du dépôt (CLAUDE.md, règle des gestes)" \
       "nommer les chemins un par un." ;;
   *rm*-rf*|*rm*-fr*|*rm*-r*-f*)

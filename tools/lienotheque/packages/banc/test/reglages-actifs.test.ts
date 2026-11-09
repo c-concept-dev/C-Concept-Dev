@@ -5,41 +5,42 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  type AuCommit,
   copieDesReglagesActifs,
   copiesDuDepot,
+  type CopieDuDepot,
   ecartsDeReglages,
   REGLAGES_SURVEILLES,
-  type CopieDuDepot,
+  reglagesDuCommit,
 } from "../src/reglages-actifs.js";
 
-/** Les réglages actifs sont ceux que le dépôt porte.
- *
- *  ## Pourquoi deux copies existent
- *
- *  Le travail se fait dans une copie liée du dépôt, pour qu'un basculement de branche d'une autre
- *  session ne change pas celle-ci sous les pieds. Mais Claude Code lit ses réglages dans le
- *  dossier de la **session**, qui est une autre copie. Les deux existent par construction.
+/** Les réglages actifs sont ceux que le dépôt porte — et le dépôt, c'est son commit.
  *
  *  ## Pourquoi un contrôle, et non une vérification à la main
  *
  *  Un script qu'on lance quand on y pense dépend de l'attention, et ce n'est plus un garde-fou —
- *  c'est la remarque de Christophe du 7 novembre 2026, et elle vaut pour celui-ci comme pour les
- *  autres. Il tourne donc dans le contrôle complet.
+ *  c'est la remarque de Christophe du 7 novembre 2026. Il tourne donc dans le contrôle complet.
  *
  *  **Un réglage divergent ne se signale pas tout seul : il agit, simplement, autrement.**
  *
+ *  ## Ce que la dette D19 reprochait à la première version
+ *
+ *  Elle comparait deux fichiers **du disque**, et appelait l'un « la copie versionnée » alors
+ *  qu'aucun fichier de `.claude/` n'était suivi par Git. Remplacer le crochet dans les deux
+ *  copies la laissait **verte**. Le contrôle « voit un crochet remplacé dans TOUTES les copies du
+ *  disque » ci-dessous est exactement la mutation qu'elle ne tuait pas, et qui la tue.
+ *
  *  ## Et une seule copie est comparée
  *
- *  Les huit copies du dépôt ne sont pas comparables entre elles : celle qui est posée sur un
- *  ancien commit porte légitimement une autre version du crochet. Seule compte la copie où une
- *  session lit ses réglages. C'est la remarque de Christophe du 7 novembre, la seconde sur ce
- *  fichier : un garde-fou qui accuse à tort finit désarmé. */
+ *  Les copies du dépôt ne sont pas comparables entre elles : celle qui est posée sur un ancien
+ *  commit porte légitimement une autre version du crochet. Seule compte la copie où une session
+ *  lit ses réglages. C'est la remarque de Christophe du 7 novembre, la seconde sur ce sujet : un
+ *  garde-fou qui accuse à tort finit désarmé. */
 
 const RACINE = fileURLToPath(new URL("../../..", import.meta.url));
 
 /** Un bac à sable de copies factices : chacune reçoit le contenu donné pour `.claude/x`. */
 function bacDeCopies(contenus: Readonly<Record<string, string>>): {
-  readonly dossier: string;
   readonly projet: (nom: string) => string;
   readonly ranger: () => void;
 } {
@@ -50,7 +51,7 @@ function bacDeCopies(contenus: Readonly<Record<string, string>>): {
     execFileSync("mkdir", ["-p", dirname(cible)]);
     execFileSync("sh", ["-c", `printf '%s' "$1" > "$2"`, "sh", contenu, cible]);
   }
-  return { dossier, projet, ranger: () => execFileSync("rm", ["-r", dossier]) };
+  return { projet, ranger: () => execFileSync("rm", ["-r", dossier]) };
 }
 
 const copie = (projet: string, etat: Partial<CopieDuDepot> = {}): CopieDuDepot => ({
@@ -60,9 +61,34 @@ const copie = (projet: string, etat: Partial<CopieDuDepot> = {}): CopieDuDepot =
   ...etat,
 });
 
-describe("les réglages actifs sont ceux que le dépôt porte", () => {
-  it("ne trouve aucun écart dans la copie où la session lit ses réglages", () => {
+/** Ce qu'un commit porterait pour `.claude/x`. */
+const auCommit = (contenu: string | undefined): ReadonlyMap<string, AuCommit> =>
+  new Map<string, AuCommit>([
+    [".claude/x", contenu === undefined ? { absent: true } : { octets: Buffer.from(contenu) }],
+  ]);
+
+describe("les réglages actifs sont ceux que le dépôt porte (D19)", () => {
+  it("ne trouve aucun écart entre le commit et la copie où la session lit ses réglages", () => {
     expect(ecartsDeReglages(RACINE)).toEqual([]);
+  });
+
+  it("lit dans le COMMIT, et y trouve chaque réglage surveillé", () => {
+    const au = reglagesDuCommit(RACINE);
+    expect([...au.keys()]).toEqual([...REGLAGES_SURVEILLES]);
+    for (const relatif of REGLAGES_SURVEILLES) {
+      const porte = au.get(relatif);
+      expect(porte, relatif).toBeDefined();
+      expect("absent" in porte!, `${relatif} doit être dans le commit`).toBe(false);
+    }
+  });
+
+  it("les octets du commit sont ceux du fichier, quand l'arbre est propre", () => {
+    const au = reglagesDuCommit(RACINE);
+    for (const relatif of REGLAGES_SURVEILLES) {
+      const porte = au.get(relatif)!;
+      if ("absent" in porte) continue;
+      expect(porte.octets.equals(readFileSync(join(RACINE, relatif))), relatif).toBe(true);
+    }
   });
 
   it("nomme les copies du dépôt sans les deviner, et désigne UNE principale", () => {
@@ -72,39 +98,59 @@ describe("les réglages actifs sont ceux que le dépôt porte", () => {
     for (const c of copies) expect(existsSync(c.projet), c.projet).toBe(true);
     expect(copies.filter((c) => c.principale)).toHaveLength(1);
 
-    // La principale est bien celle qui porte le dossier git commun — nommée par git.
     const commun = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
       cwd: RACINE,
       encoding: "utf8",
     }).trim();
-    const principale = copies.find((c) => c.principale);
-    expect(principale?.projet.startsWith(dirname(commun))).toBe(true);
+    expect(copiesDuDepot(RACINE).find((c) => c.principale)?.projet.startsWith(dirname(commun))).toBe(true);
   });
 
-  it("surveille des fichiers qui existent vraiment", () => {
-    for (const relatif of REGLAGES_SURVEILLES)
-      expect(existsSync(join(RACINE, relatif)), relatif).toBe(true);
-  });
-
-  it("ne fait PAS rougir une copie posée sur un ancien commit, même avec une autre version", () => {
-    // Une copie de bissectage, ou le travail d'une autre session, porte la version que SON commit
-    // contient. Rougir là-dessus, c'est accuser git d'avoir fait son travail.
-    const bac = bacDeCopies({ versionnee: "neuf", principale: "neuf", ancienne: "vieux" });
+  it("voit un crochet remplacé dans TOUTES les copies du disque, parce que la référence est le commit", () => {
+    // La mutation que la première version ne tuait pas : elle comparait deux fichiers du disque,
+    // et deux fichiers identiques lui suffisaient — même remplacés tous les deux.
+    const bac = bacDeCopies({ principale: "remplace", liee: "remplace" });
     try {
-      const copies = [
-        copie(bac.projet("principale"), { principale: true, branche: "refs/heads/main" }),
-        copie(bac.projet("ancienne")), // tête détachée, autre commit
-      ];
-      expect(
-        ecartsDeReglages(bac.projet("versionnee"), { copies, surveilles: [".claude/x"] }),
-        "la copie sur un ancien commit porte légitimement une autre version",
-      ).toEqual([]);
+      const copies = [copie(bac.projet("principale"), { principale: true }), copie(bac.projet("liee"))];
+      const ecarts = ecartsDeReglages(bac.projet("liee"), {
+        copies,
+        surveilles: [".claude/x"],
+        auCommit: auCommit("ce que le depot porte"),
+      });
+      expect(ecarts, "le commit dit autre chose que les deux copies").toHaveLength(1);
+      expect(ecarts[0]).toContain("que le commit");
+    } finally {
+      bac.ranger();
+    }
+  });
 
-      // Et ce silence vient bien du filtre : la MÊME copie, déclarée principale, fait rougir.
+  it("rougit quand le commit ne porte pas un réglage surveillé", () => {
+    const bac = bacDeCopies({ principale: "quelque chose" });
+    try {
       expect(
-        ecartsDeReglages(bac.projet("versionnee"), {
-          copies: [copie(bac.projet("ancienne"), { principale: true })],
+        ecartsDeReglages(bac.projet("principale"), {
+          copies: [copie(bac.projet("principale"), { principale: true })],
           surveilles: [".claude/x"],
+          auCommit: auCommit(undefined),
+        }),
+        "un réglage que le dépôt ne porte pas est précisément la dette D19",
+      ).toEqual([".claude/x : absent du commit de cette copie, alors qu'il est surveillé"]);
+    } finally {
+      bac.ranger();
+    }
+  });
+
+  it("compare la copie principale MÊME quand on s'y trouve déjà", () => {
+    // L'ancienne version se taisait dans ce cas, n'ayant rien à quoi comparer. Avec le commit pour
+    // référence, c'est la comparaison la plus utile : ce qui agit contre ce qui est relu.
+    const bac = bacDeCopies({ principale: "autre chose" });
+    try {
+      const copies = [copie(bac.projet("principale"), { principale: true })];
+      expect(copieDesReglagesActifs(copies)).toBe(bac.projet("principale"));
+      expect(
+        ecartsDeReglages(bac.projet("principale"), {
+          copies,
+          surveilles: [".claude/x"],
+          auCommit: auCommit("ce que le depot porte"),
         }),
       ).toHaveLength(1);
     } finally {
@@ -113,11 +159,12 @@ describe("les réglages actifs sont ceux que le dépôt porte", () => {
   });
 
   it("voit un écart d'un seul octet dans la copie qui agit", () => {
-    const bac = bacDeCopies({ versionnee: "a", active: "b" });
+    const bac = bacDeCopies({ principale: "a" });
     try {
-      const ecarts = ecartsDeReglages(bac.projet("versionnee"), {
-        copies: [copie(bac.projet("active"), { principale: true })],
+      const ecarts = ecartsDeReglages(bac.projet("principale"), {
+        copies: [copie(bac.projet("principale"), { principale: true })],
         surveilles: [".claude/x"],
+        auCommit: auCommit("b"),
       });
       expect(ecarts).toHaveLength(1);
       expect(ecarts[0]).toContain(".claude/x");
@@ -126,14 +173,37 @@ describe("les réglages actifs sont ceux que le dépôt porte", () => {
     }
   });
 
-  it("ne dit rien d'une copie qui ne porte pas le fichier", () => {
-    const bac = bacDeCopies({ versionnee: "a" });
+  it("ne fait PAS rougir une copie posée sur un ancien commit, même avec une autre version", () => {
+    // Une copie de bissectage, ou le travail d'une autre session, porte la version que SON commit
+    // contient. Rougir là-dessus, c'est accuser git d'avoir fait son travail.
+    const bac = bacDeCopies({ principale: "neuf", ancienne: "vieux" });
     try {
-      execFileSync("mkdir", ["-p", bac.projet("active")]);
+      const copies = [
+        copie(bac.projet("principale"), { principale: true, branche: "refs/heads/main" }),
+        copie(bac.projet("ancienne")), // tête détachée, autre commit
+      ];
       expect(
-        ecartsDeReglages(bac.projet("versionnee"), {
-          copies: [copie(bac.projet("active"), { principale: true })],
+        ecartsDeReglages(bac.projet("ancienne"), {
+          copies,
           surveilles: [".claude/x"],
+          auCommit: auCommit("neuf"),
+        }),
+        "la copie sur un ancien commit porte légitimement une autre version",
+      ).toEqual([]);
+    } finally {
+      bac.ranger();
+    }
+  });
+
+  it("ne dit rien d'une copie qui ne porte pas le fichier", () => {
+    const bac = bacDeCopies({});
+    try {
+      execFileSync("mkdir", ["-p", bac.projet("principale")]);
+      expect(
+        ecartsDeReglages(bac.projet("principale"), {
+          copies: [copie(bac.projet("principale"), { principale: true })],
+          surveilles: [".claude/x"],
+          auCommit: auCommit("ce que le depot porte"),
         }),
         "une copie sans réglages n'obéit à aucun réglage : il n'y a rien à redire",
       ).toEqual([]);
@@ -142,17 +212,10 @@ describe("les réglages actifs sont ceux que le dépôt porte", () => {
     }
   });
 
-  it("se tait quand on se trouve déjà dans la copie principale", () => {
-    // Une seule copie en jeu : aucune divergence n'est possible, et se comparer à soi-même ne dit
-    // rien. Le contrôle doit le reconnaître, pas comparer un fichier avec lui-même.
-    const copies = [copie("/un/dossier", { principale: true })];
-    expect(copieDesReglagesActifs(copies, "/un/dossier")).toBeUndefined();
-    expect(copieDesReglagesActifs(copies, "/un/autre")).toBe("/un/dossier");
-  });
-
-  it("surveille au moins le crochet et ses réglages", () => {
+  it("surveille le crochet, ses réglages, et le script de diagnostic", () => {
     expect(REGLAGES_SURVEILLES).toContain(".claude/settings.json");
     expect(REGLAGES_SURVEILLES.some((r) => r.includes("refuser-gestes-destructeurs"))).toBe(true);
+    expect(REGLAGES_SURVEILLES.some((r) => r.includes("verifier-reglages"))).toBe(true);
     // La liste doit porter le contenu des fichiers, pas seulement leurs noms : un contrôle qui
     // vérifierait l'existence sans comparer les octets passerait sur un crochet remplacé.
     expect(readFileSync(join(RACINE, ".claude/settings.json"), "utf8")).toContain("PreToolUse");
