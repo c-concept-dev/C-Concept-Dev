@@ -1,14 +1,14 @@
 # Liénothèque — Cahier des charges de pilotage
 
-**Version 25.2 — 9 novembre 2026**
+**Version 25.3 — 9 novembre 2026**
 Rédigé à partir des sessions du 3 au 9 novembre 2026 (Christophe, Claude, Claude Desktop).
-La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`.
+La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs).
 
 ---
 
 ## 0. Comment lire ce document
 
-Ce cahier ne remplace ni le **CDC normatif v2.0** (la liste numérotée des exigences, 135 identifiants, citée par les noms de contrôles) ni le **CDC v24** (`cdc-audit-complet-24.md`, l'audit et la reconstruction). Il les complète sur trois points :
+Ce cahier ne remplace ni le **CDC normatif v2.0** (la liste numérotée des exigences : 175 identifiants en 19 familles, dont 82 cités dans des noms de contrôles) ni le **CDC v24** (`cdc-audit-complet-24.md`, l'audit et la reconstruction). Il les complète sur trois points :
 
 1. **la feuille de route jusqu'à la version définitive**, étape par étape, avec pour chaque étape ce que « fini » veut dire ;
 2. **les règles non négociables**, de produit et de méthode, nées des incidents des derniers jours ;
@@ -210,7 +210,7 @@ Les **étapes** (0 à 10) sont la feuille de route ; les **lots** de `docs/file-
 
 ### Étape 0 — Application autonome *(en cours, prioritaire — trois cases sur cinq)*
 
-Le Tesseract embarqué charge six codecs depuis `/opt/homebrew` : chez un testeur sans Homebrew, la reconnaissance ne se charge pas.
+Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/opt/homebrew` (neuf renvois : leptonica, libtiff, libarchive) : chez un testeur sans Homebrew, la reconnaissance ne se serait pas chargée. Le paquet en service n'en charge plus aucune.
 
 **Fini quand :**
 - [x] `preparer-moteurs.py` réécrit tous les liens (appariement sur le nom résolu), échoue s'il reste un seul `/opt/homebrew`, et ne tourne plus en silence (`28baedaf`) ;

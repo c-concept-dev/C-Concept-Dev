@@ -4,7 +4,7 @@
 retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au vrai minutage.
 
 ## Sources qui font foi
-- **Cahier des charges de pilotage**, version 25.2 du 9 novembre 2026 : `docs/cdc-pilotage.md`.
+- **Cahier des charges de pilotage**, version 25.3 du 9 novembre 2026 : `docs/cdc-pilotage.md`.
   Il porte la **feuille de route jusqu'à la version définitive** — chaque étape avec sa définition
   de « fini » —, les **règles non négociables** de produit et de méthode, et les **dettes connues**.
   Il **se relit en tête de chaque session**, avant toute décision, et **se met à jour le jour
