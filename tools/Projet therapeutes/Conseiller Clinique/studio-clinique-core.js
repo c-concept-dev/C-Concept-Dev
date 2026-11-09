@@ -21960,6 +21960,7 @@ ${recent}`;
     // jamais un type inventé (block.schema.json, videoBlock/videoContent).
     { type: 'video', label: 'Vidéo', variant: 'manual' },
     { type: 'video', label: 'Vidéo automatique', variant: 'autoplay' },
+    { type: 'video', label: 'Vidéo automatique en boucle', variant: 'autoplay-loop' },
   ];
 
   // New blocks retain descriptive placeholders; 57f also accepts empty text while editing.
@@ -23764,12 +23765,16 @@ ${recent}`;
     // une ligne de cette grille crée le VRAI bloc vidéo (adocInsertVideoBlockWithLink), jamais
     // "Ajouter" lui-même — même distinction que Photos entre "Rechercher" et "Insérer".
     if (type === 'video') {
-      variant = variant === 'autoplay' ? 'autoplay' : 'manual';
-      const automatic = variant === 'autoplay';
+      variant = variant === 'autoplay-loop' ? 'autoplay-loop' : (variant === 'autoplay' ? 'autoplay' : 'manual');
+      const automatic = variant !== 'manual';
+      const looping = variant === 'autoplay-loop';
+      const playbackLabel = looping
+        ? 'Vidéo automatique en boucle — elle démarrera sans son et se répétera'
+        : (automatic ? 'Vidéo automatique — elle démarrera sans son' : 'Vidéo — lecture lancée par l’utilisatrice');
       const resultEl = st.panelEl.querySelector('.cc-block-edit-result');
       if (!resultEl) { alert('Insertion impossible : panneau indisponible. Sélectionnez le bloc à nouveau.'); return; }
       resultEl.innerHTML =
-        '<div class="cc-block-edit-label">' + (automatic ? 'Vidéo automatique — elle démarrera sans son' : 'Vidéo — lecture lancée par l’utilisatrice') + '</div>' +
+        '<div class="cc-block-edit-label">' + playbackLabel + '</div>' +
         '<div class="cc-block-edit-label" style="margin-top:6px;">Lien de la vidéo (serveur vidéo local)</div>' +
         '<input type="text" class="cc-block-edit-freetext adoc-textarea" id="cc-block-video-url-input" placeholder="http://localhost:47823/..." ' +
           'onclick="event.stopPropagation();" onkeydown="event.stopPropagation();" />' +
@@ -25901,9 +25906,10 @@ ${recent}`;
     const el = document.getElementById('cc-block-video-history');
     if (!el) return;
     try {
+      const playbackVariant = variant === 'autoplay-loop' ? 'autoplay-loop' : (variant === 'autoplay' ? 'autoplay' : 'manual');
       window._adocBlockVideoHistoryResults = await adocVideoFetchList();
       adocVideoRenderGrid('cc-block-video-history', window._adocBlockVideoHistoryResults, {
-        insertFn: 'adocVideoInsertFromBlockPicker', deleteFn: 'adocVideoDeleteFromBlockHistory', insertArgs: ["'" + direction + "'", "'" + (variant === 'autoplay' ? 'autoplay' : 'manual') + "'"],
+        insertFn: 'adocVideoInsertFromBlockPicker', deleteFn: 'adocVideoDeleteFromBlockHistory', insertArgs: ["'" + direction + "'", "'" + playbackVariant + "'"],
       });
     } catch (e) {
       el.innerHTML = '<p class="cc-media-empty">Historique indisponible : ' + adocEsc(e.message) + '</p>';
@@ -25931,7 +25937,11 @@ ${recent}`;
     if (!item) { alert('Insertion impossible : ce média est introuvable. Relancez la recherche ou l’historique.'); return false; }
     const btn = document.querySelector('#cc-block-video-history [data-video-insert="' + idx + '"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Insertion…'; }
-    const created = await adocInsertVideoBlockWithLink(direction, item.url, item.title, { autoplay: variant === 'autoplay' });
+    const looping = variant === 'autoplay-loop';
+    const created = await adocInsertVideoBlockWithLink(direction, item.url, item.title, {
+      autoplay: variant === 'autoplay' || looping,
+      loop: looping,
+    });
     if (!created && btn) { btn.disabled = false; btn.textContent = 'Insérer'; }
   };
 

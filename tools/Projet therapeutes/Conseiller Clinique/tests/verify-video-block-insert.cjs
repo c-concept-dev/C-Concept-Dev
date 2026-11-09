@@ -107,7 +107,8 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   await page.click('.cc-block-edit-panel button:has-text("Insérer un bloc après")');
   assert.ok(await page.locator('.cc-block-edit-panel button', { hasText: /^Vidéo$/ }).count(), 'le type "Vidéo" doit être proposé dans le sélecteur de type de bloc');
   assert.ok(await page.locator('.cc-block-edit-panel button', { hasText: /^Vidéo automatique$/ }).count(), 'le type "Vidéo automatique" doit être proposé séparément dans le sélecteur de type de bloc');
-  console.log('PASS 1/15 — le sélecteur propose séparément "Vidéo" et "Vidéo automatique"');
+  assert.ok(await page.locator('.cc-block-edit-panel button', { hasText: /^Vidéo automatique en boucle$/ }).count(), 'le type "Vidéo automatique en boucle" doit être proposé séparément dans le sélecteur de type de bloc');
+  console.log('PASS 1/16 — le sélecteur propose séparément les trois modes vidéo');
 
   // ── Test 2 : cliquer "Vidéo" affiche le formulaire (lien + titre + Ajouter) et la grille "Vidéos
   // enregistrées" (vide au départ), JAMAIS de champ de recherche automatique ──
@@ -117,7 +118,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(await page.locator('.cc-block-edit-panel .cc-media-search-btn').count(), 0, 'jamais de bouton "Rechercher" pour les vidéos (rien à chercher)');
   await page.waitForFunction(() => document.getElementById('cc-block-video-history').textContent.includes('Aucune vidéo'));
   assert.equal(videoListCalls, 1, 'la grille doit être chargée réellement dès l’ouverture (GET /video-links)');
-  console.log('PASS 2/15 — formulaire lien+titre affiché, jamais de recherche automatique, grille vide chargée réellement');
+  console.log('PASS 2/16 — formulaire lien+titre affiché, jamais de recherche automatique, grille vide chargée réellement');
 
   // ── Test 3 : "Ajouter" persiste réellement le lien (POST /video-links), apparaît dans la grille ──
   await page.fill('#cc-block-video-url-input', 'http://localhost:47823/seance1.mp4');
@@ -130,7 +131,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   // "Ajouter" ne crée jamais lui-même un bloc — seul "Insérer" le fait (même distinction que
   // Photos entre "Rechercher" et "Insérer").
   assert.equal(await blockCount(), 3, 'Ajouter seul ne doit jamais créer de bloc dans le document');
-  console.log('PASS 3/15 — "Ajouter" persiste réellement le lien (POST /video-links), apparaît dans la grille, ne crée jamais de bloc à lui seul');
+  console.log('PASS 3/16 — "Ajouter" persiste réellement le lien (POST /video-links), apparaît dans la grille, ne crée jamais de bloc à lui seul');
 
   // ── Test 4 : "Insérer" sur cette ligne crée un VRAI bloc vidéo autonome (content.url/title) ──
   const countBefore4 = await blockCount();
@@ -145,7 +146,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(newBlock4.content.assetId, undefined, 'jamais d’assetId pour une vidéo — aucun fichier réel derrière un lien local');
   const blkB4 = blocksAfter4.find((b) => b.id === 'blk-b');
   assert.equal(blkB4.style, undefined, 'blk-b (le bloc sélectionné) ne doit jamais recevoir de fond — une vidéo ne peut jamais être un fond CSS');
-  console.log('PASS 4/15 — "Insérer" crée un vrai bloc vidéo autonome (content.url/title, jamais assetId), jamais un fond');
+  console.log('PASS 4/16 — "Insérer" crée un vrai bloc vidéo autonome (content.url/title, jamais assetId), jamais un fond');
 
   // ── Test 5 : rendu réel + boucle optionnelle — une ancienne vidéo ne boucle pas, puis le
   // réglage contextuel active réellement la boucle sans imposer la lecture automatique ──
@@ -167,7 +168,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(await page.evaluate(({ key, id }) => window._adocArtifacts[key]._adocStructuredDoc.blocks.find((b) => b.id === id).content.loop, { key: storeKey, id: newBlock4.id }), true, 'le choix doit être persisté dans le document structuré');
   assert.ok(await videoEl.getAttribute('loop') !== null, 'le lecteur affiché doit recevoir réellement l’attribut loop');
   assert.equal(await videoEl.getAttribute('autoplay'), null, 'activer la boucle ne doit toujours pas activer autoplay');
-  console.log('PASS 5/15 — rendu réel confirmé et boucle vidéo optionnelle persistée, sans autoplay');
+  console.log('PASS 5/16 — rendu réel confirmé et boucle vidéo optionnelle persistée, sans autoplay');
 
   // ── Test 6 : sous-onglet "Vidéos" de la barre latérale — bascule réelle, jamais de recherche ──
   await page.click('#cc-ws-media-toggle');
@@ -177,7 +178,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.ok(await page.locator('#cc-ws-media-subpanel-videos').isVisible(), 'Vidéos doit devenir visible après le clic');
   assert.ok(!(await page.locator('#cc-ws-media-subpanel-photos').isVisible()), 'Photos doit être masqué une fois sur l’onglet Vidéos');
   await page.waitForFunction(() => document.getElementById('cc-ws-video-history').children.length >= 1);
-  console.log('PASS 6/15 — sous-onglet "Vidéos" de la barre latérale : bascule réelle, un seul panneau visible à la fois');
+  console.log('PASS 6/16 — sous-onglet "Vidéos" de la barre latérale : bascule réelle, un seul panneau visible à la fois');
 
   // ── Test 7 : ajouter une 2e vidéo depuis la barre latérale, apparaît dans SA propre grille ──
   await page.fill('#cc-ws-video-url-input', 'http://localhost:47823/seance2.mp4');
@@ -195,7 +196,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   });
   const creditText7 = await page.locator('#cc-ws-video-history .cc-media-credit').first().textContent();
   assert.equal(creditText7, 'Relaxation guidée');
-  console.log('PASS 7/15 — ajout réel depuis la barre latérale, apparaît dans sa propre grille');
+  console.log('PASS 7/16 — ajout réel depuis la barre latérale, apparaît dans sa propre grille');
 
   // ── Test 8 : garde-fou — "Insérer" depuis la barre latérale exige un bloc sélectionné (aucune
   // notion de fond pour une vidéo, donc jamais un fallback silencieux) ──
@@ -203,7 +204,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   const countBefore8 = await blockCount();
   await page.click('#cc-ws-video-history [data-video-insert="0"]');
   assert.equal(await blockCount(), countBefore8, 'sans bloc sélectionné, aucun bloc ne doit être créé');
-  console.log('PASS 8/15 — garde-fou actif : aucune insertion sans bloc sélectionné au préalable');
+  console.log('PASS 8/16 — garde-fou actif : aucune insertion sans bloc sélectionné au préalable');
 
   // ── Test 9 : avec un bloc sélectionné, "Insérer" depuis la barre latérale crée un bloc vidéo
   // APRÈS ce bloc (direction 'after', même convention que Photos) — jamais un fond ──
@@ -218,14 +219,14 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(blocksAfter9[blkAIdx9 + 1].content.title, 'Relaxation guidée');
   const blkA9 = blocksAfter9.find((b) => b.id === 'blk-a');
   assert.equal(blkA9.style, undefined, 'blk-a ne doit jamais recevoir de fond depuis la barre latérale non plus — comportement délibérément différent de Photos');
-  console.log('PASS 9/15 — "Insérer" depuis la barre latérale crée un vrai bloc vidéo APRÈS le bloc sélectionné, jamais un fond');
+  console.log('PASS 9/16 — "Insérer" depuis la barre latérale crée un vrai bloc vidéo APRÈS le bloc sélectionné, jamais un fond');
 
   // ── Test 10 : "Effacer" supprime réellement (DELETE /video-links/:id) et retire la ligne ──
   const itemsBefore10 = await page.locator('#cc-ws-video-history .cc-media-item').count();
   await page.click('#cc-ws-video-history [data-video-delete="0"]');
   await page.waitForFunction((n) => document.querySelectorAll('#cc-ws-video-history .cc-media-item').length === n, itemsBefore10 - 1);
   assert.equal(videoDeleteCalls, 1, 'Effacer doit appeler réellement DELETE /video-links/:id');
-  console.log('PASS 10/15 — "Effacer" supprime réellement le lien (DELETE) et retire la ligne de la grille');
+  console.log('PASS 10/16 — "Effacer" supprime réellement le lien (DELETE) et retire la ligne de la grille');
 
   // ── Test 11 : non-régression — le sous-onglet "Photos" fonctionne toujours à l’identique
   // (recherche réelle, résultat avec attribution) une fois revenu dessus ──
@@ -238,7 +239,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.equal(fetchImageCalls, 1, 'la recherche Photos doit fonctionner exactement comme avant l’ajout du sous-onglet Vidéos');
   const creditText11 = await page.locator('#cc-ws-media-search-results .cc-media-credit').first().textContent();
   assert.ok(creditText11.includes('Jane Doe'));
-  console.log('PASS 11/15 — non-régression : le sous-onglet "Photos" (recherche/attribution) fonctionne toujours à l’identique');
+  console.log('PASS 11/16 — non-régression : le sous-onglet "Photos" (recherche/attribution) fonctionne toujours à l’identique');
 
   // ── Test 12 : non-régression — insérer depuis Photos pose toujours un FOND (comportement
   // Photos strictement inchangé, jamais confondu avec le nouveau comportement Vidéos) ──
@@ -249,7 +250,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
     const b = window._adocArtifacts[key]._adocStructuredDoc.blocks.find((x) => x.id === 'blk-c');
     return b && b.style && b.style.backgroundAssetId;
   }, storeKey);
-  console.log('PASS 12/15 — non-régression : Photos continue de poser un fond (comportement Photos inchangé, distinct de Vidéos)');
+  console.log('PASS 12/16 — non-régression : Photos continue de poser un fond (comportement Photos inchangé, distinct de Vidéos)');
 
   // ── Test 13 : régression legacy — ADOC_LEGACY_BLOCK_INSERT_TYPES est une variable interne au
   // module (fermeture), jamais exposée sur window, donc non testable dynamiquement depuis ce
@@ -258,7 +259,7 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   // `return t.type !== 'image' && t.type !== 'video';` — même filtre, même array source
   // (ADOC_BLOCK_INSERT_TYPES) que l'exclusion pré-existante de "image" (item 57), donc la même
   // garantie s'applique mécaniquement au nouveau type "video" sans logique séparée à tester.
-  console.log('PASS 13/15 — (confirmé par lecture de code, cf. rapport — variable interne non exposée sur window) "video" exclu de ADOC_LEGACY_BLOCK_INSERT_TYPES par le même filtre que "image"');
+  console.log('PASS 13/16 — (confirmé par lecture de code, cf. rapport — variable interne non exposée sur window) "video" exclu de ADOC_LEGACY_BLOCK_INSERT_TYPES par le même filtre que "image"');
 
   // ── Test 14 : « Vidéo automatique » crée un bloc distinct, automatique mais non bouclé ──
   await page.click('#blk-c');
@@ -280,12 +281,34 @@ function para(id, text) { return { id: id, type: 'paragraph', content: { text: t
   assert.ok(await autoVideo14.getAttribute('playsinline') !== null, 'le lecteur automatique doit rester intégré à la page');
   assert.ok(await autoVideo14.getAttribute('controls') !== null, 'l’utilisatrice doit pouvoir réactiver le son et contrôler la vidéo');
   assert.equal(await autoVideo14.getAttribute('loop'), null, 'le lecteur automatique ne doit pas boucler sans choix explicite');
-  console.log('PASS 14/15 — « Vidéo automatique » est persistée et rendue avec autoplay muet, sans boucle imposée');
+  console.log('PASS 14/16 — « Vidéo automatique » est persistée et rendue avec autoplay muet, sans boucle imposée');
 
-  // ── Test 15 : zéro erreur JS sur l’ensemble du scénario ──
+  // ── Test 15 : « Vidéo automatique en boucle » persiste et rend les deux options ──
+  await page.click('#blk-c');
+  await page.click('.cc-block-edit-panel button:has-text("Insérer un bloc avant")');
+  await page.locator('.cc-block-edit-panel button', { hasText: /^Vidéo automatique en boucle$/ }).click();
+  await page.waitForSelector('#cc-block-video-history [data-video-insert="0"]');
+  const countBefore15 = await blockCount();
+  await page.click('#cc-block-video-history [data-video-insert="0"]');
+  await page.waitForFunction((n) => document.querySelectorAll('.adoc-sc-block').length >= n, countBefore15 + 1);
+  const blocksAfter15 = await page.evaluate((key) => window._adocArtifacts[key]._adocStructuredDoc.blocks, storeKey);
+  const blkCIdx15 = blocksAfter15.findIndex((b) => b.id === 'blk-c');
+  const loopBlock15 = blocksAfter15[blkCIdx15 - 1];
+  assert.equal(loopBlock15.type, 'video', 'la vidéo automatique en boucle doit rester un bloc vidéo rétrocompatible');
+  assert.equal(loopBlock15.content.autoplay, true, 'le nouveau choix doit persister autoplay');
+  assert.equal(loopBlock15.content.loop, true, 'le nouveau choix doit persister loop');
+  const loopVideo15 = page.locator('#' + loopBlock15.id + ' video');
+  assert.ok(await loopVideo15.getAttribute('autoplay') !== null, 'le lecteur automatique en boucle doit recevoir autoplay');
+  assert.ok(await loopVideo15.getAttribute('muted') !== null, 'le lecteur automatique en boucle doit démarrer muet pour Safari');
+  assert.ok(await loopVideo15.getAttribute('playsinline') !== null, 'le lecteur automatique en boucle doit rester intégré à la page');
+  assert.ok(await loopVideo15.getAttribute('controls') !== null, 'les contrôles doivent rester disponibles');
+  assert.ok(await loopVideo15.getAttribute('loop') !== null, 'le lecteur automatique en boucle doit recevoir loop');
+  console.log('PASS 15/16 — « Vidéo automatique en boucle » persiste et rend autoplay + loop');
+
+  // ── Test 16 : zéro erreur JS sur l’ensemble du scénario ──
   assert.deepEqual(pageErrors, [], 'aucune erreur JS ne doit survenir : ' + JSON.stringify(pageErrors));
-  console.log('PASS 15/15 — zéro erreur JS sur l’ensemble du scénario');
+  console.log('PASS 16/16 — zéro erreur JS sur l’ensemble du scénario');
 
-  console.log('\n=== TOUS LES TESTS "MÉDIAS — SOUS-ONGLET VIDÉOS" (15/15) PASSENT ===');
+  console.log('\n=== TOUS LES TESTS "MÉDIAS — SOUS-ONGLET VIDÉOS" (16/16) PASSENT ===');
   await browser.close();
 })().catch(async (err) => { console.error('ÉCHEC :', err); process.exit(1); });
