@@ -31888,12 +31888,20 @@ function adocRenderCardHTML(card, index, total) {
   // ── LE GLISSER-DÉPOSER ET LES DEUX ZONES CLIQUABLES ──────────────────────────────────
   var voile = $('cv-voile');
   var compte = 0;
+  function estDansImportAudio(e) {
+    var zones = document.querySelectorAll('#am-workbench [data-import-lane]');
+    for (var i = 0; i < zones.length; i++) {
+      var r = zones[i].getBoundingClientRect();
+      if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return true;
+    }
+    return false;
+  }
   function montrer(oui) { voile.style.display = oui ? 'flex' : 'none'; }
-  window.addEventListener('dragenter', function (e) { e.preventDefault(); compte++; montrer(true); });
-  window.addEventListener('dragover', function (e) { e.preventDefault(); });
-  window.addEventListener('dragleave', function (e) { e.preventDefault(); compte--; if (compte <= 0) montrer(false); });
+  window.addEventListener('dragenter', function (e) { e.preventDefault(); if (estDansImportAudio(e)) { compte = 0; montrer(false); return; } compte++; montrer(true); });
+  window.addEventListener('dragover', function (e) { e.preventDefault(); if (estDansImportAudio(e)) montrer(false); });
+  window.addEventListener('dragleave', function (e) { e.preventDefault(); if (estDansImportAudio(e)) { compte = 0; montrer(false); return; } compte--; if (compte <= 0) montrer(false); });
   window.addEventListener('drop', function (e) {
-    e.preventDefault(); compte = 0; montrer(false);
+    e.preventDefault(); compte = 0; montrer(false); if (estDansImportAudio(e)) return;
     var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
     deposer(f);
   });
@@ -32170,7 +32178,7 @@ mediabunny/dist/modules/src/index.js:
     .am-clip[data-kind=music]{background:var(--track-color,#8a3f29)}.am-clip:active{cursor:grabbing}
     .am-clip[data-selected=true]{outline:3px solid #e6b15c;outline-offset:1px}
     .am-clip[data-locked=true]{cursor:not-allowed;opacity:.72;background-image:repeating-linear-gradient(135deg,transparent 0 7px,#fff3 7px 10px)}
-    .am-clip .am-envelope{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+    .am-clip .am-envelope{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.am-clip-label{position:relative;z-index:3;display:block;max-width:100%;cursor:grab}
     #am-workbench .am-source-remove{padding:0 3px;border:0;background:transparent;color:#806e65;font-size:11px;line-height:1;opacity:.65}
     #am-workbench .am-source-remove:hover,#am-workbench .am-source-remove:focus-visible{opacity:1;color:#8a3f29}
     .am-clip-label{margin-left:20px;display:block;overflow:hidden;text-overflow:ellipsis}
@@ -32191,23 +32199,24 @@ mediabunny/dist/modules/src/index.js:
     .am-drop-audio{position:sticky;left:0;z-index:6;border:2px dashed var(--lane-color);border-radius:8px;padding:7px 10px;margin:5px 0 8px;text-align:center;background:color-mix(in srgb,var(--lane-color) 9%,white);color:#394947;font-weight:650}
     .am-source-list{display:flex;gap:8px;flex-direction:column;align-items:flex-start;min-width:100%}.am-source-paste{position:sticky;left:0;top:0;z-index:8;align-self:flex-start;background:#fff7df!important;box-shadow:0 2px 6px #0002}
     .am-source-track{min-width:100%;border:1px solid #b8b0a5;border-radius:9px;background:#fffdf9;padding:6px}.am-source-track-head{position:sticky;left:0;z-index:5;display:flex;gap:7px;align-items:center;margin-bottom:5px;max-width:max-content;background:#fffdf9;padding-right:8px}.am-source-regions{display:flex;align-items:stretch;width:calc(100% * var(--annex-zoom,1));min-width:100%}
-    .am-source-clip{flex:0 0 calc(var(--region-ratio,1) * 100%);min-width:150px;background:#e4efee;background:color-mix(in srgb,var(--track-color,#1f5053) 13%,white);color:#17393b;border:2px solid var(--track-color,#1f5053);border-radius:7px;padding:7px;cursor:grab;display:grid;gap:4px}
+    .am-source-clip{flex:0 0 calc(var(--region-ratio,1) * 100%);min-width:150px;background:#e4efee;background:color-mix(in srgb,var(--track-color,#1f5053) 13%,white);color:#17393b;border:2px solid var(--track-color,#1f5053);border-radius:7px;padding:7px;cursor:grab;display:grid;gap:4px;user-select:none;-webkit-user-select:none}
     .am-source-clip+.am-source-clip{margin-left:-2px}.am-source-advanced{font-size:11px}.am-source-advanced summary{cursor:pointer;font-weight:700;color:#52615f}.am-source-primary{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
     .am-source-clip:active{cursor:grabbing}.am-region-label{display:inline-block;margin-right:6px;padding:2px 6px;border-radius:10px;background:var(--track-color);color:#fff;font-style:normal;font-size:10px;font-weight:800}.am-drag-hint{font-size:10px;font-weight:700;color:#52615f;white-space:nowrap}
     .am-source-clip[data-locked=true]{opacity:.7;cursor:not-allowed}.am-source-clip[data-used=true]{background-image:repeating-linear-gradient(135deg,transparent 0 9px,color-mix(in srgb,var(--track-color) 20%,transparent) 9px 13px)}
     .am-source-clip[data-kind=music]{background:#f3e5df;background:color-mix(in srgb,var(--track-color,#8a3f29) 13%,white);border-color:var(--track-color,#8a3f29);color:#4f2d22}.am-source-clip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
     .am-track-badge{display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 5px;border-radius:12px;background:var(--track-color);color:#fff;font-size:11px;font-weight:800;flex:0 0 auto}
-    .am-source-head,.am-source-actions{display:flex;align-items:center;gap:5px;min-width:0}.am-source-head{cursor:grab;touch-action:none}.am-source-head:active{cursor:grabbing}.am-source-head span{flex:1;font-weight:700}.am-source-actions{flex-wrap:wrap}
-    .am-source-wave-wrap{position:relative;width:100%;overflow:hidden;border-radius:4px;background:#fffdf9}.am-source-wave{width:100%;height:30px;display:block;background:#fffdf9;border-radius:4px;cursor:crosshair;touch-action:manipulation}.am-source-playhead{position:absolute;top:0;bottom:0;left:50%;width:2px;transform:translateX(-1px);background:#ab4329;box-shadow:0 0 0 1px #fff8;pointer-events:none;z-index:2}.am-source-playhead::before{content:'';position:absolute;left:-4px;top:0;width:10px;height:7px;border-radius:0 0 5px 5px;background:#ab4329}.am-source-clip.am-dragging{opacity:.62;outline:3px solid #e6b15c}
+    .am-source-head,.am-source-actions{display:flex;align-items:center;gap:5px;min-width:0}.am-source-head{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}.am-source-head:active{cursor:grabbing}.am-source-head span{flex:1;font-weight:700}.am-source-actions{flex-wrap:wrap}
+    .am-source-wave-wrap{position:relative;width:100%;overflow:hidden;border-radius:4px;background:#fffdf9;cursor:grab;touch-action:none}.am-source-wave-wrap:active{cursor:grabbing}.am-source-wave{width:100%;height:30px;display:block;background:#fffdf9;border-radius:4px;cursor:inherit;touch-action:none}.am-source-playhead{position:absolute;top:0;bottom:0;left:50%;width:10px;transform:translateX(-5px);border-left:2px solid #ab4329;cursor:ew-resize;pointer-events:auto;touch-action:none;z-index:4}.am-source-playhead::before{content:'';position:absolute;left:-6px;top:0;width:10px;height:8px;border-radius:0 0 5px 5px;background:#ab4329;box-shadow:0 0 0 1px #fff8}.am-source-playhead:hover{border-left-width:3px}.am-source-clip.am-dragging{opacity:.62;outline:3px solid #e6b15c}
     .am-source-cut-time{font-size:11px;white-space:nowrap}.am-source-clip input[type=number]{width:72px;min-width:0;padding:3px;border:1px solid #83918c;border-radius:4px}
     #am-workbench .am-source-clip button{padding:4px 7px;font-size:11px;min-height:29px;background:#fffdf9;border-color:currentColor}
     #am-workbench .am-source-clip .am-source-remove{padding:0 3px;border:0;background:transparent;color:inherit;font-size:12px;opacity:.7}
     #am-workbench .am-source-clip .am-source-remove:hover{opacity:1;background:transparent;color:inherit}
     .am-lane[data-master-lane]{outline-offset:-3px}.am-lane.am-drop-target,.am-source-lane.am-drop-target{outline:3px dashed #e6b15c;background:#f8edcf}
-    .am-inspector{overflow:auto;min-height:0}.am-inspector .am-track{margin-bottom:0}
+    .am-inspector{display:none}.am-master-picker{max-height:34px;overflow-x:auto;overflow-y:hidden;white-space:nowrap}.am-master-picker button{min-height:26px!important;padding:3px 7px!important;font-size:10px!important}
+    .am-lane.am-has-editor{height:104px}.am-clip[data-selected=true]{height:86px;z-index:8;overflow:visible;box-shadow:0 0 0 3px #e6b15c}.am-clip-integrated-tools{position:absolute;left:3px;top:43px;display:flex;align-items:center;gap:3px;width:max-content;max-width:min(880px,calc(100vw - 190px));padding:3px 4px;border-radius:5px;background:#fffdf9ee;color:#17393b;box-shadow:0 2px 7px #102f3140;font-size:9px;white-space:nowrap;overflow-x:auto}.am-clip-integrated-tools label{display:flex;align-items:center;gap:2px}.am-clip-integrated-tools input[type=number]{width:52px;min-height:23px;padding:1px 3px;font:inherit}.am-clip-integrated-tools input[type=checkbox]{width:15px;height:15px}.am-clip-integrated-tools button{min-height:25px!important;padding:2px 5px!important;font-size:9px!important}.am-clip-integrated-tools .am-danger{color:#8a3f29}
     .am-automation{height:90px;position:relative;background:linear-gradient(#f8f6f0,#e7ecea);border:1px solid #adb9b6;border-radius:6px;margin:7px 0;touch-action:none;cursor:crosshair}
     .am-automation svg{width:100%;height:100%;overflow:visible}
-    .am-automation circle{fill:#b44e30;stroke:white;stroke-width:2;cursor:grab}
+    .am-automation circle,.am-envelope circle{fill:#f6d386;stroke:#7b3b25;stroke-width:1.4;cursor:grab;pointer-events:auto}.am-envelope{pointer-events:none}.am-clip[data-selected=true] .am-envelope{pointer-events:auto;cursor:crosshair}.am-clip[data-selected=true] .am-envelope polyline{stroke-width:3}.am-envelope circle:hover{r:4px}
     .am-bottom-tabs{display:flex;gap:7px}.am-bottom-tabs button[aria-selected=true]{background:#1f5053!important;color:#fff!important}
     #am-workbench[data-view=steps] .am-timeline,#am-workbench:not([data-view=steps]) .am-steps-panel{display:none}
     .am-steps-panel{overflow:auto;min-height:150px;flex:1}.am-step{grid-template-columns:56px minmax(0,1fr) 105px 64px;padding:9px 0;font-size:13px}
@@ -32243,7 +32252,7 @@ mediabunny/dist/modules/src/index.js:
     <div class="am-zone-head am-master-head"><div><h3>2 · Timeline Master</h3><span class="am-section-help">Placez le curseur rouge dans la règle, puis utilisez les outils juste au-dessus de la timeline.</span></div></div>
     <div class="am-master-shell"><div class="am-master-main"><div class="am-timeline" aria-label="Master final du montage"><div class="am-timeline-tools"><div class="am-master-actions" aria-label="Outils de la timeline"><span class="am-cursor-readout"><i class="am-cursor-dot"></i> <output id="am-cursor-time">00:00</output></span><button id="am-split" type="button" title="Scinder le bloc Master sélectionné à l’endroit du curseur rouge">✂ Scinder</button><button id="am-add-point" type="button" title="Créer un point de volume sur le bloc sélectionné">+ Volume</button><button id="am-marker" type="button" title="Faire commencer la prochaine image à l’endroit du curseur">Repère image</button><label class="am-command-label">Placement <select id="am-placement-mode" aria-label="Mode de placement"><option value="free">Libre</option><option value="snap">Aimanté</option><option value="insert">Insérer et décaler</option></select></label></div>
     <div class="am-toolbar-row am-edit am-master-settings-row"><div class="am-zoom-tools" aria-label="Zoom précis du Master"><button id="am-zoom-out" type="button" title="Dézoomer le Master">−</button><label>Zoom Master <input id="am-zoom" type="range" min="2" max="720" step="1" value="20" aria-label="Zoom précis de la timeline Master, jusqu’à l’image près"></label><button id="am-zoom-in" type="button" title="Zoomer le Master">+</button><button id="am-zoom-fit" type="button">Tout voir</button><output id="am-zoom-value">20 px/s</output></div><details class="am-settings-disclosure"><summary>Réglages du son et des pauses</summary><div class="am-advanced-grid"><label>Baisse de la musique pendant la voix <select id="am-duck"><option value="0.126">−18 dB</option><option value="0.251">−12 dB</option><option value="1">Aucune</option></select></label><label title="Rapproche automatiquement le volume des différentes voix"><input id="am-uniform-voices" type="checkbox" checked> Égaliser le volume des voix</label><button id="am-linked-zoom" class="am-compact" type="button" aria-pressed="false" data-commande="lier-zooms" title="Appliquer le zoom Master aux deux zones de sources">Lier les 3 zooms</button><label>Durée du film (s) <input id="am-total" type="number" min="1" step="0.1" style="width:78px" aria-label="Durée totale du film"></label><button id="am-pause-all" type="button" title="Ajouter la même pause entre toutes les diapositives">⏸ Pauses entre toutes les images…</button></div></details></div>
-    <div id="am-master-picker" class="am-master-picker" aria-label="Sélectionner un clip du Master"></div><div class="am-panel am-inspector"><h3>Réglages du clip sélectionné</h3><div id="am-tracks"></div></div>
+    <div id="am-master-picker" class="am-master-picker" aria-label="Sélectionner un clip du Master"></div><div id="am-tracks" class="am-inspector" hidden></div>
     <div id="am-transition-panel" class="am-transition-panel" hidden><strong id="am-transition-title">Transition</strong><label>Effet <select id="am-transition-type"><optgroup label="Base"><option value="cut">Coupe</option></optgroup><optgroup label="Fondus"><option value="dissolve">Fondu enchaîné</option><option value="blur-cross">Flou croisé</option><option value="fade-black">Fondu au noir</option><option value="fade-white">Fondu au blanc</option></optgroup><optgroup label="Mouvement"><option value="zoom-cross">Zoom croisé</option><option value="wave">Onde</option></optgroup><optgroup label="Balayages"><option value="wipe-left">Balayage à gauche</option><option value="wipe-right">Balayage à droite</option><option value="wipe-up">Balayage en haut</option><option value="wipe-down">Balayage en bas</option></optgroup><optgroup label="Glissements"><option value="slide-left">Glisser à gauche</option><option value="slide-right">Glisser à droite</option></optgroup><optgroup label="Formes"><option value="circle-open">Cercle ouvert</option><option value="circle-close">Cercle fermé</option><option value="portal">Portail</option><option value="mosaic">Mosaïque</option></optgroup><optgroup label="3D"><option value="rotate-in">Rotation intérieure</option><option value="rotate-out">Rotation extérieure</option><option value="exchange">Échange</option><option value="cube">Cube</option><option value="page-previous">Page précédente</option><option value="page-turn">Page tournée</option></optgroup><optgroup label="Puzzle"><option value="puzzle-left">Puzzle gauche</option><option value="puzzle-right">Puzzle droite</option></optgroup></select></label><label>Durée <input id="am-transition-duration" type="number" min="0.1" max="5" step="0.1" value="0.6"> s</label><label>Douceur <select id="am-transition-easing"><option value="linear">Linéaire</option><option value="ease-in">Entrée douce</option><option value="ease-out">Sortie douce</option><option value="ease-in-out">Entrée-sortie douces</option></select></label><button id="am-transition-all" type="button">Appliquer à toutes</button><button id="am-transition-remove-all" type="button">Retirer toutes</button><label>Pause <input id="am-pause-duration" type="number" min="0.1" max="30" step="0.1" value="1"> s</label><button id="am-add-pause" type="button" title="Prolonger la diapositive avant cette jonction">Ajouter la pause</button><span id="am-transition-help">Cliquez sur une jonction entre deux diapositives.</span></div>
     <div class="am-bottom-tabs" role="tablist" aria-label="Vue du montage"><button id="am-view-master" type="button" role="tab" aria-selected="true">Pistes Master</button><button id="am-view-steps" type="button" role="tab" aria-selected="false">Étapes et repères · <span id="am-step-count">0</span> images</button></div></div>
     <strong>Master final · voix et musique exportées en un seul mixage</strong><div id="am-minimap" class="am-minimap" aria-label="Mini-carte du projet" role="scrollbar" tabindex="0"><span id="am-minimap-window" class="am-minimap-window"></span></div><div id="am-timeline-inner"><div id="am-ruler" class="am-ruler"></div><div id="am-lanes"></div></div></div>
@@ -32288,7 +32297,7 @@ mediabunny/dist/modules/src/index.js:
         const blocks=kindSources.filter(s=>(s.originId||s.id)===originId),first=blocks[0],fullDuration=Math.max(0.01,blocks.reduce((sum,s)=>sum+s.out-s.in,0)),track=sourceRegionMeta(first).track;
         const regions=blocks.map(s=>{const region=sourceRegionMeta(s),used=state.tracks.some(t=>(t.sourceId||t.originId)===s.id||(t.originId&&t.originId===(s.originId||s.id))),ratio=(s.out-s.in)/fullDuration;
           const listenAt=clamp(Number.isFinite(s.listenAt)?s.listenAt:0,0,Math.max(0,s.out-s.in-0.01)),listenPercent=(listenAt/Math.max(0.01,s.out-s.in)*100).toFixed(3);
-          return `<div class="am-source-clip" draggable="${!s.locked}" data-drag-block="true" data-locked="${!!s.locked}" data-used="${used}" role="group" aria-label="${region.track} bloc ${region.blockIndex} sur ${region.blockCount}, glissable vers le Master" data-source="${s.id}" data-kind="${kind}" style="--track-color:${s.color};--region-ratio:${ratio}" title="Saisir l’en-tête de ce bloc et le glisser vers le Master"><div class="am-source-head" draggable="${!s.locked}" data-source-handle="${s.id}"><span><em class="am-region-label" style="--track-color:${s.color}">Bloc ${region.blockIndex}/${region.blockCount}</em>${time(s.out-s.in)}${used?' · déjà utilisé':''}</span><span class="am-drag-hint">☷ Glisser vers le Master</span></div><div class="am-source-wave-wrap"><canvas class="am-source-wave" data-source-wave="${s.id}" width="${Math.min(16000,Math.max(500,Math.ceil(500*state.annexZoom[kind])))}" height="${s.height==='L'?54:s.height==='S'?22:30}" aria-label="Forme d’onde du bloc ${region.blockIndex} de ${esc(s.name)}" title="Cliquez pour placer la tête de lecture et de scission"></canvas><span class="am-source-playhead" data-source-playhead="${s.id}" style="left:${listenPercent}%" aria-hidden="true"></span></div><div class="am-source-primary"><button type="button" data-source-action="listen" data-source-id="${s.id}">▶ Écouter</button><label class="am-source-cut-time">Curseur <input type="number" min="0.01" max="${(s.out-s.in-0.01).toFixed(2)}" step="0.01" value="${Math.max(0.01,listenAt).toFixed(2)}" data-source-cursor="${s.id}" aria-label="Position précise du curseur annexe en secondes"> s</label><button type="button" data-source-action="split" data-source-id="${s.id}">✂ Scinder ici</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce bloc à l’endroit du curseur rouge dans le Master">→ Placer au curseur Master</button></div><details class="am-source-advanced"><summary>Réglages du bloc</summary><div class="am-source-actions"><label>Gain <input type="number" min="-60" max="12" step="1" value="${s.db}" data-source-field="db" data-source-id="${s.id}"></label><label>Hauteur <select data-source-field="height" data-source-id="${s.id}"><option ${s.height==='S'?'selected':''}>S</option><option ${!s.height||s.height==='M'?'selected':''}>M</option><option ${s.height==='L'?'selected':''}>L</option></select></label><input type="color" value="${s.color}" data-source-field="color" data-source-id="${s.id}" aria-label="Couleur de ${esc(s.name)}"><button type="button" data-source-action="mute" data-source-id="${s.id}">${s.muted?'Réactiver':'Muet'}</button><button type="button" data-source-action="solo" data-source-id="${s.id}" aria-pressed="${!!s.solo}">Solo</button><button type="button" data-source-action="lock" data-source-id="${s.id}" aria-pressed="${!!s.locked}">${s.locked?'Déverrouiller':'Verrouiller'}</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}">Effacer</button></div></details></div>`;}).join('');
+          return `<div class="am-source-clip" draggable="false" data-drag-block="true" data-locked="${!!s.locked}" data-used="${used}" role="group" aria-label="${region.track} bloc ${region.blockIndex} sur ${region.blockCount}, glissable vers le Master" data-source="${s.id}" data-kind="${kind}" style="--track-color:${s.color};--region-ratio:${ratio}" title="Saisir la bande supérieure de ce bloc et la glisser vers le Master"><div class="am-source-head" draggable="true" data-source-handle="${s.id}" aria-label="Poignée pour glisser ce bloc vers le Master"><span><em class="am-region-label" style="--track-color:${s.color}">Bloc ${region.blockIndex}/${region.blockCount}</em>${time(s.out-s.in)}${used?' · déjà utilisé':''}</span><span class="am-drag-hint">☷ Saisir ici et glisser vers le Master</span></div><div class="am-source-wave-wrap"><canvas class="am-source-wave" data-source-wave="${s.id}" width="${Math.min(16000,Math.max(500,Math.ceil(500*state.annexZoom[kind])))}" height="${s.height==='L'?54:s.height==='S'?22:30}" aria-label="Forme d’onde du bloc ${region.blockIndex} de ${esc(s.name)}" title="Cliquez pour placer la tête de lecture et de scission"></canvas><span class="am-source-playhead" data-source-playhead="${s.id}" style="left:${listenPercent}%" role="slider" tabindex="0" aria-label="Curseur audio de ${esc(s.name)}" aria-valuemin="0" aria-valuemax="${(s.out-s.in).toFixed(2)}" aria-valuenow="${listenAt.toFixed(2)}" title="Glissez ce curseur rouge horizontalement"></span></div><div class="am-source-primary"><button type="button" data-source-action="listen" data-source-id="${s.id}">▶ Écouter</button><label class="am-source-cut-time">Curseur <input type="number" min="0.01" max="${(s.out-s.in-0.01).toFixed(2)}" step="0.01" value="${Math.max(0.01,listenAt).toFixed(2)}" data-source-cursor="${s.id}" aria-label="Position précise du curseur annexe en secondes"> s</label><button type="button" data-source-action="split" data-source-id="${s.id}">✂ Scinder ici</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce bloc à l’endroit du curseur rouge dans le Master">→ Placer au curseur Master</button></div><details class="am-source-advanced"><summary>Réglages du bloc</summary><div class="am-source-actions"><label>Gain <input type="number" min="-60" max="12" step="1" value="${s.db}" data-source-field="db" data-source-id="${s.id}"></label><label>Hauteur <select data-source-field="height" data-source-id="${s.id}"><option ${s.height==='S'?'selected':''}>S</option><option ${!s.height||s.height==='M'?'selected':''}>M</option><option ${s.height==='L'?'selected':''}>L</option></select></label><input type="color" value="${s.color}" data-source-field="color" data-source-id="${s.id}" aria-label="Couleur de ${esc(s.name)}"><button type="button" data-source-action="mute" data-source-id="${s.id}">${s.muted?'Réactiver':'Muet'}</button><button type="button" data-source-action="solo" data-source-id="${s.id}" aria-pressed="${!!s.solo}">Solo</button><button type="button" data-source-action="lock" data-source-id="${s.id}" aria-pressed="${!!s.locked}">${s.locked?'Déverrouiller':'Verrouiller'}</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}">Effacer</button></div></details></div>`;}).join('');
         return `<section class="am-source-track" style="--track-color:${first.color};--annex-zoom:${state.annexZoom[kind]}"><div class="am-source-track-head"><b class="am-track-badge" style="--track-color:${first.color}">${track}</b><strong>${esc(first.name)}</strong><span>${blocks.length} bloc${blocks.length>1?'s':''} sur la même piste</span></div><div class="am-source-regions">${regions}</div></section>`;
       }).join('');
       const paste = state.copiedSource ? `<button class="am-source-paste" type="button" data-source-action="paste" data-source-kind="${kind}">Coller le bloc copié ici</button>` : '';
@@ -32299,23 +32308,10 @@ mediabunny/dist/modules/src/index.js:
       <label>Début (s)<input type="number" min="0" step="0.01" value="${state.cuts[i].toFixed(2)}" data-cut="${i}"></label>
       <button type="button" data-focus="${i}">Voir</button></div>`).join('');
     const t = selected(), i = state.tracks.indexOf(t);
+    if(!state.images.length&&root.dataset.view==='steps'){$('am-view-master').click();}
+    $('am-view-steps').disabled=!state.images.length;
     $('am-master-picker').innerHTML = state.tracks.length ? `<span>Clips du Master :</span>${state.tracks.map((clip,index)=>`<button type="button" data-select-track="${index}" aria-pressed="${state.selectedIds.includes(clip.id)||clip.id===state.selectedId}" title="Sélectionner ${esc(clip.name)} à ${time(clip.at)}">${clip.kind==='voice'?'Voix':'Musique'} · ${esc(clip.name)} · ${time(clip.at)}${clip.locked?' · verrouillé':''}</button>`).join('')}` : '<span>Glissez un clip annexe sur le Master, ou utilisez « → Master » pour le placer au curseur.</span>';
-    $('am-tracks').innerHTML = !t ? '<p>Sélectionnez un clip dans la chronologie pour le régler.</p>' : `<article class="am-track" data-kind="${t.kind}" data-track="${i}">
-      <div class="am-track-head"><strong>${t.kind === 'voice' ? 'Voix' : 'Musique'} ${i + 1} · ${esc(t.name)}</strong>
-      <span>${time(clipLength(t))}${t.kind==='voice'&&t.rmsDb!==null?` · source ${t.rmsDb} dBFS · correction auto ${t.autoGainDb>=0?'+':''}${t.autoGainDb} dB`:''}</span><button type="button" data-mute="${i}">${t.muted ? 'Réactiver' : 'Muet'}</button><button type="button" data-solo="${i}" aria-pressed="${!!t.solo}">Solo</button><button type="button" data-lock="${i}" aria-pressed="${!!t.locked}">${t.locked?'Déverrouiller':'Verrouiller'}</button>
-      <button type="button" data-remove="${i}" aria-label="Supprimer la piste ${esc(t.name)}">Retirer</button></div>
-      <canvas class="am-wave" data-wave="${i}" width="500" height="38" aria-label="Forme d’onde"></canvas>
-      <div class="am-track-fields"><label>Placement (s)<input type="number" min="0" step="0.1" value="${t.at}" data-field="at" data-track="${i}"></label>
-      <label>Entrée (s)<input type="number" min="0" step="0.1" value="${t.in}" data-field="in" data-track="${i}"></label>
-      <label>Sortie (s)<input type="number" min="0" step="0.1" value="${t.out}" data-field="out" data-track="${i}"></label>
-      <label>Volume (dB)<input type="number" min="-60" max="12" step="1" value="${t.db}" data-field="db" data-track="${i}"></label>
-      <label>Fondu entrée (s)<input type="number" min="0" step="0.1" value="${t.fadeIn}" data-field="fadeIn" data-track="${i}"></label>
-      <label>Fondu sortie (s)<input type="number" min="0" step="0.1" value="${t.fadeOut}" data-field="fadeOut" data-track="${i}"></label>
-      <label>Piste Master<select data-field="kind" data-track="${i}"><option value="voice" ${t.kind==='voice'?'selected':''}>Voix</option><option value="music" ${t.kind==='music'?'selected':''}>Musique</option></select></label>
-      <label style="justify-content:center">Boucler<input type="checkbox" data-field="loop" data-track="${i}" ${t.loop ? 'checked' : ''}></label></div>
-      <strong style="font-size:12px">Automatisation du volume · glissez les points</strong><div class="am-automation" role="img" aria-label="Courbe de volume du clip"><svg viewBox="0 0 500 90" preserveAspectRatio="none"><polyline points="${(t.automation||[]).map(p=>`${p.time/clipLength(t)*500},${(12-p.db)/72*90}`).join(' ')}" fill="none" stroke="#b44e30" stroke-width="3"/>${(t.automation||[]).map((p,j)=>`<circle data-point="${j}" cx="${p.time/clipLength(t)*500}" cy="${(12-p.db)/72*90}" r="6"/>`).join('')}</svg></div>
-      <small>Double-cliquez sur la courbe pour ajouter un point ; double-cliquez sur un point pour le retirer.</small></article>`;
-    if (t) drawWave(t, root.querySelector(`[data-wave="${i}"]`));
+    $('am-tracks').innerHTML='';
     for (const source of state.sources) {
       const wave = root.querySelector(`[data-source-wave="${source.id}"]`);
       if (wave) drawWave(source, wave);
@@ -32327,6 +32323,19 @@ mediabunny/dist/modules/src/index.js:
       root.querySelector(`[data-master-mute="${kind}"]`).textContent = state.master[kind].muted ? 'Réactiver' : 'Muet';
     }
   }
+  function inlineClipEditor(t,i) {
+    if(!t)return '';
+    return `<div class="am-inline-clip-editor" data-kind="${t.kind}" data-track="${i}" aria-label="Réglages intégrés de ${esc(t.name)}">
+      <strong title="${esc(t.name)}">Clip · ${esc(t.name)}</strong>
+      <label>Début<input type="number" min="0" step="0.1" value="${t.at}" data-field="at" data-track="${i}" aria-label="Placement du clip en secondes"></label>
+      <label>Entrée<input type="number" min="0" step="0.1" value="${t.in}" data-field="in" data-track="${i}" aria-label="Entrée du clip en secondes"></label>
+      <label>Sortie<input type="number" min="0" step="0.1" value="${t.out}" data-field="out" data-track="${i}" aria-label="Sortie du clip en secondes"></label>
+      <label>Volume<input type="number" min="-60" max="12" step="1" value="${t.db}" data-field="db" data-track="${i}" aria-label="Volume du clip en décibels"></label>
+      <span class="am-inline-actions"><button type="button" data-mute="${i}" title="Rendre uniquement ce clip muet">${t.muted?'Son':'Muet'}</button><button type="button" data-solo="${i}" aria-pressed="${!!t.solo}" title="Écouter uniquement ce clip">Solo</button><button type="button" data-lock="${i}" aria-pressed="${!!t.locked}" title="Empêcher les modifications">${t.locked?'Déverr.':'Verrou'}</button><button type="button" data-remove="${i}" aria-label="Retirer ${esc(t.name)} du Master">Retirer</button></span>
+      <details class="am-clip-details"><summary>Fondus et boucle</summary><div class="am-track-fields-secondary"><label>Fondu entrée<input type="number" min="0" step="0.1" value="${t.fadeIn}" data-field="fadeIn" data-track="${i}"></label><label>Fondu sortie<input type="number" min="0" step="0.1" value="${t.fadeOut}" data-field="fadeOut" data-track="${i}"></label><label>Piste<select data-field="kind" data-track="${i}"><option value="voice" ${t.kind==='voice'?'selected':''}>Voix</option><option value="music" ${t.kind==='music'?'selected':''}>Musique</option></select></label><label>Boucler<input type="checkbox" data-field="loop" data-track="${i}" ${t.loop?'checked':''}></label></div></details>
+      <details class="am-automation-details"><summary>Courbe de volume</summary><div class="am-automation" role="img" aria-label="Courbe de volume du clip"><svg viewBox="0 0 500 90" preserveAspectRatio="none"><polyline points="${(t.automation||[]).map(p=>`${p.time/clipLength(t)*500},${(12-p.db)/72*90}`).join(' ')}" fill="none" stroke="#b44e30" stroke-width="3"/>${(t.automation||[]).map((p,j)=>`<circle data-point="${j}" cx="${p.time/clipLength(t)*500}" cy="${(12-p.db)/72*90}" r="6"/>`).join('')}</svg></div><small>Double-cliquez pour ajouter ou retirer un point.</small></details>
+    </div>`;
+  }
   function renderTimeline() {
     const total = Math.max(1, duration());
     $('am-timeline-inner').style.width = `${Math.max(650,Math.ceil(total*state.zoom)+120)}px`;
@@ -32337,12 +32346,23 @@ mediabunny/dist/modules/src/index.js:
       const left = state.cuts[i]/total*100, end = (state.cuts[i+1] ?? total)/total*100;
       return `<div class="am-clip am-step-clip" data-focus="${i}" style="left:${left}%;width:${Math.max(0,end-left)}%" title="Étape ${i+1} — glissez le bord droit pour changer sa durée">${i+1}. ${esc(im.titre||'Étape')}<span class="am-step-resize" data-resize-step="${i}" title="Étirer ou raccourcir la diapositive ${i+1}"></span></div>`;
     }).join('')}${state.images.slice(1).map((_,j)=>{const i=j+1,t=state.transitions[i]||{type:'cut'};return `<button type="button" class="am-transition-marker" data-transition="${i}" style="left:${state.cuts[i]/total*100}%" title="Transition ${i} → ${i+1} : ${t.type==='cut'?'coupe franche':t.type}">${t.type==='cut'?'·':'✦'}</button>`;}).join('')}</div>`;
-    $('am-lanes').innerHTML = stepLane + ['voice','music'].map(kind => `<div class="am-lane" data-master-lane="${kind}"><span class="am-lane-name"><strong>${kind==='voice'?'Voix':'Musique'} Master</strong><span class="am-lane-mix"><button type="button" data-master-mute="${kind}">${state.master[kind].muted?'Réactiver':'Muet'}</button><input type="range" data-master-db="${kind}" min="-36" max="12" value="${state.master[kind].db}" aria-label="Volume de la piste ${kind==='voice'?'voix':'musique'} Master"><output id="am-${kind}-db">${state.master[kind].db} dB</output></span></span>${state.tracks.map((t,i) => {
+    $('am-lanes').innerHTML = stepLane + ['voice','music'].map(kind => {const chosen=selected(),chosenIndex=state.tracks.indexOf(chosen),hasEditor=chosen?.kind===kind;return `<div class="am-lane${hasEditor?' am-has-editor':''}" data-master-lane="${kind}"><span class="am-lane-name"><strong>${kind==='voice'?'Voix':'Musique'} Master</strong><span class="am-lane-mix"><button type="button" data-master-mute="${kind}">${state.master[kind].muted?'Réactiver':'Muet'}</button><input type="range" data-master-db="${kind}" min="-36" max="12" value="${state.master[kind].db}" aria-label="Volume de la piste ${kind==='voice'?'voix':'musique'} Master"><output id="am-${kind}-db">${state.master[kind].db} dB</output></span></span>${state.tracks.map((t,i) => {
       if (t.kind!==kind) return '';
       const left = Math.min(100,t.at/total*100), length = (t.loop ? total-t.at : clipLength(t))/total*100;
       const points = t.automation || [{time:0,db:0},{time:clipLength(t),db:0}];
-      return `<div class="am-clip" data-kind="${kind}" data-clip="${i}" data-selected="${state.selectedIds.includes(t.id)||t.id===state.selectedId}" data-locked="${!!t.locked}" aria-disabled="${t.muted}" style="--track-color:${t.color};left:${left}%;width:${Math.max(0,Math.min(100-left,length))}%" title="${t.locked?'Clip verrouillé':'Glisser horizontalement ou vers l’autre piste Master'}"><span class="am-clip-label">${t.locked?'🔒 ':''}${esc(t.name)}</span><svg class="am-envelope" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${points.map(p=>`${p.time/clipLength(t)*100},${7+(12-p.db)/72*35}`).join(' ')}" fill="none" stroke="#f6d386" stroke-width="2"/></svg></div>`;
-    }).join('')}</div>`).join('');
+      const selectedNow=state.selectedIds.includes(t.id)||t.id===state.selectedId;
+      const tools=selectedNow?`<div class="am-clip-integrated-tools" aria-label="Outils intégrés du clip ${esc(t.name)}">
+        <label title="Position du clip">Début <input type="number" min="0" step="0.1" value="${t.at}" data-field="at" data-track="${i}"></label>
+        <label title="Début utilisé dans le fichier">Entrée <input type="number" min="0" step="0.1" value="${t.in}" data-field="in" data-track="${i}"></label>
+        <label title="Fin utilisée dans le fichier">Sortie <input type="number" min="0" step="0.1" value="${t.out}" data-field="out" data-track="${i}"></label>
+        <label title="Volume général du bloc">dB <input type="number" min="-60" max="12" step="1" value="${t.db}" data-field="db" data-track="${i}"></label>
+        <label title="Durée du fondu d’entrée">↗ <input type="number" min="0" step="0.1" value="${t.fadeIn}" data-field="fadeIn" data-track="${i}"></label>
+        <label title="Durée du fondu de sortie">↘ <input type="number" min="0" step="0.1" value="${t.fadeOut}" data-field="fadeOut" data-track="${i}"></label>
+        <label title="Répéter ce bloc en boucle"><input type="checkbox" data-field="loop" data-track="${i}" ${t.loop?'checked':''}> Boucle</label>
+        <button type="button" data-mute="${i}">${t.muted?'Son':'Muet'}</button><button type="button" data-solo="${i}" aria-pressed="${!!t.solo}">Solo</button><button type="button" data-lock="${i}" aria-pressed="${!!t.locked}">${t.locked?'Déverr.':'Verrou'}</button><button class="am-danger" type="button" data-remove="${i}">Retirer</button>
+      </div>`:'';
+      return `<div class="am-clip" data-kind="${kind}" data-clip="${i}" data-selected="${selectedNow}" data-locked="${!!t.locked}" aria-disabled="${t.muted}" style="--track-color:${t.color};left:${left}%;width:${Math.max(0,Math.min(100-left,length))}%" title="${t.locked?'Clip verrouillé':'Glisser le bloc ; cliquez sur la ligne jaune pour créer un point de volume'}"><span class="am-clip-label">${t.locked?'🔒 ':''}${esc(t.name)}</span><svg class="am-envelope" data-automation-track="${i}" viewBox="0 0 100 50" preserveAspectRatio="none" aria-label="Courbe de volume directement sur le clip"><polyline points="${points.map(p=>`${p.time/clipLength(t)*100},${7+(12-p.db)/72*35}`).join(' ')}" fill="none" stroke="#f6d386" stroke-width="2"/>${selectedNow?points.map((p,j)=>`<circle data-point="${j}" cx="${p.time/clipLength(t)*100}" cy="${7+(12-p.db)/72*35}" r="2.8"/>`).join(''):''}</svg>${tools}</div>`;
+    }).join('')}</div>`;}).join('');
     updateMinimap();
     if(!state.scrubbing)requestAnimationFrame(()=>ensurePlayheadVisible());
   }
@@ -32383,9 +32403,11 @@ mediabunny/dist/modules/src/index.js:
     if(local>=length-0.01)local=0;
     const ctx=new Audio(),node=ctx.createBufferSource(),gain=ctx.createGain();
     node.buffer=source.buffer;gain.gain.value=dbGain(source.db+voiceGain(source));node.connect(gain).connect(ctx.destination);
-    await ctx.resume();
     const audition={source,ctx,node,startLocal:local,startedAt:ctx.currentTime,raf:0};sourceAudition=audition;
     updateSourceAuditionUI(source,local,true);node.start(0,source.in+local,length-local);
+    await ctx.resume();
+    if(sourceAudition!==audition){try{node.stop();}catch{}ctx.close().catch(()=>{});return;}
+    audition.startedAt=ctx.currentTime;
     badge(`Lecture du bloc « ${source.name} ». Le petit curseur rouge indique la position d’écoute et de scission.`,false);
     const tick=()=>{
       if(sourceAudition!==audition)return;
@@ -32484,28 +32506,59 @@ mediabunny/dist/modules/src/index.js:
   $('am-project-file').onchange=async e=>{const file=e.target.files[0];e.target.value='';if(!file)return;try{await openProject(file);}catch(error){badge(`Ouverture impossible : ${error.message}`,true);}};
   $('am-view-master').onclick = () => { root.dataset.view='master'; $('am-view-master').setAttribute('aria-selected','true'); $('am-view-steps').setAttribute('aria-selected','false'); };
   $('am-view-steps').onclick = () => { root.dataset.view='steps'; $('am-view-master').setAttribute('aria-selected','false'); $('am-view-steps').setAttribute('aria-selected','true'); };
+  // L'importeur HTML général de la page affiche un voile plein écran dès qu'un
+  // fichier entre dans Safari. Il peut alors devenir la cible du drop à la place
+  // de la piste audio. On route donc les fichiers audio en phase de capture,
+  // d'après la position réelle du pointeur, avant que ce voile ne soit affiché.
+  const importLanes=[...root.querySelectorAll('[data-import-lane]')];
+  const importLaneAt=(x,y)=>importLanes.find(lane=>{const rect=lane.getBoundingClientRect();return x>=rect.left&&x<=rect.right&&y>=rect.top&&y<=rect.bottom;})||null;
+  const isFileDrag=e=>!!e.dataTransfer&&([...e.dataTransfer.types||[]].includes('Files')||e.dataTransfer.files?.length);
+  const routeAudioFileDrag=e=>{
+    const lane=importLaneAt(e.clientX,e.clientY);if(!lane||!isFileDrag(e))return;
+    e.preventDefault();e.stopImmediatePropagation();
+    if(e.dataTransfer)e.dataTransfer.dropEffect='copy';
+    importLanes.forEach(item=>item.classList.toggle('am-drop-target',item===lane));
+    const veil=$('cv-voile');if(veil)veil.style.display='none';
+    if(e.type==='drop'){
+      importLanes.forEach(item=>item.classList.remove('am-drop-target'));
+      const files=[...e.dataTransfer.files];if(files.length)importFiles(files,lane.dataset.importLane);
+    }
+  };
+  for(const type of ['dragenter','dragover','drop'])window.addEventListener(type,routeAudioFileDrag,true);
   root.querySelectorAll('[data-import-lane]').forEach(lane => {
     lane.ondragenter=e=>{if([...e.dataTransfer?.types||[]].includes('Files')){e.preventDefault();e.stopPropagation();lane.classList.add('am-drop-target');$('cv-voile').style.display='none';}};
     lane.ondragover=e=>{if([...e.dataTransfer?.types||[]].includes('Files')){e.preventDefault();e.stopPropagation();lane.classList.add('am-drop-target');}};
     lane.ondragleave=e=>{e.stopPropagation();if(!lane.contains(e.relatedTarget))lane.classList.remove('am-drop-target');};
     lane.ondrop=e=>{if(!e.dataTransfer?.files?.length)return;e.preventDefault();e.stopPropagation();lane.classList.remove('am-drop-target');$('cv-voile').style.display='none';importFiles([...e.dataTransfer.files],lane.dataset.importLane);};
   });
+  function placeAnnexCursor(wave,clientX) {
+    const source=state.sources.find(s=>s.id===wave?.dataset.sourceWave);if(!source)return;
+    if(sourceAudition?.source.id===source.id)stopSourceAudition();
+    const rect=wave.getBoundingClientRect(),seconds=(source.out-source.in)*clamp((clientX-rect.left)/rect.width,0,1);
+    const field=wave.closest('.am-source-clip').querySelector('input[type=number]');
+    field.value=clamp(seconds,0.01,source.out-source.in-0.01).toFixed(2);updateSourceAuditionUI(source,seconds,false);
+    badge(`Curseur annexe placé à ${field.value} s dans « ${source.name} ». Cliquez sur « Scinder ici » pour créer deux blocs.`,false);
+  }
+  // Safari peut considérer le bouton d'écoute comme le début d'un glisser du bloc.
+  // Intercepter ce transport avant la délégation générale rend Lecture/Arrêt déterministe.
+  let sourceTransportPointerAt=0;
+  root.querySelector('.am-sources').addEventListener('pointerdown',e=>{
+    const button=e.target.closest?.('[data-source-action="listen"]');if(!button)return;
+    e.preventDefault();e.stopPropagation();sourceTransportPointerAt=performance.now();
+    const source=state.sources.find(s=>s.id===button.dataset.sourceId);if(source)toggleSourceAudition(source);
+  },true);
+  root.querySelector('.am-sources').addEventListener('click',e=>{
+    const button=e.target.closest?.('[data-source-action="listen"]');if(!button)return;
+    e.preventDefault();e.stopPropagation();
+    if(performance.now()-sourceTransportPointerAt<500)return;
+    const source=state.sources.find(s=>s.id===button.dataset.sourceId);if(source)toggleSourceAudition(source);
+  },true);
   root.querySelector('.am-sources').onclick = e => {
     const wave=e.target.closest('[data-source-wave]');
-    if (wave) {
-      const source=state.sources.find(s=>s.id===wave.dataset.sourceWave);
-      if (!source) return;
-      if(sourceAudition?.source.id===source.id)stopSourceAudition();
-      const rect=wave.getBoundingClientRect(), seconds=(source.out-source.in)*clamp((e.clientX-rect.left)/rect.width,0,1);
-      const field=wave.closest('.am-source-clip').querySelector('input[type=number]');
-      field.value=clamp(seconds,0.01,source.out-source.in-0.01).toFixed(2);
-      updateSourceAuditionUI(source,seconds,false);
-      badge(`Tête de scission placée à ${field.value} s dans « ${source.name} ». Cliquez sur « Scinder en 2 blocs » : aucun son ne sera supprimé.`,false);
-      return;
-    }
+    if (wave) {placeAnnexCursor(wave,e.clientX);return;}
     const action=e.target.dataset.sourceAction; if (!action) return;
     const source=state.sources.find(s=>s.id===e.target.dataset.sourceId);
-    if (action==='listen' && source) { toggleSourceAudition(source);return; }
+    if (action==='listen') return;
     if (action==='place' && source) { const lane=root.querySelector(`[data-master-lane="${source.kind}"]`);const r=lane.getBoundingClientRect(),filmDuration=duration();placeSource(source,lane,filmDuration>0?r.left+r.width*state.previewAt/filmDuration:r.left); }
     if (action==='mute' && source) { checkpoint(`muet de ${source.name}`);source.muted=!source.muted;render(); }
     if (action==='solo' && source) { checkpoint(`solo de ${source.name}`);source.solo=!source.solo;render(); }
@@ -32591,25 +32644,48 @@ mediabunny/dist/modules/src/index.js:
   root.querySelector('.am-sources').onpointerdown = e => {
     // Safari peut perdre le dépôt HTML natif pendant un long glisser vertical.
     // L’en-tête possède donc aussi une voie pointeur explicite, souris comprise.
-    if(!e.target.closest('.am-source-head'))return;
+    const sourceHead=e.target.closest('[data-source-playhead]');
+    if(sourceHead){
+      const source=state.sources.find(s=>s.id===sourceHead.dataset.sourcePlayhead),wave=sourceHead.previousElementSibling;
+      if(!source||!wave)return;
+      e.preventDefault();e.stopPropagation();if(sourceAudition?.source.id===source.id)stopSourceAudition();
+      const moveCursor=clientX=>{
+        const rect=wave.getBoundingClientRect(),seconds=(source.out-source.in)*clamp((clientX-rect.left)/rect.width,0,1);
+        updateSourceAuditionUI(source,seconds,false);sourceHead.setAttribute('aria-valuenow',seconds.toFixed(2));
+      };
+      sourceHead.setPointerCapture(e.pointerId);moveCursor(e.clientX);
+      sourceHead.onpointermove=move=>moveCursor(move.clientX);
+      const finish=up=>{moveCursor(up.clientX);sourceHead.onpointermove=null;sourceHead.onpointerup=null;sourceHead.onpointercancel=null;badge(`Curseur annexe placé à ${(source.listenAt||0).toFixed(2)} s dans « ${source.name} ».`,false);};
+      sourceHead.onpointerup=finish;sourceHead.onpointercancel=finish;return;
+    }
+    if(e.target.closest('button,input,label,select,summary,details'))return;
     const clip=e.target.closest('[data-source]');if(!clip)return;
     const id=clip.dataset.source,startX=e.clientX,startY=e.clientY;
     if(state.sources.find(s=>s.id===id)?.locked)return badge('Ce bloc est verrouillé.',true);
     e.preventDefault();
     clip.setPointerCapture(e.pointerId);
     const laneAt=(x,y)=>document.elementFromPoint(x,y)?.closest?.('[data-master-lane]')||[...root.querySelectorAll('[data-master-lane]')].find(row=>{const r=row.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;});
+    let dragX=startX,dragY=startY,dragging=false,scrollRaf=0;
+    const refreshTarget=()=>root.querySelectorAll('[data-master-lane]').forEach(row=>row.classList.toggle('am-drop-target',row===laneAt(dragX,dragY)));
+    const autoScroll=()=>{
+      if(!dragging)return;
+      const edge=Math.min(110,window.innerHeight*.18),speed=dragY<edge?-Math.ceil((edge-dragY)/4):dragY>window.innerHeight-edge?Math.ceil((dragY-(window.innerHeight-edge))/4):0;
+      if(speed){if(root.classList.contains('am-focused'))root.scrollTop+=speed;else window.scrollBy(0,speed);refreshTarget();}
+      scrollRaf=requestAnimationFrame(autoScroll);
+    };
     clip.onpointermove=move=>{
-      if(Math.hypot(move.clientX-startX,move.clientY-startY)<8)return;
-      root.querySelectorAll('[data-master-lane]').forEach(row=>row.classList.toggle('am-drop-target',row===laneAt(move.clientX,move.clientY)));
+      dragX=move.clientX;dragY=move.clientY;
+      if(!dragging&&Math.hypot(move.clientX-startX,move.clientY-startY)>=8){dragging=true;clip.classList.add('am-dragging');badge('Glissez vers le haut : la page défile automatiquement jusqu’à Voix Master ou Musique Master.',false);scrollRaf=requestAnimationFrame(autoScroll);}
+      if(dragging)refreshTarget();
     };
     clip.onpointerup=up=>{
-      clip.onpointerup=null;clip.onpointermove=null;root.querySelectorAll('[data-master-lane]').forEach(row=>row.classList.remove('am-drop-target'));
-      if(Math.hypot(up.clientX-startX,up.clientY-startY)<12)return;
+      cancelAnimationFrame(scrollRaf);clip.classList.remove('am-dragging');clip.onpointerup=null;clip.onpointermove=null;root.querySelectorAll('[data-master-lane]').forEach(row=>row.classList.remove('am-drop-target'));
+      if(Math.hypot(up.clientX-startX,up.clientY-startY)<12){const wave=e.target.closest('[data-source-wave]');if(wave)placeAnnexCursor(wave,up.clientX);return;}
       const lane=laneAt(up.clientX,up.clientY);
       const source=state.sources.find(s=>s.id===id);
-      if(lane&&source)placeSource(source,lane,up.clientX);
+      if(lane&&source)placeSource(source,lane,up.clientX);else badge('Bloc non déposé : relâchez-le sur la piste Voix Master ou Musique Master surlignée.',true);
     };
-    clip.onpointercancel=()=>{clip.onpointerup=null;clip.onpointermove=null;root.querySelectorAll('[data-master-lane]').forEach(row=>row.classList.remove('am-drop-target'));};
+    clip.onpointercancel=()=>{cancelAnimationFrame(scrollRaf);clip.classList.remove('am-dragging');clip.onpointerup=null;clip.onpointermove=null;root.querySelectorAll('[data-master-lane]').forEach(row=>row.classList.remove('am-drop-target'));};
   };
   $('am-lanes').ondragover = e => {
     const lane=e.target.closest('[data-master-lane]'); if (!lane) return;
@@ -32623,7 +32699,8 @@ mediabunny/dist/modules/src/index.js:
     const source=state.sources.find(s=>s.id===sourceId);if(!source)return;
     placeSource(source,lane,e.clientX);
   };
-  $('am-tracks').onchange = e => {
+  const trackSurfaces=[$('am-tracks'),$('am-lanes')];
+  const changeTrackField = e => {
     const i = +e.target.dataset.track, t = state.tracks[i], f = e.target.dataset.field;
     if (!t || !f) return;
     if(t.locked){render();return badge('Déverrouillez ce clip avant de le modifier.',true);}
@@ -32640,17 +32717,17 @@ mediabunny/dist/modules/src/index.js:
     // Laisser le contrôle natif finir son changement avant de reconstruire l'inspecteur.
     requestAnimationFrame(render);
   };
-  $('am-tracks').oninput = e => {
+  const inputTrackField = e => {
     if (e.target.dataset.field !== 'db') return;
     const t=state.tracks[+e.target.dataset.track];if(!t)return;
     t.db=clamp(+e.target.value,-60,12);updateLiveGains();
   };
-  $('am-tracks').addEventListener('pointerdown', e => {
+  const startTrackField = e => {
     if (e.target.dataset.field !== 'db') return;
     const t=state.tracks[+e.target.dataset.track];if(!t||t.locked)return;
     checkpoint(`volume de ${t.name}`);e.target.dataset.historyStarted='true';
-  });
-  $('am-tracks').onclick = e => {
+  };
+  const clickTrackAction = e => {
     const i = e.target.dataset.mute ?? e.target.dataset.remove ?? e.target.dataset.solo ?? e.target.dataset.lock;
     if (i === undefined) return;
     const track=state.tracks[+i];
@@ -32661,6 +32738,7 @@ mediabunny/dist/modules/src/index.js:
     else { checkpoint(`suppression de ${track.name}`);const removed = state.tracks.splice(+i, 1)[0];state.selectedIds=state.selectedIds.filter(id=>id!==removed.id);if (removed.id===state.selectedId) state.selectedId=state.selectedIds.at(-1)||null; }
     render();
   };
+  trackSurfaces.forEach(surface=>{surface.addEventListener('change',changeTrackField);surface.addEventListener('input',inputTrackField);surface.addEventListener('pointerdown',startTrackField);surface.addEventListener('click',clickTrackAction);});
   root.addEventListener('input', e => {
     const kind=e.target.dataset.masterDb; if (!kind) return;
     state.master[kind].db=+e.target.value; $(`am-${kind}-db`).textContent=`${e.target.value} dB`;updateLiveGains();
@@ -32758,30 +32836,34 @@ mediabunny/dist/modules/src/index.js:
     t.automation.push({time:local,db:automationDb(t,local)});
     t.automation.sort((a,b)=>a.time-b.time); render();
   };
-  $('am-tracks').ondblclick = e => {
-    const t=selected(), panel=e.target.closest('.am-automation'); if (!t||!panel) return;
+  const automationTrack=(panel)=>state.tracks[+(panel?.dataset.automationTrack??state.tracks.indexOf(selected()))];
+  const editAutomation = e => {
+    const panel=e.target.closest('.am-automation,.am-envelope'),t=automationTrack(panel); if (!t||!panel) return;
+    e.preventDefault();e.stopPropagation();
     if(t.locked)return badge('Déverrouillez ce clip avant de modifier son automatisation.',true);
     checkpoint(`automatisation de ${t.name}`);
     const point=e.target.closest('[data-point]');
     if (point) { const j=+point.dataset.point; if (j>0 && j<t.automation.length-1) t.automation.splice(j,1); }
-    else { const r=panel.getBoundingClientRect(); t.automation.push({time:clamp((e.clientX-r.left)/r.width*clipLength(t),0,clipLength(t)),db:clamp(12-(e.clientY-r.top)/r.height*72,-60,12)}); t.automation.sort((a,b)=>a.time-b.time); }
+    else { const r=panel.getBoundingClientRect(),compact=panel.classList.contains('am-envelope'); t.automation.push({time:clamp((e.clientX-r.left)/r.width*clipLength(t),0,clipLength(t)),db:compact?automationDb(t,clamp((e.clientX-r.left)/r.width*clipLength(t),0,clipLength(t))):clamp(12-(e.clientY-r.top)/r.height*72,-60,12)}); t.automation.sort((a,b)=>a.time-b.time); }
     render();
   };
-  $('am-tracks').onpointerdown = e => {
-    const dot=e.target.closest('[data-point]'), t=selected(); if (!dot||!t) return;
+  const dragAutomationPoint = e => {
+    const dot=e.target.closest('[data-point]'),panel=dot?.closest('.am-automation,.am-envelope'),t=automationTrack(panel); if (!dot||!t) return;
+    e.preventDefault();e.stopPropagation();
     if(t.locked)return badge('Déverrouillez ce clip avant de modifier son automatisation.',true);
     checkpoint(`automatisation de ${t.name}`);
-    const j=+dot.dataset.point, panel=dot.closest('.am-automation'), r=panel.getBoundingClientRect();
+    const j=+dot.dataset.point,r=panel.getBoundingClientRect(),compact=panel.classList.contains('am-envelope'),viewWidth=compact?100:500,viewHeight=compact?50:90;
     dot.setPointerCapture(e.pointerId);
     dot.onpointermove=move => {
       const p=t.automation[j];
-      p.db=Math.round(clamp(12-(move.clientY-r.top)/r.height*72,-60,12));
+      p.db=Math.round(compact?clamp(12-((move.clientY-r.top)/r.height*50-7)/35*72,-60,12):clamp(12-(move.clientY-r.top)/r.height*72,-60,12));
       if (j>0&&j<t.automation.length-1) p.time=clamp((move.clientX-r.left)/r.width*clipLength(t),t.automation[j-1].time+0.01,t.automation[j+1].time-0.01);
-      dot.setAttribute('cx',p.time/clipLength(t)*500); dot.setAttribute('cy',(12-p.db)/72*90);
-      panel.querySelector('polyline').setAttribute('points',t.automation.map(q=>`${q.time/clipLength(t)*500},${(12-q.db)/72*90}`).join(' '));
+      dot.setAttribute('cx',p.time/clipLength(t)*viewWidth); dot.setAttribute('cy',compact?7+(12-p.db)/72*35:(12-p.db)/72*viewHeight);
+      panel.querySelector('polyline').setAttribute('points',t.automation.map(q=>`${q.time/clipLength(t)*viewWidth},${compact?7+(12-q.db)/72*35:(12-q.db)/72*viewHeight}`).join(' '));
     };
     dot.onpointerup=()=>{dot.onpointermove=null;dot.onpointerup=null;render();};
   };
+  trackSurfaces.forEach(surface=>{surface.addEventListener('click',e=>{if(e.target.closest('.am-envelope')&&!e.target.closest('[data-point]'))editAutomation(e);});surface.addEventListener('dblclick',e=>{if(e.target.closest('[data-point]'))editAutomation(e);});surface.addEventListener('pointerdown',dragAutomationPoint);});
   $('am-steps').onchange = e => {
     if (e.target.dataset.cut === undefined) return;
     const i = +e.target.dataset.cut, value = +e.target.value;
@@ -32851,6 +32933,7 @@ mediabunny/dist/modules/src/index.js:
     if(junction){showTransition(+junction.dataset.transition);return;}
   };
   $('am-lanes').onpointerdown = e => {
+    if(e.target.closest('.am-clip-integrated-tools,.am-envelope'))return;
     const handle=e.target.closest('[data-resize-step]');
     if(handle){
       const i=+handle.dataset.resizeStep, boundary=i+1, lane=handle.parentElement.parentElement;
@@ -32910,6 +32993,7 @@ mediabunny/dist/modules/src/index.js:
   $('am-preview-quality').onchange=e=>{checkpoint('qualité de prévisualisation');state.previewQuality=e.target.value;applyPreviewQuality();drawPreview(state.previewAt);badge(state.previewQuality==='economy'?'Aperçu économique 540p ; export inchangé en 1080p.':'Aperçu pleine qualité 1080p.',false);};
   root.querySelector('.am-step-nav').onclick=e=>{
     const jump=e.target.dataset.jump;if(!jump)return;
+    if(jump!=='sources'&&jump!=='all')stopSourceAudition();
     state.workspace=jump;root.dataset.workspace=jump;
     root.querySelectorAll('[data-jump]').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.jump===jump)));
     if(jump==='preview')drawPreview(state.previewAt);
@@ -33075,7 +33159,7 @@ mediabunny/dist/modules/src/index.js:
       if (state.previewAt >= duration()) stopPreview(); else state.raf = requestAnimationFrame(tick); };
     state.raf = requestAnimationFrame(tick);
   };
-  $('am-stop').onclick = () => { stopPreview(); seek(0); };
+  $('am-stop').onclick = () => { stopSourceAudition();stopPreview();seek(0);badge('Lecture arrêtée.',false); };
 
   // Export déterministe : chaque étape est écrite avec son instant et sa durée.
   // Le temps réel de l'onglet ne peut donc plus sauter de diapositive.
