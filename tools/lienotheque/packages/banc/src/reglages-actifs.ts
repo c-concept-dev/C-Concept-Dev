@@ -125,19 +125,23 @@ export function reglagesDuCommit(
   surveilles: readonly string[] = REGLAGES_SURVEILLES,
   executer = execFileSync,
 ): ReadonlyMap<string, AuCommit> {
+  // Les chemins donnes a `ls-tree` s'entendent depuis le DOSSIER COURANT, et sa sortie aussi ;
+  // `--full-name` ne change que la sortie, pas la lecture des chemins. On lui parle donc en
+  // chemins du projet, et on garde le prefixe pour `git show`, qui lui part de la racine.
   const prefixe = executerGit(executer, ["rev-parse", "--show-prefix"], projet).trim();
-  const chemins = surveilles.map((relatif) => `${prefixe}${relatif}`);
-  const listes = executerGit(executer, ["ls-tree", "-r", "--name-only", "HEAD", "--", ...chemins], projet);
+  const listes = executerGit(executer, ["ls-tree", "-r", "--name-only", "HEAD", "--", ...surveilles], projet);
   const presents = new Set(listes.split("\n").filter((ligne) => ligne !== ""));
 
   const au = new Map<string, AuCommit>();
-  for (const [rang, relatif] of surveilles.entries()) {
-    const chemin = chemins[rang]!;
-    if (!presents.has(chemin)) {
+  for (const relatif of surveilles) {
+    if (!presents.has(relatif)) {
       au.set(relatif, { absent: true });
       continue;
     }
-    const octets = executer("git", ["show", `HEAD:${chemin}`], { cwd: projet, maxBuffer: 8 * 1024 * 1024 }) as Buffer;
+    const octets = executer("git", ["show", `HEAD:${prefixe}${relatif}`], {
+      cwd: projet,
+      maxBuffer: 8 * 1024 * 1024,
+    }) as Buffer;
     au.set(relatif, { octets });
   }
   return au;
