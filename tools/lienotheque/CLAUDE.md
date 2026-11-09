@@ -4,8 +4,22 @@
 retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au vrai minutage.
 
 ## Sources qui font foi
-- **CDC normatif v2.0** (exigences numérotées ID, JOB, ANC, REC, OUT, HER, OPT, HEB, SYN, RCH, UX, SEC) :
-  https://claude.ai/code/artifact/0ea6d832-3c0c-4602-9c4d-ae3bbfcfed74
+- **Cahier des charges de pilotage**, version 25.1 du 9 novembre 2026 : `docs/cdc-pilotage.md`.
+  Il porte la **feuille de route jusqu'à la version définitive** — chaque étape avec sa définition
+  de « fini » —, les **règles non négociables** de produit et de méthode, et les **dettes connues**.
+  Il **se relit en tête de chaque session**, avant toute décision, et **se met à jour le jour
+  même** : toute étape commencée, finie ou reportée y est inscrite le jour où elle bouge.
+  « Reporter sans nommer, c'est oublier » — une étape n'existe que si elle porte son nom là.
+- **Le CDC — deux documents, et leur rang reste à trancher par Christophe** (dette D18) :
+  - **CDC normatif v2.0**, la liste numérotée des exigences (ID, JOB, ANC, REC, OUT, HER, OPT, HEB,
+    SYN, RCH, UX, SEC) : https://claude.ai/code/artifact/0ea6d832-3c0c-4602-9c4d-ae3bbfcfed74.
+    Il porte **135 exigences**, dont **78 sont citées dans des noms de contrôles** du dépôt.
+  - **CDC d'audit v24** : `docs/cdc-audit-complet-24.md` (écrit le 4 novembre 2026 ; il contient le
+    v23 intégral). Le cahier de pilotage le nomme comme référence fonctionnelle. Il ne cite que
+    **6** des exigences numérotées du v2.0 : les deux documents ne sont pas deux versions l'un de
+    l'autre.
+
+  D'ici le verdict de Christophe, une divergence entre les deux **se signale** et ne se tranche pas.
 - **Charte graphique graphite et cuivre v3** : `docs/charte/` ; jetons sources dans
   `packages/jetons/src/tokens.json` (v3.0.1, réserves appliquées, jetons du kit inclus). Les maquettes
   sont illustratives, jamais typographiques.
@@ -14,6 +28,14 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
   on ne le copie pas tel quel. Logo vectoriel validé : `docs/ui-kit/assets/` (emblèmes et logos
   horizontaux clair/sombre). Polices WOFF2 : `docs/ui-kit/assets/fonts/`.
 - En cas de doute entre une maquette, un ancien document et le CDC, **le CDC gagne**.
+- **Ordre de préséance**, tel que le cahier de pilotage le décrit (§ 0). En cas de contradiction :
+  1. une **décision de Christophe**, datée et inscrite dans `docs/decisions/` ;
+  2. le **cahier de pilotage** ;
+  3. le **CDC** ;
+  4. l'**archive gelée** `docs/decisions.md`.
+
+  Une contradiction se **signale** à Christophe ; elle ne se tranche **jamais** en silence — pas
+  davantage entre un de ces documents et l'état réel du dépôt.
 
 ## Règles non négociables
 1. **Rien en dur pour le domaine (CLA-01).** Champs, filtres, vocabulaire, types d'éléments viennent
