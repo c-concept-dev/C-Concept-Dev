@@ -1,8 +1,8 @@
 # Liénothèque — Cahier des charges de pilotage
 
-**Version 25.3 — 9 novembre 2026**
+**Version 25.4 — 9 novembre 2026**
 Rédigé à partir des sessions du 3 au 9 novembre 2026 (Christophe, Claude, Claude Desktop).
-La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs).
+La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs). La 25.4 met à jour l'étape 0 (licences faites, vérification à l'écran ajoutée), lève D2, D18 et D19, redéfinit D7 et ajoute D21 (Siegfried).
 
 ---
 
@@ -147,7 +147,8 @@ Une recommandation de Claude **n'est jamais** une autorisation. Une autorisation
 | crochet de pré-commit (`core.hooksPath`) | juge l'index du commit : fantômes, fuites, vocabulaire. `--no-verify` interdit |
 | crochet `PreToolUse` de Claude Code | refuse `git reset --hard`, `git stash`, `git clean`, `git checkout … --`, `git restore` sur chemins, `push --force`, `add -A`/`.`, `rm -rf`, `--no-verify` — **un filet, pas un mur** |
 | garde-fou des fuites | refuse PDF, MP3 et sorties de mesure dans le dépôt public |
-| garde-fou des réglages actifs | la copie où la session lit ses réglages = la version de référence. **Attention** : les fichiers de `.claude/` ne sont aujourd'hui suivis par Git nulle part ; le crochet `PreToolUse` n'existe que sur cette machine (dette D19) |
+| garde-fou des réglages actifs | les réglages que la session obéit sont comparés **aux octets du commit** (et non à un fichier du disque) ; `.claude/` est versionné sur la branche de travail depuis le 7 novembre (D19 levée le 9 novembre) |
+| `licences-embarquees` | chaque composant redistribué porte son texte de licence dans l'application |
 | `paquet-hermetique` | aucun binaire embarqué ne charge de bibliothèque hors du paquet (né le 9 novembre, `28baedaf`, vert sur la CI) |
 | garde-fou de l'archive gelée | refuse toute modification de `docs/decisions.md` |
 | garde-fou des épingles | ne tolère que les échecs épinglés ; une épingle dont le contrôle passe est périmée |
@@ -208,7 +209,7 @@ Les **étapes** (0 à 10) sont la feuille de route ; les **lots** de `docs/file-
 
 **Attention** : « étape 0 » (application autonome) et « lot 0b » (Tesseract sur les coureurs) ne désignent pas la même chose. Le lot **0a** (garde-fou des fichiers fantômes) est **fait** et doit être marqué comme tel dans la file.
 
-### Étape 0 — Application autonome *(en cours, prioritaire — trois cases sur cinq)*
+### Étape 0 — Application autonome *(en cours — quatre cases sur six)*
 
 Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/opt/homebrew` (neuf renvois : leptonica, libtiff, libarchive) : chez un testeur sans Homebrew, la reconnaissance ne se serait pas chargée. Le paquet en service n'en charge plus aucune.
 
@@ -216,8 +217,9 @@ Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/
 - [x] `preparer-moteurs.py` réécrit tous les liens (appariement sur le nom résolu), échoue s'il reste un seul `/opt/homebrew`, et ne tourne plus en silence (`28baedaf`) ;
 - [x] un contrôle au dépôt vérifie `otool -L` sur **tous** les binaires embarqués (tesseract, node, sf) — `paquet-hermetique` (`28baedaf`, CI 42540275093 verte) ;
 - [x] l'application est refabriquée, réinstallée, et `DYLD_PRINT_LIBRARIES` prouve que rien ne sort du paquet (`28baedaf`) ;
-- [ ] les textes de licence sont embarqués dans l'application ;
-- [ ] (ensuite, sur le mot de Christophe) l'archive des moteurs est publiée en release, avec son empreinte dans `fixtures/moteurs-de-lecture.json`, et la CI macOS lit avec **le même programme** que l'application.
+- [x] les textes de licence sont embarqués dans l'application (17 composants, 30 textes, `0b6cc977`) ; application refabriquée et installée dans `/Applications` ;
+- [ ] (sur le mot de Christophe) l'archive des moteurs (fabriquée et éprouvée, `sha256 024b1fca…`) est publiée en release, son empreinte épinglée dans `fixtures/moteurs-de-lecture.json`, et la CI macOS lit avec **le même programme** que l'application ;
+- [ ] vérification à l'écran par Christophe : la nouvelle application s'ouvre et lit (niveau 3).
 
 ### Étape 1 — Fin d'A2 : le repli Vision branché
 
@@ -304,12 +306,12 @@ Chaque dette porte sa raison et l'étape où elle doit être levée. Aucune ne d
 | # | Dette | Levée prévue |
 |---|---|---|
 | D1 | Tesseract de la CI (Homebrew 5.5.4) ≠ celui de l'application (5.5.1) ; CI sans Tesseract en attendant | Étape 0 |
-| D2 | Textes de licence absents de l'application | Étape 0 |
+| D2 | ~~Textes de licence absents de l'application~~ — **levée** le 9 novembre (`0b6cc977`) | — |
 | D3 | Préséance des causes d'abstention non uniforme : `voie-oracle.ts` rend `aucun_repere_lu` sans demander si le vivier est borné (entrée 17) | avant l'étape 1 |
 | D4 | 82 seuils de jugement écrits en dur (34 géométriques, 12 de lecture, 34 de structure, 2 d'alphabet), dont `LIGNES_POUR_UNE_COLONNE = 4` (priorité haute) et les huit poids de l'associateur | au fil des étapes 3 à 7 |
 | D5 | Six seuils suspects d'être inversés par rapport à leur nom (`PENALITE_SAUT_CORROBORE`, `ACCORD_SUR`, `PRIME_DERNIERE`, `SEUIL_LISIBILITE`, `FEUILLES_A_DEUX_FOLIOS`, `PAGE_MAX`/`PAGE_MAXIMUM`) | à vérifier, étape 3 |
 | D6 | « Rangées fantômes » de `rangeesDeTable` | avec l'étape 3 |
-| D7 | Tests proches de leur délai : le plus court mesuré est « compte des pages, et n'en double pas le nombre sur une feuille double » (OUT-05, OUT-15), 2 770 ms pour 5 000, soit ×1,81. (Le ×1,6 attribué à « tient le plafond dans les deux formats » était faux : son délai est de 3 600 000.) Garde-fou des marges à écrire, qui lit le délai réel de chaque contrôle (entrée 16) | prochainement |
+| D7 | Les marges publiées jusqu'ici sont **mal définies** : elles comparent la durée affichée par le rapporteur (qui inclut ce que le minuteur ne compte pas) au délai du contrôle ; trois contrôles de `outils/ingestion` « dépassent » ainsi leur délai et passent. Le garde-fou des marges doit mesurer **le corps du contrôle** et lire **le délai réel** de chacun (entrée 16) ; la barre de marge reste à fixer par Christophe | chantier séparé |
 | D8 | Clé du cache de lecture fondée sur chemin + taille + date, et non sur le contenu | plus tard |
 | D9 | Épingle F3 (`critere-f3-orphelins-93-98`) : levée par la voie oracle + confirmation lien par lien | Étape 4 |
 | D10 | Épingle « Tesseract absent » : levée par le repli correct quand Tesseract manque | Étape 1 |
@@ -320,9 +322,11 @@ Chaque dette porte sa raison et l'étape où elle doit être levée. Aucune ne d
 | D15 | « Assez de mots » du redressement rapporté à la page médiane : peut refuser une page couchée peu dense dans un document mixte | quand un tel cas sera au banc |
 | D16 | Numérisations partielles de certains Aebersold (sections Bb, Eb, clé de fa absentes) : fait de contenu, pas de code | aucune action logicielle |
 | D17 | Le crochet de pré-commit n'existe que sur la branche de travail ; la copie principale (sur `main`) n'est pas protégée | à la fusion dans `main` |
-| D18 | Rang des deux CDC tranché (v2.0 au rang 3, v24 au rang 4). Le v24 est versé ; le **CDC normatif v2.0 n'est pas encore dans le dépôt** (il est désigné par une adresse d'artefact) | verser le v2.0 dans `docs/`, intact |
-| D19 | Les fichiers de `.claude/` (réglages, crochet `PreToolUse`) ne sont suivis par Git nulle part ; le garde-fou des réglages actifs compare une copie non suivie ; un clone neuf n'a pas le crochet | versionner `.claude/` dans le dépôt et faire comparer le garde-fou à la version commitée |
-| D20 | Les décisions du 8 et du 9 novembre (voie 1 puis voie 3 pour Tesseract, étape 0 autorisée, ce cahier) n'ont pas encore leur fichier dans `docs/decisions/` | immédiatement |
+| D18 | ~~Rang des deux CDC~~ — **levée** : v2.0 au rang 3 (`docs/cdc-normatif-v2.0.md`, `d8aac369` ; trois schémas devenus texte entre crochets à l'export), v24 au rang 4 | — |
+| D19 | ~~Réglages et crochet non versionnés~~ — **levée** le 9 novembre (`212bfe07`) : `.claude/` est versionné depuis le 7 novembre sur la branche de travail ; le garde-fou compare désormais aux octets du commit ; le crochet ne s'accuse plus des chemins commençant par un point. Son absence sur `main` relève de D17 | — |
+| D20 | ~~Décisions du 8 et du 9 novembre non écrites~~ — **levée** (`f49912a2`) ; celle du 8 novembre est une reformulation, pas un verbatim, et le dit | — |
+| D21 | Siegfried (`sf`) n'est pas embarqué dans l'application (`tauri.conf.json` ne déclare que `tesseract` et `node`), alors que le § 3.6 le nomme ; l'identification des formats retombe sur les signatures intégrées | étape 0 (embarquer `sf` hermétique avec sa licence) ou décision de Christophe |
+| D22 | Copie de bisect `C-Concept-Dev-bisect-f3` (4,3 Go, tête détachée) | ménage, sur le mot de Christophe |
 
 ---
 
