@@ -9,6 +9,7 @@ const { join } = require('node:path');
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto('file://' + join(__dirname, '../atelier-diapos.html'));
+    await page.locator('.am-settings-disclosure').evaluate(element => { element.open = true; });
     await page.evaluate(async () => {
       const images = [];
       for (let index = 0; index < 64; index++) {

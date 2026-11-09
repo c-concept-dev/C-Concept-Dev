@@ -43,10 +43,13 @@ function wavTone(seconds = 0.25, sampleRate = 8000) {
     assert.equal(await page.locator('[data-source-lane="voice"] [data-source]').count(), 2, 'rétablir refait la scission');
 
     const source = page.locator('[data-source-lane="voice"] [data-source]').first();
+    await source.locator('details').evaluate(el => { el.open = true; });
     await source.locator('[data-source-action="solo"]').click();
     assert.equal(await source.locator('[data-source-action="solo"]').getAttribute('aria-pressed'), 'true', 'solo annexe');
+    await source.locator('details').evaluate(el => { el.open = true; });
     await source.locator('[data-source-action="lock"]').click();
     assert.equal(await source.getAttribute('data-locked'), 'true', 'verrouillage annexe');
+    await source.locator('details').evaluate(el => { el.open = true; });
     await source.locator('[data-source-action="lock"]').click();
     await page.locator('#am-placement-mode').selectOption('snap');
     await page.locator('#am-seek').fill('2');
@@ -67,11 +70,17 @@ function wavTone(seconds = 0.25, sampleRate = 8000) {
     await page.keyboard.press('Meta+v');
     assert.equal(await page.locator('[data-master-lane="voice"] [data-clip]').count(), 4, 'copier-coller de la sélection Master');
 
+    await page.locator('.am-settings-disclosure').evaluate(el => { el.open = true; });
+    assert.equal(await page.locator('#am-linked-zoom').getAttribute('aria-pressed'), 'false', 'zooms indépendants par défaut');
+    await page.locator('#am-linked-zoom').click();
     await page.locator('#am-zoom').fill('200');
-    assert.equal(await page.locator('#am-annex-zoom').inputValue(), '10', 'zoom annexe lié au Master');
+    assert.equal(await page.locator('#am-voice-zoom').inputValue(), '10', 'zoom voix lié au Master sur demande');
+    assert.equal(await page.locator('#am-music-zoom').inputValue(), '10', 'zoom musique lié au Master sur demande');
     assert.ok(await page.locator('#am-minimap-window').isVisible(), 'mini-carte visible');
     await page.locator('#am-linked-zoom').click();
     assert.equal(await page.locator('#am-linked-zoom').getAttribute('aria-pressed'), 'false', 'zooms déliables');
+    await page.locator('#am-voice-zoom').fill('3');
+    assert.equal(await page.locator('#am-music-zoom').inputValue(), '10', 'zoom voix indépendant du zoom musique');
 
     await page.locator('#am-preview-quality').selectOption('economy');
     assert.deepEqual(await page.locator('#am-preview').evaluate(canvas => [canvas.width, canvas.height]), [960, 540]);

@@ -5,7 +5,7 @@
   const $ = id => document.getElementById(id);
   const state = { tracks: [], sources: [], copiedSource: null, images: [], cuts: [], total: 0, playing: false, started: 0,
     previewAt: 0, raf: 0, bitmap: null, bitmapIndex: -1, exporting: false,
-    selectedId: null, selectedIds: [], copiedTracks: [], zoom: 20, annexZoom: 1, linkedZoom: true,
+    selectedId: null, selectedIds: [], copiedTracks: [], zoom: 20, annexZoom: {voice: 1, music: 1}, linkedZoom: false,
     placementMode: 'free', previewQuality: 'full', layoutMode: 'montage', transitions: [], selectedTransition: 1, previewRequest: 0,
     historyPast: [], historyFuture: [], lastAction: '',
     master: {voice: {db: 0, muted: false}, music: {db: 0, muted: false}} };
@@ -66,7 +66,7 @@
       tracks:state.tracks.map(cloneItem),sources:state.sources.map(cloneItem),copiedSource:cloneItem(state.copiedSource),
       copiedTracks:state.copiedTracks.map(cloneItem),images:state.images.slice(),cuts:state.cuts.slice(),total:state.total,
       previewAt:state.previewAt,selectedId:state.selectedId,selectedIds:state.selectedIds.slice(),zoom:state.zoom,
-      annexZoom:state.annexZoom,linkedZoom:state.linkedZoom,placementMode:state.placementMode,
+      annexZoom:{...state.annexZoom},linkedZoom:state.linkedZoom,placementMode:state.placementMode,
       previewQuality:state.previewQuality,layoutMode:state.layoutMode,transitions:state.transitions.map(t=>({...t,params:{...(t.params||{})}})),
       selectedTransition:state.selectedTransition,master:{voice:{...state.master.voice},music:{...state.master.music}}
     };
@@ -82,7 +82,8 @@
   function restoreSnapshot(snapshot) {
     if(state.playing)stopPreview();
     for(const key of ['tracks','sources','copiedTracks','images','cuts','selectedIds','transitions']) state[key]=snapshot[key];
-    for(const key of ['copiedSource','total','previewAt','selectedId','zoom','annexZoom','linkedZoom','placementMode','previewQuality','layoutMode','selectedTransition','master']) state[key]=snapshot[key];
+    for(const key of ['copiedSource','total','previewAt','selectedId','zoom','linkedZoom','placementMode','previewQuality','layoutMode','selectedTransition','master']) state[key]=snapshot[key];
+    state.annexZoom=typeof snapshot.annexZoom==='number'?{voice:snapshot.annexZoom,music:snapshot.annexZoom}:{...snapshot.annexZoom};
     state.bitmapIndex=-1;applyPreviewQuality();render();drawPreview(state.previewAt);updateHistoryButtons();
   }
   function undo() {
@@ -99,22 +100,24 @@
   const css = document.createElement('style');
   css.textContent = `
     #am-workbench{margin:12px 0;padding:12px;background:#fffdf9;border:1px solid #c9c3b8;border-radius:16px;box-shadow:0 8px 28px #322b2314;color:#273331;min-height:680px;display:flex;flex-direction:column;gap:6px}
-    #am-workbench.am-focused{position:fixed;inset:0;z-index:99999;margin:0;width:100vw;height:100dvh;min-height:0;border-radius:0;padding:8px 14px;overflow:hidden;gap:4px}
+    #am-workbench.am-focused{position:fixed;inset:0;z-index:99999;margin:0;width:100vw;height:100dvh;min-height:0;border-radius:0;padding:8px 14px;overflow-x:hidden;overflow-y:auto;gap:4px}
     #am-workbench.am-focused h2{font-size:23px;margin:0}
     #am-workbench.am-focused .am-toolbar{margin:0}
     #am-workbench.am-focused .am-toolbar-row.am-edit{padding-top:3px}
     #am-workbench.am-focused>p{display:none}
-    #am-workbench.am-focused .am-grid{flex:0 0 clamp(205px,34dvh,380px)}
-    #am-workbench.am-focused .am-sources{flex:0 0 clamp(170px,25dvh,290px);height:auto}
+    #am-workbench.am-focused .am-grid{flex:0 0 clamp(250px,30dvh,350px)}
+    #am-workbench.am-focused .am-preview-panel{min-height:0}
+    #am-workbench.am-focused .am-sources{flex:0 0 clamp(180px,23dvh,260px);height:auto}
     #am-workbench.am-focused .am-master{margin:0}
     #am-workbench.am-focused .am-master-picker{min-height:24px}
-    #am-workbench.am-focused .am-timeline,#am-workbench.am-focused .am-steps-panel{min-height:125px;flex:0 0 clamp(135px,20dvh,220px)}
+    #am-workbench.am-focused .am-timeline,#am-workbench.am-focused .am-steps-panel{min-height:255px;flex:0 0 clamp(265px,30dvh,350px)}
     #am-workbench.am-focused[data-layout=preview] .am-grid{flex-basis:48dvh}#am-workbench.am-focused[data-layout=preview] .am-sources{flex-basis:95px}#am-workbench.am-focused[data-layout=preview] .am-source-actions,#am-workbench.am-focused[data-layout=preview] .am-source-wave{display:none}
-    #am-workbench.am-focused[data-layout=annexes] .am-grid{flex-basis:170px}#am-workbench.am-focused[data-layout=annexes] .am-sources{flex-basis:42dvh}#am-workbench.am-focused[data-layout=annexes] .am-timeline{flex-basis:130px}
+    #am-workbench.am-focused[data-layout=annexes] .am-grid{flex-basis:170px}#am-workbench.am-focused[data-layout=annexes] .am-sources{flex-basis:42dvh}#am-workbench.am-focused[data-layout=annexes] .am-timeline{flex-basis:255px}
     #am-workbench.am-focused .am-timeline{padding:7px 10px}
-    #am-workbench.am-focused .am-lane{height:42px}
-    #am-workbench.am-focused .am-lane-name{top:11px}
-    #am-workbench.am-focused .am-clip{height:29px;top:6px;padding:4px 8px}
+    #am-workbench.am-focused .am-lane{height:58px}
+    #am-workbench.am-focused .am-lane-name{top:19px}
+    #am-workbench.am-focused .am-clip{height:40px;top:9px;padding:6px 8px}
+    #am-workbench.am-focused .am-playhead{height:199px}
     #am-workbench.am-focused #am-status{margin:0!important}
     #am-workbench *{box-sizing:border-box} #am-workbench h2{font:600 29px/1.15 'Source Serif 4',Georgia,serif;margin:0 0 7px;color:#102f31}
     #am-workbench p{margin:0;color:#5d6966;font-size:12px}
@@ -136,8 +139,9 @@
     .am-panel{border:1px solid #c9c3b8;border-radius:12px;padding:13px;background:#f6f2ea;min-width:0}
     .am-panel h3{font:700 15px/1.3 -apple-system,system-ui,sans-serif;margin:0 0 10px}
     .am-grid .am-panel:first-child{display:flex;flex-direction:column;min-height:0;overflow:hidden}
-    #am-preview{width:auto;max-width:100%;height:calc(30vh - 70px);max-height:100%;aspect-ratio:16/9;display:block;background:#fffdf9;border-radius:9px;margin:auto}
-    #am-workbench.am-focused #am-preview{height:calc(100% - 52px);max-height:calc(100% - 52px);object-fit:contain}
+    .am-preview-panel{min-height:clamp(330px,46vh,560px)}.am-preview-stage{flex:1;min-height:0;display:grid;place-items:center;background:#eee9df;border-radius:10px;padding:8px;overflow:hidden}
+    #am-preview{width:min(100%,1050px);height:auto;max-height:100%;aspect-ratio:16/9;display:block;background:#fffdf9;border-radius:9px;object-fit:contain;box-shadow:0 3px 16px #102f3120}
+    #am-workbench.am-focused #am-preview{width:auto;height:clamp(180px,calc(34dvh - 75px),315px);max-width:100%;max-height:100%;object-fit:contain}
     #am-workbench.am-focused #am-seek{margin:3px 0 0}
     #am-preview:fullscreen{width:100vw;height:100vh;max-width:none;max-height:none;object-fit:contain;background:#102f31}
     #am-seek{width:100%;margin:12px 0 2px}.am-track{border:1px solid #5d6966;background:#fffdf9;border-radius:9px;padding:10px;margin-bottom:9px}
@@ -149,7 +153,7 @@
     .am-track input[type=range]{width:100%}.am-wave{display:block;width:100%;height:38px;background:#dce8e6;border-radius:4px;margin-top:9px}
     .am-step{display:grid;grid-template-columns:42px minmax(0,1fr) 100px 66px;align-items:center;gap:7px;border-bottom:1px solid #ddd7cc;padding:7px 0;font-size:12px}
     .am-step img{width:42px;height:30px;object-fit:contain;background:#e9e4d9}.am-step button{padding:4px 7px!important}
-    .am-timeline{margin:0;border:1px solid #b6afa4;border-radius:12px;background:#eee9df;padding:12px;overflow:auto;flex:1;min-height:190px}
+    .am-timeline{margin:0;border:1px solid #b6afa4;border-radius:12px;background:#eee9df;padding:12px;overflow:auto;scrollbar-gutter:stable;flex:1;min-height:255px}
     .am-minimap{position:sticky;left:120px;z-index:8;height:16px;width:calc(100% - 120px);margin:4px 0 4px 120px;border:1px solid #9a938a;border-radius:5px;background:linear-gradient(90deg,#dce8e6,#f2dfd4);cursor:pointer;touch-action:none}
     .am-minimap-window{position:absolute;top:1px;bottom:1px;left:0;width:100%;min-width:20px;border:2px solid #1f5053;border-radius:3px;background:#fff8;cursor:ew-resize}
     .am-ruler,.am-lane{min-width:600px;position:relative;margin-left:110px}
@@ -167,6 +171,7 @@
     .am-clip-label{margin-left:20px;display:block;overflow:hidden;text-overflow:ellipsis}
     .am-master{display:flex;align-items:center;gap:7px;font-size:12px;margin:3px 0 7px;flex:0 0 auto;flex-wrap:wrap}
     .am-master input[type=range]{width:90px}.am-master strong{min-width:100px}
+    .am-master-mix-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}.am-bus{display:flex;align-items:center;gap:8px;min-height:48px;padding:5px 8px;border:1px solid #c9c3b8;border-radius:9px;background:#f6f2ea}.am-bus label{display:flex;align-items:center;gap:6px}.am-bus-voice{border-left:5px solid #1f5053}.am-bus-music{border-left:5px solid #a34d30}.am-master-settings-row{align-items:flex-start;padding:7px 0;border-top:1px solid #e5ded3;border-bottom:1px solid #e5ded3}.am-master-settings-row .am-zoom-tools{margin-right:auto}.am-settings-disclosure{position:static;flex:1 1 520px;min-width:min(360px,100%);max-width:100%;border:1px solid #c9c3b8;border-radius:8px;background:#f6f2ea;padding:7px 9px}.am-settings-disclosure summary{cursor:pointer;font-weight:750;color:#1f5053}.am-advanced-grid{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;max-width:100%;padding-top:8px;overflow:hidden}.am-advanced-grid label{display:flex;align-items:center;gap:5px;font-size:12px;max-width:100%}
     .am-master-picker{display:flex;align-items:center;gap:5px;overflow-x:auto;min-height:35px;flex:0 0 auto;white-space:nowrap}
     .am-master-picker>span{font-size:12px;color:#52615f}
     #am-workbench .am-master-picker button{padding:5px 8px;font-size:11px;flex:0 0 auto}
@@ -174,9 +179,13 @@
     .am-zone-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px;flex-wrap:wrap;font-size:12px}.am-zone-head h3{margin:0;font:700 15px/1.2 -apple-system,system-ui,sans-serif}.am-zoom-tools{display:flex;align-items:center;gap:5px}.am-zoom-tools input[type=range]{width:150px}.am-zoom-tools output{min-width:46px;text-align:right}
     #am-workbench .am-zoom-tools button{padding:5px 8px;font-size:12px}
     .am-sources{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:0 0 205px;height:205px;min-height:0}
-    .am-source-lane{border:1px solid #c9c3b8;border-radius:9px;padding:7px 8px;overflow:auto;min-height:0;background:#f6f2ea;font-size:13px}
-    .am-source-lane strong{display:block;margin-bottom:6px}.am-source-list{display:flex;gap:7px;flex-direction:column;align-items:flex-start;min-width:100%}.am-source-paste{position:sticky;left:0;top:0;z-index:4;align-self:flex-start;background:#fff7df!important;box-shadow:0 2px 6px #0002}
-    .am-source-clip{width:calc(100% * var(--annex-zoom,1));background:#e4efee;background:color-mix(in srgb,var(--track-color,#1f5053) 13%,white);color:#17393b;border:2px solid var(--track-color,#1f5053);border-radius:8px;padding:7px;cursor:grab;display:grid;gap:4px;min-width:100%}
+    .am-source-lane{border:2px solid var(--lane-color,#1f5053);border-radius:11px;padding:8px;overflow:auto;min-height:0;background:#f6f2ea;font-size:13px}.am-source-lane[data-import-lane=music]{--lane-color:#a34d30}
+    .am-source-lane-head{position:sticky;left:0;z-index:7;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;background:#f6f2ea}.am-source-lane-title strong{display:block;margin:0}.am-source-lane-title small{color:#5d6966}
+    .am-drop-audio{position:sticky;left:0;z-index:6;border:2px dashed var(--lane-color);border-radius:8px;padding:7px 10px;margin:5px 0 8px;text-align:center;background:color-mix(in srgb,var(--lane-color) 9%,white);color:#394947;font-weight:650}
+    .am-source-list{display:flex;gap:8px;flex-direction:column;align-items:flex-start;min-width:100%}.am-source-paste{position:sticky;left:0;top:0;z-index:8;align-self:flex-start;background:#fff7df!important;box-shadow:0 2px 6px #0002}
+    .am-source-track{min-width:100%;border:1px solid #b8b0a5;border-radius:9px;background:#fffdf9;padding:6px}.am-source-track-head{position:sticky;left:0;z-index:5;display:flex;gap:7px;align-items:center;margin-bottom:5px;max-width:max-content;background:#fffdf9;padding-right:8px}.am-source-regions{display:flex;align-items:stretch;width:calc(100% * var(--annex-zoom,1));min-width:100%}
+    .am-source-clip{flex:0 0 calc(var(--region-ratio,1) * 100%);min-width:150px;background:#e4efee;background:color-mix(in srgb,var(--track-color,#1f5053) 13%,white);color:#17393b;border:2px solid var(--track-color,#1f5053);border-radius:7px;padding:7px;cursor:grab;display:grid;gap:4px}
+    .am-source-clip+.am-source-clip{margin-left:-2px}.am-source-advanced{font-size:11px}.am-source-advanced summary{cursor:pointer;font-weight:700;color:#52615f}.am-source-primary{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
     .am-source-clip:active{cursor:grabbing}.am-region-label{display:inline-block;margin-right:6px;padding:2px 6px;border-radius:10px;background:var(--track-color);color:#fff;font-style:normal;font-size:10px;font-weight:800}.am-drag-hint{font-size:10px;font-weight:700;color:#52615f;white-space:nowrap}
     .am-source-clip[data-locked=true]{opacity:.7;cursor:not-allowed}.am-source-clip[data-used=true]{background-image:repeating-linear-gradient(135deg,transparent 0 9px,color-mix(in srgb,var(--track-color) 20%,transparent) 9px 13px)}
     .am-source-clip[data-kind=music]{background:#f3e5df;background:color-mix(in srgb,var(--track-color,#8a3f29) 13%,white);border-color:var(--track-color,#8a3f29);color:#4f2d22}.am-source-clip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
@@ -205,39 +214,26 @@
     .am-transition-panel{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px 10px;background:#f4e8d9;border:1px solid #c4a88e;border-radius:8px;font-size:13px}
     .am-transition-panel[hidden]{display:none}
     .am-transition-panel label{display:flex;align-items:center;gap:5px}.am-transition-panel select,.am-transition-panel input{font:inherit}.am-transition-panel input{width:68px}
-    .am-playhead{position:absolute;top:0;width:2px;height:190px;transform:translateX(-1px);background:#ab4329;box-shadow:0 0 0 1px #fff8;pointer-events:none;z-index:6}
-    .am-playhead-handle{position:absolute;left:-6px;top:-2px;width:14px;height:16px;border-radius:50%;background:#ab4329;border:2px solid #fff;box-shadow:0 1px 4px #0005;cursor:ew-resize;touch-action:none;pointer-events:auto}
+    .am-playhead{position:absolute;top:0;width:4px;height:190px;transform:translateX(-2px);background:#ab4329;box-shadow:0 0 0 1px #fff,0 0 8px #ab432988;pointer-events:none;z-index:20}
+    .am-playhead-handle{position:absolute;left:-8px;top:-3px;width:20px;height:20px;border-radius:50%;background:#ab4329;border:3px solid #fff;box-shadow:0 1px 5px #0006;cursor:ew-resize;touch-action:none;pointer-events:auto}
+    .am-project-bar,.am-preview-actions,.am-master-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.am-project-bar{justify-content:space-between;padding:7px 0;border-bottom:1px solid #e5ded3}.am-project-actions,.am-final-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.am-step-nav{display:flex;gap:7px;align-items:center;padding:5px 0;background:#fffdf9;z-index:40}.am-step-nav strong{margin-right:4px}#am-workbench.am-focused .am-step-nav{position:sticky;top:-8px;padding-top:8px;border-bottom:1px solid #d7cfc3}.am-project-bar,.am-step-nav,.am-master-head,.am-master-mix-row,.am-master-settings-row{flex-shrink:0}.am-master-head{display:block;flex-basis:auto}.am-master-head .am-master-actions{width:100%;margin-top:8px}.am-master-head .am-zoom-tools{margin-left:auto}.am-section-help{font-size:12px;color:#5d6966}.am-cursor-readout{display:inline-flex;align-items:center;gap:6px;font-weight:750;color:#8a3f29}.am-cursor-dot{width:10px;height:10px;border-radius:50%;background:#ab4329;box-shadow:0 0 0 3px #ab432933}
     #am-status[data-error=1]{color:#8a3f29}#am-status{font-weight:600!important;margin:12px 0 0!important}
+    @media(max-width:900px){.am-master-mix-row{grid-template-columns:1fr}.am-master-head .am-master-actions{align-items:flex-start}.am-preview-actions{align-items:flex-start}}
     @media(max-width:760px){#am-workbench{height:auto;min-height:760px}.am-grid{grid-template-columns:1fr;flex-basis:auto}.am-grid .am-panel:first-child{display:flex}.am-sources{grid-template-columns:1fr;max-height:220px;overflow:auto}.am-track-fields{grid-template-columns:repeat(2,1fr)}#am-workbench.am-focused{overflow:auto}.am-toolbar-row{gap:4px}}`;
   document.head.appendChild(css);
 
   const root = document.createElement('section');
   root.id = 'am-workbench';
-  root.innerHTML = `<div class="am-track-head"><h2>Atelier Diapos · Montage</h2><button id="am-focus" type="button" aria-pressed="false" data-commande="plein-ecran-banc">Ouvrir le banc plein écran</button></div><p>1. Importez vos sons · 2. Scindez-les en blocs sans supprimer de son · 3. Glissez les blocs sur Voix ou Musique Master · 4. Écoutez le résultat · 5. Sauvegardez ou exportez.</p>
-    <div class="am-toolbar"><div class="am-toolbar-row"><span class="am-command-group"><button id="am-undo" class="am-compact" type="button" data-commande="annuler" title="Annuler (⌘Z)" disabled>↶ Annuler</button><button id="am-redo" class="am-compact" type="button" data-commande="retablir" title="Rétablir (⇧⌘Z)" disabled>↷ Rétablir</button></span>
-    <span class="am-command-group"><button id="am-save-project" class="am-compact" type="button" data-commande="sauvegarder-projet">💾 Sauvegarder</button><button id="am-open-project" class="am-compact" type="button" data-commande="ouvrir-projet">📂 Ouvrir</button><input class="am-project-input" id="am-project-file" type="file" accept=".json,application/json" aria-label="Fichier projet Atelier Diapos"></span>
-    <button id="am-open-voice" type="button" data-commande="importer-voix">Importer une voix…</button><input class="am-file-input" id="am-add-voice" type="file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav" multiple aria-label="Fichiers voix MP3, M4A ou WAV">
-    <button id="am-open-music" type="button" data-commande="importer-musique">Importer une musique…</button><input class="am-file-input" id="am-add-music" type="file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav" multiple aria-label="Fichiers musique MP3, M4A ou WAV">
-    <button id="am-play" class="am-transport" type="button">▶ Lire</button><button id="am-stop" type="button">Arrêter</button>
-    <button id="am-export" class="am-export-button" type="button">Exporter le montage en MP4</button><button id="am-cancel-export" type="button" disabled>Annuler l’export</button></div><div class="am-toolbar-row am-edit">
-    <button id="am-split" type="button" title="Scinder le clip Master sélectionné en deux blocs au curseur de lecture">✂ Scinder au curseur</button>
-    <button id="am-add-point" type="button" title="Créer un point de volume sur le clip sélectionné">+ Point de volume</button>
-    <button id="am-marker" type="button" title="La prochaine étape commencera à la position courante">Poser un repère</button>
-    <label style="font-size:12px">Baisse musique sous la voix <select id="am-duck"><option value="0.126">−18 dB</option><option value="0.251">−12 dB</option><option value="1">Aucune</option></select></label>
-    <label style="font-size:12px" title="Ajuste les fichiers voix à un niveau moyen proche de −20 dBFS, sans pousser leurs crêtes au-delà de −3 dBFS"><input id="am-uniform-voices" type="checkbox" checked> Uniformiser les voix</label>
-    <label class="am-command-label">Placement <select id="am-placement-mode" aria-label="Mode de placement"><option value="free">Libre</option><option value="snap">Aimanté</option><option value="insert">Insertion</option></select></label>
-    <button id="am-linked-zoom" class="am-compact am-toggle-active" type="button" aria-pressed="true" data-commande="lier-zooms" title="Lier le zoom Master et Annexes">🔗 Zooms liés</button>
-    <label class="am-command-label">Aperçu <select id="am-preview-quality"><option value="full">Plein 1080p</option><option value="economy">Économique 540p</option></select></label>
-    <label class="am-command-label">Disposition <select id="am-layout-mode"><option value="montage">Montage</option><option value="preview">Aperçu large</option><option value="annexes">Annexes larges</option></select></label>
-    <label style="font-size:12px">Durée du film (s) <input id="am-total" type="number" min="1" step="0.1" style="width:78px" aria-label="Durée totale du film"></label>
-    <span id="am-clock">00:00 / 00:00</span></div></div>
-    <div class="am-grid"><div class="am-panel"><div class="am-track-head"><h3>Aperçu vidéo</h3><button id="am-preview-fullscreen" type="button" title="Agrandir l’aperçu pour vérifier la synchronisation">Agrandir l’aperçu</button></div><canvas id="am-preview" width="1920" height="1080"></canvas>
-      <input id="am-seek" type="range" min="0" max="1" step="0.01" value="0" aria-label="Position de lecture">
+  root.innerHTML = `<div class="am-track-head"><div><h2>Atelier Diapos · Montage</h2><p>Préparez vos voix et musiques en blocs, puis glissez les passages utiles dans le film.</p></div><button id="am-focus" type="button" aria-pressed="false" data-commande="plein-ecran-banc">Ouvrir le banc plein écran</button></div>
+    <div class="am-project-bar" aria-label="Projet et export"><div class="am-project-actions"><strong>Projet</strong><button id="am-undo" class="am-compact" type="button" data-commande="annuler" title="Annuler la dernière action (⌘Z)" disabled>↶ Annuler</button><button id="am-redo" class="am-compact" type="button" data-commande="retablir" title="Rétablir l’action annulée (⇧⌘Z)" disabled>↷ Rétablir</button><button id="am-save-project" class="am-compact" type="button" data-commande="sauvegarder-projet">💾 Sauvegarder le projet</button><button id="am-open-project" class="am-compact" type="button" data-commande="ouvrir-projet">📂 Ouvrir un projet</button><input class="am-project-input" id="am-project-file" type="file" accept=".json,application/json" aria-label="Fichier projet Atelier Diapos"></div><div class="am-final-actions"><button id="am-export" class="am-export-button" type="button">Exporter le film en MP4</button><button id="am-cancel-export" type="button" disabled>Annuler l’export</button></div></div><nav class="am-step-nav" aria-label="Aller directement à une zone"><strong>Aller à :</strong><button type="button" data-jump="preview">1 · Aperçu</button><button type="button" data-jump="master">2 · Timeline Master</button><button type="button" data-jump="sources">3 · Voix et musiques</button></nav>
+    <input class="am-file-input" id="am-add-voice" type="file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav" multiple aria-label="Fichiers voix MP3, M4A ou WAV"><input class="am-file-input" id="am-add-music" type="file" accept=".mp3,.m4a,.wav,audio/mpeg,audio/mp4,audio/x-m4a,audio/wav" multiple aria-label="Fichiers musique MP3, M4A ou WAV">
+    <div class="am-grid"><div class="am-panel am-preview-panel"><div class="am-track-head"><div><h3>1 · Aperçu du film</h3><span class="am-section-help">Vérifiez ici l’image et le son au même moment.</span></div><div class="am-preview-actions"><button id="am-play" class="am-transport" type="button">▶ Lire le film</button><button id="am-stop" type="button">Arrêter</button><strong id="am-clock">00:00 / 00:00</strong><label class="am-command-label">Taille <select id="am-layout-mode"><option value="montage">Normale</option><option value="preview">Aperçu large</option><option value="annexes">Annexes larges</option></select></label><label class="am-command-label">Qualité <select id="am-preview-quality"><option value="full">Nette 1080p</option><option value="economy">Économique 540p</option></select></label><button id="am-preview-fullscreen" type="button" title="Afficher uniquement l’image en plein écran">Plein écran</button></div></div><div class="am-preview-stage"><canvas id="am-preview" width="1920" height="1080"></canvas></div>
+      <input id="am-seek" type="range" min="0" max="1" step="0.01" value="0" aria-label="Position de lecture dans le film">
       </div>
     <div class="am-panel am-inspector"><h3>Réglages du clip sur le Master</h3><div id="am-tracks"></div></div></div>
-    <div class="am-zone-head"><h3>Timeline Master</h3><div class="am-zoom-tools" aria-label="Zoom précis du Master"><button id="am-zoom-out" type="button" title="Dézoomer le Master">−</button><label>Zoom Master <input id="am-zoom" type="range" min="2" max="720" step="1" value="20" aria-label="Zoom précis de la timeline Master, jusqu’à l’image près"></label><button id="am-zoom-in" type="button" title="Zoomer le Master">+</button><button id="am-zoom-fit" type="button">Tout voir</button><output id="am-zoom-value">20 px/s</output></div></div>
-    <div class="am-master"><strong>Voix Master</strong><button type="button" data-master-mute="voice">Muet</button><label>Volume <input type="range" data-master-db="voice" min="-36" max="12" value="0"></label><output id="am-voice-db">0 dB</output>
-      <strong>Musique Master</strong><button type="button" data-master-mute="music">Muet</button><label>Volume <input type="range" data-master-db="music" min="-36" max="12" value="0"></label><output id="am-music-db">0 dB</output></div>
+    <div class="am-zone-head am-master-head"><div><h3>2 · Timeline Master</h3><span class="am-section-help">Cliquez dans la règle pour placer le curseur rouge. Sélectionnez ensuite un bloc avant de le scinder.</span></div><div class="am-master-actions"><span class="am-cursor-readout"><i class="am-cursor-dot"></i> Curseur <output id="am-cursor-time">00:00</output></span><button id="am-split" type="button" title="Scinder le bloc Master sélectionné à l’endroit du curseur rouge">✂ Scinder le bloc au curseur</button><button id="am-add-point" type="button" title="Créer un point de volume sur le bloc sélectionné">+ Point de volume</button><button id="am-marker" type="button" title="Faire commencer la prochaine image à l’endroit du curseur">Poser le repère de l’image</button><label class="am-command-label">Placement <select id="am-placement-mode" aria-label="Mode de placement"><option value="free">Libre</option><option value="snap">Aimanté</option><option value="insert">Insérer et décaler</option></select></label></div></div>
+    <div class="am-master am-master-mix-row"><div class="am-bus am-bus-voice"><strong>Voix Master</strong><button type="button" data-master-mute="voice">Muet</button><label>Volume <input type="range" data-master-db="voice" min="-36" max="12" value="0"></label><output id="am-voice-db">0 dB</output></div><div class="am-bus am-bus-music"><strong>Musique Master</strong><button type="button" data-master-mute="music">Muet</button><label>Volume <input type="range" data-master-db="music" min="-36" max="12" value="0"></label><output id="am-music-db">0 dB</output></div></div>
+    <div class="am-toolbar-row am-edit am-master-settings-row"><div class="am-zoom-tools" aria-label="Zoom précis du Master"><button id="am-zoom-out" type="button" title="Dézoomer le Master">−</button><label>Zoom Master <input id="am-zoom" type="range" min="2" max="720" step="1" value="20" aria-label="Zoom précis de la timeline Master, jusqu’à l’image près"></label><button id="am-zoom-in" type="button" title="Zoomer le Master">+</button><button id="am-zoom-fit" type="button">Tout voir</button><output id="am-zoom-value">20 px/s</output></div><details class="am-settings-disclosure"><summary>Réglages du son et des pauses</summary><div class="am-advanced-grid"><label>Baisse de la musique pendant la voix <select id="am-duck"><option value="0.126">−18 dB</option><option value="0.251">−12 dB</option><option value="1">Aucune</option></select></label><label title="Rapproche automatiquement le volume des différentes voix"><input id="am-uniform-voices" type="checkbox" checked> Égaliser le volume des voix</label><button id="am-linked-zoom" class="am-compact" type="button" aria-pressed="false" data-commande="lier-zooms" title="Appliquer le zoom Master aux deux zones de sources">Lier les 3 zooms</button><label>Durée du film (s) <input id="am-total" type="number" min="1" step="0.1" style="width:78px" aria-label="Durée totale du film"></label><button id="am-pause-all" type="button" title="Ajouter la même pause entre toutes les diapositives">⏸ Pauses entre toutes les images…</button></div></details></div>
     <div id="am-master-picker" class="am-master-picker" aria-label="Sélectionner un clip du Master"></div>
     <div id="am-transition-panel" class="am-transition-panel" hidden><strong id="am-transition-title">Transition</strong><label>Effet <select id="am-transition-type"><optgroup label="Base"><option value="cut">Coupe</option></optgroup><optgroup label="Fondus"><option value="dissolve">Fondu enchaîné</option><option value="blur-cross">Flou croisé</option><option value="fade-black">Fondu au noir</option><option value="fade-white">Fondu au blanc</option></optgroup><optgroup label="Mouvement"><option value="zoom-cross">Zoom croisé</option><option value="wave">Onde</option></optgroup><optgroup label="Balayages"><option value="wipe-left">Balayage à gauche</option><option value="wipe-right">Balayage à droite</option><option value="wipe-up">Balayage en haut</option><option value="wipe-down">Balayage en bas</option></optgroup><optgroup label="Glissements"><option value="slide-left">Glisser à gauche</option><option value="slide-right">Glisser à droite</option></optgroup><optgroup label="Formes"><option value="circle-open">Cercle ouvert</option><option value="circle-close">Cercle fermé</option><option value="portal">Portail</option><option value="mosaic">Mosaïque</option></optgroup><optgroup label="3D"><option value="rotate-in">Rotation intérieure</option><option value="rotate-out">Rotation extérieure</option><option value="exchange">Échange</option><option value="cube">Cube</option><option value="page-previous">Page précédente</option><option value="page-turn">Page tournée</option></optgroup><optgroup label="Puzzle"><option value="puzzle-left">Puzzle gauche</option><option value="puzzle-right">Puzzle droite</option></optgroup></select></label><label>Durée <input id="am-transition-duration" type="number" min="0.1" max="5" step="0.1" value="0.6"> s</label><label>Douceur <select id="am-transition-easing"><option value="linear">Linéaire</option><option value="ease-in">Entrée douce</option><option value="ease-out">Sortie douce</option><option value="ease-in-out">Entrée-sortie douces</option></select></label><button id="am-transition-all" type="button">Appliquer à toutes</button><button id="am-transition-remove-all" type="button">Retirer toutes</button><label>Pause <input id="am-pause-duration" type="number" min="0.1" max="30" step="0.1" value="1"> s</label><button id="am-add-pause" type="button" title="Prolonger la diapositive avant cette jonction">Ajouter la pause</button><span id="am-transition-help">Cliquez sur une jonction entre deux diapositives.</span></div>
     <div class="am-bottom-tabs" role="tablist" aria-label="Vue du montage"><button id="am-view-master" type="button" role="tab" aria-selected="true">Pistes Master</button><button id="am-view-steps" type="button" role="tab" aria-selected="false">Étapes et repères · <span id="am-step-count">0</span> images</button></div>
@@ -245,9 +241,9 @@
     <div class="am-panel am-steps-panel" aria-label="Étapes et repères"><p>Réglez l’heure de début de chaque image. « Voir » affiche l’étape dans l’aperçu.</p>
       <div id="am-steps"></div><p id="am-empty">Importez une présentation pour régler ses étapes.</p>
     </div>
-    <div class="am-zone-head"><h3>Pistes annexes · scinder en blocs puis glisser sur le Master</h3><div class="am-zoom-tools" aria-label="Zoom puissant des pistes annexes"><button id="am-pause-all" type="button" title="Ajouter la même pause entre toutes les diapositives">⏸ Pauses partout…</button><button id="am-annex-zoom-out" type="button" title="Dézoomer les annexes">−</button><label>Zoom annexes <input id="am-annex-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom puissant des pistes annexes, jusqu’à cent fois"></label><button id="am-annex-zoom-in" type="button" title="Zoomer les annexes">+</button><button id="am-annex-zoom-precision" type="button" title="Afficher dix fois plus large pour placer une scission au centième de seconde">Précision ×10</button><button id="am-annex-zoom-fit" type="button">Tout voir</button><output id="am-annex-zoom-value">×1</output></div></div>
-    <div class="am-sources" aria-label="Pistes annexes"><div class="am-source-lane" data-import-lane="voice"><strong>Voix · cliquez dans la forme d’onde, scindez, puis glissez chaque bloc vers le Master</strong><div class="am-source-list" data-source-lane="voice"></div></div>
-    <div class="am-source-lane" data-import-lane="music"><strong>Musique · cliquez dans la forme d’onde, scindez, puis glissez chaque bloc vers le Master</strong><div class="am-source-list" data-source-lane="music"></div></div></div>
+    <div class="am-zone-head"><div><h3>3 · Préparer les sons avant de les placer dans le film</h3><span class="am-section-help">Une piste reste sur une seule ligne. Chaque scission crée deux blocs adjacents, que vous pouvez glisser séparément dans le Master.</span></div></div>
+    <div class="am-sources" aria-label="Sources voix et musique"><div class="am-source-lane" data-import-lane="voice"><div class="am-source-lane-head"><div class="am-source-lane-title"><strong>Voix</strong><small>Paroles, commentaires et narration</small></div><button id="am-open-voice" type="button" data-commande="importer-voix">+ Importer une ou plusieurs voix</button></div><div class="am-drop-audio">Déposez ici vos fichiers voix MP3, M4A ou WAV</div><div class="am-zoom-tools" aria-label="Zoom des voix"><button id="am-voice-zoom-out" type="button" title="Dézoomer les voix">−</button><label>Zoom voix <input id="am-voice-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom précis des sources voix"></label><button id="am-voice-zoom-in" type="button" title="Zoomer les voix">+</button><button id="am-voice-zoom-precision" type="button">Précision ×10</button><button id="am-voice-zoom-fit" type="button">Tout voir</button><output id="am-voice-zoom-value">×1</output></div><div class="am-source-list" data-source-lane="voice"></div></div>
+    <div class="am-source-lane" data-import-lane="music"><div class="am-source-lane-head"><div class="am-source-lane-title"><strong>Musique</strong><small>Fond musical, ambiance et générique</small></div><button id="am-open-music" type="button" data-commande="importer-musique">+ Importer une ou plusieurs musiques</button></div><div class="am-drop-audio">Déposez ici vos fichiers musique MP3, M4A ou WAV</div><div class="am-zoom-tools" aria-label="Zoom des musiques"><button id="am-music-zoom-out" type="button" title="Dézoomer les musiques">−</button><label>Zoom musique <input id="am-music-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom précis des sources musique"></label><button id="am-music-zoom-in" type="button" title="Zoomer les musiques">+</button><button id="am-music-zoom-precision" type="button">Précision ×10</button><button id="am-music-zoom-fit" type="button">Tout voir</button><output id="am-music-zoom-value">×1</output></div><div class="am-source-list" data-source-lane="music"></div></div></div>
     <p id="am-status" role="status" aria-live="polite">Prêt pour l’import audio MP3, M4A ou WAV.</p>`;
   $('cv-vignettes').before(root);
   const vignetteDetails = document.createElement('details');
@@ -267,21 +263,25 @@
   function render() {
     root.classList.toggle('am-has-selection', !!selected());
     $('am-clock').textContent = `${time(state.previewAt)} / ${time(duration())}`;
+    $('am-cursor-time').textContent = state.zoom>=300?timeFrame(state.previewAt):time(state.previewAt);
     $('am-seek').max = Math.max(1, duration()); $('am-seek').value = clamp(state.previewAt, 0, duration());
     $('am-total').value = +duration().toFixed(1);
     $('am-step-count').textContent = state.images.length;
     $('am-empty').hidden = !!state.images.length;
     $('am-zoom-value').textContent = `${state.zoom} px/s`;
-    $('am-annex-zoom-value').textContent = `×${state.annexZoom}`;
-    $('am-zoom').value=state.zoom;$('am-annex-zoom').value=state.annexZoom;$('am-placement-mode').value=state.placementMode;$('am-preview-quality').value=state.previewQuality;$('am-layout-mode').value=state.layoutMode;root.dataset.layout=state.layoutMode;
-    $('am-linked-zoom').classList.toggle('am-toggle-active',state.linkedZoom);$('am-linked-zoom').setAttribute('aria-pressed',String(state.linkedZoom));$('am-linked-zoom').textContent=state.linkedZoom?'🔗 Zooms liés':'⛓ Zooms libres';
+    $('am-zoom').value=state.zoom;$('am-placement-mode').value=state.placementMode;$('am-preview-quality').value=state.previewQuality;$('am-layout-mode').value=state.layoutMode;root.dataset.layout=state.layoutMode;
+    for(const kind of ['voice','music']){$(`am-${kind}-zoom`).value=state.annexZoom[kind];$(`am-${kind}-zoom-value`).textContent=`×${state.annexZoom[kind]}`;}
+    $('am-linked-zoom').classList.toggle('am-toggle-active',state.linkedZoom);$('am-linked-zoom').setAttribute('aria-pressed',String(state.linkedZoom));$('am-linked-zoom').textContent=state.linkedZoom?'🔗 Les 3 zooms sont liés':'Lier les 3 zooms';
     for (const kind of ['voice','music']) {
-      const sourceClips = state.sources.filter(s=>s.kind===kind).map(s => {
-        const region=sourceRegionMeta(s),used=state.tracks.some(t=>(t.sourceId||t.originId)===s.id||(t.originId&&t.originId===(s.originId||s.id)));
-        return `<div class="am-source-clip" data-drag-block="true" data-locked="${!!s.locked}" data-used="${used}" role="group" aria-label="${region.track} bloc ${region.blockIndex} sur ${region.blockCount}, glissable vers le Master" data-source="${s.id}" data-kind="${kind}" style="--track-color:${s.color};--annex-zoom:${state.annexZoom}" title="Saisir et glisser ce bloc vers le Master final"><div class="am-source-head"><b class="am-track-badge" style="--track-color:${s.color}" title="Couleur de cette piste">${region.track}</b><span><em class="am-region-label" style="--track-color:${s.color}">Bloc ${region.blockIndex}/${region.blockCount}</em>${esc(s.name)} · ${time(s.out-s.in)}${used?' · utilisé':''}</span><span class="am-drag-hint">☷ Glisser</span><button type="button" data-source-action="mute" data-source-id="${s.id}" title="Muet">${s.muted?'🔇':'🔊'}</button><button type="button" data-source-action="solo" data-source-id="${s.id}" title="Solo" aria-pressed="${!!s.solo}">S</button><button type="button" data-source-action="lock" data-source-id="${s.id}" title="Verrouiller" aria-pressed="${!!s.locked}">${s.locked?'🔒':'🔓'}</button><button type="button" data-source-action="up" data-source-id="${s.id}" title="Monter la piste">↑</button><button type="button" data-source-action="down" data-source-id="${s.id}" title="Descendre la piste">↓</button><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}" aria-label="Effacer le bloc annexe ${esc(s.name)}" title="Effacer ce bloc annexe">×</button></div><canvas class="am-source-wave" data-source-wave="${s.id}" width="${Math.min(16000,Math.max(500,Math.ceil(500*state.annexZoom)))}" height="${s.height==='L'?54:s.height==='S'?22:30}" aria-label="Forme d’onde de ${esc(s.name)} ; cliquer pour placer la tête de scission" title="Cliquez sur la forme d’onde à l’endroit où scinder"></canvas><div class="am-source-actions"><label class="am-source-cut-time">Scission à <input type="number" min="0.01" max="${(s.out-s.in-0.01).toFixed(2)}" step="0.01" value="${((s.out-s.in)/2).toFixed(2)}" aria-label="Point de scission précis en secondes"> s</label><label>Gain <input type="number" min="-60" max="12" step="1" value="${s.db}" data-source-field="db" data-source-id="${s.id}"></label><label>Hauteur <select data-source-field="height" data-source-id="${s.id}"><option ${s.height==='S'?'selected':''}>S</option><option ${!s.height||s.height==='M'?'selected':''}>M</option><option ${s.height==='L'?'selected':''}>L</option></select></label><input type="color" value="${s.color}" data-source-field="color" data-source-id="${s.id}" aria-label="Couleur de ${esc(s.name)}"><button type="button" data-source-action="split" data-source-id="${s.id}">✂ Scinder</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce bloc au curseur sur le Master final">→ Master</button></div></div>`;
+      const kindSources=state.sources.filter(s=>s.kind===kind),originIds=[...new Set(kindSources.map(s=>s.originId||s.id))];
+      const sourceClips = originIds.map(originId => {
+        const blocks=kindSources.filter(s=>(s.originId||s.id)===originId),first=blocks[0],fullDuration=Math.max(0.01,blocks.reduce((sum,s)=>sum+s.out-s.in,0)),track=sourceRegionMeta(first).track;
+        const regions=blocks.map(s=>{const region=sourceRegionMeta(s),used=state.tracks.some(t=>(t.sourceId||t.originId)===s.id||(t.originId&&t.originId===(s.originId||s.id))),ratio=(s.out-s.in)/fullDuration;
+          return `<div class="am-source-clip" data-drag-block="true" data-locked="${!!s.locked}" data-used="${used}" role="group" aria-label="${region.track} bloc ${region.blockIndex} sur ${region.blockCount}, glissable vers le Master" data-source="${s.id}" data-kind="${kind}" style="--track-color:${s.color};--region-ratio:${ratio}" title="Saisir ce bloc et le glisser vers le Master"><div class="am-source-head"><span><em class="am-region-label" style="--track-color:${s.color}">Bloc ${region.blockIndex}/${region.blockCount}</em>${time(s.out-s.in)}${used?' · déjà utilisé':''}</span><span class="am-drag-hint">☷ Glisser ce bloc</span></div><canvas class="am-source-wave" data-source-wave="${s.id}" width="${Math.min(16000,Math.max(500,Math.ceil(500*state.annexZoom[kind])))}" height="${s.height==='L'?54:s.height==='S'?22:30}" aria-label="Forme d’onde du bloc ${region.blockIndex} de ${esc(s.name)}" title="Cliquez à l’endroit où vous souhaitez scinder ce bloc"></canvas><div class="am-source-primary"><label class="am-source-cut-time">Scinder à <input type="number" min="0.01" max="${(s.out-s.in-0.01).toFixed(2)}" step="0.01" value="${((s.out-s.in)/2).toFixed(2)}" aria-label="Point de scission précis en secondes"> s</label><button type="button" data-source-action="split" data-source-id="${s.id}">✂ Scinder ici</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce bloc à l’endroit du curseur rouge dans le Master">→ Placer au curseur Master</button></div><details class="am-source-advanced"><summary>Réglages du bloc</summary><div class="am-source-actions"><label>Gain <input type="number" min="-60" max="12" step="1" value="${s.db}" data-source-field="db" data-source-id="${s.id}"></label><label>Hauteur <select data-source-field="height" data-source-id="${s.id}"><option ${s.height==='S'?'selected':''}>S</option><option ${!s.height||s.height==='M'?'selected':''}>M</option><option ${s.height==='L'?'selected':''}>L</option></select></label><input type="color" value="${s.color}" data-source-field="color" data-source-id="${s.id}" aria-label="Couleur de ${esc(s.name)}"><button type="button" data-source-action="mute" data-source-id="${s.id}">${s.muted?'Réactiver':'Muet'}</button><button type="button" data-source-action="solo" data-source-id="${s.id}" aria-pressed="${!!s.solo}">Solo</button><button type="button" data-source-action="lock" data-source-id="${s.id}" aria-pressed="${!!s.locked}">${s.locked?'Déverrouiller':'Verrouiller'}</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}">Effacer</button></div></details></div>`;}).join('');
+        return `<section class="am-source-track" style="--track-color:${first.color};--annex-zoom:${state.annexZoom[kind]}"><div class="am-source-track-head"><b class="am-track-badge" style="--track-color:${first.color}">${track}</b><strong>${esc(first.name)}</strong><span>${blocks.length} bloc${blocks.length>1?'s':''} sur la même piste</span></div><div class="am-source-regions">${regions}</div></section>`;
       }).join('');
       const paste = state.copiedSource ? `<button class="am-source-paste" type="button" data-source-action="paste" data-source-kind="${kind}">Coller le bloc copié ici</button>` : '';
-      root.querySelector(`[data-source-lane="${kind}"]`).innerHTML = paste + (sourceClips || `<span>Aucun son importé. Utilisez le bouton « Importer » ci-dessus ou déposez un fichier MP3, M4A ou WAV ici.</span>`);
+      root.querySelector(`[data-source-lane="${kind}"]`).innerHTML = paste + (sourceClips || `<span>Aucun fichier ${kind==='voice'?'voix':'musique'} importé. Utilisez le bouton ci-dessus ou déposez vos fichiers dans la zone en pointillés.</span>`);
     }
     $('am-steps').innerHTML = state.images.map((im, i) => `<div class="am-step" data-step="${i}">
       <img src="${esc(im.url)}" alt=""><span>${i + 1}. ${esc(im.titre || 'Étape')} · diapositive ${(im.cardIndex || 0) + 1}</span>
@@ -333,6 +333,7 @@
       return `<div class="am-clip" data-kind="${kind}" data-clip="${i}" data-selected="${state.selectedIds.includes(t.id)||t.id===state.selectedId}" data-locked="${!!t.locked}" aria-disabled="${t.muted}" style="--track-color:${t.color};left:${left}%;width:${Math.max(0,Math.min(100-left,length))}%" title="${t.locked?'Clip verrouillé':'Glisser horizontalement ou vers l’autre piste Master'}"><span class="am-clip-label">${t.locked?'🔒 ':''}${esc(t.name)}</span><svg class="am-envelope" viewBox="0 0 100 50" preserveAspectRatio="none"><polyline points="${points.map(p=>`${p.time/clipLength(t)*100},${7+(12-p.db)/72*35}`).join(' ')}" fill="none" stroke="#f6d386" stroke-width="2"/></svg></div>`;
     }).join('')}</div>`).join('');
     updateMinimap();
+    requestAnimationFrame(()=>ensurePlayheadVisible());
   }
   function drawWave(t, canvas) {
     const c = canvas.getContext('2d'), data = t.buffer.getChannelData(0), mid = canvas.height / 2;
@@ -422,7 +423,7 @@
       for(const saved of project.images||[]){const blob=await dataUrlBlob(saved.data),{data,type,...metadata}=saved;state.images.push({...metadata,blob,url:URL.createObjectURL(blob)});}
       const restoreAudio=item=>{const audio=audioByOrigin.get(item.originId||item.sourceId||item.id);if(!audio)throw Error(`audio manquant pour ${item.name}`);return {...item,...audio,automation:(item.automation||[]).map(point=>({...point}))};};
       state.sources=(project.sources||[]).map(restoreAudio);state.tracks=(project.tracks||[]).map(restoreAudio);state.cuts=(project.cuts||[]).slice();state.total=+project.total||0;
-      state.zoom=project.zoom?.master||20;state.annexZoom=project.zoom?.annexes||1;state.linkedZoom=project.zoom?.linked!==false;state.placementMode=project.placementMode||'free';state.previewQuality=project.previewQuality||'full';state.layoutMode=project.layoutMode||'montage';
+      state.zoom=project.zoom?.master||20;const savedAnnex=project.zoom?.annexes||1;state.annexZoom=typeof savedAnnex==='number'?{voice:savedAnnex,music:savedAnnex}:{voice:savedAnnex.voice||1,music:savedAnnex.music||1};state.linkedZoom=project.zoom?.linked===true;state.placementMode=project.placementMode||'free';state.previewQuality=project.previewQuality||'full';state.layoutMode=project.layoutMode||'montage';
       state.transitions=(project.transitions||[]).map(transition=>({...transition,params:{...(transition.params||{})}}));state.master=project.master||{voice:{db:0,muted:false},music:{db:0,muted:false}};
       state.selectedId=null;state.selectedIds=[];state.previewAt=0;state.bitmapIndex=-1;$('am-duck').value=String(project.mix?.duck??0.126);$('am-uniform-voices').checked=project.mix?.uniformVoices!==false;
       if($('cv-mp4'))$('cv-mp4').disabled=!state.images.length;applyPreviewQuality();render();drawPreview(0);badge(`Projet restauré : ${state.images.length} images, ${state.sources.length} blocs annexes et ${state.tracks.length} clips Master.`,false);
@@ -603,32 +604,40 @@
     state.zoom=clamp(Math.round(value),2,720);
     $('am-zoom').value=state.zoom;
     $('am-zoom-value').textContent=`${state.zoom} px/s`;
-    if(link&&state.linkedZoom)setAnnexZoom(state.zoom/20,false);
+    if(link&&state.linkedZoom){setAnnexZoom('voice',state.zoom/20,false);setAnnexZoom('music',state.zoom/20,false);}
     renderTimeline();
+    requestAnimationFrame(()=>ensurePlayheadVisible(true));
   }
-  function setAnnexZoom(value,link=true) {
-    state.annexZoom=clamp(Math.round(value*2)/2,1,100);
-    $('am-annex-zoom').value=state.annexZoom;
-    $('am-annex-zoom-value').textContent=`×${state.annexZoom}`;
-    root.querySelectorAll('.am-source-clip').forEach(clip=>clip.style.setProperty('--annex-zoom',state.annexZoom));
-    if(link&&state.linkedZoom)setMasterZoom(state.annexZoom*20,false);
+  function setAnnexZoom(kind,value,link=true) {
+    state.annexZoom[kind]=clamp(Math.round(value*2)/2,1,100);
+    $(`am-${kind}-zoom`).value=state.annexZoom[kind];
+    $(`am-${kind}-zoom-value`).textContent=`×${state.annexZoom[kind]}`;
+    root.querySelectorAll(`.am-source-lane[data-import-lane="${kind}"] .am-source-track`).forEach(track=>track.style.setProperty('--annex-zoom',state.annexZoom[kind]));
+    if(link&&state.linkedZoom){const other=kind==='voice'?'music':'voice';setAnnexZoom(other,state.annexZoom[kind],false);setMasterZoom(state.annexZoom[kind]*20,false);}
   }
   $('am-zoom').oninput = e => setMasterZoom(+e.target.value);
   $('am-zoom-out').onclick = () => setMasterZoom(state.zoom-5);
   $('am-zoom-in').onclick = () => setMasterZoom(state.zoom+5);
   $('am-zoom-fit').onclick = () => setMasterZoom(clamp((root.querySelector('.am-timeline').clientWidth-160)/Math.max(1,duration()),2,720));
-  $('am-annex-zoom').oninput = e => setAnnexZoom(+e.target.value);
-  $('am-annex-zoom-out').onclick = () => setAnnexZoom(state.annexZoom-(state.annexZoom>=10?5:0.5));
-  $('am-annex-zoom-in').onclick = () => setAnnexZoom(state.annexZoom+(state.annexZoom>=10?5:0.5));
-  $('am-annex-zoom-precision').onclick = () => setAnnexZoom(10);
-  $('am-annex-zoom-fit').onclick = () => setAnnexZoom(1);
-  $('am-linked-zoom').onclick=()=>{state.linkedZoom=!state.linkedZoom;$('am-linked-zoom').classList.toggle('am-toggle-active',state.linkedZoom);$('am-linked-zoom').setAttribute('aria-pressed',String(state.linkedZoom));$('am-linked-zoom').textContent=state.linkedZoom?'🔗 Zooms liés':'⛓ Zooms libres';badge(state.linkedZoom?'Zoom Master et Annexes liés.':'Zooms indépendants.',false);};
+  for(const kind of ['voice','music']){
+    $(`am-${kind}-zoom`).oninput=e=>setAnnexZoom(kind,+e.target.value);
+    $(`am-${kind}-zoom-out`).onclick=()=>setAnnexZoom(kind,state.annexZoom[kind]-(state.annexZoom[kind]>=10?5:0.5));
+    $(`am-${kind}-zoom-in`).onclick=()=>setAnnexZoom(kind,state.annexZoom[kind]+(state.annexZoom[kind]>=10?5:0.5));
+    $(`am-${kind}-zoom-precision`).onclick=()=>setAnnexZoom(kind,10);
+    $(`am-${kind}-zoom-fit`).onclick=()=>setAnnexZoom(kind,1);
+  }
+  $('am-linked-zoom').onclick=()=>{state.linkedZoom=!state.linkedZoom;if(state.linkedZoom){setAnnexZoom('voice',state.zoom/20,false);setAnnexZoom('music',state.zoom/20,false);}$('am-linked-zoom').classList.toggle('am-toggle-active',state.linkedZoom);$('am-linked-zoom').setAttribute('aria-pressed',String(state.linkedZoom));$('am-linked-zoom').textContent=state.linkedZoom?'🔗 Les 3 zooms sont liés':'Lier les 3 zooms';badge(state.linkedZoom?'Les zooms Master, voix et musique évoluent ensemble.':'Les trois zooms sont maintenant indépendants.',false);};
   $('am-placement-mode').onchange=e=>{checkpoint('mode de placement');state.placementMode=e.target.value;badge(`Mode de placement : ${e.target.selectedOptions[0].textContent}.`,false);};
   function updateMinimap(){
     const timeline=root.querySelector('.am-timeline'),handle=$('am-minimap-window');if(!timeline||!handle)return;
     const max=Math.max(0,timeline.scrollWidth-timeline.clientWidth),ratio=Math.min(1,timeline.clientWidth/Math.max(1,timeline.scrollWidth));
     handle.style.width=`${Math.max(4,ratio*100)}%`;handle.style.left=`${max?timeline.scrollLeft/max*(100-ratio*100):0}%`;
     $('am-minimap').setAttribute('aria-valuenow',String(Math.round(max?timeline.scrollLeft/max*100:0)));
+  }
+  function ensurePlayheadVisible(center=false){
+    const timeline=root.querySelector('.am-timeline'),ruler=$('am-ruler');if(!timeline||!ruler)return;
+    const x=ruler.offsetLeft+ruler.clientWidth*(state.previewAt/Math.max(1,duration())),left=timeline.scrollLeft,right=left+timeline.clientWidth;
+    if(center||x<left+150||x>right-90){timeline.scrollLeft=Math.max(0,x-timeline.clientWidth*.48);updateMinimap();}
   }
   root.querySelector('.am-timeline').addEventListener('scroll',updateMinimap,{passive:true});
   $('am-minimap').onpointerdown=e=>{
@@ -817,6 +826,11 @@
   function applyPreviewQuality(){const canvas=$('am-preview');const size=state.previewQuality==='economy'?[960,540]:[1920,1080];if(canvas.width!==size[0]){canvas.width=size[0];canvas.height=size[1];}}
   $('am-preview-quality').onchange=e=>{checkpoint('qualité de prévisualisation');state.previewQuality=e.target.value;applyPreviewQuality();drawPreview(state.previewAt);badge(state.previewQuality==='economy'?'Aperçu économique 540p ; export inchangé en 1080p.':'Aperçu pleine qualité 1080p.',false);};
   $('am-layout-mode').onchange=e=>{checkpoint('disposition du banc');state.layoutMode=e.target.value;root.dataset.layout=state.layoutMode;drawPreview(state.previewAt);badge(`Disposition : ${e.target.selectedOptions[0].textContent}.`,false);};
+  root.querySelector('.am-step-nav').onclick=e=>{
+    const jump=e.target.dataset.jump;if(!jump)return;
+    const target=jump==='preview'?root.querySelector('.am-grid'):jump==='master'?root.querySelector('.am-master-head'):root.querySelector('.am-sources');
+    target?.scrollIntoView({behavior:'smooth',block:'start'});
+  };
   $('am-focus').onclick = () => {
     const focused = root.classList.toggle('am-focused');
     $('am-focus').textContent = focused ? 'Fermer le banc plein écran' : 'Ouvrir le banc plein écran';
@@ -882,9 +896,11 @@
   function seek(at) { state.previewAt = clamp(at, 0, duration()); drawPreview(state.previewAt); renderClock(); }
   function renderClock() {
     $('am-clock').textContent = `${time(state.previewAt)} / ${time(duration())}`;
+    $('am-cursor-time').textContent = state.zoom>=300?timeFrame(state.previewAt):time(state.previewAt);
     $('am-seek').value = state.previewAt;
     const playhead = root.querySelector('.am-playhead');
     if (playhead) { playhead.style.left = `${state.previewAt / Math.max(1, duration()) * 100}%`; playhead.querySelector('.am-playhead-handle')?.setAttribute('aria-valuenow',state.previewAt.toFixed(2)); }
+    requestAnimationFrame(()=>ensurePlayheadVisible());
   }
   let previewCtx = null, previewSources = [], previewGains = [];
   function updateLiveGains() {
