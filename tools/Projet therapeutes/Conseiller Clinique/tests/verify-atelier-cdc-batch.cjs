@@ -86,8 +86,9 @@ function wavTone(seconds = 0.25, sampleRate = 8000) {
     assert.deepEqual(await page.locator('#am-preview').evaluate(canvas => [canvas.width, canvas.height]), [960, 540]);
     await page.locator('#am-preview-quality').selectOption('full');
     assert.deepEqual(await page.locator('#am-preview').evaluate(canvas => [canvas.width, canvas.height]), [1920, 1080]);
-    await page.locator('#am-layout-mode').selectOption('annexes');
-    assert.equal(await page.locator('#am-workbench').getAttribute('data-layout'), 'annexes', 'mode Annexes larges');
+    await page.locator('[data-jump="sources"]').click();
+    assert.equal(await page.locator('#am-workbench').getAttribute('data-workspace'), 'sources', 'espace Voix et musiques');
+    await page.locator('[data-jump="master"]').click();
 
     const transitionNames = await page.locator('#am-transition-type option').allTextContents();
     assert.equal(transitionNames.length, 25, 'coupe et 24 transitions du CDC');
@@ -97,6 +98,8 @@ function wavTone(seconds = 0.25, sampleRate = 8000) {
     page.once('dialog', dialog => dialog.accept('1'));
     await page.locator('#am-pause-all').click();
     assert.equal(+await page.locator('#am-total').inputValue(), beforePause + 1, 'pause entre les deux diapositives');
+
+    await page.locator('[data-jump="sources"]').click();
 
     const downloadPromise = page.waitForEvent('download');
     await page.locator('#am-save-project').click();
@@ -112,7 +115,7 @@ function wavTone(seconds = 0.25, sampleRate = 8000) {
     assert.equal(await restored.locator('[data-source-lane="voice"] [data-source]').count(), 2, 'blocs annexes restaurés');
     assert.equal(await restored.locator('[data-master-lane="voice"] [data-clip]').count(), 4, 'Master restauré');
     assert.equal(await restored.locator('#am-placement-mode').inputValue(), 'insert', 'mode de placement restauré');
-    assert.equal(await restored.locator('#am-layout-mode').inputValue(), 'annexes', 'disposition restaurée');
+    assert.equal(await restored.locator('#am-workbench').getAttribute('data-workspace'), 'sources', 'espace de travail restauré');
     await restored.close();
     console.log('PASS Atelier CDC : annuler/rétablir, WAV, projet autonome, zoom lié, mini-carte, pistes, pauses et 24 transitions');
   } finally {
