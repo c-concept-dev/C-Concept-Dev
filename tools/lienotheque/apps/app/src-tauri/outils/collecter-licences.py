@@ -130,6 +130,18 @@ def telecharger(url: str, attendue: str | None) -> bytes:
     return octets
 
 
+MACHO = (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"\xfe\xed\xfa\xce", b"\xca\xfe\xba\xbe")
+
+
+def est_macho(chemin: pathlib.Path) -> bool:
+    """Un Mach-O se reconnait a ses quatre premiers octets, jamais a son extension."""
+    try:
+        with chemin.open("rb") as fichier:
+            return fichier.read(4) in MACHO
+    except OSError:
+        return False
+
+
 def redistribues() -> list[pathlib.Path]:
     """Tout ce que le paquet emporte et dont quelqu'un d'autre est l'auteur."""
     fichiers: list[pathlib.Path] = []
@@ -257,6 +269,50 @@ def main(argv: list[str]) -> int:
             "des fichiers seraient redistribués SANS leur texte de licence :\n"
             + "\n".join(f"  {ligne}" for ligne in sans_licence)
         )
+
+    # L'avis de modification, produit et non ecrit a la main : il nomme les fichiers reellement
+    # reecrits, releves sur le paquet. L'Apache-2.0 le demande a son § 4(b) pour les fichiers
+    # modifies ; les autres licences presentes ne l'exigent pas, mais le dire ne coute rien et
+    # ferme la question pour toutes.
+    reecrits: list[str] = []
+    tels_quels: list[str] = []
+    for fichier in redistribues():
+        if fichier.parent.name not in ("bin", "lib") or not est_macho(fichier):
+            continue
+        nom = f"{fichier.parent.name}/{fichier.name}"
+        # Mesure, et non supposition : un fichier dont une reference pointe DANS le paquet
+        # (@rpath, @loader_path, @executable_path) a vu ses references reecrites. Les autres sont
+        # copies tels quels — node et sf en sont, et la premiere version de cet avis les comptait
+        # a tort parmi les reecrits.
+        try:
+            sortie = subprocess.run(
+                ["otool", "-L", str(fichier)], capture_output=True, text=True, check=True
+            ).stdout
+        except (OSError, subprocess.CalledProcessError):
+            tels_quels.append(nom)
+            continue
+        (reecrits if "@rpath" in sortie or "@loader_path" in sortie else tels_quels).append(nom)
+
+    (LICENCES / "MODIFICATIONS.txt").write_text(
+        "AVIS DE MODIFICATION\n"
+        "====================\n\n"
+        "Les programmes et bibliotheques de ce paquet viennent de leurs auteurs d'origine. AUCUN\n"
+        "code n'a ete change : ni source, ni comportement, ni donnees. Deux choses seulement ont\n"
+        "ete faites, et cet avis dit laquelle a chaque fichier.\n\n"
+        "1. REFERENCES DE CHARGEMENT REECRITES (install names et rpath des Mach-O), pour que le\n"
+        "   paquet se charge entierement depuis lui-meme, sans dependre de bibliotheques\n"
+        "   installees ailleurs sur la machine :\n"
+        + "".join(f"     {nom}\n" for nom in sorted(reecrits))
+        + "\n2. COPIES TELS QUELS, aucune reference touchee :\n"
+        + "".join(f"     {nom}\n" for nom in sorted(tels_quels))
+        + "\nTous sont ensuite re-signes : toute modification d'un Mach-O, et la copie elle-meme\n"
+        "sur cette architecture, invalide la signature precedente.\n\n"
+        "Fait par apps/app/src-tauri/outils/preparer-moteurs.py et\n"
+        "apps/app/src-tauri/outils/preparer-moteur-node.py, dont le code est public.\n\n"
+        f"Soit {len(reecrits)} fichiers reecrits et {len(tels_quels)} copies tels quels. Les textes\n"
+        "de licence de chacun sont dans ce dossier.\n",
+        encoding="utf-8",
+    )
 
     (LICENCES / "INVENTAIRE.json").write_text(
         json.dumps(

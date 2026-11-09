@@ -154,12 +154,29 @@ describe("rien n'est redistribué sans son texte de licence (D2)", () => {
     expect([...attendus].sort()).toEqual([...presents].sort());
   });
 
+  siLInventaireEstLa("un avis de modification dit ce qui a été fait à chaque Mach-O", () => {
+    // L'Apache-2.0 demande, à son § 4(b), que les fichiers modifiés portent un avis. La
+    // préparation réécrit les références de chargement de dix-sept Mach-O : l'avis le dit, fichier
+    // par fichier, et distingue ceux qui sont copiés tels quels. Il est PRODUIT par la collecte,
+    // jamais écrit à la main, pour qu'il ne puisse pas se périmer en silence.
+    const avis = join(LICENCES, "MODIFICATIONS.txt");
+    expect(existsSync(avis), `${avis} : lancer outils/collecter-licences.py`).toBe(true);
+    const texte = readFileSync(avis, "utf8");
+    expect(texte).toContain("AVIS DE MODIFICATION");
+    // Il doit nommer des fichiers, pas seulement annoncer qu'il y en a.
+    for (const nomme of ["lib/libtesseract", "bin/tesseract"]) expect(texte).toContain(nomme);
+    // Et dire les deux moitiés : un avis qui ne dirait que « modifié » mentirait sur node et sf.
+    expect(texte).toContain("COPIES TELS QUELS");
+  });
+
   siLApplicationEstLa("l'application installée emporte les licences, et non seulement le dépôt", () => {
     // Collecter sans embarquer ne tient pas la règle 3.6 : c'est le paquet livré qui doit les
     // porter. On regarde donc l'application, et pas le dossier de travail.
     const dans = join(APPLICATION, "Contents/Resources/moteurs/licences");
     expect(existsSync(dans), `${dans} : refabriquer l'application après la collecte`).toBe(true);
     expect(statSync(join(dans, "INVENTAIRE.json")).size).toBeGreaterThan(0);
+    // L'avis de modification doit voyager avec les textes, pas rester dans le dépôt.
+    expect(existsSync(join(dans, "MODIFICATIONS.txt")), join(dans, "MODIFICATIONS.txt")).toBe(true);
   });
 });
 
