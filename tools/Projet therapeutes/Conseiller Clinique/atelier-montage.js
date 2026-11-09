@@ -202,7 +202,7 @@
     #am-workbench .am-zoom-tools button{padding:4px 7px;font-size:11.5px;min-height:30px}
     .am-sources{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:0 0 205px;height:205px;min-height:0}
     .am-source-lane{border:2px solid var(--lane-color,#1f5053);border-radius:11px;padding:8px;overflow:auto;min-height:0;background:#f6f2ea;font-size:13px}.am-source-lane[data-import-lane=music]{--lane-color:#a34d30}
-    .am-source-lane-head{position:sticky;left:0;z-index:7;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;background:#f6f2ea}.am-source-lane-title strong{display:block;margin:0}.am-source-lane-title small{color:#5d6966}
+    .am-source-lane-head{position:sticky;left:0;z-index:7;display:flex;align-items:center;gap:7px;margin-bottom:6px;background:#f6f2ea}.am-source-lane-title{margin-right:auto;min-width:105px}.am-source-lane-title strong{display:block;margin:0}.am-source-lane-title small{color:#5d6966}.am-source-lane-head .am-zoom-tools{gap:3px;flex:0 1 330px;justify-content:flex-end}.am-source-lane-head .am-zoom-tools label{font-size:10px}.am-source-lane-head .am-zoom-tools input[type=range]{width:86px}.am-source-lane-head .am-zoom-tools button{min-height:25px!important;padding:3px 6px!important;font-size:10px!important}.am-source-lane-head .am-zoom-tools output{font-size:10px;min-width:30px}.am-source-lane-head>.am-compact-import{min-height:29px!important;padding:4px 7px!important;font-size:10px!important;white-space:nowrap}
     .am-drop-audio{position:sticky;left:0;z-index:6;border:2px dashed var(--lane-color);border-radius:8px;padding:7px 10px;margin:5px 0 8px;text-align:center;background:color-mix(in srgb,var(--lane-color) 9%,white);color:#394947;font-weight:650}
     .am-source-list{display:flex;gap:8px;flex-direction:column;align-items:flex-start;min-width:100%}.am-source-paste{position:sticky;left:0;top:0;z-index:8;align-self:flex-start;background:#fff7df!important;box-shadow:0 2px 6px #0002}
     .am-source-track{min-width:100%;border:1px solid #b8b0a5;border-radius:9px;background:#fffdf9;padding:6px}.am-source-track-head{position:sticky;left:0;z-index:5;display:flex;gap:7px;align-items:center;margin-bottom:5px;max-width:max-content;background:#fffdf9;padding-right:8px}.am-source-regions{display:flex;align-items:stretch;width:calc(100% * var(--annex-zoom,1));min-width:100%}
@@ -212,8 +212,8 @@
     .am-source-clip[data-locked=true]{opacity:.7;cursor:not-allowed}.am-source-clip[data-used=true]{background-image:repeating-linear-gradient(135deg,transparent 0 9px,color-mix(in srgb,var(--track-color) 20%,transparent) 9px 13px)}
     .am-source-clip[data-kind=music]{background:#f3e5df;background:color-mix(in srgb,var(--track-color,#8a3f29) 13%,white);border-color:var(--track-color,#8a3f29);color:#4f2d22}.am-source-clip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
     .am-track-badge{display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 5px;border-radius:12px;background:var(--track-color);color:#fff;font-size:11px;font-weight:800;flex:0 0 auto}
-    .am-source-head,.am-source-actions{display:flex;align-items:center;gap:5px;min-width:0}.am-source-head span{flex:1;font-weight:700}.am-source-actions{flex-wrap:wrap}
-    .am-source-wave{width:100%;height:30px;display:block;background:#fffdf9;border-radius:4px;cursor:crosshair;touch-action:manipulation}
+    .am-source-head,.am-source-actions{display:flex;align-items:center;gap:5px;min-width:0}.am-source-head{cursor:grab;touch-action:none}.am-source-head:active{cursor:grabbing}.am-source-head span{flex:1;font-weight:700}.am-source-actions{flex-wrap:wrap}
+    .am-source-wave-wrap{position:relative;width:100%;overflow:hidden;border-radius:4px;background:#fffdf9}.am-source-wave{width:100%;height:30px;display:block;background:#fffdf9;border-radius:4px;cursor:crosshair;touch-action:manipulation}.am-source-playhead{position:absolute;top:0;bottom:0;left:50%;width:2px;transform:translateX(-1px);background:#ab4329;box-shadow:0 0 0 1px #fff8;pointer-events:none;z-index:2}.am-source-playhead::before{content:'';position:absolute;left:-4px;top:0;width:10px;height:7px;border-radius:0 0 5px 5px;background:#ab4329}.am-source-clip.am-dragging{opacity:.62;outline:3px solid #e6b15c}
     .am-source-cut-time{font-size:11px;white-space:nowrap}.am-source-clip input[type=number]{width:72px;min-width:0;padding:3px;border:1px solid #83918c;border-radius:4px}
     #am-workbench .am-source-clip button{padding:4px 7px;font-size:11px;min-height:29px;background:#fffdf9;border-color:currentColor}
     #am-workbench .am-source-clip .am-source-remove{padding:0 3px;border:0;background:transparent;color:inherit;font-size:12px;opacity:.7}
@@ -266,8 +266,8 @@
       <div id="am-steps"></div><p id="am-empty">Importez une présentation pour régler ses étapes.</p>
     </div></div></div></section>
     <section class="am-workspace am-workspace-sources" data-workspace-panel="sources" role="tabpanel"><div class="am-zone-head"><div><h3>3 · Préparer les sons avant de les placer dans le film</h3><span class="am-section-help">Une piste reste sur une seule ligne. Chaque scission crée deux blocs adjacents, que vous pouvez glisser séparément dans le Master.</span></div></div>
-    <div class="am-sources" aria-label="Sources voix et musique"><div class="am-source-lane" data-import-lane="voice"><div class="am-source-lane-head"><div class="am-source-lane-title"><strong>Voix</strong><small>Paroles, commentaires et narration</small></div><button id="am-open-voice" type="button" data-commande="importer-voix">+ Importer une ou plusieurs voix</button></div><div class="am-drop-audio">Déposez ici vos fichiers voix MP3, M4A ou WAV</div><div class="am-zoom-tools" aria-label="Zoom des voix"><button id="am-voice-zoom-out" type="button" title="Dézoomer les voix">−</button><label>Zoom voix <input id="am-voice-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom précis des sources voix"></label><button id="am-voice-zoom-in" type="button" title="Zoomer les voix">+</button><button id="am-voice-zoom-precision" type="button">Précision ×10</button><button id="am-voice-zoom-fit" type="button">Tout voir</button><output id="am-voice-zoom-value">×1</output></div><div class="am-source-list" data-source-lane="voice"></div></div>
-    <div class="am-source-lane" data-import-lane="music"><div class="am-source-lane-head"><div class="am-source-lane-title"><strong>Musique</strong><small>Fond musical, ambiance et générique</small></div><button id="am-open-music" type="button" data-commande="importer-musique">+ Importer une ou plusieurs musiques</button></div><div class="am-drop-audio">Déposez ici vos fichiers musique MP3, M4A ou WAV</div><div class="am-zoom-tools" aria-label="Zoom des musiques"><button id="am-music-zoom-out" type="button" title="Dézoomer les musiques">−</button><label>Zoom musique <input id="am-music-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom précis des sources musique"></label><button id="am-music-zoom-in" type="button" title="Zoomer les musiques">+</button><button id="am-music-zoom-precision" type="button">Précision ×10</button><button id="am-music-zoom-fit" type="button">Tout voir</button><output id="am-music-zoom-value">×1</output></div><div class="am-source-list" data-source-lane="music"></div></div></div></section></div>
+    <div class="am-sources" aria-label="Sources voix et musique"><div class="am-source-lane" data-import-lane="voice"><div class="am-source-lane-head"><div class="am-source-lane-title"><strong>Voix</strong><small>Paroles et narration</small></div><div class="am-zoom-tools" aria-label="Zoom des voix"><button id="am-voice-zoom-out" type="button" title="Dézoomer les voix">−</button><label>Zoom <input id="am-voice-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom précis des sources voix"></label><button id="am-voice-zoom-in" type="button" title="Zoomer les voix">+</button><button id="am-voice-zoom-precision" type="button">×10</button><button id="am-voice-zoom-fit" type="button">Tout voir</button><output id="am-voice-zoom-value">×1</output></div><button id="am-open-voice" class="am-compact-import" type="button" data-commande="importer-voix">+ Importer voix</button></div><div class="am-drop-audio">Déposez ici vos fichiers voix MP3, M4A ou WAV</div><div class="am-source-list" data-source-lane="voice"></div></div>
+    <div class="am-source-lane" data-import-lane="music"><div class="am-source-lane-head"><div class="am-source-lane-title"><strong>Musique</strong><small>Fond et ambiance</small></div><div class="am-zoom-tools" aria-label="Zoom des musiques"><button id="am-music-zoom-out" type="button" title="Dézoomer les musiques">−</button><label>Zoom <input id="am-music-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom précis des sources musique"></label><button id="am-music-zoom-in" type="button" title="Zoomer les musiques">+</button><button id="am-music-zoom-precision" type="button">×10</button><button id="am-music-zoom-fit" type="button">Tout voir</button><output id="am-music-zoom-value">×1</output></div><button id="am-open-music" class="am-compact-import" type="button" data-commande="importer-musique">+ Importer musique</button></div><div class="am-drop-audio">Déposez ici vos fichiers musique MP3, M4A ou WAV</div><div class="am-source-list" data-source-lane="music"></div></div></div></section></div>
     <p id="am-status" role="status" aria-live="polite">Prêt pour l’import audio MP3, M4A ou WAV.</p>`;
   $('cv-vignettes').before(root);
   const vignetteDetails = document.createElement('details');
@@ -302,7 +302,8 @@
       const sourceClips = originIds.map(originId => {
         const blocks=kindSources.filter(s=>(s.originId||s.id)===originId),first=blocks[0],fullDuration=Math.max(0.01,blocks.reduce((sum,s)=>sum+s.out-s.in,0)),track=sourceRegionMeta(first).track;
         const regions=blocks.map(s=>{const region=sourceRegionMeta(s),used=state.tracks.some(t=>(t.sourceId||t.originId)===s.id||(t.originId&&t.originId===(s.originId||s.id))),ratio=(s.out-s.in)/fullDuration;
-          return `<div class="am-source-clip" data-drag-block="true" data-locked="${!!s.locked}" data-used="${used}" role="group" aria-label="${region.track} bloc ${region.blockIndex} sur ${region.blockCount}, glissable vers le Master" data-source="${s.id}" data-kind="${kind}" style="--track-color:${s.color};--region-ratio:${ratio}" title="Saisir ce bloc et le glisser vers le Master"><div class="am-source-head"><span><em class="am-region-label" style="--track-color:${s.color}">Bloc ${region.blockIndex}/${region.blockCount}</em>${time(s.out-s.in)}${used?' · déjà utilisé':''}</span><span class="am-drag-hint">☷ Glisser ce bloc</span></div><canvas class="am-source-wave" data-source-wave="${s.id}" width="${Math.min(16000,Math.max(500,Math.ceil(500*state.annexZoom[kind])))}" height="${s.height==='L'?54:s.height==='S'?22:30}" aria-label="Forme d’onde du bloc ${region.blockIndex} de ${esc(s.name)}" title="Cliquez à l’endroit où vous souhaitez scinder ce bloc"></canvas><div class="am-source-primary"><label class="am-source-cut-time">Scinder à <input type="number" min="0.01" max="${(s.out-s.in-0.01).toFixed(2)}" step="0.01" value="${((s.out-s.in)/2).toFixed(2)}" aria-label="Point de scission précis en secondes"> s</label><button type="button" data-source-action="split" data-source-id="${s.id}">✂ Scinder ici</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce bloc à l’endroit du curseur rouge dans le Master">→ Placer au curseur Master</button></div><details class="am-source-advanced"><summary>Réglages du bloc</summary><div class="am-source-actions"><label>Gain <input type="number" min="-60" max="12" step="1" value="${s.db}" data-source-field="db" data-source-id="${s.id}"></label><label>Hauteur <select data-source-field="height" data-source-id="${s.id}"><option ${s.height==='S'?'selected':''}>S</option><option ${!s.height||s.height==='M'?'selected':''}>M</option><option ${s.height==='L'?'selected':''}>L</option></select></label><input type="color" value="${s.color}" data-source-field="color" data-source-id="${s.id}" aria-label="Couleur de ${esc(s.name)}"><button type="button" data-source-action="mute" data-source-id="${s.id}">${s.muted?'Réactiver':'Muet'}</button><button type="button" data-source-action="solo" data-source-id="${s.id}" aria-pressed="${!!s.solo}">Solo</button><button type="button" data-source-action="lock" data-source-id="${s.id}" aria-pressed="${!!s.locked}">${s.locked?'Déverrouiller':'Verrouiller'}</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}">Effacer</button></div></details></div>`;}).join('');
+          const listenAt=clamp(Number.isFinite(s.listenAt)?s.listenAt:0,0,Math.max(0,s.out-s.in-0.01)),listenPercent=(listenAt/Math.max(0.01,s.out-s.in)*100).toFixed(3);
+          return `<div class="am-source-clip" draggable="${!s.locked}" data-drag-block="true" data-locked="${!!s.locked}" data-used="${used}" role="group" aria-label="${region.track} bloc ${region.blockIndex} sur ${region.blockCount}, glissable vers le Master" data-source="${s.id}" data-kind="${kind}" style="--track-color:${s.color};--region-ratio:${ratio}" title="Saisir l’en-tête de ce bloc et le glisser vers le Master"><div class="am-source-head" draggable="${!s.locked}" data-source-handle="${s.id}"><span><em class="am-region-label" style="--track-color:${s.color}">Bloc ${region.blockIndex}/${region.blockCount}</em>${time(s.out-s.in)}${used?' · déjà utilisé':''}</span><span class="am-drag-hint">☷ Glisser vers le Master</span></div><div class="am-source-wave-wrap"><canvas class="am-source-wave" data-source-wave="${s.id}" width="${Math.min(16000,Math.max(500,Math.ceil(500*state.annexZoom[kind])))}" height="${s.height==='L'?54:s.height==='S'?22:30}" aria-label="Forme d’onde du bloc ${region.blockIndex} de ${esc(s.name)}" title="Cliquez pour placer la tête de lecture et de scission"></canvas><span class="am-source-playhead" data-source-playhead="${s.id}" style="left:${listenPercent}%" aria-hidden="true"></span></div><div class="am-source-primary"><button type="button" data-source-action="listen" data-source-id="${s.id}">▶ Écouter</button><label class="am-source-cut-time">Curseur <input type="number" min="0.01" max="${(s.out-s.in-0.01).toFixed(2)}" step="0.01" value="${Math.max(0.01,listenAt).toFixed(2)}" data-source-cursor="${s.id}" aria-label="Position précise du curseur annexe en secondes"> s</label><button type="button" data-source-action="split" data-source-id="${s.id}">✂ Scinder ici</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce bloc à l’endroit du curseur rouge dans le Master">→ Placer au curseur Master</button></div><details class="am-source-advanced"><summary>Réglages du bloc</summary><div class="am-source-actions"><label>Gain <input type="number" min="-60" max="12" step="1" value="${s.db}" data-source-field="db" data-source-id="${s.id}"></label><label>Hauteur <select data-source-field="height" data-source-id="${s.id}"><option ${s.height==='S'?'selected':''}>S</option><option ${!s.height||s.height==='M'?'selected':''}>M</option><option ${s.height==='L'?'selected':''}>L</option></select></label><input type="color" value="${s.color}" data-source-field="color" data-source-id="${s.id}" aria-label="Couleur de ${esc(s.name)}"><button type="button" data-source-action="mute" data-source-id="${s.id}">${s.muted?'Réactiver':'Muet'}</button><button type="button" data-source-action="solo" data-source-id="${s.id}" aria-pressed="${!!s.solo}">Solo</button><button type="button" data-source-action="lock" data-source-id="${s.id}" aria-pressed="${!!s.locked}">${s.locked?'Déverrouiller':'Verrouiller'}</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}">Effacer</button></div></details></div>`;}).join('');
         return `<section class="am-source-track" style="--track-color:${first.color};--annex-zoom:${state.annexZoom[kind]}"><div class="am-source-track-head"><b class="am-track-badge" style="--track-color:${first.color}">${track}</b><strong>${esc(first.name)}</strong><span>${blocks.length} bloc${blocks.length>1?'s':''} sur la même piste</span></div><div class="am-source-regions">${regions}</div></section>`;
       }).join('');
       const paste = state.copiedSource ? `<button class="am-source-paste" type="button" data-source-action="paste" data-source-kind="${kind}">Coller le bloc copié ici</button>` : '';
@@ -371,6 +372,46 @@
       c.fillRect(x, mid - peak * mid, 1, Math.max(1, peak * canvas.height));
     }
   }
+  let sourceAudition = null;
+  function updateSourceAuditionUI(source, local, playing=false) {
+    if(!source)return;
+    const length=Math.max(0.01,source.out-source.in),position=clamp(local,0,length);
+    source.listenAt=position;
+    root.querySelectorAll(`[data-source-playhead="${source.id}"]`).forEach(cursor=>cursor.style.left=`${position/length*100}%`);
+    root.querySelectorAll(`[data-source-action="listen"][data-source-id="${source.id}"]`).forEach(button=>button.textContent=playing?'■ Arrêter':'▶ Écouter');
+    const input=root.querySelector(`[data-source="${source.id}"] .am-source-cut-time input`);
+    if(input)input.value=clamp(position,0.01,Math.max(0.01,length-0.01)).toFixed(2);
+  }
+  function stopSourceAudition() {
+    const audition=sourceAudition;if(!audition)return;
+    sourceAudition=null;cancelAnimationFrame(audition.raf);
+    try{audition.node.onended=null;audition.node.stop();}catch{}
+    audition.ctx.close().catch(()=>{});
+    updateSourceAuditionUI(audition.source,audition.source.listenAt||0,false);
+  }
+  async function toggleSourceAudition(source) {
+    if(sourceAudition?.source.id===source.id){stopSourceAudition();return;}
+    stopSourceAudition();if(state.playing)stopPreview();
+    if(source.muted)return badge(`« ${source.name} » est muet. Réactivez-le dans Réglages du bloc pour l’écouter.`,true);
+    const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return badge('Ce navigateur ne peut pas lire ce fichier audio.',true);
+    const length=Math.max(0.01,source.out-source.in);let local=clamp(source.listenAt||0,0,length);
+    if(local>=length-0.01)local=0;
+    const ctx=new Audio(),node=ctx.createBufferSource(),gain=ctx.createGain();
+    node.buffer=source.buffer;gain.gain.value=dbGain(source.db+voiceGain(source));node.connect(gain).connect(ctx.destination);
+    await ctx.resume();
+    const audition={source,ctx,node,startLocal:local,startedAt:ctx.currentTime,raf:0};sourceAudition=audition;
+    updateSourceAuditionUI(source,local,true);node.start(0,source.in+local,length-local);
+    badge(`Lecture du bloc « ${source.name} ». Le petit curseur rouge indique la position d’écoute et de scission.`,false);
+    const tick=()=>{
+      if(sourceAudition!==audition)return;
+      const position=Math.min(length,audition.startLocal+ctx.currentTime-audition.startedAt);
+      updateSourceAuditionUI(source,position,true);
+      if(position>=length-0.01){stopSourceAudition();return;}
+      audition.raf=requestAnimationFrame(tick);
+    };
+    node.onended=()=>{if(sourceAudition===audition)stopSourceAudition();};
+    audition.raf=requestAnimationFrame(tick);
+  }
   function refreshImages() {
     const d = window.__chutier && window.__chutier.dernier();
     if (!d || !d.res || !d.res.images || !d.res.images.length) return;
@@ -404,7 +445,7 @@
           const id = crypto.randomUUID();
           const level = kind==='voice' ? voiceLevel(buffer) : {rmsDb:null,autoGainDb:0};
           checkpoint(`import de ${file.name}`);
-          state.sources.push({id, originId:id, name:file.name, file, buffer, kind, color:nextTrackColor(kind), height:'M', at:0, in:0,
+          state.sources.push({id, originId:id, name:file.name, file, buffer, kind, color:nextTrackColor(kind), height:'M', at:0, in:0, listenAt:0,
             out:+buffer.duration.toFixed(2), db:kind === 'voice' ? 0 : -18, fadeIn:0.3, fadeOut:0.5,
             loop:false, muted:false, solo:false, locked:false, ...level, automation:[{time:0,db:0},{time:+buffer.duration.toFixed(2),db:0}]});
           badge(`Source « ${file.name} » prête : glissez-la vers ${kind==='voice'?'Voix':'Musique'} Master.`, false);
@@ -469,14 +510,17 @@
     if (wave) {
       const source=state.sources.find(s=>s.id===wave.dataset.sourceWave);
       if (!source) return;
+      if(sourceAudition?.source.id===source.id)stopSourceAudition();
       const rect=wave.getBoundingClientRect(), seconds=(source.out-source.in)*clamp((e.clientX-rect.left)/rect.width,0,1);
       const field=wave.closest('.am-source-clip').querySelector('input[type=number]');
       field.value=clamp(seconds,0.01,source.out-source.in-0.01).toFixed(2);
+      updateSourceAuditionUI(source,seconds,false);
       badge(`Tête de scission placée à ${field.value} s dans « ${source.name} ». Cliquez sur « Scinder en 2 blocs » : aucun son ne sera supprimé.`,false);
       return;
     }
     const action=e.target.dataset.sourceAction; if (!action) return;
     const source=state.sources.find(s=>s.id===e.target.dataset.sourceId);
+    if (action==='listen' && source) { toggleSourceAudition(source);return; }
     if (action==='place' && source) { const lane=root.querySelector(`[data-master-lane="${source.kind}"]`);const r=lane.getBoundingClientRect(),filmDuration=duration();placeSource(source,lane,filmDuration>0?r.left+r.width*state.previewAt/filmDuration:r.left); }
     if (action==='mute' && source) { checkpoint(`muet de ${source.name}`);source.muted=!source.muted;render(); }
     if (action==='solo' && source) { checkpoint(`solo de ${source.name}`);source.solo=!source.solo;render(); }
@@ -485,7 +529,7 @@
       const from=state.sources.indexOf(source),step=action==='up'?-1:1,to=clamp(from+step,0,state.sources.length-1);
       if(from!==to){checkpoint(`réorganisation de ${source.name}`);state.sources.splice(from,1);state.sources.splice(to,0,source);render();}
     }
-    if (action==='remove' && source) { if(source.locked)return badge('Déverrouillez ce bloc avant de le supprimer.',true);checkpoint(`suppression de ${source.name}`);state.sources=state.sources.filter(s=>s.id!==source.id); badge(`Bloc annexe « ${source.name} » effacé. Les clips déjà placés sur le Master restent en place.`,false); render(); }
+    if (action==='remove' && source) { if(source.locked)return badge('Déverrouillez ce bloc avant de le supprimer.',true);if(sourceAudition?.source.id===source.id)stopSourceAudition();checkpoint(`suppression de ${source.name}`);state.sources=state.sources.filter(s=>s.id!==source.id); badge(`Bloc annexe « ${source.name} » effacé. Les clips déjà placés sur le Master restent en place.`,false); render(); }
     if (action==='copy' && source) { state.copiedSource={...source,automation:source.automation.map(p=>({...p}))}; badge(`« ${source.name} » copié.`,false); render(); }
     if (action==='paste' && state.copiedSource) {
       checkpoint('collage d’un bloc annexe');
@@ -494,6 +538,7 @@
     }
     if (action==='split' && source) {
       if(source.locked)return badge('Déverrouillez ce bloc avant de le scinder.',true);
+      if(sourceAudition?.source.id===source.id)stopSourceAudition();
       const field=e.target.parentElement.querySelector('input[type=number]');
       const local=+field.value,length=source.out-source.in;
       if (!Number.isFinite(local)||local<0.01||local>length-0.01) return badge('Point de scission hors du bloc.',true);
@@ -501,8 +546,9 @@
       const oldOut=source.out, oldIn=source.in;
       const level=automationDb(source,local), points=source.automation;
       const right={...source,id:crypto.randomUUID(),in:oldIn+local,out:oldOut,
+        listenAt:0,
         automation:[{time:0,db:level},...points.filter(p=>p.time>local).map(p=>({time:p.time-local,db:p.db}))]};
-      source.out=oldIn+local;source.automation=[...points.filter(p=>p.time<local),{time:local,db:level}];
+      source.out=oldIn+local;source.listenAt=Math.min(source.listenAt||0,local);source.automation=[...points.filter(p=>p.time<local),{time:local,db:level}];
       if(source.kind==='voice'){
         Object.assign(source,voiceLevel(source.buffer,source.in,source.out));
         Object.assign(right,voiceLevel(right.buffer,right.in,right.out));
@@ -510,6 +556,11 @@
       state.sources.splice(state.sources.indexOf(source)+1,0,right);
       badge(`Piste scindée en deux blocs à ${local.toFixed(2)} s. Les deux blocs sont conservés et peuvent être glissés séparément sur le Master.`,false);render();
     }
+  };
+  root.querySelector('.am-sources').oninput = e => {
+    const source=state.sources.find(s=>s.id===e.target.dataset.sourceCursor);if(!source)return;
+    if(sourceAudition?.source.id===source.id)stopSourceAudition();
+    updateSourceAuditionUI(source,clamp(+e.target.value,0,source.out-source.in),false);
   };
   root.querySelector('.am-sources').onchange = e => {
     const source=state.sources.find(s=>s.id===e.target.dataset.sourceId),field=e.target.dataset.sourceField;if(!source||!field)return;
@@ -521,8 +572,11 @@
   };
   root.querySelector('.am-sources').ondragstart = e => {
     const clip=e.target.closest('[data-source]'); if (!clip) return;
-    e.dataTransfer.setData('text/plain',clip.dataset.source);e.dataTransfer.effectAllowed='copy';
+    const source=state.sources.find(s=>s.id===clip.dataset.source);
+    if(!source||source.locked){e.preventDefault();return badge('Déverrouillez ce bloc avant de le glisser.',true);}
+    e.dataTransfer.setData('application/x-atelier-source',clip.dataset.source);e.dataTransfer.setData('text/plain',clip.dataset.source);e.dataTransfer.effectAllowed='copy';clip.classList.add('am-dragging');
   };
+  root.querySelector('.am-sources').ondragend = e => {e.target.closest('[data-source]')?.classList.remove('am-dragging');root.querySelectorAll('.am-drop-target').forEach(el=>el.classList.remove('am-drop-target'));};
   function placeSource(source,lane,clientX) {
     const r=lane.getBoundingClientRect(),filmDuration=Math.max(0,duration());
     const at=filmDuration>0?Math.round(clamp((clientX-r.left)/r.width*filmDuration,0,filmDuration)*30)/30:0;
@@ -550,18 +604,27 @@
     render();
   };
   root.querySelector('.am-sources').onpointerdown = e => {
-    if(e.target.closest('button,input,canvas,select,label,summary,details'))return;
+    // Safari peut perdre le dépôt HTML natif pendant un long glisser vertical.
+    // L’en-tête possède donc aussi une voie pointeur explicite, souris comprise.
+    if(!e.target.closest('.am-source-head'))return;
     const clip=e.target.closest('[data-source]');if(!clip)return;
     const id=clip.dataset.source,startX=e.clientX,startY=e.clientY;
     if(state.sources.find(s=>s.id===id)?.locked)return badge('Ce bloc est verrouillé.',true);
+    e.preventDefault();
     clip.setPointerCapture(e.pointerId);
+    const laneAt=(x,y)=>document.elementFromPoint(x,y)?.closest?.('[data-master-lane]')||[...root.querySelectorAll('[data-master-lane]')].find(row=>{const r=row.getBoundingClientRect();return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom;});
+    clip.onpointermove=move=>{
+      if(Math.hypot(move.clientX-startX,move.clientY-startY)<8)return;
+      root.querySelectorAll('[data-master-lane]').forEach(row=>row.classList.toggle('am-drop-target',row===laneAt(move.clientX,move.clientY)));
+    };
     clip.onpointerup=up=>{
-      clip.onpointerup=null;
+      clip.onpointerup=null;clip.onpointermove=null;root.querySelectorAll('[data-master-lane]').forEach(row=>row.classList.remove('am-drop-target'));
       if(Math.hypot(up.clientX-startX,up.clientY-startY)<12)return;
-      const lane=[...root.querySelectorAll('[data-master-lane]')].find(row=>{const r=row.getBoundingClientRect();return up.clientX>=r.left&&up.clientX<=r.right&&up.clientY>=r.top&&up.clientY<=r.bottom;});
+      const lane=laneAt(up.clientX,up.clientY);
       const source=state.sources.find(s=>s.id===id);
       if(lane&&source)placeSource(source,lane,up.clientX);
     };
+    clip.onpointercancel=()=>{clip.onpointerup=null;clip.onpointermove=null;root.querySelectorAll('[data-master-lane]').forEach(row=>row.classList.remove('am-drop-target'));};
   };
   $('am-lanes').ondragover = e => {
     const lane=e.target.closest('[data-master-lane]'); if (!lane) return;
@@ -571,7 +634,8 @@
   $('am-lanes').ondrop = e => {
     const lane=e.target.closest('[data-master-lane]');if(!lane)return;
     e.preventDefault();lane.classList.remove('am-drop-target');
-    const source=state.sources.find(s=>s.id===e.dataTransfer.getData('text/plain'));if(!source)return;
+    const sourceId=e.dataTransfer.getData('application/x-atelier-source')||e.dataTransfer.getData('text/plain');
+    const source=state.sources.find(s=>s.id===sourceId);if(!source)return;
     placeSource(source,lane,e.clientX);
   };
   $('am-tracks').onchange = e => {
@@ -1016,6 +1080,7 @@
   $('am-play').onclick = async () => {
     if (state.playing) return stopPreview();
     if (!state.images.length) return badge('Importez d’abord une présentation.', true);
+    stopSourceAudition();
     previewCtx = new (window.AudioContext || window.webkitAudioContext)();
     await previewCtx.resume();
     previewSources = schedule(previewCtx, previewCtx.destination, state.previewAt, true);updateLiveGains();
