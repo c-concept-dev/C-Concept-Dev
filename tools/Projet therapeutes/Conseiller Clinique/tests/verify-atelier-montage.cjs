@@ -23,6 +23,12 @@ const { join } = require('node:path');
     const errors = [];
     page.on('pageerror', e => errors.push(e.stack || e.message));
     await page.goto('file://' + join(__dirname, '../atelier-diapos.html'));
+    const buttonMetrics = await page.locator('#am-save-project').evaluate(element => {
+      const style = getComputedStyle(element);
+      return { fontSize: style.fontSize, height: element.getBoundingClientRect().height };
+    });
+    assert.equal(buttonMetrics.fontSize, '12px', 'boutons compacts sans réduire les textes de contenu');
+    assert.ok(buttonMetrics.height >= 34, 'cible de clic conservée malgré la police réduite');
     assert.deepEqual(await page.locator('#am-preview').evaluate(el => [el.width, el.height]), [1920, 1080], 'aperçu haute définition');
     await page.evaluate(async () => {
       const images = [];

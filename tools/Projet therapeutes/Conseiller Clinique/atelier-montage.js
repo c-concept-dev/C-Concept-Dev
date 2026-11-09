@@ -124,7 +124,7 @@
     .am-toolbar{display:flex;gap:5px;flex-direction:column;margin:3px 0}
     .am-toolbar-row{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
     .am-toolbar-row.am-edit{padding-top:5px;border-top:1px solid #e5ded3}
-    #am-workbench button,#am-workbench .am-file{font:600 13px/1.2 -apple-system,system-ui,sans-serif;border:1.5px solid #1f5053;border-radius:9px;background:#fffdf9;color:#1f5053;padding:9px 12px;cursor:pointer}
+    #am-workbench button,#am-workbench .am-file{font:600 12px/1.15 -apple-system,system-ui,sans-serif;border:1.5px solid #1f5053;border-radius:8px;background:#fffdf9;color:#1f5053;padding:7px 10px;min-height:34px;cursor:pointer}
     #am-workbench button:hover,#am-workbench .am-file:hover{background:#dce8e6}
     #am-workbench button.am-transport{background:#1f5053;color:#fff}
     #am-workbench button.am-export-button{background:#a34d30;color:#fff;border-color:#a34d30}
@@ -133,7 +133,7 @@
     #am-workbench select{border:1px solid #5d6966;border-radius:6px;background:#fffdf9;color:#17393b;padding:5px;font:inherit}
     .am-command-group{display:flex;align-items:center;gap:5px;padding-right:7px;border-right:1px solid #d7cfc3}.am-command-group:last-child{border-right:0}
     .am-command-label{font-size:11px;font-weight:700;color:#52615f}.am-project-input{display:none}
-    #am-workbench .am-compact{padding:6px 9px}.am-toggle-active{background:#1f5053!important;color:#fff!important}
+    #am-workbench .am-compact{padding:5px 8px;min-height:34px}.am-toggle-active{background:#1f5053!important;color:#fff!important}
     .am-file-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.am-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:10px;min-height:0;flex:0 0 min(30vh,280px)}
     #am-workbench:not(.am-has-selection) .am-grid{grid-template-columns:1fr}#am-workbench:not(.am-has-selection) .am-inspector{display:none}
     .am-panel{border:1px solid #c9c3b8;border-radius:12px;padding:13px;background:#f6f2ea;min-width:0}
@@ -177,7 +177,7 @@
     #am-workbench .am-master-picker button{padding:5px 8px;font-size:11px;flex:0 0 auto}
     #am-workbench .am-master-picker button[aria-pressed=true]{background:#1f5053;color:#fff}
     .am-zone-head{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:30px;flex-wrap:wrap;font-size:12px}.am-zone-head h3{margin:0;font:700 15px/1.2 -apple-system,system-ui,sans-serif}.am-zoom-tools{display:flex;align-items:center;gap:5px}.am-zoom-tools input[type=range]{width:150px}.am-zoom-tools output{min-width:46px;text-align:right}
-    #am-workbench .am-zoom-tools button{padding:5px 8px;font-size:12px}
+    #am-workbench .am-zoom-tools button{padding:4px 7px;font-size:11.5px;min-height:30px}
     .am-sources{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:0 0 205px;height:205px;min-height:0}
     .am-source-lane{border:2px solid var(--lane-color,#1f5053);border-radius:11px;padding:8px;overflow:auto;min-height:0;background:#f6f2ea;font-size:13px}.am-source-lane[data-import-lane=music]{--lane-color:#a34d30}
     .am-source-lane-head{position:sticky;left:0;z-index:7;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;background:#f6f2ea}.am-source-lane-title strong{display:block;margin:0}.am-source-lane-title small{color:#5d6966}
@@ -193,7 +193,7 @@
     .am-source-head,.am-source-actions{display:flex;align-items:center;gap:5px;min-width:0}.am-source-head span{flex:1;font-weight:700}.am-source-actions{flex-wrap:wrap}
     .am-source-wave{width:100%;height:30px;display:block;background:#fffdf9;border-radius:4px;cursor:crosshair;touch-action:manipulation}
     .am-source-cut-time{font-size:11px;white-space:nowrap}.am-source-clip input[type=number]{width:72px;min-width:0;padding:3px;border:1px solid #83918c;border-radius:4px}
-    #am-workbench .am-source-clip button{padding:4px 7px;font-size:11px;background:#fffdf9;border-color:currentColor}
+    #am-workbench .am-source-clip button{padding:4px 7px;font-size:11px;min-height:29px;background:#fffdf9;border-color:currentColor}
     #am-workbench .am-source-clip .am-source-remove{padding:0 3px;border:0;background:transparent;color:inherit;font-size:12px;opacity:.7}
     #am-workbench .am-source-clip .am-source-remove:hover{opacity:1;background:transparent;color:inherit}
     .am-lane[data-master-lane]{outline-offset:-3px}.am-lane.am-drop-target{outline:3px dashed #e6b15c;background:#f8edcf}
