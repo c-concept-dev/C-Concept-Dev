@@ -16,6 +16,10 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-09 | Le cahier de pilotage, et l'ordre de préséance des documents | [2026-11-09-cahier-de-pilotage-et-ordre-de-preseance.md](2026-11-09-cahier-de-pilotage-et-ordre-de-preseance.md) |
+| 2026-11-09 | Étape 0 : le paquet des moteurs doit être hermétique, et le prouver | [2026-11-09-etape-0-paquet-des-moteurs-hermetique.md](2026-11-09-etape-0-paquet-des-moteurs-hermetique.md) |
+| 2026-11-09 | Tesseract sur l'intégration continue : voie 1 maintenant, voie 3 ensuite | [2026-11-09-tesseract-sur-la-ci-voie-1-puis-voie-3.md](2026-11-09-tesseract-sur-la-ci-voie-1-puis-voie-3.md) |
+| 2026-11-08 | Le programme de lecture compte autant que ses fichiers de langue | [2026-11-08-le-programme-de-lecture-compte-autant-que-ses-langues.md](2026-11-08-le-programme-de-lecture-compte-autant-que-ses-langues.md) |
 | 2026-11-07 | Un seul lot à la fois dans la copie de travail, pour que le contrôle mesure le commit | [2026-11-07-un-lot-a-la-fois-dans-la-copie-de-travail.md](2026-11-07-un-lot-a-la-fois-dans-la-copie-de-travail.md) |
 | 2026-11-07 | Le registre passe à un fichier par décision, et l'ancien est gelé | [2026-11-07-registre-un-fichier-par-decision.md](2026-11-07-registre-un-fichier-par-decision.md) |
 | 2026-11-07 | La lenteur de la voie oracle passe devant le lot 0b | [2026-11-07-lenteur-voie-oracle-devant-0b.md](2026-11-07-lenteur-voie-oracle-devant-0b.md) |
