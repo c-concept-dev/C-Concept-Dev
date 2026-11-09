@@ -55633,6 +55633,91 @@ async function adocPixabayVideos(request2, env2, identifiant) {
     ...CORS, 'Content-Type': 'application/json', 'X-Adoc-Cache': 'miss' } });
 }
 __name(adocPixabayVideos, "adocPixabayVideos");
+async function trameAudioWithinLimit(env2, ip) {
+  if (!env2.CLONE_KV) return true;
+  const bucket = Math.floor(Date.now() / 60000);
+  const key = `ratelimit:trame-audio:${ip}:${bucket}`;
+  const count = Number(await env2.CLONE_KV.get(key) || 0);
+  if (count >= 20) return false;
+  await env2.CLONE_KV.put(key, String(count + 1), { expirationTtl: 120 });
+  return true;
+}
+__name(trameAudioWithinLimit, "trameAudioWithinLimit");
+function trameFreesoundLicense(license) {
+  const value = String(license || "").toLowerCase();
+  if (value.includes("publicdomain/zero") || value === "cc0") return { label: "CC0", allowed: true };
+  if ((value.includes("creativecommons.org/licenses/by/") || value === "attribution") && !value.includes("by-nc") && !value.includes("by-sa")) return { label: "CC BY", allowed: true };
+  return { label: "", allowed: false };
+}
+__name(trameFreesoundLicense, "trameFreesoundLicense");
+async function trameEnglishQuery(query, sourceLanguage, env2) {
+  const source = /^[a-z]{2,3}$/i.test(sourceLanguage || "") ? sourceLanguage.toLowerCase() : "fr";
+  if (source === "en" || !env2.AI) return query;
+  try {
+    const translation = await env2.AI.run("@cf/meta/m2m100-1.2b", {
+      text: query,
+      source_lang: source,
+      target_lang: "en"
+    });
+    const translated = String(translation?.translated_text || "").trim();
+    return translated.length >= 2 && translated.length <= 160 ? translated : query;
+  } catch (error) {
+    // La recherche locale reste disponible même si Workers AI est momentanément
+    // indisponible : Freesound recevra le texte original plutôt qu'une erreur.
+    return query;
+  }
+}
+__name(trameEnglishQuery, "trameEnglishQuery");
+async function trameFreesoundSearch(request2, env2) {
+  if (!env2.FREESOUND_API_KEY) return jsonErr("Freesound non configuré", 503);
+  const incoming = new URL(request2.url);
+  const query = String(incoming.searchParams.get("q") || "").trim();
+  const sourceLanguage = String(incoming.searchParams.get("lang") || "fr").trim();
+  const limit = Math.max(1, Math.min(10, Number(incoming.searchParams.get("limit")) || 6));
+  if (query.length < 2 || query.length > 120) return jsonErr("Recherche invalide", 400);
+  const translatedQuery = await trameEnglishQuery(query, sourceLanguage, env2);
+  const fetchFreesound = async (searchQuery) => {
+    const upstream = new URL("https://freesound.org/apiv2/search/text/");
+    upstream.searchParams.set("query", searchQuery);
+    upstream.searchParams.set("fields", "id,name,username,license,duration,previews,url");
+    upstream.searchParams.set("page_size", String(Math.min(40, limit * 4)));
+    const response = await fetch(upstream, { headers: { Accept: "application/json", Authorization: `Token ${env2.FREESOUND_API_KEY}` } });
+    if (!response.ok) return { error: jsonErr(response.status === 429 ? "Freesound temporairement saturé" : "Freesound indisponible", response.status === 429 ? 429 : 502) };
+    return { payload: await response.json() };
+  };
+  let effectiveQuery = translatedQuery;
+  let search = await fetchFreesound(effectiveQuery);
+  if (search.error) return search.error;
+  if (!(search.payload.results || []).length) {
+    // Une traduction naturelle peut être trop littérale pour un moteur de sons
+    // (par ex. « pluie douce » -> « The sweet rain »). En absence de résultat,
+    // on réessaie avec le dernier mot-clé significatif, ici « rain ».
+    const stopWords = new Set(["a", "an", "and", "at", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+    const keywords = translatedQuery.toLowerCase().match(/[a-z][a-z'-]{2,}/g)?.filter((word) => !stopWords.has(word)) || [];
+    const fallbackKeyword = keywords.at(-1);
+    if (fallbackKeyword && fallbackKeyword !== translatedQuery.toLowerCase()) {
+      effectiveQuery = fallbackKeyword;
+      search = await fetchFreesound(effectiveQuery);
+      if (search.error) return search.error;
+    }
+  }
+  const payload = search.payload;
+  const results = [];
+  for (const sound of payload.results || []) {
+    const license = trameFreesoundLicense(sound.license);
+    const previewUrl = sound.previews?.["preview-hq-mp3"] || sound.previews?.["preview-lq-mp3"];
+    if (!license.allowed || !previewUrl || !/^https:\/\//i.test(previewUrl)) continue;
+    results.push({
+      id: `freesound-${sound.id}`, provider: "Freesound", title: sound.name || "Son sans titre", creator: sound.username || "Créateur non renseigné",
+      durationSeconds: Number(sound.duration) || 0, previewUrl, downloadUrl: previewUrl,
+      sourceUrl: sound.url || `https://freesound.org/s/${sound.id}/`, license: sound.license || "", licenseLabel: license.label, licenseUrl: sound.license || "",
+      attribution: `${sound.name || "Son"} par ${sound.username || "créateur non renseigné"} (${license.label})`
+    });
+    if (results.length >= limit) break;
+  }
+  return new Response(JSON.stringify({ results, query: effectiveQuery, translatedQuery, sourceLanguage }), { status: 200, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "public, max-age=900" } });
+}
+__name(trameFreesoundSearch, "trameFreesoundSearch");
 var Worker_default = {
   async fetch(request2, env2, ctx) {
     if (request2.method === "OPTIONS")
@@ -55697,6 +55782,14 @@ var Worker_default = {
       const pixabayId = p.slice('/pixabay/videos/'.length);
       if (!/^[0-9]{1,15}$/.test(pixabayId)) return jsonErr('Invalid video id', 400);
       return adocPixabayVideos(request2, env2, pixabayId);
+    }
+    // Bibliothèque sonore de Trame : recherche seule, licences CC0/CC BY filtrées côté serveur,
+    // clé Freesound jamais transmise au navigateur. Route publique uniquement pour GitHub Pages
+    // via CORS, avec validation stricte et quota dédié de 20 recherches/minute/IP.
+    if (p === "/trame/audio/search" && request2.method === "GET") {
+      const ip = request2.headers.get("CF-Connecting-IP") || "unknown";
+      if (!await trameAudioWithinLimit(env2, ip)) return jsonErr("Trop de recherches — réessayez dans une minute", 429);
+      return trameFreesoundSearch(request2, env2);
     }
     // SEC-HOTFIX-01 — protégé par défaut (liste d'exceptions publiques ci-dessus), plutôt
     // que l'ancienne liste blanche de routes protégées : une route ajoutée plus tard au

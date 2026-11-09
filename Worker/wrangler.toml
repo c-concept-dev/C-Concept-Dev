@@ -59,6 +59,7 @@ bucket_name = "studio-clinique-brand-assets"
 #   CF_ACCOUNT_ID
 #   CF_API_TOKEN
 #   GOOGLE_TTS_KEY
+#   FREESOUND_API_KEY       clé de recherche audio Trame ; reste côté Worker
 #   OPENAI_API_KEY
 #   PEXELS_API_KEY           clé Pexels ; ne sort jamais de Cloudflare
 #   PEXELS_VIDEO_PROXY_KEY   portée réduite : N'OUVRE QUE les deux routes
