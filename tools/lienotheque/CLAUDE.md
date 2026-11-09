@@ -127,7 +127,7 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 
 | Workflow | Déclenchement | Ce qu'il vérifie |
 |---|---|---|
-| `.github/workflows/lienotheque-ci.yml` | push sur `main` et pull request touchant `tools/lienotheque/**` | `pnpm check` sur Linux, macOS et Windows : typage strict et tests JavaScript et TypeScript (contrats, jetons, application, worker). Il **n'a ni Rust ni Tesseract** |
+| `.github/workflows/lienotheque-ci.yml` | push sur `main` et sur `wip/**`, et pull request touchant `tools/lienotheque/**` ou le workflow | `pnpm check` sur Linux et macOS : typage strict et tests JavaScript et TypeScript (contrats, jetons, application, worker). **Pas de Rust.** Pour Tesseract, depuis le 9 novembre 2026 : le coureur **macOS déploie l'archive des moteurs** (empreinte épinglée dans `fixtures/moteurs-de-lecture.json`) et lit donc avec **le même programme que l'application** — voie 3 ; le coureur **Linux n'a pas Tesseract** et saute les contrôles qui lisent, en nommant leur raison |
 | `.github/workflows/lienotheque-tauri.yml` | à la main (`workflow_dispatch`), plus push et pull request touchant `apps/app/src-tauri/**` ou `fixtures/generer-locales.py` | macOS et Windows : fabrique les fixtures, embarque les moteurs, lance les **tests Rust du prototype** (les quatre critères du CDC), construit le paquet et publie sa taille et celle des moteurs dans le résumé d'exécution. **Le travail Windows est informatif, non bloquant** |
 
   Aucun des deux ne déploie quoi que ce soit. Les tests Rust ne sont donc **pas** dans `pnpm check` :
@@ -164,7 +164,7 @@ fixtures/           Vérités attendues F1 à F8
 Node 24 ou plus (le dépôt emploie `node:sqlite`).
 Commandes : `pnpm install`, `pnpm check` (typage + tests), `pnpm build` (schémas JSON, CSS et
 application web). Les tests du prototype bureau sont à part : voir `apps/app/src-tauri/README.md`
-(ils demandent Rust et Tesseract, absents de l'intégration continue).
+(ils demandent Rust, absent de l'intégration continue ; Tesseract, lui, y est désormais sur macOS).
 
 ## Lot 0 — état
 | Tâche | Critère d'acceptation |

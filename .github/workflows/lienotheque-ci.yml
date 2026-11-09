@@ -68,6 +68,63 @@ jobs:
       - name: Installer les dépendances
         run: pnpm install --frozen-lockfile
 
+      # ── Voie 3 : sur macOS, lire avec LE MÊME PROGRAMME que l'application ──────────────
+      #
+      # La dette D1 disait : le Tesseract de la CI (Homebrew 5.5.4) n'est pas celui de
+      # l'application (5.5.1). Un contrôle de lecture vert sur un autre programme ne dit rien du
+      # produit. La voie 1 (ne pas installer Tesseract du tout) évitait le mensonge en sautant les
+      # contrôles ; la voie 3 les fait tourner sur les octets exacts du paquet.
+      #
+      # L'archive est épinglée par son empreinte dans fixtures/moteurs-de-lecture.json, lue ici
+      # plutôt que recopiée : une adresse ou une empreinte écrite à deux endroits se périme à un
+      # seul des deux.
+      - name: Relever l'archive des moteurs attendue
+        if: runner.os == 'macOS'
+        id: moteurs
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          archive = json.load(open("fixtures/moteurs-de-lecture.json"))["archive"]
+          print(f"url={archive['url']}")
+          print(f"empreinte={archive['empreinte_sha256']}")
+          PY
+
+      - name: Reprendre les moteurs de lecture en cache
+        if: runner.os == 'macOS'
+        id: cache-moteurs-lecture
+        uses: actions/cache@v4
+        with:
+          path: tools/lienotheque/apps/app/src-tauri/moteurs
+          # L'empreinte EST la clef : d'autres octets, un autre cache, jamais une reprise à tort.
+          key: moteurs-lecture-${{ steps.moteurs.outputs.empreinte }}
+
+      - name: Déployer les moteurs de l'application
+        if: runner.os == 'macOS' && steps.cache-moteurs-lecture.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/moteurs.tar.gz" "${{ steps.moteurs.outputs.url }}"
+          obtenue=$(shasum -a 256 "$RUNNER_TEMP/moteurs.tar.gz" | cut -d' ' -f1)
+          attendue="${{ steps.moteurs.outputs.empreinte }}"
+          if [ "$obtenue" != "$attendue" ]; then
+            echo "::error::empreinte inattendue pour l'archive des moteurs"
+            echo "  attendue : $attendue"
+            echo "  obtenue  : $obtenue"
+            exit 1
+          fi
+          mkdir -p apps/app/src-tauri
+          tar -xzf "$RUNNER_TEMP/moteurs.tar.gz" -C apps/app/src-tauri
+
+      # Les contrôles trouvent Tesseract sur le PATH (`tesseractDisponible`) et ses fichiers de
+      # langue par TESSDATA_PREFIX. On met donc le paquet DEVANT : ce qu'on emporte a été éprouvé
+      # avec la chaîne, ce que la machine fournit ne l'a pas été.
+      - name: Lire avec le programme de l'application
+        if: runner.os == 'macOS'
+        run: |
+          moteurs="$PWD/apps/app/src-tauri/moteurs"
+          echo "$moteurs/bin" >> "$GITHUB_PATH"
+          echo "TESSDATA_PREFIX=$moteurs/tessdata" >> "$GITHUB_ENV"
+          "$moteurs/bin/tesseract" --version | head -2
+          "$moteurs/bin/sf" -sig "$moteurs/siegfried/default.sig" -version | head -1
+
       - name: Typage et tests
         run: pnpm check
 
