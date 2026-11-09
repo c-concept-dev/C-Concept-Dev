@@ -95,19 +95,110 @@ def fermeture(depart: pathlib.Path, recherche: list[pathlib.Path]) -> dict[str, 
     return trouvees
 
 
-def reecrire(fichier: pathlib.Path, prefixe: str, connues: set[str]) -> None:
+def reecrire(fichier: pathlib.Path, prefixe: str, connues: set[str], recherche: list[pathlib.Path]) -> None:
+    """Réécrit vers `prefixe` toute référence qui désigne une bibliothèque embarquée.
+
+    Le nom CITÉ par un binaire n'est pas le nom du FICHIER. Homebrew cite le soname court —
+    `/opt/homebrew/opt/jpeg-turbo/lib/libjpeg.8.dylib` — alors que le fichier réel derrière le lien
+    porte sa version complète, `libjpeg.8.3.2.dylib`. Or `fermeture` indexe par nom réel. Apparier
+    ici sur le nom cité laissait donc passer, SANS RIEN DIRE, toute bibliothèque dont les deux
+    diffèrent : mesuré le 9 novembre 2026, leptonica chargeait encore cinq codecs d'image depuis
+    /opt/homebrew, et le paquet ne se serait pas chargé chez un testeur sans Homebrew.
+
+    On résout donc le nom cité comme `fermeture` le fait, et on apparie sur le nom résolu."""
     for nom in dependances(fichier):
-        base = pathlib.Path(nom).name
+        reel = resoudre(nom, [fichier.parent, *recherche])
+        base = reel.name if reel is not None else pathlib.Path(nom).name
         if base in connues and nom != f"{prefixe}/{base}":
+            # check=True : un échec de réécriture laisse un paquet qui marche ICI et nulle part
+            # ailleurs. C'est exactement ce qu'un silence a coûté.
             subprocess.run(
                 ["install_name_tool", "-change", nom, f"{prefixe}/{base}", str(fichier)],
-                check=False,
+                check=True,
                 capture_output=True,
             )
 
 
 def signer(fichier: pathlib.Path) -> None:
-    subprocess.run(["codesign", "--force", "--sign", "-", str(fichier)], check=False, capture_output=True)
+    # Toute modification invalide la signature sur arm64 : un binaire mal signé ne se lance pas.
+    # Un échec ici ne peut donc pas rester muet.
+    subprocess.run(["codesign", "--force", "--sign", "-", str(fichier)], check=True, capture_output=True)
+
+
+MACHO = (b"\xcf\xfa\xed\xfe", b"\xce\xfa\xed\xfe", b"\xfe\xed\xfa\xcf", b"\xfe\xed\xfa\xce", b"\xca\xfe\xba\xbe")
+
+
+def est_macho(chemin: pathlib.Path) -> bool:
+    """Un binaire Mach-O, et non une donnée. `otool` refuse le reste, et le paquet en contient."""
+    try:
+        with chemin.open("rb") as fichier:
+            return fichier.read(4) in MACHO
+    except OSError:
+        return False
+
+
+def rpaths(fichier: pathlib.Path) -> list[str]:
+    lignes = executer("otool", "-l", str(fichier)).splitlines()
+    return [
+        lignes[i + 2].split("path ")[1].split(" (offset")[0].strip()
+        for i, ligne in enumerate(lignes)
+        if ligne.strip().endswith("LC_RPATH") and i + 2 < len(lignes) and "path " in lignes[i + 2]
+    ]
+
+
+def chargees(fichier: pathlib.Path) -> list[str]:
+    """Bibliothèques que ce fichier CHARGE, hors système — et rien d'autre.
+
+    `otool -L` liste en première ligne le nom d'installation du fichier lui-même (LC_ID_DYLIB),
+    qui n'est pas une dépendance : personne ne le charge. L'extension Skia du rendu PDF porte
+    ainsi, en nom d'installation, le chemin de la machine GitHub qui l'a compilée — inoffensif, et
+    pourtant signalé comme une fuite si on lit `otool -L` naïvement. On lit donc les commandes de
+    chargement elles-mêmes, et on ne garde que LC_LOAD_DYLIB et LC_LOAD_WEAK_DYLIB."""
+    lignes = executer("otool", "-l", str(fichier)).splitlines()
+    noms = []
+    for i, ligne in enumerate(lignes):
+        if ligne.strip() in ("cmd LC_LOAD_DYLIB", "cmd LC_LOAD_WEAK_DYLIB"):
+            for suite in lignes[i + 1 : i + 5]:
+                if "name " in suite:
+                    noms.append(suite.split("name ")[1].split(" (offset")[0].strip())
+                    break
+    return [n for n in noms if not n.startswith(SYSTEME)]
+
+
+def hors_du_paquet(binaire: pathlib.Path) -> list[str]:
+    """Références qu'un binaire embarqué charge et qui ne se résolvent PAS dans le paquet.
+
+    `chargees` a déjà écarté /usr/lib et /System : ce qui reste doit venir du paquet, sinon le
+    paquet dépend de la machine qui l'a fabriqué."""
+    dehors = []
+    for nom in chargees(binaire):
+        reel = resoudre(nom, [binaire.parent, MOTEURS / "lib"])
+        if reel is None or MOTEURS.resolve() not in reel.parents:
+            dehors.append(nom)
+    return dehors
+
+
+def verifier_hermetique() -> None:
+    """Le paquet ne charge rien de l'extérieur, hors bibliothèques du système.
+
+    Le contrôle qui existait — « le moteur embarqué démarre-t-il ? » — ne pouvait pas voir le
+    défaut : il démarre très bien sur la machine qui l'a fabriqué, puisque Homebrew y est. Celui-ci
+    regarde les références elles-mêmes, et il échoue au lieu de prévenir."""
+    fautifs: dict[str, list[str]] = {}
+    # Tout Mach-O du paquet, où qu'il soit : bin/, lib/, et aussi les extensions natives de la
+    # chaîne, comme celle du rendu PDF. Se limiter à bin/ et lib/ laisserait un angle mort.
+    for binaire in sorted(MOTEURS.rglob("*")):
+        if not binaire.is_file() or binaire.is_symlink() or not est_macho(binaire):
+            continue
+        dehors = hors_du_paquet(binaire)
+        if dehors:
+            fautifs[str(binaire.relative_to(MOTEURS))] = dehors
+    if fautifs:
+        detail = "\n".join(f"  {nom} → {', '.join(refs)}" for nom, refs in fautifs.items())
+        raise SystemExit(
+            "le paquet N'EST PAS hermétique : ces références sortent du paquet et ne seraient pas\n"
+            "là chez un testeur sans Homebrew.\n" + detail
+        )
 
 
 def modeles(langues: list[str], source: pathlib.Path) -> None:
@@ -144,15 +235,19 @@ def embarquer_macos(source: pathlib.Path, cible: pathlib.Path) -> int:
     connues = set(bibliotheques)
     # @rpath plutôt qu'un chemin fixe : le binaire sert en développement (moteurs/bin) comme
     # dans le paquet macOS (Contents/MacOS), où les bibliothèques vivent dans Resources.
-    reecrire(cible, "@rpath", connues)
+    reecrire(cible, "@rpath", connues, recherche)
+    deja = rpaths(cible)
     for chemin_rpath in ("@executable_path/../lib", "@executable_path/../Resources/moteurs/lib"):
-        subprocess.run(
-            ["install_name_tool", "-add_rpath", chemin_rpath, str(cible)], check=False, capture_output=True
-        )
+        # On n'ajoute que ce qui manque : `-add_rpath` refuse un doublon, et ce refus-là est le
+        # seul qu'on puisse ignorer sans risque — d'où le test plutôt qu'un check=False général.
+        if chemin_rpath not in deja:
+            subprocess.run(
+                ["install_name_tool", "-add_rpath", chemin_rpath, str(cible)], check=True, capture_output=True
+            )
     for nom in connues:
         copie = MOTEURS / "lib" / nom
-        subprocess.run(["install_name_tool", "-id", f"@loader_path/{nom}", str(copie)], check=False, capture_output=True)
-        reecrire(copie, "@loader_path", connues)
+        subprocess.run(["install_name_tool", "-id", f"@loader_path/{nom}", str(copie)], check=True, capture_output=True)
+        reecrire(copie, "@loader_path", connues, recherche)
     for fichier in [cible, *(MOTEURS / "lib" / n for n in connues)]:
         signer(fichier)
     return len(connues)
@@ -385,6 +480,11 @@ def main(argv: list[str]) -> int:
     )
     if controle.returncode != 0:
         raise SystemExit(f"le moteur embarqué ne démarre pas :\n{controle.stderr.strip()}")
+
+    if not windows:
+        # Avant tout résumé : le paquet est-il hermétique ? Un résumé qui s'affiche sur un paquet
+        # qui ne se chargerait pas ailleurs vaut moins que rien, il rassure.
+        verifier_hermetique()
 
     print(controle.stdout.splitlines()[0])
     print(f"{nombre} bibliothèques embarquées, langues : {', '.join(langues)}")
