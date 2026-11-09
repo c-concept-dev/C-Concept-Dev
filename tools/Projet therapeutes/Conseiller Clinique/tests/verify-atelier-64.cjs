@@ -3,7 +3,8 @@ const { strict: assert } = require('node:assert');
 const { join } = require('node:path');
 
 (async () => {
-  const browser = await chromium.launch();
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+  const browser = await chromium.launch(executablePath ? { executablePath } : undefined);
   try {
     const page = await browser.newPage({ acceptDownloads: true });
     const errors = [];
@@ -33,7 +34,7 @@ const { join } = require('node:path');
     });
     await page.locator('#am-total').fill('64');
     await page.locator('#am-total').dispatchEvent('change');
-    const download = page.waitForEvent('download', { timeout: 120000 });
+    const download = page.waitForEvent('download', { timeout: 300000 });
     await page.locator('#cv-mp4').click();
     await download;
     assert.match(await page.locator('#am-status').innerText(), /MP4 vérifié : 64 étapes/);

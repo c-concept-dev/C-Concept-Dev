@@ -31755,11 +31755,12 @@ function adocRenderCardHTML(card, index, total) {
     $('cv-avancement-texte').textContent = 'lecture de l’export…';
     $('cv-barre').style.width = '4%';
     var attendu = (etat.textContent || '');
-    var dt = new DataTransfer();
-    dt.items.add(f);
     var entree = document.getElementById('bc-export');
-    entree.files = dt.files;
-    entree.dispatchEvent(new Event('change', { bubbles: true }));
+    // Safari peut refuser silencieusement l'affectation de input.files depuis un
+    // DataTransfer construit en JavaScript. Le fichier vient deja d'un vrai
+    // selecteur ou d'un depot utilisateur : on le transmet directement au meme
+    // gestionnaire de lecture que l'entree avancee du banc.
+    entree.onchange({ target: { files: [f] } });
     // On attend que le banc ait parlé : soit « Export lu », soit son refus, qu'on reprend.
     var tours = 0;
     (function attendre() {
@@ -31998,7 +31999,7 @@ mediabunny/dist/modules/src/index.js:
   const $ = id => document.getElementById(id);
   const state = { tracks: [], sources: [], copiedSource: null, images: [], cuts: [], total: 0, playing: false, started: 0,
     previewAt: 0, raf: 0, bitmap: null, bitmapIndex: -1, exporting: false,
-    selectedId: null, selectedIds: [], copiedTracks: [], zoom: 20, annexZoom: {voice: 1, music: 1}, linkedZoom: false,
+    selectedId: null, selectedIds: [], selectedSlides: [], slideAnchor: null, copiedTracks: [], zoom: 20, annexZoom: {voice: 1, music: 1}, linkedZoom: false,
     placementMode: 'free', previewQuality: 'full', workspace: 'all', transitions: [], selectedTransition: 1, previewRequest: 0,
     previewCache: new Map(), previewDrawAt: null, previewDrawing: false, previewGeneration: 0, scrubbing: false,
     historyPast: [], historyFuture: [], lastAction: '',
@@ -32011,11 +32012,21 @@ mediabunny/dist/modules/src/index.js:
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const time = s => { s=Number.isFinite(s)?Math.max(0,s):0; return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`; };
   const timeFrame = s => { s=Number.isFinite(s)?Math.max(0,s):0;const whole=Math.floor(s),frame=Math.min(29,Math.floor((s-whole)*30+0.0001));return `${time(whole)}.${String(frame).padStart(2,'0')}`; };
+  const timePrecise = s => { s=Number.isFinite(s)?Math.max(0,s):0;return `${time(s)}.${Math.floor((s%1)*10+0.0001)}`; };
   const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const badge = (message, error) => { const el = $('am-status'); el.textContent = message; el.dataset.error = error ? '1' : '0'; };
   const tracks = () => { const audible=state.tracks.filter(t => !t.muted && !state.master[t.kind].muted);return audible.some(t=>t.solo)?audible.filter(t=>t.solo):audible; };
   const selected = () => state.tracks.find(t => t.id === state.selectedId);
   const clipLength = t => t.out - t.in;
+  const clipAutomation = t => {
+    const length=Math.max(0.01,clipLength(t));
+    const raw=(t.automation||[]).filter(p=>Number.isFinite(p.time)&&Number.isFinite(p.db)).map(p=>({time:clamp(p.time,0,length),db:clamp(p.db,-60,12)})).sort((a,b)=>a.time-b.time);
+    const points=[];for(const point of raw){const previous=points.at(-1);if(previous&&Math.abs(previous.time-point.time)<0.001)points[points.length-1]=point;else points.push(point);}
+    if(!points.length)return [{time:0,db:0},{time:length,db:0}];
+    if(points[0].time>0.001)points.unshift({time:0,db:points[0].db});else points[0].time=0;
+    if(points.at(-1).time<length-0.001)points.push({time:length,db:points.at(-1).db});else points.at(-1).time=length;
+    return points;
+  };
   const dbGain = db => Math.pow(10, db / 20);
   const trackColors = {
     voice:['#0072B2','#2487C4','#0B5F91','#56B4E9'],
@@ -32049,7 +32060,7 @@ mediabunny/dist/modules/src/index.js:
   }
   const voiceGain = t => t.kind==='voice' && $('am-uniform-voices')?.checked ? (t.autoGainDb||0) : 0;
   const automationDb = (t, local) => {
-    const points = t.automation || [{time:0,db:0}];
+    const points = clipAutomation(t);
     if (local <= points[0].time) return points[0].db;
     for (let i=1;i<points.length;i++) if (local <= points[i].time) {
       const a=points[i-1],b=points[i];
@@ -32070,15 +32081,15 @@ mediabunny/dist/modules/src/index.js:
     return {
       tracks:state.tracks.map(cloneItem),sources:state.sources.map(cloneItem),copiedSource:cloneItem(state.copiedSource),
       copiedTracks:state.copiedTracks.map(cloneItem),images:state.images.slice(),cuts:state.cuts.slice(),total:state.total,
-      previewAt:state.previewAt,selectedId:state.selectedId,selectedIds:state.selectedIds.slice(),zoom:state.zoom,
+      previewAt:state.previewAt,selectedId:state.selectedId,selectedIds:state.selectedIds.slice(),selectedSlides:state.selectedSlides.slice(),slideAnchor:state.slideAnchor,zoom:state.zoom,
       annexZoom:{...state.annexZoom},linkedZoom:state.linkedZoom,placementMode:state.placementMode,
       previewQuality:state.previewQuality,workspace:state.workspace,transitions:state.transitions.map(t=>({...t,params:{...(t.params||{})}})),
       selectedTransition:state.selectedTransition,master:{voice:{...state.master.voice},music:{...state.master.music}}
     };
   }
   function updateHistoryButtons() {
-    if($('am-undo')) $('am-undo').disabled=!state.historyPast.length;
-    if($('am-redo')) $('am-redo').disabled=!state.historyFuture.length;
+    root?.querySelectorAll?.('#am-undo,[data-history="undo"]').forEach(button=>button.disabled=!state.historyPast.length);
+    root?.querySelectorAll?.('#am-redo,[data-history="redo"]').forEach(button=>button.disabled=!state.historyFuture.length);
   }
   function checkpoint(label) {
     state.historyPast.push({label,snapshot:projectSnapshot()});
@@ -32086,8 +32097,9 @@ mediabunny/dist/modules/src/index.js:
   }
   function restoreSnapshot(snapshot) {
     if(state.playing)stopPreview();
-    for(const key of ['tracks','sources','copiedTracks','images','cuts','selectedIds','transitions']) state[key]=snapshot[key];
-    for(const key of ['copiedSource','total','previewAt','selectedId','zoom','linkedZoom','placementMode','previewQuality','workspace','selectedTransition','master']) state[key]=snapshot[key];
+    for(const key of ['tracks','sources','copiedTracks','images','cuts','selectedIds','selectedSlides','transitions']) state[key]=snapshot[key]||[];
+    for(const key of ['copiedSource','total','previewAt','selectedId','slideAnchor','zoom','linkedZoom','placementMode','previewQuality','workspace','selectedTransition','master']) state[key]=snapshot[key];
+    state.zoom=clamp(+state.zoom||20,2,240);
     state.annexZoom=typeof snapshot.annexZoom==='number'?{voice:snapshot.annexZoom,music:snapshot.annexZoom}:{...snapshot.annexZoom};
     clearPreviewCache();applyPreviewQuality();render();drawPreview(state.previewAt);updateHistoryButtons();
   }
@@ -32185,16 +32197,16 @@ mediabunny/dist/modules/src/index.js:
     .am-clip[data-kind=music]{background:var(--track-color,#8a3f29)}.am-clip:active{cursor:grabbing}
     .am-clip[data-selected=true]{outline:3px solid #e6b15c;outline-offset:1px}
     .am-clip[data-locked=true]{cursor:not-allowed;opacity:.72;background-image:repeating-linear-gradient(135deg,transparent 0 7px,#fff3 7px 10px)}
-    .am-clip .am-envelope{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.am-envelope-point{position:absolute;z-index:5;width:8px;height:8px;transform:translate(-50%,-50%);border:1.5px solid #7b3b25;border-radius:50%;background:#f6d386;box-shadow:0 0 0 1px #fff8;cursor:grab;touch-action:none}.am-envelope-point::before{content:'';position:absolute;inset:-6px}.am-envelope-point:hover,.am-envelope-point:focus-visible{width:10px;height:10px;outline:none}.am-clip-label{position:relative;z-index:3;display:block;max-width:100%;cursor:grab}
+    .am-clip .am-envelope{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:hidden}.am-envelope polyline{vector-effect:non-scaling-stroke}.am-envelope-point{position:absolute;z-index:5;width:7px;height:7px;transform:translate(-50%,-50%);border:1.5px solid #7b3b25;border-radius:50%;background:#f6d386;box-shadow:0 0 0 1px #fff8;cursor:grab;touch-action:none}.am-envelope-point::before{content:'';position:absolute;inset:-6px}.am-envelope-point:hover,.am-envelope-point:focus-visible{width:9px;height:9px;outline:none}.am-clip-label{position:relative;z-index:3;display:block;max-width:100%;cursor:grab}
     #am-workbench .am-source-remove{padding:0 3px;border:0;background:transparent;color:#806e65;font-size:11px;line-height:1;opacity:.65}
     #am-workbench .am-source-remove:hover,#am-workbench .am-source-remove:focus-visible{opacity:1;color:#8a3f29}
     .am-clip-label{margin-left:20px;display:block;overflow:hidden;text-overflow:ellipsis}
     .am-master{display:flex;align-items:center;gap:7px;font-size:12px;margin:3px 0 7px;flex:0 0 auto;flex-wrap:wrap}
-    .am-final-timeline-head{position:sticky;left:0;z-index:9;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:600px;margin-bottom:3px}.am-final-timeline-head>strong{font-size:12px}.am-final-timeline-head .am-zoom-tools{margin-left:auto;flex:0 1 auto;font-size:10.5px;gap:4px}.am-final-timeline-head .am-zoom-tools input[type=range]{width:105px}.am-final-timeline-head .am-zoom-tools output{font-size:10.5px;min-width:42px}.am-final-timeline-head .am-zoom-tools button{min-height:28px!important;padding:3px 6px!important;font-size:11px!important}
+    .am-final-timeline-head{position:sticky;left:0;z-index:14;display:flex;align-items:center;gap:4px;min-width:600px;margin-bottom:3px;flex-wrap:nowrap;white-space:nowrap}.am-final-timeline-head>strong{font-size:11px;margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis}.am-final-timeline-head .am-master-actions{display:flex;align-items:center;gap:2px;flex:0 0 auto;flex-wrap:nowrap}.am-final-timeline-head .am-master-actions button{min-height:23px!important;padding:2px 4px!important;font-size:9px!important}.am-final-timeline-head .am-cursor-readout{font-size:10px;gap:3px}.am-final-timeline-head .am-cursor-dot{width:7px;height:7px}.am-final-timeline-head .am-command-label{font-size:9px}.am-final-timeline-head .am-command-label select{width:112px;font-size:9px;padding:2px}.am-final-timeline-head .am-zoom-tools{margin-left:2px;flex:0 0 auto;font-size:9px;gap:2px}.am-final-timeline-head .am-zoom-tools label{display:flex;align-items:center;gap:2px}.am-final-timeline-head .am-zoom-tools input[type=range]{width:68px}.am-final-timeline-head .am-zoom-tools output{font-size:9px;min-width:34px}.am-final-timeline-head .am-zoom-tools button{min-width:23px;min-height:23px!important;padding:2px 4px!important;font-size:9px!important}.am-final-timeline-head>.am-local-history{margin-left:2px}
     .am-master input[type=range]{width:90px}.am-master strong{min-width:100px}
     .am-master-mix-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}.am-bus{display:flex;align-items:center;gap:8px;min-height:48px;padding:5px 8px;border:1px solid #c9c3b8;border-radius:9px;background:#f6f2ea}.am-bus label{display:flex;align-items:center;gap:6px}.am-bus-voice{border-left:5px solid #1f5053}.am-bus-music{border-left:5px solid #a34d30}.am-master-settings-row{align-items:flex-start;padding:4px 0;border-top:1px solid #e5ded3;border-bottom:1px solid #e5ded3}.am-master-settings-row .am-zoom-tools{margin-right:auto}.am-settings-disclosure{position:static;flex:1 1 520px;min-width:min(360px,100%);max-width:100%;border:1px solid #c9c3b8;border-radius:8px;background:#f6f2ea;padding:5px 7px;font-size:11px}.am-settings-disclosure summary{cursor:pointer;font-size:11px;line-height:1.15;font-weight:750;color:#1f5053}.am-advanced-grid{display:flex;align-items:center;gap:6px;flex-wrap:wrap;width:100%;max-width:100%;padding-top:6px;overflow:hidden}.am-advanced-grid label{display:flex;align-items:center;gap:4px;font-size:11px;max-width:100%}.am-advanced-grid button{min-height:28px!important;padding:4px 7px!important;font-size:11px!important}
     .am-master-shell{display:block;min-height:0;flex:1}.am-master-main{display:flex;flex-direction:column;gap:6px;min-width:0;min-height:0;height:100%;overflow:hidden}.am-master-main .am-timeline,.am-master-main .am-steps-panel{flex:1 1 auto}.am-workspace-sources .am-sources{flex:1 1 auto;height:auto;min-height:420px}
-    .am-timeline-tools{position:sticky;left:0;z-index:12;width:100%;min-width:0;margin:-4px 0 8px;padding:4px;border:1px solid #c9c3b8;border-radius:9px;background:#f8f5ee}.am-timeline-tools .am-master-actions{display:flex;align-items:center;gap:5px;padding:3px;flex-wrap:wrap}.am-timeline-tools .am-master-actions button{min-height:28px!important;padding:4px 7px!important;font-size:11px!important}.am-timeline-tools .am-master-actions .am-cursor-readout{margin-right:3px}.am-timeline-tools .am-master-settings-row{padding:4px 3px;border-bottom:0}.am-timeline-tools .am-master-picker{padding:0 3px}.am-timeline-tools .am-bottom-tabs{padding:3px}
+    .am-timeline-tools{position:sticky;left:0;z-index:12;width:100%;min-width:0;margin:-4px 0 8px;padding:4px;border:1px solid #c9c3b8;border-radius:9px;background:#f8f5ee}.am-timeline-tools .am-master-settings-row{padding:4px 3px;border-bottom:0}.am-timeline-tools .am-master-picker{padding:0 3px}.am-timeline-tools .am-bottom-tabs{padding:3px}
     .am-master-picker{display:flex;align-items:center;gap:5px;overflow-x:auto;min-height:35px;flex:0 0 auto;white-space:nowrap}
     .am-master-picker>span{font-size:12px;color:#52615f}
     #am-workbench .am-master-picker button{padding:5px 8px;font-size:11px;flex:0 0 auto}
@@ -32203,7 +32215,7 @@ mediabunny/dist/modules/src/index.js:
     #am-workbench .am-zoom-tools button{padding:4px 7px;font-size:11.5px;min-height:30px}
     .am-sources{display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:0 0 205px;height:205px;min-height:0}
     .am-source-lane{--lane-color:#187fc2;border:2px solid var(--lane-color);border-radius:11px;padding:8px;overflow:auto;min-height:0;background:#f6f2ea;font-size:13px}.am-source-lane[data-import-lane=music]{--lane-color:#b7482a}
-    .am-source-lane-head{position:sticky;left:0;z-index:7;display:flex;align-items:center;gap:6px;margin-bottom:6px;background:#f6f2ea;min-width:0}.am-source-lane-title{margin-right:auto;min-width:96px}.am-source-lane-title strong{display:block;margin:0}.am-source-lane-title small{color:#5d6966}.am-source-lane-head .am-zoom-tools{gap:2px;flex:0 1 280px;justify-content:flex-end;min-width:0}.am-source-lane-head .am-zoom-tools label{font-size:10px}.am-source-lane-head .am-zoom-tools input[type=range]{width:70px}.am-source-lane-head .am-zoom-tools button{min-height:25px!important;padding:3px 5px!important;font-size:10px!important}.am-source-lane-head .am-zoom-tools output{font-size:10px;min-width:26px}.am-source-lane-head>.am-compact-import{min-height:29px!important;padding:4px 7px!important;font-size:10px!important;white-space:nowrap;flex:0 0 auto}
+    .am-source-lane-head{position:sticky;left:0;z-index:7;display:grid;grid-template-columns:minmax(92px,auto) minmax(190px,1fr) auto;grid-template-areas:"title zoom import" "title zoom history";align-items:center;column-gap:6px;row-gap:2px;margin-bottom:6px;background:#f6f2ea;min-width:0}.am-source-lane-title{grid-area:title;align-self:start;min-width:92px}.am-source-lane-title strong{display:block;margin:0}.am-source-lane-title small{color:#5d6966}.am-source-lane-head .am-zoom-tools{grid-area:zoom;gap:2px;justify-content:flex-end;min-width:0}.am-source-lane-head .am-zoom-tools label{font-size:10px}.am-source-lane-head .am-zoom-tools input[type=range]{width:70px}.am-source-lane-head .am-zoom-tools button{min-height:25px!important;padding:3px 5px!important;font-size:10px!important}.am-source-lane-head .am-zoom-tools output{font-size:10px;min-width:26px}.am-source-lane-head>.am-compact-import{grid-area:import;justify-self:end;min-height:29px!important;padding:4px 7px!important;font-size:10px!important;white-space:nowrap}
     #am-workbench .am-drop-audio{border:2px dashed var(--lane-color,#187fc2);border-radius:8px;background:color-mix(in srgb,var(--lane-color,#187fc2) 8%,white);color:var(--lane-color,#174a67);font-weight:750;box-shadow:none}
     #am-workbench .am-drop-audio:hover,#am-workbench .am-source-lane.am-drop-target .am-drop-audio{background:color-mix(in srgb,var(--lane-color,#187fc2) 16%,white);border-color:var(--lane-color,#0b68a7)}
     .am-source-list{display:flex;gap:8px;flex-direction:column;align-items:flex-start;min-width:100%}.am-source-paste{position:sticky;left:0;top:0;z-index:8;align-self:flex-start;background:#fff7df!important;box-shadow:0 2px 6px #0002}
@@ -32227,7 +32239,7 @@ mediabunny/dist/modules/src/index.js:
     .am-lane.am-has-editor{height:104px}.am-clip[data-selected=true]{height:86px;z-index:8;overflow:visible;box-shadow:0 0 0 3px #e6b15c}.am-clip-integrated-tools{position:absolute;left:3px;top:43px;display:flex;align-items:center;gap:2px;width:max-content;max-width:min(700px,calc(100vw - 220px));padding:3px 4px;border-radius:5px;background:#fffdf9ee;color:#17393b;box-shadow:0 2px 7px #102f3140;font-size:8.5px;white-space:nowrap;overflow-x:auto}.am-clip-integrated-tools label{display:flex;align-items:center;gap:1px}.am-clip-integrated-tools input[type=number]{width:43px;min-height:22px;padding:1px 2px;font:inherit}.am-clip-integrated-tools input[type=checkbox]{width:14px;height:14px}.am-clip-integrated-tools button{min-height:23px!important;padding:1px 4px!important;font-size:8.5px!important}.am-clip-integrated-tools .am-danger{color:#8a3f29}
     .am-automation{height:90px;position:relative;background:linear-gradient(#f8f6f0,#e7ecea);border:1px solid #adb9b6;border-radius:6px;margin:7px 0;touch-action:none;cursor:crosshair}
     .am-automation svg{width:100%;height:100%;overflow:visible}
-    .am-automation circle{fill:#f6d386;stroke:#7b3b25;stroke-width:1.4;cursor:grab;pointer-events:auto}.am-envelope{pointer-events:none}.am-clip[data-selected=true] .am-envelope{pointer-events:auto;cursor:crosshair}.am-clip[data-selected=true] .am-envelope polyline{stroke-width:3}
+    .am-automation circle{fill:#f6d386;stroke:#7b3b25;stroke-width:1.4;cursor:grab;pointer-events:auto}.am-envelope{pointer-events:none}.am-clip[data-selected=true] .am-envelope{pointer-events:auto;cursor:crosshair}.am-clip[data-selected=true] .am-envelope polyline{stroke-width:2}
     .am-bottom-tabs{display:flex;gap:7px}.am-bottom-tabs button[aria-selected=true]{background:#1f5053!important;color:#fff!important}
     #am-workbench[data-view=steps] .am-timeline,#am-workbench:not([data-view=steps]) .am-steps-panel{display:none}
     .am-steps-panel{overflow:auto;min-height:150px;flex:1}.am-steps-head{position:sticky;top:-13px;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:-13px -13px 8px;padding:8px 13px;background:#f6f2eaf2;border-bottom:1px solid #d7cfc3}.am-steps-head p{font-size:11px!important}.am-steps-head button{min-height:28px!important;padding:4px 7px!important;font-size:11px!important;white-space:nowrap}.am-step{grid-template-columns:56px minmax(0,1fr) 105px 64px;padding:9px 0;font-size:13px}
@@ -32237,7 +32249,12 @@ mediabunny/dist/modules/src/index.js:
     .am-clip{height:38px;top:8px;padding:5px 8px}.am-step-clip{height:30px;top:8px}
     .am-clip[aria-disabled=true]{opacity:.4}.am-step-clip{background:#dce8e6;color:#102f31;border:1px solid #1f5053;cursor:pointer}
     .am-step-resize{position:absolute;right:0;top:0;bottom:0;width:12px;cursor:ew-resize;background:rgba(31,80,83,.2);border-left:1px solid #1f5053;touch-action:none}
-    .am-transition-marker{position:absolute;top:34px;transform:translateX(-50%);z-index:3;border-radius:50%!important;padding:0!important;width:22px;height:22px;line-height:18px!important;font-size:12px!important;background:#fff8e8!important;border:2px solid #a45337!important;color:#183d3f!important}
+    .am-transition-marker{position:absolute;top:31px;transform:translateX(-50%);z-index:3;padding:0!important;width:16px;height:18px;min-height:18px!important;background:transparent!important;border:0!important;color:transparent!important}.am-transition-marker::after{content:'';position:absolute;left:7px;top:4px;width:2px;height:10px;border-radius:2px;background:#a45337}.am-transition-marker[data-effect=true]::after{left:4px;top:5px;width:8px;height:8px;border:1px solid #a45337;border-radius:2px;background:#fff8e8;transform:rotate(45deg)}.am-transition-marker:hover::after,.am-transition-marker:focus-visible::after{box-shadow:0 0 0 3px #a4533733}
+    .am-step-clip{cursor:grab}.am-step-clip.am-step-dragging{opacity:.55}.am-step-clip.am-step-drop-target{outline:3px solid #1f5053}.am-step-hover-preview{position:fixed;z-index:100000;width:220px;padding:6px;border:1px solid #1f5053;border-radius:8px;background:#fffdf9;box-shadow:0 8px 24px #102f3140;pointer-events:none}.am-step-hover-preview img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#eee9df}.am-step-hover-preview strong{display:block;margin-top:4px;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .am-local-history{display:inline-flex;gap:2px;align-items:center;flex:0 0 auto}.am-local-history button{display:grid!important;place-items:center;min-width:21px!important;width:21px;min-height:21px!important;height:21px;padding:0!important;border-radius:5px!important;font-size:10px!important}.am-track-head>.am-local-history{margin-left:auto}
+    .am-source-lane-head>.am-local-history{grid-area:history;justify-self:end;gap:6px;padding-top:1px;border-top:1px solid #b8b0a5;background:transparent}.am-source-lane-head>.am-local-history button{display:inline!important;width:auto!important;min-width:0!important;height:auto!important;min-height:17px!important;padding:0 2px!important;border:0!important;border-radius:2px!important;background:transparent!important;color:#395b5d!important;font-size:8px!important;text-decoration:underline dotted;text-underline-offset:2px}.am-source-lane-head>.am-local-history button:disabled{color:#9b958c!important;text-decoration:none}
+    .am-step-clip[data-slide-selected=true]{background:#d9effb;outline:2px solid #187fc2;outline-offset:-2px;padding-left:18px}.am-step-clip[data-slide-selected=true]::before{content:'✓';position:absolute;left:2px;top:1px;z-index:3;width:13px;height:13px;display:grid;place-items:center;border-radius:50%;background:#187fc2;color:#fff;font-size:8px}
+    .am-slide-selection-tools{display:inline-flex;align-items:center;gap:2px;padding:1px 3px;border:1px solid #187fc2;border-radius:5px;background:#eef7fc;color:#174a67;font-size:9px;flex:0 0 auto}.am-slide-selection-tools[hidden]{display:none}.am-slide-selection-tools input{width:45px!important;min-height:21px!important;padding:1px 2px!important;font-size:9px!important}.am-slide-selection-tools button{min-width:21px!important;min-height:21px!important;padding:1px 3px!important;font-size:9px!important}
     .am-transition-panel{display:block;padding:0;background:#f4e8d9;border:1px solid #c4a88e;border-radius:8px;font-size:11px;overflow:hidden}
     .am-transition-panel[hidden]{display:none}
     .am-transition-panel>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;list-style:none;cursor:pointer;padding:5px 8px;color:#17393b;font-weight:750}.am-transition-panel>summary::-webkit-details-marker{display:none}.am-transition-panel>summary::before{content:'▸';font-size:10px;transition:transform .15s ease}.am-transition-panel[open]>summary::before{transform:rotate(90deg)}.am-transition-summary{margin-left:auto;color:#6f6259;font-weight:600;font-size:10px}.am-transition-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 8px;border-top:1px solid #c4a88e}.am-transition-controls label{display:flex;align-items:center;gap:3px;white-space:nowrap}.am-transition-controls select,.am-transition-controls input{font:inherit;padding:3px!important}.am-transition-controls input{width:54px}.am-transition-controls button{min-height:27px!important;padding:3px 6px!important;font-size:10px!important}.am-transition-help{color:#6f6259;font-size:10px;margin-left:auto}
@@ -32261,12 +32278,12 @@ mediabunny/dist/modules/src/index.js:
       </div></div></section>
     <section class="am-workspace am-workspace-master" data-workspace-panel="master" role="tabpanel">
     <div class="am-zone-head am-master-head"><div><h3>2 · Timeline Master</h3><span class="am-section-help">Placez le curseur rouge dans la règle, puis utilisez les outils juste au-dessus de la timeline.</span></div></div>
-    <div class="am-master-shell"><div class="am-master-main"><div class="am-timeline" aria-label="Master final du montage"><div class="am-timeline-tools"><div class="am-master-actions" aria-label="Outils de la timeline"><span class="am-cursor-readout"><i class="am-cursor-dot"></i> <output id="am-cursor-time">00:00</output></span><button id="am-split" type="button" title="Scinder le bloc Master sélectionné à l’endroit du curseur rouge">✂ Scinder</button><button id="am-add-point" type="button" title="Créer un point de volume sur le bloc sélectionné">+ Volume</button><button id="am-marker" type="button" title="Faire commencer la prochaine image à l’endroit du curseur">Repère image</button><label class="am-command-label">Placement <select id="am-placement-mode" aria-label="Mode de placement"><option value="free">Libre</option><option value="snap">Aimanté</option><option value="insert">Insérer et décaler</option></select></label></div>
+    <div class="am-master-shell"><div class="am-master-main"><div class="am-timeline" aria-label="Master final du montage"><div class="am-timeline-tools">
     <div class="am-toolbar-row am-edit am-master-settings-row"><details class="am-settings-disclosure"><summary>Réglages du son et des pauses</summary><div class="am-advanced-grid"><label>Baisse de la musique pendant la voix <select id="am-duck"><option value="0.126">−18 dB</option><option value="0.251">−12 dB</option><option value="1">Aucune</option></select></label><label title="Rapproche automatiquement le volume des différentes voix"><input id="am-uniform-voices" type="checkbox" checked> Égaliser le volume des voix</label><button id="am-linked-zoom" class="am-compact" type="button" aria-pressed="false" data-commande="lier-zooms" title="Appliquer le zoom Master aux deux zones de sources">Lier les 3 zooms</button><label>Durée du film (s) <input id="am-total" type="number" min="1" step="0.1" style="width:78px" aria-label="Durée totale du film"></label><button id="am-pause-all" type="button" title="Ajouter la même pause entre toutes les diapositives">⏸ Pauses entre toutes les images…</button></div></details></div>
     <div id="am-master-picker" class="am-master-picker" aria-label="Sélectionner un clip du Master"></div><div id="am-tracks" class="am-inspector" hidden></div>
     <details id="am-transition-panel" class="am-transition-panel" hidden><summary><strong id="am-transition-title">Transition</strong><span id="am-transition-summary" class="am-transition-summary">Choisissez une jonction</span></summary><div class="am-transition-controls"><label>Effet <select id="am-transition-type"><optgroup label="Base"><option value="cut">Coupe</option></optgroup><optgroup label="Fondus"><option value="dissolve">Fondu enchaîné</option><option value="blur-cross">Flou croisé</option><option value="fade-black">Fondu au noir</option><option value="fade-white">Fondu au blanc</option></optgroup><optgroup label="Mouvement"><option value="zoom-cross">Zoom croisé</option><option value="wave">Onde</option></optgroup><optgroup label="Balayages"><option value="wipe-left">Balayage à gauche</option><option value="wipe-right">Balayage à droite</option><option value="wipe-up">Balayage en haut</option><option value="wipe-down">Balayage en bas</option></optgroup><optgroup label="Glissements"><option value="slide-left">Glisser à gauche</option><option value="slide-right">Glisser à droite</option></optgroup><optgroup label="Formes"><option value="circle-open">Cercle ouvert</option><option value="circle-close">Cercle fermé</option><option value="portal">Portail</option><option value="mosaic">Mosaïque</option></optgroup><optgroup label="3D"><option value="rotate-in">Rotation intérieure</option><option value="rotate-out">Rotation extérieure</option><option value="exchange">Échange</option><option value="cube">Cube</option><option value="page-previous">Page précédente</option><option value="page-turn">Page tournée</option></optgroup><optgroup label="Puzzle"><option value="puzzle-left">Puzzle gauche</option><option value="puzzle-right">Puzzle droite</option></optgroup></select></label><label>Durée <input id="am-transition-duration" type="number" min="0.1" max="5" step="0.1" value="0.6"> s</label><label>Douceur <select id="am-transition-easing"><option value="linear">Linéaire</option><option value="ease-in">Entrée douce</option><option value="ease-out">Sortie douce</option><option value="ease-in-out">Entrée-sortie douces</option></select></label><button id="am-transition-all" type="button">Appliquer partout</button><button id="am-transition-remove-all" type="button">Retirer partout</button><label>Pause <input id="am-pause-duration" type="number" min="0.1" max="30" step="0.1" value="1"> s</label><button id="am-add-pause" type="button" title="Prolonger la diapositive avant cette jonction">Ajouter la pause</button><span id="am-transition-help" class="am-transition-help">Cliquez sur une jonction entre deux diapositives.</span></div></details>
     <div class="am-bottom-tabs" role="tablist" aria-label="Vue du montage"><button id="am-view-master" type="button" role="tab" aria-selected="true">Pistes Master</button><button id="am-view-steps" type="button" role="tab" aria-selected="false">Étapes et repères · <span id="am-step-count">0</span> images</button></div></div>
-    <div class="am-final-timeline-head"><strong>Master final · voix et musique exportées en un seul mixage</strong><div class="am-zoom-tools" aria-label="Zoom précis du Master"><button id="am-zoom-out" type="button" title="Dézoomer le Master">−</button><label>Zoom <input id="am-zoom" type="range" min="2" max="720" step="1" value="20" aria-label="Zoom précis de la timeline Master, jusqu’à l’image près"></label><button id="am-zoom-in" type="button" title="Zoomer le Master">+</button><button id="am-zoom-fit" type="button">Tout voir</button><output id="am-zoom-value">20 px/s</output></div></div><div id="am-minimap" class="am-minimap" aria-label="Mini-carte du projet" role="scrollbar" tabindex="0"><span id="am-minimap-window" class="am-minimap-window"></span></div><div id="am-timeline-inner"><div id="am-ruler" class="am-ruler"></div><div id="am-lanes"></div></div></div>
+    <div class="am-final-timeline-head"><strong>Master final · voix et musique exportées en un seul mixage</strong><div class="am-master-actions" aria-label="Outils de la timeline"><span class="am-cursor-readout"><i class="am-cursor-dot"></i><output id="am-cursor-time">00:00</output></span><button id="am-split" type="button" title="Scinder le bloc Master sélectionné à l’endroit du curseur rouge">✂ Scinder</button><button id="am-add-point" type="button" title="Ajouter un point sur la ligne jaune du clip sélectionné">+ Point volume</button><button id="am-marker" type="button" title="Faire commencer la prochaine image à l’endroit du curseur">Repère</button><label class="am-command-label">Placement <select id="am-placement-mode" aria-label="Mode de placement"><option value="free">Libre</option><option value="snap">Aimanté</option><option value="insert">Insérer et décaler</option></select></label></div><div class="am-zoom-tools" aria-label="Zoom précis du Master"><button id="am-zoom-out" type="button" title="Dézoomer le Master">−</button><label>Zoom <input id="am-zoom" type="range" min="2" max="240" step="1" value="20" aria-label="Zoom précis de la timeline Master"></label><button id="am-zoom-in" type="button" title="Zoomer le Master">+</button><button id="am-zoom-fit" type="button">Tout voir</button><output id="am-zoom-value">20 px/s</output></div><span class="am-local-history" aria-label="Historique du projet"><button type="button" data-history="undo" title="Annuler la dernière action" disabled>↶</button><button type="button" data-history="redo" title="Rétablir l’action annulée" disabled>↷</button></span></div><div id="am-minimap" class="am-minimap" aria-label="Mini-carte du projet" role="scrollbar" tabindex="0"><span id="am-minimap-window" class="am-minimap-window"></span></div><div id="am-timeline-inner"><div id="am-ruler" class="am-ruler"></div><div id="am-lanes"></div></div><div id="am-step-hover-preview" class="am-step-hover-preview" hidden><img alt=""><strong></strong></div></div>
     <div class="am-panel am-steps-panel" aria-label="Étapes et repères"><div class="am-steps-head"><p>Réglez l’heure de début de chaque image. « Voir » affiche l’étape dans l’aperçu.</p><button id="am-steps-back" type="button">← Retour aux pistes Master</button></div>
       <div id="am-steps"></div><p id="am-empty">Importez une présentation pour régler ses étapes.</p>
     </div></div></div></section>
@@ -32274,6 +32291,8 @@ mediabunny/dist/modules/src/index.js:
     <div class="am-sources" aria-label="Sources voix et musique"><div class="am-source-lane" data-import-lane="voice"><div class="am-source-lane-head"><div class="am-source-lane-title"><strong>Voix</strong><small>Paroles et narration</small></div><div class="am-zoom-tools" aria-label="Zoom des voix"><button id="am-voice-zoom-out" type="button" title="Dézoomer les voix">−</button><label>Zoom <input id="am-voice-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom précis des sources voix"></label><button id="am-voice-zoom-in" type="button" title="Zoomer les voix">+</button><button id="am-voice-zoom-precision" type="button">×10</button><button id="am-voice-zoom-fit" type="button">Tout voir</button><output id="am-voice-zoom-value">×1</output></div><button id="am-open-voice" class="am-compact-import am-drop-audio" type="button" data-commande="importer-voix" title="Cliquez pour choisir des fichiers, ou déposez-les dans toute la zone Voix">+ Importer / déposer</button></div><div class="am-source-list" data-source-lane="voice"></div></div>
     <div class="am-source-lane" data-import-lane="music"><div class="am-source-lane-head"><div class="am-source-lane-title"><strong>Musique</strong><small>Fond et ambiance</small></div><div class="am-zoom-tools" aria-label="Zoom des musiques"><button id="am-music-zoom-out" type="button" title="Dézoomer les musiques">−</button><label>Zoom <input id="am-music-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom précis des sources musique"></label><button id="am-music-zoom-in" type="button" title="Zoomer les musiques">+</button><button id="am-music-zoom-precision" type="button">×10</button><button id="am-music-zoom-fit" type="button">Tout voir</button><output id="am-music-zoom-value">×1</output></div><button id="am-open-music" class="am-compact-import am-drop-audio" type="button" data-commande="importer-musique" title="Cliquez pour choisir des fichiers, ou déposez-les dans toute la zone Musique">+ Importer / déposer</button></div><div class="am-source-list" data-source-lane="music"></div></div></div></section></div>
     <p id="am-status" role="status" aria-live="polite">Prêt pour l’import audio MP3, M4A ou WAV.</p>`;
+  root.querySelectorAll('.am-source-lane-head').forEach(head=>head.querySelector('.am-compact-import')?.insertAdjacentHTML('afterend','<span class="am-local-history" aria-label="Annuler et rétablir plusieurs actions"><button type="button" data-history="undo" title="Annuler la dernière action ; cliquez plusieurs fois pour remonter davantage" disabled>↶ Annuler</button><button type="button" data-history="redo" title="Rétablir l’action annulée ; cliquez plusieurs fois pour avancer davantage" disabled>↷ Rétablir</button></span>'));
+  root.querySelector('.am-final-timeline-head>strong')?.insertAdjacentHTML('afterend','<span id="am-slide-selection-tools" class="am-slide-selection-tools" hidden><b id="am-slide-selection-count">0 diapo</b><button type="button" data-slide-duration-delta="-0.5" title="Raccourcir les diapositives sélectionnées de 0,5 seconde">−0,5</button><label>Durée <input id="am-slide-duration" type="number" min="0.5" step="0.1" value="4" aria-label="Durée commune des diapositives sélectionnées"> s</label><button type="button" data-slide-duration-delta="0.5" title="Allonger les diapositives sélectionnées de 0,5 seconde">+0,5</button><button type="button" id="am-clear-slide-selection" title="Annuler la sélection de diapositives" aria-label="Annuler la sélection de diapositives">×</button></span>');
   $('cv-vignettes').before(root);
   const vignetteDetails = document.createElement('details');
   vignetteDetails.id = 'am-vignettes-details';
@@ -32289,10 +32308,46 @@ mediabunny/dist/modules/src/index.js:
     return {track:`${source.kind==='voice'?'V':'M'}${origins.indexOf(originId)+1}`,blockIndex:blocks.indexOf(source)+1,blockCount:blocks.length};
   }
 
+  function slideDuration(index) {
+    return Math.max(0.5,(state.cuts[index+1]??duration())-state.cuts[index]);
+  }
+  function rebuildCutsFromDurations(durations) {
+    state.cuts=[];let at=0;
+    for(const value of durations){state.cuts.push(Math.round(at*100)/100);at+=Math.max(0.5,+value||0.5);}
+    state.total=Math.round(at*100)/100;
+  }
+  function setSelectedSlideDuration(value,label='durée des diapositives sélectionnées') {
+    const indexes=state.selectedSlides.filter(index=>index>=0&&index<state.images.length);
+    if(!indexes.length)return;
+    const next=clamp(+value||0.5,0.5,3600),chosen=new Set(indexes);
+    checkpoint(label);
+    rebuildCutsFromDurations(state.images.map((_,index)=>chosen.has(index)?next:slideDuration(index)));
+    clearPreviewCache();render();seek(Math.min(state.previewAt,duration()));
+    badge(`${indexes.length} diapositive${indexes.length>1?'s':''} réglée${indexes.length>1?'s':''} à ${next.toFixed(1).replace('.',',')} s.`,false);
+  }
+  function selectSlide(index,event={}) {
+    if(index<0||index>=state.images.length)return;
+    if(event.shiftKey&&Number.isInteger(state.slideAnchor)){
+      const first=Math.min(state.slideAnchor,index),last=Math.max(state.slideAnchor,index);
+      state.selectedSlides=Array.from({length:last-first+1},(_,offset)=>first+offset);
+    } else if(event.metaKey||event.ctrlKey) {
+      state.selectedSlides=state.selectedSlides.includes(index)?state.selectedSlides.filter(value=>value!==index):[...state.selectedSlides,index].sort((a,b)=>a-b);
+      state.slideAnchor=index;
+    } else {
+      state.selectedSlides=[index];state.slideAnchor=index;
+    }
+    render();
+    badge(`${state.selectedSlides.length} diapositive${state.selectedSlides.length>1?'s':''} sélectionnée${state.selectedSlides.length>1?'s':''}. Maj-glisser sélectionne au passage ; ⌘-clic ajoute ou retire.`,false);
+  }
+
   function render() {
     root.classList.toggle('am-has-selection', !!selected());
+    const selectedSlides=state.selectedSlides.filter(index=>index>=0&&index<state.images.length);
+    state.selectedSlides=selectedSlides;
+    const slideTools=$('am-slide-selection-tools');slideTools.hidden=!selectedSlides.length;
+    if(selectedSlides.length){$('am-slide-selection-count').textContent=`${selectedSlides.length} diapo${selectedSlides.length>1?'s':''}`;$('am-slide-duration').value=slideDuration(selectedSlides[0]).toFixed(1);}
     $('am-clock').textContent = `${time(state.previewAt)} / ${time(duration())}`;
-    $('am-cursor-time').textContent = state.zoom>=300?timeFrame(state.previewAt):time(state.previewAt);
+    $('am-cursor-time').textContent = state.zoom>=100?timePrecise(state.previewAt):time(state.previewAt);
     $('am-seek').max = Math.max(1, duration()); $('am-seek').value = clamp(state.previewAt, 0, duration());
     $('am-total').value = +duration().toFixed(1);
     $('am-step-count').textContent = state.images.length;
@@ -32351,17 +32406,17 @@ mediabunny/dist/modules/src/index.js:
   function renderTimeline() {
     const total = Math.max(1, duration());
     $('am-timeline-inner').style.width = `${Math.max(650,Math.ceil(total*state.zoom)+120)}px`;
-    const intervals=[1/30,0.1,0.5,1,2,5,10,30,60,120],tickEvery=intervals.find(value=>value*state.zoom>=70)||120;
-    const ticks=[];for(let at=0;at<=total+tickEvery/2;at+=tickEvery)ticks.push(`<span class="am-tick" style="left:${at/total*100}%">${state.zoom>=300?timeFrame(at):time(at)}</span>`);
+    const intervals=[0.5,1,2,5,10,30,60,120],tickEvery=intervals.find(value=>value*state.zoom>=72)||120;
+    const ticks=[];for(let at=0;at<=total+tickEvery/2;at+=tickEvery)ticks.push(`<span class="am-tick" style="left:${at/total*100}%">${tickEvery<1?timePrecise(at):time(at)}</span>`);
     $('am-ruler').innerHTML = ticks.join('') + `<span class="am-playhead" style="left:${state.previewAt/total*100}%"><span class="am-playhead-handle" role="slider" tabindex="0" aria-label="Tête de lecture du Master" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${state.previewAt.toFixed(2)}" title="Glissez la tête de lecture, ou cliquez dans la timeline"></span></span>`;
     const stepLane = `<div class="am-lane"><span class="am-lane-name">Diapositives</span>${state.images.map((im,i) => {
       const left = state.cuts[i]/total*100, end = (state.cuts[i+1] ?? total)/total*100;
-      return `<div class="am-clip am-step-clip" data-focus="${i}" style="left:${left}%;width:${Math.max(0,end-left)}%" title="Étape ${i+1} — glissez le bord droit pour changer sa durée">${i+1}. ${esc(im.titre||'Étape')}<span class="am-step-resize" data-resize-step="${i}" title="Étirer ou raccourcir la diapositive ${i+1}"></span></div>`;
-    }).join('')}${state.images.slice(1).map((_,j)=>{const i=j+1,t=state.transitions[i]||{type:'cut'};return `<button type="button" class="am-transition-marker" data-transition="${i}" style="left:${state.cuts[i]/total*100}%" title="Transition ${i} → ${i+1} : ${t.type==='cut'?'coupe franche':t.type}">${t.type==='cut'?'·':'✦'}</button>`;}).join('')}</div>`;
+      return `<div class="am-clip am-step-clip" draggable="false" data-drag-step="${i}" data-focus="${i}" data-slide-selected="${state.selectedSlides.includes(i)}" aria-selected="${state.selectedSlides.includes(i)}" style="left:${left}%;width:${Math.max(0,end-left)}%" title="Diapositive ${i+1} — clic : sélectionner ; Maj-glisser : sélectionner au passage ; ⌘-clic : ajouter ; glisser : déplacer ; survoler : voir l’image">${i+1}. ${esc(im.titre||'Étape')}<span class="am-step-resize" data-resize-step="${i}" title="Étirer ou raccourcir la diapositive ${i+1}"></span></div>`;
+    }).join('')}${state.images.slice(1).map((_,j)=>{const i=j+1,t=state.transitions[i]||{type:'cut'};return `<button type="button" class="am-transition-marker" data-transition="${i}" data-effect="${t.type!=='cut'}" style="left:${state.cuts[i]/total*100}%" title="Transition ${i} → ${i+1} : ${t.type==='cut'?'coupe franche':t.type}"></button>`;}).join('')}</div>`;
     $('am-lanes').innerHTML = stepLane + ['voice','music'].map(kind => {const chosen=selected(),chosenIndex=state.tracks.indexOf(chosen),hasEditor=chosen?.kind===kind;return `<div class="am-lane${hasEditor?' am-has-editor':''}" data-master-lane="${kind}"><span class="am-lane-name"><strong>${kind==='voice'?'Voix':'Musique'} Master</strong><span class="am-lane-mix"><button type="button" data-master-mute="${kind}">${state.master[kind].muted?'Réactiver':'Muet'}</button><input type="range" data-master-db="${kind}" min="-36" max="12" value="${state.master[kind].db}" aria-label="Volume de la piste ${kind==='voice'?'voix':'musique'} Master"><output id="am-${kind}-db">${state.master[kind].db} dB</output></span></span>${state.tracks.map((t,i) => {
       if (t.kind!==kind) return '';
       const left = Math.min(100,t.at/total*100), length = (t.loop ? total-t.at : clipLength(t))/total*100;
-      const points = t.automation || [{time:0,db:0},{time:clipLength(t),db:0}];
+      const points = clipAutomation(t);t.automation=points;
       const selectedNow=state.selectedIds.includes(t.id)||t.id===state.selectedId;
       const tools=selectedNow?`<div class="am-clip-integrated-tools" aria-label="Outils intégrés du clip ${esc(t.name)}">
         <label title="Position du clip">Début <input type="number" min="0" step="0.1" value="${t.at}" data-field="at" data-track="${i}"></label>
@@ -32440,6 +32495,7 @@ mediabunny/dist/modules/src/index.js:
     if (!d || !d.res || !d.res.images || !d.res.images.length) return;
     state.images.forEach(im => URL.revokeObjectURL(im.url));
     state.images = d.res.images.map(im => ({...im, url: URL.createObjectURL(im.blob)}));
+    state.selectedSlides=[];state.slideAnchor=null;
     const n = state.images.length, total = duration();
     state.cuts = Array.from({length:n}, (_, i) => i * total / n);
     state.transitions = Array.from({length:n},()=>({type:'cut',duration:0.6,easing:'linear'}));
@@ -32447,12 +32503,24 @@ mediabunny/dist/modules/src/index.js:
     render(); drawPreview(0);
   }
   let imageResult = null;
-  new MutationObserver(() => {
+  function syncRenderedImages() {
     const d = window.__chutier && window.__chutier.dernier();
     if (d && d.res && d.res.images && d.res.images.length && imageResult !== d.res.images) {
       imageResult = d.res.images; refreshImages();
+      return true;
     }
-  }).observe($('cv-vignettes'), {childList:true});
+    return !!(d && d.res && d.res.images && d.res.images.length);
+  }
+  function retryRenderedImages() {
+    let attempts=0;
+    const retry=()=>{
+      if(syncRenderedImages()||attempts++>=20)return;
+      setTimeout(retry,50);
+    };
+    retry();
+  }
+  new MutationObserver(retryRenderedImages).observe($('cv-vignettes'), {childList:true,subtree:true});
+  window.addEventListener('focus',syncRenderedImages);
 
   async function importFiles(files, kind) {
     if (!state.images.length) refreshImages();
@@ -32512,9 +32580,9 @@ mediabunny/dist/modules/src/index.js:
       for(const saved of project.images||[]){const blob=await dataUrlBlob(saved.data),{data,type,...metadata}=saved;state.images.push({...metadata,blob,url:URL.createObjectURL(blob)});}
       const restoreAudio=item=>{const audio=audioByOrigin.get(item.originId||item.sourceId||item.id);if(!audio)throw Error(`audio manquant pour ${item.name}`);return {...item,...audio,automation:(item.automation||[]).map(point=>({...point}))};};
       state.sources=(project.sources||[]).map(restoreAudio);state.tracks=(project.tracks||[]).map(restoreAudio);state.cuts=(project.cuts||[]).slice();state.total=+project.total||0;
-      state.zoom=project.zoom?.master||20;const savedAnnex=project.zoom?.annexes||1;state.annexZoom=typeof savedAnnex==='number'?{voice:savedAnnex,music:savedAnnex}:{voice:savedAnnex.voice||1,music:savedAnnex.music||1};state.linkedZoom=project.zoom?.linked===true;state.placementMode=project.placementMode||'free';state.previewQuality=project.previewQuality||'full';state.workspace=['all','preview','master','sources'].includes(project.workspace)?project.workspace:'all';
+      state.zoom=clamp(+(project.zoom?.master||20),2,240);const savedAnnex=project.zoom?.annexes||1;state.annexZoom=typeof savedAnnex==='number'?{voice:savedAnnex,music:savedAnnex}:{voice:savedAnnex.voice||1,music:savedAnnex.music||1};state.linkedZoom=project.zoom?.linked===true;state.placementMode=project.placementMode||'free';state.previewQuality=project.previewQuality||'full';state.workspace=['all','preview','master','sources'].includes(project.workspace)?project.workspace:'all';
       state.transitions=(project.transitions||[]).map(transition=>({...transition,params:{...(transition.params||{})}}));state.master=project.master||{voice:{db:0,muted:false},music:{db:0,muted:false}};
-      state.selectedId=null;state.selectedIds=[];state.previewAt=0;clearPreviewCache();$('am-duck').value=String(project.mix?.duck??0.126);$('am-uniform-voices').checked=project.mix?.uniformVoices!==false;
+      state.selectedId=null;state.selectedIds=[];state.selectedSlides=[];state.slideAnchor=null;state.previewAt=0;clearPreviewCache();$('am-duck').value=String(project.mix?.duck??0.126);$('am-uniform-voices').checked=project.mix?.uniformVoices!==false;
       if($('cv-mp4'))$('cv-mp4').disabled=!state.images.length;applyPreviewQuality();render();drawPreview(0);badge(`Projet restauré : ${state.images.length} images, ${state.sources.length} blocs annexes et ${state.tracks.length} clips Master.`,false);
     }finally{await ctx.close();}
   }
@@ -32747,6 +32815,7 @@ mediabunny/dist/modules/src/index.js:
     t.at = Math.max(0, t.at); t.in = clamp(t.in, 0, t.buffer.duration);
     t.out = clamp(t.out, t.in + 0.01, t.buffer.duration);
     t.db = clamp(t.db, -60, 12); t.fadeIn = Math.max(0, t.fadeIn); t.fadeOut = Math.max(0, t.fadeOut);
+    t.automation=clipAutomation(t);
     if(t.kind==='voice'&&(f==='in'||f==='out'||f==='kind'))Object.assign(t,voiceLevel(t.buffer,t.in,t.out));
     updateLiveGains();
     // Laisser le contrôle natif finir son changement avant de reconstruire l'inspecteur.
@@ -32790,7 +32859,7 @@ mediabunny/dist/modules/src/index.js:
     state.master[kind].muted=!state.master[kind].muted; updateLiveGains();render();
   });
   function setMasterZoom(value,link=true) {
-    state.zoom=clamp(Math.round(value),2,720);
+    state.zoom=clamp(Math.round(value),2,240);
     $('am-zoom').value=state.zoom;
     $('am-zoom-value').textContent=`${state.zoom} px/s`;
     if(link&&state.linkedZoom){setAnnexZoom('voice',state.zoom/20,false);setAnnexZoom('music',state.zoom/20,false);}
@@ -32807,7 +32876,7 @@ mediabunny/dist/modules/src/index.js:
   $('am-zoom').oninput = e => setMasterZoom(+e.target.value);
   $('am-zoom-out').onclick = () => setMasterZoom(state.zoom-5);
   $('am-zoom-in').onclick = () => setMasterZoom(state.zoom+5);
-  $('am-zoom-fit').onclick = () => setMasterZoom(clamp((root.querySelector('.am-timeline').clientWidth-160)/Math.max(1,duration()),2,720));
+  $('am-zoom-fit').onclick = () => setMasterZoom(clamp((root.querySelector('.am-timeline').clientWidth-160)/Math.max(1,duration()),2,240));
   for(const kind of ['voice','music']){
     $(`am-${kind}-zoom`).oninput=e=>setAnnexZoom(kind,+e.target.value);
     $(`am-${kind}-zoom-out`).onclick=()=>setAnnexZoom(kind,state.annexZoom[kind]-(state.annexZoom[kind]>=10?5:0.5));
@@ -32967,6 +33036,32 @@ mediabunny/dist/modules/src/index.js:
     else if(e.key==='End')seek(duration());
     else seek(state.previewAt+(e.key==='ArrowRight'?1:-1)/30);
   };
+  function reorderSlides(from,insertAt) {
+    if(from<0||from>=state.images.length)return;
+    insertAt=clamp(insertAt,0,state.images.length);
+    const movedIndexes=(state.selectedSlides.includes(from)&&state.selectedSlides.length>1
+      ? [...new Set(state.selectedSlides.filter(index=>index>=0&&index<state.images.length))].sort((a,b)=>a-b)
+      : [from]);
+    const movedSet=new Set(movedIndexes),remainingIndexes=state.images.map((_,index)=>index).filter(index=>!movedSet.has(index));
+    const destination=clamp(insertAt-movedIndexes.filter(index=>index<insertAt).length,0,remainingIndexes.length);
+    const nextOrder=remainingIndexes.slice();nextOrder.splice(destination,0,...movedIndexes);
+    if(nextOrder.every((value,index)=>value===index))return;
+    checkpoint(movedIndexes.length>1?`déplacement de ${movedIndexes.length} diapositives`:`déplacement de la diapositive ${from+1}`);
+    const total=Math.max(0.1,duration());
+    const durations=state.images.map((_,i)=>Math.max(0.1,(state.cuts[i+1]??total)-state.cuts[i]));
+    state.images=nextOrder.map(index=>state.images[index]);
+    const reorderedDurations=nextOrder.map(index=>durations[index]);
+    state.cuts=[];let at=0;for(const value of reorderedDurations){state.cuts.push(at);at+=value;}state.total=Math.round(at*100)/100;
+    state.selectedSlides=Array.from({length:movedIndexes.length},(_,offset)=>destination+offset);state.slideAnchor=destination;
+    state.selectedTransition=clamp(destination,1,Math.max(1,state.images.length-1));
+    clearPreviewCache();render();seek(state.cuts[destination]||0);
+    badge(movedIndexes.length>1?`${movedIndexes.length} diapositives déplacées ensemble à partir de la position ${destination+1}.`:`Diapositive déplacée en position ${destination+1}.`,false);
+  }
+  const stepPreview=$('am-step-hover-preview');
+  const moveStepPreview=e=>{const width=220,left=clamp(e.clientX+14,8,window.innerWidth-width-8),top=clamp(e.clientY+14,8,window.innerHeight-150);stepPreview.style.left=`${left}px`;stepPreview.style.top=`${top}px`;};
+  $('am-lanes').addEventListener('pointerover',e=>{if(e.pointerType&&e.pointerType!=='mouse')return;const slide=e.target.closest('[data-drag-step]');if(!slide)return;const image=state.images[+slide.dataset.dragStep];if(!image)return;stepPreview.querySelector('img').src=image.url;stepPreview.querySelector('strong').textContent=`${+slide.dataset.dragStep+1}. ${image.titre||'Diapositive'}`;stepPreview.hidden=false;moveStepPreview(e);});
+  $('am-lanes').addEventListener('pointermove',e=>{if(!stepPreview.hidden)moveStepPreview(e);});
+  $('am-lanes').addEventListener('pointerout',e=>{const slide=e.target.closest('[data-drag-step]');if(slide&&!slide.contains(e.relatedTarget))stepPreview.hidden=true;});
   $('am-lanes').onclick = e => {
     const junction=e.target.closest('[data-transition]');
     if(junction){showTransition(+junction.dataset.transition);return;}
@@ -32976,6 +33071,30 @@ mediabunny/dist/modules/src/index.js:
     const handle=e.target.closest('[data-resize-step]');
     if(handle){
       const i=+handle.dataset.resizeStep, boundary=i+1, lane=handle.parentElement.parentElement;
+      const selectedGroup=state.selectedSlides.includes(i)&&state.selectedSlides.length>1
+        ? [...new Set(state.selectedSlides.filter(index=>index>=0&&index<state.images.length))].sort((a,b)=>a-b)
+        : [];
+      if(selectedGroup.length){
+        const initialTotal=duration(),rect=lane.getBoundingClientRect(),startX=e.clientX;
+        const originalDurations=state.images.map((_,index)=>slideDuration(index)),referenceDuration=originalDurations[i];
+        checkpoint(`durée de ${selectedGroup.length} diapositives`);handle.setPointerCapture(e.pointerId);
+        const selectedSet=new Set(selectedGroup);
+        handle.onpointermove=move=>{
+          const commonDuration=clamp(referenceDuration+(move.clientX-startX)/Math.max(1,rect.width)*initialTotal,0.5,3600);
+          rebuildCutsFromDurations(originalDurations.map((value,index)=>selectedSet.has(index)?commonDuration:value));
+          state.images.forEach((_,index)=>{
+            const node=lane.querySelector(`[data-focus="${index}"]`);if(!node)return;
+            node.style.left=`${state.cuts[index]/duration()*100}%`;
+            node.style.width=`${((state.cuts[index+1]??duration())-state.cuts[index])/duration()*100}%`;
+            const marker=lane.querySelector(`[data-transition="${index}"]`);if(marker)marker.style.left=`${state.cuts[index]/duration()*100}%`;
+          });
+        };
+        const finishGroupResize=()=>{
+          handle.onpointermove=null;handle.onpointerup=null;handle.onpointercancel=null;clearPreviewCache();render();seek(Math.min(state.previewAt,duration()));
+          badge(`${selectedGroup.length} diapositives étirées ensemble à ${slideDuration(selectedGroup[0]).toFixed(1).replace('.',',')} s.`,false);
+        };
+        handle.onpointerup=finishGroupResize;handle.onpointercancel=finishGroupResize;return;
+      }
       checkpoint(`durée de la diapositive ${i+1}`);const rect=lane.getBoundingClientRect(), initialTotal=duration();
       handle.setPointerCapture(e.pointerId);
       handle.onpointermove=move=>{
@@ -32994,7 +33113,57 @@ mediabunny/dist/modules/src/index.js:
       return;
     }
     if(e.target.closest('[data-transition]'))return;
-    if(e.target.closest('.am-step-clip')||!e.target.closest('[data-clip]'))return;
+    const step=e.target.closest('.am-step-clip');
+    if(step){
+      const from=+step.dataset.dragStep,startX=e.clientX;
+      if(e.shiftKey){
+        const initialSelection=new Set(state.selectedSlides),swept=new Set([from]);
+        let sweptSelection=false;
+        step.setPointerCapture(e.pointerId);
+        const paintSelection=()=>{
+          state.selectedSlides=[...new Set([...initialSelection,...swept])].sort((a,b)=>a-b);
+          root.querySelectorAll('.am-step-clip').forEach(node=>{
+            const selected=state.selectedSlides.includes(+node.dataset.dragStep);
+            node.dataset.slideSelected=String(selected);node.setAttribute('aria-selected',String(selected));
+          });
+        };
+        step.onpointermove=move=>{
+          if(Math.abs(move.clientX-startX)<4&&!sweptSelection)return;
+          sweptSelection=true;stepPreview.hidden=true;
+          const slides=[...root.querySelectorAll('[data-drag-step]')];
+          const target=slides.find(node=>{const rect=node.getBoundingClientRect();return move.clientX>=rect.left&&move.clientX<=rect.right;});
+          if(!target)return;
+          const to=+target.dataset.dragStep,first=Math.min(from,to),last=Math.max(from,to);
+          for(let index=first;index<=last;index++)swept.add(index);
+          paintSelection();
+        };
+        const finishSweep=()=>{
+          step.onpointermove=null;step.onpointerup=null;step.onpointercancel=null;
+          if(!sweptSelection){selectSlide(from,{shiftKey:true});return;}
+          state.slideAnchor=from;render();
+          badge(`${state.selectedSlides.length} diapositives sélectionnées au passage. Glissez maintenant l’une d’elles pour déplacer tout le groupe.`,false);
+        };
+        step.onpointerup=finishSweep;step.onpointercancel=finishSweep;return;
+      }
+      let moved=false,targetIndex=from,targetAfter=false;
+      step.setPointerCapture(e.pointerId);
+      step.onpointermove=move=>{
+        if(Math.abs(move.clientX-startX)<5&&!moved)return;
+        moved=true;(state.selectedSlides.includes(from)?root.querySelectorAll('.am-step-clip[data-slide-selected="true"]'):[step]).forEach(node=>node.classList.add('am-step-dragging'));stepPreview.hidden=true;
+        const slides=[...root.querySelectorAll('[data-drag-step]')];
+        const target=slides.find(node=>{const rect=node.getBoundingClientRect();return move.clientX>=rect.left&&move.clientX<=rect.right;})||slides.reduce((best,node)=>{const rect=node.getBoundingClientRect(),distance=Math.abs(move.clientX-(rect.left+rect.right)/2);return !best||distance<best.distance?{node,distance}:best;},null)?.node;
+        root.querySelectorAll('.am-step-drop-target').forEach(node=>node.classList.remove('am-step-drop-target'));
+        if(target){const rect=target.getBoundingClientRect();targetIndex=+target.dataset.dragStep;targetAfter=move.clientX>rect.left+rect.width/2;target.classList.add('am-step-drop-target');}
+      };
+      const finish=()=>{
+        step.onpointermove=null;step.onpointerup=null;step.onpointercancel=null;
+        root.querySelectorAll('.am-step-dragging,.am-step-drop-target').forEach(node=>node.classList.remove('am-step-dragging','am-step-drop-target'));
+        if(moved)reorderSlides(from,targetIndex+(targetAfter?1:0));
+        else selectSlide(from,{shiftKey:e.shiftKey,metaKey:e.metaKey,ctrlKey:e.ctrlKey});
+      };
+      step.onpointerup=finish;step.onpointercancel=finish;return;
+    }
+    if(!e.target.closest('[data-clip]'))return;
     const clip = e.target.closest('[data-clip]'); if (!clip) return;
     const i = +clip.dataset.clip, t = state.tracks[i], lane = clip.parentElement;
     if(e.shiftKey||e.metaKey)state.selectedIds=state.selectedIds.includes(t.id)?state.selectedIds.filter(id=>id!==t.id):[...state.selectedIds,t.id];
@@ -33055,6 +33224,13 @@ mediabunny/dist/modules/src/index.js:
     if((e.key==='Delete'||e.key==='Backspace')&&state.selectedIds.length){const removable=state.tracks.filter(t=>state.selectedIds.includes(t.id)&&!t.locked);if(!removable.length)return badge('Les clips sélectionnés sont verrouillés.',true);e.preventDefault();checkpoint('suppression de la sélection Master');const ids=new Set(removable.map(t=>t.id));state.tracks=state.tracks.filter(t=>!ids.has(t.id));state.selectedIds=[];state.selectedId=null;render();return;}
     if (e.key === 'Escape' && root.classList.contains('am-focused') && !document.fullscreenElement) $('am-focus').click();
   });
+  root.addEventListener('click',e=>{const action=e.target.closest('[data-history]')?.dataset.history;if(action==='undo')undo();else if(action==='redo')redo();});
+  root.addEventListener('click',e=>{
+    const delta=e.target.closest('[data-slide-duration-delta]')?.dataset.slideDurationDelta;
+    if(delta!==undefined){const selectedFirst=state.selectedSlides[0];if(selectedFirst!==undefined)setSelectedSlideDuration(slideDuration(selectedFirst)+Number(delta));return;}
+    if(e.target.closest('#am-clear-slide-selection')){state.selectedSlides=[];state.slideAnchor=null;render();badge('Sélection des diapositives annulée.',false);}
+  });
+  $('am-slide-duration').addEventListener('change',e=>setSelectedSlideDuration(e.target.value));
   $('am-undo').onclick=undo;$('am-redo').onclick=redo;
   $('am-pause-all').onclick=()=>{if(state.images.length<2)return badge('Importez au moins deux diapositives.',true);const raw=window.prompt('Durée de la pause entre toutes les diapositives (secondes)','1');if(raw===null)return;const seconds=+String(raw).replace(',','.');if(!Number.isFinite(seconds)||seconds<0||seconds>30)return badge('Saisissez une pause comprise entre 0 et 30 secondes.',true);checkpoint('pauses entre toutes les diapositives');state.cuts=state.cuts.map((cut,i)=>cut+seconds*i);state.total=duration()+seconds*(state.images.length-1);render();badge(`Pause de ${seconds.toFixed(1)} s ajoutée entre les ${state.images.length} diapositives.`,false);};
   $('am-total').onchange = e => {
@@ -33129,7 +33305,7 @@ mediabunny/dist/modules/src/index.js:
   function seek(at) { state.previewAt = clamp(at, 0, duration()); drawPreview(state.previewAt); renderClock(); }
   function renderClock() {
     $('am-clock').textContent = `${time(state.previewAt)} / ${time(duration())}`;
-    $('am-cursor-time').textContent = state.zoom>=300?timeFrame(state.previewAt):time(state.previewAt);
+    $('am-cursor-time').textContent = state.zoom>=100?timePrecise(state.previewAt):time(state.previewAt);
     $('am-seek').value = state.previewAt;
     const playhead = root.querySelector('.am-playhead');
     if (playhead) { playhead.style.left = `${state.previewAt / Math.max(1, duration()) * 100}%`; playhead.querySelector('.am-playhead-handle')?.setAttribute('aria-valuenow',state.previewAt.toFixed(2)); }
