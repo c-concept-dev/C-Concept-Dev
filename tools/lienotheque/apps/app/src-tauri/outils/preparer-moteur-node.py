@@ -266,6 +266,18 @@ def main() -> int:
     travail = poser_module_de_travail(MOTEURS / "chaine")
     pdfjs = embarquer_pdfjs(MOTEURS / "chaine" / "pdfjs")
 
+    # Les licences se collectent ICI, au bout du SECOND script : le paquet est complet, la chaîne
+    # et ses neuf textes compris. Branchée au bout du premier, la collecte tournait avant que la
+    # chaîne n'existe. Un paquet préparé sans ses licences est un paquet qu'on ne peut pas
+    # distribuer, et rien ne le dirait au moment de le distribuer.
+    licences = subprocess.run(
+        [sys.executable, "-I", str(pathlib.Path(__file__).parent / "collecter-licences.py")],
+        capture_output=True,
+        text=True,
+    )
+    if licences.returncode != 0:
+        raise SystemExit(f"la collecte des licences a échoué :\n{licences.stdout}{licences.stderr}")
+
     print(f"moteur        : {dit}")
     print(f"binaire annexe: {sidecar.name}")
     print(f"chaîne        : {chaine}")
@@ -273,6 +285,7 @@ def main() -> int:
     print(f"codecs        : {codecs}")
     print(f"module travail: {travail}")
     print(f"ressources PDF : {pdfjs}")
+    print(f"licences      : {licences.stdout.splitlines()[0]}")
     print(f"total moteurs : {poids(MOTEURS):.0f} Mo")
     return 0
 

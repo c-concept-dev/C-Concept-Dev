@@ -35,13 +35,15 @@
     ],
     "externalBin": [
       "moteurs/bin/tesseract",
-      "moteurs/bin/node"
+      "moteurs/bin/node",
+      "moteurs/bin/sf"
     ],
     "resources": {
       "moteurs/lib": "moteurs/lib",
       "moteurs/tessdata": "moteurs/tessdata",
       "moteurs/chaine": "moteurs/chaine",
-      "moteurs/licences": "moteurs/licences"
+      "moteurs/licences": "moteurs/licences",
+      "moteurs/siegfried": "moteurs/siegfried"
     },
     "macOS": {
       "minimumSystemVersion": "26.0",

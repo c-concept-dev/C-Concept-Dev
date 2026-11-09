@@ -144,6 +144,18 @@ def main(argv: list[str]) -> int:
     if not MOTEURS.exists():
         raise SystemExit(f"{MOTEURS} absent : lancer preparer-moteurs.py d'abord")
 
+    # Un paquet incomplet se refuse, il ne se sous-compte pas. La chaîne porte neuf textes de
+    # licence : collecter avant qu'elle existe les annoncerait à zéro, et le contrôle du dépôt
+    # n'y verrait rien — il vérifie que chaque texte ANNONCÉ est là, pas qu'aucun ne manque à
+    # l'annonce. D'où ce refus, au lieu d'une collecte qui rassure.
+    for indispensable in ("bin", "lib", "tessdata", "chaine"):
+        if not (MOTEURS / indispensable).exists():
+            raise SystemExit(
+                f"moteurs/{indispensable} absent : le paquet n'est pas complet, et une collecte "
+                "sur un paquet incomplet compte moins de textes qu'il n'en faut.\n"
+                "Lancer preparer-moteurs.py puis preparer-moteur-node.py, dans cet ordre."
+            )
+
     epingles = json.loads(EPINGLES.read_text(encoding="utf-8")) if EPINGLES.exists() else {}
     attendues: dict[str, str] = {
         nom: valeur["empreinte_sha256"] for nom, valeur in epingles.get("amont", {}).items()

@@ -400,8 +400,12 @@ def telecharger(url: str, empreinte_attendue: str, vers: pathlib.Path) -> pathli
     return vers
 
 
-def embarquer_siegfried() -> str:
-    """Télécharge Siegfried et son fichier de signatures PRONOM dans moteurs/."""
+def embarquer_siegfried(triplet: str | None = None) -> str:
+    """Télécharge Siegfried et son fichier de signatures PRONOM dans moteurs/.
+
+    Avec un triplet, pose aussi le binaire annexe que Tauri cherche pour l'embarquer dans le
+    paquet — même convention que pour Tesseract. Sans lui (appel direct, autotest), le binaire
+    simple suffit."""
     import tempfile
     import zipfile
 
@@ -435,6 +439,18 @@ def embarquer_siegfried() -> str:
     )
     if controle.returncode != 0:
         raise SystemExit(f"Siegfried embarqué ne démarre pas :\n{controle.stderr.strip()}")
+
+    if triplet is not None:
+        # Tauri cherche un binaire annexe suffixé par la cible de compilation, et refuse
+        # d'empaqueter sans lui. Le même geste que pour Tesseract, pour la même raison.
+        annexe = (MOTEURS / "bin" / binaire).with_name(
+            f"{pathlib.Path(binaire).stem}-{triplet}{pathlib.Path(binaire).suffix}"
+        )
+        shutil.copy(MOTEURS / "bin" / binaire, annexe)
+        annexe.chmod(0o755)
+        if cle == "darwin":
+            signer(annexe)
+
     return controle.stdout.splitlines()[0]
 
 
@@ -470,7 +486,7 @@ def main(argv: list[str]) -> int:
 
     modeles(langues, source)
 
-    siegfried = embarquer_siegfried()
+    siegfried = embarquer_siegfried(triplet)
 
     controle = subprocess.run(
         [str(cible), "--version"],
@@ -486,22 +502,15 @@ def main(argv: list[str]) -> int:
         # qui ne se chargerait pas ailleurs vaut moins que rien, il rassure.
         verifier_hermetique()
 
-    # Les licences se collectent ICI, et non « plus tard » : un paquet préparé sans elles est un
-    # paquet qu'on ne peut pas distribuer, et rien ne le dirait au moment de la distribution.
-    licences = subprocess.run(
-        [sys.executable, "-I", str(pathlib.Path(__file__).parent / "collecter-licences.py")],
-        capture_output=True,
-        text=True,
-    )
-    if licences.returncode != 0:
-        raise SystemExit(f"la collecte des licences a échoué :\n{licences.stdout}{licences.stderr}")
-
+    # La collecte des licences ne se fait PAS ici. Elle a d'abord été branchée à cette place, et
+    # c'était faux : ce script tourne EN PREMIER, avant que preparer-moteur-node.py ne pose la
+    # chaîne, donc la collecte n'aurait pas vu les neuf textes que la chaîne porte. Elle est au
+    # bout du second script, là où le paquet est complet.
     print(controle.stdout.splitlines()[0])
     print(f"{nombre} bibliothèques embarquées, langues : {', '.join(langues)}")
     print(f"binaire annexe : {sidecar.name}")
     print(siegfried)
-    print(licences.stdout.splitlines()[0])
-    for sous in ("bin", "lib", "tessdata", "licences"):
+    for sous in ("bin", "lib", "tessdata"):
         octets = sum(f.stat().st_size for f in (MOTEURS / sous).rglob("*") if f.is_file())
         print(f"  {sous:<9} {octets / 1_000_000:7.2f} Mo")
     return 0
