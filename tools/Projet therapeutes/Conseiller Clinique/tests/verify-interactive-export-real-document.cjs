@@ -181,13 +181,14 @@ function findBlock(doc, id) {
     await realPage.locator('#cc-ws-present-start button').click();
     await realPage.waitForFunction(() => document.querySelector('.adoc-sc-card'));
     await realPage.evaluate(() => document.fonts.ready);
-    await realPage.evaluate(() => {
-      while (window._adocPresentState.revealIndex != null &&
-        window._adocPresentState.revealIndex < window._adocPresentState.revealTotal - 1) {
-        window.adocPresentNext();
-      }
-    });
-    await realPage.waitForTimeout(260);
+    // Un geste par transition : appeler adocPresentNext plusieurs fois dans la même micro-tâche
+    // faisait légitimement ignorer les clics suivants pendant les 220 ms d'animation, rendant le
+    // test intermittent sans rien révéler du produit.
+    while (await realPage.evaluate(() => window._adocPresentState.revealIndex != null &&
+      window._adocPresentState.revealIndex < window._adocPresentState.revealTotal - 1)) {
+      await realPage.evaluate(() => window.adocPresentNext());
+      await realPage.waitForTimeout(260);
+    }
     const realLayout = await realPage.evaluate(() => {
       const card = document.querySelector('.adoc-sc-card');
       const title = document.querySelector('.adoc-sc-card-title');

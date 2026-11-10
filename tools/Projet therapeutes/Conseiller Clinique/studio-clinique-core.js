@@ -20820,6 +20820,126 @@ ${recent}`;
     return ouverture;
   };
 
+  // AUTONOMIE TYPOGRAPHIQUE — le bouton d'export demande explicitement l'embarquement. Les
+  // appels techniques/tests qui ne passent pas cette option gardent le chemin historique sans
+  // réseau. Chaque feuille Google Fonts est remplacée par du CSS inline, puis chaque WOFF/WOFF2
+  // par une URL data:. En cas d'échec partiel, le lien distant correspondant est conservé et le
+  // rapport le signale : jamais une prétendue autonomie obtenue en supprimant silencieusement la
+  // police demandée.
+  async function adocEmbedExportFonts(doc, art) {
+    const original = adocExportFontsWithTitles(doc, null, false);
+    const hote = document.createElement('div');
+    hote.innerHTML = original;
+    const hrefs = Array.from(new Set(Array.from(hote.querySelectorAll('link[rel="stylesheet"][href]'))
+      .map(function (link) { return link.href; })));
+    const styles = [], liensRepli = [], echecs = [];
+    async function fetchLimite(url, ms) {
+      const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(function () { ctrl.abort(); }, ms) : null;
+      try { return await fetch(url, ctrl ? { signal: ctrl.signal } : {}); }
+      finally { if (timer) clearTimeout(timer); }
+    }
+    async function reponseDataUrl(response, url) {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (!bytes.length || bytes.length > 4 * 1024 * 1024) throw new Error('fichier de police vide ou trop volumineux');
+      const morceaux = [];
+      for (let i = 0; i < bytes.length; i += 32766) morceaux.push(String.fromCharCode.apply(null, bytes.subarray(i, i + 32766)));
+      const mime = (response.headers.get('Content-Type') || (/\.woff2(?:$|\?)/i.test(url) ? 'font/woff2' : 'font/woff')).split(';')[0];
+      return 'data:' + mime + ';base64,' + btoa(morceaux.join(''));
+    }
+    let fichiers = 0;
+    for (const href of hrefs) {
+      try {
+        const cssResponse = await fetchLimite(href, 8000);
+        if (!cssResponse.ok) throw new Error('feuille HTTP ' + cssResponse.status);
+        let css = await cssResponse.text();
+        const urls = Array.from(new Set(Array.from(css.matchAll(/url\((['"]?)(https:\/\/[^)'"\s]+)\1\)/g)).map(function (m) { return m[2]; })));
+        for (const url of urls) {
+          const fontResponse = await fetchLimite(url, 12000);
+          if (!fontResponse.ok) throw new Error('police HTTP ' + fontResponse.status);
+          const dataUrl = await reponseDataUrl(fontResponse, url);
+          css = css.split(url).join(dataUrl);
+          fichiers++;
+        }
+        styles.push('<style data-adoc-fonts-offline="true">' + css.replace(/<\/style/gi, '<\\/style') + '</style>');
+      } catch (e) {
+        echecs.push({ href: href, cause: e && e.message || 'échec inconnu' });
+        liensRepli.push('<link rel="stylesheet" href="' + adocEsc(href) + '">');
+      }
+    }
+    // Une charte peut porter son propre fichier TTF/OTF, conservé comme asset. Le mécanisme PDF
+    // sait déjà le récupérer et le transformer en @font-face data: ; on le réutilise ici, jamais
+    // une seconde implémentation de stockage. Une police seulement installée sur le Mac n'a, elle,
+    // aucun octet exportable : elle est signalée comme échec honnête.
+    const brandId = art && (art._adocBrandKitId || (art._adocRenderManifestOverride &&
+      art._adocRenderManifestOverride.brandKitRef && art._adocRenderManifestOverride.brandKitRef.id));
+    if (brandId) {
+      let kit = (window._adocBrandKits || []).find(function (k) { return k.id === brandId; });
+      if (!kit) {
+        try {
+          const response = await fetch(adocGetWorkerUrl() + '/brand-kits/' + encodeURIComponent(brandId),
+            { headers: { 'X-API-Key': adocGetApiKey() } });
+          if (response.ok) kit = await response.json();
+        } catch (_) {}
+      }
+      if (kit && !adocIsDefaultBrandKitId(kit.id)) {
+        for (const entry of adocBrandKitFontRoleEntries(kit)) {
+          const embedded = await adocPdfBrandFontResource(art, entry.name);
+          if (embedded) { styles.push(embedded); fichiers++; }
+          else if (!hrefs.some(function (href) { return href.toLowerCase().includes(encodeURIComponent(entry.name).replace(/%20/g, '+').toLowerCase()); })) {
+            echecs.push({ href: entry.name, cause: 'aucun fichier de police exportable' });
+          }
+        }
+      }
+    }
+    return { html: styles.join('') + liensRepli.join(''), rapport: {
+      feuilles: hrefs.length, embarquees: styles.length, fichiers: fichiers, echecs: echecs
+    } };
+  }
+
+  // AVERTISSEMENT DE DENSITÉ — mesure le rendu réel, connecté au DOM, dans le même canevas fixe
+  // 1422×800 et avec le même moteur que la présentation. Aucun seuil textuel approximatif : seule
+  // une carte dont scrollHeight dépasse effectivement clientHeight est signalée.
+  async function adocMesurerDensitePresentation(doc) {
+    const cartesLive = Array.from(document.querySelectorAll('#cc-ws-doc-card .adoc-sc-presentation-slide .adoc-sc-card'));
+    if (cartesLive.length === (doc.blocks || []).length) {
+      if (document.fonts && document.fonts.ready) await document.fonts.ready.catch(function () {});
+      return cartesLive.map(function (carte, i) {
+        const depassement = Math.max(0, carte.scrollHeight - carte.clientHeight);
+        const card = doc.blocks[i];
+        return depassement > ADOC_PRESENT_REPERE_MARGE
+          ? { index: i + 1, titre: card.content && card.content.title || 'Sans titre', pixels: depassement }
+          : null;
+      }).filter(Boolean);
+    }
+    const inner = document.createElement('div');
+    inner.className = 'cc-ws-present-slide-inner';
+    inner.style.cssText = 'position:fixed;left:-20000px;top:0;width:' + ADOC_PRESENT_REF_W + 'px;height:' + ADOC_PRESENT_REF_H + 'px;visibility:hidden;pointer-events:none;';
+    document.body.appendChild(inner);
+    const denses = [];
+    try {
+      for (let i = 0; i < (doc.blocks || []).length; i++) {
+        const card = doc.blocks[i];
+        // Rendu synchrone volontaire : la vérification précède l'export et ne doit déclencher ni
+        // recherche d'image ni consommation de quota. La mesure avertit sur la DENSITÉ éditoriale
+        // certaine ; une image distante non encore résolue n'est pas artificiellement agrandie,
+        // ce qui créerait des faux positifs dépendant d'un ratio d'image encore inconnu.
+        inner.innerHTML = adocPresentRenderSlideHTML(card, i, doc.blocks.length);
+        adocPresentApplyReveal(inner, card, true);
+        const images = Array.from(inner.querySelectorAll('img'));
+        await Promise.race([
+          Promise.all(images.map(function (img) { return img.decode ? img.decode().catch(function () {}) : Promise.resolve(); })),
+          new Promise(function (resolve) { setTimeout(resolve, 1500); })
+        ]);
+        if (document.fonts && document.fonts.ready) await document.fonts.ready.catch(function () {});
+        const carte = inner.querySelector('.adoc-sc-card');
+        const depassement = carte ? Math.max(0, carte.scrollHeight - carte.clientHeight) : 0;
+        if (depassement > ADOC_PRESENT_REPERE_MARGE) denses.push({ index: i + 1, titre: card.content && card.content.title || 'Sans titre', pixels: depassement });
+      }
+    } finally { inner.remove(); }
+    return denses;
+  }
+
   // opts.embedImages === false : construit sans embarquer, pour les tests qui n'éprouvent que la
   // coquille et n'ont aucune image à télécharger.
   async function adocBuildStandalonePresentationHTML(doc, opts) {
@@ -20834,6 +20954,11 @@ ${recent}`;
       }
     }
     window._adocLastExportImageReport = embarquement.rapport;
+    const polices = opts && opts.embedFonts ? await adocEmbedExportFonts(doc, opts.art || null) : {
+      html: adocExportFontsWithTitles(doc, null, false),
+      rapport: { feuilles: 0, embarquees: 0, fichiers: 0, echecs: [] }
+    };
+    window._adocLastExportFontReport = polices.rapport;
     const engineFnRefs = {
       adocEsc: adocEsc, adocGetWorkerUrl: adocGetWorkerUrl, adocGetApiKey: adocGetApiKey,
       _adocWarnMissingApiKey: _adocWarnMissingApiKey, adocResolveImages: adocResolveImages,
@@ -21024,7 +21149,7 @@ ${recent}`;
     const accentCSS = accentExport ? ':root{--adoc-presentation-accent:' + String(accentExport).replace(/[^#\w(),.% -]/g, '') + ';}' : '';
     const css = ADOC_PRESENT_ROOT_VARS_CSS + accentCSS + ADOC_DOC_CONTENT_CSS + ADOC_PRESENT_ENGINE_CSS + 'body{margin:0;background:#14211f;}' + adocBlockSurfaceCSSRules(doc);
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
-      adocExportFontsWithTitles(doc, null, false) + '<title>' + adocEsc(doc.title) + ' — Présentation</title>' +
+      polices.html + '<title>' + adocEsc(doc.title) + ' — Présentation</title>' +
       '<style>' + css + '</style></head><body>' +
       '<div id="cc-ws-present-overlay" hidden role="dialog" aria-modal="true" aria-label="Mode présentation plein écran">' +
         '<div class="cc-ws-present-slide-wrap">' +
@@ -21361,6 +21486,8 @@ ${recent}`;
   window.adocExportFetchGenerated = adocExportFetchGenerated;
 
   window.adocBuildStandalonePresentationHTML = adocBuildStandalonePresentationHTML;
+  window.adocEmbedExportFonts = adocEmbedExportFonts;
+  window.adocMesurerDensitePresentation = adocMesurerDensitePresentation;
 
   // Point d'accès — visible UNIQUEMENT pour documentKind==='presentation' du moteur structuré
   // (jamais legacy, jamais Carrousel — même garde-fou EXACT que le bouton "Présenter", cf.
@@ -21440,6 +21567,29 @@ ${recent}`;
     const btn = document.getElementById('cc-ws-export-standalone-presentation-btn');
     const libelleInitial = btn ? btn.textContent : null;
     if (btn) { btn.disabled = true; btn.textContent = 'Préparation de l\'export…'; }
+    // Mesure AVANT tout téléchargement d'image ou de police : l'utilisatrice peut encore annuler
+    // sans avoir attendu ni consommé de quota. Un débordement n'est pas une erreur — la carte sait
+    // défiler — mais il doit être choisi en connaissance de cause.
+    try {
+      if (btn) btn.textContent = 'Vérification de la densité…';
+      const denses = await adocMesurerDensitePresentation(doc);
+      if (denses.length) {
+        const liste = denses.slice(0, 6).map(function (d) { return d.index + ' — ' + d.titre; }).join('\n');
+        const suite = denses.length > 6 ? '\n… et ' + (denses.length - 6) + ' autre' + (denses.length - 6 > 1 ? 's' : '') + '.' : '';
+        const continuer = confirm(denses.length + ' diapositive' + (denses.length > 1 ? 's dépassent' : ' dépasse')
+          + ' le canevas et nécessiteront un défilement interne :\n\n' + liste + suite
+          + '\n\nContinuer l\'export avec ce défilement ?');
+        if (!continuer) {
+          if (btn) { btn.disabled = false; if (libelleInitial !== null) btn.textContent = libelleInitial; }
+          return;
+        }
+      }
+    } catch (e) {
+      // Une mesure impossible ne prive jamais du fichier : le repère de défilement dans l'export
+      // reste le second filet de sécurité, déjà éprouvé.
+      console.warn('[export] mesure de densité impossible :', e && e.message);
+    }
+    if (btn) btn.textContent = 'Préparation de l\'export…';
     // Le compte des images est PUR et local (aucun appel) : il peut donc être annoncé avant de
     // lancer quoi que ce soit, ce qui est tout l'intérêt — dire l'attente et la contrainte de quota
     // pendant qu'il est encore temps de renoncer.
@@ -21457,6 +21607,8 @@ ${recent}`;
       // perdre : c'est la même image qu'on retente, pas une autre.
       let rangCourant = 0, totalCourant = 0;
       const html = await adocBuildStandalonePresentationHTML(doc, {
+        embedFonts: true,
+        art: art,
         accentPresentation: adocPresentAccentColor(),
         surProgression: function (e) {
           if (!btn || !e) return;
@@ -21479,6 +21631,17 @@ ${recent}`;
       try {
         const bilan = adocExportImageRapportMessage(window._adocLastExportImageReport);
         if (bilan) adocAddMsg('assistant', bilan, []);
+        const rapportPolices = window._adocLastExportFontReport;
+        if (rapportPolices && (rapportPolices.feuilles || rapportPolices.fichiers ||
+          (rapportPolices.echecs && rapportPolices.echecs.length))) {
+          if (rapportPolices.echecs && rapportPolices.echecs.length) {
+            adocAddMsg('assistant', 'Attention : ' + rapportPolices.echecs.length + ' police'
+              + (rapportPolices.echecs.length > 1 ? 's n’ont' : ' n’a')
+              + ' pas pu être embarquée hors ligne. Le fichier utilisera Internet pour ce repli.', []);
+          } else {
+            adocAddMsg('assistant', 'Polices embarquées dans le fichier : la présentation conserve sa typographie hors ligne.', []);
+          }
+        }
       } catch (e) { console.warn('[export] bilan des images non affiché :', e && e.message); }
     } catch (e) {
       console.warn('[export] échec de l\'export autonome :', e && e.message);
