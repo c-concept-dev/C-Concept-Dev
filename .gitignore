@@ -177,6 +177,12 @@ Worker/presentation_attachment.pptx
 tools/EvidenceForge/.env.local
 tools/EvidenceForge/.env.local.*
 
+# EvidenceForge : les miettes du Finder, elles. La règle générale « .DS_Store » (ligne 26) est
+# ANNULÉE sous ce chemin par la négation ci-dessus : sans cette ligne, un .DS_Store recréé par le
+# Finder y reparaît aussitôt comme fichier non suivi ET non ignoré. Six d'entre eux y étaient
+# même versionnés.
+tools/EvidenceForge/**/.DS_Store
+
 # ── Sorties des tests à VRAI appel au modèle ──────────────────────────────────
 # Ce dépôt est PUBLIC. Une génération réelle reprend des extraits de la
 # bibliothèque personnelle de Christophe (RAG) : le document produit et les
