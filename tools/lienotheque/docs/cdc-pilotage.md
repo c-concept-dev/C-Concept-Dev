@@ -209,7 +209,7 @@ Les **étapes** (0 à 10) sont la feuille de route ; les **lots** de `docs/file-
 
 **Attention** : « étape 0 » (application autonome) et « lot 0b » (Tesseract sur les coureurs) ne désignent pas la même chose. Le lot **0a** (garde-fou des fichiers fantômes) est **fait** et doit être marqué comme tel dans la file.
 
-### Étape 0 — Application autonome *(cinq cases sur six : il reste le regard de Christophe)*
+### Étape 0 — Application autonome *(**finie** le 10 novembre 2026)*
 
 Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/opt/homebrew` (neuf renvois : leptonica, libtiff, libarchive) : chez un testeur sans Homebrew, la reconnaissance ne se serait pas chargée. Le paquet en service n'en charge plus aucune.
 
@@ -219,7 +219,7 @@ Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/
 - [x] l'application est refabriquée, réinstallée, et `DYLD_PRINT_LIBRARIES` prouve que rien ne sort du paquet (`28baedaf`) ;
 - [x] les textes de licence sont embarqués dans l'application (17 composants, 30 textes, `0b6cc977`) ; application refabriquée et installée dans `/Applications` ;
 - [x] l'archive des moteurs est publiée (release `lienotheque-moteurs-macos-arm64-2026-11-09`, `sha256 373005d5…`, 112 Mo, retéléchargée et vérifiée depuis son adresse publique), son empreinte épinglée dans `fixtures/moteurs-de-lecture.json`, et la CI macOS lit avec **le même programme** que l'application (course 42705053655 verte : 33 contrôles réveillés, 0 rouge) ;
-- [ ] vérification à l'écran par Christophe : la nouvelle application s'ouvre, lit, et **affiche les images des pages d'un document traité par elle** (niveau 3).
+- [x] vérification à l'écran par Christophe, le 10 novembre 2026 (niveau 3), ses mots : « **tout est bon**. Elle s'ouvre, la bibliothèque musicale aussi, Bass Aerobics affiche ses pages et ses liens comme le 5 novembre. »
 
 ### Étape 1 — Fin d'A2 : le repli Vision branché
 
