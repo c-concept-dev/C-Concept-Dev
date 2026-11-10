@@ -23,6 +23,7 @@ for (const family of ['Montserrat', 'Pompiere']) {
 }
 
 for (const cssClass of [
+  'adoc-sc-card-title',
   'adoc-sc-paragraph',
   'adoc-sc-callout',
   'adoc-sc-callout-info',
@@ -38,5 +39,11 @@ for (const cssClass of [
     `le CSS partagé de l’export doit conserver .${cssClass}`
   );
 }
+
+assert.match(
+  source,
+  /\.cc-ws-present-slide-inner \.adoc-sc-card-title\{[^}]*margin:0 0 10px[^}]*display:inline-block[^}]*\}/,
+  'le titre de carte exporté doit neutraliser les marges natives du h2 comme dans Studio Clinique'
+);
 
 console.log('OK — contrat de fidélité visuelle de l’export interactif');

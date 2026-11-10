@@ -19080,6 +19080,12 @@ ${recent}`;
     '.cc-ws-present-slide-inner::after{content:"↓";position:absolute;left:0;right:0;bottom:0;height:54px;display:none;align-items:flex-end;justify-content:center;padding-bottom:6px;font-size:20px;line-height:1;color:#e8f5f1;background:linear-gradient(to bottom,rgba(20,33,31,0) 0%,rgba(20,33,31,.5) 65%,rgba(20,33,31,.76) 100%);pointer-events:none;border-radius:0 0 12px 12px;}' +
     '.cc-ws-present-slide-inner.cc-ws-present-suite::after{display:flex;}' +
     '.cc-ws-present-slide-inner .adoc-sc-doc{height:100%;background:#fffdf9;}' +
+    // Le titre de carte est un <h2>. Sans cette règle dans l'export autonome, la feuille de style
+    // native du navigateur lui rend ses marges de titre (44 px en haut ET en bas dans Safari pour
+    // le document réel), alors que l'espace de travail impose depuis toujours 0 0 10 px et
+    // inline-block. Cette seule divergence ajoutait 78 px au contenu d'une diapositive de 800 px
+    // et poussait les derniers paragraphes sous la ligne de flottaison malgré le canevas fixe.
+    '.cc-ws-present-slide-inner .adoc-sc-card-title{color:var(--adoc-sc-heading-color,var(--petrol-950));font-family:var(--adoc-sc-heading-font,"Source Serif 4",Georgia,serif);margin:0 0 10px;font-size:1.1rem;display:inline-block;}' +
     '.cc-ws-present-slide-inner .adoc-sc-card{width:100%;height:100%;max-width:none;box-sizing:border-box;overflow:auto;}' +
     '.cc-ws-present-slide-inner.cc-ws-present-out{opacity:0;}' +
     // `visibility` en plus de l'opacité : un bloc non encore révélé était RETIRÉ DU CLIC
@@ -19538,6 +19544,15 @@ ${recent}`;
     if (!carte) { if (inner) inner.classList.remove('cc-ws-present-suite'); return; }
     carte.addEventListener('scroll', adocPresentMajRepereDefilement, { passive: true });
     adocPresentMajRepereDefilement();
+    // Les polices web modifient parfois les métriques APRÈS le premier calcul. Sur le document
+    // réel, Safari posait ainsi la flèche avec la police de repli, puis Pompiere/Montserrat
+    // réduisaient la carte à sa hauteur exacte sans jamais retirer l'indicateur devenu faux.
+    // Recalculer à fonts.ready ne change pas la géométrie : il aligne seulement le signal sur la
+    // hauteur finale. isConnected empêche une ancienne diapositive remplacée entre-temps de
+    // repeindre l'état de la nouvelle.
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () {
+      if (carte.isConnected) adocPresentMajRepereDefilement();
+    });
   }
   // ── AMORCES DE LECTURE (onboarding) ───────────────────────────────────────────────────────────
   // Deux phrases, chacune posée là où son sujet se VOIT, et qui s'effacent au premier geste qu'elles

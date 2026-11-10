@@ -5,9 +5,14 @@ const { chromium } = require('playwright');
 const { lireExport } = require('./lire-export-html.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
-const SOURCE = "/Users/christophebonnet/Downloads/L'HISTOIRE DU COUPLE - UNE HISTOIRE VIEILLE DE 300.000 ANS-interactive-2.html";
+const SOURCE = process.env.STUDIO_REAL_EXPORT_SOURCE || [
+  "/Users/christophebonnet/Downloads/KIT-TRANSFERT-TRAME-STUDIO-CLINIQUE-2026-11-10/reference/L'HISTOIRE DU COUPLE - UNE HISTOIRE VIEILLE DE 300.000 ANS-interactive-3.html",
+  "/Users/christophebonnet/Downloads/L'HISTOIRE DU COUPLE - UNE HISTOIRE VIEILLE DE 300.000 ANS-interactive-2.html",
+].find(candidate => fs.existsSync(candidate));
 const OUTPUT = '/tmp/studio-clinique-export-fidelite.html';
 const SCREENSHOT = '/tmp/studio-clinique-export-fidelite.png';
+const REAL_OUTPUT = '/tmp/studio-clinique-export-document-reel.html';
+const REAL_SCREENSHOT = '/tmp/studio-clinique-export-document-reel.png';
 
 function findBlock(doc, id) {
   for (const card of doc.blocks || []) {
@@ -114,6 +119,15 @@ function findBlock(doc, id) {
       };
     });
 
+    const titleStyle = await page.evaluate(() => {
+      const element = document.querySelector('.adoc-sc-card-title');
+      const style = getComputedStyle(element);
+      return { display: style.display, margin: style.margin, fontFamily: style.fontFamily };
+    });
+    assert.equal(titleStyle.display, 'inline-block');
+    assert.equal(titleStyle.margin, '0px 0px 10px');
+    assert.match(titleStyle.fontFamily, /Pompiere/i);
+
     assert.match(styles.heading.fontFamily, /Montserrat/i);
     assert.equal(styles.heading.fontSize, '26.6667px');
     assert.equal(styles.heading.fontWeight, '700');
@@ -133,18 +147,81 @@ function findBlock(doc, id) {
       const wrap = document.querySelector('.cc-ws-present-slide-wrap').getBoundingClientRect();
       const viewport = document.querySelector('.cc-ws-present-slide-viewport').getBoundingClientRect();
       const card = document.querySelector('.cc-ws-present-slide-inner .adoc-sc-card').getBoundingClientRect();
-      return { wrap, viewport, card };
+      const cardElement = document.querySelector('.cc-ws-present-slide-inner .adoc-sc-card');
+      const inner = document.getElementById('cc-ws-present-slide-inner');
+      return { wrap, viewport, card, remaining: cardElement.scrollHeight - cardElement.clientHeight,
+        overflowIndicator: inner.classList.contains('cc-ws-present-suite') };
     });
     assert.ok(framing.viewport.left >= framing.wrap.left && framing.viewport.right <= framing.wrap.right,
       `la diapositive doit tenir entre les flèches : ${JSON.stringify(framing)}`);
     assert.ok(framing.card.left >= framing.wrap.left && framing.card.right <= framing.wrap.right,
       `aucun bord de carte ne doit être rogné : ${JSON.stringify(framing)}`);
+    assert.equal(framing.overflowIndicator, framing.remaining > 2,
+      `le repère de défilement doit refléter la géométrie finale après chargement des polices : ${JSON.stringify(framing)}`);
     assert.deepEqual(errors, []);
 
     await page.screenshot({ path: SCREENSHOT, fullPage: true });
     console.log(`OK — export réel fidèle : ${OUTPUT}`);
     console.log(`     capture navigateur : ${SCREENSHOT}`);
     await page.close();
+
+    // Le contrôle ci-dessus concentre plusieurs styles difficiles dans une seule carte. Celui-ci
+    // ouvre EN PLUS le document fourni intact, avec ses vraies images embarquées, puis déroule
+    // réellement le montage de sa première diapositive. C'est la régression exacte observée dans
+    // Safari : le dernier paragraphe ne doit plus passer sous une fausse marge native de <h2>.
+    let realHtml = await studio.evaluate(value => window.adocBuildStandalonePresentationHTML(value,
+      { embedImages: false }), sourceDoc);
+    realHtml = realHtml.replace('window.ADOC_EXPORT_IMAGES = {};',
+      'window.ADOC_EXPORT_IMAGES = ' + JSON.stringify(sourceExport.images) + ';');
+    fs.writeFileSync(REAL_OUTPUT, realHtml, 'utf8');
+    const realPage = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+    const realErrors = [];
+    realPage.on('pageerror', error => realErrors.push(error.message));
+    await realPage.goto('file://' + REAL_OUTPUT);
+    await realPage.locator('#cc-ws-present-start button').click();
+    await realPage.waitForFunction(() => document.querySelector('.adoc-sc-card'));
+    await realPage.evaluate(() => document.fonts.ready);
+    await realPage.evaluate(() => {
+      while (window._adocPresentState.revealIndex != null &&
+        window._adocPresentState.revealIndex < window._adocPresentState.revealTotal - 1) {
+        window.adocPresentNext();
+      }
+    });
+    await realPage.waitForTimeout(260);
+    const realLayout = await realPage.evaluate(() => {
+      const card = document.querySelector('.adoc-sc-card');
+      const title = document.querySelector('.adoc-sc-card-title');
+      const titleStyle = getComputedStyle(title);
+      const ids = ['image-62', 'heading-01', 'paragraph-02', 'paragraph-61'];
+      const visible = ids.map(id => {
+        const element = document.getElementById(id);
+        const style = element && getComputedStyle(element);
+        return { id, present: !!element, visibility: style && style.visibility,
+          opacity: style && style.opacity };
+      });
+      return {
+        titleMargin: titleStyle.margin,
+        titleDisplay: titleStyle.display,
+        remaining: card.scrollHeight - card.clientHeight,
+        visible,
+        overflowIndicator: document.getElementById('cc-ws-present-slide-inner')
+          .classList.contains('cc-ws-present-suite'),
+      };
+    });
+    assert.equal(realLayout.titleMargin, '0px 0px 10px');
+    assert.equal(realLayout.titleDisplay, 'inline-block');
+    assert.equal(realLayout.visible.every(item => item.present && item.visibility !== 'hidden' &&
+      Number(item.opacity) > 0), true,
+    `les quatre blocs réels doivent être révélés : ${JSON.stringify(realLayout.visible)}`);
+    assert.ok(realLayout.remaining <= 2,
+      `la première diapositive réelle doit tenir sans défilement : ${JSON.stringify(realLayout)}`);
+    assert.equal(realLayout.overflowIndicator, false,
+      `aucun faux repère de défilement après document.fonts.ready : ${JSON.stringify(realLayout)}`);
+    assert.deepEqual(realErrors, []);
+    await realPage.screenshot({ path: REAL_SCREENSHOT, fullPage: true });
+    console.log(`OK — document fourni sans redistribution verticale : ${REAL_OUTPUT}`);
+    console.log(`     capture du document fourni : ${REAL_SCREENSHOT}`);
+    await realPage.close();
     await studio.close();
   } finally {
     await browser.close();

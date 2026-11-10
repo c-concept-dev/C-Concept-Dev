@@ -97,7 +97,7 @@ const doc = (kind, style) => ({documentKind:kind, title:'Titre du document', lan
     } else {
       assert.equal(digest(outputs.pdfPlain),'5e2515cc7c5e88a237d55c43e8e49bae3813b0f23e1dba437f2ee9fc3fdd55fa',
         'PDF sans police de titre changé');
-      assert.equal(digest(outputs.interactivePlain),'5a4d3f412d1cabe27a49587f577b5f0b939e15a1414f4e73a1405f639b96e907',
+      assert.equal(digest(outputs.interactivePlain),'d8e456cb71cf345481cb069564760934fab57cf3aac26858e0b08f56ab98def9',
         'présentation interactive sans police de titre changée');
     }
     if (!process.env.LOT_G_BASELINE) for (const kind of ['pdf','interactive','jpeg'])
