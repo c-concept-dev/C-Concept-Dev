@@ -82,9 +82,9 @@ const doc = (kind, style) => ({documentKind:kind, title:'Titre du document', lan
       const plainHash = digest(outputs[kind].plain);
       if (process.env.LOT_G_BASELINE) console.log('BASELINE',kind,plainHash);
       else assert.equal(plainHash, {
-        presentation:'2165d6ba087545a734b90d4cdbcb056b84b5f3d28774cc132925d2440ebf653a',
-        carrousel:'4b6caa6d98c0b12ae776d2757388c5498498b0b540f0ac2004f2747746cb08c6',
-        fiche:'6bb1e5953382c70b5ca9db769e8ba5f3bd3a3ae53ba59395e410b583588b98b1'
+        presentation:'af846cf5f63109c1db8b317548ba3c5c61ce7a24641e5543444134d4e895dff8',
+        carrousel:'ac04574a5acd6255f1208b7898a4bdbffc98d42f90d48f70fdec958f661806cd',
+        fiche:'79d5be5fbf189e0251ab53337ab20730e9c9600c13760d6055d70ff02bf3f088'
       }[kind], kind + ' : HTML sans police de titre changé');
       if (!process.env.LOT_G_BASELINE) {
         assert.ok(/family=Crimson\+Pro/.test(outputs[kind].styled), kind + ' : lien de police absent');
@@ -95,9 +95,9 @@ const doc = (kind, style) => ({documentKind:kind, title:'Titre du document', lan
       console.log('BASELINE pdfPlain',digest(outputs.pdfPlain));
       console.log('BASELINE interactivePlain',digest(outputs.interactivePlain));
     } else {
-      assert.equal(digest(outputs.pdfPlain),'4c527594d1f8390c6d2b3b4c296763e3070144717af68eeb37cb366707bc248e',
+      assert.equal(digest(outputs.pdfPlain),'5e2515cc7c5e88a237d55c43e8e49bae3813b0f23e1dba437f2ee9fc3fdd55fa',
         'PDF sans police de titre changé');
-      assert.equal(digest(outputs.interactivePlain),'b8f6a6c9a65d8386e804d1fbbf1b2b75d74219e29201da6fa9ee3e29ec64ad5b',
+      assert.equal(digest(outputs.interactivePlain),'5a4d3f412d1cabe27a49587f577b5f0b939e15a1414f4e73a1405f639b96e907',
         'présentation interactive sans police de titre changée');
     }
     if (!process.env.LOT_G_BASELINE) for (const kind of ['pdf','interactive','jpeg'])

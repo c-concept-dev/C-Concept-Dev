@@ -11954,6 +11954,14 @@ ${recent}`;
 
   function adocEditorExportFonts(doc, tokens) {
     const names = new Set(), pairs = new Set();
+    // Polices libres réellement proposées par Studio Clinique en dehors des anciennes
+    // paires typographiques. Sans ces liens, leur nom survivait dans le JSON exporté,
+    // mais le navigateur substituait silencieusement une police système : métriques,
+    // retours à la ligne et tailles perçues différaient alors de l'éditeur.
+    const standaloneWebFonts = {
+      'Montserrat': 'https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap',
+      'Pompiere': 'https://fonts.googleapis.com/css2?family=Pompiere&display=swap'
+    };
     if (tokens && tokens.typography) {
       ['headingFontFamily', 'bodyFontFamily'].forEach(function(role) {
         const stack = tokens.typography[role];
@@ -11966,7 +11974,14 @@ ${recent}`;
       if(b.editor && b.editor.html) Object.values(b.editor.html).forEach(function(html){ const el=document.createElement('div');el.innerHTML=adocEditorCleanHTML(html);el.querySelectorAll('[style]').forEach(function(n){if(n.style.fontFamily)names.add(n.style.fontFamily.replace(/^['"]|['"]$/g,''));}); });
       if(b.content && b.content.blocks)walk(b.content.blocks);
     }); } walk(doc.blocks);
-    return ADOC_LEGACY_FONT_PAIRS.filter(function(p){return p.googleFontsHref && (pairs.has(p.id)||names.has(p.bodyFont)||names.has(p.headingFont));}).map(adocGoogleFontLinkTag).join('');
+    const links = ADOC_LEGACY_FONT_PAIRS.filter(function(p){return p.googleFontsHref && (pairs.has(p.id)||names.has(p.bodyFont)||names.has(p.headingFont));}).map(adocGoogleFontLinkTag);
+    names.forEach(function(name) {
+      const href = standaloneWebFonts[name];
+      if (href && !links.some(function(link) { return link.indexOf(href) !== -1; })) {
+        links.push('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="' + href + '" rel="stylesheet">');
+      }
+    });
+    return links.join('');
   }
 
   function adocExportFontsWithTitles(doc, tokens, titleOnly) {
@@ -14675,21 +14690,39 @@ ${recent}`;
   const ADOC_DOC_CONTENT_CSS =
     '[data-cc-editor-leaf]{white-space:pre-wrap}.adoc-sc-table-el{font:inherit;color:inherit}.adoc-sc-table[style*="color:"] th{color:inherit}' +
     'body{max-width:760px;margin:40px auto;padding:0 20px;background:#fffdf9;}' +
-    '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
-    '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
+    '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,"IBM Plex Sans",sans-serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:var(--adoc-sc-line-height,1.65);font-size:15px;}' +
+    '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);margin:1.3em 0 .5em;line-height:1.2;}' +
+    '.adoc-sc-heading:first-child{margin-top:0;}' +
+    '.adoc-sc-paragraph{margin:0 0 1em;}' +
+    '.adoc-sc-callout{padding:12px 16px;border-radius:8px;margin:1em 0;border-left:4px solid;font-size:14px;}' +
+    '.adoc-sc-callout-info{background:var(--adoc-sc-callout-info-bg,var(--petrol-100));border-color:var(--adoc-sc-callout-info-border,var(--petrol-800));}' +
+    '.adoc-sc-callout-warning{background:var(--adoc-sc-callout-warning-bg,var(--terracotta-100));border-color:var(--adoc-sc-callout-warning-border,var(--terracotta-700));}' +
+    '.adoc-sc-callout-critical{background:#fdeaea;border-color:#c0392b;}' +
+    '.adoc-sc-callout-success{background:#e8f5e9;border-color:#2e7d32;}' +
+    '.adoc-sc-list,.adoc-sc-table{margin:0 0 1em;}' +
+    '.adoc-sc-image,.adoc-sc-video{margin:0 0 1em;}' +
+    '.adoc-sc-video-caption{font-size:12px;color:var(--muted);margin-top:4px;}' +
+    '.adoc-sc-video-caption a{color:inherit;}' +
+    '.adoc-sc-video-warning{font-size:11px;color:var(--terracotta-700);margin-top:2px;}' +
+    '.adoc-sc-list-el{margin:0;padding-left:1.4em;}' +
+    '.adoc-sc-list-el li{margin-bottom:.3em;}' +
     '.adoc-sc-carrousel{display:flex;gap:16px;overflow-x:auto;}' +
     '.adoc-sc-card{flex:0 0 320px;border:1px solid var(--adoc-sc-card-border,#c9c3b8);background:var(--adoc-sc-card-bg,#fff);border-radius:12px;padding:18px;}' +
-    '.adoc-sc-table-el{border-collapse:collapse;width:100%;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;}' +
+    '.adoc-sc-table-el{border-collapse:collapse;width:100%;font-size:13px;}.adoc-sc-table-el th,.adoc-sc-table-el td{border:1px solid var(--adoc-sc-table-border,#c9c3b8);padding:6px 10px;text-align:left;}' +
     '.adoc-sc-table-el th{background:var(--adoc-sc-table-header-bg,#dce8e6);color:var(--adoc-sc-table-header-color,#102f31);}' +
-    '.adoc-sc-cite{color:var(--adoc-sc-cite-color,#8a3f29);font-size:0.7em;}' +
+    '.adoc-sc-cite-note{font-size:11px;color:var(--muted,#5d6966);margin-top:4px;}' +
+    '.adoc-sc-cite{color:var(--adoc-sc-cite-color,#8a3f29);font-size:0.7em;margin-left:2px;}' +
     '.adoc-sc-cite a{color:inherit;text-decoration:underline;cursor:pointer;}' +
+    '.adoc-sc-cite-flagged{text-decoration:underline wavy #c0392b;text-underline-offset:2px;}' +
+    '.adoc-sc-needs-review{outline:2px dashed #c0392b;outline-offset:3px;border-radius:4px;}' +
     '.adoc-sc-citations{margin-top:1.6em;padding-top:1em;border-top:1px solid var(--adoc-sc-table-border,#c9c3b8);font-size:13px;}' +
     '.adoc-sc-citations-title{font-size:14px;margin:0 0 0.6em;color:var(--adoc-sc-heading-color,#102f31);}' +
     '.adoc-sc-citations-list{margin:0;padding-left:1.4em;}' +
     '.adoc-sc-citations-list li{margin-bottom:0.5em;scroll-margin-top:16px;}' +
     '.adoc-sc-citation-excerpt{color:#5d6966;font-style:italic;}' +
     '.adoc-cite-score{margin-left:4px;opacity:0.6;}' +
-    '.adoc-sc-quote{border-left:3px solid var(--adoc-sc-quote-border,#8a3f29);color:var(--adoc-sc-quote-color,#173f42);padding-left:12px;font-style:italic;}' +
+    '.adoc-sc-cite-source-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.02em;background:var(--petrol-100,#dce8e6);color:var(--petrol-800,#1f5c60);vertical-align:middle;}' +
+    '.adoc-sc-quote{border-left:3px solid var(--adoc-sc-quote-border,#8a3f29);color:var(--adoc-sc-quote-color,#173f42);padding-left:12px;font-style:italic;margin:1em 0;}' +
     '.adoc-sc-cover{position:relative;margin:-1px -1px 1.4em;border-radius:10px 10px 0 0;overflow:hidden;min-height:220px;display:flex;align-items:flex-end;background-size:cover;background-position:center;color:#fff;}' +
     '.adoc-sc-cover::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,47,49,0.35),rgba(16,47,49,0.88));}' +
     '.adoc-sc-cover-has-display::before{z-index:1;pointer-events:none;}.adoc-sc-cover-has-display .adoc-sc-cover-content{z-index:2;}.adoc-sc-cover-image-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}' +
@@ -19017,8 +19050,12 @@ ${recent}`;
     '#cc-ws-present-start button{margin-top:10px;font:inherit;font-size:clamp(15px,1.5vw,22px);padding:.7em 1.8em;border-radius:999px;border:1px solid rgba(246,242,234,.35);background:rgba(246,242,234,.08);color:inherit;cursor:pointer;}' +
     '#cc-ws-present-start button:hover{background:rgba(246,242,234,.16);}' +
     '.cc-ws-present-slide-wrap{overflow:hidden;}' +
-    '.cc-ws-present-slide-outer{width:1422px;height:800px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;overflow:hidden;' +
-      'transform:scale(var(--adoc-present-echelle,1));transform-origin:center center;}' +
+    // `transform` réduit visuellement la diapositive, mais ne réduit pas sa place dans un flex.
+    // Une enveloppe ayant l'empreinte RÉELLEMENT mise à l'échelle évite donc que les boutons de
+    // navigation poussent la référence 1422 px hors de l'écran et rognent son bord gauche.
+    '.cc-ws-present-slide-viewport{position:relative;flex:0 0 auto;width:var(--adoc-present-largeur,1422px);height:var(--adoc-present-hauteur,800px);}' +
+    '.cc-ws-present-slide-outer{position:absolute;left:50%;top:50%;width:1422px;height:800px;display:flex;align-items:center;justify-content:center;overflow:hidden;' +
+      'transform:translate(-50%,-50%) scale(var(--adoc-present-echelle,1));transform-origin:center center;}' +
     // Le sommaire est ancré en bas à droite : il doit grandir DEPUIS ce coin, sinon il sort de
     // l'écran. Mesuré avant ce lot : 300 px de large et 16 px de texte, identiques en 4K.
     // `--adoc-present-echelle-agrandir` et non le facteur brut : ces deux éléments sont FLUIDES
@@ -19987,9 +20024,19 @@ ${recent}`;
       const cs = getComputedStyle(wrap);
       w = wrap.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
       h = wrap.clientHeight - parseFloat(cs.paddingTop || 0) - parseFloat(cs.paddingBottom || 0);
+      // Les deux flèches et les espaces entre les trois enfants occupent eux aussi la ligne.
+      // Les ignorer calculait une diapositive correcte en théorie, mais trop large en pratique.
+      const navs = Array.from(wrap.querySelectorAll('.cc-ws-present-nav')).filter(function (nav) {
+        return getComputedStyle(nav).display !== 'none';
+      });
+      const gap = parseFloat(cs.columnGap || cs.gap || 0) || 0;
+      w -= navs.reduce(function (total, nav) { return total + nav.offsetWidth; }, 0);
+      w -= gap * Math.max(0, wrap.children.length - 1);
     }
     const e = adocPresentCalculerEchelle(w, h);
     overlay.style.setProperty('--adoc-present-echelle', e);
+    overlay.style.setProperty('--adoc-present-largeur', (ADOC_PRESENT_REF_W * e) + 'px');
+    overlay.style.setProperty('--adoc-present-hauteur', (ADOC_PRESENT_REF_H * e) + 'px');
     // Variante qui n'agrandit JAMAIS vers le bas — cf. la règle du sommaire et de la porte.
     overlay.style.setProperty('--adoc-present-echelle-agrandir', Math.max(1, e));
     return e;
@@ -20962,12 +21009,12 @@ ${recent}`;
     const accentCSS = accentExport ? ':root{--adoc-presentation-accent:' + String(accentExport).replace(/[^#\w(),.% -]/g, '') + ';}' : '';
     const css = ADOC_PRESENT_ROOT_VARS_CSS + accentCSS + ADOC_DOC_CONTENT_CSS + ADOC_PRESENT_ENGINE_CSS + 'body{margin:0;background:#14211f;}' + adocBlockSurfaceCSSRules(doc);
     return '<!DOCTYPE html><html lang="' + adocEsc(doc.language || 'fr') + '"><head><meta charset="UTF-8">' +
-      adocExportFontsWithTitles(doc, null, true) + '<title>' + adocEsc(doc.title) + ' — Présentation</title>' +
+      adocExportFontsWithTitles(doc, null, false) + '<title>' + adocEsc(doc.title) + ' — Présentation</title>' +
       '<style>' + css + '</style></head><body>' +
       '<div id="cc-ws-present-overlay" hidden role="dialog" aria-modal="true" aria-label="Mode présentation plein écran">' +
         '<div class="cc-ws-present-slide-wrap">' +
           '<button type="button" class="cc-ws-present-nav cc-ws-present-prev" id="cc-ws-present-prev" aria-label="Diapositive précédente" onclick="window.adocPresentPrev()">‹</button>' +
-          '<div class="cc-ws-present-slide-outer"><div class="cc-ws-present-slide-inner" id="cc-ws-present-slide-inner"></div></div>' +
+          '<div class="cc-ws-present-slide-viewport"><div class="cc-ws-present-slide-outer"><div class="cc-ws-present-slide-inner" id="cc-ws-present-slide-inner"></div></div></div>' +
           '<button type="button" class="cc-ws-present-nav cc-ws-present-next" id="cc-ws-present-next" aria-label="Diapositive suivante" onclick="window.adocPresentNext()">›</button>' +
         '</div>' +
         '<div class="cc-ws-present-toolbar">' +
