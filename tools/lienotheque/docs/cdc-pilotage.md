@@ -1,8 +1,8 @@
 # Liénothèque — Cahier des charges de pilotage
 
-**Version 25.4 — 9 novembre 2026**
+**Version 25.6 — 9 novembre 2026**
 Rédigé à partir des sessions du 3 au 9 novembre 2026 (Christophe, Claude, Claude Desktop).
-La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs). La 25.4 met à jour l'étape 0 (licences faites, vérification à l'écran ajoutée), lève D2, D18 et D19, redéfinit D7 et ajoute D21 (Siegfried).
+La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs). La 25.4 met à jour l'étape 0 (licences faites, vérification à l'écran ajoutée), lève D2, D18 et D19, redéfinit D7 et ajoute D21 (Siegfried). La 25.5 suit l'embarquement de Siegfried, la nouvelle archive des moteurs et le retrait de la copie de bisect. La 25.6 coche la publication de l'archive et la CI macOS lisant avec le même programme (D1 levée), et ajoute D23 (score sur peu d'apparitions).
 
 ---
 
@@ -209,7 +209,7 @@ Les **étapes** (0 à 10) sont la feuille de route ; les **lots** de `docs/file-
 
 **Attention** : « étape 0 » (application autonome) et « lot 0b » (Tesseract sur les coureurs) ne désignent pas la même chose. Le lot **0a** (garde-fou des fichiers fantômes) est **fait** et doit être marqué comme tel dans la file.
 
-### Étape 0 — Application autonome *(en cours — quatre cases sur six)*
+### Étape 0 — Application autonome *(en cours — cinq cases sur six : il reste le regard de Christophe)*
 
 Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/opt/homebrew` (neuf renvois : leptonica, libtiff, libarchive) : chez un testeur sans Homebrew, la reconnaissance ne se serait pas chargée. Le paquet en service n'en charge plus aucune.
 
@@ -218,7 +218,7 @@ Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/
 - [x] un contrôle au dépôt vérifie `otool -L` sur **tous** les binaires embarqués (tesseract, node, sf) — `paquet-hermetique` (`28baedaf`, CI 42540275093 verte) ;
 - [x] l'application est refabriquée, réinstallée, et `DYLD_PRINT_LIBRARIES` prouve que rien ne sort du paquet (`28baedaf`) ;
 - [x] les textes de licence sont embarqués dans l'application (17 composants, 30 textes, `0b6cc977`) ; application refabriquée et installée dans `/Applications` ;
-- [ ] (sur le mot de Christophe) l'archive des moteurs (fabriquée et éprouvée, `sha256 024b1fca…`) est publiée en release, son empreinte épinglée dans `fixtures/moteurs-de-lecture.json`, et la CI macOS lit avec **le même programme** que l'application ;
+- [x] l'archive des moteurs est publiée (release `lienotheque-moteurs-macos-arm64-2026-11-09`, `sha256 373005d5…`, 112 Mo, retéléchargée et vérifiée depuis son adresse publique), son empreinte épinglée dans `fixtures/moteurs-de-lecture.json`, et la CI macOS lit avec **le même programme** que l'application (course 42705053655 verte : 33 contrôles réveillés, 0 rouge) ;
 - [ ] vérification à l'écran par Christophe : la nouvelle application s'ouvre et lit (niveau 3).
 
 ### Étape 1 — Fin d'A2 : le repli Vision branché
@@ -305,13 +305,13 @@ Chaque dette porte sa raison et l'étape où elle doit être levée. Aucune ne d
 
 | # | Dette | Levée prévue |
 |---|---|---|
-| D1 | Tesseract de la CI (Homebrew 5.5.4) ≠ celui de l'application (5.5.1) ; CI sans Tesseract en attendant | Étape 0 |
+| D1 | ~~Tesseract de la CI différent de celui de l'application~~ — **levée** le 9 novembre : la CI macOS lit avec l'archive publiée des moteurs de l'application | — |
 | D2 | ~~Textes de licence absents de l'application~~ — **levée** le 9 novembre (`0b6cc977`) | — |
 | D3 | Préséance des causes d'abstention non uniforme : `voie-oracle.ts` rend `aucun_repere_lu` sans demander si le vivier est borné (entrée 17) | avant l'étape 1 |
 | D4 | 82 seuils de jugement écrits en dur (34 géométriques, 12 de lecture, 34 de structure, 2 d'alphabet), dont `LIGNES_POUR_UNE_COLONNE = 4` (priorité haute) et les huit poids de l'associateur | au fil des étapes 3 à 7 |
 | D5 | Six seuils suspects d'être inversés par rapport à leur nom (`PENALITE_SAUT_CORROBORE`, `ACCORD_SUR`, `PRIME_DERNIERE`, `SEUIL_LISIBILITE`, `FEUILLES_A_DEUX_FOLIOS`, `PAGE_MAX`/`PAGE_MAXIMUM`) | à vérifier, étape 3 |
 | D6 | « Rangées fantômes » de `rangeesDeTable` | avec l'étape 3 |
-| D7 | Les marges publiées jusqu'ici sont **mal définies** : elles comparent la durée affichée par le rapporteur (qui inclut ce que le minuteur ne compte pas) au délai du contrôle ; trois contrôles de `outils/ingestion` « dépassent » ainsi leur délai et passent. Le garde-fou des marges doit mesurer **le corps du contrôle** et lire **le délai réel** de chacun (entrée 16) ; la barre de marge reste à fixer par Christophe | chantier séparé |
+| D7 | **Pressante** depuis que la CI macOS lit vraiment : quatre contrôles sous ×2 sur le coureur, le plus court à ×1,25 (« laisse passer un commit hors Liénothèque même SANS Node »), même si ces rapports restent mal définis. Les marges publiées jusqu'ici sont **mal définies** : elles comparent la durée affichée par le rapporteur (qui inclut ce que le minuteur ne compte pas) au délai du contrôle ; trois contrôles de `outils/ingestion` « dépassent » ainsi leur délai et passent. Le garde-fou des marges doit mesurer **le corps du contrôle** et lire **le délai réel** de chacun (entrée 16) ; la barre de marge reste à fixer par Christophe | chantier séparé |
 | D8 | Clé du cache de lecture fondée sur chemin + taille + date, et non sur le contenu | plus tard |
 | D9 | Épingle F3 (`critere-f3-orphelins-93-98`) : levée par la voie oracle + confirmation lien par lien | Étape 4 |
 | D10 | Épingle « Tesseract absent » : levée par le repli correct quand Tesseract manque | Étape 1 |
@@ -325,8 +325,9 @@ Chaque dette porte sa raison et l'étape où elle doit être levée. Aucune ne d
 | D18 | ~~Rang des deux CDC~~ — **levée** : v2.0 au rang 3 (`docs/cdc-normatif-v2.0.md`, `d8aac369` ; trois schémas devenus texte entre crochets à l'export), v24 au rang 4 | — |
 | D19 | ~~Réglages et crochet non versionnés~~ — **levée** le 9 novembre (`212bfe07`) : `.claude/` est versionné depuis le 7 novembre sur la branche de travail ; le garde-fou compare désormais aux octets du commit ; le crochet ne s'accuse plus des chemins commençant par un point. Son absence sur `main` relève de D17 | — |
 | D20 | ~~Décisions du 8 et du 9 novembre non écrites~~ — **levée** (`f49912a2`) ; celle du 8 novembre est une reformulation, pas un verbatim, et le dit | — |
-| D21 | Siegfried (`sf`) n'est pas embarqué dans l'application (`tauri.conf.json` ne déclare que `tesseract` et `node`), alors que le § 3.6 le nomme ; l'identification des formats retombe sur les signatures intégrées | étape 0 (embarquer `sf` hermétique avec sa licence) ou décision de Christophe |
-| D22 | Copie de bisect `C-Concept-Dev-bisect-f3` (4,3 Go, tête détachée) | ménage, sur le mot de Christophe |
+| D21 | Siegfried (`sf`) est **embarqué** (binaire annexe, signatures PRONOM en ressource, hermétique, licence et avis de modification) ; mais le programme livré ne semble pas l'appeler : à **prouver par l'exécution** (la chaîne invoque-t-elle `sf` sur un vrai fichier ?), et non par une recherche de texte | prochainement |
+| D23 | Le score d'un endroit candidat se calcule sur un échantillon d'apparitions et ne discrimine plus quand elles sont peu nombreuses : un endroit de huit apparitions (relecture complète 1,1,2,2,2,2,3,3) a battu la vraie marque. Risque de **faux lien** si le plancher est abaissé | avant le mode manuel (étapes 1 à 3) |
+| D22 | ~~Copie de bisect~~ — **retirée** le 9 novembre, après avoir sauvé huit bancs de mesure uniques (versés dans `outils/ingestion/mesures/`) ; l'inventaire des fichiers non suivis reste à faire sur les six autres copies du dépôt (D14) | — |
 
 ---
 
