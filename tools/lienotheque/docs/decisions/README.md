@@ -16,6 +16,8 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-10 | Le garde-fou des marges mesure le corps, et lit le délai (D7) | [2026-11-10-le-garde-fou-des-marges-mesure-le-corps.md](2026-11-10-le-garde-fou-des-marges-mesure-le-corps.md) |
+| 2026-11-10 | L'option de tranche borne aussi l'export des images (lot 0i) | [2026-11-10-la-tranche-borne-aussi-les-images.md](2026-11-10-la-tranche-borne-aussi-les-images.md) |
 | 2026-11-09 | Les licences embarquées : ce qu'elles obligent, et ce que nous faisons | [2026-11-09-licences-aucune-obligation-non-remplie.md](2026-11-09-licences-aucune-obligation-non-remplie.md) |
 | 2026-11-10 | L'étape 0 est finie : Christophe a vu l'application | [2026-11-10-etape-0-finie-verification-a-l-ecran.md](2026-11-10-etape-0-finie-verification-a-l-ecran.md) |
 | 2026-11-10 | Les chiffres d'un message de commit sont écrits par la commande | [2026-11-10-les-chiffres-d-un-message-sont-ecrits-par-la-commande.md](2026-11-10-les-chiffres-d-un-message-sont-ecrits-par-la-commande.md) |
