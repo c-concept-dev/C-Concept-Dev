@@ -22401,10 +22401,24 @@ ${recent}`;
   // pousse le contenu suivant, exactement comme avant item 64. Même geste sur les deux moteurs
   // (régression #6).
   function adocMountContextualBlockEditPanel(panel, anchorEl) {
+    function reserveSpaceAfterPositionedBlocks() {
+      if (!panel.isConnected || !anchorEl.isConnected || getComputedStyle(anchorEl).position !== 'absolute') return;
+      const parent = anchorEl.parentElement;
+      if (!parent || panel.parentElement !== parent) return;
+      panel.classList.add('cc-block-edit-panel--positioned-anchor');
+      panel.style.marginTop = '0px';
+      const maxBlockBottom = Array.prototype.reduce.call(parent.children, function (max, el) {
+        if (el === panel || !el.classList.contains('adoc-sc-block')) return max;
+        return Math.max(max, el.offsetTop + el.offsetHeight);
+      }, anchorEl.offsetTop + anchorEl.offsetHeight);
+      const naturalTop = panel.offsetTop;
+      panel.style.marginTop = Math.max(12, maxBlockBottom + 16 - naturalTop) + 'px';
+    }
     function revealBesideSelectedBlock() {
       if (!panel.isConnected || !anchorEl.isConnected) return;
       requestAnimationFrame(function () {
         if (!panel.isConnected || !anchorEl.isConnected) return;
+        reserveSpaceAfterPositionedBlocks();
         const selected = anchorEl.getBoundingClientRect();
         const controls = panel.getBoundingClientRect();
         // Le panneau reste dans le flux juste sous son bloc. S'il passe sous la fenêtre,

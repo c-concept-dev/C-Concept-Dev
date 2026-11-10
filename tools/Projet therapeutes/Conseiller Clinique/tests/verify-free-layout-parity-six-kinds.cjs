@@ -176,6 +176,25 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     await page.evaluate(id => document.getElementById(id).click(), left.insertedId);
     assert.equal(await page.locator('.cc-block-edit-panel').count(), 1,
       'presentation gauche : les options complètes ne s’ouvrent pas au clic suivant');
+    await page.waitForTimeout(80);
+    const panelPlacement = await page.evaluate(() => {
+      const panel = document.querySelector('.cc-block-edit-panel');
+      const parent = panel.parentElement;
+      const panelRect = panel.getBoundingClientRect();
+      const blockBottoms = Array.from(parent.children)
+        .filter(el => el !== panel && el.classList.contains('adoc-sc-block'))
+        .map(el => el.getBoundingClientRect().bottom);
+      return {
+        panelTop: panelRect.top,
+        maxBlockBottom: Math.max(...blockBottoms),
+        positionedClass: panel.classList.contains('cc-block-edit-panel--positioned-anchor'),
+      };
+    });
+    assert.equal(panelPlacement.positionedClass, true,
+      'presentation gauche : panneau non adapté à un bloc libre');
+    assert(panelPlacement.panelTop >= panelPlacement.maxBlockBottom - 1,
+      'presentation gauche : le panneau masque encore un bloc de la diapositive');
+    await page.screenshot({ path: '/tmp/studio-clinique-panneau-sous-bloc.png', fullPage: false });
     await page.getByRole('button', { name: 'Fermer le panneau de correction' }).click();
     await page.locator('#' + left.insertedId).hover();
     const leftMove = await page.locator('#' + left.insertedId + ' > .adoc-sc-free-move-handle').boundingBox();
