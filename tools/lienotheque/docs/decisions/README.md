@@ -16,6 +16,9 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-10 | La place du lot 14 bis, et la barre de marge directement à ×3 | [2026-11-10-la-place-du-lot-14-bis-et-la-barre-a-trois.md](2026-11-10-la-place-du-lot-14-bis-et-la-barre-a-trois.md) |
+| 2026-11-10 | Ce que Claude peut changer seul au cahier de pilotage | [2026-11-10-ce-que-claude-peut-changer-seul-au-cahier.md](2026-11-10-ce-que-claude-peut-changer-seul-au-cahier.md) |
+| 2026-11-10 | Les ressources de pdf.js suivent toute lecture (lot 0h, D24) | [2026-11-10-les-ressources-pdfjs-suivent-toute-lecture.md](2026-11-10-les-ressources-pdfjs-suivent-toute-lecture.md) |
 | 2026-11-10 | Une épingle ne nomme aucun contrôle disparu | [2026-11-10-une-epingle-ne-nomme-aucun-controle-disparu.md](2026-11-10-une-epingle-ne-nomme-aucun-controle-disparu.md) |
 | 2026-11-10 | Pourquoi une page vide coûte 240 ms, et ce qu'on en a fait (lot 16b) | [2026-11-10-pourquoi-une-page-vide-coute-240-ms.md](2026-11-10-pourquoi-une-page-vide-coute-240-ms.md) |
 | 2026-11-10 | Le garde-fou des marges mesure le corps, et lit le délai (D7) | [2026-11-10-le-garde-fou-des-marges-mesure-le-corps.md](2026-11-10-le-garde-fou-des-marges-mesure-le-corps.md) |

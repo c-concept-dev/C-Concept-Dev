@@ -1,9 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { dirname, resolve, sep } from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import { causeJpegFatalAvantDecodage, objetsPdf, octetsImage, pagesPdf } from "@lienotheque/formats";
 import { poserDOMMatrixSiAbsent } from "./dommatrix.js";
+import { ressourcesPdfJs } from "./ressources-pdfjs.js";
 
 /** Pixels RVBA d'une page entière, dans la même forme que les primitives d'image du projet. */
 export type PageRendue = {
@@ -27,26 +26,6 @@ export type RenduPdf = {
  *  sait pas ouvrir non plus. */
 export const structureMuette = (parLaStructure: number, parLeRendu: number): boolean =>
   parLaStructure === 0 && parLeRendu > 0;
-
-/** Ressources distribuées avec la même version de pdf.js que le moteur chargé.
- *
- * Sans ces adresses explicites, Node tente un import nommé `nullopenjpeg…` pour les images JPX
- * et rend une page blanche tout en considérant l'opération réussie. Partir de l'URL réellement
- * résolue du module garde ces chemins justes sous pnpm comme dans l'application empaquetée. */
-export function ressourcesPdfJs(): { readonly wasmUrl: string; readonly standardFontDataUrl: string } {
-  const embarquees = process.env["LIENOTHEQUE_PDFJS"];
-  if (embarquees !== undefined) {
-    return {
-      wasmUrl: `${resolve(embarquees, "wasm")}${sep}`,
-      standardFontDataUrl: `${resolve(embarquees, "standard_fonts")}${sep}`,
-    };
-  }
-  const modulePdfJs = createRequire(import.meta.url).resolve("pdfjs-dist/legacy/build/pdf.mjs");
-  return {
-    wasmUrl: `${resolve(dirname(modulePdfJs), "../../wasm")}${sep}`,
-    standardFontDataUrl: `${resolve(dirname(modulePdfJs), "../../standard_fonts")}${sep}`,
-  };
-}
 
 type PagePdf = {
   readonly getViewport: (options: { readonly scale: number }) => { readonly width: number; readonly height: number };

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { PageLue, TexteLu, type MotLu } from "@lienotheque/contrats";
 import { empreinteDe } from "@lienotheque/formats";
 import { poserDOMMatrixSiAbsent } from "./dommatrix.js";
+import { ressourcesPdfJs } from "./ressources-pdfjs.js";
 
 /** Couche texte d'un PDF natif, avec la position de chaque mot (OUT-05).
  *
@@ -32,7 +33,7 @@ export async function lireCoucheTexte(chemin: string): Promise<TexteLu> {
   // pdfjs le cherche de lui-même à côté de son propre module, et `preparer-moteur-node.py` le
   // pose là. Rien à faire ici : c'est l'absence de code qui est la correction.
   const donnees = new Uint8Array(await readFile(chemin));
-  const document = await pdfjs.getDocument({ data: donnees, useSystemFonts: false }).promise;
+  const document = await pdfjs.getDocument({ data: donnees, useSystemFonts: false, ...ressourcesPdfJs() }).promise;
 
   const pages: PageLue[] = [];
   for (let numero = 1; numero <= document.numPages; numero += 1) {
@@ -104,7 +105,7 @@ export async function metadonneesDuPdf(chemin: string): Promise<MetadonneesPdf> 
   poserDOMMatrixSiAbsent();
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const donnees = new Uint8Array(await readFile(chemin));
-  const document = await pdfjs.getDocument({ data: donnees, useSystemFonts: false }).promise;
+  const document = await pdfjs.getDocument({ data: donnees, useSystemFonts: false, ...ressourcesPdfJs() }).promise;
   try {
     const { info } = (await document.getMetadata()) as unknown as { info: Record<string, unknown> };
     const texte = (clef: string): string | undefined => {
