@@ -159,6 +159,25 @@ La dernière mesure de chaque contrôle gagne donc, et **non la plus courte** : 
 code, pas son pire souvenir. Trois mutations le tiennent, dont celle qui confondrait deux contrôles
 de même nom dans deux paquets différents.
 
+## La barre, et dans quel ordre — tranché le 10 novembre 2026
+
+Christophe a lu le tableau et ce que chaque barre arrête. Sa décision :
+
+> « Barre : reste `null` pour l'instant. D'abord le lot 16b (2,5 s pour lire deux fois un PDF de
+> cinq pages vides) : comprendre et réduire, sans toucher au délai. Ensuite barre ×2. Objectif ×3
+> après le lot 14 bis (lenteur des tests de lecture). »
+
+Trois temps, et chacun a sa raison :
+
+1. **`null` maintenant** — le garde-fou publie. Allumer le refus avant d'avoir corrigé le contrôle
+   le plus serré rendrait la course rouge le jour même, et un garde-fou qui bloque dès sa pose est
+   un garde-fou qu'on désarme.
+2. **le lot 16b d'abord** — on raccourcit le corps avant de poser le seuil, et **sans toucher au
+   délai** : c'est le § 8 du cahier, écrit dans l'ordre des gestes.
+3. **×2, puis ×3 après le lot 14 bis** — le ×3 est le chiffre que la mesure défend (×1,94 observé,
+   la moitié de marge au-dessus) ; le ×2 est ce que le dépôt peut tenir aujourd'hui. La cible ne
+   bouge pas, le palier existe pour que le garde-fou serve tout de suite.
+
 ## Ce qu'il ne fera jamais
 
 **Allonger un délai.** Une marge trop courte se corrige en rendant le corps plus court — ou en
