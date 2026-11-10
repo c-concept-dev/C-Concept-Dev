@@ -133,3 +133,42 @@ describe("ce que la chaîne transmet à la lecture est éprouvé par la porte", 
     ).toEqual([]);
   });
 });
+
+/** Un paquet n'a qu'une configuration de contrôles.
+ *
+ *  Mesuré le 10 novembre 2026, et cher : un `vitest.config.ts` ajouté à côté du `vite.config.ts`
+ *  d'`apps/app` a **masqué** celui-ci — vitest ne lit pas les deux, il prend le premier de sa
+ *  liste —, et l'application a perdu jsdom, son greffon React et ses greffons de données d'un
+ *  coup. **314 contrôles rouges, une seule cause.** Le contrôle complet a refusé le passage, donc
+ *  rien n'est passé ; mais c'était quatorze minutes pour une faute qu'un garde-fou nomme en une
+ *  seconde.
+ *
+ *  Ce garde-fou ne dit pas où la configuration doit vivre : il dit qu'il n'y en a qu'une. */
+describe("un paquet n'a qu'une configuration de contrôles", () => {
+  const NOMS = ["vitest.config.ts", "vite.config.ts", "vitest.config.mts", "vite.config.mts"];
+
+  /** Les paquets du dépôt : un dossier qui porte un `package.json`, sous l'une des trois zones. */
+  const paquets = ZONES.flatMap((zone) => {
+    const racineDeZone = join(RACINE, zone);
+    if (statSync(racineDeZone, { throwIfNoEntry: false })?.isDirectory() !== true) return [];
+    return readdirSync(racineDeZone)
+      .map((entree) => join(racineDeZone, entree))
+      .filter((chemin) => statSync(join(chemin, "package.json"), { throwIfNoEntry: false })?.isFile() === true);
+  });
+
+  it("n'en trouve aucun qui en porte deux", () => {
+    const doubles = paquets
+      .map((chemin) => ({
+        paquet: relative(RACINE, chemin).replaceAll("\\", "/"),
+        portees: NOMS.filter((nom) => statSync(join(chemin, nom), { throwIfNoEntry: false })?.isFile() === true),
+      }))
+      .filter(({ portees }) => portees.length > 1);
+    expect(doubles, "le second fichier masque le premier, sans rien dire").toEqual([]);
+  });
+
+  it("et il y a bien des paquets à regarder, sinon ce contrôle ne prouve rien", () => {
+    // Un relevé vide passerait toujours. Mesuré ailleurs dans ce dépôt : un contrôle qui ne
+    // trouve rien à juger est un contrôle vert qui ne prouve rien.
+    expect(paquets.length).toBeGreaterThan(10);
+  });
+});

@@ -6,7 +6,8 @@ import react from "@vitejs/plugin-react";
 import { feuilleCss } from "@lienotheque/jetons";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
-import { defineConfig } from "vitest/config";
+import { defineConfig, mergeConfig } from "vitest/config";
+import { configurationCommune } from "../../packages/banc/configuration-commune.ts";
 import { ID_JETONS, ID_MODELES } from "./src/jetons-virtuels.js";
 
 /** Dossier du kit UI v1.1 : polices WOFF2, emblèmes et fond photographique. */
@@ -142,13 +143,22 @@ function instantaneServi(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), jetonsCss(), modelesEmbarques(), instantaneServi()],
-  resolve: { alias: { "@kit": KIT } },
-  test: {
-    environment: "jsdom",
-    globals: false,
-    setupFiles: ["./test/configuration.ts"],
-    include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
-  },
-});
+/** La configuration des contrôles vit **ici**, et non dans un `vitest.config.ts` voisin.
+ *
+ *  Mesuré le 10 novembre 2026 : un `vitest.config.ts` ajouté à côté a **masqué** ce fichier —
+ *  vitest ne lit pas les deux — et l'application a perdu jsdom, son greffon React et ses greffons
+ *  de données d'un coup. 314 contrôles rouges, une seule cause, et le contrôle complet a refusé le
+ *  passage. Un paquet n'a qu'une configuration ; celui-ci l'a là. */
+export default mergeConfig(
+  configurationCommune,
+  defineConfig({
+    plugins: [react(), jetonsCss(), modelesEmbarques(), instantaneServi()],
+    resolve: { alias: { "@kit": KIT } },
+    test: {
+      environment: "jsdom",
+      globals: false,
+      setupFiles: ["./test/configuration.ts"],
+      include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
+    },
+  }),
+);

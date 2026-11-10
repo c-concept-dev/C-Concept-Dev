@@ -26,6 +26,8 @@ target/
 test-results/
 # Rapports du garde-fou des épingles : réécrits à chaque passage, un par paquet.
 .rapport-epingles.json
+# Relevés du garde-fou des marges : une ligne par corps de contrôle, un fichier par paquet.
+.rapport-marges.jsonl
 playwright-report/
 .cache/
 
