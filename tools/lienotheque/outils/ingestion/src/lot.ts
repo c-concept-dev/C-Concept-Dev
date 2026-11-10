@@ -320,6 +320,13 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     try {
       for (const page of (
         await exporterPages(lot.pdf, lot.images, {
+          // La tranche demandée borne les dérivés autant que la lecture (lot 0i, décision du
+          // 10 novembre 2026). Sans ces deux lignes, une charge qui demandait trois pages d'un
+          // document de cinq cents en faisait exporter cinq cents images et cinq cents
+          // vignettes — mesuré sur la chaîne du paquet installé, 7,8 Mo pour trois pages lues.
+          // Sans `pages`, rien n'est borné : un document traité en entier l'est toujours.
+          ...(lot.pages === undefined ? {} : { pages: lot.pages }),
+          ...(lot.depuis === undefined ? {} : { depuis: lot.depuis }),
           doublePage: lu.doublePage,
           // Les rotations que la lecture a décidées : l'image affichée et les positions des mots
           // doivent être dans le même repère, sans quoi un mot surligné tombe à côté.

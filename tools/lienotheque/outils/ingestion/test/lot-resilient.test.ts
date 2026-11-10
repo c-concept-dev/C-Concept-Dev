@@ -312,3 +312,52 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
     expect(journaux).toContain("JPEG incomplet ; rendu complet essayé");
   });
 });
+
+/** L'option « n'en lire que tant de pages » borne aussi les dérivés (lot 0i).
+ *
+ *  Mesuré le 10 novembre 2026 sur la chaîne du paquet installé : une charge qui demandait
+ *  **trois** pages d'un document de cinq cents en faisait exporter **cinq cents** images et
+ *  cinq cents vignettes, 7,8 Mo. `exporterPages` sait pourtant se borner — il porte `pages` et
+ *  `depuis` depuis l'origine, et ses propres contrôles le prouvent. C'est l'appel qui ne les lui
+ *  passait pas.
+ *
+ *  Décision de Christophe le 10 novembre : l'option borne AUSSI l'export des images et des
+ *  vignettes. Pour un document traité en entier — le cas de la bibliothèque —, rien ne change :
+ *  sans `pages`, rien n'est borné. */
+describe("l'option de tranche borne les dérivés autant que la lecture (lot 0i)", () => {
+  const charge = {
+    pdf: join(RACINE, "fixtures/fichiers/inexistant-mais-double.pdf"),
+    medias: RACINE,
+    description: DESCRIPTION,
+  };
+
+  /** Les options reçues par l'export au dernier appel. */
+  const optionsDeLExport = (): Record<string, unknown> => {
+    expect(doubles.exporterPages, "l'export doit avoir été appelé").toHaveBeenCalled();
+    const appel = doubles.exporterPages.mock.calls.at(-1);
+    return (appel?.[2] ?? {}) as Record<string, unknown>;
+  };
+
+  beforeEach(() => {
+    doubles.exporterPages.mockResolvedValue({ pages: [], refusees: [] });
+  });
+
+  it("transmet la borne à l'export : trois pages demandées, trois pages exportées", async () => {
+    await instantaneDeLot({ ...charge, images: RACINE, pages: 3 });
+    expect(optionsDeLExport()["pages"]).toBe(3);
+  });
+
+  it("transmet aussi le rang de la première, sans quoi la tranche exportée n'est pas celle lue", async () => {
+    await instantaneDeLot({ ...charge, images: RACINE, pages: 2, depuis: 7 });
+    expect(optionsDeLExport()["pages"]).toBe(2);
+    expect(optionsDeLExport()["depuis"]).toBe(7);
+  });
+
+  it("ne borne rien quand rien n'est demandé : un document traité en entier l'est toujours", async () => {
+    // La moitié qui compte pour la bibliothèque. Une borne par défaut amputerait les 250
+    // documents du jour au lendemain, et personne ne le verrait avant la recherche.
+    await instantaneDeLot({ ...charge, images: RACINE });
+    expect(optionsDeLExport()).not.toHaveProperty("pages");
+    expect(optionsDeLExport()).not.toHaveProperty("depuis");
+  });
+});
