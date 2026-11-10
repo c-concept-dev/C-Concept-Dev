@@ -128,10 +128,10 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 | Workflow | Déclenchement | Ce qu'il vérifie |
 |---|---|---|
 | `.github/workflows/lienotheque-ci.yml` | push sur `main` et sur `wip/**`, et pull request touchant `tools/lienotheque/**` ou le workflow | `pnpm check` sur Linux et macOS : typage strict et tests JavaScript et TypeScript (contrats, jetons, application, worker). **Pas de Rust.** Pour Tesseract, depuis le 9 novembre 2026 : le coureur **macOS déploie l'archive des moteurs** (empreinte épinglée dans `fixtures/moteurs-de-lecture.json`) et lit donc avec **le même programme que l'application** — voie 3 ; le coureur **Linux n'a pas Tesseract** et saute les contrôles qui lisent, en nommant leur raison |
-| `.github/workflows/lienotheque-tauri.yml` | à la main (`workflow_dispatch`), plus push et pull request touchant `apps/app/src-tauri/**` ou `fixtures/generer-locales.py` | macOS et Windows : fabrique les fixtures, embarque les moteurs, lance les **tests Rust du prototype** (les quatre critères du CDC), construit le paquet et publie sa taille et celle des moteurs dans le résumé d'exécution. **Le travail Windows est informatif, non bloquant** |
+| `.github/workflows/lienotheque-tauri.yml` | à la main (`workflow_dispatch`), plus push et pull request touchant `apps/app/src-tauri/**` ou `fixtures/generer-locales.py` | **macOS seulement**, un unique travail `mesurer` : fabrique les fixtures, embarque les moteurs, lance les **tests Rust du prototype** (les quatre critères du CDC), construit le paquet et publie sa taille et celle des moteurs dans le résumé d'exécution |
 
   Aucun des deux ne déploie quoi que ce soit. Les tests Rust ne sont donc **pas** dans `pnpm check` :
-  les installer sur les trois systèmes de `lienotheque-ci.yml` l'alourdirait pour rien, puisque
+  installer Rust sur les **deux** systèmes de `lienotheque-ci.yml` l'alourdirait pour rien, puisque
   `lienotheque-tauri.yml` les couvre là où ils ont un sens.
 
 ## Plateformes
@@ -139,7 +139,9 @@ Multiplateforme par conception : rien de propre à un seul système sans son éq
 **Phase 1** (tests et bêta) : macOS seul, référence macOS Tahoe 26.3 (25D125) Apple Silicon.
 **Windows est hors périmètre pour l'instant** — **suspendu, pas abandonné** (décision du
 5 novembre 2026, qui remplace celle du 17 octobre le rendant informatif et celle du 28 octobre
-« macOS puis Windows ») : `windows-latest` a quitté les deux matrices d'intégration continue. Le
+« macOS puis Windows ») : `windows-latest` a quitté les deux matrices d'intégration continue **sur
+cette branche** — `main` porte encore `windows-latest` dans `lienotheque-ci.yml`, et s'en accordera
+à la fusion, comme le crochet de pré-commit (dette D17). Le
 code et les scripts propres à Windows sont **conservés, inactifs, aucun retrait prévu**, et listés
 au registre — précisément parce que la question se reposera. Linux hors périmètre. Détail :
 `docs/decisions.md` (archive gelée) et `docs/decisions/` pour les décisions postérieures au
@@ -173,6 +175,6 @@ application web). Les tests du prototype bureau sont à part : voir `apps/app/sr
 | ~~`apps/app` : squelette React 19 + Vite + TypeScript strict~~ **fait** | Charge la feuille des jetons, polices Inter et Source Serif 4, bascule clair / hybride / sombre intégral |
 | ~~Page d'accueil statique~~ **fait** | Reproduit la composition des maquettes avec des données factices typées par les contrats ; Inter partout sauf logo et « Bonjour » ; contrôle clavier complet |
 | ~~`apps/worker` : squelette Hono~~ **fait** | Route de santé validée par `EtatService`, tests ; aucun déploiement |
-| ~~Intégration continue~~ **fait** | GitHub Actions `lienotheque-ci.yml` : `pnpm check` sur Linux, Mac et Windows |
+| ~~Intégration continue~~ **fait** | GitHub Actions `lienotheque-ci.yml` : `pnpm check` sur **Linux et macOS**. `windows-latest` a quitté la matrice le 5 novembre 2026 ; il y était quand cette case a été cochée, et la case reste vraie à sa date |
 | Empreintes des fixtures F1 à F4 | Calculées depuis les fichiers privés et inscrites dans `fixtures/README.md` |
 | ~~Composants React~~ **fait** | Portage des familles du kit UI v1.1 nécessaires à l'accueil (boutons, cartes, badges, progression, dépôt, recherche), même rendu et mêmes comportements clavier que le catalogue, styles uniquement via `--ln-*` |
