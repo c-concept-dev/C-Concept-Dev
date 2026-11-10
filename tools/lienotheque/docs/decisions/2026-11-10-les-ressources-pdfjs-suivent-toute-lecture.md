@@ -111,11 +111,38 @@ paquets installés, chacun lancé comme l'hôte le lance (`LIENOTHEQUE_PDFJS`, `
 
 C'est le seul niveau où la correction compte : la file lance `moteur.js`, pas les sources.
 
-### Une mesure que je ne peux plus rejouer ce soir, et il faut le dire
+### Correction du 10 novembre 2026, le soir même : ce n'était pas la bibliothèque
 
-Le volume `/Volumes/Macbook`, où vit la bibliothèque réelle, a été **démonté** entre la mesure des
-232 documents et cette vérification du produit ; `Carte Ext` est passée en lecture seule. La
-mesure des 232 reste valable — elle a été faite volume monté, et les deux documents sont nommés
-par leur empreinte, non par leur seul nom. Mais la lire *par le produit* attendra que le volume
-soit revenu. C'est pourquoi la preuve ci-dessus porte sur le document fabriqué, qui a l'avantage
-de n'avoir besoin d'aucun volume.
+**La mesure des 232 documents ne portait pas sur la bibliothèque.** Elle portait sur le dossier
+`Basse` d'un **second disque externe**, `/Volumes/Macbook` — un volume NTFS de 494 Go
+(`disk7s1`), distinct de `/Volumes/Macbook Pro` (APFS, 668 Go, `disk6s1`). Les deux étaient
+montés ; le premier a disparu en cours de session, et `/Volumes/` en garde encore la trace
+illisible, datée du 1er janvier 1970. Ce n'est donc **pas** un chemin coupé faute de guillemets,
+comme on pouvait le craindre : mes commandes étaient entre guillemets, et `diskutil list` nomme
+bien deux disques.
+
+Mais le reproche de fond est juste : **la bibliothèque est ailleurs**, sous
+`"/Volumes/Macbook Pro/Bibliotheque Musique"`, avec ses `sources`, sa `base` et ses `derives` —
+et elle était montée tout du long. J'ai nommé « la bibliothèque réelle » un tas de PDF qui n'en
+est pas.
+
+**Mesure refaite sur la vraie bibliothèque**, ses 249 documents lus en mémoire :
+
+| documents | qui réclament une police standard |
+|---|---|
+| **249** | **3** |
+
+| document (empreinte) | suites de caractères, 12 pages, sans / avec | avertissements |
+|---|---|---|
+| `554acaa7…` | **443 / 443** | 2 → **0** |
+| `9795e648…` | **166 / 166** | 3 → **0** |
+| `d394364b…` | **393 / 393** | 3 → **0** |
+
+Le chiffre juste est donc **3 sur 249**, et non 2 sur 232. La **conclusion ne change pas** — rien
+de ce qui est lu ne bouge, seuls les avertissements disparaissent — mais le chiffre et son objet,
+si. L'entrée 30 du registre des poussées porte l'ancien chiffre : ce journal est en ajout seul,
+et la correction vit ici.
+
+**Ce qui reste vrai** : la preuve par le produit porte sur un document fabriqué, qui n'a besoin
+d'aucun volume. Et ce que cette méprise enseigne tient en une ligne — **un chemin qui marche ne
+dit pas qu'on lit la bonne chose.**

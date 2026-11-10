@@ -14,11 +14,14 @@ import { lireCoucheTexte, metadonneesDuPdf } from "../src/index.js";
  *
  *  ## Ce que la correction change, mesuré, et ce qu'elle ne change pas
  *
- *  Sur **232 documents** de la bibliothèque réelle, **2** réclament une police standard —
- *  `aebersold-FRENCH.pdf` d'un dossier de cours (empreinte `588ef349…`, à ne pas confondre avec
- *  la fixture F1, qui porte le même nom et une autre empreinte) et un recueil de thèmes. Sur ces
- *  deux documents, douze pages comparées avec et sans les adresses : **957 et 443 suites de
- *  caractères, identiques à la décimale**, et **5 puis 2 avertissements qui disparaissent**.
+ *  Sur les **249 documents** de la bibliothèque — `"/Volumes/Macbook Pro/Bibliotheque Musique"` —,
+ *  **3** réclament une police standard : `554acaa7…`, `9795e648…` et `d394364b…`. Douze pages de
+ *  chacun, comparées avec et sans les adresses : **443/443, 166/166 et 393/393 suites de
+ *  caractères, identiques à la décimale**, et **2, 3 et 3 avertissements qui disparaissent**.
+ *
+ *  Un premier relevé annonçait « 2 sur 232 » : il portait sur le dossier `Basse` d'un **autre**
+ *  disque externe, pris pour la bibliothèque. Corrigé le soir même. Un chemin qui marche ne dit
+ *  pas qu'on lit la bonne chose.
  *
  *  Autrement dit : rien de ce qui est lu ne change, et c'est à dire. Ce que la dette coûtait est
  *  un journal qui crie au feu là où rien ne brûle — et un avertissement qu'on apprend à ignorer
