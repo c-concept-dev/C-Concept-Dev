@@ -109,6 +109,17 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
 - **Redéploiement du Worker autorisé sans demande** s'il reprend la configuration figée et les
   mêmes secrets ; toujours consigné dans le rapport. **Tout changement de configuration ou de
   secret est soumis avant.**
+- **Toute nouvelle session part de la branche de travail, jamais de `main`** (décision du
+  10 novembre 2026). `main` ne porte pas le travail en cours : une session partie de là écrit
+  contre un arbre où ce qu'elle doit corriger n'existe pas, et ses retouches aux documents partagés
+  — la file des lots, le journal des autorisations — entrent en conflit frontal. **À défaut de
+  pouvoir le garantir, le travail se fait dans la session principale**, celle qui tient la branche.
+  Trois chantiers ouverts en session séparée le 10 novembre l'ont tous été sur `main`, malgré une
+  consigne qui nommait la branche et son worktree : voir
+  [la décision](docs/decisions/2026-11-10-une-session-part-de-la-branche-de-travail.md).
+- **Deux sessions ne lancent jamais un contrôle complet en même temps** (§ 4.4 du cahier : un seul
+  à la fois). Avant d'en lancer un, vérifier qu'aucun `vitest` ne tourne — les mesures de deux
+  contrôles concurrents ne valent rien, ni les marges qu'on en tire.
 
 ## Emplacement : dépôt C-Concept-Dev (public)
 - Le projet vit dans `tools/lienotheque/` du dépôt `C-Concept-Dev`. **Lancez Claude Code et pnpm depuis
