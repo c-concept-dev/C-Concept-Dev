@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   accepteLesMarges,
+  dernieresMesures,
   jugerLesMarges,
   ligneDe,
   margeDe,
@@ -169,5 +170,33 @@ describe("ce que l'instrument retient d'une tâche", () => {
 
   it("s'arrête au fichier, qui n'est pas une suite : son nom est un chemin, pas un titre", () => {
     expect(nomComplet({ name: "seul", type: "test", suite: { name: "test/ici.test.ts", type: "file" } })).toBe("seul");
+  });
+});
+
+describe("un relevé qui porte deux fois le même contrôle", () => {
+  const relevees = [
+    mesure("stable", 5_000, 100),
+    { ...mesure("corrigé depuis", 5_000, 4_900), fichier: "test/ici.test.ts" },
+    { ...mesure("corrigé depuis", 5_000, 200), fichier: "test/ici.test.ts" },
+  ];
+
+  it("ne garde que la dernière mesure, et non la plus courte", () => {
+    // Mesuré le 10 novembre 2026 : 3 153 corps relevés pour 3 144 contrôles, parce qu'un passage
+    // lancé à la main dans un paquet laisse ses lignes derrière lui. La ligne ancienne décrit un
+    // code qui n'est plus là ; refuser un passage pour une marge périmée désarmerait le garde-fou.
+    expect(dernieresMesures(relevees).map((m) => m.corps)).toEqual([100, 200]);
+  });
+
+  it("et le jugement suit : la marge périmée ne refuse rien", () => {
+    const verdict = jugerLesMarges(relevees, AVEC_BARRE);
+    expect(verdict.serrees).toEqual([]);
+    expect(verdict.combienMesures).toBe(3);
+  });
+
+  it("distingue deux contrôles de même nom dans deux paquets différents", () => {
+    // Le nom seul ne suffit pas : deux paquets peuvent nommer leur contrôle pareil, et n'en
+    // garder qu'un ferait disparaître une marge de la table sans rien dire.
+    const ailleurs = { ...mesure("même nom", 5_000, 300), paquet: "@lienotheque/ailleurs" };
+    expect(dernieresMesures([mesure("même nom", 5_000, 100), ailleurs])).toHaveLength(2);
   });
 });

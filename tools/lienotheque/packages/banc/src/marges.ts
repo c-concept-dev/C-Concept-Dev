@@ -119,6 +119,24 @@ export type VerdictDesMarges = {
   readonly combienMesures: number;
 };
 
+/** La dernière mesure de chaque contrôle, dans l'ordre où le relevé les porte.
+ *
+ *  Le relevé s'**ajoute** à chaque corps, là où le rapport des épingles se réécrit : c'est ce qui
+ *  garde les mesures d'un ouvrier abandonné. Le prix est qu'un passage lancé à la main dans un
+ *  paquet laisse ses lignes derrière lui, et un contrôle y figure alors deux fois.
+ *
+ *  Mesuré le 10 novembre 2026, juste après la mise en place : **3 153 corps relevés pour 3 144
+ *  contrôles**. Deux lignes du même contrôle ne sont pas une erreur de mesure — les deux sont
+ *  vraies —, mais la plus ancienne décrit un code qui n'est plus là. Un garde-fou qui refuserait
+ *  un passage pour une marge **périmée** serait désarmé la semaine suivante.
+ *
+ *  La dernière gagne, et non la plus courte : on juge l'état du code, pas son pire souvenir. */
+export function dernieresMesures(mesures: readonly Mesure[]): readonly Mesure[] {
+  const parControle = new Map<string, Mesure>();
+  for (const mesure of mesures) parControle.set(`${mesure.paquet}\u0000${mesure.nom}`, mesure);
+  return [...parControle.values()];
+}
+
 /** La marge d'une mesure. Un corps trop bref pour être chronométré ne borne rien : sa marge est
  *  infinie, et c'est la vérité — pas une division par zéro à cacher. */
 export const margeDe = (mesure: Mesure): number =>
@@ -135,7 +153,7 @@ export function jugerLesMarges(
   combien = 10,
 ): VerdictDesMarges {
   const retenue = barre.barre ?? barre.proposee;
-  const classees = mesures
+  const classees = dernieresMesures(mesures)
     .map((mesure) => ({ ...mesure, marge: margeDe(mesure) }))
     .sort((a, b) => a.marge - b.marge);
   return {

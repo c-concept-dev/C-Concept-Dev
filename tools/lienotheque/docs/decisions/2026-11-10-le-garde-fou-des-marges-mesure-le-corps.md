@@ -142,6 +142,23 @@ la voie oracle, l'autre moitié de D7 — ait abouti. C'est précisément ce qu'
 de poser le chiffre, et c'est pourquoi le garde-fou publie d'abord. Un garde-fou qu'on allume sans
 savoir ce qu'il arrête est un garde-fou qu'on désarme la semaine suivante.
 
+## Un second défaut du garde-fou, trouvé en le relisant tourner
+
+Le relevé **s'ajoute** à chaque corps, là où le rapport des épingles se réécrit — c'est ce qui
+garde les mesures d'un ouvrier abandonné, et c'était voulu. Le prix ne l'était pas : un passage
+lancé à la main dans un paquet laisse ses lignes derrière lui. Juste après la mise en place,
+le relevé portait **3 153 corps pour 3 144 contrôles**.
+
+Deux lignes du même contrôle ne sont pas une erreur de mesure — les deux sont vraies. Mais la plus
+ancienne décrit un code qui n'est plus là, et **un garde-fou qui refuse un passage pour une marge
+périmée est un garde-fou qu'on désarme la semaine suivante**. C'est exactement le reproche que la
+liste des épingles se fait à elle-même, et pour lequel elle refuse une épingle dont le contrôle
+repasse.
+
+La dernière mesure de chaque contrôle gagne donc, et **non la plus courte** : on juge l'état du
+code, pas son pire souvenir. Trois mutations le tiennent, dont celle qui confondrait deux contrôles
+de même nom dans deux paquets différents.
+
 ## Ce qu'il ne fera jamais
 
 **Allonger un délai.** Une marge trop courte se corrige en rendant le corps plus court — ou en
