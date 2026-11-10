@@ -53,7 +53,7 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
           draft: /Rédiger ce paragraphe/.test(panel.textContent),
           rewrite: /Réécrire/.test(panel.textContent),
           reference: /Ajouter une référence/.test(panel.textContent),
-          insert: /Insérer un bloc après/.test(panel.textContent),
+          insert: /Insérer un bloc/.test(panel.textContent) && !!panel.querySelector('.cc-block-insert-position-menu select'),
         };
       });
       assert.deepEqual(textTools, { draft: true, rewrite: true, reference: true, insert: true }, kind);
@@ -62,7 +62,7 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
         const panel = document.querySelector('.cc-block-edit-panel');
         const text = panel?.textContent || '';
         return { id, draft: /Rédiger ce (bloc|paragraphe)/.test(text), rewrite: /Réécrire/.test(text),
-          sources: /Ajouter une référence/.test(text), insert: /Insérer un bloc après/.test(text),
+          sources: /Ajouter une référence/.test(text), insert: /Insérer un bloc/.test(text) && !!panel?.querySelector('.cc-block-insert-position-menu select'),
           style: !!panel?.querySelector('[data-block-style]') || /Texte et mise en forme/.test(text) };
       }), nested);
       for (const item of parity) assert.deepEqual(item,

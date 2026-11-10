@@ -11182,6 +11182,7 @@ ${recent}`;
     return '<div class="cc-block-style-controls cc-editor-tools" role="group" aria-label="' + adocEsc(ariaLabel || 'Position et taille de cette carte') + '">' +
       '<div class="cc-editor-row">' + number('x', 'X (px)') + number('y', 'Y (px)') + '</div>' +
       '<div class="cc-editor-row">' + number('width', 'Largeur (px)') + number('height', 'Hauteur (px)') + '</div>' +
+      '<button type="button" class="cc-clarity-other-btn" data-card-position-reset>Revenir à la disposition automatique</button>' +
     '</div>' + adocBlockSurfaceControlsHTML() + '<p class="cc-editor-message" role="status" aria-live="polite"></p>';
   }
   // ITEM 75 Phase 2 (intra-carte) — périmètre EXACT de nestedBlock (block.schema.json), vérifié
@@ -11191,7 +11192,10 @@ ${recent}`;
   // logique (régression #6) — seul le garde-fou de type change, tout le reste est déjà générique
   // (adocEditorContext()/adocFindEditableBlock résolvent déjà un id imbriqué comme un id de
   // premier niveau, vérifié par lecture de ces deux fonctions).
-  var ADOC_NESTED_POSITIONABLE_TYPES = ['heading', 'paragraph', 'callout', 'list', 'quote', 'image'];
+  // Une seule liste pour le positionnement libre, commune aux blocs de premier niveau et aux
+  // blocs de carte. Elle suit les types réellement rendus par adocRenderBlockHTML ; `card` reste
+  // volontairement exclu car les diapositives conservent leur ordre séquentiel.
+  var ADOC_NESTED_POSITIONABLE_TYPES = ['heading', 'paragraph', 'callout', 'list', 'table', 'quote', 'image', 'video', 'quiz', 'questionnaire'];
   // Valeurs initiales à l'ouverture — même garde-fou que adocEditorRefreshImageControls (LOT E) :
   // jamais un champ vide écrasé par du texte tapé en cours (document.activeElement), pour ne pas
   // interrompre la frappe pendant que le glissement au clavier des flèches met à jour le style en
@@ -11344,6 +11348,7 @@ ${recent}`;
   // adocCardPositionCSSText ci-dessus : mêmes 5 champs, même unité pixels).
   function adocApplyCardPositionToElement(el, style) {
     el.style.position = 'absolute';
+    el.style.boxSizing = 'border-box';
     if (style.x != null) el.style.left = Number(style.x) + 'px';
     if (style.y != null) el.style.top = Number(style.y) + 'px';
     if (style.width != null) el.style.width = Number(style.width) + 'px';
@@ -11368,19 +11373,26 @@ ${recent}`;
     // l'écran, jamais de zéro, pour ne jamais faire "sauter" la carte à la saisie du premier champ.
     const rect = ctx.el.getBoundingClientRect();
     const containerRect = ctx.el.parentElement.getBoundingClientRect();
+    // Le canevas Présentation est affiché par transform:scale. offset* / client* restent dans
+    // son référentiel 1422×800, contrairement à getBoundingClientRect qui renvoie les pixels
+    // réduits visibles. Les autres documents ont naturellement un facteur 1.
+    const containerWidth = isCard ? containerRect.width : ctx.el.parentElement.clientWidth;
+    const rootExtension = !isCard && ctx.el.parentElement.classList.contains('adoc-sc-doc') &&
+      !ctx.el.parentElement.classList.contains('adoc-sc-card') ? 800 : 0;
+    const containerHeight = isCard ? containerRect.height : ctx.el.parentElement.clientHeight + rootExtension;
     const current = ctx.block.style || {};
     const effective = {
-      x: current.x != null ? Number(current.x) : (rect.left - containerRect.left),
-      y: current.y != null ? Number(current.y) : (rect.top - containerRect.top),
-      width: current.width != null ? Number(current.width) : rect.width,
-      height: current.height != null ? Number(current.height) : rect.height,
+      x: current.x != null ? Number(current.x) : (isCard ? rect.left - containerRect.left : ctx.el.offsetLeft),
+      y: current.y != null ? Number(current.y) : (isCard ? rect.top - containerRect.top : ctx.el.offsetTop),
+      width: current.width != null ? Number(current.width) : (isCard ? rect.width : ctx.el.offsetWidth),
+      height: current.height != null ? Number(current.height) : (isCard ? rect.height : ctx.el.offsetHeight),
     };
     // ITEM 75 — nettoyage de la dette (Sujet 1) — capturé AVANT d'appliquer le champ édité :
     // sert de référence pour savoir si la carte était DÉJÀ chevauchante avant ce geste précis
     // (cf. juste plus bas, même principe que la branche glissement/redimensionnement à la souris).
     const beforeFieldEdit = Object.assign({}, effective);
     effective[field] = num;
-    const clamped = isCard ? adocClampCardStyleToCanvas(effective) : adocClampNestedStyleToContainer(effective, containerRect.width, containerRect.height);
+    const clamped = isCard ? adocClampCardStyleToCanvas(effective) : adocClampNestedStyleToContainer(effective, containerWidth, containerHeight);
     // ITEM 75 — nettoyage de la dette (Sujet 1) — garde-fou anti-chevauchement, CARTES SEULEMENT
     // (jamais pour un élément imbriqué, cf. commentaire d'en-tête de adocRectsOverlap). Une carte
     // DÉJÀ chevauchante avant ce champ précis (document existant antérieur à ce garde-fou, ou
@@ -11403,6 +11415,21 @@ ${recent}`;
     adocEditorSync(); adocEditorMarkDirty();
   }
   window.adocApplyCardPosition = adocApplyCardPosition;
+
+  function adocResetCardPosition() {
+    const ctx = adocEditorContext(); if (!ctx || ctx.legacy || !ctx.block) return;
+    const isCard = ctx.block.type === 'card';
+    if (!isCard && ADOC_NESTED_POSITIONABLE_TYPES.indexOf(ctx.block.type) === -1) return;
+    adocEditorCheckpoint();
+    const style = Object.assign({}, ctx.block.style || {});
+    ['x', 'y', 'width', 'height', 'zIndex'].forEach(function (field) { delete style[field]; });
+    if (Object.keys(style).length) ctx.block.style = style; else delete ctx.block.style;
+    const key = ctx.st.storeKey;
+    adocWsClearBlockSelection();
+    window.adocOpenWorkspace(key);
+    adocEditorMarkDirty();
+  }
+  window.adocResetCardPosition = adocResetCardPosition;
 
   // ═══════════════════════════════════════════════════════════════════════
   // ITEM 75 Phase 2 (intra-carte) — calques des éléments imbriqués d'une carte. `zIndex` (déjà
@@ -11436,6 +11463,10 @@ ${recent}`;
       return c.type === 'card' && (c.content.blocks || []).some(function (nb) { return nb.id === nestedBlockId; });
     }) || null;
   }
+  function adocPositionLayerBlocks(doc, blockId) {
+    const card = adocFindParentCardBlock(doc, blockId);
+    return card ? (card.content.blocks || []) : (doc && doc.blocks || []).filter(function (b) { return b.type !== 'card'; });
+  }
   // Échange la position de deux éléments dans l'ordre de calque puis réattribue des zIndex
   // entiers espacés (10/20/30…) à TOUS les éléments de la carte — jamais un ajustement partiel
   // qui laisserait certains éléments sans zIndex explicite pendant que d'autres en ont un (cf.
@@ -11443,8 +11474,7 @@ ${recent}`;
   // jamais faire "sauter" visuellement un élément resté sans valeur explicite). Mutation EN PLACE
   // des objets bloc (jamais une réaffectation de card.content.blocks[], son ORDRE reste le rendu
   // initial — seul le zIndex gouverne l'empilement, cf. en-tête de section).
-  function adocMoveLayer(cardBlock, blockId, direction) {
-    const list = cardBlock.content.blocks || [];
+  function adocMoveLayer(list, blockId, direction) {
     const sorted = adocNestedBlocksSortedByLayer(list);
     const idx = sorted.findIndex(function (b) { return b.id === blockId; });
     if (idx === -1) return;
@@ -11457,8 +11487,8 @@ ${recent}`;
   // d'un éditeur graphique) — inverse de adocNestedBlocksSortedByLayer (tri croissant). "Monter"
   // (bouton ↑, vers le premier plan) est désactivé sur la première ligne, "descendre" (↓, vers
   // l'arrière-plan) sur la dernière — jamais un bouton actif sans effet possible.
-  function adocBuildLayersPanelHTML(cardBlock, currentBlockId) {
-    const sorted = adocNestedBlocksSortedByLayer(cardBlock.content.blocks || []).slice().reverse();
+  function adocBuildLayersPanelHTML(blocks, currentBlockId) {
+    const sorted = adocNestedBlocksSortedByLayer(blocks || []).slice().reverse();
     const rows = sorted.map(function (b, i) {
       const label = adocEsc(adocBlockPreviewText(b)) || ('(' + adocEsc(b.type) + ')');
       const isCurrent = b.id === currentBlockId ? ' is-current' : '';
@@ -11468,7 +11498,7 @@ ${recent}`;
         '<button type="button" class="cc-block-layers-btn" data-layer-action="down" data-layer-block-id="' + adocEsc(b.id) + '" aria-label="Descendre d\'un cran (vers l\'arrière-plan)"' + (i === sorted.length - 1 ? ' disabled' : '') + '>&darr;</button>' +
       '</li>';
     }).join('');
-    return '<div class="cc-block-layers-panel" role="group" aria-label="Calques de cette carte"><p class="cc-block-layers-title">Calques</p><ul class="cc-block-layers-list">' + rows + '</ul></div>';
+    return '<div class="cc-block-layers-panel" role="group" aria-label="Calques du canevas"><p class="cc-block-layers-title">Calques</p><ul class="cc-block-layers-list">' + rows + '</ul></div>';
   }
   // Un seul écouteur délégué sur `panel` (jamais sur `.cc-block-layers-panel`, remplacé à chaque
   // reclassement — un écouteur posé dessus serait perdu à la première réorganisation). Réordonner
@@ -11486,17 +11516,17 @@ ${recent}`;
       if (!doc) return;
       if (btn) {
         const blockId = btn.getAttribute('data-layer-block-id');
-        const cardBlock = adocFindParentCardBlock(doc, blockId);
-        if (!cardBlock) return;
+        const layerBlocks = adocPositionLayerBlocks(doc, blockId);
+        if (!layerBlocks.length) return;
         adocEditorCheckpoint();
-        adocMoveLayer(cardBlock, blockId, btn.getAttribute('data-layer-action'));
-        (cardBlock.content.blocks || []).forEach(function (nb) {
+        adocMoveLayer(layerBlocks, blockId, btn.getAttribute('data-layer-action'));
+        layerBlocks.forEach(function (nb) {
           const nel = document.getElementById(nb.id);
           if (nel) adocApplyCardPositionToElement(nel, nb.style || {});
         });
         adocEditorSync(); adocEditorMarkDirty();
         const layersContainer = panel.querySelector('.cc-block-layers-panel');
-        if (layersContainer) layersContainer.outerHTML = adocBuildLayersPanelHTML(cardBlock, window._adocBlockEditState.blockId);
+        if (layersContainer) layersContainer.outerHTML = adocBuildLayersPanelHTML(layerBlocks, window._adocBlockEditState.blockId);
         return;
       }
       if (label) {
@@ -11517,14 +11547,14 @@ ${recent}`;
     adocWsClearBlockSelection();
     el.classList.add('is-selected', 'is-position-selected');
     const doc = window._adocArtifacts[storeKey]._adocStructuredDoc;
-    const cardBlock = adocFindParentCardBlock(doc, el.id);
+    const layerBlocks = adocPositionLayerBlocks(doc, el.id);
     const panel = document.createElement('div');
     panel.className = 'cc-clarity-card cc-block-edit-panel';
     panel.setAttribute('role', 'group');
     panel.setAttribute('aria-label', 'Position de cet élément sélectionné');
     panel.innerHTML = adocBlockEditPanelHeaderHTML(adocEsc(adocBlockPreviewText(block)) || '(élément)') +
       adocBuildCardPositionPanelHTML('Position et taille de cet élément') +
-      (cardBlock ? adocBuildLayersPanelHTML(cardBlock, el.id) : '');
+      adocBuildLayersPanelHTML(layerBlocks, el.id);
     adocMountContextualBlockEditPanel(panel, el);
     window._adocBlockEditState = { storeKey: storeKey, blockId: el.id, panelEl: panel, pendingBlock: null, originalBlock: block, zone: 'position' };
     adocEditorRefreshCardPositionControls();
@@ -11810,6 +11840,7 @@ ${recent}`;
       if(e.target.closest('[data-block-surface-remove-border]'))window.adocRemoveBlockBorder();
       if(e.target.closest('[data-image-reset]'))adocResetImageDisplay();
       if(e.target.closest('[data-image-crop-open]'))adocOpenImageCrop();
+      if(e.target.closest('[data-card-position-reset]'))adocResetCardPosition();
     });
     lr.addEventListener('keydown',function(e){
       if(e.key==='Escape' && e.target.closest('[data-font-picker]')) {
@@ -13832,7 +13863,7 @@ ${recent}`;
     // (.is-position-selected, distinct de .is-selected — jamais affichée pendant une simple
     // correction de texte sur ce même bloc).
     const nestedPosCSS = adocCardPositionCSSText(b.style);
-    const nestedResizeHandle = ['nw','n','ne','e','se','s','sw','w'].map(function (direction) {
+    const nestedResizeHandle = '<span class="adoc-sc-free-move-handle" aria-hidden="true" title="Déplacer librement"></span>' + ['nw','n','ne','e','se','s','sw','w'].map(function (direction) {
       return '<span class="adoc-sc-nested-resize-handle cc-pos-resize-' + direction + '" data-resize-direction="' + direction + '" aria-hidden="true"></span>';
     }).join('');
     // ITEM 63f — poignée de glissement pour réordonner ce bloc, même principe que
@@ -14357,7 +14388,7 @@ ${recent}`;
     // perdant --adoc-sc-heading-font ET --adoc-sc-body-font (les deux dernières paires). Le
     // guillemet simple ne peut jamais entrer en collision ici (aucune police du catalogue
     // n'utilise de guillemet simple).
-    return '<article class="adoc-sc-doc adoc-sc-fiche" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
+    return '<article class="adoc-sc-doc adoc-sc-fiche" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + adocFreeLayoutRootCSS(bodyBlocks) + "'>" + cover + body + '</article>';
   }
 
   // ITEM 75 Phase 1 UI — traduit card.style (x/y/width/height/zIndex, seuls champs de blockStyle
@@ -14370,13 +14401,23 @@ ${recent}`;
   function adocCardPositionCSSText(style) {
     if (!style) return '';
     const parts = [];
-    if (style.x != null || style.y != null || style.width != null || style.height != null) parts.push('position:absolute');
+    if (style.x != null || style.y != null || style.width != null || style.height != null) parts.push('position:absolute', 'box-sizing:border-box');
     if (style.x != null) parts.push('left:' + Number(style.x) + 'px');
     if (style.y != null) parts.push('top:' + Number(style.y) + 'px');
     if (style.width != null) parts.push('width:' + Number(style.width) + 'px');
     if (style.height != null) parts.push('height:' + Number(style.height) + 'px');
     if (style.zIndex != null) parts.push('z-index:' + Number(style.zIndex));
     return parts.length ? parts.join(';') + ';' : '';
+  }
+  function adocFreeLayoutRootCSS(blocks) {
+    let bottom = 0;
+    (blocks || []).forEach(function (block) {
+      const style = block && block.style;
+      if (!style || style.y == null || style.height == null) return;
+      const candidate = Number(style.y) + Number(style.height);
+      if (Number.isFinite(candidate)) bottom = Math.max(bottom, candidate);
+    });
+    return bottom ? 'min-height:' + Math.ceil(bottom) + 'px;' : '';
   }
   // ── Pilote 2 : Carrousel (modèle minimal unique, structure imbriquée card > blocks[]) ──
   function adocRenderCardHTML(card, index, total) {
@@ -14538,7 +14579,7 @@ ${recent}`;
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
-    return '<article class="adoc-sc-doc adoc-sc-script" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
+    return '<article class="adoc-sc-doc adoc-sc-script" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + adocFreeLayoutRootCSS(bodyBlocks) + "'>" + cover + body + '</article>';
   }
 
   // ── Pilote 4 : Tableau comparatif (item 73 construction) — même patron dérivé que Script
@@ -14569,7 +14610,7 @@ ${recent}`;
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
-    return '<article class="adoc-sc-doc adoc-sc-tableau" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
+    return '<article class="adoc-sc-doc adoc-sc-tableau" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + adocFreeLayoutRootCSS(bodyBlocks) + "'>" + cover + body + '</article>';
   }
 
   // ── Pilote 5 : Liens transversaux (item 74 construction) — DERNIER TYPE DU CATALOGUE. Même
@@ -14600,7 +14641,7 @@ ${recent}`;
       '<p class="adoc-sc-cover-meta">Studio Clinique · ' + audienceHTML + '</p>' +
       '</div></div>';
     const body = bodyBlocks.map(adocRenderBlockHTML).join('\n');
-    return '<article class="adoc-sc-doc adoc-sc-liens" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + "'>" + cover + body + '</article>';
+    return '<article class="adoc-sc-doc adoc-sc-liens" data-document-id="' + adocEsc(doc.documentId) + "\" style='" + adocTokensToCSSVars(tokens) + adocFreeLayoutRootCSS(bodyBlocks) + "'>" + cover + body + '</article>';
   }
 
   // ── Point d'entrée du moteur canonique ──
@@ -14690,7 +14731,7 @@ ${recent}`;
   const ADOC_DOC_CONTENT_CSS =
     '[data-cc-editor-leaf]{white-space:pre-wrap}.adoc-sc-table-el{font:inherit;color:inherit}.adoc-sc-table[style*="color:"] th{color:inherit}' +
     'body{max-width:760px;margin:40px auto;padding:0 20px;background:#fffdf9;}' +
-    '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,"IBM Plex Sans",sans-serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:var(--adoc-sc-line-height,1.65);font-size:15px;}' +
+    '.adoc-sc-doc{position:relative;font-family:var(--adoc-sc-body-font,"IBM Plex Sans",sans-serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:var(--adoc-sc-line-height,1.65);font-size:15px;}' +
     '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);margin:1.3em 0 .5em;line-height:1.2;}' +
     '.adoc-sc-heading:first-child{margin-top:0;}' +
     '.adoc-sc-paragraph{margin:0 0 1em;}' +
@@ -14907,7 +14948,7 @@ ${recent}`;
       '*{box-sizing:border-box;}' +
       'html,body{margin:0;padding:0;background:#fff;' + (isPresentation ? 'print-color-adjust:exact;-webkit-print-color-adjust:exact;' : '') + '}' +
       '[data-cc-editor-leaf]{white-space:pre-wrap}.adoc-sc-table-el{font:inherit;color:inherit}.adoc-sc-table[style*="color:"] th{color:inherit}' +
-      '.adoc-sc-doc{font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
+      '.adoc-sc-doc{position:relative;font-family:var(--adoc-sc-body-font,Georgia,serif);color:var(--adoc-sc-body-color,#2a2a28);line-height:1.65;}' +
       '.adoc-sc-heading{color:var(--adoc-sc-heading-color,#102f31);font-family:var(--adoc-sc-heading-font,Georgia,serif);}' +
       // Le Carrousel reste sur son canevas historique ; la Présentation laisse sa hauteur
       // grandir pour que Chromium répartisse les blocs sur des feuilles A4 successives.
@@ -22649,8 +22690,14 @@ ${recent}`;
     // cc-clarity-reply-btn, même niveau visuel), séparées par un simple repère visuel discret
     // (jamais un nouveau composant) puisqu'elles créent un NOUVEAU bloc plutôt que de corriger
     // celui-ci. Un seul point d'entrée pour toute action sur un bloc, comme demandé.
-    const insertBtn = function (direction, label) {
-      return '<button type="button" class="cc-clarity-reply-btn" onclick="event.stopPropagation();window.adocRequestBlockInsert(\'' + direction + '\')">' + label + '</button>';
+    const insertMenu = function (onlyAfter) {
+      return '<label class="cc-block-insert-position-menu">Insérer un bloc' +
+        '<select aria-label="Position du nouveau bloc" onchange="event.stopPropagation();if(this.value){window.adocRequestBlockInsert(this.value);this.value=\'\';}">' +
+          '<option value="">Choisir la position…</option>' +
+          (onlyAfter ? '' : '<option value="before">Au-dessus</option>') +
+          '<option value="after">En dessous</option>' +
+          (onlyAfter ? '' : '<option value="left">À gauche</option><option value="right">À droite</option>') +
+        '</select></label>';
     };
     const pageBtn = function (direction, label) {
       return '<button type="button" class="cc-clarity-reply-btn" data-page-insert="' + direction + '" '
@@ -22671,7 +22718,7 @@ ${recent}`;
         btn('rewrite') + btn('shorten') + btn('expand') + btn('verifySources') +
         '<button type="button" class="cc-clarity-reply-btn" onclick="adocBlockSourceOpen()">Ajouter une référence</button>' +
         '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
-        ((blockType === 'card' || (blockId || '').startsWith('root:card-title:')) ? '' : insertBtn('before', 'Insérer un bloc avant')) + insertBtn('after', 'Insérer un bloc après') + addImageBtn +
+        insertMenu(blockType === 'card' || (blockId || '').startsWith('root:card-title:')) + addImageBtn +
         // D1 — les gestes de PAGE, après ceux de bloc et derrière le même repère visuel discret :
         // ils ne corrigent pas ce passage, ils ajoutent une diapositive entière. Absents, et non
         // pas inertes, hors d'une présentation.
@@ -23209,7 +23256,7 @@ ${recent}`;
     docCard.onmousemove = function (e) {
       if (window._adocAnyDragActive) return;
       const blockEl = e.target.closest('.adoc-sc-block');
-      const onResizeHandle = e.target.closest('.cc-flow-resize-handle, .cc-image-resize-handle, .adoc-sc-nested-resize-handle, .adoc-sc-card-resize-handle');
+      const onResizeHandle = e.target.closest('.cc-flow-resize-handle, .cc-image-resize-handle, .adoc-sc-nested-resize-handle, .adoc-sc-card-resize-handle, .adoc-sc-free-move-handle');
       const inZone = blockEl && !onResizeHandle && adocDragInEdgeZone(blockEl, e.clientX, e.clientY);
       if (hoverReorderBlockEl && hoverReorderBlockEl !== (inZone ? blockEl : null)) { hoverReorderBlockEl.classList.remove('cc-drag-edge-hover'); hoverReorderBlockEl = null; }
       if (inZone && hoverReorderBlockEl !== blockEl) { blockEl.classList.add('cc-drag-edge-hover'); hoverReorderBlockEl = blockEl; }
@@ -23342,7 +23389,7 @@ ${recent}`;
       // d'investigation). Seule la MÉTHODE DE DÉTECTION change (géométrie au lieu d'un élément
       // poignée exact), jamais la structure de branchement.
       const reorderBlockEl = e.target.closest('.adoc-sc-block');
-      if (reorderBlockEl && !e.target.closest('.adoc-sc-nested-resize-handle, .adoc-sc-card-resize-handle') && adocDragInEdgeZone(reorderBlockEl, e.clientX, e.clientY)) {
+      if (reorderBlockEl && !e.target.closest('.adoc-sc-nested-resize-handle, .adoc-sc-card-resize-handle, .adoc-sc-free-move-handle') && adocDragInEdgeZone(reorderBlockEl, e.clientX, e.clientY)) {
         e.preventDefault();
         const blockEl = reorderBlockEl;
         if (!blockEl) return;
@@ -23462,9 +23509,10 @@ ${recent}`;
       }
       const cardHandle = e.target.closest('.adoc-sc-card-resize-handle');
       const nestedHandle = e.target.closest('.adoc-sc-nested-resize-handle');
+      const freeMoveHandle = e.target.closest('.adoc-sc-free-move-handle');
       const nestedEl = e.target.closest('.adoc-sc-block');
       const cardEl = e.target.closest('.adoc-sc-card');
-      if (!cardEl) return;
+      if (!cardEl && !nestedEl) return;
       if (!cardHandle && !nestedEl && e.target === cardEl) {
         const key = window._adocWsState.storeKey;
         const art = window._adocArtifacts && window._adocArtifacts[key];
@@ -23497,18 +23545,29 @@ ${recent}`;
       if (nestedEl) {
         const storeKey = window._adocWsState.storeKey;
         const curArt = window._adocArtifacts && window._adocArtifacts[storeKey];
-        if (!curArt || !curArt._adocStructuredDoc || curArt._adocStructuredDoc.documentKind !== 'carrousel') return;
+        if (!curArt || !curArt._adocStructuredDoc) return;
         const block = adocFindEditableBlock(curArt._adocStructuredDoc, nestedEl.id);
         if (!block || ADOC_NESTED_POSITIONABLE_TYPES.indexOf(block.type) === -1) return;
-        const isHandle = !!nestedHandle;
+        // Le corps du bloc reste réservé au texte, aux boutons et aux médias. Le déplacement
+        // libre commence uniquement sur sa poignée dédiée (ou une prise de redimensionnement),
+        // sans quoi sélectionner quelques mots déplacerait la boîte entière.
+        if (!nestedHandle && !freeMoveHandle) return;
+        const isHandle = !!(nestedHandle || freeMoveHandle);
         if (isHandle) e.preventDefault(); // poignée : aucun comportement par défaut à préserver ici
-        const containerRect = nestedEl.parentElement.getBoundingClientRect(); // = la carte elle-même (élément imbriqué = enfant direct, vérifié)
-        const elRect = nestedEl.getBoundingClientRect();
+        const containerEl = nestedEl.parentElement;
+        const containerRect = containerEl.getBoundingClientRect();
+        const containerWidth = containerEl.clientWidth;
+        // Un document paginé peut étendre son canevas vers le bas ; une diapositive/carte reste
+        // bornée à sa hauteur fixe. L'extension est persistée ensuite par adocFreeLayoutRootCSS.
+        const containerHeight = containerEl.clientHeight +
+          (containerEl.classList.contains('adoc-sc-doc') && !containerEl.classList.contains('adoc-sc-card') ? 800 : 0);
+        const pointerScaleX = containerWidth ? containerRect.width / containerWidth : 1;
+        const pointerScaleY = containerEl.clientHeight ? containerRect.height / containerEl.clientHeight : 1;
         const baseStyle = block.style || {};
-        const startX = baseStyle.x != null ? Number(baseStyle.x) : (elRect.left - containerRect.left);
-        const startY = baseStyle.y != null ? Number(baseStyle.y) : (elRect.top - containerRect.top);
-        const startW = baseStyle.width != null ? Number(baseStyle.width) : elRect.width;
-        const startH = baseStyle.height != null ? Number(baseStyle.height) : elRect.height;
+        const startX = baseStyle.x != null ? Number(baseStyle.x) : nestedEl.offsetLeft;
+        const startY = baseStyle.y != null ? Number(baseStyle.y) : nestedEl.offsetTop;
+        const startW = baseStyle.width != null ? Number(baseStyle.width) : nestedEl.offsetWidth;
+        const startH = baseStyle.height != null ? Number(baseStyle.height) : nestedEl.offsetHeight;
         const pointerStartX = e.clientX, pointerStartY = e.clientY;
         // ITEM 75 Phase 3 — rectangles des AUTRES éléments de la MÊME carte, lus UNE SEULE FOIS
         // ici (investigation confirmée : aucun autre élément ne bouge pendant ce geste), jamais
@@ -23516,12 +23575,13 @@ ${recent}`;
         // poignées (aucune de ces classes), même filtre que celui déjà utilisé pour retrouver
         // nestedEl lui-même.
         const nestedSiblingRects = Array.prototype.filter.call(nestedEl.parentElement.children, function (el) { return el !== nestedEl && el.classList.contains('adoc-sc-block'); })
-          .map(function (el) { const r = el.getBoundingClientRect(); return { x: r.left - containerRect.left, y: r.top - containerRect.top, width: r.width, height: r.height }; });
+          .map(function (el) { return { x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight }; });
         let moved = false, checkpointed = false;
         function suppressNextClick(ev2) { ev2.stopPropagation(); ev2.preventDefault(); document.removeEventListener('click', suppressNextClick, true); }
         function onMove(ev) {
-          const dx = ev.clientX - pointerStartX, dy = ev.clientY - pointerStartY;
-          if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+          const visualDx = ev.clientX - pointerStartX, visualDy = ev.clientY - pointerStartY;
+          const dx = visualDx / (pointerScaleX || 1), dy = visualDy / (pointerScaleY || 1);
+          if (!moved && Math.abs(visualDx) < 3 && Math.abs(visualDy) < 3) return;
           if (!moved) { document.addEventListener('click', suppressNextClick, true); ev.preventDefault(); window._adocAnyDragActive = true; }
           moved = true;
           if (!checkpointed) { adocEditorCheckpoint(); checkpointed = true; }
@@ -23541,11 +23601,11 @@ ${recent}`;
             // ITEM 75 Phase 3 — aimantation D'ABORD (ajuste x/y), clampage TOUJOURS EN DERNIER
             // ci-dessous (inchangé) : jamais appliquée au redimensionnement (poignée), hors
             // périmètre investigué pour ce lot.
-            const snap = adocComputeAlignmentSnap(newStyle, nestedSiblingRects, containerRect.width, containerRect.height);
+            const snap = adocComputeAlignmentSnap(newStyle, nestedSiblingRects, containerWidth, containerHeight);
             newStyle.x = snap.x; newStyle.y = snap.y;
             adocUpdateAlignGuides(nestedEl.parentElement, snap.guideV, snap.guideH);
           }
-          block.style = adocClampNestedStyleToContainer(newStyle, containerRect.width, containerRect.height);
+          block.style = adocClampNestedStyleToContainer(newStyle, containerWidth, containerHeight);
           adocApplyCardPositionToElement(nestedEl, block.style);
           adocEditorRefreshCardPositionControls();
           adocEditorSync(); adocEditorMarkDirty();
@@ -23897,7 +23957,7 @@ ${recent}`;
   // jamais un second panneau. Étape 1 : choix du type (remplace temporairement les contrôles,
   // même patron que l'aperçu avant/après).
   function adocBuildBlockInsertTypePickerHTML(direction) {
-    const positionLabel = direction === 'before' ? 'avant' : 'après';
+    const positionLabel = direction === 'before' ? 'avant' : direction === 'left' ? 'à gauche' : direction === 'right' ? 'à droite' : 'après';
     return '<div class="cc-block-edit-label">Type de bloc à insérer ' + positionLabel + '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;">' +
         ADOC_BLOCK_INSERT_TYPES.map(function (t) {
@@ -25267,19 +25327,38 @@ ${recent}`;
   };
 
   function adocResolveBlockInsertion(doc, blockId, direction) {
-    if (direction !== 'before' && direction !== 'after') throw new Error('Position d’insertion invalide.');
+    const sequenceDirection = direction === 'left' ? 'before' : direction === 'right' ? 'after' : direction;
+    if (sequenceDirection !== 'before' && sequenceDirection !== 'after') throw new Error('Position d’insertion invalide.');
     if (!doc || !blockId) throw new Error('Sélectionnez un bloc avant d’insérer.');
     const id = blockId.startsWith('root:card-title:') ? blockId.slice('root:card-title:'.length) : blockId;
     const block = adocFindEditableBlock(doc, id);
     if (block && block.type === 'card') {
-      if (direction === 'before') throw new Error('Un bloc ne peut pas précéder le titre d’une diapositive. Choisissez « après ».');
+      if (sequenceDirection === 'before') throw new Error('Un bloc ne peut pas précéder le titre d’une diapositive. Choisissez « après ».');
       return { siblings: block.content.blocks, index: 0 };
     }
     if (blockId === 'root:doc-title') throw new Error('Le titre du document n’est pas un bloc. Sélectionnez un bloc de contenu pour insérer avant ou après.');
     const siblings = adocEditorBlockContainer(doc, id);
     const index = siblings ? siblings.findIndex(b => b.id === id) : -1;
     if (index < 0) throw new Error('Le bloc sélectionné est introuvable. Sélectionnez-le à nouveau.');
-    return { siblings: siblings, index: direction === 'before' ? index : index + 1 };
+    return { siblings: siblings, index: sequenceDirection === 'before' ? index : index + 1 };
+  }
+
+  function adocPrepareLateralBlockLayout(direction, anchorBlock, insertedBlock, anchorEl) {
+    if ((direction !== 'left' && direction !== 'right') || !anchorBlock || !insertedBlock || !anchorEl) return;
+    const parent = anchorEl.parentElement;
+    if (!parent) return;
+    const existing = anchorBlock.style || {};
+    const x = existing.x != null ? Number(existing.x) : anchorEl.offsetLeft;
+    const y = existing.y != null ? Number(existing.y) : anchorEl.offsetTop;
+    const width = existing.width != null ? Number(existing.width) : anchorEl.offsetWidth;
+    const height = existing.height != null ? Number(existing.height) : anchorEl.offsetHeight;
+    if (![x, y, width, height].every(Number.isFinite) || width < 96) return;
+    const gap = Math.min(24, Math.max(8, Math.round(width * 0.04)));
+    const columnWidth = Math.max(40, (width - gap) / 2);
+    const leftStyle = { x: x, y: y, width: columnWidth, height: Math.max(40, height) };
+    const rightStyle = { x: x + columnWidth + gap, y: y, width: columnWidth, height: Math.max(40, height) };
+    anchorBlock.style = Object.assign({}, existing, direction === 'left' ? rightStyle : leftStyle);
+    insertedBlock.style = Object.assign({}, insertedBlock.style || {}, direction === 'left' ? leftStyle : rightStyle);
   }
 
   async function adocInsertStructuredBlock(direction, type, content) {
@@ -25289,12 +25368,17 @@ ${recent}`;
       const art = window._adocArtifacts && window._adocArtifacts[st.storeKey];
       if (!art || !art._adocStructuredDoc) throw new Error('Document ou sélection indisponible. Rouvrez le document et sélectionnez un bloc.');
       const doc = art._adocStructuredDoc;
+      const selectedId = (st.blockId || '').startsWith('root:card-title:')
+        ? st.blockId.slice('root:card-title:'.length) : st.blockId;
+      const anchorBlock = adocFindEditableBlock(doc, selectedId);
+      const anchorEl = document.getElementById(selectedId);
       target = adocResolveBlockInsertion(doc, st.blockId, direction);
       inserted = { id: adocNextBlockId(doc, type), type: type, content: content, citationIds: [], validation: {} };
       // Lot 1a — l'état des étapes AVANT l'insertion, pour reporter la narration d'une carte qui
       // passe de zéro à un bloc (cf. adocNarrationSuivreChangementEtapes).
       const etapesAvant = adocPresentStepList(doc);
       target.siblings.splice(target.index, 0, inserted);
+      adocPrepareLateralBlockLayout(direction, anchorBlock, inserted, anchorEl);
       adocNarrationSuivreChangementEtapes(doc, etapesAvant);
       const storeKey = st.storeKey;
       adocWsClearBlockSelection();
