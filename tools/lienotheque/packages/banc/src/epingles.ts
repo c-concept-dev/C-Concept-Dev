@@ -68,6 +68,22 @@ export type Verdict = {
   /** Épingles qui ne valent pas ici : l'outil dont elles attendent l'absence est présent.
    *  Ni tenues, ni périmées, et surtout pas refusées — simplement hors de leur contexte. */
   readonly epinglesHorsContexte: readonly Epingle[];
+  /** Noms de contrôles qu'une épingle désigne et qu'**aucun rapport ne porte**.
+   *
+   *  Chacun bloque. Une épingle qui nomme un contrôle disparu ne protège plus rien, et elle le
+   *  fait en silence : le contrôle qu'elle couvrait, renommé, devient une **régression** le jour
+   *  où il rougit ailleurs.
+   *
+   *  Mesuré le 10 novembre 2026, et c'est ce qui a fait naître ce refus. Le lot 16b a séparé en
+   *  deux le contrôle « compte des pages, et n'en double pas le nombre sur une feuille double ».
+   *  L'épingle `tesseract-absent-aucune-page-lue` nommait l'ancien. Sur la machine de Christophe,
+   *  qui a Tesseract, ces contrôles **passent** et l'épingle est rangée « hors contexte » : rien
+   *  ne se voyait. Sur Ubuntu, qui n'a pas Tesseract, ils ont rougi sans épingle — **deux
+   *  RÉGRESSIONS**, à la course 42823695147, pour un renommage.
+   *
+   *  Un contrôle **sauté** figure au rapport sous son nom : il ne tombe donc pas ici. Seul y
+   *  tombe un nom que plus rien ne porte. */
+  readonly nomsInconnus: readonly { readonly epingle: Epingle; readonly nom: string }[];
   /** Échecs épinglés par leur nom, mais dont le message ne correspond pas.
    *
    *  Ils bloquent, et c'est voulu : une épingle couvre **une** cause, pas un nom de contrôle.
@@ -124,8 +140,18 @@ export function juger(
     if (controle.etat === "passe" && trouve !== undefined) vuesPassantes.add(trouve.epingle.id);
   }
 
+  // Les noms qu'aucun rapport ne porte. On interroge **toutes** les épingles, hors contexte
+  // comprises : une épingle qui ne vaut pas ici nomme quand même des contrôles qui doivent
+  // exister, et c'est précisément là que le renommage se cache.
+  const nomsInconnus: { epingle: Epingle; nom: string }[] = [];
+  for (const epingle of toutesLesEpingles)
+    for (const vise of epingle.controles)
+      if (!controles.some((c) => memeFichier(c, epingle) && c.nom === vise.nom))
+        nomsInconnus.push({ epingle, nom: vise.nom });
+
   return {
     regressions,
+    nomsInconnus,
     epinglesPerimees: epingles.filter((e) => vuesPassantes.has(e.id)),
     epinglesTenues: epingles.filter((e) => tenues.has(e.id)),
     epinglesNonRencontrees: epingles.filter((e) => !tenues.has(e.id) && !vuesPassantes.has(e.id)),
@@ -138,7 +164,8 @@ export function juger(
 export const accepte = (verdict: Verdict): boolean =>
   verdict.regressions.length === 0 &&
   verdict.epinglesPerimees.length === 0 &&
-  verdict.messagesInattendus.length === 0;
+  verdict.messagesInattendus.length === 0 &&
+  verdict.nomsInconnus.length === 0;
 
 /** Ce qu'on en dit, en français, sans jargon. */
 export function raconter(verdict: Verdict): string[] {
@@ -152,6 +179,12 @@ export function raconter(verdict: Verdict): string[] {
         `    Il tombe ici sur : ${controle.message ?? "sans message"}`,
     );
   }
+  for (const { epingle, nom } of verdict.nomsInconnus)
+    dits.push(
+      `ÉPINGLE SANS CONTRÔLE — « ${epingle.id} » nomme « ${nom} », qu'aucun rapport ne porte.\n` +
+        `    Le contrôle a été renommé, déplacé ou retiré : mettez l'épingle d'accord, sinon elle ` +
+        `ne protège plus rien.`,
+    );
   for (const epingle of verdict.epinglesPerimees)
     dits.push(`ÉPINGLE PÉRIMÉE — « ${epingle.id} » passe maintenant : retirez-la de la liste.`);
   for (const epingle of verdict.epinglesTenues) dits.push(`épinglé, toujours rouge — ${epingle.id}`);

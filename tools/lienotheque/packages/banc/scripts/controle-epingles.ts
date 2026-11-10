@@ -184,7 +184,10 @@ console.log(`\n── garde-fou des marges de délai ──`);
 for (const dit of raconterLesMarges(verdictDesMarges)) console.log(`  ${dit}`);
 
 if (!accepte(verdict)) {
-  console.error("\nLe contrôle est refusé : voir les lignes RÉGRESSION, AUTRE CAUSE et ÉPINGLE PÉRIMÉE ci-dessus.");
+  console.error(
+    "\nLe contrôle est refusé : voir les lignes RÉGRESSION, AUTRE CAUSE, ÉPINGLE SANS CONTRÔLE " +
+      "et ÉPINGLE PÉRIMÉE ci-dessus.",
+  );
   process.exit(1);
 }
 if (!accepteLesMarges(verdictDesMarges)) {

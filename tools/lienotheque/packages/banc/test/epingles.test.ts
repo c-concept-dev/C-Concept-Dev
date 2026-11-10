@@ -28,9 +28,18 @@ const controle = (etat: Controle["etat"], message?: string): Controle => ({
   ...(message === undefined ? {} : { message }),
 });
 
+/** Le second contrôle que l'épingle nomme, quand l'épreuve ne le met pas en scène.
+ *
+ *  Un rapport réel porte **tous** les contrôles d'un fichier, y compris ceux dont l'épreuve ne
+ *  parle pas. Les épreuves d'ici passaient des rapports partiels — ce que la production ne fait
+ *  jamais —, et le garde-fou « une épingle ne nomme aucun contrôle disparu » (10 novembre 2026) a
+ *  rendu cette infidélité visible. Le fournir sauté ne change aucune de leurs mesures : un
+ *  contrôle sauté n'est ni rouge ni vert. */
+const VOISIN: Controle = { ...controle("saute"), nom: "la chose > tient aussi" };
+
 describe("le garde-fou des échecs épinglés", () => {
   it("tolère un échec épinglé, et lui seul", () => {
-    const verdict = juger([controle("echoue", "AssertionError: expected [] to deeply equal [ 1 ]")], [EPINGLE]);
+    const verdict = juger([controle("echoue", "AssertionError: expected [] to deeply equal [ 1 ]"), VOISIN], [EPINGLE]);
     expect(verdict.epinglesTenues.map((e) => e.id)).toEqual(["essai-un"]);
     expect(verdict.regressions).toEqual([]);
     expect(accepte(verdict), "un rouge épinglé ne bloque pas").toBe(true);
@@ -38,7 +47,7 @@ describe("le garde-fou des échecs épinglés", () => {
 
   it("refuse un échec qu'aucune épingle ne couvre", () => {
     const autre = { ...controle("echoue", "AssertionError: autre chose"), nom: "la chose > autre contrôle" };
-    const verdict = juger([autre], [EPINGLE]);
+    const verdict = juger([autre, controle("saute"), VOISIN], [EPINGLE]);
     expect(verdict.regressions).toHaveLength(1);
     expect(accepte(verdict), "une régression bloque").toBe(false);
     expect(raconter(verdict)[0]).toContain("RÉGRESSION");
@@ -46,14 +55,14 @@ describe("le garde-fou des échecs épinglés", () => {
 
   // Celui-là est la raison d'être du garde-fou.
   it("refuse une épingle dont le contrôle passe : elle a survécu à sa cause", () => {
-    const verdict = juger([controle("passe")], [EPINGLE]);
+    const verdict = juger([controle("passe"), VOISIN], [EPINGLE]);
     expect(verdict.epinglesPerimees.map((e) => e.id)).toEqual(["essai-un"]);
     expect(accepte(verdict), "une épingle périmée bloque, pour qu'on la retire").toBe(false);
     expect(raconter(verdict).join("\n")).toContain("ÉPINGLE PÉRIMÉE");
   });
 
   it("refuse le même contrôle tombé pour une autre cause : une épingle couvre une cause, pas un nom", () => {
-    const verdict = juger([controle("echoue", "TypeError: undefined n'est pas une fonction")], [EPINGLE]);
+    const verdict = juger([controle("echoue", "TypeError: undefined n'est pas une fonction"), VOISIN], [EPINGLE]);
     expect(verdict.messagesInattendus).toHaveLength(1);
     expect(verdict.epinglesTenues).toEqual([]);
     expect(accepte(verdict)).toBe(false);
@@ -63,7 +72,7 @@ describe("le garde-fou des échecs épinglés", () => {
   it("ne refuse pas une épingle dont le contrôle a été sauté", () => {
     // L'intégration continue saute les contrôles qui demandent des œuvres non versionnées : le
     // critère F3 y rend « 9 tests | 4 skipped ». Un contrôle sauté n'est ni rouge ni vert.
-    const verdict = juger([controle("saute")], [EPINGLE]);
+    const verdict = juger([controle("saute"), VOISIN], [EPINGLE]);
     expect(verdict.epinglesNonRencontrees.map((e) => e.id)).toEqual(["essai-un"]);
     expect(accepte(verdict), "un contrôle sauté ne prouve rien, ni dans un sens ni dans l'autre").toBe(true);
   });
@@ -96,7 +105,7 @@ describe("le garde-fou des échecs épinglés", () => {
     const AILLEURS: Epingle = { ...EPINGLE, id: "essai-outil", absenceRequise: ["un-moteur"] };
 
     it("ne vaut pas là où l'outil est présent : hors contexte, pas périmée", () => {
-      const verdict = juger([controle("passe")], [AILLEURS], (outil) => outil === "un-moteur");
+      const verdict = juger([controle("passe"), VOISIN], [AILLEURS], (outil) => outil === "un-moteur");
       expect(verdict.epinglesHorsContexte.map((e) => e.id)).toEqual(["essai-outil"]);
       expect(verdict.epinglesPerimees, "le contrôle passe ici, et c'est normal").toEqual([]);
       expect(accepte(verdict), "elle ne doit pas bloquer la machine qui a l'outil").toBe(true);
@@ -105,7 +114,7 @@ describe("le garde-fou des échecs épinglés", () => {
 
     it("vaut, et se tient, là où l'outil manque", () => {
       const verdict = juger(
-        [controle("echoue", "expected [] to deeply equal [ 1 ]")],
+        [controle("echoue", "expected [] to deeply equal [ 1 ]"), VOISIN],
         [AILLEURS],
         () => false,
       );
@@ -114,7 +123,7 @@ describe("le garde-fou des échecs épinglés", () => {
     });
 
     it("là où l'outil manque, elle reste périmable si le contrôle passe", () => {
-      const verdict = juger([controle("passe")], [AILLEURS], () => false);
+      const verdict = juger([controle("passe"), VOISIN], [AILLEURS], () => false);
       expect(verdict.epinglesPerimees.map((e) => e.id)).toEqual(["essai-outil"]);
       expect(accepte(verdict)).toBe(false);
     });
@@ -122,7 +131,10 @@ describe("le garde-fou des échecs épinglés", () => {
 
   it("compare le fichier en suffixe : un rapport donne un chemin absolu", () => {
     const ailleurs = { ...controle("echoue", "expected [] to deeply equal [ 1 ]"), fichier: "test/autre.test.ts" };
-    expect(juger([ailleurs], [EPINGLE]).regressions, "un autre fichier n'est pas couvert").toHaveLength(1);
+    expect(
+      juger([ailleurs, controle("saute"), VOISIN], [EPINGLE]).regressions,
+      "un autre fichier n'est pas couvert",
+    ).toHaveLength(1);
   });
 
   it("la liste du dépôt porte ce que le garde-fou compare", () => {
@@ -138,5 +150,73 @@ describe("le garde-fou des échecs épinglés", () => {
         expect(controle.nom, `${String(epingle["id"])} : un contrôle sans nom ne se compare pas`).toBeDefined();
         expect(controle.message, `${String(epingle["id"])} : un contrôle sans message couvrirait toute cause`).toBeDefined();
       }
+  });
+});
+
+/** Une épingle qui nomme un contrôle qu'aucun rapport ne porte (10 novembre 2026).
+ *
+ *  Née d'un incident, et d'un incident que ce dépôt ne pouvait pas voir venir en local. Le lot 16b
+ *  a séparé en deux un contrôle épinglé ; l'épingle nommait l'ancien nom. Sur la machine de
+ *  Christophe, qui a Tesseract, ces contrôles **passent** et l'épingle est rangée « hors contexte »
+ *  — rien ne se voyait. Sur Ubuntu, qui ne l'a pas, ils ont rougi sans épingle : **deux
+ *  RÉGRESSIONS** à la course 42823695147, pour un renommage.
+ *
+ *  Le garde-fou interroge donc **toutes** les épingles, hors contexte comprises. */
+describe("une épingle qui nomme un contrôle disparu", () => {
+  const epingle: Epingle = {
+    id: "epingle-qui-nomme-un-fantome",
+    paquet: "@lienotheque/epreuve",
+    fichier: "test/ici.test.ts",
+    controles: [{ nom: "le nom d'avant", message: "peu importe" }],
+  };
+  const passant: Controle = {
+    paquet: "@lienotheque/epreuve",
+    fichier: "test/ici.test.ts",
+    nom: "le nom d'après",
+    etat: "passe",
+  };
+
+  it("refuse le passage, et nomme l'épingle et le nom perdu", () => {
+    const verdict = juger([passant], [epingle]);
+    expect(verdict.nomsInconnus.map((n) => n.nom)).toEqual(["le nom d'avant"]);
+    expect(accepte(verdict)).toBe(false);
+    const dits = raconter(verdict).join("\n");
+    expect(dits).toContain("ÉPINGLE SANS CONTRÔLE");
+    expect(dits).toContain("epingle-qui-nomme-un-fantome");
+    expect(dits).toContain("le nom d'avant");
+  });
+
+  it("le voit même quand l'épingle est hors contexte : c'est là que le renommage se cache", () => {
+    // L'outil dont l'épingle attend l'absence est présent : elle ne vaut pas ici, et ses contrôles
+    // passent. C'est exactement l'état de la machine de Christophe le 10 novembre, et c'est pour
+    // cela que rien ne s'y voyait.
+    const horsContexte: Epingle = { ...epingle, absenceRequise: ["un-outil-present"] };
+    const verdict = juger([passant], [horsContexte], () => true);
+    expect(verdict.epinglesHorsContexte).toHaveLength(1);
+    expect(verdict.nomsInconnus.map((n) => n.nom)).toEqual(["le nom d'avant"]);
+    expect(accepte(verdict)).toBe(false);
+  });
+
+  it("ne dit rien d'un contrôle SAUTÉ : il figure au rapport sous son nom", () => {
+    // La distinction qui empêche ce garde-fou de crier au feu sur l'intégration continue, où
+    // cent dix-sept contrôles sont sautés faute d'œuvres.
+    const saute: Controle = { ...passant, nom: "le nom d'avant", etat: "saute" };
+    const verdict = juger([saute], [epingle]);
+    expect(verdict.nomsInconnus).toEqual([]);
+    expect(accepte(verdict)).toBe(true);
+  });
+
+  it("exige le bon fichier, et non le seul nom : deux fichiers peuvent nommer pareil", () => {
+    const ailleurs: Controle = { ...passant, fichier: "test/ailleurs.test.ts", nom: "le nom d'avant" };
+    const verdict = juger([ailleurs], [epingle]);
+    expect(verdict.nomsInconnus.map((n) => n.nom)).toEqual(["le nom d'avant"]);
+  });
+
+  it("accepte une épingle dont tous les noms sont portés", () => {
+    // Rouge, et pour la cause épinglée : c'est le seul état où une épingle est tenue. La faire
+    // passer la rendrait PÉRIMÉE, et le passage serait refusé pour cette autre raison — ce que
+    // mon premier jet de ce contrôle n'avait pas vu.
+    const porte: Controle = { ...passant, nom: "le nom d'avant", etat: "echoue", message: "peu importe" };
+    expect(accepte(juger([porte], [epingle]))).toBe(true);
   });
 });
