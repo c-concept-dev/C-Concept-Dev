@@ -56,6 +56,41 @@ devra prouver l'appel, pas la présence.
 
 ## Et un défaut du paquet livré, trouvé en chemin
 
+> **Corrigé le 10 novembre 2026, le jour même : cette section accusait le produit à tort.**
+>
+> Les deux symptômes décrits ci-dessous venaient de **mon montage d'essai**, et non du paquet :
+>
+> 1. « rendu complet impossible » — mon prouveur ne posait pas `LIENOTHEQUE_PDFJS`. L'hôte le
+>    pose (`apps/app/src-tauri/src/moteur.rs:165`, à côté de `LIENOTHEQUE_CODECS`), et un contrôle
+>    Rust le vérifie : `le_moteur_recoit_les_ressources_pdfjs_embarquees`, dont l'assertion dit
+>    « les images JPX ne doivent pas dépendre de `node_modules` ». `ressourcesPdfJs()` a deux
+>    voies : celle du paquet lit cette variable, et celle qui résout `pdfjs-dist` sur le disque
+>    n'est qu'un repli pour le développement sous pnpm. Le symptôme a disparu dès que la variable
+>    a été posée.
+> 2. « images de pages : 0 écrite(s) » — les images ne sont produites que si la charge en demande
+>    (`lot.images !== undefined`, `outils/ingestion/src/lot.ts:316`). Ma charge omettait le champ
+>    `images`. L'hôte en demande toujours.
+>
+> **Mesuré ensuite, dans l'environnement exact de l'hôte et avec le champ `images` :** la chaîne
+> du paquet installé écrit **500 images de pages et 500 vignettes, 7,8 Mo**. Le repli de rendu
+> fonctionne dans le produit.
+>
+> Ce qui subsiste de cette section est **un seul point, petit** : l'avertissement
+> `standardFontDataUrl`, présent dans les trois essais et indépendant du montage — `couche-texte.ts`
+> appelle `getDocument` sans `ressourcesPdfJs()` aux lignes 35 et 107, là où `rendu-page.ts` les
+> passe. C'est la dette **D24**.
+>
+> **Ce que la preuve Siegfried garde intact** : zéro appel à `sf`, dans les **trois** essais, sur
+> un document lu de bout en bout par sa couche texte. Elle ne dépendait d'aucune de ces variables.
+>
+> **La leçon, et elle est à moi** : j'avais noté qu'« une mesure qui accuse mérite la même défiance
+> qu'une qui rassure ». Je l'ai appliquée aux mesures qui rassurent, et oubliée sur celle-ci. Un
+> essai qui ne reproduit pas l'environnement de l'hôte n'éprouve pas l'hôte — il éprouve l'essai.
+> Le cahier de pilotage 25.7 a rouvert l'étape 0 sur cette erreur ; la 25.8 l'a refermée.
+
+### Ce que l'essai disait, et que la correction ci-dessus annule en partie
+
+
 L'essai a fait parler la chaîne, et elle a dit ceci **trois fois, une par page** :
 
 > `Page 1 : rendu complet impossible (Cannot find module 'pdfjs-dist/legacy/build/pdf.mjs' Require
