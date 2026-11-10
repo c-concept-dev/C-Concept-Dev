@@ -227,6 +227,43 @@ const { ROOT, doc, open } = require('./presentation-edit-fixtures.cjs');
     }, left.insertedId);
     assert.equal(resizeCollision, false, 'presentation gauche : le redimensionnement a masqué le bloc voisin');
     console.log('PASS — présentation : insertion à gauche visible, focalisée et sans panneau masquant');
+
+    const denseDoc = doc('presentation');
+    const denseBlocks = denseDoc.blocks[0].content.blocks;
+    denseBlocks.find(block => block.id === 'p1').style = { x: 18, y: 1121, width: 1376, height: 72 };
+    denseBlocks.push({
+      id: 'p2', type: 'paragraph',
+      content: { text: 'Bloc voisin sous le passage sélectionné.' },
+      citationIds: [], validation: {},
+      style: { x: 18, y: 1210, width: 1376, height: 72 },
+      editor: { html: { text: 'Bloc voisin sous le passage sélectionné.' } },
+    });
+    assert.equal(await open(page, denseDoc, 'free-layout-presentation-dense'), true);
+    await page.locator('#p1').click();
+    await page.waitForTimeout(100);
+    const densePanel = await page.evaluate(() => {
+      const panel = document.querySelector('.cc-block-edit-panel');
+      const card = document.querySelector('.adoc-sc-presentation-slide .adoc-sc-card');
+      const panelRect = panel.getBoundingClientRect();
+      const blockRects = Array.from(card.children)
+        .filter(el => el.classList.contains('adoc-sc-block'))
+        .map(el => el.getBoundingClientRect());
+      return {
+        panelTop: panelRect.top,
+        maxBlockBottom: Math.max(...blockRects.map(rect => rect.bottom)),
+        cardHeight: card.offsetHeight,
+        p1Bottom: document.getElementById('p1').getBoundingClientRect().bottom,
+      };
+    });
+    assert(densePanel.panelTop >= densePanel.maxBlockBottom - 1,
+      'présentation dense : le panneau masque encore un bloc profond');
+    assert(densePanel.panelTop >= densePanel.p1Bottom - 1,
+      'présentation dense : le panneau masque sa propre cible');
+    assert(densePanel.cardHeight > 1282,
+      'présentation dense : la diapositive ne s’agrandit pas pour réserver le panneau');
+    await page.locator('.cc-block-edit-panel').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: '/tmp/studio-clinique-panneau-bloc-profond.png', fullPage: false });
+    console.log('PASS — présentation dense : panneau sous les blocs au-delà du canevas de 800 px');
   } finally {
     await browser.close();
   }
