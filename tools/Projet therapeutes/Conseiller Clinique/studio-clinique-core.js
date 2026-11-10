@@ -11230,12 +11230,8 @@ ${recent}`;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // ITEM 75 — nettoyage de la dette (Sujet 1) — garde-fou anti-chevauchement ENTRE CARTES.
-  // Modèle déjà acté : "une carte = une diapositive", jamais de chevauchement voulu entre cartes —
-  // au contraire des éléments IMBRIQUÉS dans une carte, où le chevauchement reste délibérément
-  // permis (c'est le principe même des calques, Phase 2) : ce garde-fou ne s'applique donc QUE
-  // aux cartes entre elles, jamais aux nestedBlock (adocApplyCardPosition/onmousedown ci-dessous
-  // ne l'invoquent que dans leur branche `isCard`/`cardEl`, jamais dans la branche `nestedEl`).
+  // Garde-fou anti-chevauchement partagé entre cartes et blocs libres. Les calques règlent
+  // l'ordre d'affichage, mais ne doivent jamais servir à masquer accidentellement un contenu.
   // ═══════════════════════════════════════════════════════════════════════
   // Test d'intersection de rectangles AABB classique, inégalités STRICTES : deux cartes dont un
   // bord se touche exactement (x_a+largeur_a === x_b) ne sont PAS considérées en chevauchement —
@@ -11393,20 +11389,19 @@ ${recent}`;
     const beforeFieldEdit = Object.assign({}, effective);
     effective[field] = num;
     const clamped = isCard ? adocClampCardStyleToCanvas(effective) : adocClampNestedStyleToContainer(effective, containerWidth, containerHeight);
-    // ITEM 75 — nettoyage de la dette (Sujet 1) — garde-fou anti-chevauchement, CARTES SEULEMENT
-    // (jamais pour un élément imbriqué, cf. commentaire d'en-tête de adocRectsOverlap). Une carte
-    // DÉJÀ chevauchante avant ce champ précis (document existant antérieur à ce garde-fou, ou
-    // valeur tapée à la suite d'une autre déjà hors-règle) reste librement modifiable — le
-    // garde-fou ne bloque JAMAIS l'ouverture ni la correction d'un document existant, seulement la
-    // CRÉATION d'un chevauchement nouveau depuis une base saine (décision explicite, cf. rapport).
-    if (isCard) {
-      const siblingCardRects = Array.prototype.filter.call(ctx.el.parentElement.children, function (el) { return el !== ctx.el && el.classList.contains('adoc-sc-card'); })
-        .map(function (el) { const r = el.getBoundingClientRect(); return { x: r.left - containerRect.left, y: r.top - containerRect.top, width: r.width, height: r.height }; });
-      const alreadyOverlapping = adocCardOverlapsSiblings(beforeFieldEdit, siblingCardRects);
-      if (!alreadyOverlapping && adocCardOverlapsSiblings(clamped, siblingCardRects)) {
-        adocEditorMessage('Chevauchement refusé : une carte ne peut pas en recouvrir une autre.');
-        return;
-      }
+    const siblingRects = Array.prototype.filter.call(ctx.el.parentElement.children, function (el) {
+      return el !== ctx.el && el.classList.contains(isCard ? 'adoc-sc-card' : 'adoc-sc-block');
+    }).map(function (el) {
+      if (!isCard) return { x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight };
+      const r = el.getBoundingClientRect();
+      return { x: r.left - containerRect.left, y: r.top - containerRect.top, width: r.width, height: r.height };
+    });
+    const alreadyOverlapping = adocCardOverlapsSiblings(beforeFieldEdit, siblingRects);
+    if (!alreadyOverlapping && adocCardOverlapsSiblings(clamped, siblingRects)) {
+      adocEditorMessage('Chevauchement refusé : aucun bloc ne peut en masquer un autre.');
+      ctx.el.classList.add('adoc-sc-overlap-blocked');
+      window.setTimeout(function () { ctx.el.classList.remove('adoc-sc-overlap-blocked'); }, 650);
+      return;
     }
     const style = Object.assign({}, ctx.block.style, clamped);
     ctx.block.style = style;
@@ -23576,6 +23571,8 @@ ${recent}`;
         // nestedEl lui-même.
         const nestedSiblingRects = Array.prototype.filter.call(nestedEl.parentElement.children, function (el) { return el !== nestedEl && el.classList.contains('adoc-sc-block'); })
           .map(function (el) { return { x: el.offsetLeft, y: el.offsetTop, width: el.offsetWidth, height: el.offsetHeight }; });
+        const startOverlapping = adocCardOverlapsSiblings(
+          { x: startX, y: startY, width: startW, height: startH }, nestedSiblingRects);
         let moved = false, checkpointed = false;
         function suppressNextClick(ev2) { ev2.stopPropagation(); ev2.preventDefault(); document.removeEventListener('click', suppressNextClick, true); }
         function onMove(ev) {
@@ -23605,7 +23602,11 @@ ${recent}`;
             newStyle.x = snap.x; newStyle.y = snap.y;
             adocUpdateAlignGuides(nestedEl.parentElement, snap.guideV, snap.guideH);
           }
-          block.style = adocClampNestedStyleToContainer(newStyle, containerWidth, containerHeight);
+          const clampedStyle = adocClampNestedStyleToContainer(newStyle, containerWidth, containerHeight);
+          const wouldOverlap = !startOverlapping && adocCardOverlapsSiblings(clampedStyle, nestedSiblingRects);
+          nestedEl.classList.toggle('adoc-sc-overlap-blocked', wouldOverlap);
+          if (wouldOverlap) return;
+          block.style = clampedStyle;
           adocApplyCardPositionToElement(nestedEl, block.style);
           adocEditorRefreshCardPositionControls();
           adocEditorSync(); adocEditorMarkDirty();
@@ -23615,6 +23616,7 @@ ${recent}`;
           document.removeEventListener('mouseup', onUp);
           window._adocAnyDragActive = false; // Fusion Phase 2 — verrou partagé
           adocRemoveAlignGuides(nestedEl.parentElement);
+          nestedEl.classList.remove('adoc-sc-overlap-blocked');
           // Clic direct sur la poignée SANS glissement réel — ouvre quand même le panneau (même
           // non-régression que la poignée de carte). Un clic normal AILLEURS dans le bloc, sans
           // glissement, ne fait RIEN ici : le clic naturel atteint ensuite docCard.onclick
@@ -25355,10 +25357,37 @@ ${recent}`;
     if (![x, y, width, height].every(Number.isFinite) || width < 96) return;
     const gap = Math.min(24, Math.max(8, Math.round(width * 0.04)));
     const columnWidth = Math.max(40, (width - gap) / 2);
-    const leftStyle = { x: x, y: y, width: columnWidth, height: Math.max(40, height) };
-    const rightStyle = { x: x + columnWidth + gap, y: y, width: columnWidth, height: Math.max(40, height) };
+    const leftStyle = { x: x, y: y, width: columnWidth, height: Math.max(24, height) };
+    const rightStyle = { x: x + columnWidth + gap, y: y, width: columnWidth, height: Math.max(24, height) };
     anchorBlock.style = Object.assign({}, existing, direction === 'left' ? rightStyle : leftStyle);
     insertedBlock.style = Object.assign({}, insertedBlock.style || {}, direction === 'left' ? leftStyle : rightStyle);
+  }
+
+  function adocRevealNewLateralBlock(insertedEl, direction) {
+    if (!insertedEl) return;
+    insertedEl.classList.add('is-selected', 'cc-new-lateral-block');
+    const hint = document.createElement('span');
+    hint.className = 'cc-new-lateral-block-hint';
+    hint.setAttribute('role', 'status');
+    hint.textContent = 'Bloc ajouté à ' + (direction === 'left' ? 'gauche' : 'droite') +
+      ' — commencez à écrire. Cliquez ensuite sur le bloc pour afficher toutes ses options.';
+    insertedEl.appendChild(hint);
+    insertedEl.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    const editable = insertedEl.querySelector('[data-cc-editor-leaf][contenteditable="true"]');
+    if (editable) {
+      editable.focus({ preventScroll: true });
+      const selection = window.getSelection();
+      if (selection) {
+        const range = document.createRange();
+        range.selectNodeContents(editable);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    }
+    window.setTimeout(function () {
+      hint.remove();
+      insertedEl.classList.remove('cc-new-lateral-block');
+    }, 5000);
   }
 
   async function adocInsertStructuredBlock(direction, type, content) {
@@ -25384,7 +25413,11 @@ ${recent}`;
       adocWsClearBlockSelection();
       if (!await window.adocOpenWorkspace(storeKey)) throw new Error('Le rendu a refusé ce type de bloc à cet emplacement ; l’insertion a été annulée.');
       adocEditorMarkDirty();
-      if (ADOC_BLOCK_EDIT_TYPES.includes(type)) document.getElementById(inserted.id)?.click();
+      if (ADOC_BLOCK_EDIT_TYPES.includes(type)) {
+        const insertedEl = document.getElementById(inserted.id);
+        if (direction === 'left' || direction === 'right') adocRevealNewLateralBlock(insertedEl, direction);
+        else insertedEl?.click();
+      }
       return true;
     } catch (e) {
       if (target && inserted) {

@@ -1811,7 +1811,11 @@
        studio-clinique-core.js). Pointillé (jamais le même trait que .is-selected ci-dessus, plein)
        pour rester distinguable au premier coup d'œil — même couleur (terracotta-700), déjà associée
        à "attention" ailleurs dans l'app (bandeau legacy, notes de refus). Retiré au relâchement. */
-    .adoc-sc-card.adoc-sc-card-overlap-blocked { outline: 2px dashed var(--terracotta-700); outline-offset: 4px; }
+    .adoc-sc-card.adoc-sc-card-overlap-blocked,
+    .adoc-sc-block.adoc-sc-overlap-blocked {
+      outline: 3px dashed var(--terracotta-700); outline-offset: 4px;
+      cursor: not-allowed !important;
+    }
     .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-carrousel .adoc-sc-card { cursor: grab; }
     .cc-ws-doc-card.cc-ws-block-editable .adoc-sc-carrousel .adoc-sc-card:active { cursor: grabbing; }
     /* ITEM 75 Phase 2 (intra-carte) — ancre tout élément imbriqué positionné en absolu (posé en
@@ -2384,6 +2388,29 @@
     }
     .cc-block-edit-panel .cc-block-edit-target {
       position: relative; background: var(--ivory);
+    }
+    .cc-new-lateral-block {
+      z-index: 4;
+      outline: 4px solid var(--terracotta-700);
+      outline-offset: 4px;
+      box-shadow: 0 0 0 9px rgba(138,63,41,.16), 0 10px 28px rgba(16,47,49,.22);
+      background-color: rgba(255,253,249,.96);
+      animation: cc-new-lateral-block-pulse 900ms ease-out 2;
+    }
+    .cc-new-lateral-block-hint {
+      position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 20;
+      box-sizing: border-box; width: max-content; max-width: min(520px, 80vw);
+      padding: 7px 10px; border-radius: 7px;
+      background: var(--petrol-900, #102f31); color: #fff;
+      font: 600 12px/1.35 system-ui, sans-serif; letter-spacing: 0; text-transform: none;
+      box-shadow: 0 5px 16px rgba(16,47,49,.24); pointer-events: none;
+    }
+    @keyframes cc-new-lateral-block-pulse {
+      0% { outline-offset: 1px; }
+      70%, 100% { outline-offset: 5px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cc-new-lateral-block { animation: none; }
     }
     .cc-ws-overview { position: fixed; z-index: 70; box-sizing: border-box; overflow: auto;
       padding: 18px; background: var(--ivory); box-shadow: 0 8px 24px rgba(16,47,49,.18); }
@@ -3837,7 +3864,7 @@
 {"tokens-studio-clinique-default-v1":{"tokensSnapshotId":"tokens-studio-clinique-default-v1","$comment":"UX-8A.1 — jetons résolus de la charte studio-clinique-default, extraits verbatim du bloc :root en production de studio-clinique.html (palette pétrole/terracotta/ivoire, Phase UX-3). Référencé par render-manifest-default.json via tokensSnapshotId.","colors":{"petrol950":"#102f31","petrol900":"#173f42","petrol800":"#1f5053","petrol100":"#dce8e6","terracotta700":"#8a3f29","terracotta600":"#9b4e36","terracotta100":"#f4e5de","ink":"#273331","muted":"#5d6966","stone400":"#a9a49a","stone300":"#c9c3b8","stone200":"#ddd7cc","ivory":"#f6f2ea","paper":"#fffdf9","white":"#ffffff"},"typography":{"headingFontFamily":"\"Source Serif 4\", Georgia, serif","bodyFontFamily":"\"IBM Plex Sans\", system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif"}}}
 </script>
 
-<script src="studio-clinique-core.js?v=20261110-free-layout-parity1"></script>
+  <script src="studio-clinique-core.js?v=20261110-free-layout-parity2"></script>
 <!-- LOT 2 — Atelier de montage, chutier visuel. Fichier SÉPARÉ de core.js, comme le CDC v2
      l'exige (le cœur dépasse 23 000 lignes). Chargé APRÈS lui : le moteur pilote le lecteur,
      et refuse de démarrer si le lecteur n'est pas là. Aucune interface : seulement le moteur. -->
