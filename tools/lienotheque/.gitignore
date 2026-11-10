@@ -32,3 +32,9 @@ playwright-report/
 # Secrets de mise au point locale de wrangler : jamais dans le dépôt.
 .dev.vars
 .dev.vars.*
+
+# Les copies de travail que l'application crée pour les sessions vivent SOUS .claude/, qui est
+# suivi par Git depuis le 7 novembre 2026. Mesuré le 10 novembre : trois copies, 728 Mo,
+# 24 033 fichiers. Le crochet refuse « git add -A » et « git add . », mais pas « git add .claude »,
+# qui les emporterait toutes. On ferme le trou ici plutôt que de compter sur l'attention.
+/.claude/worktrees/
