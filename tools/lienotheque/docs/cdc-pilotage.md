@@ -1,8 +1,8 @@
 # Liénothèque — Cahier des charges de pilotage
 
-**Version 25.6 — 9 novembre 2026**
+**Version 25.8 — 10 novembre 2026**
 Rédigé à partir des sessions du 3 au 9 novembre 2026 (Christophe, Claude, Claude Desktop).
-La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs). La 25.4 met à jour l'étape 0 (licences faites, vérification à l'écran ajoutée), lève D2, D18 et D19, redéfinit D7 et ajoute D21 (Siegfried). La 25.5 suit l'embarquement de Siegfried, la nouvelle archive des moteurs et le retrait de la copie de bisect. La 25.6 coche la publication de l'archive et la CI macOS lisant avec le même programme (D1 levée), et ajoute D23 (score sur peu d'apparitions).
+La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs). La 25.4 met à jour l'étape 0 (licences faites, vérification à l'écran ajoutée), lève D2, D18 et D19, redéfinit D7 et ajoute D21 (Siegfried). La 25.5 suit l'embarquement de Siegfried, la nouvelle archive des moteurs et le retrait de la copie de bisect. La 25.6 coche la publication de l'archive et la CI macOS lisant avec le même programme (D1 levée), et ajoute D23 (score sur peu d'apparitions). La 25.7 rouvrait l'étape 0 sur un défaut de rendu des pages qui venait en réalité du montage de l'essai (variable `LIENOTHEQUE_PDFJS` non posée, images non demandées) ; la 25.8 annule cette réouverture, garde D21 (prouvée par l'exécution), remet D22 et D23 dans l'ordre, et ajoute D24 (polices standard de la couche texte).
 
 ---
 
@@ -209,7 +209,7 @@ Les **étapes** (0 à 10) sont la feuille de route ; les **lots** de `docs/file-
 
 **Attention** : « étape 0 » (application autonome) et « lot 0b » (Tesseract sur les coureurs) ne désignent pas la même chose. Le lot **0a** (garde-fou des fichiers fantômes) est **fait** et doit être marqué comme tel dans la file.
 
-### Étape 0 — Application autonome *(en cours — cinq cases sur six : il reste le regard de Christophe)*
+### Étape 0 — Application autonome *(cinq cases sur six : il reste le regard de Christophe)*
 
 Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/opt/homebrew` (neuf renvois : leptonica, libtiff, libarchive) : chez un testeur sans Homebrew, la reconnaissance ne se serait pas chargée. Le paquet en service n'en charge plus aucune.
 
@@ -219,7 +219,7 @@ Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/
 - [x] l'application est refabriquée, réinstallée, et `DYLD_PRINT_LIBRARIES` prouve que rien ne sort du paquet (`28baedaf`) ;
 - [x] les textes de licence sont embarqués dans l'application (17 composants, 30 textes, `0b6cc977`) ; application refabriquée et installée dans `/Applications` ;
 - [x] l'archive des moteurs est publiée (release `lienotheque-moteurs-macos-arm64-2026-11-09`, `sha256 373005d5…`, 112 Mo, retéléchargée et vérifiée depuis son adresse publique), son empreinte épinglée dans `fixtures/moteurs-de-lecture.json`, et la CI macOS lit avec **le même programme** que l'application (course 42705053655 verte : 33 contrôles réveillés, 0 rouge) ;
-- [ ] vérification à l'écran par Christophe : la nouvelle application s'ouvre et lit (niveau 3).
+- [ ] vérification à l'écran par Christophe : la nouvelle application s'ouvre, lit, et **affiche les images des pages d'un document traité par elle** (niveau 3).
 
 ### Étape 1 — Fin d'A2 : le repli Vision branché
 
@@ -325,9 +325,10 @@ Chaque dette porte sa raison et l'étape où elle doit être levée. Aucune ne d
 | D18 | ~~Rang des deux CDC~~ — **levée** : v2.0 au rang 3 (`docs/cdc-normatif-v2.0.md`, `d8aac369` ; trois schémas devenus texte entre crochets à l'export), v24 au rang 4 | — |
 | D19 | ~~Réglages et crochet non versionnés~~ — **levée** le 9 novembre (`212bfe07`) : `.claude/` est versionné depuis le 7 novembre sur la branche de travail ; le garde-fou compare désormais aux octets du commit ; le crochet ne s'accuse plus des chemins commençant par un point. Son absence sur `main` relève de D17 | — |
 | D20 | ~~Décisions du 8 et du 9 novembre non écrites~~ — **levée** (`f49912a2`) ; celle du 8 novembre est une reformulation, pas un verbatim, et le dit | — |
-| D21 | Siegfried (`sf`) est **embarqué** (binaire annexe, signatures PRONOM en ressource, hermétique, licence et avis de modification) ; mais le programme livré ne semble pas l'appeler : à **prouver par l'exécution** (la chaîne invoque-t-elle `sf` sur un vrai fichier ?), et non par une recherche de texte | prochainement |
-| D23 | Le score d'un endroit candidat se calcule sur un échantillon d'apparitions et ne discrimine plus quand elles sont peu nombreuses : un endroit de huit apparitions (relecture complète 1,1,2,2,2,2,3,3) a battu la vraie marque. Risque de **faux lien** si le plancher est abaissé | avant le mode manuel (étapes 1 à 3) |
+| D21 | Siegfried (`sf`) est **embarqué** (hermétique, licence, avis de modification), mais **prouvé non appelé par l'exécution** le 10 novembre (faux `sf` journalisant en tête du `PATH`, document lu de bout en bout, zéro appel) : le graphe empaqueté depuis `outils/ingestion/src/moteur.ts` n'atteint pas `parSiegfried`. Brancher la chaîne sur Siegfried, avec preuve de l'appel (lot 0g) | après les étapes 1 à 3 |
 | D22 | ~~Copie de bisect~~ — **retirée** le 9 novembre, après avoir sauvé huit bancs de mesure uniques (versés dans `outils/ingestion/mesures/`) ; l'inventaire des fichiers non suivis reste à faire sur les six autres copies du dépôt (D14) | — |
+| D23 | Le score d'un endroit candidat se calcule sur un échantillon d'apparitions et ne discrimine plus quand elles sont peu nombreuses : un endroit de huit apparitions (relecture complète 1,1,2,2,2,2,3,3) a battu la vraie marque. Risque de **faux lien** si le plancher est abaissé | avant le mode manuel (étapes 1 à 3) |
+| D24 | `couche-texte.ts` appelle `getDocument` sans les ressources pdf.js (lignes 35 et 107), là où `rendu-page.ts` les passe : avertissement `standardFontDataUrl` à chaque lecture de couche texte | petit lot, prochainement |
 
 ---
 
