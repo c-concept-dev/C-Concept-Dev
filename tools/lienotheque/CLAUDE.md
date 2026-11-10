@@ -117,6 +117,13 @@ retrouve documents, audio, vidéos et images, toujours sur la vraie page ou au v
   Trois chantiers ouverts en session séparée le 10 novembre l'ont tous été sur `main`, malgré une
   consigne qui nommait la branche et son worktree : voir
   [la décision](docs/decisions/2026-11-10-une-session-part-de-la-branche-de-travail.md).
+- **Les chiffres d'un message de commit sont écrits par la commande, jamais retapés** (décision du
+  10 novembre 2026) : empreinte, nombre de lignes, d'octets, de fichiers, de chemins. On compose le
+  message avec la sortie de la mesure (`git commit --file=…`), parce qu'un message est **cité comme
+  preuve** et que personne ne revérifie une empreinte qu'un commit affirme. Un chiffre lu dans un
+  journal et qu'on ne peut pas interpoler se relit **dans le fichier** au moment d'écrire, jamais de
+  mémoire, et se cite avec sa source. Voir
+  [la décision](docs/decisions/2026-11-10-les-chiffres-d-un-message-sont-ecrits-par-la-commande.md).
 - **Deux sessions ne lancent jamais un contrôle complet en même temps** (§ 4.4 du cahier : un seul
   à la fois). Avant d'en lancer un, vérifier qu'aucun `vitest` ne tourne — les mesures de deux
   contrôles concurrents ne valent rien, ni les marges qu'on en tire.

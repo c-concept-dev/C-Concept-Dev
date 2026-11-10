@@ -17,6 +17,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 | Date | Décision | Fichier |
 |---|---|---|
 | 2026-11-09 | Les licences embarquées : ce qu'elles obligent, et ce que nous faisons | [2026-11-09-licences-aucune-obligation-non-remplie.md](2026-11-09-licences-aucune-obligation-non-remplie.md) |
+| 2026-11-10 | Les chiffres d'un message de commit sont écrits par la commande | [2026-11-10-les-chiffres-d-un-message-sont-ecrits-par-la-commande.md](2026-11-10-les-chiffres-d-un-message-sont-ecrits-par-la-commande.md) |
 | 2026-11-10 | La chaîne n'appelle pas Siegfried — prouvé par l'exécution | [2026-11-10-la-chaine-n-appelle-pas-siegfried.md](2026-11-10-la-chaine-n-appelle-pas-siegfried.md) |
 | 2026-11-10 | Toute nouvelle session part de la branche de travail, jamais de `main` | [2026-11-10-une-session-part-de-la-branche-de-travail.md](2026-11-10-une-session-part-de-la-branche-de-travail.md) |
 | 2026-11-09 | L'archive des moteurs est publiée, et la CI lit avec elle | [2026-11-09-archive-des-moteurs-publiee.md](2026-11-09-archive-des-moteurs-publiee.md) |
