@@ -59,22 +59,46 @@ function pdfSansRien(combien: number): string {
   return chemin;
 }
 
+/** Deux contrôles, et non un seul, et ce n'est pas un détail de présentation (lot 16b).
+ *
+ *  Les deux affirmations ci-dessous sont indépendantes : l'une porte sur la lecture ordinaire,
+ *  l'autre sur la feuille double. Chacune demande **sa** lecture du document. Rassemblées en un
+ *  contrôle, elles payaient leurs deux lectures contre **un seul** délai de 5 000 ms — 2 493 ms de
+ *  corps ici, et 4 842 ms sur le coureur macOS, soit une marge de ×1,03 : la plus courte du
+ *  dépôt, et un rouge qui n'attendait qu'une machine chargée.
+ *
+ *  Séparées, chacune a son délai, et rien n'est affaibli : les mêmes assertions, sur le même
+ *  document, avec le même travail réel. Ce qui change est qu'un délai borne désormais **une**
+ *  lecture.
+ *
+ *  ## Pourquoi une page vide coûte deux cent quarante millisecondes
+ *
+ *  Mesuré le 10 novembre 2026, et c'est voulu. Une page sans image dont la couche de texte est
+ *  insuffisante **n'est pas tenue pour vide** : `texte.ts` la rend entière par pdf.js, à 1 800
+ *  pixels, et la donne à la reconnaissance. Prouvé par l'exécution — un faux `tesseract` placé en
+ *  tête du chemin journalise **cinq appels, un par page**, avant de déléguer au vrai. La raison
+ *  est écrite là où la décision se prend : les objets compressés de treize PDF réels échappent au
+ *  lecteur structurel, alors que pdf.js rend parfaitement leur page. Tenir ces pages pour vides
+ *  les perdrait.
+ *
+ *  Le coût est donc **linéaire et assumé** : 240 ms par page vide, mesuré sur 1, 5 et 20 pages
+ *  (240, 1 200 et 4 909 ms). On ne le réduit pas en rognant le produit ; on cesse d'en payer deux
+ *  fois le prix contre un seul délai. */
+/** Trois feuilles, et non cinq.
+ *
+ *  Le nombre ne porte aucun sens : « trois, pas six » distingue une feuille d'une page exactement
+ *  comme « cinq, pas dix ». Il porte un **prix**, lui : 240 ms par page vide, soit 480 ms de
+ *  corps économisés par contrôle sur cette machine, et près du double sur le coureur. Baisser ce
+ *  chiffre ne retire donc rien à la preuve ; le garder coûtait la marge. */
+const TROIS_FEUILLES = 3;
+
 describe("ce qu'on compte quand une page n'a rien rendu (OUT-05, OUT-15)", () => {
-  it("compte des pages, et n'en double pas le nombre sur une feuille double", async () => {
-    const document = pdfSansRien(5);
-    const simple = await lireLeTexte(document, {});
-    const double = await lireLeTexte(document, { doublePage: true });
+  it("compte des pages, une par feuille, et n'en invente aucune", async () => {
+    const simple = await lireLeTexte(pdfSansRien(TROIS_FEUILLES), {});
 
-    expect(simple.sansTexte, "cinq pages vides font cinq pages sans texte").toBe(5);
+    expect(simple.sansTexte, "trois pages vides font trois pages sans texte").toBe(3);
 
-    // `sansTexte` est documenté « combien de pages n'ont rien rendu ». Il s'incrémentait de deux
-    // par feuille double, là où `parLaCouche` et `parOcr` s'incrémentent d'une par page : la
-    // même phrase du journal mêlait alors deux unités. Mesuré sur un livre de quatre-vingt-seize
-    // pages, elle annonçait « 27 passage(s) : 0 par la couche texte, 14 par reconnaissance,
-    // 164 sans texte » — un total de 178 pour 96 pages. Le compte juste était 82 pages, doublé.
-    expect(double.sansTexte, "une feuille double reste une feuille : cinq, pas dix").toBe(5);
-
-    // Les pages, elles, restent celles du document. Ce contrôle tenait l'inverse jusqu'au
+    // Les pages restent celles du document. Ce contrôle tenait l'inverse jusqu'au
     // 2 novembre 2026 — « aucune page de texte ne sort d'une feuille vide » — et le prix en a
     // été mesuré sur la bibliothèque entière : 46 documents sur 250 décrivaient un document plus
     // court qu'il n'est, et tout ce qui s'aligne sur leurs pages écartait leur texte **en bloc**,
@@ -82,9 +106,23 @@ describe("ce qu'on compte quand une page n'a rien rendu (OUT-05, OUT-15)", () =>
     //
     // Rien n'est inventé pour autant, et c'est la ligne d'après qui le dit : ces pages ne
     // portent aucun texte, donc aucune n'entre dans ce qui se cherche.
-    expect(simple.pages.map((page) => page.index), "cinq feuilles, cinq pages").toEqual([1, 2, 3, 4, 5]);
-    expect(double.pages, "cinq feuilles doubles, dix pages logiques").toHaveLength(10);
-    expect([...simple.pages, ...double.pages].every((page) => page.texte === "")).toBe(true);
+    expect(simple.pages.map((page) => page.index), "trois feuilles, trois pages").toEqual([1, 2, 3]);
+    expect(simple.pages.every((page) => page.texte === "")).toBe(true);
+  });
+
+  it("n'en double pas le nombre sur une feuille double", async () => {
+    const double = await lireLeTexte(pdfSansRien(TROIS_FEUILLES), { doublePage: true });
+
+    // `sansTexte` est documenté « combien de pages n'ont rien rendu ». Il s'incrémentait de deux
+    // par feuille double, là où `parLaCouche` et `parOcr` s'incrémentent d'une par page : la
+    // même phrase du journal mêlait alors deux unités. Mesuré sur un livre de quatre-vingt-seize
+    // pages, elle annonçait « 27 passage(s) : 0 par la couche texte, 14 par reconnaissance,
+    // 164 sans texte » — un total de 178 pour 96 pages. Le compte juste était 82 pages, doublé.
+    expect(double.sansTexte, "une feuille double reste une feuille : trois, pas six").toBe(3);
+
+    // Les pages logiques, elles, doublent bien : c'est la feuille qui ne double pas.
+    expect(double.pages, "trois feuilles doubles, six pages logiques").toHaveLength(6);
+    expect(double.pages.every((page) => page.texte === "")).toBe(true);
   });
 });
 

@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-10 | Pourquoi une page vide coûte 240 ms, et ce qu'on en a fait (lot 16b) | [2026-11-10-pourquoi-une-page-vide-coute-240-ms.md](2026-11-10-pourquoi-une-page-vide-coute-240-ms.md) |
 | 2026-11-10 | Le garde-fou des marges mesure le corps, et lit le délai (D7) | [2026-11-10-le-garde-fou-des-marges-mesure-le-corps.md](2026-11-10-le-garde-fou-des-marges-mesure-le-corps.md) |
 | 2026-11-10 | L'option de tranche borne aussi l'export des images (lot 0i) | [2026-11-10-la-tranche-borne-aussi-les-images.md](2026-11-10-la-tranche-borne-aussi-les-images.md) |
 | 2026-11-09 | Les licences embarquées : ce qu'elles obligent, et ce que nous faisons | [2026-11-09-licences-aucune-obligation-non-remplie.md](2026-11-09-licences-aucune-obligation-non-remplie.md) |
