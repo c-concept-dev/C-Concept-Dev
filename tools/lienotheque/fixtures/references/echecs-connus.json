@@ -56,7 +56,11 @@
           "message": "expected 'spawnSync tesseract ENOENT' to contain '7'"
         },
         {
-          "nom": "ce qu'on compte quand une page n'a rien rendu (OUT-05, OUT-15) compte des pages, et n'en double pas le nombre sur une feuille double",
+          "nom": "ce qu'on compte quand une page n'a rien rendu (OUT-05, OUT-15) compte des pages, une par feuille, et n'en invente aucune",
+          "message": "spawnSync tesseract ENOENT"
+        },
+        {
+          "nom": "ce qu'on compte quand une page n'a rien rendu (OUT-05, OUT-15) n'en double pas le nombre sur une feuille double",
           "message": "spawnSync tesseract ENOENT"
         }
       ],
@@ -80,7 +84,8 @@
       "a_ne_pas_faire": "Ne pas verdir le contrôle en sautant quand Tesseract manque : ce serait cacher précisément le cas que l'exigence 0 veut couvrir. Et ne pas relâcher l'assertion : c'est le nombre de pages qui doit figurer dans la cause.",
       "depend_de": [
         "A2"
-      ]
+      ],
+      "renomme_le": "2026-11-10 : le contrôle « compte des pages, et n'en double pas le nombre sur une feuille double » a été SÉPARÉ en deux par le lot 16b — il portait deux affirmations indépendantes et payait leurs deux lectures contre un seul délai. Les deux noms neufs sont ci-dessus. L'oubli de cette mise à jour a fait ROUGIR Ubuntu à la course 42823695147 : deux RÉGRESSIONS, qui n'étaient que l'épingle ne reconnaissant plus ses contrôles. Invisible sur une machine qui a Tesseract, où ces contrôles passent et l'épingle est hors contexte. D'où le garde-fou neuf : une épingle qui nomme un contrôle qu'aucun rapport ne porte refuse le passage."
     }
   ]
 }
