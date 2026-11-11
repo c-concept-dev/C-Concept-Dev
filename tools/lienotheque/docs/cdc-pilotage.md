@@ -1,8 +1,8 @@
 # Liénothèque — Cahier des charges de pilotage
 
-**Version 25.11 — 11 novembre 2026**
+**Version 25.12 — 11 novembre 2026**
 Rédigé à partir des sessions du 3 au 9 novembre 2026 (Christophe, Claude, Claude Desktop).
-La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs). La 25.4 met à jour l'étape 0 (licences faites, vérification à l'écran ajoutée), lève D2, D18 et D19, redéfinit D7 et ajoute D21 (Siegfried). La 25.5 suit l'embarquement de Siegfried, la nouvelle archive des moteurs et le retrait de la copie de bisect. La 25.6 coche la publication de l'archive et la CI macOS lisant avec le même programme (D1 levée), et ajoute D23 (score sur peu d'apparitions). La 25.7 rouvrait l'étape 0 sur un défaut de rendu des pages qui venait en réalité du montage de l'essai (variable `LIENOTHEQUE_PDFJS` non posée, images non demandées) ; la 25.8 annule cette réouverture, garde D21 (prouvée par l'exécution), remet D22 et D23 dans l'ordre, et ajoute D24 (polices standard de la couche texte). La 25.9 lève **D24** (lot 0h), sous la règle permanente du 10 novembre : Claude peut lever une dette ou cocher une case quand c'est prouvé par un commit et une mesure et dit dans le message de commit, et ne touche sans le mot de Christophe ni à une règle, ni à l'ordre de la feuille de route, ni à la doctrine, ni au nombre d'étapes. La 25.10 ajoute **D25** (un lien publié ne porte que son folio), sur demande de Christophe et avec sa mesure. La 25.11 ajoute **D26** (`paquet-hermetique` ne voit pas un `dlopen` tardif), inscrite sur sa règle « reporter sans nommer, c'est oublier ».
+La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs). La 25.4 met à jour l'étape 0 (licences faites, vérification à l'écran ajoutée), lève D2, D18 et D19, redéfinit D7 et ajoute D21 (Siegfried). La 25.5 suit l'embarquement de Siegfried, la nouvelle archive des moteurs et le retrait de la copie de bisect. La 25.6 coche la publication de l'archive et la CI macOS lisant avec le même programme (D1 levée), et ajoute D23 (score sur peu d'apparitions). La 25.7 rouvrait l'étape 0 sur un défaut de rendu des pages qui venait en réalité du montage de l'essai (variable `LIENOTHEQUE_PDFJS` non posée, images non demandées) ; la 25.8 annule cette réouverture, garde D21 (prouvée par l'exécution), remet D22 et D23 dans l'ordre, et ajoute D24 (polices standard de la couche texte). La 25.9 lève **D24** (lot 0h), sous la règle permanente du 10 novembre : Claude peut lever une dette ou cocher une case quand c'est prouvé par un commit et une mesure et dit dans le message de commit, et ne touche sans le mot de Christophe ni à une règle, ni à l'ordre de la feuille de route, ni à la doctrine, ni au nombre d'étapes. La 25.10 ajoute **D25** (un lien publié ne porte que son folio), sur demande de Christophe et avec sa mesure. La 25.11 ajoute **D26** (`paquet-hermetique` ne voit pas un `dlopen` tardif), inscrite sur sa règle « reporter sans nommer, c'est oublier ». La 25.12 inscrit au § 4.4 l'**exception explicite** de Christophe : un commit qui ne touche que des documents, hors fichiers lus par les garde-fous, part sans contrôle complet sous trois conditions.
 
 ---
 
@@ -131,6 +131,22 @@ Une recommandation de Claude **n'est jamais** une autorisation. Une autorisation
 - On lit le **code de sortie**, jamais l'apparence du journal, et jamais au bout d'un `| tail`.
 - La charge est relevée au début et à la fin. Machine saturée, sur batterie ou en veille : on n'interprète pas un rouge, on relance au calme. Exiger une **accalmie tenue**, pas un instantané.
 - Un seul contrôle complet à la fois.
+
+**Une exception, et une seule** (Christophe, 11 novembre 2026). Un commit qui ne touche **que des
+documents** part sans contrôle complet, à **trois** conditions réunies :
+
+1. le **crochet de pré-commit** passe ;
+2. le **dernier contrôle complet est accepté sur le même code** — aucun fichier exécutable n'a
+   changé depuis ;
+3. la **CI est lue** après la poussée.
+
+« Que des documents » exclut **tout fichier lu par un garde-fou** : les **épingles**
+(`fixtures/references/echecs-connus.json`), la **barre des marges**
+(`fixtures/references/marges-de-delai.json`), et les **fixtures** en général. Ceux-là changent ce
+que le contrôle décide, donc ils relèvent de la règle stricte, quelle que soit leur extension.
+
+**Tout autre commit : règle stricte.** Voir
+[`docs/decisions/2026-11-11-un-commit-de-documents-part-sans-controle.md`](decisions/2026-11-11-un-commit-de-documents-part-sans-controle.md).
 
 ### 4.5 La CI
 
