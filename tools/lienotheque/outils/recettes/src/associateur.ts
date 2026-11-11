@@ -54,6 +54,12 @@ export type Association = {
       // Sans cette raison, l'écran disait « rien ne numérote » d'un document dont on n'avait vu
       // qu'une part : une affirmation plus forte que ce que la lecture permettait.
       | "exploration_interrompue"
+      // Des endroits ont été élus, relus EN ENTIER, et aucun n'a tenu au rejugement. Distinct
+      // d'« aucun repère lu », qui dit qu'on n'a rien trouvé : ici on a trouvé, lu, et la
+      // relecture complète a démenti ce que l'échantillon promettait. Qui lit l'écran doit
+      // pouvoir le savoir, parce que cela dit quelque chose du document — ses marques sont
+      // trop peu nombreuses ou trop bruitées pour être tenues — et non de la lecture.
+      | "aucune_marque_ne_tient"
       // Des enregistrements sont là, lus, et cette manière de lire n'en fait rien.
       | "medias_non_interpretes"
       | "vivier_non_borne"

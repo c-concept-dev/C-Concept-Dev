@@ -71,11 +71,48 @@ export function fichiersDesZones(suivis: readonly string[], garde: GardeDuVocabu
   );
 }
 
+/** La marque qu'on pose sur un correctif d'essai, et que ce fichier n'écrit jamais en entier.
+ *
+ *  **Elle est assemblée, et ce n'est pas une coquetterie.** Ce garde-fou lit le contenu indexé de
+ *  chaque fichier du commit, y compris le sien et celui de ses épreuves. Écrite d'un seul tenant,
+ *  elle ferait refuser le garde-fou par lui-même — la faute exacte du crochet qui, le 9 novembre
+ *  2026, refusait tout chemin commençant par un point, le sien compris. Un garde-fou qui
+ *  s'accuse finit désarmé, et c'est pire que pas de garde-fou.
+ *
+ *  Conséquence assumée : **le dépôt n'épelle cette marque nulle part.** Les documents qui en
+ *  parlent disent « la marque de mesure ». */
+export const MARQUE_DE_MESURE = ["NE", "PAS", "COMMITER"].join(" ");
+
+/** Où un fichier du commit porte la marque de mesure, ligne par ligne.
+ *
+ *  Toutes les espèces de fichiers, et non les seules sources : un chiffre provisoire dans un
+ *  document, un seuil d'essai dans un fichier de données, un plancher abaissé dans un script de
+ *  mesure — la marque dit « ceci n'est pas destiné à partir », et le type du fichier n'y change
+ *  rien. */
+export function marquesDeMesure(
+  suivis: readonly string[],
+  lire: (chemin: string) => string,
+): readonly { readonly chemin: string; readonly ligne: number }[] {
+  const trouvees: { chemin: string; ligne: number }[] = [];
+  for (const chemin of suivis) {
+    const lignes = lire(chemin).split("\n");
+    for (const [rang, ligne] of lignes.entries())
+      if (ligne.includes(MARQUE_DE_MESURE)) trouvees.push({ chemin, ligne: rang + 1 });
+  }
+  return trouvees;
+}
+
 export function verdictAvantCommit(entree: EntreeDuVerdict): Verdict {
   const refus: string[] = [];
 
   for (const refuse of fichiersRefuses(entree.suivis))
     refus.push(`fichier refusé — ${refuse.chemin} : ${refuse.pourquoi}`);
+
+  for (const marque of marquesDeMesure(entree.suivis, entree.lire))
+    refus.push(
+      `marque de mesure — ${marque.chemin}:${marque.ligne} porte « ${MARQUE_DE_MESURE} ». ` +
+        "Un correctif d'essai n'a pas à partir : retirez-le, ou retirez-le de l'index.",
+    );
 
   for (const fantome of importsFantomes(entree.suivis, entree.lire))
     refus.push(

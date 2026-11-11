@@ -327,6 +327,22 @@ describe("l'écran nomme la vraie cause d'une abstention (OUT-01, UX-03)", () =>
     ).not.toMatch(/interprét/i);
   });
 
+  it("distingue « aucune marque ne tient » de « rien ne numérote » (D23)", () => {
+    // La troisième cause de silence, et la plus instructive des trois : on a trouvé des repères,
+    // on les a relus EN ENTIER, et aucun ne s'est confirmé. Dire « aucun repère lu » dans ce
+    // cas-là serait faux — on en a lu, et beaucoup —, et cela enverrait changer de manière de
+    // lire quelqu'un dont le document n'a simplement pas de marque tenable.
+    const neTientPas = vue({ raison: "aucune_marque_ne_tient", combien: 9 });
+    const rienNeNumerote = vue({ raison: "aucun_repere_lu", combien: 9 });
+    expect(neTientPas?.libelle).not.toBe(rienNeNumerote?.libelle);
+    expect(neTientPas?.libelle).toMatch(/relecture/i);
+    expect(neTientPas?.details.join(" ")).toMatch(/9/);
+    expect(
+      [neTientPas?.motif ?? "", ...(neTientPas?.details ?? [])].join(" "),
+      "et elle dit qu'on a LU, au lieu de laisser croire qu'on n'a rien trouvé",
+    ).toMatch(/relus en entier|relecture/i);
+  });
+
   it("distingue « je n'ai pas fini de regarder » de « rien ne numérote »", () => {
     // Les deux causes se ressemblent à l'écran et n'appellent pas le même geste. « Aucun repère
     // lu » affirme qu'on a regardé partout ; « exploration interrompue » dit qu'on s'est arrêté

@@ -308,6 +308,13 @@ const echantillonner = (zone: ZoneRecurrente, combien: number): readonly FormeOb
   return Array.from({ length: combien }, (_, place) => triees[Math.floor(place * pas)]!);
 };
 
+/** De quoi reconnaître un couple endroit + manière de lire d'un tour de boucle à l'autre.
+ *
+ *  La boîte en parts de page et le motif : c'est ce qui définit un essai, et deux essais du même
+ *  endroit avec deux motifs différents sont deux essais, pas un. */
+const clefDEndroit = (zone: ZoneRecurrente, motif: Motif): string =>
+  `${zone.x}:${zone.y}:${zone.l}:${zone.h}:${motif}`;
+
 /** La fenêtre élargie d'une taille de signe dans les quatre directions.
  *
  *  Pour lire ce qui est écrit **près** d'un signe, et non dedans. Rien ne dit de quel côté le
@@ -809,516 +816,579 @@ export async function rejouerParOracle(
     }
   }
 
-  const venuDeLAcquis = retenu !== undefined;
-  for (const zone of proposees) {
-    if (venuDeLAcquis || renoncement !== undefined) break;
-    const echantillon = echantillonner(zone, APPARITIONS_POUR_JUGER);
-    for (const motif of MOTIFS) {
-      const secondes = (Date.now() - departExploration) / 1000;
-      if (eprouvees >= budget.paires) {
-        renoncement = `le budget n'en porte pas plus de ${budget.paires}`;
-        break;
+  // Un endroit retenu est **relu en entier** par le coordinateur, puis **rejugé** sur cette
+  // relecture (dette D23). S'il ne tient plus, il est écarté et le suivant prend la relève —
+  // rejugé de la même façon avant toute publication. D'où cette boucle, qui ne sort que par un
+  // retour : chaque tour explore, relit, rejuge.
+  const ecartesAuRejugement = new Set<string>();
+  let venuDeLAcquis = retenu !== undefined;
+  for (;;) {
+    for (const zone of proposees) {
+      if (venuDeLAcquis || renoncement !== undefined) break;
+      const echantillon = echantillonner(zone, APPARITIONS_POUR_JUGER);
+      for (const motif of MOTIFS) {
+        // Un couple déjà tombé au rejugement ne se réessaie pas : il a été lu en entier, et sa
+        // relecture complète a dit non. Le relire reviendrait à boucler sur la même réponse.
+        if (ecartesAuRejugement.has(clefDEndroit(zone, motif))) continue;
+        const secondes = (Date.now() - departExploration) / 1000;
+        if (eprouvees >= budget.paires) {
+          renoncement = `le budget n'en porte pas plus de ${budget.paires}`;
+          break;
+        }
+        if (secondes >= budget.secondes) {
+          renoncement = `les ${budget.secondes} s du budget sont écoulées`;
+          break;
+        }
+        eprouvees += 1;
+        // Les valeurs lues, dans l'ordre des pages, et non leur seul décompte : c'est ce qui est lu
+        // qui dit si cet endroit porte une numérotation ou une forme que la reconnaissance habille
+        // toujours du même chiffre.
+        //
+        // Lues une à une, et non toutes d'un bloc. Après chaque lecture, la borne dit ce que cet
+        // endroit peut encore atteindre au mieux, ses apparitions non lues supposées parfaites.
+        // Dès qu'elle passe sous ce qu'il faudrait pour qualifier — ou sous le meilleur endroit
+        // déjà trouvé —, le lire davantage ne pourrait plus rien changer : on l'abandonne. Mesuré
+        // sur 376 essais de cinq documents réels, c'est 43 % des reconnaissances en moins pour les
+        // mêmes endroits retenus, au centième près. Rien n'est parié : voir `borneDeNumerotation`.
+        const aBattre = Math.max(NUMEROTATION_PROBABLE, retenu?.part ?? 0);
+        const suite: (number | undefined)[] = [];
+        let borne = 0;
+        let abandonne = false;
+        for (const apparition of echantillon) {
+          const image = images.get(apparition.page);
+          if (image === undefined) suite.push(undefined);
+          else {
+            const marque: Marque = {
+              numero: 0,
+              rangDePage: apparition.page,
+              y: apparition.y,
+              fenetre: boiteDeLApparition(apparition, image),
+              image,
+              hauteur: apparition.h * image.hauteur,
+            };
+            suite.push(lireLaMarque(marque, motif, options)?.valeur);
+          }
+          reconnaissances += 1;
+          borne = borneDeNumerotation(suite, echantillon.length);
+          if (borne < aBattre) {
+            abandonne = true;
+            break;
+          }
+        }
+        const ou =
+          `  signe de ${(zone.taille.l * 100).toFixed(1)} × ${(zone.taille.h * 100).toFixed(1)} % ` +
+          `vers ${(zone.x * 100).toFixed(0)} % de la largeur`;
+        if (abandonne) {
+          if (borne > borneLaPlusHaute) borneLaPlusHaute = borne;
+          dire(
+            `${ou} : abandonné après ${suite.length} lecture(s) sur ${echantillon.length}, ` +
+              `il ne peut plus dépasser ${(borne * 100).toFixed(0)} %`,
+          );
+          continue;
+        }
+        const allure = allureDeLaSuite(suite);
+        const part = partDeNumerotation(allure, echantillon.length);
+        dire(
+          `${ou} : ${allure.lues}/${echantillon.length} se lisent, ` +
+            `${allure.distinctes} valeur(s) distincte(s), avance ${(allure.avance * 100).toFixed(0)} % ` +
+            `→ numérotation ${(part * 100).toFixed(0)} %`,
+        );
+        if (retenu === undefined || part > retenu.part) retenu = { zone, motif, part, echantillon, suite };
       }
-      if (secondes >= budget.secondes) {
-        renoncement = `les ${budget.secondes} s du budget sont écoulées`;
-        break;
-      }
-      eprouvees += 1;
-      // Les valeurs lues, dans l'ordre des pages, et non leur seul décompte : c'est ce qui est lu
-      // qui dit si cet endroit porte une numérotation ou une forme que la reconnaissance habille
-      // toujours du même chiffre.
+    }
+    if (!venuDeLAcquis)
+      dire(
+        `${eprouvees} essai(s) éprouvé(s), ${reconnaissances} lecture(s) là où les lire tous ` +
+          `entièrement en aurait demandé ${reconnaissancesSansElagage}`,
+      );
+    if (renoncement !== undefined)
+      dire(`exploration arrêtée après ${eprouvees} essai(s) sur ${possibles} possibles : ${renoncement}`);
+    // Un endroit n'est retenu que s'il a passé le seuil : la borne l'abandonne sinon, à sa dernière
+    // lecture au plus tard, où elle vaut exactement sa note. D'où l'unique condition ici.
+    if (retenu === undefined) {
+      // Dire que rien ne numérote, et non que rien ne se lit : la reconnaissance lit des chiffres
+      // dans bien des formes, et c'est précisément l'erreur dans laquelle il ne faut pas tomber.
       //
-      // Lues une à une, et non toutes d'un bloc. Après chaque lecture, la borne dit ce que cet
-      // endroit peut encore atteindre au mieux, ses apparitions non lues supposées parfaites.
-      // Dès qu'elle passe sous ce qu'il faudrait pour qualifier — ou sous le meilleur endroit
-      // déjà trouvé —, le lire davantage ne pourrait plus rien changer : on l'abandonne. Mesuré
-      // sur 376 essais de cinq documents réels, c'est 43 % des reconnaissances en moins pour les
-      // mêmes endroits retenus, au centième près. Rien n'est parié : voir `borneDeNumerotation`.
-      const aBattre = Math.max(NUMEROTATION_PROBABLE, retenu?.part ?? 0);
-      const suite: (number | undefined)[] = [];
-      let borne = 0;
-      let abandonne = false;
-      for (const apparition of echantillon) {
+      // Et dire ce qui est prouvé, non ce qui est mesuré : aucune note n'étant allée à son terme,
+      // il n'y a plus de « meilleur ». La plus haute borne, elle, est démontrée — cet endroit-là
+      // n'aurait pas dépassé ce chiffre, quoi qu'eussent rendu ses apparitions non lues.
+      const insuffisant =
+        eprouvees === 0
+          ? "aucun essai n'a été fait"
+          : `le plus prometteur ne pouvait pas dépasser ${(borneLaPlusHaute * 100).toFixed(0)} % là où il en ` +
+            `faut ${(NUMEROTATION_PROBABLE * 100).toFixed(0)} %`;
+      // Deux abstentions, et non une : « j'ai tout essayé, rien ne numérote » et « je me suis
+      // arrêtée avant d'avoir tout essayé » ne disent pas la même chose à qui lira ce document.
+      // Une exploration qui a conclu se retient ; une exploration arrêtée par son budget, jamais.
+      // Se souvenir de « je n'ai pas fini » autoriserait plus tard à conclure de ce qu'on n'a pas vu.
+      const aRetenir =
+        renoncement === undefined
+          ? AcquisDeLecture.parse({
+              etat: "aucun_endroit",
+              conteneur: empreinte,
+              voie: LA_VOIE,
+              pagesRegardees: combienDePages,
+              etabliLe: Math.floor(Date.now() / 1000),
+              endroitsProposes: proposees.length,
+              essaisEprouves: eprouvees,
+              borneLaPlusHaute: borneLaPlusHaute,
+            })
+          : undefined;
+      return sansLien(
+        medias,
+        options,
+        journal,
+        combienDePages,
+        renoncement === undefined
+          ? `Aucun des ${proposees.length} endroits trouvés ne porte une numérotation : ${insuffisant}.`
+          : `Aucun endroit fiable trouvé : exploration arrêtée après ${eprouvees} essai(s) sur les ` +
+            `${possibles} qu'offrent ${proposees.length} endroit(s), ${renoncement}. ` +
+            `${insuffisant[0]!.toUpperCase()}${insuffisant.slice(1)}.`,
+        aRetenir,
+        medias.length,
+        // `renoncement` est précisément « l'exploration s'est arrêtée sur son budget », et c'est la
+        // même valeur qui décide, quelques lignes plus haut, de ne RIEN retenir de cette lecture.
+        // Les deux conséquences suivent donc la même cause, et aucune ne peut être posée sans
+        // l'autre.
+        renoncement !== undefined,
+        // Des endroits ont été élus puis écartés au rejugement : la cause le dit, au lieu de
+        // laisser croire qu'on n'a rien trouvé.
+        ecartesAuRejugement.size > 0,
+      );
+    }
+    // Figé : au-delà de cette garde, l'endroit ne peut plus être indéfini, et le rejugement
+    // plus bas remet `retenu` à vide pour le tour suivant sans toucher à celui-ci.
+    const endroit = retenu;
+    dire(
+      `endroit retenu : un signe de ${(endroit.zone.taille.l * 100).toFixed(1)} × ` +
+        `${(endroit.zone.taille.h * 100).toFixed(1)} % de la page, numérotation ${(endroit.part * 100).toFixed(0)} %, ` +
+        `${endroit.zone.apparitions.length} apparition(s) en tout`,
+    );
+
+    // ── 3. Le coordinateur, sur chaque marque ──────────────────────────────────────────────
+    const marques: Marque[] = [...endroit.zone.apparitions]
+      .sort((un, autre) => un.page - autre.page || un.y - autre.y)
+      .flatMap((apparition, place) => {
         const image = images.get(apparition.page);
-        if (image === undefined) suite.push(undefined);
-        else {
-          const marque: Marque = {
-            numero: 0,
+        if (image === undefined) return [];
+        return [
+          {
+            numero: place + 1,
             rangDePage: apparition.page,
             y: apparition.y,
             fenetre: boiteDeLApparition(apparition, image),
             image,
             hauteur: apparition.h * image.hauteur,
-          };
-          suite.push(lireLaMarque(marque, motif, options)?.valeur);
-        }
-        reconnaissances += 1;
-        borne = borneDeNumerotation(suite, echantillon.length);
-        if (borne < aBattre) {
-          abandonne = true;
-          break;
-        }
-      }
-      const ou =
-        `  signe de ${(zone.taille.l * 100).toFixed(1)} × ${(zone.taille.h * 100).toFixed(1)} % ` +
-        `vers ${(zone.x * 100).toFixed(0)} % de la largeur`;
-      if (abandonne) {
-        if (borne > borneLaPlusHaute) borneLaPlusHaute = borne;
-        dire(
-          `${ou} : abandonné après ${suite.length} lecture(s) sur ${echantillon.length}, ` +
-            `il ne peut plus dépasser ${(borne * 100).toFixed(0)} %`,
-        );
-        continue;
-      }
-      const allure = allureDeLaSuite(suite);
-      const part = partDeNumerotation(allure, echantillon.length);
-      dire(
-        `${ou} : ${allure.lues}/${echantillon.length} se lisent, ` +
-          `${allure.distinctes} valeur(s) distincte(s), avance ${(allure.avance * 100).toFixed(0)} % ` +
-          `→ numérotation ${(part * 100).toFixed(0)} %`,
-      );
-      if (retenu === undefined || part > retenu.part) retenu = { zone, motif, part, echantillon, suite };
-    }
-  }
-  if (!venuDeLAcquis)
-    dire(
-      `${eprouvees} essai(s) éprouvé(s), ${reconnaissances} lecture(s) là où les lire tous ` +
-        `entièrement en aurait demandé ${reconnaissancesSansElagage}`,
-    );
-  if (renoncement !== undefined)
-    dire(`exploration arrêtée après ${eprouvees} essai(s) sur ${possibles} possibles : ${renoncement}`);
-  // Un endroit n'est retenu que s'il a passé le seuil : la borne l'abandonne sinon, à sa dernière
-  // lecture au plus tard, où elle vaut exactement sa note. D'où l'unique condition ici.
-  if (retenu === undefined) {
-    // Dire que rien ne numérote, et non que rien ne se lit : la reconnaissance lit des chiffres
-    // dans bien des formes, et c'est précisément l'erreur dans laquelle il ne faut pas tomber.
-    //
-    // Et dire ce qui est prouvé, non ce qui est mesuré : aucune note n'étant allée à son terme,
-    // il n'y a plus de « meilleur ». La plus haute borne, elle, est démontrée — cet endroit-là
-    // n'aurait pas dépassé ce chiffre, quoi qu'eussent rendu ses apparitions non lues.
-    const insuffisant =
-      eprouvees === 0
-        ? "aucun essai n'a été fait"
-        : `le plus prometteur ne pouvait pas dépasser ${(borneLaPlusHaute * 100).toFixed(0)} % là où il en ` +
-          `faut ${(NUMEROTATION_PROBABLE * 100).toFixed(0)} %`;
-    // Deux abstentions, et non une : « j'ai tout essayé, rien ne numérote » et « je me suis
-    // arrêtée avant d'avoir tout essayé » ne disent pas la même chose à qui lira ce document.
-    // Une exploration qui a conclu se retient ; une exploration arrêtée par son budget, jamais.
-    // Se souvenir de « je n'ai pas fini » autoriserait plus tard à conclure de ce qu'on n'a pas vu.
-    const aRetenir =
-      renoncement === undefined
-        ? AcquisDeLecture.parse({
-            etat: "aucun_endroit",
-            conteneur: empreinte,
-            voie: LA_VOIE,
-            pagesRegardees: combienDePages,
-            etabliLe: Math.floor(Date.now() / 1000),
-            endroitsProposes: proposees.length,
-            essaisEprouves: eprouvees,
-            borneLaPlusHaute: borneLaPlusHaute,
-          })
-        : undefined;
-    return sansLien(
-      medias,
-      options,
-      journal,
-      combienDePages,
-      renoncement === undefined
-        ? `Aucun des ${proposees.length} endroits trouvés ne porte une numérotation : ${insuffisant}.`
-        : `Aucun endroit fiable trouvé : exploration arrêtée après ${eprouvees} essai(s) sur les ` +
-          `${possibles} qu'offrent ${proposees.length} endroit(s), ${renoncement}. ` +
-          `${insuffisant[0]!.toUpperCase()}${insuffisant.slice(1)}.`,
-      aRetenir,
-      medias.length,
-      // `renoncement` est précisément « l'exploration s'est arrêtée sur son budget », et c'est la
-      // même valeur qui décide, quelques lignes plus haut, de ne RIEN retenir de cette lecture.
-      // Les deux conséquences suivent donc la même cause, et aucune ne peut être posée sans
-      // l'autre.
-      renoncement !== undefined,
-    );
-  }
-  dire(
-    `endroit retenu : un signe de ${(retenu.zone.taille.l * 100).toFixed(1)} × ` +
-      `${(retenu.zone.taille.h * 100).toFixed(1)} % de la page, numérotation ${(retenu.part * 100).toFixed(0)} %, ` +
-      `${retenu.zone.apparitions.length} apparition(s) en tout`,
-  );
+          },
+        ];
+      });
 
-  // ── 3. Le coordinateur, sur chaque marque ──────────────────────────────────────────────
-  const marques: Marque[] = [...retenu.zone.apparitions]
-    .sort((un, autre) => un.page - autre.page || un.y - autre.y)
-    .flatMap((apparition, place) => {
-      const image = images.get(apparition.page);
-      if (image === undefined) return [];
-      return [
-        {
-          numero: place + 1,
-          rangDePage: apparition.page,
-          y: apparition.y,
-          fenetre: boiteDeLApparition(apparition, image),
-          image,
-          hauteur: apparition.h * image.hauteur,
-        },
-      ];
-    });
-
-  const gabarit: Gabarit = { taille: retenu.zone.taille, motif: retenu.motif };
-  // Lire une marque coûte plusieurs appels de reconnaissance. On garde ce qu'on en a tiré :
-  // la présence sert au pesage de la suite, et la relire reviendrait à payer deux fois la
-  // lecture de tout le document — mesuré, c'est la moitié du temps de cette voie.
-  const presences = new Map<number, number>();
-  const coordonne = await coordonnerLectureDifficile<Marque, number, Gabarit>(marques, gabarit, {
-    numeroDePage: (marque) => marque.numero,
-    seuilConfiance: ACCORD_RETENU,
-    lireLocalement: ({ page: marque, modele }): LectureTentative<number> => {
-      const lu = lireLaMarque(marque, modele.motif, options);
-      if (lu === undefined) return { etat: "echec", raison: "Aucun chiffre n'a été lu dans cette marque." };
-      presences.set(marque.numero, lu.presence);
-      return { etat: "valide", valeur: lu.valeur, confiance: lu.accord };
-    },
-    // Le port existe ; il n'y a personne au bout sur cette voie, et c'est dit plutôt que feint.
-    relireParVision: (): LectureTentative<number> => ({
-      etat: "echec",
-      raison: "Aucun regard distant n'est branché sur cette voie.",
-    }),
-    corroborer: () => false,
-  });
-
-  const retenues = coordonne.pages.filter((decision) => decision.etat === "retenue").length;
-  dire(`${retenues} marque(s) retenue(s) sur ${marques.length}, ${marques.length - retenues} à vérifier`);
-
-  // ── Ce que cette lecture a appris de ce document ───────────────────────────────────────
-  //
-  // L'échantillon est celui qui a formé l'hypothèse ; les témoins sont les autres apparitions,
-  // relues une à une par le coordinateur — donc éprouvées hors de ce qui a formé l'hypothèse,
-  // comme le contrat l'exige. Les témoins gardés sont un échantillon réparti : un recueil de cinq
-  // cents pages en porte des milliers, et les recopier tous gonflerait l'acquis sans rien prouver
-  // de plus. Leurs décomptes réels voyagent avec, pour qu'il ne se vante pas.
-  const formeDeLEchantillon = new Set(retenu.echantillon.map((apparition) => `${apparition.page}:${apparition.y}`));
-  const luePourLaMarque = new Map(
-    coordonne.pages.map((decision) => [decision.page, decision.etat === "retenue" ? decision.valeur : undefined]),
-  );
-  const temoinsTous = marques
-    .filter((marque) => !formeDeLEchantillon.has(`${marque.rangDePage}:${marque.y}`))
-    .map((marque) => {
-      const valeur = luePourLaMarque.get(marque.numero);
-      return { rang: marque.rangDePage, y: marque.y, ...(valeur === undefined ? {} : { valeur }) };
-    });
-  const TEMOINS_GARDES = 32;
-  const pasDesTemoins = temoinsTous.length / TEMOINS_GARDES;
-  const acquisDeCetteLecture = AcquisDeLecture.parse({
-    etat: "endroit_trouve",
-    conteneur: empreinte,
-    voie: LA_VOIE,
-    pagesRegardees: combienDePages,
-    etabliLe: Math.floor(Date.now() / 1000),
-    endroit: { x: retenu.zone.x, y: retenu.zone.y, l: retenu.zone.l, h: retenu.zone.h },
-    motif: retenu.motif,
-    part: retenu.part,
-    echantillon: retenu.echantillon.map((apparition, place) => ({
-      rang: apparition.page,
-      y: apparition.y,
-      ...(retenu.suite[place] === undefined ? {} : { valeur: retenu.suite[place] }),
-    })),
-    temoins:
-      temoinsTous.length <= TEMOINS_GARDES
-        ? temoinsTous
-        : Array.from({ length: TEMOINS_GARDES }, (_, place) => temoinsTous[Math.floor(place * pasDesTemoins)]!),
-    temoinsEprouves: temoinsTous.length,
-    temoinsDAccord: temoinsTous.filter((temoin) => temoin.valeur !== undefined).length,
-  });
-
-  // ── 4. L'attribution, règles génériques seules ─────────────────────────────────────────
-  const lectures: LecturePiste[] = coordonne.pages.map((decision) => ({
-    ...(decision.etat === "retenue" ? { pisteLue: decision.valeur } : {}),
-    accordPiste: decision.etat === "retenue" ? decision.confiance : 0,
-    presencePiste: presences.get(decision.page) ?? 0,
-  }));
-  const regles: ReglesPistes = {
-    pasAutorises: [0, 1],
-    // Jamais : poser que la piste vaut le numéro de l'élément publie des liens sans aucune
-    // lecture. C'est ainsi que 52 faux liens sont nés sur un document de la vraie base.
-    egaleNumeroElement: false,
-    nombreDePistes: Math.max(1, medias.length),
-  };
-  const pistes = attribuerPistes(lectures, regles);
-
-  // ── 5. Le second signal : ce que les noms du vivier disent des pages ───────────────────
-  //
-  // La marque désigne un enregistrement par son **rang**, lu dans une fenêtre de quelques
-  // dizaines de pixels. Le nom le désigne par son **nom**, retrouvé dans le texte courant de la
-  // page — sa couche quand elle rend quelque chose de lisible, sa reconnaissance sinon. Les deux
-  // lectures restent indépendantes : ni les mêmes pixels, ni la même chose cherchée, ni le même
-  // fait extérieur confronté — un rang contre une suite de rangs, un intitulé contre un nom de
-  // fichier. C'est pourquoi elles peuvent se contredire — et c'est ce qui donne du prix à leur
-  // accord : deux lectures qui ne pourraient pas se démentir ne prouveraient rien ensemble.
-  // Quand les deux tombent sur le même enregistrement, elles s'accordent ; quand elles tombent
-  // sur deux différents, elles se contredisent, et une contradiction doit faire reculer.
-  // La page et la piste ensemble : une clef composée par calcul se confondrait avec une autre
-  // sur un document assez fourni, et fabriquerait une confirmation qui n'a jamais eu lieu.
-  const clefDeLAccord = (page: number, piste: number): string => `${page}\u0000${piste}`;
-  const confirmees = new Set<string>();
-  let contredites = 0;
-  let ocerisees = 0;
-  try {
-    // Seules les pages qui portent une marque peuvent recevoir une confirmation : ailleurs, un
-    // nom retrouvé ne confirme ni ne contredit rien. On ne lit donc que celles-là — sur un
-    // recueil de trois cents pages, c'est la différence entre quelques lectures et toutes.
-    const aMarque = [...new Set(marques.map((marque) => marque.rangDePage))].sort((un, autre) => un - autre);
-    const contenus: { page: number; texte: string }[] = [];
-    if (texteAligne !== undefined) {
-      const parRang = new Map(texteAligne.map((page) => [page.page, page.texte]));
-      for (const rang of aMarque) {
-        const texte = parRang.get(rang);
-        if (texte !== undefined) contenus.push({ page: rang, texte });
-      }
-      dire(`${contenus.length} page(s) à marque confrontée(s) au texte déjà lu par la chaîne.`);
-    } else if (options.texteDesPages === undefined) {
-      const couche = await lireCoucheTexte(pdf);
-      const parRang = new Map(couche.pages.map((page) => [page.index, page]));
-      const bac = mkdtempSync(join(tmpdir(), "lienotheque-oracle-"));
-      try {
-        for (const rang of aMarque) {
-          const deLaCouche = parRang.get(rang);
-          // Le même juge que le chemin du texte : une couche abondante mais illisible ne vaut pas
-          // mieux qu'aucune couche, et c'est elle qu'il faut alors écarter.
-          let page = deLaCouche !== undefined && coucheSuffisante(deLaCouche) ? deLaCouche : undefined;
-          const image = images.get(rang);
-          if (page === undefined && image !== undefined) {
-            page = ocrDUnePageGrise(image, rang, bac, {
-              ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
-              ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
-              ...(options.langue === undefined ? {} : { langue: options.langue }),
-            });
-            ocerisees += 1;
-          }
-          if (page !== undefined) contenus.push({ page: rang, texte: page.mots.map((mot) => mot.texte).join(" ") });
-        }
-      } finally {
-        rmSync(bac, { recursive: true, force: true });
-      }
-      if (ocerisees > 0)
-        dire(
-          `${ocerisees} page(s) sur ${aMarque.length} relues par reconnaissance : leur couche texte ne rend rien.`,
-        );
-    } else {
-      dire("Confrontation par les noms suspendue : les index du texte et du rendu ne s'accordent pas.");
-    }
-    const accords = accordsNomContenu(designationsDesNoms(medias.map((media) => media.nom)), contenus);
-    // Les pistes que la marque a attribuées, page par page : une page peut en porter plusieurs,
-    // et un nom retrouvé là ne contredit que ce qu'aucune d'elles ne dit.
-    const pistesDeLaPage = new Map<number, Set<number>>();
-    coordonne.pages.forEach((_, place) => {
-      const piste = pistes[place];
-      if (piste === undefined) return;
-      const page = marques[place]!.rangDePage;
-      pistesDeLaPage.set(page, (pistesDeLaPage.get(page) ?? new Set()).add(piste));
-    });
-    // Un accord désigne un ensemble d'enregistrements — un seul le plus souvent, deux quand un
-    // même morceau a sa démonstration et son accompagnement. La marque confirme dès qu'elle a lu
-    // **l'une** des pistes de l'ensemble sur cette page : le nom a mené à la page, et la marque y
-    // a lu ce que le nom y annonçait. Elle contredit quand la page porte des pistes et qu'aucune
-    // n'y est — c'est ce désaccord-là qui doit faire reculer.
-    for (const accord of accords) {
-      const attendues = accord.rangs
-        .map((rang) => medias[rang]?.piste)
-        .filter((piste): piste is number => piste !== undefined);
-      if (attendues.length === 0) continue;
-      const vues = pistesDeLaPage.get(accord.page);
-      if (vues === undefined) continue;
-      const accordee = attendues.find((piste) => vues.has(piste));
-      if (accordee === undefined) contredites += 1;
-      else confirmees.add(clefDeLAccord(accord.page, accordee));
-    }
-    const seuls = accords.filter((accord) => accord.rangs.length === 1).length;
-    dire(
-      contenus.every(({ texte: brut }) => brut.trim() === "")
-        ? "Les noms du vivier n'ont rien à confronter : aucun texte n'a pu être tiré de ces pages."
-        : `${accords.length} page(s) où le nom d'un enregistrement se retrouve imprimé, ` +
-            `dont ${seuls} qui n'en désigne(nt) qu'un seul : ` +
-            `${confirmees.size} confirme(nt) la marque, ${contredites} la contredise(nt).`,
-    );
-  } catch (echec) {
-    dire(`Le texte des pages n'a pas pu être lu : ${echec instanceof Error ? echec.message : String(echec)}`);
-  }
-  // Un second signal qui se trompe plus souvent qu'il ne confirme n'est pas un second signal :
-  // le revendiquer alors serait prendre un désaccord pour une preuve.
-  const accordTenu = confirmees.size > contredites;
-  if (!accordTenu && confirmees.size > 0)
-    dire("Les noms contredisent la marque au moins autant qu'ils la confirment : ce signal n'est pas retenu.");
-
-  // ── 6. Le résultat, dans la forme que les écrans lisent ────────────────────────────────
-  const lignesLues: LigneInterpretee[] = coordonne.pages.map((decision, place) => {
-    const marque = marques[place]!;
-    const piste = pistes[place];
-    const confirmee =
-      accordTenu && piste !== undefined && confirmees.has(clefDeLAccord(marque.rangDePage, piste));
-    return {
-      numero: marque.numero,
-      // Sans vote documentaire, le rang reste visible mais demeure explicitement « déduit ».
-      // Avec lui, la ligne porte le folio réellement lu par le socle commun.
-      pageImprimee: folioParRang.get(marque.rangDePage) ?? marque.rangDePage,
-      ...(piste === undefined ? {} : { piste }),
-      disque: 1,
-      ...(decision.etat === "retenue"
-        ? { sourcePiste: confirmee ? ("corroboration_media" as const) : ("pastille" as const) }
-        : {}),
-      zoneRepere: {
-        x: retenu.zone.x,
-        y: marque.y,
-        l: retenu.zone.taille.l,
-        h: retenu.zone.taille.h,
+    const gabarit: Gabarit = { taille: endroit.zone.taille, motif: endroit.motif };
+    // Lire une marque coûte plusieurs appels de reconnaissance. On garde ce qu'on en a tiré :
+    // la présence sert au pesage de la suite, et la relire reviendrait à payer deux fois la
+    // lecture de tout le document — mesuré, c'est la moitié du temps de cette voie.
+    const presences = new Map<number, number>();
+    const coordonne = await coordonnerLectureDifficile<Marque, number, Gabarit>(marques, gabarit, {
+      numeroDePage: (marque) => marque.numero,
+      seuilConfiance: ACCORD_RETENU,
+      lireLocalement: ({ page: marque, modele }): LectureTentative<number> => {
+        const lu = lireLaMarque(marque, modele.motif, options);
+        if (lu === undefined) return { etat: "echec", raison: "Aucun chiffre n'a été lu dans cette marque." };
+        presences.set(marque.numero, lu.presence);
+        return { etat: "valide", valeur: lu.valeur, confiance: lu.accord };
       },
-      confiance: decision.etat === "retenue" ? decision.confiance : 0,
-    };
-  });
+      // Le port existe ; il n'y a personne au bout sur cette voie, et c'est dit plutôt que feint.
+      relireParVision: (): LectureTentative<number> => ({
+        etat: "echec",
+        raison: "Aucun regard distant n'est branché sur cette voie.",
+      }),
+      corroborer: () => false,
+    });
 
-  // ── 6. La table globale : une seconde lecture, jamais une preuve autonome ──────────────
-  //
-  // Les mots et leur géométrie ont déjà été lus par la chaîne. On les réemploie : refaire un
-  // OCR ici pourrait produire une autre table que celle sur laquelle le texte publié repose.
-  // Une table n'est retenue que si elle recoupe massivement les triplets élément/piste/folio
-  // déjà lus par les marques. Elle ne comble pas les trous : seules les lignes réellement
-  // recoupées deviennent publiables.
-  const rangParNumero = new Map(marques.map((marque) => [marque.numero, marque.rangDePage] as const));
-  const lignesAvecFolio = lignesLues.filter((ligne) => {
-    const rang = rangParNumero.get(ligne.numero);
-    return rang !== undefined && folioParRang.has(rang);
-  });
-  const tables =
-    texteAligne?.flatMap((page) =>
-      page.mots === undefined
-        ? []
-        : [{ page: page.page, table: lireLaTable(page.mots, { enregistrements: medias.length }) }],
-    ) ?? [];
-  const constatsDeTable: ConstatDeTable[] = [];
-  const preuveParTable = foliosEtablis
-    ? corroborerParTable(lignesAvecFolio, tables, medias.length, constatsDeTable)
-    : undefined;
-  const lignes: LigneInterpretee[] = [...(preuveParTable?.lignes ?? lignesLues)];
-  if (preuveParTable !== undefined)
-    dire(
-      `table globale page ${preuveParTable.page} : ${preuveParTable.lignes.length} ligne(s) ` +
-        `recoupent exactement les repères lus ; les autres restent à vérifier.`,
-    );
-  else if (tables.length > 0)
-    dire(
-      `${tables.length} page(s) à géométrie disponible, sans table globale assez plausible ` +
-        `et assez corroborée pour publier.`,
+    const retenues = coordonne.pages.filter((decision) => decision.etat === "retenue").length;
+    dire(`${retenues} marque(s) retenue(s) sur ${marques.length}, ${marques.length - retenues} à vérifier`);
+
+    const luePourLaMarque = new Map(
+      coordonne.pages.map((decision) => [decision.page, decision.etat === "retenue" ? decision.valeur : undefined]),
     );
 
-  const parRang = new Map<number, LigneInterpretee[]>();
-  lignes.forEach((ligne) => {
-    const rang = rangParNumero.get(ligne.numero);
-    if (rang === undefined) return;
-    parRang.set(rang, [...(parRang.get(rang) ?? []), ligne]);
-  });
-  const pages: PageReperee[] = Array.from({ length: combienDePages }, (_, place) => {
-    const rang = place + 1;
-    return {
-      // La voie oracle rend une entrée par feuille rendue : elle garde sa place à chacune.
-      feuille: place,
-      rang: place,
-      pageImprimee: folioParRang.get(rang) ?? rang,
-      // « Lue » seulement si le vote documentaire a établi le folio de cette page. Une lecture
-      // locale isolée ne doit jamais suffire à changer ce statut ni à autoriser la publication.
-      statut: folioParRang.has(rang) ? ("lue" as const) : ("deduite" as const),
-      elements: (parRang.get(rang) ?? []).map((ligne) => ({
-        numero: ligne.numero,
-        y: ligne.zoneRepere?.y ?? 0,
-        // Aucun numéro d'élément n'est lu sur cette voie : le numéro est le rang de la marque,
-        // pas un chiffre imprimé. Son accord est donc nul, et c'est la vérité, pas une prudence.
-        accordNumero: 0,
-        accordPiste: ligne.confiance,
-        presencePiste: presences.get(ligne.numero) ?? 0,
-        // La mention de suite (« cont'd ») n'est pas cherchée ici : rien ne la lit encore.
-        suite: false,
-        confiance: ligne.confiance,
-        ...(ligne.zoneRepere === undefined ? {} : { zoneRepere: ligne.zoneRepere }),
+    // ── Le rejugement de la relecture complète (dette D23, REC-02) ───────────────────────
+    //
+    // **Ce qui est jugé pour retenir un endroit n'est pas ce qui est lu ensuite.** L'endroit est
+    // élu sur un échantillon d'au plus douze apparitions ; le coordinateur, lui, les relit
+    // toutes. Jusqu'ici cette relecture ne servait qu'à produire les valeurs : personne ne
+    // demandait si, vue en entier, elle ressemblait encore à une numérotation.
+    //
+    // Rejuger ne peut que transformer une conclusion fausse en **abstention**, jamais l'inverse :
+    // le critère est le même, et il s'applique à plus de lectures, pas à moins. C'est à ce titre
+    // qu'il est posé — un filet, non un correctif.
+    //
+    // **Ce qu'il n'attrape pas, et c'est mesuré.** Le 10 novembre 2026, sur un recueil de
+    // quarante-et-une pages à plancher abaissé, l'endroit retenu à tort n'est pas du bruit : il
+    // lit `17, 19, 23, —, 25, 27, 33, 35`, c'est-à-dire **le folio imprimé**, à deux erreurs
+    // près. Sept valeurs lues, toutes distinctes, strictement croissantes : sa note est de 75 %
+    // à l'échantillon **comme** à la relecture complète, et elle est méritée. Il bat la marque
+    // qui désigne vraiment les enregistrements, notée 66 % parce qu'elle se lit moins bien.
+    //
+    // Autrement dit : la note dit « cet endroit porte une numérotation », jamais « cette
+    // numérotation désigne les enregistrements ». Un folio est une numérotation parfaite, et il
+    // l'emportera chaque fois qu'un repère d'élément se lira moins proprement. Rejuger ne peut
+    // rien y faire, et il ne faut pas laisser croire le contraire.
+    const suiteComplete = marques.map((marque) => luePourLaMarque.get(marque.numero));
+    const partComplete = partDeNumerotation(allureDeLaSuite(suiteComplete), marques.length);
+    // Ce que la relecture a rendu, en clair. Sans cette ligne, un rejugement qui ne se déclenche
+    // pas est indiscernable d'un rejugement absent — et c'est précisément ce qui m'est arrivé le
+    // 10 novembre 2026 : j'ai cru le code inactif alors que je ne voyais simplement pas ce qu'il
+    // jugeait.
+    dire(
+      `relecture complète : ${suiteComplete.map((valeur) => valeur ?? "—").join(", ")} ` +
+        `→ ${(partComplete * 100).toFixed(0)} %`,
+    );
+    if (partComplete < NUMEROTATION_PROBABLE) {
+      dire(
+        `endroit écarté à la relecture : jugé ${(endroit.part * 100).toFixed(0)} % sur ` +
+          `${endroit.echantillon.length} apparition(s), il ne vaut plus que ` +
+          `${(partComplete * 100).toFixed(0)} % sur les ${marques.length} relues. ` +
+          "Ce qui l'avait fait élire n'était pas dans le document.",
+      );
+      ecartesAuRejugement.add(clefDEndroit(endroit.zone, endroit.motif));
+      retenu = undefined;
+      // L'acquis ne vaut pas mieux qu'un endroit fraîchement élu : s'il tombe, on explore.
+      venuDeLAcquis = false;
+      continue;
+    }
+
+    // ── Ce que cette lecture a appris de ce document ───────────────────────────────────────
+    //
+    // L'échantillon est celui qui a formé l'hypothèse ; les témoins sont les autres apparitions,
+    // relues une à une par le coordinateur — donc éprouvées hors de ce qui a formé l'hypothèse,
+    // comme le contrat l'exige. Les témoins gardés sont un échantillon réparti : un recueil de cinq
+    // cents pages en porte des milliers, et les recopier tous gonflerait l'acquis sans rien prouver
+    // de plus. Leurs décomptes réels voyagent avec, pour qu'il ne se vante pas.
+    const formeDeLEchantillon = new Set(endroit.echantillon.map((apparition) => `${apparition.page}:${apparition.y}`));
+    const temoinsTous = marques
+      .filter((marque) => !formeDeLEchantillon.has(`${marque.rangDePage}:${marque.y}`))
+      .map((marque) => {
+        const valeur = luePourLaMarque.get(marque.numero);
+        return { rang: marque.rangDePage, y: marque.y, ...(valeur === undefined ? {} : { valeur }) };
+      });
+    const TEMOINS_GARDES = 32;
+    const pasDesTemoins = temoinsTous.length / TEMOINS_GARDES;
+    const acquisDeCetteLecture = AcquisDeLecture.parse({
+      etat: "endroit_trouve",
+      conteneur: empreinte,
+      voie: LA_VOIE,
+      pagesRegardees: combienDePages,
+      etabliLe: Math.floor(Date.now() / 1000),
+      endroit: { x: endroit.zone.x, y: endroit.zone.y, l: endroit.zone.l, h: endroit.zone.h },
+      motif: endroit.motif,
+      part: endroit.part,
+      echantillon: endroit.echantillon.map((apparition, place) => ({
+        rang: apparition.page,
+        y: apparition.y,
+        ...(endroit.suite[place] === undefined ? {} : { valeur: endroit.suite[place] }),
       })),
+      temoins:
+        temoinsTous.length <= TEMOINS_GARDES
+          ? temoinsTous
+          : Array.from({ length: TEMOINS_GARDES }, (_, place) => temoinsTous[Math.floor(place * pasDesTemoins)]!),
+      temoinsEprouves: temoinsTous.length,
+      temoinsDAccord: temoinsTous.filter((temoin) => temoin.valeur !== undefined).length,
+    });
+
+    // ── 4. L'attribution, règles génériques seules ─────────────────────────────────────────
+    const lectures: LecturePiste[] = coordonne.pages.map((decision) => ({
+      ...(decision.etat === "retenue" ? { pisteLue: decision.valeur } : {}),
+      accordPiste: decision.etat === "retenue" ? decision.confiance : 0,
+      presencePiste: presences.get(decision.page) ?? 0,
+    }));
+    const regles: ReglesPistes = {
+      pasAutorises: [0, 1],
+      // Jamais : poser que la piste vaut le numéro de l'élément publie des liens sans aucune
+      // lecture. C'est ainsi que 52 faux liens sont nés sur un document de la vraie base.
+      egaleNumeroElement: false,
+      nombreDePistes: Math.max(1, medias.length),
     };
-  });
+    const pistes = attribuerPistes(lectures, regles);
 
-  const resultat: ResultatRecette = {
-    recette: LA_VOIE,
-    pages,
-    lignes,
-    pagesAbsentes: [],
-    ecartes: [],
-  };
+    // ── 5. Le second signal : ce que les noms du vivier disent des pages ───────────────────
+    //
+    // La marque désigne un enregistrement par son **rang**, lu dans une fenêtre de quelques
+    // dizaines de pixels. Le nom le désigne par son **nom**, retrouvé dans le texte courant de la
+    // page — sa couche quand elle rend quelque chose de lisible, sa reconnaissance sinon. Les deux
+    // lectures restent indépendantes : ni les mêmes pixels, ni la même chose cherchée, ni le même
+    // fait extérieur confronté — un rang contre une suite de rangs, un intitulé contre un nom de
+    // fichier. C'est pourquoi elles peuvent se contredire — et c'est ce qui donne du prix à leur
+    // accord : deux lectures qui ne pourraient pas se démentir ne prouveraient rien ensemble.
+    // Quand les deux tombent sur le même enregistrement, elles s'accordent ; quand elles tombent
+    // sur deux différents, elles se contredisent, et une contradiction doit faire reculer.
+    // La page et la piste ensemble : une clef composée par calcul se confondrait avec une autre
+    // sur un document assez fourni, et fabriquerait une confirmation qui n'a jamais eu lieu.
+    const clefDeLAccord = (page: number, piste: number): string => `${page}\u0000${piste}`;
+    const confirmees = new Set<string>();
+    let contredites = 0;
+    let ocerisees = 0;
+    try {
+      // Seules les pages qui portent une marque peuvent recevoir une confirmation : ailleurs, un
+      // nom retrouvé ne confirme ni ne contredit rien. On ne lit donc que celles-là — sur un
+      // recueil de trois cents pages, c'est la différence entre quelques lectures et toutes.
+      const aMarque = [...new Set(marques.map((marque) => marque.rangDePage))].sort((un, autre) => un - autre);
+      const contenus: { page: number; texte: string }[] = [];
+      if (texteAligne !== undefined) {
+        const parRang = new Map(texteAligne.map((page) => [page.page, page.texte]));
+        for (const rang of aMarque) {
+          const texte = parRang.get(rang);
+          if (texte !== undefined) contenus.push({ page: rang, texte });
+        }
+        dire(`${contenus.length} page(s) à marque confrontée(s) au texte déjà lu par la chaîne.`);
+      } else if (options.texteDesPages === undefined) {
+        const couche = await lireCoucheTexte(pdf);
+        const parRang = new Map(couche.pages.map((page) => [page.index, page]));
+        const bac = mkdtempSync(join(tmpdir(), "lienotheque-oracle-"));
+        try {
+          for (const rang of aMarque) {
+            const deLaCouche = parRang.get(rang);
+            // Le même juge que le chemin du texte : une couche abondante mais illisible ne vaut pas
+            // mieux qu'aucune couche, et c'est elle qu'il faut alors écarter.
+            let page = deLaCouche !== undefined && coucheSuffisante(deLaCouche) ? deLaCouche : undefined;
+            const image = images.get(rang);
+            if (page === undefined && image !== undefined) {
+              page = ocrDUnePageGrise(image, rang, bac, {
+                ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
+                ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
+                ...(options.langue === undefined ? {} : { langue: options.langue }),
+              });
+              ocerisees += 1;
+            }
+            if (page !== undefined) contenus.push({ page: rang, texte: page.mots.map((mot) => mot.texte).join(" ") });
+          }
+        } finally {
+          rmSync(bac, { recursive: true, force: true });
+        }
+        if (ocerisees > 0)
+          dire(
+            `${ocerisees} page(s) sur ${aMarque.length} relues par reconnaissance : leur couche texte ne rend rien.`,
+          );
+      } else {
+        dire("Confrontation par les noms suspendue : les index du texte et du rendu ne s'accordent pas.");
+      }
+      const accords = accordsNomContenu(designationsDesNoms(medias.map((media) => media.nom)), contenus);
+      // Les pistes que la marque a attribuées, page par page : une page peut en porter plusieurs,
+      // et un nom retrouvé là ne contredit que ce qu'aucune d'elles ne dit.
+      const pistesDeLaPage = new Map<number, Set<number>>();
+      coordonne.pages.forEach((_, place) => {
+        const piste = pistes[place];
+        if (piste === undefined) return;
+        const page = marques[place]!.rangDePage;
+        pistesDeLaPage.set(page, (pistesDeLaPage.get(page) ?? new Set()).add(piste));
+      });
+      // Un accord désigne un ensemble d'enregistrements — un seul le plus souvent, deux quand un
+      // même morceau a sa démonstration et son accompagnement. La marque confirme dès qu'elle a lu
+      // **l'une** des pistes de l'ensemble sur cette page : le nom a mené à la page, et la marque y
+      // a lu ce que le nom y annonçait. Elle contredit quand la page porte des pistes et qu'aucune
+      // n'y est — c'est ce désaccord-là qui doit faire reculer.
+      for (const accord of accords) {
+        const attendues = accord.rangs
+          .map((rang) => medias[rang]?.piste)
+          .filter((piste): piste is number => piste !== undefined);
+        if (attendues.length === 0) continue;
+        const vues = pistesDeLaPage.get(accord.page);
+        if (vues === undefined) continue;
+        const accordee = attendues.find((piste) => vues.has(piste));
+        if (accordee === undefined) contredites += 1;
+        else confirmees.add(clefDeLAccord(accord.page, accordee));
+      }
+      const seuls = accords.filter((accord) => accord.rangs.length === 1).length;
+      dire(
+        contenus.every(({ texte: brut }) => brut.trim() === "")
+          ? "Les noms du vivier n'ont rien à confronter : aucun texte n'a pu être tiré de ces pages."
+          : `${accords.length} page(s) où le nom d'un enregistrement se retrouve imprimé, ` +
+              `dont ${seuls} qui n'en désigne(nt) qu'un seul : ` +
+              `${confirmees.size} confirme(nt) la marque, ${contredites} la contredise(nt).`,
+      );
+    } catch (echec) {
+      dire(`Le texte des pages n'a pas pu être lu : ${echec instanceof Error ? echec.message : String(echec)}`);
+    }
+    // Un second signal qui se trompe plus souvent qu'il ne confirme n'est pas un second signal :
+    // le revendiquer alors serait prendre un désaccord pour une preuve.
+    const accordTenu = confirmees.size > contredites;
+    if (!accordTenu && confirmees.size > 0)
+      dire("Les noms contredisent la marque au moins autant qu'ils la confirment : ce signal n'est pas endroit.");
 
-  // ── 7. Publier, ou s'abstenir en le disant ─────────────────────────────────────────────
-  // Sans inventaire portant des provenances, le vivier ne peut rien prouver : il tombe en
-  // abstention plutôt qu'en invention. C'est le garde-fou de publication, et il joue ici comme
-  // partout ailleurs — un dossier de fichiers ne dit pas à quel document ils appartiennent.
-  const borne = borneDuVivier(options.provenancesMedias ?? [], options.inventaireMedias ?? medias.map(() => ({})));
-  // Une vérification humaine porte sur **les liens qu'elle a vus**, jamais sur le document.
-  //
-  // Cette voie produit une lecture neuve, que personne n'a jamais vue. Lui laisser emprunter la
-  // vérification d'une lecture antérieure, c'est blanchir n'importe quelle lecture future du même
-  // document par une vérification faite une fois sur une autre.
-  //
-  // Mesuré le 30 octobre 2026, et c'est pour cela que ce verrou existe : sur le seul document du
-  // corpus dont les liens sont vérifiés à l'oreille, cette voie a publié 40 liens en héritant de
-  // cette vérification — sans qu'aucune des deux lectures en présence n'ait été revue. Ce que ce
-  // verrou refuse n'est pas un taux d'erreur, c'est l'emprunt : **35 de ces 40 liens étaient
-  // justes**, et ils auraient été publiés de la même façon s'ils avaient tous été faux.
-  //
-  // Elle doit donc gagner ses deux signaux elle-même. Un œil humain a sa place ici, mais sur
-  // `appariements[].statut`, lien par lien, et non sur le document entier.
-  const corroborationLue =
-    preuveParTable === undefined
-      ? corroborationDesLignes(lignes, {})
-      : {
-          signaux: preuveParTable.signaux,
-          preuveHumaine: false,
-          suffisante: true,
-          pourquoi:
-            "Deux façons de lire indépendantes s'accordent : les repères des pages et la table globale du document.",
-        };
-  const foliosDesLignesEtablis =
-    foliosEtablis &&
-    lignes.every((ligne) => {
+    // ── 6. Le résultat, dans la forme que les écrans lisent ────────────────────────────────
+    const lignesLues: LigneInterpretee[] = coordonne.pages.map((decision, place) => {
+      const marque = marques[place]!;
+      const piste = pistes[place];
+      const confirmee =
+        accordTenu && piste !== undefined && confirmees.has(clefDeLAccord(marque.rangDePage, piste));
+      return {
+        numero: marque.numero,
+        // Sans vote documentaire, le rang reste visible mais demeure explicitement « déduit ».
+        // Avec lui, la ligne porte le folio réellement lu par le socle commun.
+        pageImprimee: folioParRang.get(marque.rangDePage) ?? marque.rangDePage,
+        ...(piste === undefined ? {} : { piste }),
+        disque: 1,
+        ...(decision.etat === "retenue"
+          ? { sourcePiste: confirmee ? ("corroboration_media" as const) : ("pastille" as const) }
+          : {}),
+        zoneRepere: {
+          x: endroit.zone.x,
+          y: marque.y,
+          l: endroit.zone.taille.l,
+          h: endroit.zone.taille.h,
+        },
+        confiance: decision.etat === "retenue" ? decision.confiance : 0,
+      };
+    });
+
+    // ── 6. La table globale : une seconde lecture, jamais une preuve autonome ──────────────
+    //
+    // Les mots et leur géométrie ont déjà été lus par la chaîne. On les réemploie : refaire un
+    // OCR ici pourrait produire une autre table que celle sur laquelle le texte publié repose.
+    // Une table n'est retenue que si elle recoupe massivement les triplets élément/piste/folio
+    // déjà lus par les marques. Elle ne comble pas les trous : seules les lignes réellement
+    // recoupées deviennent publiables.
+    const rangParNumero = new Map(marques.map((marque) => [marque.numero, marque.rangDePage] as const));
+    const lignesAvecFolio = lignesLues.filter((ligne) => {
       const rang = rangParNumero.get(ligne.numero);
       return rang !== undefined && folioParRang.has(rang);
     });
-  const corroboration = foliosDesLignesEtablis
-    ? corroborationLue
-    : {
-        ...corroborationLue,
-        suffisante: false,
-        pourquoi:
-          "Les lectures peuvent s'accorder sur une piste, mais aucun folio n'est établi à l'échelle du document : " +
-          "les pages ne peuvent pas encore porter un lien automatique.",
-      };
-  dire(
-    `corroboration : ${corroboration.signaux.length} signal/signaux [${corroboration.signaux.join(", ")}]` +
-      `${corroboration.preuveHumaine ? ", vérification humaine enregistrée" : ""} — ${corroboration.pourquoi}`,
-  );
+    const tables =
+      texteAligne?.flatMap((page) =>
+        page.mots === undefined
+          ? []
+          : [{ page: page.page, table: lireLaTable(page.mots, { enregistrements: medias.length }) }],
+      ) ?? [];
+    const constatsDeTable: ConstatDeTable[] = [];
+    const preuveParTable = foliosEtablis
+      ? corroborerParTable(lignesAvecFolio, tables, medias.length, constatsDeTable)
+      : undefined;
+    const lignes: LigneInterpretee[] = [...(preuveParTable?.lignes ?? lignesLues)];
+    if (preuveParTable !== undefined)
+      dire(
+        `table globale page ${preuveParTable.page} : ${preuveParTable.lignes.length} ligne(s) ` +
+          `recoupent exactement les repères lus ; les autres restent à vérifier.`,
+      );
+    else if (tables.length > 0)
+      dire(
+        `${tables.length} page(s) à géométrie disponible, sans table globale assez plausible ` +
+          `et assez corroborée pour publier.`,
+      );
 
-  const association = qualifierAssociation(
-    lignes,
-    medias,
-    // Aucune manière de lire ne fixe de seuil ici : on prend celui du coordinateur, qui est le
-    // seul qu'une lecture ait réellement eu à franchir.
-    { seuilConfiance: ACCORD_RETENU },
-    { borne, corroboration, mediasDisponibles: medias.length },
-  );
-  dire(
-    association.abstention === undefined
-      ? `${association.appariements.length} lien(s) proposé(s)`
-      : `abstention : ${association.abstention.raison} — ${association.abstention.pourquoi ?? "sans détail"}`,
-  );
-  // Le « pourquoi » partagé parle d'une vérification du document, qui vaut pour une manière de
-  // lire écrite à la main. Ici elle ne vaut pas, et laisser croire le contraire enverrait
-  // quelqu'un vérifier un document pour débloquer une publication qui ne se débloquera pas.
-  if (association.abstention?.raison === "corroboration_insuffisante")
+    const parRang = new Map<number, LigneInterpretee[]>();
+    lignes.forEach((ligne) => {
+      const rang = rangParNumero.get(ligne.numero);
+      if (rang === undefined) return;
+      parRang.set(rang, [...(parRang.get(rang) ?? []), ligne]);
+    });
+    const pages: PageReperee[] = Array.from({ length: combienDePages }, (_, place) => {
+      const rang = place + 1;
+      return {
+        // La voie oracle rend une entrée par feuille rendue : elle garde sa place à chacune.
+        feuille: place,
+        rang: place,
+        pageImprimee: folioParRang.get(rang) ?? rang,
+        // « Lue » seulement si le vote documentaire a établi le folio de cette page. Une lecture
+        // locale isolée ne doit jamais suffire à changer ce statut ni à autoriser la publication.
+        statut: folioParRang.has(rang) ? ("lue" as const) : ("deduite" as const),
+        elements: (parRang.get(rang) ?? []).map((ligne) => ({
+          numero: ligne.numero,
+          y: ligne.zoneRepere?.y ?? 0,
+          // Aucun numéro d'élément n'est lu sur cette voie : le numéro est le rang de la marque,
+          // pas un chiffre imprimé. Son accord est donc nul, et c'est la vérité, pas une prudence.
+          accordNumero: 0,
+          accordPiste: ligne.confiance,
+          presencePiste: presences.get(ligne.numero) ?? 0,
+          // La mention de suite (« cont'd ») n'est pas cherchée ici : rien ne la lit encore.
+          suite: false,
+          confiance: ligne.confiance,
+          ...(ligne.zoneRepere === undefined ? {} : { zoneRepere: ligne.zoneRepere }),
+        })),
+      };
+    });
+
+    const resultat: ResultatRecette = {
+      recette: LA_VOIE,
+      pages,
+      lignes,
+      pagesAbsentes: [],
+      ecartes: [],
+    };
+
+    // ── 7. Publier, ou s'abstenir en le disant ─────────────────────────────────────────────
+    // Sans inventaire portant des provenances, le vivier ne peut rien prouver : il tombe en
+    // abstention plutôt qu'en invention. C'est le garde-fou de publication, et il joue ici comme
+    // partout ailleurs — un dossier de fichiers ne dit pas à quel document ils appartiennent.
+    const borne = borneDuVivier(options.provenancesMedias ?? [], options.inventaireMedias ?? medias.map(() => ({})));
+    // Une vérification humaine porte sur **les liens qu'elle a vus**, jamais sur le document.
+    //
+    // Cette voie produit une lecture neuve, que personne n'a jamais vue. Lui laisser emprunter la
+    // vérification d'une lecture antérieure, c'est blanchir n'importe quelle lecture future du même
+    // document par une vérification faite une fois sur une autre.
+    //
+    // Mesuré le 30 octobre 2026, et c'est pour cela que ce verrou existe : sur le seul document du
+    // corpus dont les liens sont vérifiés à l'oreille, cette voie a publié 40 liens en héritant de
+    // cette vérification — sans qu'aucune des deux lectures en présence n'ait été revue. Ce que ce
+    // verrou refuse n'est pas un taux d'erreur, c'est l'emprunt : **35 de ces 40 liens étaient
+    // justes**, et ils auraient été publiés de la même façon s'ils avaient tous été faux.
+    //
+    // Elle doit donc gagner ses deux signaux elle-même. Un œil humain a sa place ici, mais sur
+    // `appariements[].statut`, lien par lien, et non sur le document entier.
+    const corroborationLue =
+      preuveParTable === undefined
+        ? corroborationDesLignes(lignes, {})
+        : {
+            signaux: preuveParTable.signaux,
+            preuveHumaine: false,
+            suffisante: true,
+            pourquoi:
+              "Deux façons de lire indépendantes s'accordent : les repères des pages et la table globale du document.",
+          };
+    const foliosDesLignesEtablis =
+      foliosEtablis &&
+      lignes.every((ligne) => {
+        const rang = rangParNumero.get(ligne.numero);
+        return rang !== undefined && folioParRang.has(rang);
+      });
+    const corroboration = foliosDesLignesEtablis
+      ? corroborationLue
+      : {
+          ...corroborationLue,
+          suffisante: false,
+          pourquoi:
+            "Les lectures peuvent s'accorder sur une piste, mais aucun folio n'est établi à l'échelle du document : " +
+            "les pages ne peuvent pas encore porter un lien automatique.",
+        };
     dire(
-      "Sur cette voie, vérifier le document ne suffit pas : la vérification porterait sur une " +
-        "autre lecture que celle-ci. Il faut un second signal — un nom du vivier retrouvé " +
-        "imprimé sur la page — ou la confirmation de ces liens un par un.",
+      `corroboration : ${corroboration.signaux.length} signal/signaux [${corroboration.signaux.join(", ")}]` +
+        `${corroboration.preuveHumaine ? ", vérification humaine enregistrée" : ""} — ${corroboration.pourquoi}`,
     );
 
-  return { resultat, association, medias, journal, constatsDeTable, acquis: acquisDeCetteLecture };
+    const association = qualifierAssociation(
+      lignes,
+      medias,
+      // Aucune manière de lire ne fixe de seuil ici : on prend celui du coordinateur, qui est le
+      // seul qu'une lecture ait réellement eu à franchir.
+      { seuilConfiance: ACCORD_RETENU },
+      { borne, corroboration, mediasDisponibles: medias.length },
+    );
+    dire(
+      association.abstention === undefined
+        ? `${association.appariements.length} lien(s) proposé(s)`
+        : `abstention : ${association.abstention.raison} — ${association.abstention.pourquoi ?? "sans détail"}`,
+    );
+    // Le « pourquoi » partagé parle d'une vérification du document, qui vaut pour une manière de
+    // lire écrite à la main. Ici elle ne vaut pas, et laisser croire le contraire enverrait
+    // quelqu'un vérifier un document pour débloquer une publication qui ne se débloquera pas.
+    if (association.abstention?.raison === "corroboration_insuffisante")
+      dire(
+        "Sur cette voie, vérifier le document ne suffit pas : la vérification porterait sur une " +
+          "autre lecture que celle-ci. Il faut un second signal — un nom du vivier retrouvé " +
+          "imprimé sur la page — ou la confirmation de ces liens un par un.",
+      );
+
+    return { resultat, association, medias, journal, constatsDeTable, acquis: acquisDeCetteLecture };
+  }
 }
 
 /** Ce qu'on rend quand il n'y a rien à lire : un résultat vide et une raison, jamais un lien. */
@@ -1336,6 +1406,11 @@ function sansLien(
    *  La cause rendue change alors : « je n'ai pas fini de regarder » et « rien ne numérote »
    *  n'appellent pas le même geste de la part de qui lit l'écran. */
   explorationInterrompue = false,
+  /** Vraie quand des endroits ont été élus puis **écartés au rejugement de leur relecture
+   *  complète** (dette D23). La cause rendue change alors : « rien ne numérote » constate qu'on
+   *  n'a rien trouvé, alors qu'ici on a trouvé, lu en entier, et démenti. Les deux n'appellent
+   *  pas le même geste de la part de qui lit l'écran. */
+  aucuneMarqueNeTient = false,
 ): RejeuParOracle {
   journal.push(pourquoi);
   options.surPhase?.(pourquoi);
@@ -1571,7 +1646,11 @@ function sansLien(
               // regarder » appelle une relance, « rien ne numérote » appelle autre chose.
               : explorationInterrompue
                 ? "exploration_interrompue"
-                : "aucun_repere_lu",
+                : // Avant « aucun repère lu », parce qu'elle en dit plus : on a trouvé, on a lu
+                  // en entier, et c'est la relecture qui a démenti l'échantillon.
+                  aucuneMarqueNeTient
+                  ? "aucune_marque_ne_tient"
+                  : "aucun_repere_lu",
         combien: disponibles,
         pourquoi,
       },

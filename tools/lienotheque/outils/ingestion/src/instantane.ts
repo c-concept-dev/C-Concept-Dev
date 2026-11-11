@@ -264,6 +264,14 @@ export function construireVue(entree: Entree): VueBibliotheque {
         motif: "l’exploration s’est arrêtée faute de budget, sans avoir tout essayé",
         details: [`${combien} enregistrement${pluriel} en attente, exploration non terminée`],
       },
+      aucune_marque_ne_tient: {
+        libelle: "Aucune marque ne tient à la relecture complète",
+        proposition: "Vérifier ce document à la main",
+        motif:
+          "des repères ont été trouvés et relus en entier, mais aucun ne s’est confirmé : ce que " +
+          "l’échantillon promettait n’était pas dans le document",
+        details: [`${combien} enregistrement${pluriel} en attente, aucune marque confirmée`],
+      },
       medias_non_interpretes: {
         libelle: "Lecture non applicable",
         proposition: "Choisir une autre manière de lire",

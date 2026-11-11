@@ -31,6 +31,10 @@ const GARDE: GardeDuVocabulaire = {
 
 const contenus = (entrees: Record<string, string>) => (chemin: string) => entrees[chemin] ?? "";
 
+/** La marque, assemblée ici comme elle l'est dans le garde-fou, et pour la même raison : ce
+ *  fichier est lui aussi lu par lui. Voir `MARQUE_DE_MESURE`. */
+const MARQUE = ["NE", "PAS", "COMMITER"].join(" ");
+
 describe("ce qu'un commit ne doit pas emporter", () => {
   it("accepte un index propre", () => {
     const suivis = ["paquet/src/index.ts", "paquet/src/present.ts"];
@@ -94,6 +98,53 @@ describe("ce qu'un commit ne doit pas emporter", () => {
     });
     expect(verdict.refus).toHaveLength(1);
     expect(verdict.refus[0]).toContain("lireQuelqueChose");
+  });
+
+  it(`refuse un fichier qui porte la marque « ${MARQUE} »`, () => {
+    // Un patch de mesure se pose dans la copie de travail et s'y oublie. Celui de la dette D23 —
+    // un plancher abaissé pour reproduire un défaut — portait cette marque à trois endroits, et
+    // rien d'autre qu'une relecture attentive ne l'empêchait de partir dans un commit. C'est
+    // exactement la définition d'un garde-fou absent (§ 4.6).
+    const verdict = verdictAvantCommit({
+      suivis: ["paquet/src/index.ts"],
+      lire: contenus({
+        "paquet/src/index.ts": `// MESURE D23 — ${MARQUE} : le plancher reçoit le vivier\nexport const x = 1;\n`,
+      }),
+      garde: GARDE,
+    });
+    expect(verdict.refus).toHaveLength(1);
+    expect(verdict.refus[0]).toContain(MARQUE);
+    expect(verdict.refus[0], "la ligne, pour qu'on la trouve sans chercher").toContain(":1");
+  });
+
+  it("voit la marque dans un fichier d'une autre espèce que du code", () => {
+    // La marque vaut partout : un document, un fichier de données, un script Python. Elle dit
+    // « ceci n'est pas destiné à partir », et le type du fichier n'y change rien.
+    const verdict = verdictAvantCommit({
+      suivis: ["docs/une-note.md", "fixtures/references/essai.json"],
+      lire: contenus({
+        "docs/une-note.md": `## Essai\n\nChiffre provisoire — ${MARQUE}\n`,
+        "fixtures/references/essai.json": '{ "seuil": 0 }\n',
+      }),
+      garde: GARDE,
+    });
+    expect(verdict.refus).toHaveLength(1);
+    expect(verdict.refus[0]).toContain("docs/une-note.md");
+  });
+
+  it("ne crie pas sur un fichier qui PARLE de la marque sans la porter", () => {
+    // Celui-ci : le contrôle lui-même, et la décision qui raconte la mesure, citent la marque.
+    // Un garde-fou qui s'accuse de son propre énoncé finit désarmé — c'est la leçon du crochet
+    // qui refusait tout chemin commençant par un point.
+    const verdict = verdictAvantCommit({
+      suivis: ["paquet/test/garde.test.ts"],
+      lire: contenus({
+        "paquet/test/garde.test.ts":
+          'expect(verdict.refus[0]).toContain(MARQUE); // la marque nommée, jamais épelée\n',
+      }),
+      garde: GARDE,
+    });
+    expect(verdict.refus).toHaveLength(0);
   });
 
   it("nomme TOUTES les fautes, et non la première", () => {
