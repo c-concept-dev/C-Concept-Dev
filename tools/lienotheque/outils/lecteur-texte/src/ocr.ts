@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { PageLue, type MotLu } from "@lienotheque/contrats";
 
 /** OCR d'une page numérisée, avec la boîte de chaque mot (OUT-05).
@@ -151,13 +151,18 @@ export function tesseractDisponible(binaire = "tesseract"): boolean {
 const COLONNES = ["level", "page_num", "block_num", "par_num", "line_num", "word_num", "left", "top", "width", "height", "conf", "text"];
 
 /** Analyse la sortie tabulée de Tesseract. Exportée pour être éprouvée sans Tesseract. */
-export function analyserTsv(tsv: string): readonly MotLu[] {
+/** Chaque mot d'un TSV, avec le rang de l'image dont il vient.
+ *
+ *  Le rang est `page_num`, que Tesseract numérote à partir de 1 dans l'ordre des images qu'on lui
+ *  a données. Il ne sert à rien pour une image seule ; il est tout ce qui permet de rendre un lot
+ *  à l'endroit. */
+function motsEtLeurPage(tsv: string): readonly { readonly page: number; readonly mot: MotLu }[] {
   const lignes = tsv.split(/\r?\n/).filter((ligne) => ligne.trim() !== "");
   const entete = lignes[0]?.split("\t") ?? [];
   const index = Object.fromEntries(COLONNES.map((nom) => [nom, entete.indexOf(nom)]));
   if (index["text"] === undefined || index["text"] < 0) return [];
 
-  const mots: MotLu[] = [];
+  const trouves: { page: number; mot: MotLu }[] = [];
   for (const ligne of lignes.slice(1)) {
     const cases = ligne.split("\t");
     const texte = (cases[index["text"]!] ?? "").trim();
@@ -167,16 +172,61 @@ export function analyserTsv(tsv: string): readonly MotLu[] {
     const l = nombre("width");
     const h = nombre("height");
     if (l <= 0 || h <= 0) continue;
-    mots.push({
-      texte,
-      x: Math.max(0, nombre("left")),
-      y: Math.max(0, nombre("top")),
-      l,
-      h,
-      ...(confiance >= 0 ? { confiance: Math.min(1, Math.max(0, confiance / 100)) } : {}),
+    const page = index["page_num"] !== undefined && index["page_num"] >= 0 ? nombre("page_num") : 1;
+    trouves.push({
+      page: page > 0 ? page : 1,
+      mot: {
+        texte,
+        x: Math.max(0, nombre("left")),
+        y: Math.max(0, nombre("top")),
+        l,
+        h,
+        ...(confiance >= 0 ? { confiance: Math.min(1, Math.max(0, confiance / 100)) } : {}),
+      },
     });
   }
-  return mots;
+  return trouves;
+}
+
+export function analyserTsv(tsv: string): readonly MotLu[] {
+  return motsEtLeurPage(tsv).map((trouve) => trouve.mot);
+}
+
+/** Les mots d'un TSV **groupé**, rangés par image, et toujours `combien` listes.
+ *
+ *  **Toujours `combien`, et c'est le cœur de la garantie.** Une image sans un mot lisible ne
+ *  produit aucune ligne de TSV ; se contenter de grouper ce qui arrive ferait hériter la
+ *  troisième image des mots de la quatrième, et tout glisserait d'un cran sans que rien ne le
+ *  dise. Les absences sont donc des listes vides, à leur place. */
+export function analyserTsvEnLot(tsv: string, combien: number): readonly (readonly MotLu[])[] {
+  const parPage: MotLu[][] = Array.from({ length: Math.max(0, combien) }, () => []);
+  for (const { page, mot } of motsEtLeurPage(tsv)) if (page <= parPage.length) parPage[page - 1]!.push(mot);
+  return parPage;
+}
+
+/** Les rangs d'image que l'outil a **nommés**, qu'il y ait lu un mot ou non.
+ *
+ *  **Mesuré le 11 novembre 2026 sur la vraie sortie** : Tesseract écrit une ligne de **niveau 1**
+ *  — la page — pour chaque image de la liste, même entièrement blanche. Une image blanche au
+ *  milieu d'un lot de trois rend donc exactement `1 2` et rien d'autre, entre les lignes de la
+ *  première et de la troisième.
+ *
+ *  C'est ce qui permet une détection **exacte** du trou. Se contenter du plus grand rang nommé
+ *  ne verrait pas une image manquante **au milieu** du lot — elle ressemblerait à une image
+ *  vide —, et déclencherait un repli inutile dès que la **dernière** image est muette. Les
+ *  lignes de page tranchent les deux cas d'un coup. */
+function pagesNommees(tsv: string): ReadonlySet<number> {
+  const lignes = tsv.split(/\r?\n/).filter((ligne) => ligne.trim() !== "");
+  const entete = lignes[0]?.split("\t") ?? [];
+  const rangNiveau = entete.indexOf("level");
+  const rangPage = entete.indexOf("page_num");
+  if (rangNiveau < 0 || rangPage < 0) return new Set();
+  const nommees = new Set<number>();
+  for (const ligne of lignes.slice(1)) {
+    const cases = ligne.split("\t");
+    if (Number(cases[rangNiveau]) === 1) nommees.add(Number(cases[rangPage]));
+  }
+  return nommees;
 }
 
 /** Les binaires externes reçoivent le chemin réel, liens symboliques résolus : sur macOS `/tmp`
@@ -237,3 +287,103 @@ export function lireParOcr(image: string, largeur: number, hauteur: number, inde
 
   return PageLue.parse({ index, source: "ocr", unite: "pixel", largeur, hauteur, mots: analyserTsv(tsv) });
 }
+
+/** Une image d'un lot : son chemin, et les dimensions que le contrat demande. */
+export type ImageALire = { readonly chemin: string; readonly largeur: number; readonly hauteur: number };
+
+export type OptionsOcrEnLot = OptionsOcr & {
+  /** Où dire ce qui s'est passé. Un repli silencieux serait précisément le défaut à éviter. */
+  readonly dire?: ((texte: string) => void) | undefined;
+};
+
+/** Plusieurs images en **un seul appel** de l'outil de reconnaissance (lot 14 bis, OUT-05).
+ *
+ *  ## Pourquoi, et ce que cela vaut
+ *
+ *  Mesuré le 11 novembre 2026 : un contrôle de lecture passait **33,9 de ses 49,2 secondes**
+ *  dans l'outil, en **920 appels** — un processus par image. Sur vingt-quatre images,
+ *  **70 ms l'image en appels séparés contre 8 ms en un appel groupé** : près de **90 % du coût
+ *  est le démarrage du processus**.
+ *
+ *  Et il n'y avait rien à retirer du travail lui-même : ôter la seule cinquième valeur de seuil
+ *  — 128 appels sur 920 — changeait déjà douze votes gagnants. C'est le **nombre de processus**
+ *  qui était de trop, pas le nombre de lectures.
+ *
+ *  ## Les trois choses qui peuvent mal tourner, et ce qu'on en fait
+ *
+ *  **L'appel échoue en entier.** On reprend image par image : un outil qui refuse une liste ne
+ *  doit coûter qu'un repli, jamais une lecture. Le journal le dit, et ce qui échoue ensuite
+ *  échoue exactement comme avant — une image coupée par son délai lève, elle ne passe pas pour
+ *  vide.
+ *
+ *  **Il rend moins d'images qu'on n'en a envoyé.** C'est le défaut le plus dangereux d'un appel
+ *  groupé : trois images, deux réponses, et la troisième lecture qui prend la place de la
+ *  deuxième sans que personne le sache. On compare donc le dernier rang nommé au nombre envoyé,
+ *  et au moindre doute on reprend une à une. Une dernière image muette déclenche ce repli pour
+ *  rien — c'est un coût, jamais une erreur, et on préfère ce coût-là.
+ *
+ *  **Son délai se trouve réparti sur le lot.** Le délai a été mesuré pour UNE image. Sur un lot
+ *  il se multiplie par le nombre d'images : sans cela, un lot de dix serait coupé dix fois plus
+ *  tôt qu'il ne faut, et chaque lecture deviendrait un faux délai. */
+export function lireParOcrEnLot(images: readonly ImageALire[], options: OptionsOcrEnLot = {}): readonly PageLue[] {
+  if (images.length === 0) return [];
+  const uneAUne = (pourquoi: string): readonly PageLue[] => {
+    options.dire?.(`reconnaissance : ${pourquoi} — reprise image par image, ${images.length} image(s)`);
+    return images.map((image, rang) => lireParOcr(image.chemin, image.largeur, image.hauteur, rang + 1, options));
+  };
+  if (images.length === 1) return uneAUneSansLeDire(images, options);
+
+  const dossier = dirname(images[0]!.chemin);
+  const liste = join(dossier, `lot-${process.pid}-${(lotsEcrits += 1)}.txt`);
+  let tsv: string;
+  try {
+    writeFileSync(liste, `${images.map((image) => cheminReel(image.chemin)).join("\n")}\n`);
+    tsv = execFileSync(options.binaire ?? "tesseract", argumentsOcr(liste, options), {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 64 * 1024 * 1024,
+      // Le délai d'une image, multiplié par ce que le lot porte.
+      ...(options.delaiMs === undefined
+        ? {}
+        : { timeout: options.delaiMs * images.length, killSignal: SIGNAL_DE_COUPURE }),
+      ...(options.tessdata === undefined ? {} : { env: { ...process.env, TESSDATA_PREFIX: options.tessdata } }),
+    });
+  } catch (souci) {
+    const signal = (souci as { signal?: NodeJS.Signals | null }).signal;
+    const cause =
+      options.delaiMs !== undefined && signal === SIGNAL_DE_COUPURE
+        ? `le lot a dépassé ${options.delaiMs * images.length} ms`
+        : "l'appel groupé a échoué";
+    return uneAUne(cause);
+  } finally {
+    rmSync(liste, { force: true });
+  }
+
+  // Chaque rang doit avoir sa ligne de page. Un rang manquant, où qu'il soit dans le lot, est un
+  // décalage en puissance ; une image muette, elle, a sa ligne et ne déclenche rien.
+  const nommees = pagesNommees(tsv);
+  const manquants = images.map((_, rang) => rang + 1).filter((rang) => !nommees.has(rang));
+  if (manquants.length > 0)
+    return uneAUne(
+      `l'appel groupé n'a pas nommé l'image ${manquants.join(", ")} sur ${images.length}`,
+    );
+
+  const parImage = analyserTsvEnLot(tsv, images.length);
+  return images.map((image, rang) =>
+    PageLue.parse({
+      index: rang + 1,
+      source: "ocr",
+      unite: "pixel",
+      largeur: image.largeur,
+      hauteur: image.hauteur,
+      mots: parImage[rang] ?? [],
+    }),
+  );
+}
+
+/** Une seule image n'a pas de lot : pas de liste à écrire, et rien à dire. */
+function uneAUneSansLeDire(images: readonly ImageALire[], options: OptionsOcr): readonly PageLue[] {
+  return images.map((image, rang) => lireParOcr(image.chemin, image.largeur, image.hauteur, rang + 1, options));
+}
+
+let lotsEcrits = 0;

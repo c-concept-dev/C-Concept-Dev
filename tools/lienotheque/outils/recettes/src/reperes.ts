@@ -17,7 +17,7 @@ import {
   type FormeSombre,
   type ImageGrise,
 } from "@lienotheque/images";
-import { empreinteDuMoteur, lireParOcr } from "@lienotheque/lecteur-texte";
+import { empreinteDuMoteur, lireParOcr, lireParOcrEnLot } from "@lienotheque/lecteur-texte";
 import { chiffresDuMorceau } from "./chiffres.js";
 import {
   FORME_PAR_DEFAUT,
@@ -52,6 +52,8 @@ export type OptionsReperes = {
   readonly recueillir?: (depot: DepotDeChiffres) => void;
   /** Un mémo de reconnaissance, partagé par qui le fournit. Voir `nouveauMemoDeReconnaissance`. */
   readonly memoDeReconnaissance?: MemoDeReconnaissance;
+  /** Où dire ce qu'une lecture groupée a dû reprendre. Un repli silencieux serait le défaut. */
+  readonly dire?: ((texte: string) => void) | undefined;
 };
 
 /** Ce qu'une reconnaissance déjà faite a rendu, pour ne pas la refaire.
@@ -216,6 +218,107 @@ function ocr(image: ImageGrise, segmentation: number, options: OptionsReperes, a
   } finally {
     rmSync(chemin, { force: true });
   }
+}
+
+/** Plusieurs morceaux lus en **un appel par segmentation**, le mémo servi d'abord (lot 14 bis).
+ *
+ *  ## Pourquoi, et ce que cela change
+ *
+ *  Mesuré le 11 novembre 2026 : près de **90 % du coût d'une reconnaissance est le démarrage du
+ *  processus** — 70 ms l'image en appels séparés contre 8 ms en un appel groupé. Une fenêtre
+ *  demandait jusqu'à dix appels sans étiquette et cinquante avec ; elle en demande désormais
+ *  **deux**, un par segmentation.
+ *
+ *  **Rien de ce qui est lu ne change, et c'est la condition de ce lot.** Les mêmes morceaux, les
+ *  mêmes `--psm`, la même liste blanche. Les votes sont même rendus **dans l'ordre d'origine** —
+ *  demande par demande — et non dans l'ordre des lots : un vote compte autant qu'un autre, mais
+ *  l'ordre est ce qui rend la comparaison avant/après exacte au vote près.
+ *
+ *  ## Le mémo passe devant
+ *
+ *  Une demande déjà vue n'entre pas dans le lot : elle est servie de mémoire. Mesuré le
+ *  8 novembre, c'est 32 à 46 % des appels d'une exploration. Les deux gains se multiplient au
+ *  lieu de se remplacer. */
+export function ocrEnLot(
+  demandes: readonly { readonly image: ImageGrise; readonly segmentation: number }[],
+  options: OptionsReperes,
+  alphabet?: string,
+): readonly (readonly MotLu[])[] {
+  const resultats: (readonly MotLu[])[] = demandes.map(() => []);
+  const memo = options.memoDeReconnaissance;
+  const aLire: { rang: number; image: ImageGrise; segmentation: number; cle: string | undefined }[] = [];
+  // Les rangs qui attendent la même lecture qu'un autre. Un lot porte des morceaux identiques —
+  // deux seuils voisins rendent souvent les mêmes pixels —, et le mémo ne les attrape pas : il
+  // n'est écrit qu'après l'appel. Sans cette table, la même image partirait deux fois dans le
+  // même lot, et l'économie du regroupement serait payée deux fois.
+  const memesDemandes = new Map<string, number[]>();
+
+  for (const [rang, demande] of demandes.entries()) {
+    if (demande.image.largeur === 0 || demande.image.hauteur === 0) continue;
+    const cle =
+      memo === undefined ? undefined : cleDeReconnaissance(memo, demande.image, demande.segmentation, options, alphabet);
+    if (memo !== undefined && cle !== undefined) {
+      const deja = memo.lu.get(cle);
+      if (deja !== undefined) {
+        memo.servies += 1;
+        resultats[rang] = deja;
+        continue;
+      }
+    }
+    // Dédoublonnage **dans le lot**, qu'il y ait un mémo ou non : ce qui identifie une lecture
+    // est ici le contenu de l'image et sa segmentation, les autres réglages étant les mêmes pour
+    // tout l'appel.
+    const dansLeLot = `${createHash("sha256").update(Buffer.from(demande.image.pixels)).digest("hex")}\u0001${demande.image.largeur}\u0001${demande.image.hauteur}\u0001${demande.segmentation}`;
+    const attendent = memesDemandes.get(dansLeLot);
+    if (attendent !== undefined) {
+      attendent.push(rang);
+      continue;
+    }
+    memesDemandes.set(dansLeLot, [rang]);
+    aLire.push({ rang, image: demande.image, segmentation: demande.segmentation, cle });
+  }
+  if (aLire.length === 0) return resultats;
+
+  dossierDeTravail ??= mkdtempSync(join(tmpdir(), "lienotheque-reperes-"));
+  const dossier = options.dossier ?? dossierDeTravail;
+  const parSegmentation = new Map<number, typeof aLire>();
+  for (const demande of aLire) parSegmentation.set(demande.segmentation, [...(parSegmentation.get(demande.segmentation) ?? []), demande]);
+
+  for (const [segmentation, groupe] of parSegmentation) {
+    const ecrits = groupe.map((demande) => {
+      const chemin = join(dossier, `repere-${(compteur += 1)}.pgm`);
+      writeFileSync(chemin, versPgm(demande.image));
+      return { chemin, largeur: demande.image.largeur, hauteur: demande.image.hauteur };
+    });
+    try {
+      const lues = lireParOcrEnLot(ecrits, {
+        segmentation,
+        ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
+        ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
+        ...(options.langue === undefined ? {} : { langue: options.langue }),
+        ...(alphabet === undefined ? {} : { alphabet }),
+        ...(options.dire === undefined ? {} : { dire: options.dire }),
+      });
+      for (const [place, demande] of groupe.entries()) {
+        const mots = lues[place]?.mots ?? [];
+        resultats[demande.rang] = mots;
+        if (memo !== undefined && demande.cle !== undefined) {
+          memo.lu.set(demande.cle, mots);
+          memo.faites += 1;
+        }
+      }
+    } finally {
+      for (const ecrit of ecrits) rmSync(ecrit.chemin, { force: true });
+    }
+  }
+
+  // Et ce qui a été lu une fois sert à tous ceux qui attendaient la même chose.
+  for (const rangs of memesDemandes.values()) {
+    if (rangs.length < 2) continue;
+    const lu = resultats[rangs[0]!]!;
+    for (const rang of rangs.slice(1)) resultats[rang] = lu;
+  }
+  return resultats;
 }
 
 const premierEntier = (texte: string): number | undefined => {
@@ -623,6 +726,11 @@ export function lireDansLaFenetre(
   const votes: number[] = [];
   let decoupe: { morceau: ImageGrise; chiffres: readonly Boite[] } | undefined;
 
+  // Deux temps, et c'est tout le lot 14 bis : on fabrique d'abord **tous** les morceaux à lire —
+  // pur calcul de pixels, aucun processus —, puis on les lit en un appel par segmentation. Les
+  // demandes sont rangées dans l'ordre exact de l'ancienne boucle, et les votes en sortent dans
+  // le même : la comparaison avant/après est donc exacte au vote près, pas seulement au compte.
+  const demandes: { image: ImageGrise; segmentation: number }[] = [];
   for (const forme of candidates) {
     if (forme.l < hauteurNumero * 0.6) continue;
     // Les coins d'un losange sont du fond : les garder mettrait des pointes noires autour des
@@ -656,17 +764,14 @@ export function lireDansLaFenetre(
         }
 
         const net = border(agrandir(brut, 5), 25);
-        for (const segmentation of [7, 8]) {
-          const lu = premierEntier(
-            ocr(net, segmentation, options, CHIFFRES)
-              .map((mot) => mot.texte)
-              .join(""),
-          );
-          if (lu !== undefined && lu > 0 && lu < 100) votes.push(lu);
-        }
+        for (const segmentation of [7, 8]) demandes.push({ image: net, segmentation });
       }
     }
+  }
 
+  for (const lus of ocrEnLot(demandes, options, CHIFFRES)) {
+    const lu = premierEntier(lus.map((mot) => mot.texte).join(""));
+    if (lu !== undefined && lu > 0 && lu < 100) votes.push(lu);
   }
   return {
     presence,
