@@ -1,8 +1,8 @@
 # Liénothèque — Cahier des charges de pilotage
 
-**Version 25.12 — 11 novembre 2026**
+**Version 25.13 — 11 novembre 2026**
 Rédigé à partir des sessions du 3 au 9 novembre 2026 (Christophe, Claude, Claude Desktop).
-La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs). La 25.4 met à jour l'étape 0 (licences faites, vérification à l'écran ajoutée), lève D2, D18 et D19, redéfinit D7 et ajoute D21 (Siegfried). La 25.5 suit l'embarquement de Siegfried, la nouvelle archive des moteurs et le retrait de la copie de bisect. La 25.6 coche la publication de l'archive et la CI macOS lisant avec le même programme (D1 levée), et ajoute D23 (score sur peu d'apparitions). La 25.7 rouvrait l'étape 0 sur un défaut de rendu des pages qui venait en réalité du montage de l'essai (variable `LIENOTHEQUE_PDFJS` non posée, images non demandées) ; la 25.8 annule cette réouverture, garde D21 (prouvée par l'exécution), remet D22 et D23 dans l'ordre, et ajoute D24 (polices standard de la couche texte). La 25.9 lève **D24** (lot 0h), sous la règle permanente du 10 novembre : Claude peut lever une dette ou cocher une case quand c'est prouvé par un commit et une mesure et dit dans le message de commit, et ne touche sans le mot de Christophe ni à une règle, ni à l'ordre de la feuille de route, ni à la doctrine, ni au nombre d'étapes. La 25.10 ajoute **D25** (un lien publié ne porte que son folio), sur demande de Christophe et avec sa mesure. La 25.11 ajoute **D26** (`paquet-hermetique` ne voit pas un `dlopen` tardif), inscrite sur sa règle « reporter sans nommer, c'est oublier ». La 25.12 inscrit au § 4.4 l'**exception explicite** de Christophe : un commit qui ne touche que des documents, hors fichiers lus par les garde-fous, part sans contrôle complet sous trois conditions.
+La 25.1 corrige la 25 après la relecture de Claude Desktop du 9 novembre (dates, numérotation, état de l'étape 0, garde-fous, dettes D18 à D20). La 25.2 fixe le rang des deux CDC (décision de Christophe), corrige D7 et la date de `paquet-hermetique`. La 25.3 corrige deux comptes : 175 exigences dans le v2.0 (et non 135), sept bibliothèques hors du paquet avant l'étape 0 (et non six codecs). La 25.4 met à jour l'étape 0 (licences faites, vérification à l'écran ajoutée), lève D2, D18 et D19, redéfinit D7 et ajoute D21 (Siegfried). La 25.5 suit l'embarquement de Siegfried, la nouvelle archive des moteurs et le retrait de la copie de bisect. La 25.6 coche la publication de l'archive et la CI macOS lisant avec le même programme (D1 levée), et ajoute D23 (score sur peu d'apparitions). La 25.7 rouvrait l'étape 0 sur un défaut de rendu des pages qui venait en réalité du montage de l'essai (variable `LIENOTHEQUE_PDFJS` non posée, images non demandées) ; la 25.8 annule cette réouverture, garde D21 (prouvée par l'exécution), remet D22 et D23 dans l'ordre, et ajoute D24 (polices standard de la couche texte). La 25.9 lève **D24** (lot 0h), sous la règle permanente du 10 novembre : Claude peut lever une dette ou cocher une case quand c'est prouvé par un commit et une mesure et dit dans le message de commit, et ne touche sans le mot de Christophe ni à une règle, ni à l'ordre de la feuille de route, ni à la doctrine, ni au nombre d'étapes. La 25.10 ajoute **D25** (un lien publié ne porte que son folio), sur demande de Christophe et avec sa mesure. La 25.11 ajoute **D26** (`paquet-hermetique` ne voit pas un `dlopen` tardif), inscrite sur sa règle « reporter sans nommer, c'est oublier ». La 25.12 inscrit au § 4.4 l'**exception explicite** de Christophe : un commit qui ne touche que des documents, hors fichiers lus par les garde-fous, part sans contrôle complet sous trois conditions. La 25.13 inscrit au § 4.5 que la **barre des marges est allumée à ×3**, qu'elle refuse sur le contrôle complet local et publie sans refuser sur le coureur.
 
 ---
 
@@ -153,6 +153,14 @@ que le contrôle décide, donc ils relèvent de la règle stricte, quelle que so
 - Après chaque push, la CI est **lue avant tout nouveau commit**.
 - Une CI verte se rapporte **avec les marges** : tout test passé près de son délai est signalé.
 - La CI ne remplace pas le contrôle local : elle n'a ni les œuvres (fixtures privées) ni, pour l'instant, Tesseract.
+- **La barre des marges refuse en local, et publie sur le coureur** (Christophe, 11 novembre 2026).
+  Le **contrôle complet local**, machine stable, refuse toute marge sous **×3**, avant chaque
+  commit. Sur le **coureur GitHub**, les marges sont **relevées, comptées et dites — mais aucune ne
+  refuse** : sa variabilité ferait d'un refus un tirage au sort. Mesuré, le même contrôle y passe
+  de **1 717 à 2 695 ms sur le même code** (×1,6), et un contrôle qui ne lit rien entre dans le
+  tableau d'une course à l'autre. Un contrôle qui passe **sous ×2 de façon répétée** sur le coureur
+  devient un **lot pour raccourcir son corps**, jamais pour allonger son délai. Voir
+  [`docs/decisions/2026-11-11-la-barre-refuse-en-local-publie-sur-le-coureur.md`](decisions/2026-11-11-la-barre-refuse-en-local-publie-sur-le-coureur.md).
 
 ### 4.6 Garde-fous mécaniques plutôt que vigilance
 
@@ -332,7 +340,7 @@ Chaque dette porte sa raison et l'étape où elle doit être levée. Aucune ne d
 | D9 | Épingle F3 (`critere-f3-orphelins-93-98`) : levée par la voie oracle + confirmation lien par lien | Étape 4 |
 | D10 | Épingle « Tesseract absent » : levée par le repli correct quand Tesseract manque | Étape 1 |
 | D11 | `CLAUDE.md` promet encore Windows en trois endroits (tableau des intégrations continues, phrase sur « les trois systèmes », tableau du lot 0) | prochain lot de documentation |
-| D12 | Garde-fou du journal des autorisations (numéros consécutifs, lignes anciennes jamais modifiées) | entrée 18 |
+| D12 | Garde-fou du journal des autorisations (numéros consécutifs, lignes anciennes jamais modifiées) — **et, depuis le 11 novembre 2026, que chaque empreinte de commit citée existe dans l'historique Git**. Né d'une faute : l'entrée 37 annonce « `0ee45c0e` ou son équivalent », une empreinte **pariée avant le commit**, là où le vrai est `29d4ed06`. Un registre qui renvoie à rien ne prouve rien, et le journal étant en ajout seul, la correction ne peut venir que d'une entrée suivante | entrée 18 ; **lot 0m** |
 | D13 | Garde-fou « les phrases du CLAUDE.md sont-elles encore vraies ? » | en dernier |
 | D14 | Fichiers non suivis d'anciens lots jamais commités : inventaire à faire | prochainement |
 | D15 | « Assez de mots » du redressement rapporté à la page médiane : peut refuser une page couchée peu dense dans un document mixte | quand un tel cas sera au banc |

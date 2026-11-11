@@ -200,3 +200,45 @@ describe("un relevé qui porte deux fois le même contrôle", () => {
     expect(dernieresMesures([mesure("même nom", 5_000, 100), ailleurs])).toHaveLength(2);
   });
 });
+
+describe("la barre refuse là où la machine est stable, et publie ailleurs (D7)", () => {
+  /** Décision de Christophe, 11 novembre 2026.
+   *
+   *  La barre de ×3 est un garde-fou, pas un tirage au sort. Sur la machine de Christophe elle
+   *  juge un code ; sur le coureur GitHub elle jugerait surtout l'humeur du coureur — mesuré le
+   *  même jour, le contrôle `voie-oracle · publie l'accord noms-table` y passe de **1 717 à
+   *  2 695 ms sur le même code**, un rapport de ×1,6 d'une course à l'autre, et la composition
+   *  du bas du tableau change d'une course à l'autre sans qu'une ligne ait bougé.
+   *
+   *  Là-bas, donc : on publie les marges et on ne refuse rien. Un contrôle qui passe sous ×2 de
+   *  façon **répétée** devient un lot pour raccourcir son corps — jamais pour allonger son délai. */
+  // Marge de ×1,67 : sous la barre de ×2 de `AVEC_BARRE`, sans ambiguïté.
+  const serre = [mesure("un contrôle au corps trop long", 5_000, 3_000)];
+
+  it("refuse une marge trop courte là où la barre refuse", () => {
+    const verdict = jugerLesMarges(serre, AVEC_BARRE, 10, true);
+    expect(verdict.serrees).toHaveLength(1);
+    expect(accepteLesMarges(verdict)).toBe(false);
+  });
+
+  it("publie la même marge sans refuser là où la barre ne refuse pas", () => {
+    const verdict = jugerLesMarges(serre, AVEC_BARRE, 10, false);
+    // La marge est TOUJOURS relevée : ne pas refuser n'est pas ne pas regarder.
+    expect(verdict.serrees, "elle reste comptée, et nommable").toHaveLength(1);
+    expect(accepteLesMarges(verdict), "mais elle ne refuse pas le passage").toBe(true);
+  });
+
+  it("le dit en toutes lettres, pour qu'on ne lise pas un silence comme un succès", () => {
+    const dits = raconterLesMarges(jugerLesMarges(serre, AVEC_BARRE, 10, false)).join(" ");
+    expect(dits).toMatch(/publi|sans refus/i);
+    expect(dits, "et le compte de ce qui serait refusé ailleurs").toMatch(/1 contrôle/);
+    expect(dits, "la barre employée est nommée").toMatch(/×2/);
+  });
+
+  it("refuse par défaut : une machine qu'on n'a pas nommée est tenue pour stable", () => {
+    // Le défaut sûr. Un appelant qui oublie de dire où il tourne obtient le comportement STRICT,
+    // jamais le permissif — l'inverse ferait d'un oubli un garde-fou désarmé.
+    expect(accepteLesMarges(jugerLesMarges(serre, AVEC_BARRE))).toBe(false);
+  });
+});
+

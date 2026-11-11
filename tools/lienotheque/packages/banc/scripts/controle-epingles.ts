@@ -179,7 +179,12 @@ for (const dit of raconter(verdict)) console.log(`  ${dit}`);
 // est ici, en une ligne, plutôt qu'un nom en serpent au milieu du TypeScript.
 const barreLue = JSON.parse(readFileSync(BARRE, "utf8")) as { barre: number | null; barre_proposee: number };
 const barre: Barre = { barre: barreLue.barre, proposee: barreLue.barre_proposee };
-const verdictDesMarges = jugerLesMarges(mesures, barre);
+// Où la barre refuse-t-elle ? Sur une machine stable, pas sur un coureur dont la variabilité
+// ferait d'un refus un tirage au sort (décision du 11 novembre 2026, et `ou_la_barre_refuse` dans
+// le fichier de la barre). GitHub Actions pose `GITHUB_ACTIONS` ; tout le reste est tenu pour
+// stable, parce qu'un défaut doit coûter un refus de trop et jamais un refus de moins.
+const surUnCoureur = process.env["GITHUB_ACTIONS"] === "true";
+const verdictDesMarges = jugerLesMarges(mesures, barre, 10, !surUnCoureur);
 console.log(`\n── garde-fou des marges de délai ──`);
 for (const dit of raconterLesMarges(verdictDesMarges)) console.log(`  ${dit}`);
 

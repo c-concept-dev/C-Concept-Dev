@@ -116,6 +116,9 @@ export type VerdictDesMarges = {
   /** La barre employée, et si elle vient de Christophe ou de la proposition. */
   readonly barre: number;
   readonly barreFixee: boolean;
+  /** La barre refuse-t-elle **ici** ? Vraie là où la machine est stable, fausse là où sa
+   *  variabilité ferait d'un refus un tirage au sort. Voir `jugerLesMarges`. */
+  readonly refuseIci: boolean;
   readonly combienMesures: number;
 };
 
@@ -147,10 +150,31 @@ export const margeDe = (mesure: Mesure): number =>
  *  `combien` dit combien de marges les plus courtes sont rapportées dans tous les cas : lire les
  *  plus serrées à chaque passage est ce qui permet de voir une marge se refermer d'une course à
  *  l'autre, avant qu'elle ne passe sous la barre. */
+/** Juge un passage contre la barre, en disant **où** l'on juge.
+ *
+ *  ## Pourquoi « où » compte, et c'est mesuré
+ *
+ *  Décision de Christophe du 11 novembre 2026 : la barre refuse sur le **contrôle complet local**,
+ *  machine stable ; sur le coureur GitHub, les marges sont **publiées sans refus**.
+ *
+ *  Ce n'est pas une indulgence. Mesuré le même jour sur le coureur macOS : le contrôle
+ *  `voie-oracle · publie l'accord noms-table` y met **1 717 ms** à une course et **2 695 ms** à la
+ *  suivante, **sur le même code** — un rapport de ×1,6. Et la composition du bas du tableau change
+ *  d'une course à l'autre : `crochet-des-gestes`, qui ne lit ni n'océrise rien, y est entré à
+ *  ×2.74 sans qu'une ligne ait bougé. Un refus posé là-dessus serait un **tirage au sort**, et un
+ *  garde-fou qui refuse au hasard est désarmé dans la semaine.
+ *
+ *  Ce qui reste vrai là-bas : les marges sont **relevées et dites**. Ne pas refuser n'est pas ne
+ *  pas regarder — un contrôle qui passe sous ×2 de façon **répétée** devient un lot pour
+ *  raccourcir son corps, jamais pour allonger son délai.
+ *
+ *  `refuseIci` vaut **vrai par défaut** : un appelant qui ne dit pas où il tourne obtient le
+ *  comportement strict. Un oubli doit coûter un refus de trop, jamais un refus de moins. */
 export function jugerLesMarges(
   mesures: readonly Mesure[],
   barre: Barre,
   combien = 10,
+  refuseIci = true,
 ): VerdictDesMarges {
   const retenue = barre.barre ?? barre.proposee;
   const classees = dernieresMesures(mesures)
@@ -161,6 +185,7 @@ export function jugerLesMarges(
     lesPlusCourtes: classees.slice(0, combien),
     barre: retenue,
     barreFixee: barre.barre !== null,
+    refuseIci,
     combienMesures: mesures.length,
   };
 }
@@ -172,7 +197,7 @@ export function jugerLesMarges(
  *  ailleurs : allonger un délai pour faire taire une marge serait cacher la lenteur au lieu de la
  *  nommer. */
 export const accepteLesMarges = (verdict: VerdictDesMarges): boolean =>
-  !verdict.barreFixee || verdict.serrees.length === 0;
+  !verdict.barreFixee || !verdict.refuseIci || verdict.serrees.length === 0;
 
 const enMarge = (marge: number): string =>
   marge === Number.POSITIVE_INFINITY ? "×∞" : `×${marge.toFixed(2)}`;
@@ -185,12 +210,19 @@ export function raconterLesMarges(verdict: VerdictDesMarges): string[] {
       `barre non fixée : aucun refus. À la barre proposée de ×${verdict.barre}, ` +
         `${verdict.serrees.length} contrôle(s) seraient refusés.`,
     );
+  else if (!verdict.refuseIci)
+    dits.push(
+      `barre de ×${verdict.barre} : marges PUBLIÉES SANS REFUS sur cette machine, dont la ` +
+        `variabilité ferait d'un refus un tirage au sort. ${verdict.serrees.length} contrôle(s) ` +
+        "y seraient refusés ; c'est le contrôle complet local qui tranche. Un contrôle qui passe " +
+        "sous la moitié de la barre de façon répétée devient un lot pour raccourcir son corps.",
+    );
   for (const m of verdict.lesPlusCourtes)
     dits.push(
       `${enMarge(m.marge).padStart(8)} — ${Math.round(m.corps)} ms de corps pour un délai de ` +
         `${m.delai} · ${m.paquet} · ${m.fichier} · ${m.nom}`,
     );
-  if (verdict.barreFixee)
+  if (verdict.barreFixee && verdict.refuseIci)
     for (const m of verdict.serrees)
       dits.push(
         `MARGE TROP COURTE — ${enMarge(m.marge)} sous la barre de ×${verdict.barre} : ` +
