@@ -37,6 +37,13 @@ jobs:
   check:
     name: Vérification (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Un blocage doit échouer franchement, pas durer des heures (Ci2, 11 novembre 2026) : le
+    # travail `Rendu` est resté 45 minutes figé sur une installation de paquets système. Et une
+    # course qui ne conclut jamais ne rend même pas ses journaux — il a fallu passer par
+    # `gh api .../jobs/<id>/logs` pour lire un travail pourtant terminé.
+    # Le plus long travail observé tient en une vingtaine de minutes ; 45 laisse de la marge sans
+    # laisser durer.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -54,11 +61,13 @@ jobs:
 
       # pnpm avant setup-node : le cache « pnpm » de setup-node a besoin de pnpm sur le PATH.
       - name: Installer pnpm
+        timeout-minutes: 10
         uses: pnpm/action-setup@v5
         with:
           version: 10
 
       - name: Installer Node 24
+        timeout-minutes: 10
         uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -66,6 +75,7 @@ jobs:
           cache-dependency-path: tools/lienotheque/pnpm-lock.yaml
 
       - name: Installer les dépendances
+        timeout-minutes: 15
         run: pnpm install --frozen-lockfile
 
       # ── Voie 3 : sur macOS, lire avec LE MÊME PROGRAMME que l'application ──────────────
@@ -99,6 +109,7 @@ jobs:
           key: moteurs-lecture-${{ steps.moteurs.outputs.empreinte }}
 
       - name: Déployer les moteurs de l'application
+        timeout-minutes: 15
         if: runner.os == 'macOS' && steps.cache-moteurs-lecture.outputs.cache-hit != 'true'
         run: |
           curl -fsSL -o "$RUNNER_TEMP/moteurs.tar.gz" "${{ steps.moteurs.outputs.url }}"
@@ -155,6 +166,8 @@ jobs:
   navigateurs:
     name: Rendu (Chromium, Firefox, WebKit)
     runs-on: ubuntu-latest
+    # Voir ci-dessus. Ce travail tient d'ordinaire en moins de cinq minutes.
+    timeout-minutes: 25
     steps:
       - name: Récupérer le dossier Liénothèque
         uses: actions/checkout@v5
@@ -162,11 +175,13 @@ jobs:
           sparse-checkout: tools/lienotheque
 
       - name: Installer pnpm
+        timeout-minutes: 10
         uses: pnpm/action-setup@v5
         with:
           version: 10
 
       - name: Installer Node 24
+        timeout-minutes: 10
         uses: actions/setup-node@v5
         with:
           node-version: 24
@@ -174,6 +189,7 @@ jobs:
           cache-dependency-path: tools/lienotheque/pnpm-lock.yaml
 
       - name: Installer les dépendances
+        timeout-minutes: 15
         run: pnpm install --frozen-lockfile
 
       # La version de Playwright commande celle des moteurs : elle sert de clef de cache.
@@ -215,11 +231,13 @@ jobs:
           key: playwright-${{ runner.os }}-${{ steps.machine.outputs.os }}-${{ steps.machine.outputs.version }}-${{ steps.playwright.outputs.version }}
 
       - name: Installer les moteurs
+        timeout-minutes: 15
         if: steps.cache-moteurs.outputs.cache-hit != 'true'
         run: pnpm --filter @lienotheque/app exec playwright install --with-deps chromium firefox webkit
 
       # Les dépendances système ne sont pas dans le cache : à réinstaller même sur reprise.
       - name: Installer les dépendances système des moteurs
+        timeout-minutes: 15
         if: steps.cache-moteurs.outputs.cache-hit == 'true'
         run: pnpm --filter @lienotheque/app exec playwright install-deps chromium firefox webkit
 
