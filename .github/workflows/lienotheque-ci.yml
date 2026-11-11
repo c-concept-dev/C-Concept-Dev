@@ -125,6 +125,28 @@ jobs:
           "$moteurs/bin/tesseract" --version | head -2
           "$moteurs/bin/sf" -sig "$moteurs/siegfried/default.sig" -version | head -1
 
+      # Réchauffer `otool` AVANT les tests — lot 14 quater, mesuré le 11 novembre 2026.
+      #
+      # `paquet-hermetique` lance `otool -l` sur les 22 Mach-O du paquet. Sur ce coureur, le
+      # **premier** lancement d'`otool` coûte à lui seul **1 531 ms** : résolution de la chaîne
+      # Xcode, caches dyld, vérification du binaire de la chaîne. Ce coût était payé À L'INTÉRIEUR
+      # du contrôle, qui mettait **2 480 ms** pour un délai de 5 000 — une marge de ×2.05, la plus
+      # courte du dépôt.
+      #
+      # Mesuré en quatre courses de la branche d'essai `wip/essai-otool-ci` (supprimée depuis) :
+      #   sans préparation ......................... 2 480 ms
+      #   88 otool sur le paquet d'abord ............  809 ms
+      #   88 otool + traversée du paquet d'abord ....  456 ms
+      #   UN SEUL otool sur un binaire du système ...  553 ms
+      # Réchauffer le seul OUTIL suffit : le paquet n'a pas à être touché, et sa traversée ne coûte
+      # que 11 ms à froid sur 97 fichiers.
+      #
+      # Ce qu'on ne fait pas, et qui serait plus court à écrire : allonger le délai du contrôle, ou
+      # lui retirer des fichiers. Le contrôle n'a rien de trop ; c'est le coureur qui est froid.
+      - name: Réchauffer otool avant les tests
+        if: runner.os == 'macOS'
+        run: /usr/bin/otool -l /usr/bin/true > /dev/null
+
       - name: Typage et tests
         run: pnpm check
 
