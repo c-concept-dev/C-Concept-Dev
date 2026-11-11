@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-11 | L'ordre : 14 quater, puis la barre ×3, puis l'étape 1 | [2026-11-11-l-ordre-14quater-barre-etape-1.md](2026-11-11-l-ordre-14quater-barre-etape-1.md) |
 | 2026-11-10 | La place du lot 14 bis, et la barre de marge directement à ×3 | [2026-11-10-la-place-du-lot-14-bis-et-la-barre-a-trois.md](2026-11-10-la-place-du-lot-14-bis-et-la-barre-a-trois.md) |
 | 2026-11-10 | Ce que Claude peut changer seul au cahier de pilotage | [2026-11-10-ce-que-claude-peut-changer-seul-au-cahier.md](2026-11-10-ce-que-claude-peut-changer-seul-au-cahier.md) |
 | 2026-11-10 | Les ressources de pdf.js suivent toute lecture (lot 0h, D24) | [2026-11-10-les-ressources-pdfjs-suivent-toute-lecture.md](2026-11-10-les-ressources-pdfjs-suivent-toute-lecture.md) |
