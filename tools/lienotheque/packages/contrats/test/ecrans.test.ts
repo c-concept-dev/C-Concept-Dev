@@ -101,6 +101,15 @@ describe("cas douteux (UX-03, SYN-04, SYN-05)", () => {
     expect(CasDouteux.safeParse({ ...cas, etat: "bizarre" }).success).toBe(false);
   });
 
+  /** A2 — une case que la relecture n'a pas rendue est un FAIT à connaître, pas un silence.
+   *
+   *  Sans cet état, une case restée illisible disparaît : la table ne la publie pas, et rien à
+   *  l'écran ne dit qu'une valeur a manqué ni pourquoi. L'absence ressemble alors à « il n'y
+   *  avait rien là », ce qui est le contraire de ce qui s'est passé. */
+  it("connaît l'état d'une case que la relecture n'a pas rendue (A2, OUT-10)", () => {
+    expect(CasDouteux.safeParse({ ...cas, etat: "relecture_non_faite" }).success).toBe(true);
+  });
+
   it("n'admet que les trois natures des filtres de l'écran", () => {
     for (const nature of ["lien", "page", "information"]) expect(CasDouteux.safeParse({ ...cas, nature }).success, nature).toBe(true);
     expect(CasDouteux.safeParse({ ...cas, nature: "autre" }).success).toBe(false);

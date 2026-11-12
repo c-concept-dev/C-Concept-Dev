@@ -136,10 +136,15 @@ export type NatureDoute = z.infer<typeof NatureDoute>;
  *  numéro imprimé mal lu suffit à fabriquer un tel écart. On ne corrige rien : on dit à l'œil
  *  qu'ici la mesure est moins solide qu'ailleurs.
  *
- *  Les quatre derniers ne sont pas des décisions à prendre mais des faits à connaître : une page que
+ *  Les cinq derniers ne sont pas des décisions à prendre mais des faits à connaître : une page que
  *  la numérotation donne pour sautée, un média qu'aucun élément ne réclame, un numéro porté deux
- *  fois, une portée irrégulière. Ils n'attendent qu'un œil, pas un arbitrage — d'où « information »
- *  comme nature. */
+ *  fois, une portée irrégulière, une case que la relecture n'a pas rendue. Ils n'attendent qu'un
+ *  œil, pas un arbitrage — d'où « information » comme nature.
+ *
+ *  `relecture_non_faite` (6 novembre 2026) dit qu'une case en défaut n'a **pas** reçu de valeur, et
+ *  pourquoi : aucun relecteur branché, aucun accord entre les manières de regarder, ou une panne
+ *  de l'étage appelé. Sans cet état, la case disparaît — la table ne la publie pas, et rien à
+ *  l'écran ne distingue « il n'y avait rien là » de « on n'a pas su lire ce qui était là ». */
 export const EtatDoute = z.enum([
   "confiance",
   "relecture_sans_majorite",
@@ -151,6 +156,7 @@ export const EtatDoute = z.enum([
   "maniere_inadaptee",
   "page_en_double",
   "portee_irreguliere",
+  "relecture_non_faite",
 ]);
 export type EtatDoute = z.infer<typeof EtatDoute>;
 

@@ -51,6 +51,10 @@ const ETATS: Readonly<Record<EtatDoute, { readonly libelle: string; readonly ico
   maniere_inadaptee: { libelle: "Lecture non applicable", icone: "info" },
   page_en_double: { libelle: "Numéro de page en double", icone: "document" },
   portee_irreguliere: { libelle: "Portée irrégulière", icone: "document" },
+  // Une case en défaut qui n'a reçu aucune valeur. Le dire change ce que l'œil cherche : il ne
+  // s'agit pas d'une page sans repère, mais d'un repère qu'on n'a pas su lire — et le détail du
+  // cas porte pourquoi (aucun relecteur branché, aucun accord, panne de l'étage appelé).
+  relecture_non_faite: { libelle: "Case non relue", icone: "info" },
 };
 
 /** Ce dont parle un cas. Un doute porte sur un élément ; une information porte sur ce que son
