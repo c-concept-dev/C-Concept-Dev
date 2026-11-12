@@ -9,16 +9,25 @@ import {
   type MessageVersHote,
 } from "@lienotheque/contrats";
 import {
+  cacheDansDossier,
   jetonDacces,
   relectureCiblee,
   transportValidationCiblesVersWorker,
   transportVersWorker,
   validationStructurelleCiblee,
+  type Transport,
 } from "@lienotheque/vision";
 import { sousDossier } from "@lienotheque/cache";
+import type { ImageGrise } from "@lienotheque/images";
 import { causeLisible } from "@lienotheque/noyau";
-import { FormatNonLu } from "./texte.js";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { FormatNonLu, lecteurDeMorceauChiffre } from "./texte.js";
 import { instantaneDeLot, type LotTraite } from "./lot.js";
+import { relecteurEnChaine } from "./relecteur-en-chaine.js";
+import { relecteurParVision } from "./relecteur-par-vision.js";
+import { relecteurSurPlace } from "./relire-sur-place.js";
 
 /** La porte de la chaîne : une demande entre, un message sort (JOB-01 à JOB-09, PLT-02).
  *
@@ -38,6 +47,18 @@ import { instantaneDeLot, type LotTraite } from "./lot.js";
  *  Que des chemins et une adresse : aucun secret ne voyage. Le jeton d'accès au service de
  *  relecture est lu dans le processus au moment de l'appel, et n'apparaît ni dans la demande, ni
  *  dans le journal, ni dans le résultat. */
+/** Ce que la relecture des cases d'un document a droit de dépenser quand l'hôte ne dit rien.
+ *
+ *  **Un plafond qu'on n'a pas est une dépense qu'on ne borne pas.** Le chiffre vient d'une
+ *  mesure, pas d'un sentiment : sur un document réel de 116 pages, la table a rendu **71** cases
+ *  en défaut, soit une borne haute de **0,22 €** au tarif relevé le 5 novembre 2026. Un euro
+ *  laisse donc la place à un document quatre fois plus troué, et arrête net celui qui le serait
+ *  vingt fois.
+ *
+ *  Il n'est pas une politique de produit : c'est une borne de sécurité, et l'hôte la remplace en
+ *  donnant `coutMaxEur`. */
+export const PLAFOND_DES_CASES_PAR_DEFAUT_EUR = 1;
+
 export const ChargeTraitement = z
   .object({
     document: z.string().min(1),
@@ -98,6 +119,13 @@ export const ChargeTraitement = z
     adresseMedias: z.string().min(1).optional(),
     /** Adresse du service de relecture ciblée. Absente, la chaîne est la même, elle ne relit rien. */
     relecture: z.url().optional(),
+    /** Ce que la relecture des cases de table a droit de dépenser, en euros, pour CE document.
+     *
+     *  **La seconde voie n'a pas de manière de lire, donc pas de plafond à en tirer** — la voie
+     *  recette tient le sien de `recette.vision.cout_max_eur`. Sans ce champ, la porte applique
+     *  {@link PLAFOND_DES_CASES_PAR_DEFAUT_EUR}, qui borne les dégâts plutôt que de laisser la
+     *  dépense libre. Un hôte qui sait ce qu'il veut dépenser le dit ici. */
+    coutMaxEur: z.number().positive().optional(),
     /** N'en lire que quelques pages, pour essayer une manière de lire sans tout relire. */
     pages: z.number().int().positive().optional(),
     /** Rang de la première page lue : les dix premières d'un document n'ont souvent rien à lire. */
@@ -144,7 +172,19 @@ const echec = (travailId: string, cause: string, reprisePossible: boolean): Eche
  *  interdite (JOB-05), et une erreur qui remonte en exception se perd dans un tuyau entre deux
  *  processus. Une demande qu'on n'a pas su lire est le seul cas qui lève — il n'y a alors pas
  *  même d'identifiant de travail auquel rattacher l'échec. */
-export async function executerTravail(brut: unknown, options: { readonly emettre?: Emission } = {}): Promise<MessageVersHote> {
+export type OptionsExecution = {
+  readonly emettre?: Emission;
+  /** Ce qui porte une relecture jusqu'au modèle. **Un port, pour que la porte s'éprouve.**
+   *
+   *  Absent — le cas de l'application —, il est construit depuis l'adresse que l'hôte donne et
+   *  le jeton du trousseau, lu dans ce processus et jamais transporté. Fourni, c'est lui qui
+   *  part : un contrôle met une fonction, aucun réseau n'est touché et aucun jeton n'est lu.
+   *  C'est la seule façon d'éprouver **par la porte** ce que la porte branche — et le garde-fou
+   *  de `packages/banc` le dit : une épreuve qui appelle la fonction prouve la fonction. */
+  readonly transport?: Transport | undefined;
+};
+
+export async function executerTravail(brut: unknown, options: OptionsExecution = {}): Promise<MessageVersHote> {
   const demande = Demande.parse(brut);
 
   const ecart = desaccordDeProtocole(demande.protocole);
@@ -171,6 +211,66 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
     const jeton = charge.relecture === undefined ? undefined : jetonDacces();
     if (charge.relecture !== undefined && jeton === undefined)
       dire("Aucun jeton dans l'environnement ni dans le trousseau : validations distantes inactives.", "avertissement");
+
+    // Ce qui porte une relecture : le port du contrôle s'il y en a un, sinon l'appel au Worker.
+    // L'hôte doit avoir demandé une relecture dans les deux cas — sans adresse, il n'en veut pas.
+    const transport: Transport | undefined =
+      charge.relecture === undefined
+        ? undefined
+        : (options.transport ?? (jeton === undefined ? undefined : transportVersWorker(charge.relecture, jeton)));
+
+    // ── La relecture des cases de table, deux étages (A2, exigence 0) ─────────────────────
+    //
+    // **L'ordre est une affaire d'argent, et c'est pourquoi il se décide ici.** La reconnaissance
+    // locale d'abord : quatre façons de regarder la même case, rien de rendu sans l'accord de
+    // deux d'entre elles. Mesuré le 6 novembre 2026 sur vingt-deux cases réelles — trois valeurs
+    // retenues, zéro contradiction, dix-neuf abstentions. **Ce sont ces dix-neuf, et elles
+    // seules, qu'un appel en ligne mérite** : sur les autres, il paierait ce qui est déjà acquis.
+    //
+    // Les pixels, eux, appartiennent à la voie : elle passe de quoi voir, on rend de quoi lire.
+    const bacDesCases = transport === undefined ? undefined : mkdtempSync(join(tmpdir(), "lienotheque-cases-"));
+    const lireUnMorceau = bacDesCases === undefined ? undefined : lecteurDeMorceauChiffre(bacDesCases);
+    // L'intervalle que le vivier autorise, et il vient du **document** : de 1 au nombre
+    // d'enregistrements que l'hôte a inventoriés (REC-05). Un nombre qui le déborde ne désigne
+    // rien, et sera refusé par l'interprète plutôt que discuté.
+    const combienDEnregistrements = charge.inventaireMedias?.length;
+    /** Ce que la relecture a coûté, dit après coup. Vide tant qu'aucun étage n'a été composé. */
+    let etatDeLaRelecture: (() => string) | undefined;
+    const relectureDesCases =
+      transport === undefined || lireUnMorceau === undefined
+        ? undefined
+        : (imageDeLaPage: (page: number) => ImageGrise | undefined) => {
+            const surPlace = relecteurSurPlace(imageDeLaPage, lireUnMorceau);
+            const distant = relecteurParVision({
+              transport,
+              imageDeLaPage,
+              plafondEnEuros: charge.coutMaxEur ?? PLAFOND_DES_CASES_PAR_DEFAUT_EUR,
+              ...(combienDEnregistrements === undefined || combienDEnregistrements === 0
+                ? {}
+                : { attendu: { min: 1, max: combienDEnregistrements } }),
+              ...(charge.cache === undefined ? {} : { cache: cacheDansDossier(sousDossier(charge.cache, "vision-cases")) }),
+            });
+            const chaine = relecteurEnChaine([
+              { nom: "sur place", relire: surPlace.relire },
+              { nom: "regard distant", relire: distant.relire },
+            ]);
+            // Ce que chaque étage a coûté part au journal, et de là à l'écran de traitement :
+            // une dépense qu'on ne voit pas est une dépense qu'on ne surveille pas.
+            etatDeLaRelecture = () => {
+              const parEtage = chaine
+                .releve()
+                .map((etage) => `${etage.nom} ${etage.demandes}/${etage.rendus}/${etage.pannes}`)
+                .join(" · ");
+              const vision = distant.releve();
+              return (
+                `relecture des cases, par étage (demandé/rendu/panne) : ${parEtage} ; ` +
+                `regard distant : ${vision.appels} appel(s), ${vision.depuisLeCache} depuis le cache, ` +
+                `${vision.refusees} refusée(s) hors vivier, ${vision.cout.toFixed(4)} €` +
+                `${vision.plafondAtteint ? " — plafond de dépense atteint" : ""}`
+              );
+            };
+            return chaine.relire;
+          };
 
     dire("Lecture du document");
 
@@ -199,6 +299,7 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
       ...(charge.adresseMedias === undefined ? {} : { adresseMedias: charge.adresseMedias }),
       ...(charge.pages === undefined ? {} : { pages: charge.pages }),
       ...(charge.depuis === undefined ? {} : { depuis: charge.depuis }),
+      ...(relectureDesCases === undefined ? {} : { relectureDesCases }),
       ...(charge.relecture === undefined || jeton === undefined
         ? {}
         : {
@@ -268,6 +369,8 @@ export async function executerTravail(brut: unknown, options: { readonly emettre
           `(${(filigrane.part * 100).toFixed(0)} %) : vraisemblablement un tampon de numérisation.`,
         "avertissement",
       );
+    if (etatDeLaRelecture !== undefined) dire(etatDeLaRelecture());
+    if (bacDesCases !== undefined) rmSync(bacDesCases, { recursive: true, force: true });
     dire(`${traite.vue.pages.length} pages, ${traite.vue.aVerifier} cas à vérifier`);
     emettre?.({ type: "progression", protocole: VERSION_PROTOCOLE, travailId: demande.travailId, progression: 1 });
 

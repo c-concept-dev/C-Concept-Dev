@@ -172,3 +172,49 @@ describe("un paquet n'a qu'une configuration de contrôles", () => {
     expect(paquets.length).toBeGreaterThan(10);
   });
 });
+
+/** Le regard distant ne se branche jamais sans plafond de dépense (A2, OUT-08, § 4.6).
+ *
+ *  ## Le défaut que ce garde-fou existe pour empêcher
+ *
+ *  La voie recette tenait son plafond de sa manière de lire — `recette.vision.cout_max_eur`. La
+ *  **seconde** voie n'a pas de manière de lire, donc pas de plafond : au branchement du
+ *  12 novembre 2026, elle pouvait appeler le modèle autant de fois que la table avait de cases en
+ *  défaut, sans borne. Mesuré sur un document réel : 71 cases, borne haute 0,22 €. Sur un
+ *  document dont la table est trois fois plus trouée, personne n'était là pour dire stop.
+ *
+ *  ## Pourquoi un garde-fou de source, et non une épreuve de bout en bout
+ *
+ *  Le plafond lui-même est éprouvé là où il s'applique — `relecteur-par-vision.test.ts` le voit
+ *  s'arrêter **avant** l'appel qui dépasserait. Ce qu'une épreuve ne peut pas tenir à ce prix,
+ *  c'est que la **porte** n'oublie jamais de le poser : un rejeu de document coûte quarante-cinq
+ *  secondes, et il en faudrait un par oubli possible. Une lecture de source le dit en une
+ *  milliseconde, et elle ne se laisse pas satisfaire par un voisinage : elle lit **le bloc de
+ *  l'appel**, pas le fichier. */
+describe("le regard distant ne se branche jamais sans plafond de dépense (A2, OUT-08)", () => {
+  const source = readFileSync(join(RACINE, "outils/ingestion/src/executant.ts"), "utf8");
+
+  /** Le bloc de l'appel, parenthèse par parenthèse : un plafond écrit ailleurs dans le fichier ne
+   *  prouve pas qu'il est passé ICI. */
+  const blocDeLAppel = (texte: string): string | undefined => {
+    const ouverture = texte.indexOf("relecteurParVision(");
+    if (ouverture < 0) return undefined;
+    const depart = ouverture + "relecteurParVision(".length;
+    let profondeur = 1;
+    let place = depart;
+    while (place < texte.length && profondeur > 0) {
+      if (texte[place] === "(") profondeur += 1;
+      else if (texte[place] === ")") profondeur -= 1;
+      place += 1;
+    }
+    return texte.slice(depart, place - 1);
+  };
+
+  it("trouve bien l'appel à juger : sinon ce garde-fou ne garderait rien", () => {
+    expect(blocDeLAppel(source), "la porte ne branche plus le regard distant ?").toBeDefined();
+  });
+
+  it("et cet appel porte un plafond", () => {
+    expect(blocDeLAppel(source) ?? "", "un appel au modèle sans borne de dépense").toContain("plafondEnEuros");
+  });
+});

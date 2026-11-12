@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { PageLue, SourceLecture } from "@lienotheque/contrats";
+import type { LecteurDeMorceau } from "./relire-sur-place.js";
 import {
   causeJpegNonDirect,
   estUnEpub,
@@ -771,4 +772,41 @@ export function ocrDUnePageGrise(
   } finally {
     rmSync(chemin, { force: true });
   }
+}
+
+/** Les chiffres, et rien d'autre : ce qu'on autorise en lisant une case de table (A2).
+ *
+ *  Une case de table porte un nombre. Laisser l'outil proposer des lettres lui permet de rendre
+ *  « l » pour un 1 et « O » pour un 0 — mesuré sur les repères, et la même cause ici. */
+const CHIFFRES_SEULS = "0123456789";
+
+/** Lire un morceau d'image avec une segmentation donnée, chiffres seuls (A2, OUT-05).
+ *
+ *  C'est le port que `relecteurSurPlace` attend : l'étage local de la relecture des cases. La
+ *  reconnaissance passe par un fichier — c'est ce que l'outil sait lire —, et ce fichier est
+ *  effacé juste après, qu'elle ait rendu ou levé.
+ *
+ *  **Rien n'est calibré ici.** La segmentation vient de l'appelant, qui essaie les manières que
+ *  l'outil nomme ; ce module ne choisit ni l'une ni l'autre. */
+export function lecteurDeMorceauChiffre(dossier: string, options: OptionsTexte = {}): LecteurDeMorceau {
+  let rang = 0;
+  return (morceau, segmentation) => {
+    rang += 1;
+    const chemin = join(dossier, `morceau-${rang}-${segmentation}.pgm`);
+    writeFileSync(chemin, versPgm(morceau));
+    try {
+      const lue = lireParOcr(chemin, morceau.largeur, morceau.hauteur, 1, {
+        segmentation,
+        alphabet: CHIFFRES_SEULS,
+        ...(options.binaire === undefined ? {} : { binaire: options.binaire }),
+        ...(options.tessdata === undefined ? {} : { tessdata: options.tessdata }),
+      });
+      return lue.mots
+        .map((mot) => mot.texte)
+        .join(" ")
+        .trim();
+    } finally {
+      rmSync(chemin, { force: true });
+    }
+  };
 }

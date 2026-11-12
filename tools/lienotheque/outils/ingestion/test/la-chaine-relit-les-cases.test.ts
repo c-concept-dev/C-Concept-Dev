@@ -56,13 +56,21 @@ const inventaire = Array.from({ length: 8 }, (_, place) => ({
   provenances: ["lot:epreuve"],
 }));
 
+/** Le repère dans lequel les mots de cette fixture sont mesurés : celui de `pdfDePages`.
+ *
+ *  **Il doit être déclaré, et c'est le sujet d'un garde-fou.** La voie rend ses pages à 1800 de
+ *  large ; sans cette largeur, elle refuse de relire plutôt que de deviner le facteur — et elle a
+ *  commencé par refuser ici, le 12 novembre 2026, ce qui est la preuve que le refus mord. */
+const REPERE = { largeur: 595, hauteur: 842 } as const;
+
 const pagesAutour = [
-  { page: 2, pageImprimee: 8, texte: "Début du premier élément", mots: [] },
+  { page: 2, pageImprimee: 8, texte: "Début du premier élément", mots: [], ...REPERE },
   ...Array.from({ length: 8 }, (_, place) => ({
     page: place + 3,
     ...(place === 7 ? { pageImprimee: 16 } : {}),
     texte: `Élément #${place + 1}`,
     mots: [],
+    ...REPERE,
   })),
 ];
 
@@ -81,9 +89,11 @@ const courir = async (
       inventaireMedias: inventaire,
       provenancesMedias: ["lot:epreuve"],
       foliosEtablis: true,
-      texteDesPages: [{ page: 1, texte: "Table des pistes", mots: motsDeTable(trou) }, ...pagesAutour],
+      texteDesPages: [{ page: 1, texte: "Table des pistes", mots: motsDeTable(trou), ...REPERE }, ...pagesAutour],
       budgetExploration: { paires: 256, secondes: 0 },
-      ...(relectureDesCases === undefined ? {} : { relectureDesCases }),
+      // Le port est un **composeur** : la voie lui passe de quoi voir, il rend de quoi lire.
+      // Ces contrôles ignorent les images — ce qu'ils éprouvent est l'appel, pas la lecture.
+      ...(relectureDesCases === undefined ? {} : { relectureDesCases: () => relectureDesCases }),
     },
   );
 

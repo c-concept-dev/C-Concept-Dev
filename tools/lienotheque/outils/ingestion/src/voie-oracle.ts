@@ -210,9 +210,16 @@ export type CaseNonRelue = {
  *  Sans relecteur, les cases en défaut sont **nommées** au lieu d'être ignorées : c'est la
  *  différence entre « il n'y avait rien là » et « on n'a pas su lire ce qui était là ». */
 async function tablesRelues(
-  texteAligne: readonly { readonly page: number; readonly mots?: readonly MotLu[] | undefined }[] | undefined,
+  texteAligne:
+    | readonly {
+        readonly page: number;
+        readonly mots?: readonly MotLu[] | undefined;
+        readonly largeur?: number | undefined;
+      }[]
+    | undefined,
   designables: CeQueLaTablePeutDesigner,
-  relire: RelecteurDeZone | undefined,
+  composer: ((imageDeLaPage: (page: number) => ImageGrise | undefined) => RelecteurDeZone) | undefined,
+  imageDeLaPage: (page: number) => ImageGrise | undefined,
 ): Promise<{
   readonly tables: readonly { readonly page: number; readonly table: TableLue }[];
   readonly releve: ReleveDeRelectureDesCases | undefined;
@@ -220,15 +227,39 @@ async function tablesRelues(
   const pages = (texteAligne ?? []).filter((page) => page.mots !== undefined);
   if (pages.length === 0) return { tables: [], releve: undefined };
 
+  // ── Du repère des mots à celui des images ────────────────────────────────────────────────
+  //
+  // Une page dont on a l'image mais pas le repère de ses mots **n'est pas relue** : convertir
+  // demande les deux, et deviner reviendrait à parier sur la provenance du texte. Le prix du
+  // pari, lui, est connu — un appel en ligne sur du papier blanc.
+  const facteurs = new Map<number, number | undefined>();
+  for (const page of pages) {
+    const image = imageDeLaPage(page.page);
+    if (image === undefined) facteurs.set(page.page, 1);
+    else if (page.largeur !== undefined && page.largeur > 0) facteurs.set(page.page, image.largeur / page.largeur);
+    else facteurs.set(page.page, undefined);
+  }
+  const REPERE_INCONNU = "le repère des mots de cette page n'est pas connu : relire irait regarder ailleurs";
+
   let pannes = 0;
+  const relire = composer?.(imageDeLaPage);
   // La panne se compte et ne se propage pas : un document de cent pages ne doit pas s'arrêter sur
-  // une coupure, mais le relevé doit porter la coupure.
+  // une coupure, mais le relevé doit porter la coupure. Et la case est convertie ici, une fois,
+  // pour que l'étage appelé n'ait à connaître qu'un seul repère : celui de ses images.
   const protege: RelecteurDeZone | undefined =
     relire === undefined
       ? undefined
       : async (demande) => {
+          const facteur = facteurs.get(demande.page);
+          if (facteur === undefined) return undefined;
           try {
-            return await relire(demande);
+            return await relire({
+              ...demande,
+              x: demande.x * facteur,
+              y: demande.y * facteur,
+              l: demande.l * facteur,
+              h: demande.h * facteur,
+            });
           } catch {
             pannes += 1;
             return undefined;
@@ -261,9 +292,11 @@ async function tablesRelues(
             colonne: trace.colonne,
             etat: "relecture_non_faite" as const,
             pourquoi:
-              trace.lu === undefined
-                ? "aucune lecture n'a rendu de valeur pour cette case"
-                : "la valeur relue n'était pas un nombre de cellule acceptable",
+              facteurs.get(trace.page) === undefined
+                ? REPERE_INCONNU
+                : trace.lu === undefined
+                  ? "aucune lecture n'a rendu de valeur pour cette case"
+                  : "la valeur relue n'était pas un nombre acceptable pour cette case",
           }));
   return {
     tables,
@@ -296,10 +329,18 @@ export type OptionsVoieOracle = {
    *  — reconnaissance locale d'abord, regard distant ensuite — est l'affaire de l'appelant, et
    *  `relecteurEnChaine` le fait pour lui.
    *
+   *  **Pourquoi un composeur et non le port lui-même** : tout relecteur a besoin de l'image de
+   *  la page, et c'est cette voie qui la rend. L'appelant connaît les étages et l'argent ; elle
+   *  connaît les pixels. Elle lui passe donc de quoi voir, et reçoit de quoi lire. Les cases
+   *  qu'il recevra sont **dans le repère des images qu'on lui donne** : la conversion depuis le
+   *  repère des mots est faite ici, parce qu'elle seule connaît les deux.
+   *
    *  Absent, aucune case n'est relue et chacune est **dite** non relue (`relecture_non_faite`)
    *  plutôt que de disparaître. Mesuré le 6 novembre 2026 : ce port existait, éprouvé et mesuré
    *  par un programme autonome, et **aucun chemin de la chaîne ne l'appelait**. */
-  readonly relectureDesCases?: RelecteurDeZone | undefined;
+  readonly relectureDesCases?:
+    | ((imageDeLaPage: (page: number) => ImageGrise | undefined) => RelecteurDeZone)
+    | undefined;
   /** Une feuille rendue porte-t-elle deux pages logiques, gauche puis droite ? */
   readonly doublePage?: boolean | undefined;
   /** Le vote documentaire a-t-il établi les folios, au-delà d'une lecture locale isolée ? */
@@ -311,6 +352,19 @@ export type OptionsVoieOracle = {
   readonly texteDesPages?: readonly (ContenuDePage & {
     readonly pageImprimee?: number | undefined;
     readonly mots?: readonly MotLu[] | undefined;
+    /** Le repère dans lequel les mots de cette page sont mesurés.
+     *
+     *  **Ce n'est pas celui des images, et c'est mesuré.** Un document natif rend ses mots dans
+     *  les points du PDF — 595 × 842 sur une page A4 — là où cette voie rend ses pages à
+     *  {@link LARGEUR_DE_RENDU} de large : un facteur de 3,03. Un document numérisé, lui, rend
+     *  ses mots dans le repère du rendu, et le facteur vaut 1. Relire une case sans convertir
+     *  irait donc regarder le neuvième supérieur gauche de la feuille — du papier blanc, au
+     *  tarif d'un appel en ligne.
+     *
+     *  Absent, **aucune case de cette page n'est relue** et chacune est dite non relue : deviner
+     *  le repère reviendrait à parier sur la provenance du texte. */
+    readonly largeur?: number | undefined;
+    readonly hauteur?: number | undefined;
   })[] | undefined;
   /** Jusqu'où chercher un endroit qui porte la numérotation. Voir `BUDGET_EXPLORATION`. */
   readonly budgetExploration?: BudgetExploration | undefined;
@@ -880,6 +934,11 @@ export async function rejouerParOracle(
         essaisEprouves: 0,
         borneLaPlusHaute: 0,
       }),
+      medias.length,
+      false,
+      false,
+      // Les pages sont rendues : elles servent à relire les cases que la table dit en défaut.
+      (page) => images.get(page),
     );
 
   const budget = options.budgetExploration ?? BUDGET_EXPLORATION;
@@ -1072,6 +1131,8 @@ export async function rejouerParOracle(
         // Des endroits ont été élus puis écartés au rejugement : la cause le dit, au lieu de
         // laisser croire qu'on n'a rien trouvé.
         ecartesAuRejugement.size > 0,
+        // Les pages sont rendues : elles servent à relire les cases que la table dit en défaut.
+        (page) => images.get(page),
       );
     }
     // Figé : au-delà de cette garde, l'endroit ne peut plus être indéfini, et le rejugement
@@ -1371,7 +1432,9 @@ export async function rejouerParOracle(
       const rang = rangParNumero.get(ligne.numero);
       return rang !== undefined && folioParRang.has(rang);
     });
-    const relu = await tablesRelues(texteAligne, { enregistrements: medias.length }, options.relectureDesCases);
+    const relu = await tablesRelues(texteAligne, { enregistrements: medias.length }, options.relectureDesCases, (page) =>
+      images.get(page),
+    );
     const tables = relu.tables;
     const constatsDeTable: ConstatDeTable[] = [];
     const preuveParTable = foliosEtablis
@@ -1533,6 +1596,13 @@ async function sansLien(
    *  n'a rien trouvé, alors qu'ici on a trouvé, lu en entier, et démenti. Les deux n'appellent
    *  pas le même geste de la part de qui lit l'écran. */
   aucuneMarqueNeTient = false,
+  /** Les pages rendues, quand l'exploration en a produit. Elles servent à **relire** les cases
+   *  que la table dit en défaut, et rien d'autre.
+   *
+   *  Par défaut aucune : les deux abandons les plus précoces — aucun enregistrement, aucun
+   *  endroit déjà établi — ferment le rendu avant d'en produire une seule, et c'est voulu.
+   *  Une case y sera dite non relue, ce qui est la vérité : il n'y avait rien à regarder. */
+  imageDeLaPage: (page: number) => ImageGrise | undefined = () => undefined,
 ): Promise<RejeuParOracle> {
   journal.push(pourquoi);
   options.surPhase?.(pourquoi);
@@ -1584,7 +1654,7 @@ async function sansLien(
       (un, autre) =>
         un.ligne.pageImprimee - autre.ligne.pageImprimee || un.ligne.numero - autre.ligne.numero,
     );
-  const relu = await tablesRelues(texteAligne, { enregistrements: medias.length }, options.relectureDesCases);
+  const relu = await tablesRelues(texteAligne, { enregistrements: medias.length }, options.relectureDesCases, imageDeLaPage);
   const tables = relu.tables;
   const constatsDeTable: ConstatDeTable[] = [];
   const preuveLue = foliosEtablis

@@ -25,7 +25,10 @@ import {
   SEUIL_SANS_MANIERE_DE_LIRE,
   type ConstatDeTable,
   type RejeuParOracle,
+  type ReleveDeRelectureDesCases,
 } from "./voie-oracle.js";
+import type { RelecteurDeZone } from "./relire-les-zones.js";
+import type { ImageGrise } from "@lienotheque/images";
 import { causeLisible } from "@lienotheque/noyau";
 
 /** D'un lot réel à l'instantané que lisent les écrans (correction 8).
@@ -87,6 +90,18 @@ export type Lot = {
    *  regarder, et n'a rien à retrouver. La voie générique, elle, cherche — et sans mémoire elle
    *  recherche chaque fois ce qu'elle a déjà trouvé. */
   readonly acquis?: AcquisDeLecture | undefined;
+  /** Relire les cases de table que la seconde voie n'a pas su lire (A2, exigence 0).
+   *
+   *  Un **composeur** : la voie lui passe ses images de pages, il rend le port qui lit. L'ordre
+   *  des étages — reconnaissance locale d'abord, regard distant ensuite — et l'argent qu'ils
+   *  coûtent appartiennent à l'appelant ; les pixels appartiennent à la voie.
+   *
+   *  Absent, aucune case n'est relue et chacune est **dite** non relue, ce qui remonte jusqu'à
+   *  Vérifier. Il n'a de sens que pour la seconde voie : une manière de lire écrite à la main ne
+   *  passe pas par une table globale. */
+  readonly relectureDesCases?:
+    | ((imageDeLaPage: (page: number) => ImageGrise | undefined) => RelecteurDeZone)
+    | undefined;
   readonly description: string;
   /** Dossier où garder les lectures, pour ne pas repayer l'OCR. */
   readonly cache?: string | undefined;
@@ -177,6 +192,9 @@ export type LotTraite = {
   /** Ce que chaque table globale a donné, et pourquoi elle n'a pas suffi. Vide quand une manière
    *  de lire a mené le travail : ce constat appartient à la voie oracle. Description seule. */
   readonly constatsDeTable: readonly ConstatDeTable[];
+  /** Ce que la relecture des cases a coûté et rendu. Absent quand aucune case n'était en défaut,
+   *  ou quand une manière de lire a mené le travail. */
+  readonly relectureDesCases?: ReleveDeRelectureDesCases | undefined;
   /** Le texte cherchable du document, un passage par page (RCH-07).
    *
    *  Produit par la même passe que le reste : un instantané doit venir du même traitement que la
@@ -252,6 +270,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     ...(lot.surPhase === undefined ? {} : { surPhase: lot.surPhase }),
     ...(lot.pages === undefined ? {} : { pages: lot.pages }),
     ...(lot.acquis === undefined ? {} : { acquis: lot.acquis }),
+    ...(lot.relectureDesCases === undefined ? {} : { relectureDesCases: lot.relectureDesCases }),
     doublePage: lu.doublePage,
     foliosEtablis: lu.foliosEtablis,
     texteDesPages: lu.pages.map((page) => ({
@@ -259,6 +278,11 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
       ...(page.pageImprimee === undefined ? {} : { pageImprimee: page.pageImprimee }),
       texte: page.texte,
       ...(page.mots === undefined ? {} : { mots: page.mots }),
+      // **Le repère voyage avec les mots.** Un document natif les rend dans les points du PDF,
+      // un document numérisé dans ceux du rendu : sans cette largeur, relire une case irait
+      // regarder ailleurs sur la feuille. La lecture la connaît, elle seule.
+      largeur: page.largeur,
+      hauteur: page.hauteur,
     })),
   };
   let issu: Rejeu | RejeuParOracle;
@@ -296,9 +320,18 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
   }
   const { resultat, association, medias } = issu;
   const constatsDeTable = "constatsDeTable" in issu ? issu.constatsDeTable : [];
+  const relectureDesCases = "relectureDesCases" in issu ? issu.relectureDesCases : undefined;
   const acquis = acquisRendu(issu);
 
   lot.surPhase?.(`repères lus : ${resultat.pages.length} page(s), ${resultat.lignes.length} élément(s)`);
+  // Ce que la relecture a demandé, rendu et raté part au journal, et de là à l'écran de
+  // traitement. **Les pannes se disent à part** : une panne tue ressemble à un succès, et
+  // « rien rattrapé » ressemble exactement à « rien à rattraper ».
+  if (relectureDesCases !== undefined)
+    lot.surPhase?.(
+      `relecture des cases : ${relectureDesCases.demandes} demandée(s), ${relectureDesCases.rendus} rendue(s), ` +
+        `${relectureDesCases.pannes} en panne, ${relectureDesCases.nonRelues.length} restée(s) sans valeur`,
+    );
   if (association.abstention !== undefined)
     lot.surPhase?.(
       association.abstention.pourquoi ??
@@ -384,6 +417,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     pagesAbsentes: resultat.pagesAbsentes,
     association,
     medias,
+    ...(relectureDesCases === undefined ? {} : { relectureDesCases }),
     // Le seuil vient de la recette, qui l'a fixé en même temps que ses règles de lecture. Le
     // redéclarer ailleurs, c'est se donner deux seuils et finir par en oublier un.
     // Sans manière de lire, le seuil est celui que la seconde voie a réellement fait franchir
@@ -405,6 +439,7 @@ export async function instantaneDeLot(lot: Lot): Promise<LotTraite> {
     association,
     medias,
     constatsDeTable,
+    ...(relectureDesCases === undefined ? {} : { relectureDesCases }),
     passages,
     lecture: { parLaCouche: lu.parLaCouche, parOcr: lu.parOcr, sansTexte: lu.sansTexte },
     filigranes: adressesRecurrentes(passages),

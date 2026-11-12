@@ -11,6 +11,7 @@ import {
 } from "@lienotheque/contrats";
 import type { Association } from "@lienotheque/recettes";
 import { identifiantDe, type MediaIngere } from "./index.js";
+import type { ReleveDeRelectureDesCases } from "./voie-oracle.js";
 
 /** Instantané de bibliothèque pour les écrans (B5).
  *
@@ -51,6 +52,12 @@ export type Entree = {
   readonly imageDePage?: (
     rang: number,
   ) => { readonly image: string; readonly largeur: number; readonly hauteur: number; readonly vignette?: string } | undefined;
+  /** Ce que la relecture des cases a coûté et rendu (A2).
+   *
+   *  **Un relevé que personne ne voit ne protège de rien.** Il existait dans la voie et
+   *  s'arrêtait là : une case qu'on n'a pas su lire disparaissait de l'écran exactement comme une
+   *  case qui n'existait pas. C'est le trou qui ressemble au succès, et il tenait jusqu'ici. */
+  readonly relectureDesCases?: ReleveDeRelectureDesCases | undefined;
 };
 
 /** La phrase qui explique un lien, en français, construite une fois pour toutes (ANC-02). */
@@ -352,6 +359,36 @@ export function construireVue(entree: Entree): VueBibliotheque {
         const nom = nommer(entree.mots.piste, piste);
         return media?.nom === undefined ? nom : `${nom} — fichier « ${media.nom} »`;
       }),
+    });
+  }
+
+  // Les cases qu'on n'a pas su relire (A2, OUT-10).
+  //
+  // **Un seul fait, pas trente fiches.** Vingt cases d'une même table que personne n'a su lire,
+  // c'est une information à connaître — pas vingt arbitrages. Regroupées, elles tiennent en une
+  // ligne, sans qu'on perde de vue ce qu'elles recouvrent : le détail se déplie.
+  //
+  // Les trois comptes y sont dits en clair, et **la panne à part** : une panne tue ressemble à un
+  // succès, et « rien rattrapé » ressemble exactement à « rien à rattraper ».
+  const relecture = entree.relectureDesCases;
+  if (relecture !== undefined && relecture.nonRelues.length > 0) {
+    const libelle = `${relecture.nonRelues.length} case(s) sans valeur`;
+    douteux.push({
+      id: identifiantDe(`${entree.id}/cases-non-relues`),
+      nature: "information",
+      etat: "relecture_non_faite",
+      libelle,
+      proposition:
+        `${libelle} : ${relecture.demandes} relecture(s) demandée(s), ` +
+        `${relecture.rendus} rendue(s)`,
+      motif:
+        relecture.pannes === 0
+          ? `aucune panne ; ce qui reste n'a pas pu être lu`
+          : `${relecture.pannes} relecture(s) en panne : ce qui reste n'a pas pu être lu, et une part n'a pas pu être tentée`,
+      details: relecture.nonRelues.map(
+        (sans) =>
+          `${nommer(entree.mots.page, sans.page)}, rangée ${sans.rangee + 1}, colonne ${sans.colonne + 1} — ${sans.pourquoi}`,
+      ),
     });
   }
 

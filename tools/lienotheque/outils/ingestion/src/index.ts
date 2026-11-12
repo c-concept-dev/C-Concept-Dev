@@ -262,3 +262,5 @@ export * from "./importer-classements.js";
 export * from "./voie-oracle.js";
 export * from "./relire-les-zones.js";
 export * from "./relire-sur-place.js";
+export * from "./relecteur-en-chaine.js";
+export * from "./relecteur-par-vision.js";
