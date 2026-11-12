@@ -28,6 +28,7 @@ vi.mock("../src/voie-oracle.js", async (importe) => ({
 }));
 
 import { demandeDeTraitement, executerTravail } from "../src/executant.js";
+import { VERSION_DE_LA_VOIE } from "../src/voie-oracle.js";
 import { instantaneDeLot } from "../src/lot.js";
 import { ErreurExportPagesVide } from "../src/pages-images.js";
 
@@ -136,7 +137,7 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
     });
     doubles.rejouerParOracle.mockResolvedValueOnce({
       resultat: {
-        recette: { id: "voie-sans-maniere-de-lire", version: 3 },
+        recette: { id: "voie-sans-maniere-de-lire", version: VERSION_DE_LA_VOIE },
         pages: [],
         lignes: [
           {
@@ -177,7 +178,7 @@ describe("un dérivé ne détruit jamais un texte déjà lu", () => {
   it("un banc de comparaison garde la recette, et le dit (OUT-15)", async () => {
     const rendu = (recette: string, source: string) => ({
       resultat: {
-        recette: recette === "recette" ? { id: "methode-cartouche-double-identifiant", version: 1 } : { id: "voie-sans-maniere-de-lire", version: 3 },
+        recette: recette === "recette" ? { id: "methode-cartouche-double-identifiant", version: 1 } : { id: "voie-sans-maniere-de-lire", version: VERSION_DE_LA_VOIE },
         pages: [],
         lignes: [{ numero: 1, pageImprimee: 8, piste: 1, disque: 1, sourcePiste: source, confiance: 1 }],
         pagesAbsentes: [],

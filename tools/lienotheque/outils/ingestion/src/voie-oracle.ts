@@ -25,6 +25,7 @@ import {
   zonesRecurrentes,
   type FormeObservee,
   lireLaTable,
+  type CeQueLaTablePeutDesigner,
   type TableLue,
   type ZoneRecurrente,
   type ContenuDePage,
@@ -49,6 +50,7 @@ import {
 } from "@lienotheque/recettes";
 import { coordonnerLectureDifficile, type LectureTentative } from "@lienotheque/vision";
 import { couperDoublePage } from "@lienotheque/redresseur";
+import { relireLesZones, zonesEnDefaut, type RelecteurDeZone } from "./relire-les-zones.js";
 import { ocrDUnePageGrise } from "./texte.js";
 
 /** Lire un document sans manière de lire écrite à la main (OUT-10).
@@ -92,9 +94,14 @@ import { ocrDUnePageGrise } from "./texte.js";
  *  **ce qui propose les endroits, ce qui les juge, ou ce qui les lit** — sans quoi une amélioration
  *  de la lecture laisserait les documents déjà vus sur les conclusions de l'ancienne. Elle ne
  *  monte pas quand seul le coût change : l'élagage du 31 octobre 2026 rend les mêmes endroits, au
- *  centième, et n'a donc rien périmé. */
+ *  centième, et n'a donc rien périmé.
+ *
+ *  À 4 le 12 novembre 2026 : la relecture des cases en défaut (A2) change **ce qui lit**. Un
+ *  document déjà vu peut désormais publier des liens que sa première lecture laissait à
+ *  vérifier ; garder l'acquis de l'ancienne voie reviendrait à lui refuser cette relecture
+ *  pour la seule raison qu'on l'a déjà lu sans elle. */
 export const ID_DE_LA_VOIE = "voie-sans-maniere-de-lire";
-export const VERSION_DE_LA_VOIE = 3;
+export const VERSION_DE_LA_VOIE = 4;
 const LA_VOIE = { id: ID_DE_LA_VOIE, version: VERSION_DE_LA_VOIE } as const;
 
 /** La largeur à laquelle les pages sont rendues. La même que la chaîne de texte : deux largeurs
@@ -171,6 +178,104 @@ type Marque = {
 /** Ce que le coordinateur garde entre les marques : la taille du signe et la façon de le lire. */
 type Gabarit = { readonly taille: { readonly l: number; readonly h: number }; readonly motif: Motif };
 
+/** Ce que la relecture des cases a coûté et rendu (A2).
+ *
+ *  Les pannes se comptent **à part** des abstentions. Un étage injoignable rendrait « rien
+ *  rattrapé », ce qui ressemble exactement à « rien à rattraper » : le trou qui ressemble au
+ *  succès. Les deux chiffres séparés sont la seule façon de les distinguer après coup. */
+export type ReleveDeRelectureDesCases = {
+  readonly demandes: number;
+  readonly rendus: number;
+  readonly pannes: number;
+  /** Les cases restées sans valeur, et pourquoi. Elles vont à Vérifier sous l'état
+   *  `relecture_non_faite` : une case qu'on n'a pas su lire ne doit pas disparaître. */
+  readonly nonRelues: readonly CaseNonRelue[];
+};
+
+export type CaseNonRelue = {
+  readonly page: number;
+  readonly rangee: number;
+  readonly colonne: number;
+  readonly etat: "relecture_non_faite";
+  /** En toutes lettres, pour l'écran : ce qui a manqué. */
+  readonly pourquoi: string;
+};
+
+/** Les tables des pages, après avoir relu ce que la lecture n'a pas su lire (A2).
+ *
+ *  **Un seul endroit.** Les deux voies qui corroborent par la table faisaient chacune leur
+ *  `lireLaTable` ; relire d'un côté seulement aurait fait publier deux chemins différemment sur
+ *  le même document. Cette fonction est ici pour qu'il n'y ait rien à tenir d'accord.
+ *
+ *  Sans relecteur, les cases en défaut sont **nommées** au lieu d'être ignorées : c'est la
+ *  différence entre « il n'y avait rien là » et « on n'a pas su lire ce qui était là ». */
+async function tablesRelues(
+  texteAligne: readonly { readonly page: number; readonly mots?: readonly MotLu[] | undefined }[] | undefined,
+  designables: CeQueLaTablePeutDesigner,
+  relire: RelecteurDeZone | undefined,
+): Promise<{
+  readonly tables: readonly { readonly page: number; readonly table: TableLue }[];
+  readonly releve: ReleveDeRelectureDesCases | undefined;
+}> {
+  const pages = (texteAligne ?? []).filter((page) => page.mots !== undefined);
+  if (pages.length === 0) return { tables: [], releve: undefined };
+
+  let pannes = 0;
+  // La panne se compte et ne se propage pas : un document de cent pages ne doit pas s'arrêter sur
+  // une coupure, mais le relevé doit porter la coupure.
+  const protege: RelecteurDeZone | undefined =
+    relire === undefined
+      ? undefined
+      : async (demande) => {
+          try {
+            return await relire(demande);
+          } catch {
+            pannes += 1;
+            return undefined;
+          }
+        };
+
+  const fait = await relireLesZones(pages, protege, designables);
+  const tables = fait.pages.flatMap((page) =>
+    page.mots === undefined ? [] : [{ page: page.page, table: lireLaTable(page.mots, designables) }],
+  );
+  if (fait.enDefaut === 0) return { tables, releve: undefined };
+
+  // **Sans relecteur, `relireLesZones` ne laisse aucune trace** : il rend le compte des zones et
+  // ne fait rien d'autre. Nommer les cases depuis les traces les aurait donc toutes perdues
+  // précisément dans le cas où il n'y a personne au bout — celui qu'il faut le plus dire.
+  const nonRelues: CaseNonRelue[] =
+    relire === undefined
+      ? zonesEnDefaut(pages, designables).map((zone) => ({
+          page: zone.page,
+          rangee: zone.rangee,
+          colonne: zone.colonne,
+          etat: "relecture_non_faite" as const,
+          pourquoi: "aucun relecteur branché sur cette voie",
+        }))
+      : fait.traces
+          .filter((trace) => trace.retenu === undefined)
+          .map((trace) => ({
+            page: trace.page,
+            rangee: trace.rangee,
+            colonne: trace.colonne,
+            etat: "relecture_non_faite" as const,
+            pourquoi:
+              trace.lu === undefined
+                ? "aucune lecture n'a rendu de valeur pour cette case"
+                : "la valeur relue n'était pas un nombre de cellule acceptable",
+          }));
+  return {
+    tables,
+    releve: {
+      demandes: relire === undefined ? 0 : fait.traces.length,
+      rendus: fait.traces.filter((trace) => trace.retenu !== undefined).length,
+      pannes,
+      nonRelues,
+    },
+  };
+}
+
 export type OptionsVoieOracle = {
   readonly inventaireMedias?: readonly MediaInventorie[] | undefined;
   readonly provenancesMedias?: readonly string[] | undefined;
@@ -184,6 +289,17 @@ export type OptionsVoieOracle = {
   readonly surPhase?: ((message: string) => void) | undefined;
   /** N'en lire que les premières pages : pour essayer, ou pour éprouver. */
   readonly pages?: number | undefined;
+  /** Relire une case de table que cette voie n'a pas su lire (A2, exigence 0).
+   *
+   *  **Un port, pas une politique.** Cette voie ne sait ni combien d'étages existent, ni lequel
+   *  coûte de l'argent : elle demande une case et reçoit une valeur ou rien. Composer les étages
+   *  — reconnaissance locale d'abord, regard distant ensuite — est l'affaire de l'appelant, et
+   *  `relecteurEnChaine` le fait pour lui.
+   *
+   *  Absent, aucune case n'est relue et chacune est **dite** non relue (`relecture_non_faite`)
+   *  plutôt que de disparaître. Mesuré le 6 novembre 2026 : ce port existait, éprouvé et mesuré
+   *  par un programme autonome, et **aucun chemin de la chaîne ne l'appelait**. */
+  readonly relectureDesCases?: RelecteurDeZone | undefined;
   /** Une feuille rendue porte-t-elle deux pages logiques, gauche puis droite ? */
   readonly doublePage?: boolean | undefined;
   /** Le vote documentaire a-t-il établi les folios, au-delà d'une lecture locale isolée ? */
@@ -223,6 +339,8 @@ export type RejeuParOracle = {
   /** Ce que chaque table globale a donné, et pourquoi elle n'a pas suffi. Description seule :
    *  rien de ce qui est publié n'en dépend, et un contrôle l'établit. */
   readonly constatsDeTable: readonly ConstatDeTable[];
+  /** Ce que la relecture des cases a coûté et rendu. Absent quand aucune case n'était en défaut. */
+  readonly relectureDesCases?: ReleveDeRelectureDesCases | undefined;
   /** Ce que la voie a vu et décidé, en clair : de quoi expliquer un résultat sans relire le code. */
   readonly journal: readonly string[];
   /** Ce que cette lecture a appris, à garder pour ne pas l'apprendre deux fois.
@@ -1253,12 +1371,8 @@ export async function rejouerParOracle(
       const rang = rangParNumero.get(ligne.numero);
       return rang !== undefined && folioParRang.has(rang);
     });
-    const tables =
-      texteAligne?.flatMap((page) =>
-        page.mots === undefined
-          ? []
-          : [{ page: page.page, table: lireLaTable(page.mots, { enregistrements: medias.length }) }],
-      ) ?? [];
+    const relu = await tablesRelues(texteAligne, { enregistrements: medias.length }, options.relectureDesCases);
+    const tables = relu.tables;
     const constatsDeTable: ConstatDeTable[] = [];
     const preuveParTable = foliosEtablis
       ? corroborerParTable(lignesAvecFolio, tables, medias.length, constatsDeTable)
@@ -1387,12 +1501,20 @@ export async function rejouerParOracle(
           "imprimé sur la page — ou la confirmation de ces liens un par un.",
       );
 
-    return { resultat, association, medias, journal, constatsDeTable, acquis: acquisDeCetteLecture };
+    return {
+      resultat,
+      association,
+      medias,
+      journal,
+      constatsDeTable,
+      ...(relu.releve === undefined ? {} : { relectureDesCases: relu.releve }),
+      acquis: acquisDeCetteLecture,
+    };
   }
 }
 
 /** Ce qu'on rend quand il n'y a rien à lire : un résultat vide et une raison, jamais un lien. */
-function sansLien(
+async function sansLien(
   medias: readonly Media[],
   options: OptionsVoieOracle,
   journal: string[],
@@ -1411,7 +1533,7 @@ function sansLien(
    *  n'a rien trouvé, alors qu'ici on a trouvé, lu en entier, et démenti. Les deux n'appellent
    *  pas le même geste de la part de qui lit l'écran. */
   aucuneMarqueNeTient = false,
-): RejeuParOracle {
+): Promise<RejeuParOracle> {
   journal.push(pourquoi);
   options.surPhase?.(pourquoi);
   const texteAligne =
@@ -1462,12 +1584,8 @@ function sansLien(
       (un, autre) =>
         un.ligne.pageImprimee - autre.ligne.pageImprimee || un.ligne.numero - autre.ligne.numero,
     );
-  const tables =
-    texteAligne?.flatMap((page) =>
-      page.mots === undefined
-        ? []
-        : [{ page: page.page, table: lireLaTable(page.mots, { enregistrements: medias.length }) }],
-    ) ?? [];
+  const relu = await tablesRelues(texteAligne, { enregistrements: medias.length }, options.relectureDesCases);
+  const tables = relu.tables;
   const constatsDeTable: ConstatDeTable[] = [];
   const preuveLue = foliosEtablis
     ? corroborerParTable(
@@ -1613,6 +1731,7 @@ function sansLien(
       medias,
       journal,
       constatsDeTable,
+      ...(relu.releve === undefined ? {} : { relectureDesCases: relu.releve }),
       ...(acquis === undefined ? {} : { acquis }),
     };
   }
@@ -1658,6 +1777,7 @@ function sansLien(
     medias,
     journal,
     constatsDeTable,
+    ...(relu.releve === undefined ? {} : { relectureDesCases: relu.releve }),
     ...(acquis === undefined ? {} : { acquis }),
   };
 }

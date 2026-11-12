@@ -53,6 +53,10 @@ export type Association = {
       //
       // Sans cette raison, l'écran disait « rien ne numérote » d'un document dont on n'avait vu
       // qu'une part : une affirmation plus forte que ce que la lecture permettait.
+      //
+      // Mesuré le 7 novembre 2026 : une machine privée de processeur a fait dépenser à la voie ses
+      // 65 minutes de budget, et l'abstention a dit « aucun repère lu » là où la vérité était
+      // « budget épuisé ». Qui lit l'écran aurait changé de manière de lire pour rien.
       | "exploration_interrompue"
       // Des endroits ont été élus, relus EN ENTIER, et aucun n'a tenu au rejugement. Distinct
       // d'« aucun repère lu », qui dit qu'on n'a rien trouvé : ici on a trouvé, lu, et la
