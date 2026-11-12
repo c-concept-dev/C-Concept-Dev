@@ -1,0 +1,444 @@
+{
+  "description": "F5 — Funk Fusion Bass (Hal Leonard, Bass Builders), corpus REC-07. Empreintes de référence. Les œuvres ne sont jamais versionnées (CLAUDE.md, règle 5) : seules ces empreintes le sont, et les fichiers vivent sous fixtures/fichiers/F5/, ignoré par Git.",
+  "pourquoi_ce_jeu_et_pas_l_archive": "Remplacement du 5 novembre 2026, motivé. Une première extraction venait de l'archive « Jon Liebman - Funk Fusion Bass.zip » : même ouvrage, mais UNE AUTRE NUMÉRISATION (PDF 909a0e31…, 9 601 558 octets) et un audio dont les NOMS D'ORIGINE ONT ÉTÉ PERDUS (« 01 - Track 1.mp3 » … « 99 - Track 99.mp3 », zéro « # », zéro numéro composé, étiquettes ID3 muettes elles aussi). La recette methode-numero-compose-piste.v2 attend « {piste}-{description}#{element} » : sans l'élément dans le nom, la corroboration exacte est impossible, la chaîne s'abstient pour la bonne raison (corroboration_insuffisante), aucune cible n'est proposée et aucun appel en ligne n'a lieu. Mesuré : 0 juste sur 98 attendus, 0 appel. L'archive reste un ORIGINAL CONSERVÉ (SHA-256 74f59cda937adc1c21b85ca883c9c8441ad3bb5ce7e08bec59be03eaa4d6c52b, intacte sur le volume externe) ; elle ne peut simplement pas faire l'épreuve. Le jeu retenu ici porte les noms d'origine et c'est celui sur lequel le 98/98 a été obtenu.",
+  "origine": {
+    "ou": "/Volumes/Macbook Pro/Basse/Methodes PDF + MP3/Funk Fusion Bass (Hal Leonard - Bass Builders) [Book+CD]/ — dossier de corpus, PAS une bibliothèque",
+    "copie_le": "2026-11-05",
+    "copie_jamais_deplacee": true,
+    "source_inchangee_verifiee": true,
+    "pdf_identique_a_la_source_de_la_bibliotheque_musicale": "d1963fc6a81ac59fcf214d0b17eb51065e7f8bc55e77167c8b97876abbbbbe5b — empreinte relevée des deux côtés, identique"
+  },
+  "preuve_du_98_sur_98": {
+    "rapport": "/Volumes/Macbook Pro/lienotheque-cache/rapports-c9-3/c9-3-2026-10-28T20-25-11.549Z.json",
+    "corpus": "/Volumes/Macbook Pro/Basse",
+    "releve": {
+      "medias": 99,
+      "nomsInterpretes": 98,
+      "lignes": 105,
+      "automatiques": 97,
+      "aVerifier": 1,
+      "fauxAutomatiques": 0,
+      "pistesManquantes": 0,
+      "mediasOrphelins": 0,
+      "oracle": {
+        "justes": 98,
+        "attendus": 98,
+        "manquants": [],
+        "fautifs": [],
+        "supplementaires": []
+      }
+    }
+  },
+  "attendu_de_l_epreuve": {
+    "controle": "outils/vision/test/funk-fusion-corpus.test.ts",
+    "banc": "outils/vision/mesures/epreuve-funk-fusion.ts",
+    "justes": 98,
+    "manquants": [],
+    "fautifs": [],
+    "supplementaires": [],
+    "orphelins": [],
+    "note": "99 médias, 98 appariements : « 01-Introduction.mp3 » ne porte aucun numéro d'élément, et la référence d'appariement le documente comme non associé."
+  },
+  "fichiers": {
+    "01-Introduction.mp3": {
+      "sha256": "da7dffa5d61262360c8bbe051c752a775c581aed321eeddd66c0b297bbc795dc",
+      "octets": 374994
+    },
+    "02-Chapter 5, Groove #5.1.mp3": {
+      "sha256": "f7e95fe66a6f9b7a7e565936fffbbed8f870eb1d5d2ed03eb7d59a6edad69b31",
+      "octets": 536326
+    },
+    "03-Chapter 5, Groove #5.2.mp3": {
+      "sha256": "17e2e12e73aa28d61c816d766c774b4826e92ff9cef0a1f9053a69b462dfca31",
+      "octets": 706018
+    },
+    "04-Chapter 5, Groove #5.3.mp3": {
+      "sha256": "e9f62c3fa44089334fd4349ce2a88097cf942ea7b64f710d38cb8458d5fdac2a",
+      "octets": 550409
+    },
+    "05-Chapter 5, Groove #5.4.mp3": {
+      "sha256": "b1cb27c90b817481c9c09ad2402f7198bcd4781e5b30616e70608e2870cfb3e8",
+      "octets": 460130
+    },
+    "06-Chapter 5, Groove #5.5.mp3": {
+      "sha256": "e31bf79068be5afa4fce4f09c8e5b525e16b2e45a2e764a0335813b1d07b1fb4",
+      "octets": 514465
+    },
+    "07-Chapter 5, Groove #5.6.mp3": {
+      "sha256": "8dee33685108bb6b7956e3e1c051c950d529fab369cd31b1359b497392efe7e0",
+      "octets": 508195
+    },
+    "08-Chapter 5, Groove #5.7.mp3": {
+      "sha256": "e0e7139d118bb2bbc5f600deb95f37024e43b5d30b32f7e650007183b562e9c7",
+      "octets": 846324
+    },
+    "09-Chapter 5, Groove #5.8.mp3": {
+      "sha256": "27ef15892681af7df72885b66e0e1a7e3c0be33431d20810c480c0c58e31b6c1",
+      "octets": 857191
+    },
+    "10-Chapter 5, Groove #5.9.mp3": {
+      "sha256": "1d0969ad163524e2133c98a96c097e791b95ce5d144994c3df39935b15e9402e",
+      "octets": 738073
+    },
+    "11-Chapter 5, Groove #5.10.mp3": {
+      "sha256": "887f69f3e48e6976d37d041718c0008cd0e7b356834cc8ce302c2608465aa784",
+      "octets": 502344
+    },
+    "12-Chapter 5, Groove #5.11.mp3": {
+      "sha256": "fdda2051addf96518403bb8a153fe41264abdae9738eb3a36d39adb0f208419d",
+      "octets": 504016
+    },
+    "13-Chapter 5, Groove #5.12.mp3": {
+      "sha256": "9f748805762dc50c46c213202948a572c3effa7a743b031d73d636da1364d474",
+      "octets": 616865
+    },
+    "14-Chapter 5, Groove #5.13.mp3": {
+      "sha256": "32a527c24a500a79daaa4fe2573d06be8cdc64da1b045496fefe27792b383b79",
+      "octets": 526585
+    },
+    "15-Chapter 5, Groove #5.14.mp3": {
+      "sha256": "3cb21c2eeeb828f0a2f4bc9e229468b881b7485313388400b9d780c435fbca0e",
+      "octets": 534945
+    },
+    "16-Chapter 5, Groove #5.15.mp3": {
+      "sha256": "15a4bac40d384380d0b172f11b741ecdbbac73d9656470aa041448525af2ff0c",
+      "octets": 845488
+    },
+    "17-Chapter 5, Groove #5.16.mp3": {
+      "sha256": "9ebaf78c19e6f3651a8de57e040f912baaca0028d882bec410ad5b323bdcac96",
+      "octets": 473505
+    },
+    "18-Chapter 5, Groove #5.17.mp3": {
+      "sha256": "3c8632cc31f4ff68755d5a64cfa21f8188b955685e525bd90ffafc8dad7eb78c",
+      "octets": 529511
+    },
+    "19-Chapter 5, Groove #5.18.mp3": {
+      "sha256": "bd526a69c5a65145f775710765686789920c332dc190583d5b03ba16ed2c2819",
+      "octets": 538288
+    },
+    "20-Chapter 5, Groove #5.19.mp3": {
+      "sha256": "92e8bb3f3d9f15612722513028193cfa224185c25c43112ae9f06e82019ab318",
+      "octets": 532855
+    },
+    "21-Chapter 5, Groove #5.20.mp3": {
+      "sha256": "a49c75f327c37a8d4b6fc419131606ecc8920120437ebc0a26ff758a38ae2b18",
+      "octets": 468489
+    },
+    "22-Chapter 5, Groove #5.21.mp3": {
+      "sha256": "25dfb07513bd848be5f8f0e6f719c563f4ebd76686f1a7f8ed7c4815927a1468",
+      "octets": 509867
+    },
+    "23-Chapter 5, Groove #5.22.mp3": {
+      "sha256": "cd24136a953e377f82d0433855fbcf7877d2a7c42b5f9263df5dd30e5cc689f3",
+      "octets": 519062
+    },
+    "24-Chapter 5, Groove #5.23.mp3": {
+      "sha256": "aa52d527c001a830c44096ad6c131d12ed6015530319eb6397b9447c95f6c962",
+      "octets": 525331
+    },
+    "25-Chapter 5, Groove #5.24.mp3": {
+      "sha256": "4c3a4f800d4d8aab886db953a0665ddc571576417e14bca03095e174e99aae7f",
+      "octets": 510285
+    },
+    "26-Chapter 5, Groove #5.25.mp3": {
+      "sha256": "778fc0ceedf58d002cdd9d2d53d82d3aeac2e8c8c018f777b6a8e9fc95c766b0",
+      "octets": 575069
+    },
+    "27-Chapter 5, Groove #5.26.mp3": {
+      "sha256": "e33d37d0b5f454997192e860a520e24f18f9b138281d2c362112d4be892941e9",
+      "octets": 794079
+    },
+    "28-Chapter 5, Groove #5.27.mp3": {
+      "sha256": "3e7d00a0a447cd1fcaceb3503a30eea30ad168fba98d449c191852f1f4a88a95",
+      "octets": 565038
+    },
+    "29-Chapter 5, Groove #5.28.mp3": {
+      "sha256": "0a204f097a32ae157f34bd35c9a902de4e479082f065cf83a61f7c628b6f40b4",
+      "octets": 526167
+    },
+    "30-Chapter 5, Groove #5.29.mp3": {
+      "sha256": "b011281c73cad576ce77092704431cb17966119240ca5c900a441b85c7b4fdae",
+      "octets": 572143
+    },
+    "31-Chapter 5, Groove #5.30.mp3": {
+      "sha256": "def67e42f625c373f19e5503f4715baa29f3125bf81f48a99eb3bbbc09d73706",
+      "octets": 572561
+    },
+    "32-Chapter 5, Groove #5.31.mp3": {
+      "sha256": "363aaca15fa74f57ead64deaef2528de9b0eb3e6ad2ac5df4b1f021751110b2e",
+      "octets": 689171
+    },
+    "33-Chapter 5, Groove #5.32.mp3": {
+      "sha256": "e95bb62c872872207103c275de970b84bfb9b692c118bb0ab80969452dd21bdd",
+      "octets": 522824
+    },
+    "34-Chapter 5, Groove #5.33.mp3": {
+      "sha256": "e545fa47f96e0a1193eb82ad5edf9e6a8066ba56de2190b2fbdc79bc67faf27b",
+      "octets": 511539
+    },
+    "35-Chapter 5, Groove #5.34.mp3": {
+      "sha256": "4d3ffe2638cacbacc4584513f7803ff1448975f326dbce5705ed6a8ee250a3ea",
+      "octets": 607251
+    },
+    "36-Chapter 5, Groove #5.35.mp3": {
+      "sha256": "0016b5ac56d6fcf2358ba3d174ea3540f3324af635c2be18406c55ddfd75d858",
+      "octets": 520316
+    },
+    "37-Chapter 5, Groove #5.36 (Shuffle Groove).mp3": {
+      "sha256": "7bd462f3b6b8d0047ec876865987a6888c3d77c79793dbd666c1834e9c9b709c",
+      "octets": 1102533
+    },
+    "38-Chapter 5, Groove #5.37.mp3": {
+      "sha256": "c5b481da979bbdf58af4bd7884264d15d9ac47d2df10c53c36aecd39b9fd3e97",
+      "octets": 504434
+    },
+    "39-Chapter 5, Groove #5.38.mp3": {
+      "sha256": "ca49f7c3dbd94e1e56331beb9d012a737fb547d76b4128865be2fb3ec3b73d7a",
+      "octets": 540378
+    },
+    "40-Chapter 5, Groove #5.39.mp3": {
+      "sha256": "1fb8984128516d674cf99da99040555c9349326763da63772c94d9fc854566d2",
+      "octets": 541632
+    },
+    "41-Chapter 5, Groove #5.40.mp3": {
+      "sha256": "5d517e8276520fe8ad9d8ffa357ddee35e1c4a4306c9fc775e64f2bab1456f14",
+      "octets": 524078
+    },
+    "42-Chapter 5, Groove #5.41.mp3": {
+      "sha256": "46743fec30e9b9f83039048015601113907b1d375bf1df4c71450b9452b2e7ad",
+      "octets": 538706
+    },
+    "43-Chapter 5, Groove #5.42.mp3": {
+      "sha256": "e4dcc08a8a0c4b72878d494802a57b5fa49eb5da38c573aeb36a5f7240c35d6e",
+      "octets": 542468
+    },
+    "44-Chapter 5, Groove #5.43.mp3": {
+      "sha256": "d537be54bfe17966da6808dd7deec8f2076b74133f2231d08ebc8deb8ecfb3df",
+      "octets": 538288
+    },
+    "45-Chapter 5, Groove #5.44.mp3": {
+      "sha256": "a21bd13f6ea50c92e1d69fdbc80e3d425b615e15248f629b8138554ca4b56a97",
+      "octets": 547901
+    },
+    "46-Chapter 5, Groove #5.45.mp3": {
+      "sha256": "1cdd5232cebde559e9939316f6b72f9a1c0112d110693540e6c225507d015a7e",
+      "octets": 539542
+    },
+    "47-Chapter 5, Groove #5.46.mp3": {
+      "sha256": "9847c4ad2053fc6c9bdc8bf11978fabb5f1347731e247a266e3a0dd2fe0de66e",
+      "octets": 593459
+    },
+    "48-Chapter 5, Groove #5.47.mp3": {
+      "sha256": "9c9760e36e3dfbf40ff3645eb45c6dea2aebce2636adb8b1ba8cbbc2051bbe5e",
+      "octets": 539960
+    },
+    "49-Chapter 5, Groove #5.48.mp3": {
+      "sha256": "b689d67ed04c76e2e9fb41d4e3c39804ef24fd5ba843a0032669f4e4afc8ef5d",
+      "octets": 420006
+    },
+    "50-Chapter 5, Groove #5.49.mp3": {
+      "sha256": "b67acd11628f6aece9abbaeed372b943c4cb35e5b01a2b5fac2dc6531d353463",
+      "octets": 472669
+    },
+    "51-Chapter 5, Groove #5.50.mp3": {
+      "sha256": "dfafc85c3099036f2b90a8373ef09c30a7187b554547846343ea1393a389c9e6",
+      "octets": 547065
+    },
+    "52-Chapter 5, Groove #5.51.mp3": {
+      "sha256": "b275eb5d88b49e5846ec1ee2bb38fec7f251c84bacd743b8cfca12f93378f085",
+      "octets": 517390
+    },
+    "53-Chapter 5, Groove #5.52.mp3": {
+      "sha256": "9b0068156f190a13fa0ceef2f392cc72134ebd96665ab6838d7e34ae7def9bfc",
+      "octets": 481028
+    },
+    "54-Chapter 5, Groove #5.53.mp3": {
+      "sha256": "0548c5424965745a60657e3d395218456c798f3c0f1f51d7e8c7fec508aed7d2",
+      "octets": 507359
+    },
+    "55-Chapter 5, Groove #5.54.mp3": {
+      "sha256": "29ca8469a8e5389ca4bd7dae69f246e97cb6985b0ce1eb15c076513a26bca3e1",
+      "octets": 545394
+    },
+    "56-Chapter 5, Groove #5.55.mp3": {
+      "sha256": "348db015e15491661c3ff267ad41ce7a9acfb2c43404e429d9ad9df905c4bc7c",
+      "octets": 506941
+    },
+    "57-Chapter 5, Groove #5.56.mp3": {
+      "sha256": "0b878a8cda5a1d5935a181c6039bff5ec89f31d9b42b5cfc3a713c61276b6d64",
+      "octets": 524496
+    },
+    "58-Chapter 5, Groove #5.57.mp3": {
+      "sha256": "6cde04bc4ea8766b62dd55bb816291398a1a9db6f44ae3ccbacf8616743da7d2",
+      "octets": 537870
+    },
+    "59-Chapter 5, Groove #5.58.mp3": {
+      "sha256": "21651e6b9161412094984eb4aa6442d683bf37f277338dfacedf8fb50aef85a5",
+      "octets": 534109
+    },
+    "60-Chapter 5, Groove #5.59.mp3": {
+      "sha256": "bf3440064aebfab81fe0c254c3ec5cdf1a416f01a62cfca227590ea5e0026d64",
+      "octets": 536198
+    },
+    "61-Chapter 5, Groove #5.60.mp3": {
+      "sha256": "e0448db6a7efc75c49e40c3f1c060d40387e53b4eab296a774f4459a01701128",
+      "octets": 528675
+    },
+    "62-Chapter 5, Groove #5.61.mp3": {
+      "sha256": "8afc9cb4a687135e72af0a363dbd330d0307019fe2e81295defcf035842c3555",
+      "octets": 500254
+    },
+    "63-Chapter 5, Groove #5.62.mp3": {
+      "sha256": "2f1af711c6d465c5c1d621da9e932e4c2e954a3446e9bc6c547b2ef9c47014c8",
+      "octets": 502344
+    },
+    "64-Chapter 5, Groove #5.63.mp3": {
+      "sha256": "d1b89026df5e94a168d1959b3b1afaad5e5ced287409300938b2619a8f3e2290",
+      "octets": 451353
+    },
+    "65-Chapter 5, Groove #5.64.mp3": {
+      "sha256": "e570aee101a5c6507b87f1a7f9f4570d795c293e6a3910dc43598bcdedb4e8d2",
+      "octets": 736401
+    },
+    "66-Chapter 5, Groove #5.65.mp3": {
+      "sha256": "c58d0b4dc8af822bc65bc5555440dfe041e7d5b5b818765396049d1f0f3e04d6",
+      "octets": 508613
+    },
+    "67-Chapter 5, Groove #5.66.mp3": {
+      "sha256": "cda98d0fb486fff11756f2a92e574d552aefa4fcca891645dbffdbde049be3ed",
+      "octets": 483536
+    },
+    "68-Chapter 5, Groove #5.67.mp3": {
+      "sha256": "538bce8d239c20cf988d10ee4b1547115d4a98ea59b6b3ea7161bb217a8c7d41",
+      "octets": 450099
+    },
+    "69-Chapter 5, Groove #5.68.mp3": {
+      "sha256": "94cf84b4c5ff0e7b6ece5498e3d90c0172c7705693144c186417b25f26575808",
+      "octets": 483118
+    },
+    "70-Chapter 5, Groove #5.69.mp3": {
+      "sha256": "983c9a7c8025cc5d8502cce6853689d76a4e9c71c46011cebad373743746f42c",
+      "octets": 491059
+    },
+    "71-Chapter 5, Groove #5.70.mp3": {
+      "sha256": "e4da32eae9bf1dd45370d370afcd0754f26dadec4ba4050ff788e0cbf660c34f",
+      "octets": 491895
+    },
+    "72-Chapter 5, Groove #5.71.mp3": {
+      "sha256": "68dc6b98197bcda018a216027cc52873dedd6f7d34293ce32b3a12b71a126888",
+      "octets": 767330
+    },
+    "73-Chapter 5, Groove #5.72.mp3": {
+      "sha256": "d72f0118ed5aa22585d0b4f6d018e212534dd7b6f0d74c37b4f0019bf5f9f28b",
+      "octets": 605162
+    },
+    "74-Chapter 5, Groove #5.73.mp3": {
+      "sha256": "d0cc6c876595e1e4748695f449900af0b97308ad90dbb862f225ff3d327c5c3d",
+      "octets": 465563
+    },
+    "75-Chapter 5, Groove #5.74.mp3": {
+      "sha256": "170e40025a92ec9c292ff6ce1d186ff69d995c97fa39adaf6ff46598c0509ed5",
+      "octets": 462638
+    },
+    "76-Chapter 5, Groove #5.75.mp3": {
+      "sha256": "9136499e139847a595e356ace208319059134e0a2836992dea3ddfb28657cfb2",
+      "octets": 1242967
+    },
+    "77-Chapter 6, Lick #6.1.mp3": {
+      "sha256": "c22d06e1e60398819075494db4404145b619b06958245f0ab5f02f11bc2c9c1e",
+      "octets": 1378804
+    },
+    "78-Chapter 6, Lick #6.4.mp3": {
+      "sha256": "e0ad42bb3b47f754f82b80e0c3a1e89cf74743237dcffdf268750edf85e5b8fb",
+      "octets": 481864
+    },
+    "79-Chapter 6, Lick #6.5.mp3": {
+      "sha256": "76141b92d775abdef1660356beb03c2390e10336a1ce0820096793e2683d723b",
+      "octets": 840055
+    },
+    "80-Chapter 6, Lick #6.7.mp3": {
+      "sha256": "c8edb6646fffe58bcd7debfd18564068ed437d443542edb2c2e51be4bea03e37",
+      "octets": 486461
+    },
+    "81-Chapter 6, Lick #6.8.mp3": {
+      "sha256": "1fd7d26a99d59e2409d00d16c282836361072cae512c4fd72321b25fda61eec5",
+      "octets": 525749
+    },
+    "82-Chapter 6, Lick #6.9.mp3": {
+      "sha256": "2fbce6b536e76f3d35ada3ff8c23b371c2702430f790e3bc6a4c8d89961c96e7",
+      "octets": 476430
+    },
+    "83-Chapter 6, Lick #6.10.mp3": {
+      "sha256": "c9f9d1c8e4ec011a67fa62f4eea791816cdc027193dbf4666cec18fd4e0cf32a",
+      "octets": 440068
+    },
+    "84-Chapter 6, Lick #6.11.mp3": {
+      "sha256": "9cf115bcd9212aa17a85149b58b7c4d406a211b082f1152b70ea60d02b02d79e",
+      "octets": 562112
+    },
+    "85-Chapter 6, Lick #6.12.mp3": {
+      "sha256": "b76f75ae5df8183cb71aef73964fe2593dea70800af8dc06e8e500d45f63a5b9",
+      "octets": 417498
+    },
+    "86-Chapter 6, Lick #6.13.mp3": {
+      "sha256": "f038771f67beed93a7823bf724d73ad591715864f064b88b93a6bdb129962126",
+      "octets": 517808
+    },
+    "87-Chapter 6, Lick #6.14.mp3": {
+      "sha256": "b6b256362bf7e71aec83fa8744dacacfceaeff776dadb30cda727ec4a39defed",
+      "octets": 524496
+    },
+    "88-Chapter 6, Lick #6.15.mp3": {
+      "sha256": "5f905f3f44e143bf1c84583ff95b9914017de534eeb4983fe79e1b88b000c00e",
+      "octets": 405795
+    },
+    "89-Chapter 6, Lick #6.16.mp3": {
+      "sha256": "bad7446c8af08994be4dd548060269b078dcb0cf5d6c165498b7e20d63c922db",
+      "octets": 559186
+    },
+    "90-Chapter 6, Lick #6.17.mp3": {
+      "sha256": "41d1589c0d6aaf6dafc433e58f3a90a657bdf27c212b606ea6aed0869f2b8bd6",
+      "octets": 424603
+    },
+    "91-Chapter 6, Lick #6.18.mp3": {
+      "sha256": "4d7a9e111fe343df1ac4cdfb06372294b24d17b83f088757133194bf08d5dff4",
+      "octets": 968786
+    },
+    "92-Chapter 6, Lick #6.20.mp3": {
+      "sha256": "3b5a4c0aaf0e48dd62f84adb9194f5b7c4b8be1205ed131248529f05dd6a84db",
+      "octets": 401616
+    },
+    "93-Chapter 6, Lick #6.21.mp3": {
+      "sha256": "35377f329858c5da9051e87af047703766b6bb8ced66f58325dcfba3394c6504",
+      "octets": 937021
+    },
+    "94-Chapter 6, Lick #6.23.mp3": {
+      "sha256": "806b20c134bb56d1b4230fa263af4b0425a35a1bd4ea3316c03fa7471a722d60",
+      "octets": 492731
+    },
+    "95-Chapter 6, Lick #6.24.mp3": {
+      "sha256": "a0085f3ad852bd7c9a248e6125412450c6158d61e5decdc1e703aed2017cab11",
+      "octets": 598474
+    },
+    "96-Chapter 6, Lick #6.25.mp3": {
+      "sha256": "149d54e735453f902fa2ee8db2763c744b1701a61d2f99c139d498790f3e02e6",
+      "octets": 576322
+    },
+    "97-Chapter 6, Lick #6.26.mp3": {
+      "sha256": "2128b2f0f1c1d35d085497e3bb16182cb6c49decf81895226317723c298244b5",
+      "octets": 939111
+    },
+    "98-Chapter 6, Lick #6.28.mp3": {
+      "sha256": "4027cac87a72af3f144aaceb81675368d9e963b50510ba0d706909d1d86a2369",
+      "octets": 449681
+    },
+    "99-Chapter 6, Lick #6.29.mp3": {
+      "sha256": "3329039c0fc6c6a51f288d013d27bfea39a5727120e7e4bb0228d29522d2e022",
+      "octets": 1545152
+    },
+    "Funk Fusion Bass.pdf": {
+      "sha256": "d1963fc6a81ac59fcf214d0b17eb51065e7f8bc55e77167c8b97876abbbbbe5b",
+      "octets": 5390519
+    }
+  }
+}
