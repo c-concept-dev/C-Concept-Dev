@@ -26,6 +26,7 @@
  */
 import { lireLaTable, valeurDeCellule, type CeQueLaTablePeutDesigner, type ZoneARelire } from "@lienotheque/noyau";
 import type { MotLu } from "@lienotheque/contrats";
+import type { ImageGrise } from "@lienotheque/images";
 
 /** Ce qu'on demande à relire : une zone d'une page, dans les unités des mots de cette page. */
 export type DemandeDeRelecture = {
@@ -40,6 +41,26 @@ export type DemandeDeRelecture = {
 
 /** Relire une zone et rendre ce qui y est écrit, ou rien. */
 export type RelecteurDeZone = (demande: DemandeDeRelecture) => Promise<string | undefined>;
+
+/** Ce qu'un port de relecture rend : de quoi lire, et de quoi dire ce qu'il a raté.
+ *
+ *  **`pannes` n'est pas une commodité de relevé.** Une chaîne d'étages compte sa panne, passe la
+ *  main et **ne lève pas** — c'est ce qu'il faut qu'elle fasse, pour qu'un document de cent pages
+ *  ne s'arrête pas sur une coupure. Mais alors **rien ne s'échappe**, et un appelant qui ne compte
+ *  que ce qui s'échappe compte zéro, toujours. Mesuré le 12 novembre 2026 sur un document réel :
+ *  40 pannes à l'étage distant, 0 au relevé porté à l'écran. Vérifier affirmait que la route était
+ *  intacte. Ce second volet est la seule façon pour l'appelant de savoir ce qu'il ignore. */
+export type RelectureComposee = {
+  readonly relire: RelecteurDeZone;
+  /** Les pannes que les étages ont comptées, celles qu'ils ont avalées comprises. */
+  readonly pannes?: (() => number) | undefined;
+};
+
+/** Le port de relecture des cases : on lui passe de quoi voir, il rend de quoi lire.
+ *
+ *  Un composeur, et non un relecteur : les pixels d'une page appartiennent à la voie, et le choix
+ *  des étages — donc l'argent — appartient à l'hôte. Les deux se rencontrent ici. */
+export type PortDeRelectureDesCases = (imageDeLaPage: (page: number) => ImageGrise | undefined) => RelectureComposee;
 
 /** Un appel, et ce qu'il a donné. Un par zone, sans exception. */
 export type TraceDeRelecture = DemandeDeRelecture & {

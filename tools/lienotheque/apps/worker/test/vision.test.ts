@@ -141,7 +141,13 @@ describe("ce qui sort est validé, et refusé sinon (règle 2, OUT-08)", () => {
     for (const zones of [
       [{ empreinte: EMPREINTE, numero: -3, confiance: 0.5 }],
       [{ empreinte: EMPREINTE, numero: 14, confiance: 2 }],
-      [{ empreinte: EMPREINTE, numero: null, confiance: 0.8 }],
+      // `{ numero: null, confiance: 0.8 }` était ici, comme exemple de réponse hors contrat.
+      // Elle ne l'est plus depuis le relâchement du 12 novembre 2026 : c'est une réponse juste,
+      // et le contrôle suivant exige maintenant qu'elle passe. Remplacée par deux formes qui
+      // restent fausses, pour que ce contrôle continue d'éprouver quelque chose : zéro n'est pas
+      // un numéro de cellule, et un repère absent ne porte aucun nombre.
+      [{ empreinte: EMPREINTE, numero: 0, confiance: 0.5 }],
+      [{ empreinte: EMPREINTE, numero: 14, confiance: 0.9, repere: "absent" }],
     ]) {
       const app = avecLecteur(() => reponse(zones));
       expect((await appeler(demande(), { jeton: JETON }, app)).status, JSON.stringify(zones)).toBe(502);
@@ -153,6 +159,22 @@ describe("ce qui sort est validé, et refusé sinon (règle 2, OUT-08)", () => {
     const vue = await appeler(demande(), { jeton: JETON }, app);
     expect(vue.status).toBe(200);
     expect(((await vue.json()) as ReponseVision).zones[0]!.numero).toBeNull();
+  });
+
+  /** Et « rien de lisible, **et j'en suis sûr** » aussi — c'est la route qui tombait.
+   *
+   *  Mesuré le 12 novembre 2026 sur un document réel : **40 appels sur 62** repartis en 502,
+   *  tous avec le même message — « zones.0.confiance : Rien de lu ne se dit pas avec une
+   *  confiance ». La consigne de ce Worker demande au modèle une confiance « sur l'ensemble de ta
+   *  réponse pour cette image », le modèle obéissait, et le contrat refusait. Le Worker rendait
+   *  donc une panne pour une réponse qu'il avait lui-même demandée. */
+  it("accepte « rien de lisible, et j'en suis sûr » : la route tombait là-dessus 40 fois sur 62 (A2, OUT-08)", async () => {
+    for (const confiance of [0.5, 0.95, 1]) {
+      const app = avecLecteur(() => reponse([{ empreinte: EMPREINTE, numero: null, confiance }]));
+      const vue = await appeler(demande(), { jeton: JETON }, app);
+      expect(vue.status, `confiance ${confiance}`).toBe(200);
+      expect(((await vue.json()) as ReponseVision).zones[0]!.numero).toBeNull();
+    }
   });
 });
 
@@ -368,17 +390,20 @@ describe("un refus de contrat dit quel champ, et rien de plus (lot D, SEC-01)", 
   const reponseDuModele = (zones: Record<string, unknown>[]): typeof fetch => async () =>
     new Response(JSON.stringify({ content: [{ type: "tool_use", name: "rendre_les_nombres", input: { zones } }], usage: { input_tokens: 1, output_tokens: 1 } }));
 
+  // La faute employée ici était `{ numero: null, confiance: 0.7 }`, qui n'est plus une faute
+  // depuis le 12 novembre 2026. Une confiance de 1,7 l'est — et elle nomme le même champ, donc
+  // ces deux contrôles éprouvent toujours exactement ce qu'ils éprouvaient.
   it("nomme le chemin du champ fautif", async () => {
     await expect(
-      lireParModele(CLE, reponseDuModele([{ image: 1, numero: null, confiance: 0.7 }]))(demande()),
+      lireParModele(CLE, reponseDuModele([{ image: 1, numero: 14, confiance: 1.7 }]))(demande()),
     ).rejects.toThrow(/zones\.0\.confiance/);
   });
 
   it("ne relaie pas la valeur reçue : elle vient du modèle", async () => {
     try {
-      await lireParModele(CLE, reponseDuModele([{ image: 1, numero: null, confiance: 0.7 }]))(demande());
+      await lireParModele(CLE, reponseDuModele([{ image: 1, numero: 14, confiance: 1.7 }]))(demande());
     } catch (leve) {
-      expect(String(leve)).not.toContain("0.7");
+      expect(String(leve)).not.toContain("1.7");
     }
   });
 });

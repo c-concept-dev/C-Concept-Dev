@@ -100,7 +100,11 @@ export type DemandeVision = z.infer<typeof DemandeVision>;
 /** Ce qu'une zone a donné.
  *
  *  `numero: null` est une réponse pleine et entière : un pavé illisible est illisible, et le dire
- *  vaut mieux que le deviner. Ce n'est pas un échec, et cela ne se repaye pas. */
+ *  vaut mieux que le deviner. Ce n'est pas un échec, et cela ne se repaye pas.
+ *
+ *  **Et il peut se dire avec une confiance.** « J'ai regardé, rien n'est lisible, et j'en suis
+ *  sûr » porte deux informations, pas une : que la case a été **relue**, et qu'il n'y a rien à en
+ *  tirer. Ce n'est pas la même chose que « personne n'a pu regarder ». */
 export const ZoneLue = z
   .object({
     empreinte: EmpreinteRecadrage,
@@ -112,14 +116,27 @@ export const ZoneLue = z
   })
   .strict()
   .superRefine((zone, ctx) => {
-    // Rien de lu ne se dit pas avec une confiance — **quand il n'y a rien d'autre à dire**.
+    // **La règle « rien de lu ne se dit pas avec une confiance » a été retirée le 12 novembre
+    // 2026, en deux temps et deux fois sur preuve.**
     //
-    // Cette règle était juste tant qu'une réponse ne portait qu'un nombre. Le verdict l'a rendue
-    // fausse : « le repère est là, ses chiffres sont illisibles, et j'en suis sûr » est une réponse
-    // cohérente, et la confiance y porte sur le verdict. Le modèle l'a rendue telle quelle, et
-    // c'est le contrat qui avait tort — relâché sur preuve, pas par commodité.
-    if (zone.numero === null && zone.repere === undefined && zone.confiance !== 0)
-      ctx.addIssue({ code: "custom", path: ["confiance"], message: "Rien de lu ne se dit pas avec une confiance" });
+    // Elle était juste tant qu'une réponse ne portait qu'un nombre. Le verdict l'a d'abord rendue
+    // fausse pour une moitié des cas : « le repère est là, ses chiffres sont illisibles, et j'en
+    // suis sûr » est cohérent, et la confiance y porte sur le verdict. Elle a été relâchée pour
+    // les réponses portant un verdict.
+    //
+    // La relecture des cases a montré qu'elle était fausse pour l'autre moitié, et la preuve est
+    // chiffrée : sur un document réel, **40 appels sur 62** refusés par cette règle seule, statut
+    // 502 — « zones.0.confiance : Rien de lu ne se dit pas avec une confiance ». La question
+    // `numero` ne demande aucun verdict, le modèle répondait « je n'ai rien pu lire, et j'en suis
+    // sûr », et la consigne du Worker lui demande précisément une confiance « sur l'ensemble de ta
+    // réponse pour cette image ». Le contrat refusait donc une réponse qu'il avait lui-même
+    // demandée, et perdait au passage une information que rien d'autre ne porte : **la case a été
+    // relue**. Une panne, elle, dit l'inverse — personne n'a pu regarder. Confondre les deux, c'est
+    // le trou qui ressemble au succès.
+    //
+    // Ce que le relâchement ne touche pas : les bornes de la confiance, le fait qu'un nombre soit
+    // un nombre de cellule, et la contradiction ci-dessous.
+    //
     // Un nombre venu d'un repère qu'on déclare absent n'a pas de provenance : la réponse se
     // contredit, et on la refuse plutôt que de choisir laquelle de ses deux moitiés croire.
     if (zone.repere === "absent" && zone.numero !== null)

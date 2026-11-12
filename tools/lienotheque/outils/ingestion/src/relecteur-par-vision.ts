@@ -37,7 +37,9 @@ import type { DemandeDeRelecture, RelecteurDeZone } from "./relire-les-zones.js"
  *
  *  Une réponse hors de l'intervalle que le vivier autorise est **refusée**, pas rognée : un
  *  nombre qui ne désigne aucun enregistrement n'a rien à faire dans une table (REC-05). Et
- *  `numero: null` est une réponse pleine et entière — un pavé illisible est illisible. */
+ *  `numero: null` est une réponse pleine et entière — un pavé illisible est illisible. Elle se
+ *  **compte**, sous `illisibles`, et jamais parmi les pannes : « j'ai regardé, il n'y a rien »
+ *  n'est pas « personne n'a pu regarder ». */
 
 /** Marge claire gardée autour de la case, en parts de sa hauteur.
  *
@@ -59,6 +61,14 @@ export type ReleveDeVision = {
   readonly depuisLeCache: number;
   readonly rendus: number;
   readonly pannes: number;
+  /** Les cases **relues** dont rien n'était lisible : `numero: null`, réponse pleine et entière.
+   *
+   *  Compté à part des pannes, et ce n'est pas une nuance comptable. Une panne dit « personne n'a
+   *  pu regarder » ; ceci dit « j'ai regardé, il n'y a rien ». Avant le relâchement du contrat du
+   *  12 novembre 2026, le modèle rendait cette réponse avec une confiance, `ZoneLue` la refusait,
+   *  et elle arrivait ici en **panne** : 40 fois sur 62 appels d'un document réel. Un relevé qui
+   *  les mélange ne peut plus distinguer une route coupée d'un document qu'on a fini de lire. */
+  readonly illisibles: number;
   /** Les réponses écartées parce qu'elles débordaient l'intervalle du vivier. */
   readonly refusees: number;
   /** Les cases qui n'ont pas pu être recadrées dans ce que le contrat accepte d'envoyer. */
@@ -99,6 +109,7 @@ export function relecteurParVision(options: OptionsRelecteurParVision): {
   let depuisLeCache = 0;
   let rendus = 0;
   let pannes = 0;
+  let illisibles = 0;
   let refusees = 0;
   let horsFormat = 0;
   let cout = 0;
@@ -107,7 +118,10 @@ export function relecteurParVision(options: OptionsRelecteurParVision): {
 
   /** Ce que la réponse autorise à rendre, ou rien. Un seul juge, et c'est l'intervalle du vivier. */
   const retenir = (numero: number | null): string | undefined => {
-    if (numero === null) return undefined;
+    if (numero === null) {
+      illisibles += 1;
+      return undefined;
+    }
     if (options.attendu !== undefined && (numero < options.attendu.min || numero > options.attendu.max)) {
       refusees += 1;
       return undefined;
@@ -203,6 +217,7 @@ export function relecteurParVision(options: OptionsRelecteurParVision): {
       depuisLeCache,
       rendus,
       pannes,
+      illisibles,
       refusees,
       horsFormat,
       jetons: { ...jetons },

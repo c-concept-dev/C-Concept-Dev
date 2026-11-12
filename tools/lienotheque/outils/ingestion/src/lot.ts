@@ -27,8 +27,7 @@ import {
   type RejeuParOracle,
   type ReleveDeRelectureDesCases,
 } from "./voie-oracle.js";
-import type { RelecteurDeZone } from "./relire-les-zones.js";
-import type { ImageGrise } from "@lienotheque/images";
+import type { PortDeRelectureDesCases } from "./relire-les-zones.js";
 import { causeLisible } from "@lienotheque/noyau";
 
 /** D'un lot réel à l'instantané que lisent les écrans (correction 8).
@@ -99,9 +98,7 @@ export type Lot = {
    *  Absent, aucune case n'est relue et chacune est **dite** non relue, ce qui remonte jusqu'à
    *  Vérifier. Il n'a de sens que pour la seconde voie : une manière de lire écrite à la main ne
    *  passe pas par une table globale. */
-  readonly relectureDesCases?:
-    | ((imageDeLaPage: (page: number) => ImageGrise | undefined) => RelecteurDeZone)
-    | undefined;
+  readonly relectureDesCases?: PortDeRelectureDesCases | undefined;
   readonly description: string;
   /** Dossier où garder les lectures, pour ne pas repayer l'OCR. */
   readonly cache?: string | undefined;

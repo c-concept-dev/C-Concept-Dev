@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DemandeVision, ReponseVision } from "@lienotheque/contrats";
+import { tesseractDisponible } from "@lienotheque/lecteur-texte";
 import { chargeOuEchec, demandeDeTraitement, executerTravail } from "../src/index.js";
 import { pdfDePages, prose } from "./aides/pdf.js";
 
@@ -39,6 +40,19 @@ import { pdfDePages, prose } from "./aides/pdf.js";
  *  quarante-cinq secondes**. Ce que seule la porte peut prouver, c'est le **branchement** : qu'un
  *  document traité par l'application atteigne le port, dans le bon repère, et que ce qu'il en
  *  rapporte arrive à l'écran. Le reste n'a pas à être repayé ici. */
+
+/** Sans Tesseract, aucun document ne traverse la porte : `executerTravail` lit les pages, et
+ *  l'ingestion appelle la reconnaissance locale même sur un document natif. C'est un fait de
+ *  l'hôte, pas du produit — l'application embarque son propre moteur.
+ *
+ *  **Mesuré, et c'était mon erreur.** La course 43242544864 a échoué sur `Vérification
+ *  (ubuntu-latest)` : cinq contrôles de ce fichier sur six, tous sur `spawnSync tesseract
+ *  ENOENT`. `lienotheque-ci.yml` n'installe Tesseract **que sur macOS**, et délibérément — avec
+ *  les octets exacts du paquet, pour qu'un vert dise quelque chose du produit. Le contrôle local
+ *  ne pouvait pas le voir : cette machine a Tesseract. Le même fait est déjà épinglé ailleurs
+ *  (`tesseract-absent-aucune-page-lue`) ; sauter est plus honnête qu'un rouge permanent, parce
+ *  qu'un contrôle sauté dit « pas éprouvé ici » au lieu de dire « cassé ». */
+const siTesseract = tesseractDisponible() ? it : it.skip;
 
 let dossier = "";
 
@@ -172,7 +186,7 @@ describe("A2 : la porte relit les cases en défaut", () => {
     };
   })();
 
-  it(
+  siTesseract(
     "demande la relecture de la case en défaut, une seule fois et pour elle seule (A2, JOB-05)",
     async () => {
       const { transport } = await unPassage();
@@ -183,7 +197,7 @@ describe("A2 : la porte relit les cases en défaut", () => {
     180_000,
   );
 
-  it(
+  siTesseract(
     "envoie la case dans le repère des IMAGES, pas dans celui du texte (A2, OUT-08)",
     async () => {
       const { transport } = await unPassage();
@@ -198,7 +212,7 @@ describe("A2 : la porte relit les cases en défaut", () => {
     180_000,
   );
 
-  it(
+  siTesseract(
     "porte le relevé jusqu'à l'écran, avec ses comptes (A2, OUT-10, UX-03)",
     async () => {
       const { charge } = await unPassage();
@@ -209,7 +223,7 @@ describe("A2 : la porte relit les cases en défaut", () => {
     180_000,
   );
 
-  it(
+  siTesseract(
     "n'appelle rien quand l'hôte ne donne aucune adresse de relecture, et le dit (A2)",
     async () => {
       const transport = transportQuiRepond(4);
@@ -221,7 +235,35 @@ describe("A2 : la porte relit les cases en défaut", () => {
     180_000,
   );
 
-  it(
+  /** La panne de l'étage distant, vue **depuis l'écran**, et c'est le seul endroit qui le prouve.
+   *
+   *  Mesuré le 12 novembre 2026 sur un document réel : 40 pannes au regard distant, et le relevé
+   *  porté à Vérifier annonçait **0**. La chaîne compte sa panne et ne la lève pas — ce qu'il faut
+   *  qu'elle fasse —, donc rien ne s'échappe, donc la voie n'en savait rien. Les deux étages
+   *  au-dessous comptent bien leurs pannes ; ce qui manquait était le **fil** entre eux et l'écran,
+   *  et un fil ne se prouve qu'en le suivant d'un bout à l'autre.
+   *
+   *  C'est le seul contrôle de ce fichier qui mérite son propre rejeu : il faut un transport qui
+   *  tombe, et le passage partagé répond. */
+  siTesseract(
+    "porte jusqu'à l'écran la panne que la chaîne a AVALÉE (A2, OUT-10)",
+    async () => {
+      const transport = vi.fn(async (): Promise<ReponseVision> => {
+        throw new Error("regard distant injoignable");
+      });
+      const { charge, journal } = await parLaPorte({ transport });
+      expect(transport).toHaveBeenCalled();
+      expect(
+        charge.relectureDesCases?.pannes,
+        "une route coupée doit se voir : « aucune panne » ressemblerait à « rien à rattraper »",
+      ).toBeGreaterThanOrEqual(1);
+      const dit = journal.find((ligne) => ligne.startsWith("relecture des cases :"));
+      expect(dit, "le journal porte le compte agrégé, et il doit porter la panne").toMatch(/1 en panne/);
+    },
+    180_000,
+  );
+
+  siTesseract(
     "dit au journal ce que la relecture a demandé, rendu et raté (A2, JOB-07)",
     async () => {
       const { journal } = await unPassage();

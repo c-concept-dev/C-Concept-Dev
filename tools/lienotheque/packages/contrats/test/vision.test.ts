@@ -74,8 +74,24 @@ describe("une réponse dit ce qui a été lu, ou que rien ne l'a été", () => {
     expect(ReponseVision.safeParse(reponse([{ empreinte: EMPREINTE(1), numero: null, confiance: 0 }])).success).toBe(true);
   });
 
-  it("refuse « rien de lu » assorti d'une confiance : cela ne veut rien dire", () => {
-    expect(ReponseVision.safeParse(reponse([{ empreinte: EMPREINTE(1), numero: null, confiance: 0.8 }])).success).toBe(false);
+  /** **Ce contrôle disait l'inverse, et c'est le contrat qui avait tort.**
+   *
+   *  « Rien de lu assorti d'une confiance : cela ne veut rien dire » — relâché **sur preuve** le
+   *  12 novembre 2026. Mesuré sur un document réel : **40 appels sur 62** refusés par cette règle
+   *  seule, statut 502, « zones.0.confiance : Rien de lu ne se dit pas avec une confiance ». La
+   *  consigne du Worker demande elle-même au modèle une confiance « sur l'ensemble de ta réponse
+   *  pour cette image » ; le modèle répondait « je n'ai rien pu lire, et j'en suis sûr », et la
+   *  route jetait une réponse qu'elle avait commandée. Cela veut dire quelque chose, et quelque
+   *  chose que rien d'autre ne porte : **la case a été relue.** Une panne dit l'inverse — personne
+   *  n'a pu regarder. */
+  it("accepte « rien de lu » assorti d'une confiance : la case a été relue (A2, OUT-08)", () => {
+    expect(ReponseVision.safeParse(reponse([{ empreinte: EMPREINTE(1), numero: null, confiance: 0.8 }])).success).toBe(true);
+    expect(ReponseVision.safeParse(reponse([{ empreinte: EMPREINTE(1), numero: null, confiance: 1 }])).success).toBe(true);
+  });
+
+  it("mais refuse toujours une confiance hors bornes, et un numéro qui n'en est pas un (A2)", () => {
+    expect(ReponseVision.safeParse(reponse([{ empreinte: EMPREINTE(1), numero: null, confiance: 1.2 }])).success).toBe(false);
+    expect(ReponseVision.safeParse(reponse([{ empreinte: EMPREINTE(1), numero: 0, confiance: 0.8 }])).success).toBe(false);
   });
 
   it("porte les jetons dépensés et la version de l'outil", () => {

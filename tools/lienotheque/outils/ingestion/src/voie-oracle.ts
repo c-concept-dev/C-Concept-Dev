@@ -50,7 +50,7 @@ import {
 } from "@lienotheque/recettes";
 import { coordonnerLectureDifficile, type LectureTentative } from "@lienotheque/vision";
 import { couperDoublePage } from "@lienotheque/redresseur";
-import { relireLesZones, zonesEnDefaut, type RelecteurDeZone } from "./relire-les-zones.js";
+import { relireLesZones, zonesEnDefaut, type PortDeRelectureDesCases, type RelecteurDeZone } from "./relire-les-zones.js";
 import { ocrDUnePageGrise } from "./texte.js";
 
 /** Lire un document sans manière de lire écrite à la main (OUT-10).
@@ -218,7 +218,7 @@ async function tablesRelues(
       }[]
     | undefined,
   designables: CeQueLaTablePeutDesigner,
-  composer: ((imageDeLaPage: (page: number) => ImageGrise | undefined) => RelecteurDeZone) | undefined,
+  composer: PortDeRelectureDesCases | undefined,
   imageDeLaPage: (page: number) => ImageGrise | undefined,
 ): Promise<{
   readonly tables: readonly { readonly page: number; readonly table: TableLue }[];
@@ -241,8 +241,11 @@ async function tablesRelues(
   }
   const REPERE_INCONNU = "le repère des mots de cette page n'est pas connu : relire irait regarder ailleurs";
 
-  let pannes = 0;
-  const relire = composer?.(imageDeLaPage);
+  /** Les pannes qui **s'échappent** jusqu'ici. Elles ne sont qu'une moitié du compte : voir
+   *  `pannesAvalees` plus bas, et le commentaire de `RelectureComposee`. */
+  let pannesEchappees = 0;
+  const compose = composer?.(imageDeLaPage);
+  const relire = compose?.relire;
   // La panne se compte et ne se propage pas : un document de cent pages ne doit pas s'arrêter sur
   // une coupure, mais le relevé doit porter la coupure. Et la case est convertie ici, une fois,
   // pour que l'étage appelé n'ait à connaître qu'un seul repère : celui de ses images.
@@ -261,7 +264,7 @@ async function tablesRelues(
               h: demande.h * facteur,
             });
           } catch {
-            pannes += 1;
+            pannesEchappees += 1;
             return undefined;
           }
         };
@@ -298,12 +301,17 @@ async function tablesRelues(
                   ? "aucune lecture n'a rendu de valeur pour cette case"
                   : "la valeur relue n'était pas un nombre acceptable pour cette case",
           }));
+  // Les deux moitiés du compte des pannes. Une panne a été **soit** avalée par l'étage qui l'a
+  // rencontrée — et alors lui seul la connaît —, **soit** laissée remonter jusqu'ici ; jamais les
+  // deux, donc rien n'est compté deux fois. Et un port qui ne sait pas dire ses pannes rend la
+  // moitié qu'il connaît, au lieu de rendre zéro en silence.
+  const pannesAvalees = compose?.pannes?.() ?? 0;
   return {
     tables,
     releve: {
       demandes: relire === undefined ? 0 : fait.traces.length,
       rendus: fait.traces.filter((trace) => trace.retenu !== undefined).length,
-      pannes,
+      pannes: pannesEchappees + pannesAvalees,
       nonRelues,
     },
   };
@@ -338,9 +346,7 @@ export type OptionsVoieOracle = {
    *  Absent, aucune case n'est relue et chacune est **dite** non relue (`relecture_non_faite`)
    *  plutôt que de disparaître. Mesuré le 6 novembre 2026 : ce port existait, éprouvé et mesuré
    *  par un programme autonome, et **aucun chemin de la chaîne ne l'appelait**. */
-  readonly relectureDesCases?:
-    | ((imageDeLaPage: (page: number) => ImageGrise | undefined) => RelecteurDeZone)
-    | undefined;
+  readonly relectureDesCases?: PortDeRelectureDesCases | undefined;
   /** Une feuille rendue porte-t-elle deux pages logiques, gauche puis droite ? */
   readonly doublePage?: boolean | undefined;
   /** Le vote documentaire a-t-il établi les folios, au-delà d'une lecture locale isolée ? */

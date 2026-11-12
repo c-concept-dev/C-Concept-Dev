@@ -325,9 +325,27 @@ describe("ce qu'une relecture ciblée demande et ce qu'elle rend (OUT-08)", () =
     expect(ZoneLue.safeParse(lue({ repere: "incertain", numero: null, confiance: 0.4 })).success).toBe(true);
   });
 
-  it("mais sans verdict, rien de lu ne se dit toujours pas avec une confiance", () => {
-    expect(ZoneLue.safeParse(lue({ numero: null, confiance: 0.8 })).success).toBe(false);
+  it("accepte « j'ai regardé, rien n'est lisible, et j'en suis sûr » même sans verdict (A2, OUT-08)", () => {
+    // Relâché **sur preuve**, le 12 novembre 2026, et non par commodité. La règle d'avant —
+    // « rien de lu ne se dit pas avec une confiance » — était juste quand une réponse ne portait
+    // qu'un nombre. Mesuré sur un document réel : **40 appels sur 62** refusés par cette règle
+    // seule, statut 502, « zones.0.confiance : Rien de lu ne se dit pas avec une confiance ».
+    // Le modèle répondait « je n'ai rien pu lire, et j'en suis sûr », ce qui est une réponse
+    // cohérente — la consigne du Worker lui demande elle-même une confiance « sur l'ensemble de
+    // ta réponse pour cette image ». Le contrat jetait donc une réponse juste, et une information
+    // utile : « j'ai regardé » n'est pas « je n'ai pas pu regarder ».
+    expect(ZoneLue.safeParse(lue({ numero: null, confiance: 0.8 })).success).toBe(true);
     expect(ZoneLue.safeParse(lue({ numero: null, confiance: 0 })).success).toBe(true);
+    expect(ZoneLue.safeParse(lue({ numero: null, confiance: 1 })).success).toBe(true);
+  });
+
+  it("mais une confiance reste une confiance, et un nombre reste un nombre (A2)", () => {
+    // Ce que le relâchement **ne** permet pas : une confiance hors bornes, et un nombre qui
+    // n'est pas un nombre de cellule. Relâcher une règle n'ouvre pas les autres.
+    expect(ZoneLue.safeParse(lue({ numero: null, confiance: 1.2 })).success).toBe(false);
+    expect(ZoneLue.safeParse(lue({ numero: null, confiance: -0.1 })).success).toBe(false);
+    expect(ZoneLue.safeParse(lue({ numero: 0, confiance: 0.9 })).success).toBe(false);
+    expect(ZoneLue.safeParse(lue({ repere: "absent", numero: 14, confiance: 0.9 })).success).toBe(false);
   });
 
   it("réclame le verdict quand la question le demandait", () => {

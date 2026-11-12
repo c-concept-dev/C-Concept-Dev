@@ -7,7 +7,17 @@ name: Liénothèque — prototype bureau
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    # `wip/**` autant que `main`, et c'est une réparation, pas un confort.
+    #
+    # Mesuré le 12 novembre 2026 : le travail de ce projet vit sur `wip/lienotheque-2026-10-29`
+    # depuis deux semaines, et ce déclencheur ne regardait que `main`. **Aucune des poussées de
+    # Rust n'a donc été vérifiée par personne** — ni les trois bancs ajoutés par l'étape 1, ni
+    # rien d'autre sous `src-tauri`. Un contrôle qui ne tourne jamais ne dit pas « vert » : il ne
+    # dit rien, ce qui est plus dangereux, parce que la page des courses, elle, est verte.
+    #
+    # Les filtres de chemins restent ceux d'avant : cette course est la plus longue du dépôt, et
+    # elle n'a de raison de partir que si `src-tauri` ou ses fixtures ont bougé.
+    branches: [main, 'wip/**']
     paths:
       - 'tools/lienotheque/apps/app/src-tauri/**'
       - 'tools/lienotheque/fixtures/generer-locales.py'
@@ -146,6 +156,17 @@ jobs:
       - name: Relancer les bancs de mesure
         shell: bash
         run: pnpm --filter @lienotheque/optimiseur run mesures
+
+      # **`cargo test` ne compile aucun exemple**, et c'est la seconde moitié du trou — celle qui
+      # restait ouverte après l'ajout de `wip/**`. Cette course lançait `cargo test` puis un seul
+      # exemple nommé, `epreuve-du-paquet` ; les vingt-deux autres n'étaient compilés nulle part.
+      # Les trois bancs poussés par l'étape 1 — `banc-boucle-hote`, `banc-decoupage-60`,
+      # `banc-lecture-messages` — en font partie : ils seraient restés invérifiés même avec le
+      # déclencheur réparé. Compiler ne les exécute pas, et c'est voulu : plusieurs sont des bancs
+      # de mesure qui durent des minutes. Ce qu'on veut savoir ici est qu'ils compilent encore.
+      - name: Compiler tous les exemples
+        shell: bash
+        run: cargo build --release --examples --manifest-path apps/app/src-tauri/Cargo.toml
 
       - name: Éprouver les quatre critères
         shell: bash

@@ -265,11 +265,20 @@ export async function executerTravail(brut: unknown, options: OptionsExecution =
               return (
                 `relecture des cases, par étage (demandé/rendu/panne) : ${parEtage} ; ` +
                 `regard distant : ${vision.appels} appel(s), ${vision.depuisLeCache} depuis le cache, ` +
+                `${vision.illisibles} relue(s) sans rien de lisible, ` +
                 `${vision.refusees} refusée(s) hors vivier, ${vision.cout.toFixed(4)} €` +
                 `${vision.plafondAtteint ? " — plafond de dépense atteint" : ""}`
               );
             };
-            return chaine.relire;
+            return {
+              relire: chaine.relire,
+              // **Les pannes que la chaîne a avalées.** Elle compte et passe la main, ce qui est
+              // ce qu'il faut faire d'une coupure au milieu d'un document de cent pages — mais
+              // alors rien ne lève, et la voie ne peut rien voir par elle-même. Sans cette ligne,
+              // le relevé porté à Vérifier dit « aucune panne » quoi qu'il arrive : mesuré le
+              // 12 novembre 2026, 40 pannes à l'étage distant et 0 à l'écran.
+              pannes: () => chaine.releve().reduce((total, etage) => total + etage.pannes, 0),
+            };
           };
 
     dire("Lecture du document");

@@ -247,10 +247,20 @@ Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/
 
 ### Étape 1 — Fin d'A2 : le repli Vision branché
 
+**Le port 2 est passé à l'étape 3**, décision de Christophe du 12 novembre 2026. La raison est
+dans le code : le coordinateur des repères est tenu de **jeter** une valeur non corroborée
+(`corroborer: () => false`), et la règle de corroboration est une décision de produit qui relève
+du § 3.2 — zéro faux lien. Brancher Vision au bout de ce port sans elle paierait un appel en
+ligne pour une valeur que le code doit écarter, ce qui est très exactement le défaut que cette
+étape existe pour retirer. Le port 2 part donc avec sa règle, à l'étape qui écrit les seuils.
+
 **Fini quand :**
-- [ ] la chaîne appelle réellement la relecture des cases sans accord (port 1) et Vision au bout du port des repères (port 2, à la place du bouchon) ;
-- [ ] pannes comptées à part ; cases non relues marquées `relecture_non_faite`, visibles dans Vérifier ;
-- [ ] mesure **48 → 52** sur Bass Aerobics entier, par la chaîne, à blanc, appels tracés, coût rapporté ;
+- [x] la chaîne appelle réellement la relecture des cases sans accord (**port 1**), depuis
+      `executerTravail` et non depuis un programme de mesure (`ba6d9cbb`) ;
+- [x] pannes comptées à part — y compris celles qu'un **étage avale**, qui ne se voyaient pas
+      (`e034963b` et suite) ; cases non relues marquées `relecture_non_faite`, visibles dans
+      Vérifier ;
+- [x] mesure sur Bass Aerobics entier, **par la porte**, à blanc, appels tracés, coût rapporté ;
 - [ ] (écriture réelle de la nouvelle version dans la bibliothèque : porte de Christophe, sauvegarde vérifiée, vérification à l'écran.)
 
 ### Étape 2 — Second déclencheur d'A2 : le texte des pages
@@ -259,12 +269,15 @@ Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/
 - [ ] une page qui lit nettement moins bien que ses comparables du même document déclenche Vision, selon le type de document (donnée de bibliothèque) ;
 - [ ] mesuré sur un livre de la Bibliothèque Studio Clinique, sans faux déclenchement sur les partitions.
 
-### Étape 3 — Détection des listes de pistes et seuil de corroboration
+### Étape 3 — Détection des listes de pistes, seuil de corroboration, et le port 2
 
 **Fini quand :**
 - [ ] le détecteur choisit parmi les groupes de colonnes celui qui satisfait les critères de forme (sans filtrer les nombres par le vivier : la colonne des pages peut le dépasser) ;
 - [ ] Bach p2 est détecté ;
-- [ ] le seuil de corroboration de 8 est **réellement éprouvé** sur Bach (vivier de 9), puis tiré du document si la mesure le justifie.
+- [ ] le seuil de corroboration de 8 est **réellement éprouvé** sur Bach (vivier de 9), puis tiré du document si la mesure le justifie ;
+- [ ] **la règle de corroboration d'un repère lu par Vision** est écrite, éprouvée, et le **port 2**
+      est branché au bout du port des repères — venu de l'étape 1 le 12 novembre 2026, parce que
+      brancher sans la règle paierait pour une valeur que le coordinateur est tenu de jeter.
 
 ### Étape 4 — Le mode manuel *(priorité de Christophe)*
 

@@ -41,14 +41,17 @@ const demande = (dessus: Partial<DemandeDeRelecture> = {}): DemandeDeRelecture =
   ...dessus,
 });
 
-/** Une réponse de transport fabriquée : le nombre lu, et les jetons qu'il aurait coûtés. */
-const repond = (numero: number | null, jetons = { entree: 2000, sortie: 100 }) =>
+/** Une réponse de transport fabriquée : le nombre lu, et les jetons qu'il aurait coûtés.
+ *
+ *  La confiance peut être donnée : depuis le 12 novembre 2026, `numero: null` avec une confiance
+ *  est une réponse acceptée — « j'ai regardé, rien n'est lisible, et j'en suis sûr ». */
+const repond = (numero: number | null, jetons = { entree: 2000, sortie: 100 }, confiance?: number) =>
   vi.fn(
     async (envoyee: DemandeVision): Promise<ReponseVision> => ({
       zones: envoyee.zones.map((zone) => ({
         empreinte: zone.empreinte,
         numero,
-        confiance: numero === null ? 0 : 0.9,
+        confiance: confiance ?? (numero === null ? 0 : 0.9),
       })),
       jetons,
       outil: { nom: "essai", version: "1" },
@@ -78,6 +81,25 @@ describe("A2 : le regard distant relit une case, et ne dépense que ce qu'il doi
     const { relire, releve } = relecteurParVision({ transport, imageDeLaPage: () => page(400, 300) });
     expect(await relire(demande())).toBeUndefined();
     expect(releve().rendus).toBe(0);
+  });
+
+  /** « J'ai regardé, rien n'est lisible, et j'en suis sûr » : une case **relue** sans valeur.
+   *
+   *  Ce n'est ni un rendu, ni une panne, et c'est pour cela que ça se compte à part. Une panne dit
+   *  « personne n'a pu regarder » ; celle-ci dit « j'ai regardé, il n'y a rien ». Confondre les
+   *  deux, c'est le trou qui ressemble au succès — et c'est exactement ce que le contrat faisait
+   *  avant son relâchement du 12 novembre 2026 : 40 de ces réponses sur 62 appels, toutes
+   *  transformées en pannes par un statut 502. */
+  it("compte à part la case relue dont rien n'était lisible, et n'en fait JAMAIS une valeur (A2)", async () => {
+    const transport = repond(null, { entree: 2000, sortie: 100 }, 0.95);
+    const { relire, releve } = relecteurParVision({ transport, imageDeLaPage: () => page(400, 300) });
+    expect(await relire(demande()), "une case illisible ne rend aucune valeur").toBeUndefined();
+    const dit = releve();
+    expect(transport, "la réponse sûre et vide était refusée par le contrat : elle doit passer").toHaveBeenCalledTimes(1);
+    expect(dit.illisibles, "une case relue sans valeur doit se compter").toBe(1);
+    expect(dit.pannes, "« j'ai regardé, il n'y a rien » n'est pas « personne n'a pu regarder »").toBe(0);
+    expect(dit.rendus).toBe(0);
+    expect(dit.refusees, "rien n'a été lu : il n'y a rien à refuser").toBe(0);
   });
 
   it("refuse un nombre hors de l'intervalle attendu plutôt que de le rendre (A2, REC-05)", async () => {

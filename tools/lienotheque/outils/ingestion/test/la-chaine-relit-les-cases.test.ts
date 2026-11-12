@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { rejouerParOracle } from "../src/voie-oracle.js";
-import type { RelecteurDeZone } from "../src/relire-les-zones.js";
+import { relecteurEnChaine } from "../src/relecteur-en-chaine.js";
+import type { PortDeRelectureDesCases, RelecteurDeZone } from "../src/relire-les-zones.js";
 import { pdfDePages, prose } from "./aides/pdf.js";
 
 /** A2 — la chaîne appelle vraiment la relecture des cases en défaut (A2, OUT-05, REC-02).
@@ -77,6 +78,9 @@ const pagesAutour = [
 const courir = async (
   trou: { readonly rangee: number; readonly colonne: number } | undefined,
   relectureDesCases?: RelecteurDeZone,
+  /** Le port tel qu'il est vraiment : un composeur, qui rend de quoi lire **et** de quoi dire ses
+   *  pannes. Donné à la place du relecteur simple quand c'est ce second volet qu'on éprouve. */
+  port?: PortDeRelectureDesCases,
 ) =>
   rejouerParOracle(
     pdfDePages(
@@ -93,7 +97,11 @@ const courir = async (
       budgetExploration: { paires: 256, secondes: 0 },
       // Le port est un **composeur** : la voie lui passe de quoi voir, il rend de quoi lire.
       // Ces contrôles ignorent les images — ce qu'ils éprouvent est l'appel, pas la lecture.
-      ...(relectureDesCases === undefined ? {} : { relectureDesCases: () => relectureDesCases }),
+      ...(port !== undefined
+        ? { relectureDesCases: port }
+        : relectureDesCases === undefined
+          ? {}
+          : { relectureDesCases: () => ({ relire: relectureDesCases }) }),
     },
   );
 
@@ -128,6 +136,33 @@ describe("A2 : la chaîne relit les cases qu'elle n'a pas su lire", () => {
       throw new Error("regard distant injoignable");
     });
     expect(rejeu.relectureDesCases?.pannes).toBe(1);
+  });
+
+  /** La panne qu'un étage **avale**, et c'est le cas réel — pas celle qui s'échappe.
+   *
+   *  Mesuré le 12 novembre 2026 sur un document réel : l'étage distant comptait **40 pannes sur
+   *  62 demandes**, et le relevé porté à l'écran Vérifier annonçait **0**. La cause est simple et
+   *  elle n'était pas visible : `relecteurEnChaine` compte sa panne, passe la main, et **ne lève
+   *  pas** — rien ne s'échappe, donc un relevé qui ne compte que ce qui s'échappe dit « aucune
+   *  panne » quoi qu'il arrive. Vérifier aurait affirmé que la route était intacte. */
+  it("compte la panne qu'un ÉTAGE a avalée, et pas seulement celle qui s'échappe (A2, OUT-10)", async () => {
+    const chaine = relecteurEnChaine([
+      {
+        nom: "regard distant",
+        relire: async () => {
+          throw new Error("regard distant injoignable");
+        },
+      },
+    ]);
+    const rejeu = await courir({ rangee: 3, colonne: 2 }, undefined, () => ({
+      relire: chaine.relire,
+      pannes: () => chaine.releve().reduce((total, etage) => total + etage.pannes, 0),
+    }));
+    expect(
+      rejeu.relectureDesCases?.pannes,
+      "la chaîne a compté sa panne et ne l'a pas levée : un relevé qui ne lit que ce qui s'échappe dit 0",
+    ).toBe(1);
+    expect(rejeu.relectureDesCases?.nonRelues).toHaveLength(1);
   });
 
   it("marque la case non relue avec sa raison, pour que Vérifier la montre (A2, OUT-10)", async () => {
