@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-12 | La voie relit les cases qu'elle n'a pas su lire, et passe en version 4 | [2026-11-12-la-voie-relit-ses-cases-et-passe-en-version-4.md](2026-11-12-la-voie-relit-ses-cases-et-passe-en-version-4.md) |
 | 2026-11-11 | La barre de ×3 refuse en local, et publie sur le coureur | [2026-11-11-la-barre-refuse-en-local-publie-sur-le-coureur.md](2026-11-11-la-barre-refuse-en-local-publie-sur-le-coureur.md) |
 | 2026-11-11 | Un commit qui ne touche que des documents part sans contrôle complet | [2026-11-11-un-commit-de-documents-part-sans-controle.md](2026-11-11-un-commit-de-documents-part-sans-controle.md) |
 | 2026-11-11 | L'ordre : 14 quater, puis la barre ×3, puis l'étape 1 | [2026-11-11-l-ordre-14quater-barre-etape-1.md](2026-11-11-l-ordre-14quater-barre-etape-1.md) |
