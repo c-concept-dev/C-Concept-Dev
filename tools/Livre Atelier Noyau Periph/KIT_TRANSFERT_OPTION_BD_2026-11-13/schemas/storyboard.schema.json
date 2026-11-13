@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://c-concept-dev.local/schemas/storyboard-v1.json",
+  "title": "Storyboard BD",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "status", "pages"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED", "STALE"] },
+    "pages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "number", "layout", "panels", "status"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^page_[0-9]{3}$" },
+          "number": { "type": "integer", "minimum": 1 },
+          "layout": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED", "STALE"] },
+          "panels": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "order", "rect", "shot", "angle", "visibleAction", "characterIds", "sourceRefs", "texts", "status"],
+              "properties": {
+                "id": { "type": "string", "pattern": "^panel_[0-9]{3}_[0-9]{2}$" },
+                "order": { "type": "integer", "minimum": 1 },
+                "rect": { "$ref": "#/$defs/rect" },
+                "shot": { "enum": ["ESTABLISHING", "WIDE", "MEDIUM", "CLOSE_UP", "EXTREME_CLOSE_UP", "DETAIL"] },
+                "angle": { "enum": ["EYE_LEVEL", "HIGH", "LOW", "OVER_SHOULDER", "TOP_DOWN", "OTHER"] },
+                "visibleAction": { "type": "string", "minLength": 1 },
+                "continuity": { "type": "string" },
+                "characterIds": { "type": "array", "items": { "type": "string", "pattern": "^char_[A-Za-z0-9-]+$" } },
+                "placeId": { "type": ["string", "null"] },
+                "sourceRefs": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "sourceId", "interpretation", "fictionLevel"],
+                    "properties": {
+                      "kind": { "enum": ["chapter_excerpt", "transcript_excerpt", "validated_reconstruction", "decorative"] },
+                      "sourceId": { "type": "string", "minLength": 1 },
+                      "chapterIndex": { "type": ["integer", "null"], "minimum": 0 },
+                      "quote": { "type": ["string", "null"] },
+                      "start": { "type": ["integer", "null"], "minimum": 0 },
+                      "end": { "type": ["integer", "null"], "minimum": 0 },
+                      "interpretation": { "type": "string", "minLength": 1 },
+                      "fictionLevel": { "enum": ["ATTESTED", "PLAUSIBLE_RECONSTRUCTION", "DECORATIVE_ONLY", "UNRESOLVED"] }
+                    }
+                  }
+                },
+                "texts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type", "text", "order", "placement"],
+                    "properties": {
+                      "type": { "enum": ["speech", "thought", "caption", "sound_effect"] },
+                      "speakerId": { "type": ["string", "null"] },
+                      "text": { "type": "string" },
+                      "order": { "type": "integer", "minimum": 1 },
+                      "placement": { "$ref": "#/$defs/rect" }
+                    }
+                  }
+                },
+                "assetId": { "type": ["string", "null"] },
+                "status": { "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED", "STALE"] }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "rect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 },
+        "w": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "h": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+      }
+    }
+  }
+}

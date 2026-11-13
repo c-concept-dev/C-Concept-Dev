@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<!--
+╔═══════════════════════════════════════════════════════════════╗
+║  SHELL BIOGRAPHIE — Livre de Vie Atelier V7.4.1               ║
+║  C Concept&Dev — Christophe BONNET                            ║
+║                                                               ║
+║  Nouveautés V7.4.1 :                                          ║
+║    - Boucle Auteur ↔ Éditeur câblée (réécriture ciblée)       ║
+║    - Étape 3bis : Relecture Opus globale dans le flux         ║
+║    - Persistance : sauvegarde .ldv.json + autosave localStorage║
+║    - Mode manuel (copier-coller) en alternative au worker     ║
+║    - Compteur tokens/coûts dans le header                     ║
+╚═══════════════════════════════════════════════════════════════╝
+-->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Livre de Vie — Atelier Biographie (V7.4.1-alpha)</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root {
+  --mer:#8FAFB1; --deep:#3A5658; --sable:#E6D7C3; --beige:#D8CDBB;
+  --sauge:#C8D0C3; --blanc:#FFFFFF; --ink:#2d2d2d; --ink2:#666;
+  --encre:#1a1a1a; --paper:#f9f7f3; --accent:#c47a4a;
+  --fond:linear-gradient(160deg,#f4f0ea 0%,#e6d7c3 50%,#d8cdbb 100%);
+  --radius:14px; --shadow:0 8px 32px rgba(58,86,88,.12);
+  --book:'Cormorant Garamond','Georgia',serif;
+  --ui:'Montserrat','Segoe UI',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--ui);background:var(--fond);color:var(--ink);min-height:100vh;overflow-x:hidden}
+.atelier-header{position:sticky;top:0;z-index:100;background:rgba(58,86,88,.97);backdrop-filter:blur(12px);padding:14px 28px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;box-shadow:0 2px 20px rgba(0,0,0,.15)}
+.atelier-brand{color:var(--mer);font-size:.6rem;font-weight:700;letter-spacing:.25em;text-transform:uppercase}
+.atelier-title{color:var(--blanc);font-family:var(--book);font-size:1.1rem;font-weight:600;flex:1;min-width:200px}
+.atelier-status{color:var(--sauge);font-size:.72rem;font-weight:500}
+.token-counter{color:var(--sauge);font-size:.68rem;font-family:monospace;background:rgba(143,175,177,.15);padding:4px 10px;border-radius:6px;display:flex;gap:8px;align-items:center}
+.token-counter strong{color:var(--blanc);font-weight:600}
+.header-actions{display:flex;gap:8px;align-items:center}
+.btn-header{padding:6px 12px;font-size:.68rem;background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--sauge);border-radius:6px;cursor:pointer;font-family:var(--ui);transition:all .2s}
+.btn-header:hover{border-color:var(--mer);color:var(--blanc)}
+.step-pills{display:flex;gap:4px;margin-left:auto}
+.step-pill{width:22px;height:6px;border-radius:3px;background:rgba(255,255,255,.15);transition:all .4s}
+.step-pill.active{background:var(--mer);width:34px}
+.step-pill.done{background:var(--accent)}
+.atelier-body{max-width:900px;margin:0 auto;padding:24px 20px 80px}
+.section{display:none;animation:fadeUp .4s ease}
+.section.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--blanc);border-radius:var(--radius);box-shadow:var(--shadow);padding:36px;margin-bottom:20px}
+.card-title{font-family:var(--book);font-size:1.5rem;font-weight:700;color:var(--deep);margin-bottom:4px}
+.card-sub{font-size:.78rem;color:var(--ink2);margin-bottom:20px;line-height:1.5}
+.canon-banner{background:linear-gradient(90deg,rgba(143,175,177,.1),rgba(200,208,195,.1));border-left:3px solid var(--mer);border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:.72rem;color:var(--ink)}
+.canon-banner strong{color:var(--deep)}
+.drop-zone{border:2px dashed var(--sauge);border-radius:var(--radius);padding:40px 20px;text-align:center;cursor:pointer;transition:all .3s;background:repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(143,175,177,.03) 10px,rgba(143,175,177,.03) 20px)}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--mer);background:rgba(143,175,177,.06)}
+.drop-icon{font-size:2rem;margin-bottom:8px}
+.drop-label{font-size:.85rem;color:var(--ink2)}
+.drop-label.loaded{color:var(--deep);font-weight:600}
+.drop-hint{font-size:.65rem;color:#aaa;margin-top:4px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--ink2);margin-bottom:5px}
+.field select,.field input,.field textarea{width:100%;padding:11px 14px;border:2px solid var(--sauge);border-radius:10px;font-family:var(--ui);font-size:.85rem;color:var(--ink);background:var(--blanc);outline:none;transition:border-color .3s}
+.field select:focus,.field input:focus,.field textarea:focus{border-color:var(--mer)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 28px;border:none;border-radius:10px;font-family:var(--ui);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .3s}
+.btn-primary{background:var(--deep);color:var(--blanc)}
+.btn-primary:hover:not(:disabled){background:#2d4a4c;box-shadow:0 4px 16px rgba(58,86,88,.25)}
+.btn-primary:disabled{opacity:.3;cursor:not-allowed}
+.btn-accent{background:var(--accent);color:var(--blanc)}
+.btn-accent:hover:not(:disabled){background:#b06a3a}
+.btn-ghost{background:transparent;color:var(--deep);border:2px solid var(--sauge)}
+.btn-ghost:hover{border-color:var(--deep)}
+.btn-full{width:100%;justify-content:center}
+.analysis-badge{display:inline-block;padding:4px 10px;border-radius:6px;font-size:.65rem;font-weight:600;margin:2px}
+.badge-tone{background:rgba(196,122,74,.12);color:var(--accent)}
+.badge-info{background:rgba(143,175,177,.15);color:var(--deep)}
+.badge-warn{background:rgba(200,100,80,.1);color:#c46450}
+.progress-bar-wrap{width:100%;height:6px;background:var(--sauge);border-radius:3px;margin:12px 0;overflow:hidden}
+.progress-bar{height:100%;background:var(--accent);border-radius:3px;transition:width .6s ease;width:0%}
+.log-area{background:rgba(26,26,26,.03);border-radius:10px;padding:12px 16px;max-height:300px;overflow-y:auto;font-size:.68rem;font-family:'Courier New',monospace;color:var(--ink2);line-height:1.6;margin-top:12px}
+.log-ok{color:#4a8a5c} .log-err{color:#c44} .log-info{color:var(--deep)} .log-warn{color:#c47a4a}
+.chapter-item{background:var(--blanc);border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06);margin-bottom:10px;overflow:hidden;transition:all .3s}
+.chapter-header{padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ch-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:var(--blanc);background:var(--sauge);flex-shrink:0;transition:background .3s}
+.ch-num.done{background:var(--accent)}
+.ch-num.active{background:var(--deep)}
+.ch-num.rewritten{background:var(--mer)}
+.ch-title{font-family:var(--book);font-size:1rem;font-weight:600;color:var(--deep);flex:1;min-width:150px}
+.ch-words{font-size:.65rem;color:var(--ink2);font-weight:500}
+.ch-flags{font-size:.65rem;color:var(--accent);font-weight:500;margin-left:8px}
+.ch-boussole{font-size:.65rem;color:var(--mer);font-weight:600;margin-left:8px}
+.preview-block{font-family:var(--book);font-size:.92rem;line-height:1.7;color:var(--ink);padding:16px;background:var(--paper);border-radius:10px;max-height:400px;overflow-y:auto;white-space:pre-wrap}
+.prompt-block{background:var(--encre);color:#e0ddd8;border-radius:12px;padding:20px;margin:12px 0;font-family:'Courier New',monospace;font-size:.72rem;line-height:1.7;max-height:300px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.response-area{width:100%;min-height:150px;padding:16px;border:2px solid var(--sauge);border-radius:12px;font-family:var(--book);font-size:.95rem;line-height:1.8;color:var(--ink);background:var(--paper);resize:vertical;outline:none}
+.response-area:focus{border-color:var(--mer)}
+.mode-toggle{display:flex;gap:8px;margin-bottom:16px;background:var(--paper);padding:4px;border-radius:10px}
+.mode-toggle button{flex:1;padding:8px 14px;border:none;background:transparent;font-family:inherit;font-size:.72rem;cursor:pointer;border-radius:6px;color:var(--ink2);transition:all .2s;font-weight:600}
+.mode-toggle button.active{background:var(--deep);color:var(--blanc)}
+.restore-banner{background:rgba(200,208,195,.2);border-left:3px solid var(--accent);padding:12px 14px;border-radius:6px;margin-bottom:16px;font-size:.78rem;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+@media(max-width:640px){.atelier-header{padding:10px 16px}.card{padding:24px 18px}.step-pills{display:none}.token-counter{font-size:.62rem}}
+</style>
+</head>
+<body>
+
+<div class="atelier-header">
+  <div class="atelier-brand">C Concept&amp;Dev</div>
+  <div class="atelier-title">Livre de Vie — Atelier Biographie <span style="font-size:0.7em;opacity:0.6">V7.4.1-alpha</span></div>
+  <div class="atelier-status" id="headerStatus">En attente</div>
+  <div class="token-counter" id="tokenCounter" style="display:none">
+    <span>Tokens: <strong id="tkIn">0</strong> in / <strong id="tkOut">0</strong> out</span>
+    <span>·</span>
+    <span id="tkCalls">0 appels</span>
+    <span>·</span>
+    <span id="tkCost">~$0.00</span>
+  </div>
+  <div class="header-actions">
+    <button class="btn-header" id="loadProjectBtn" title="Charger un projet .ldv.json">📂 Charger</button>
+    <button class="btn-header" id="saveProjectBtn" title="Sauver .ldv.json (à tout moment)" disabled>💾 Sauver</button>
+    <button class="btn-header" id="telemetryBtn" title="Panneau télémétrie (V7.4.2)">🔬 Télémétrie</button>
+  </div>
+  <div class="step-pills">
+    <div class="step-pill" id="pill0"></div><div class="step-pill" id="pill1"></div>
+    <div class="step-pill" id="pill2"></div><div class="step-pill" id="pill3"></div>
+    <div class="step-pill" id="pill35"></div><div class="step-pill" id="pill4"></div>
+    <div class="step-pill" id="pill5"></div>
+  </div>
+</div>
+
+<div class="atelier-body">
+
+<div class="section active" id="step0"><div class="card">
+  <div class="canon-banner">
+    <strong>V7.4.1 :</strong> deux noyaux (<strong>Auteur</strong> + <strong>Éditeur</strong>), boucle de réécriture ciblée, relecture Opus globale, persistance automatique.
+  </div>
+  <div id="restoreBanner" class="restore-banner" style="display:none">
+    <span>⏎</span>
+    <div style="flex:1">
+      <strong>Un projet en cours a été détecté.</strong>
+      <div id="restoreDetails" style="font-size:.7rem;color:var(--ink2);margin-top:2px"></div>
+    </div>
+    <button class="btn btn-ghost" id="restoreBtn" style="padding:8px 16px;font-size:.72rem">Reprendre</button>
+    <button class="btn btn-ghost" id="discardBtn" style="padding:8px 16px;font-size:.72rem">Ignorer</button>
+  </div>
+  <div class="card-title">Matière première</div>
+  <div class="card-sub">Dépose un transcript (.md, .txt, .json) ou un projet antérieur (.ldv.json).</div>
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-icon">📖</div>
+    <div class="drop-label" id="dropLabel">Déposer la matière</div>
+    <div class="drop-hint">.md · .txt · .json · .ldv.json (reprise de projet)</div>
+    <input type="file" id="fileInput" accept=".md,.txt,.json,.ldv.json" style="display:none">
+  </div>
+  <div id="analysisResult" style="display:none">
+    <div style="margin:16px 0 12px;font-size:.7rem;font-weight:700;color:var(--deep);text-transform:uppercase;letter-spacing:.1em">Matière détectée</div>
+    <div id="analysisBadges" style="margin-bottom:12px"></div>
+    <div id="analysisDetail" style="font-size:.78rem;color:var(--ink);line-height:1.6"></div>
+    <div class="field" style="margin-top:20px">
+      <label>Mode d'exécution</label>
+      <div class="mode-toggle">
+        <button type="button" class="active" data-mode="api">🚀 API (worker)</button>
+        <button type="button" data-mode="manual">✍️ Manuel (copier-coller)</button>
+      </div>
+    </div>
+
+    <!-- V7.4.2 Bloc 2 — Panneau Configuration mode manuel -->
+    <div id="manualConfigPanel" style="display:none;background:rgba(196,122,74,.08);border-left:3px solid var(--accent);border-radius:6px;padding:14px 16px;margin-bottom:16px;font-size:.75rem">
+      <details>
+        <summary style="cursor:pointer;font-weight:600;color:var(--deep);font-size:.82rem">⚙ Configuration mode manuel — créer 5 Projects claude.ai (une fois pour toutes)</summary>
+        <p style="margin-top:10px;line-height:1.6;color:var(--ink)">
+          Pour éviter de coller le prompt système (~120 KB) à chaque appel, crée <strong>5 Projects claude.ai</strong> avec leurs <em>custom instructions</em> pré-remplies. Le shell ne te demandera plus que le user prompt (court, lisible) qu'il faudra coller dans le Project correspondant.
+        </p>
+        <div id="projectsList" style="margin-top:12px"></div>
+        <p style="margin-top:12px;color:var(--ink2);font-style:italic">
+          Tu peux aussi rester en mode "Complet" qui inclut le system dans chaque copier-coller — c'est plus lourd mais ne nécessite aucune préparation.
+        </p>
+      </details>
+    </div>
+
+    <div class="field"><label>Modèle LLM</label>
+      <select id="modelSelect">
+        <option value="claude-sonnet-5">Claude Sonnet 5</option>
+        <option value="claude-opus-4-8">Claude Opus 4.8 (~5× plus cher)</option>
+      </select>
+    </div>
+    <div class="field"><label>Longueur cible</label>
+      <select id="lengthSelect">
+        <option value="long">Livre complet (~50 000 mots)</option>
+        <option value="medium">Portrait long (~25-35 000 mots)</option>
+        <option value="short">Portrait (~12 000 mots)</option>
+      </select>
+    </div>
+    <div class="field" id="fieldWorker"><label>Worker URL</label>
+      <input type="text" id="workerUrl" value="https://clone-proxy.11drumboy11.workers.dev">
+    </div>
+    <div class="field"><label>Noyau Éditeur</label>
+      <select id="editeurMode">
+        <option value="hybrid" selected>Hybride (déterministe + LLM canon)</option>
+        <option value="after">Déterministe seul</option>
+        <option value="off">Désactivé</option>
+      </select>
+    </div>
+    <div class="field"><label>Boucle de réécriture ciblée</label>
+      <select id="rewriteMode">
+        <option value="auto" selected>Auto si flags critiques</option>
+        <option value="off">Désactivée</option>
+      </select>
+    </div>
+    <div class="field"><label>Mémoire narrative structurée (V7.4.2)</label>
+      <select id="memoryMode">
+        <option value="full" selected>Complète (Sonnet — canon continuité, +~1.50 $/livre)</option>
+        <option value="light">Légère (Haiku — économique, +~0.30 $/livre)</option>
+        <option value="off">Désactivée (condensé 60 mots V7.3.7)</option>
+      </select>
+    </div>
+    <div class="field"><label>Relecture Opus globale</label>
+      <select id="opusMode">
+        <option value="after" selected>Oui (Opus relit le livre avant 4e)</option>
+        <option value="off">Non</option>
+      </select>
+    </div>
+    <div class="field"><label>Portée de la relecture Opus (V7.4.2)</label>
+      <select id="opusScope">
+        <option value="ciblé" selected>Ciblée — relit uniquement les chapitres flaggés (~0.80 $/livre)</option>
+        <option value="global">Globale — relit le livre entier (~2 $/livre)</option>
+        <option value="motifs">Motifs uniquement — focus partition (~0.50 $/livre)</option>
+      </select>
+    </div>
+    <div class="field"><label>Éditeur transversal (V7.4.2)</label>
+      <select id="transversalMode">
+        <option value="after" selected>Oui (détecte dilutions traversantes avant la 4e)</option>
+        <option value="off">Non</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-full" id="toStep1Btn">Lancer le pipeline</button>
+  </div>
+</div></div>
+
+<div class="section" id="step1"><div class="card">
+  <div class="card-title">Diagnostic littéraire</div>
+  <div class="card-sub">Le Noyau Auteur lit la matière.</div>
+  <div id="diagStatus" style="font-size:.8rem;color:var(--ink2);margin-bottom:12px"></div>
+  <div id="diagOutput" class="preview-block" style="display:none"></div>
+  <button class="btn btn-primary btn-full" id="toStep2Btn" style="margin-top:12px" disabled>Produire la partition</button>
+</div></div>
+
+<div class="section" id="step2"><div class="card">
+  <div class="card-title">Partition + Plan</div>
+  <div class="card-sub">Partition 9 dimensions → supervision Opus → plan.</div>
+  <div id="partStatus" style="font-size:.8rem;color:var(--ink2);margin-bottom:12px"></div>
+  <div id="planOutput" class="preview-block"></div>
+  <button class="btn btn-primary btn-full" id="toStep3Btn" style="margin-top:12px" disabled>Écrire les chapitres</button>
+</div></div>
+
+<div class="section" id="step3"><div class="card">
+  <div class="card-title">Écriture</div>
+  <div class="card-sub">Auteur → Éditeur → Réécriture ciblée si flags critiques.</div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="writeProgress"></div></div>
+  <div id="chaptersList"></div>
+  <button class="btn btn-primary btn-full" id="resumeWriteBtn" style="margin-top:14px;display:none">↻ Reprendre l'écriture des chapitres restants</button>
+  <div class="log-area" id="writeLog"></div>
+  <button class="btn btn-accent btn-full" id="toStep35Btn" style="margin-top:16px;display:none">Chapitres terminés → Relecture Opus</button>
+</div></div>
+
+<div class="section" id="step35"><div class="card">
+  <div class="card-title">Relecture Opus globale</div>
+  <div class="card-sub">Opus relit le livre complet — tenue globale, motifs, péril, dilutions cumulées.</div>
+  <div id="opusStatus" style="font-size:.8rem;color:var(--ink2);margin-bottom:12px"></div>
+  <div id="opusOutput" class="preview-block" style="display:none"></div>
+  <button class="btn btn-accent btn-full" id="toStep4Btn" style="margin-top:16px;display:none">Continuer vers la 4e</button>
+</div></div>
+
+<div class="section" id="step4"><div class="card">
+  <div class="card-title">Quatrième de couverture</div>
+  <div class="card-sub">Le dos du livre.</div>
+  <div id="backCoverOutput" class="preview-block" style="min-height:100px"></div>
+  <button class="btn btn-accent btn-full" id="assembleBtn" style="margin-top:12px" disabled>Assembler l'EPUB</button>
+</div></div>
+
+<div class="section" id="step5"><div class="card" style="text-align:center">
+  <div class="card-title" id="finalTitle" style="font-style:italic;font-size:2rem"></div>
+  <div id="finalStats" style="font-size:.82rem;color:var(--ink2);margin:8px 0 20px"></div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="assembleProgress"></div></div>
+  <div class="log-area" id="assembleLog"></div>
+  <div id="downloadArea" style="display:none;margin-top:20px">
+    <button class="btn btn-accent" id="dlEpub" style="margin:4px">📖 EPUB</button>
+    <button class="btn btn-ghost" id="dlMd" style="margin:4px">📄 Markdown</button>
+    <button class="btn btn-ghost" id="dlReport" style="margin:4px">📋 Rapports</button>
+    <button class="btn btn-ghost" id="restartBtn" style="margin:4px">↺ Nouveau livre</button>
+  </div>
+</div></div>
+
+</div>
+
+<script src="./atelier-auteur-core.js"></script>
+<script src="./atelier-editeur-core.js"></script>
+
+<script>
+(function () {
+  'use strict';
+  const SHELL_VERSION = '7.4.2-alpha';
+  const AUTOSAVE_KEY = 'ldv_autosave_v74';
+
+  const S = {
+    session: null,
+    config: {
+      model: 'claude-sonnet-5', length: 'long',
+      workerUrl: 'https://clone-proxy.11drumboy11.workers.dev',
+      editeurMode: 'hybrid', rewriteMode: 'auto', opusMode: 'after', execMode: 'api',
+      memoryMode: 'full',           // V7.4.2 — full | light | off
+      transversalMode: 'after',     // V7.4.2 — after | off
+      manualMode: 'user-only',      // V7.4.2 Bloc 2 — user-only | full
+      opusScope: 'global',          // V7.4.2 Bloc 5 — global | ciblé | motifs
+    },
+    currentStep: 0, rawMarkdown: '', editorReports: [], transversalReport: null,
+  };
+  // V7.4.2 — Exposition debug (pour inspection console après pipeline)
+  if (typeof window !== 'undefined') window.S = S;
+
+  const PRICING = {
+    'claude-sonnet-5': { in: 3.0, out: 15.0 },
+    'claude-opus-4-8':   { in: 5.0, out: 25.0 },
+    'claude-haiku-4-5-20251001':  { in: 0.8, out: 4.0 },
+  };
+
+  function setStep(n) {
+    S.currentStep = n;
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    const stepId = (n === 3.5) ? 'step35' : ('step' + n);
+    const stepEl = document.getElementById(stepId);
+    if (stepEl) stepEl.classList.add('active');
+    const pills = ['pill0','pill1','pill2','pill3','pill35','pill4','pill5'];
+    const order = [0,1,2,3,3.5,4,5];
+    for (let i = 0; i < pills.length; i++) {
+      const p = document.getElementById(pills[i]);
+      if (!p) continue;
+      p.classList.remove('active','done');
+      if (order[i] < n) p.classList.add('done');
+      if (order[i] === n) p.classList.add('active');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scheduleAutosave();
+    // V7.4.2 — Réafficher les boutons après chaque changement de step
+    try { reflowContinueButtons(); } catch (_) {}
+  }
+
+  // V7.4.2 — Réaffiche les boutons « Continuer vers… » selon ce qui est
+  // disponible dans la session. Appelable à tout moment pour s'assurer qu'aucun
+  // bouton de progression ne reste caché alors que l'étape correspondante est
+  // accessible.
+  function reflowContinueButtons() {
+    // V7.4.2 — Active/affiche les boutons "Continuer/Reprendre" selon l'état réel
+    // de la session, pour tous les steps. Appelable à n'importe quel moment.
+
+    // Bouton Sauver : activé dès qu'on a une session avec au moins matière brute
+    const saveBtn = document.getElementById('saveProjectBtn');
+    if (saveBtn) saveBtn.disabled = !S.session;
+
+    if (!S.session) return;
+
+    const totalCh = (S.session.plan && S.session.plan.chapters) ? S.session.plan.chapters.length : 0;
+    const writtenCh = (S.session.chapters || []).filter(c => c && c.text && c.text.length > 200).length;
+
+    // Step 0 → 1 : matière chargée, on peut lancer le pipeline
+    const toStep1Btn = document.getElementById('toStep1Btn');
+    if (toStep1Btn) {
+      toStep1Btn.disabled = !S.session.parsed;
+    }
+
+    // Step 1 → 2 : diagnostic produit, on peut produire la partition
+    const toStep2Btn = document.getElementById('toStep2Btn');
+    if (toStep2Btn) {
+      toStep2Btn.disabled = !S.session.diagnostic;
+    }
+
+    // Step 2 → 3 : partition + plan + invariant produits, on peut écrire
+    const toStep3Btn = document.getElementById('toStep3Btn');
+    if (toStep3Btn) {
+      toStep3Btn.disabled = !(S.session.bookPartition && S.session.plan && S.session.plan.chapters);
+    }
+
+    // Step 3 reprise : si certains chapitres sont écrits mais pas tous
+    const resumeWriteBtn = document.getElementById('resumeWriteBtn');
+    if (resumeWriteBtn) {
+      if (totalCh > 0 && writtenCh > 0 && writtenCh < totalCh) {
+        resumeWriteBtn.textContent = '↻ Reprendre l\'écriture (' + writtenCh + '/' + totalCh + ' chapitres déjà écrits)';
+        resumeWriteBtn.style.display = 'block';
+      } else if (totalCh > 0 && writtenCh === 0 && S.session.plan) {
+        resumeWriteBtn.textContent = '▶ Lancer l\'écriture des ' + totalCh + ' chapitres';
+        resumeWriteBtn.style.display = 'block';
+      } else {
+        resumeWriteBtn.style.display = 'none';
+      }
+    }
+
+    // Step 3 → 3.5 : tous les chapitres écrits, on peut lancer Opus
+    const toStep35Btn = document.getElementById('toStep35Btn');
+    if (toStep35Btn) {
+      toStep35Btn.style.display = (totalCh > 0 && writtenCh === totalCh) ? 'block' : 'none';
+    }
+
+    // Step 3.5 → 4 : Opus rapport disponible, on peut générer la 4e
+    const toStep4Btn = document.getElementById('toStep4Btn');
+    if (toStep4Btn) {
+      toStep4Btn.style.display = S.session.bookOpusReport ? 'block' : 'none';
+    }
+
+    // Step 4 → 5 : 4e disponible, on peut assembler l'EPUB
+    const assembleBtn = document.getElementById('assembleBtn');
+    if (assembleBtn) {
+      assembleBtn.disabled = !S.session.backCover;
+    }
+  }
+
+  function setHeaderStatus(msg) { document.getElementById('headerStatus').textContent = msg; }
+
+  function log(zoneId, msg, level) {
+    level = level || 'info';
+    const zone = document.getElementById(zoneId);
+    if (!zone) { console.log('[' + level + ']', msg); return; }
+    const entry = document.createElement('div');
+    entry.className = 'log-' + level;
+    const ts = new Date().toTimeString().substring(0, 8);
+    entry.textContent = '[' + ts + '] ' + msg;
+    zone.appendChild(entry);
+    zone.scrollTop = zone.scrollHeight;
+  }
+
+  function escapeHTML(s) {
+    if (typeof s !== 'string') return '';
+    return s.replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
+  function updateTokenCounter() {
+    if (!S.session) return;
+    const u = AuteurNoyau.getTokenUsage(S.session);
+    document.getElementById('tkIn').textContent = u.in.toLocaleString('fr-FR');
+    document.getElementById('tkOut').textContent = u.out.toLocaleString('fr-FR');
+    document.getElementById('tkCalls').textContent = u.calls + ' appel' + (u.calls > 1 ? 's' : '');
+    document.getElementById('tkCost').textContent = '~$' + u.cost_usd.toFixed(3);
+    document.getElementById('tokenCounter').style.display = 'flex';
+  }
+
+  function accountTokens(model, tokensIn, tokensOut) {
+    if (!S.session) return;
+    if (!S.session._tokenUsage) S.session._tokenUsage = { in: 0, out: 0, calls: 0, cost_usd: 0 };
+    const u = S.session._tokenUsage;
+    u.in += tokensIn || 0;
+    u.out += tokensOut || 0;
+    u.calls += 1;
+    const pricing = PRICING[model] || PRICING['claude-sonnet-5'];
+    u.cost_usd += ((tokensIn || 0) / 1e6) * pricing.in + ((tokensOut || 0) / 1e6) * pricing.out;
+    updateTokenCounter();
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // V7.4.2 BLOC 8 — TÉLÉMÉTRIE
+  // ═══════════════════════════════════════════════════════════════════
+  // Capture chaque appel LLM avec horodatage, modèle, tokens, durée, statut.
+  // Permet inspection/debug post-mortem et export de session complet.
+  // ═══════════════════════════════════════════════════════════════════
+
+  if (!S.telemetry) S.telemetry = { calls: [] };
+
+  // Compteur incrémental pour l'ID des appels
+  let _telemetryCounter = 0;
+
+  function telemetryStart(system, user, model, mode) {
+    const id = ++_telemetryCounter;
+    const taskInfo = (typeof detectTaskType === 'function') ? detectTaskType(system) : { taskLabel: 'Unknown' };
+    const entry = {
+      id,
+      timestamp: new Date().toISOString(),
+      task: taskInfo.taskLabel,
+      mode: mode || 'api',
+      model: model || S.config.model,
+      system_length: (system || '').length,
+      user_length: (user || '').length,
+      system_preview: (system || '').substring(0, 200),
+      user_preview: (user || '').substring(0, 300),
+      status: 'pending',
+      duration_ms: null,
+      tokens_in: null,
+      tokens_out: null,
+      response_length: null,
+      error: null,
+      _start: Date.now(),
+    };
+    S.telemetry.calls.push(entry);
+    return entry;
+  }
+
+  function telemetryEnd(entry, options) {
+    if (!entry) return;
+    options = options || {};
+    entry.duration_ms = Date.now() - entry._start;
+    delete entry._start;
+    entry.status = options.error ? 'error' : 'ok';
+    entry.tokens_in = options.tokens_in || null;
+    entry.tokens_out = options.tokens_out || null;
+    entry.response_length = options.response ? options.response.length : null;
+    entry.response_preview = options.response ? options.response.substring(0, 300) : null;
+    if (options.error) entry.error = options.error;
+    if (options.retries) entry.retries = options.retries;
+  }
+
+  function exportTelemetry() {
+    return {
+      session_started: S.telemetry.calls.length > 0 ? S.telemetry.calls[0].timestamp : null,
+      total_calls: S.telemetry.calls.length,
+      total_duration_ms: S.telemetry.calls.reduce((s, c) => s + (c.duration_ms || 0), 0),
+      errors: S.telemetry.calls.filter(c => c.status === 'error').length,
+      by_task: S.telemetry.calls.reduce((acc, c) => {
+        acc[c.task] = (acc[c.task] || 0) + 1;
+        return acc;
+      }, {}),
+      by_model: S.telemetry.calls.reduce((acc, c) => {
+        acc[c.model] = (acc[c.model] || 0) + 1;
+        return acc;
+      }, {}),
+      calls: S.telemetry.calls,
+    };
+  }
+
+  function showTelemetryPanel() {
+    let panel = document.getElementById('telemetryPanel');
+    if (panel) {
+      panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+      if (panel.style.display === 'flex') renderTelemetryContent();
+      return;
+    }
+    panel = document.createElement('div');
+    panel.id = 'telemetryPanel';
+    panel.style.cssText = 'position:fixed;right:0;top:0;bottom:0;width:480px;background:white;box-shadow:-4px 0 24px rgba(0,0,0,0.15);z-index:200;display:flex;flex-direction:column;font-size:.78rem';
+    panel.innerHTML = `
+      <div style="padding:14px 18px;background:var(--deep);color:var(--blanc);display:flex;justify-content:space-between;align-items:center">
+        <div style="font-family:var(--book);font-weight:600;font-size:1rem">🔬 Télémétrie V7.4.2</div>
+        <div style="display:flex;gap:6px">
+          <button id="telExportBtn" class="btn-header">⬇ Export JSON</button>
+          <button id="telCloseBtn" class="btn-header">✕</button>
+        </div>
+      </div>
+      <div id="telemetryContent" style="flex:1;overflow-y:auto;padding:14px 18px"></div>
+    `;
+    document.body.appendChild(panel);
+
+    document.getElementById('telCloseBtn').onclick = () => panel.style.display = 'none';
+    document.getElementById('telExportBtn').onclick = () => {
+      const data = exportTelemetry();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ldv-telemetry-' + new Date().toISOString().substring(0, 19).replace(/[:.]/g, '-') + '.json';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    };
+    renderTelemetryContent();
+  }
+
+  function renderTelemetryContent() {
+    const zone = document.getElementById('telemetryContent');
+    if (!zone) return;
+    const summary = exportTelemetry();
+    let html = `
+      <div style="padding:10px;background:var(--paper);border-radius:8px;margin-bottom:12px;font-size:.7rem">
+        <div><strong>Total appels :</strong> ${summary.total_calls}</div>
+        <div><strong>Durée cumulée :</strong> ${(summary.total_duration_ms / 1000).toFixed(1)} s</div>
+        <div><strong>Erreurs :</strong> ${summary.errors}</div>
+      </div>
+      <div style="margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:.6rem;color:var(--ink2)">Par tâche</div>
+    `;
+    for (const [task, count] of Object.entries(summary.by_task)) {
+      html += `<div style="font-size:.7rem;padding:3px 0">• ${escapeHTML(task)} : <strong>${count}</strong></div>`;
+    }
+    html += `<div style="margin:14px 0 8px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:.6rem;color:var(--ink2)">Timeline (${summary.total_calls} appels)</div>`;
+    for (let i = summary.calls.length - 1; i >= Math.max(0, summary.calls.length - 30); i--) {
+      const c = summary.calls[i];
+      const statusIcon = c.status === 'ok' ? '✓' : c.status === 'error' ? '✗' : '⋯';
+      const statusColor = c.status === 'ok' ? '#4a8a5c' : c.status === 'error' ? '#c44' : 'var(--ink2)';
+      const time = new Date(c.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const duration = c.duration_ms ? (c.duration_ms / 1000).toFixed(1) + 's' : '—';
+      html += `
+        <div style="border-left:2px solid ${statusColor};padding:6px 10px;margin:4px 0;background:var(--paper);border-radius:4px;font-size:.68rem">
+          <div><strong>#${c.id}</strong> ${time} · ${escapeHTML(c.task)} · ${duration}</div>
+          <div style="color:var(--ink2);font-size:.62rem">${escapeHTML(c.model)} · ${c.tokens_in||'?'} in / ${c.tokens_out||'?'} out · ${c.system_length}+${c.user_length} chars</div>
+          ${c.error ? `<div style="color:#c44;font-size:.62rem;margin-top:2px">⚠ ${escapeHTML(c.error)}</div>` : ''}
+        </div>
+      `;
+    }
+    if (summary.calls.length > 30) {
+      html += `<div style="text-align:center;color:var(--ink2);font-size:.65rem;margin-top:10px">... et ${summary.calls.length - 30} appels plus anciens (export JSON pour tout voir)</div>`;
+    }
+    zone.innerHTML = html;
+  }
+
+  async function llmCallViaWorker(system, userMsg, maxTokens, model) {
+    // V7.4.2 Bloc 8 — Instrumentation télémétrie
+    const telemetryEntry = telemetryStart(system, userMsg, model, S.config.execMode);
+
+    if (S.config.execMode === 'manual') {
+      try {
+        const resp = await llmCallManual(system, userMsg, maxTokens, model);
+        telemetryEnd(telemetryEntry, { response: resp });
+        return resp;
+      } catch (e) {
+        telemetryEnd(telemetryEntry, { error: e.message });
+        throw e;
+      }
+    }
+    const url = S.config.workerUrl;
+    const mdl = model || S.config.model;
+    // Le worker attend une enveloppe { payload: { ... } } avec stream:true
+    // pour éviter les timeouts Cloudflare 524 sur les longs chapitres.
+    const body = {
+      payload: {
+        model: mdl,
+        max_tokens: maxTokens || 4096,
+        stream: true,
+        system: system,
+        messages: [{ role: 'user', content: userMsg }],
+      },
+    };
+    const maxRetries = 3;
+    let lastErr = null;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const resp = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error('HTTP ' + resp.status + ' : ' + t.substring(0, 200));
+        }
+
+        // Parse SSE stream (Server-Sent Events) — chaque ligne `data: {...}`
+        // contient un événement Anthropic, on agrège les content_block_delta.text
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let text = '';
+        let buf = '';
+        let usageInfo = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const evt = JSON.parse(data);
+              // Agrégation du texte
+              if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
+                text += evt.delta.text || '';
+              }
+              // Usage final (envoyé en message_delta ou message_stop)
+              if (evt.type === 'message_delta' && evt.usage) {
+                usageInfo = Object.assign(usageInfo || {}, evt.usage);
+              }
+              if (evt.type === 'message_start' && evt.message && evt.message.usage) {
+                usageInfo = Object.assign(usageInfo || {}, evt.message.usage);
+              }
+            } catch (_) { /* skip malformed SSE lines */ }
+          }
+        }
+        // Drain final
+        if (buf.trim().startsWith('data: ')) {
+          try {
+            const evt = JSON.parse(buf.slice(6).trim());
+            if (evt.type === 'content_block_delta' && evt.delta && evt.delta.type === 'text_delta') {
+              text += evt.delta.text || '';
+            }
+          } catch (_) {}
+        }
+
+        if (!text.trim()) {
+          throw new Error('Réponse streamée vide');
+        }
+
+        text = text.trim();
+        let tokIn, tokOut;
+        if (usageInfo) {
+          tokIn = usageInfo.input_tokens; tokOut = usageInfo.output_tokens;
+          accountTokens(mdl, tokIn, tokOut);
+        } else {
+          tokIn = Math.ceil((system.length + userMsg.length) / 4);
+          tokOut = Math.ceil(text.length / 4);
+          accountTokens(mdl, tokIn, tokOut);
+        }
+        telemetryEnd(telemetryEntry, { response: text, tokens_in: tokIn, tokens_out: tokOut, retries: attempt - 1 });
+        return text;
+      } catch (e) {
+        lastErr = e;
+        if (attempt < maxRetries) await new Promise(r => setTimeout(r, 2000 * attempt));
+      }
+    }
+    telemetryEnd(telemetryEntry, { error: lastErr ? lastErr.message : 'Échec appels LLM' });
+    throw lastErr || new Error('Échec appels LLM');
+  }
+
+  // V7.4.2 BLOC 2 — Rendu du panneau "Configuration mode manuel"
+  // Liste les 5 Projects claude.ai à créer avec bouton "Copier les instructions" pour chacun.
+  // Les prompts sont récupérés via AuteurNoyau.getPrompts() et EditeurNoyau.PROMPT_SYSTEME_EDITEUR_LLM
+  function renderProjectsList() {
+    const zone = document.getElementById('projectsList');
+    if (!zone || zone.dataset.rendered === 'true') return;
+
+    let prompts = {};
+    try { prompts = AuteurNoyau.getPrompts() || {}; } catch (_) {}
+    const editorPrompt = (typeof EditeurNoyau !== 'undefined' && EditeurNoyau.PROMPT_SYSTEME_EDITEUR_LLM) || '';
+    const transversalPrompt = (typeof EditeurNoyau !== 'undefined' && EditeurNoyau.PROMPT_SYSTEME_EDITEUR_TRANSVERSAL) || '';
+
+    // 6 Projects (incluant Resume V7.4.2 et Editeur transversal)
+    const projects = [
+      {
+        name: 'LDV-Diagnostic',
+        usage: 'Diagnostic littéraire (1 appel par livre)',
+        instructions: 'Tu es un lecteur d\'une extrême finesse. Pour ce projet, tu produis des diagnostics littéraires de transcripts d\'entretien — tu lis la matière brute et tu identifies genre, tonalité, voix narrative, tension motrice, péril, personnages, lieu, temporalité, références, pièges, singularité.',
+      },
+      {
+        name: 'LDV-Partition',
+        usage: 'Partition singulière 9 dimensions (1 appel par livre)',
+        instructions: prompts.PARTITION || '(prompt PARTITION non disponible — vérifie le chargement de atelier-auteur-core.js)',
+      },
+      {
+        name: 'LDV-Architecte',
+        usage: 'Conception JSON par chapitre (1 appel par chapitre)',
+        instructions: (prompts.POSTURAL || '') + '\n\n---\n\n' + (prompts.ARCHITECTE || ''),
+      },
+      {
+        name: 'LDV-Operatoire',
+        usage: 'Écriture du chapitre (1 appel par chapitre)',
+        instructions: (prompts.POSTURAL || '') + '\n\n---\n\n' + (prompts.OPERATOIRE || ''),
+      },
+      {
+        name: 'LDV-Editeur',
+        usage: 'Relecture canon par chapitre + transversal (1-N appels par livre)',
+        instructions: editorPrompt + (transversalPrompt ? '\n\n---\n\nPour la relecture transversale (livre entier), suis ces instructions complémentaires :\n\n' + transversalPrompt : ''),
+      },
+      {
+        name: 'LDV-Resume',
+        usage: 'Résumé narratif structuré V7.4.2 (1 appel par chapitre)',
+        instructions: (typeof AuteurNoyau !== 'undefined' && AuteurNoyau.PROMPT_RESUME_STRUCTURE) || '(prompt résumé non disponible)',
+      },
+    ];
+
+    let html = '';
+    for (const p of projects) {
+      const sizeKB = Math.round(p.instructions.length / 1024 * 10) / 10;
+      html += `
+        <div style="border:1px solid var(--sauge);border-radius:8px;padding:10px 12px;margin:8px 0;background:white">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+            <div style="font-weight:700;color:var(--deep)">${escapeHTML(p.name)}</div>
+            <div style="font-size:.62rem;color:var(--ink2)">${sizeKB} KB</div>
+          </div>
+          <div style="font-size:.7rem;color:var(--ink2);margin-bottom:8px">${escapeHTML(p.usage)}</div>
+          <button type="button" class="btn btn-ghost copyProjectBtn" data-name="${escapeHTML(p.name)}" style="padding:6px 12px;font-size:.7rem">📋 Copier les custom instructions</button>
+        </div>
+      `;
+    }
+    zone.innerHTML = html;
+    zone.dataset.rendered = 'true';
+
+    // Attacher les handlers
+    zone.querySelectorAll('.copyProjectBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const name = btn.dataset.name;
+        const project = projects.find(p => p.name === name);
+        if (!project) return;
+        navigator.clipboard.writeText(project.instructions).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = '✓ Copié — colle dans le Project ' + name;
+          setTimeout(() => { btn.textContent = orig; }, 2500);
+        }).catch(e => {
+          alert('Erreur copie : ' + e.message);
+        });
+      });
+    });
+  }
+
+  // V7.4.2 BLOC 2 — Détection du type de tâche depuis le prompt système
+  // pour suggérer dans quel Project claude.ai coller.
+  // V7.4.2 — Détection de la tâche depuis le prompt système.
+  // Utilise les MARQUEURS UNIQUES extraits des en-têtes des prompts canon.
+  // Ordre canonique : du plus spécifique au plus générique.
+  function detectTaskType(system) {
+    if (!system) return { projectName: 'Generic', taskLabel: 'Tâche LLM' };
+    const s = system.toLowerCase();
+
+    // 1. Marqueurs structurels d'en-tête (les plus fiables — présents dès le début)
+    if (s.includes("# prompt opératoire") || s.includes("# prompt operatoire")) {
+      return { projectName: 'LDV-Operatoire', taskLabel: 'Opératoire (écriture chapitre)' };
+    }
+    if (s.includes("# prompt architecte")) {
+      return { projectName: 'LDV-Architecte', taskLabel: 'Architecte (conception chapitre)' };
+    }
+    if (s.includes("# prompt postural")) {
+      // Postural seul est rare — généralement il accompagne Architecte ou Opératoire,
+      // déjà détectés ci-dessus. Si Postural seul, c'est l'init.
+      return { projectName: 'LDV-Postural', taskLabel: 'Posture (init)' };
+    }
+
+    // 2. Partition singulière — signature spécifique au prompt PARTITION
+    if (s.includes("partition singulière") || s.includes("partition singuliere")) {
+      return { projectName: 'LDV-Partition', taskLabel: 'Partition' };
+    }
+
+    // 3. Résumé structuré V7.4.2
+    if (s.includes("produire un résumé structuré") || s.includes("résumé narratif structuré") ||
+        s.includes("résumé structuré du chapitre")) {
+      return { projectName: 'LDV-Resume', taskLabel: 'Résumé structuré (V7.4.2)' };
+    }
+
+    // 4. Éditeur transversal
+    if ((s.includes("éditeur") || s.includes("editeur")) &&
+        (s.includes("totalité du livre") || s.includes("livre entier") || s.includes("transversal"))) {
+      return { projectName: 'LDV-Editeur', taskLabel: 'Éditeur transversal (livre entier)' };
+    }
+
+    // 5. Éditeur LLM (chapitre par chapitre)
+    if (s.includes("éditeur senior") || s.includes("éditeur littéraire") ||
+        (s.includes("boussole souveraine") && s.includes("3 contrôles"))) {
+      return { projectName: 'LDV-Editeur', taskLabel: 'Éditeur LLM' };
+    }
+
+    // 6. Supervision Opus
+    if (s.includes("superviseur") || s.includes("supervises l'architecture") ||
+        s.includes("supervises la partition")) {
+      return { projectName: 'LDV-Opus', taskLabel: 'Supervision Opus' };
+    }
+
+    // 7. Plan
+    if (s.includes("plan du livre") || s.includes("structure des chapitres") ||
+        s.includes("découper le livre en chapitres")) {
+      return { projectName: 'LDV-Plan', taskLabel: 'Plan du livre' };
+    }
+
+    // 8. 4e de couverture
+    if (s.includes("quatrième de couverture") || s.includes("4e de couverture") ||
+        s.includes("dos du livre")) {
+      return { projectName: 'LDV-4eCouv', taskLabel: '4e de couverture' };
+    }
+
+    // 9. Diagnostic (en avant-dernier — la signature "extrême finesse" peut apparaître ailleurs)
+    if (s.includes("d'une extrême finesse")) {
+      return { projectName: 'LDV-Diagnostic', taskLabel: 'Diagnostic littéraire' };
+    }
+
+    return { projectName: 'Generic', taskLabel: 'Tâche LLM' };
+  }
+
+  // Compteur global d'appels manuel pour indicateur de progression
+  if (!S.manualCounter) S.manualCounter = { done: 0, total: 0 };
+
+  async function llmCallManual(system, userMsg, maxTokens, model) {
+    return new Promise((resolve, reject) => {
+      S.manualCounter.total++;
+      const callNum = S.manualCounter.done + 1;
+      const totalEst = Math.max(callNum, S.manualCounter.total);
+      const taskInfo = detectTaskType(system);
+      const useUserOnly = S.config.manualMode === 'user-only';
+
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+
+      const modal = document.createElement('div');
+      modal.style.cssText = 'background:white;border-radius:12px;max-width:900px;width:100%;max-height:92vh;overflow-y:auto;padding:24px';
+
+      const projectBadge = useUserOnly
+        ? `<span style="background:rgba(196,122,74,.15);color:var(--accent);padding:3px 10px;border-radius:6px;font-weight:600">→ Coller dans Project <strong>${escapeHTML(taskInfo.projectName)}</strong></span>`
+        : `<span style="background:rgba(143,175,177,.15);color:var(--deep);padding:3px 10px;border-radius:6px">Mode complet (system + user)</span>`;
+
+      // V7.4.2.2 — Étiquette du modèle attendu pour aiguiller l'utilisateur
+      // (Sonnet vs Opus selon ce que le pipeline force pour cet appel précis).
+      const requiredModel = model || S.config.model || 'claude-sonnet-5';
+      const isOpusCall = /opus/i.test(requiredModel);
+      const modelLabel = isOpusCall ? 'Claude Opus 4.8' : (
+        /haiku/i.test(requiredModel) ? 'Claude Haiku' :
+        /sonnet/i.test(requiredModel) ? 'Claude Sonnet 5' :
+        requiredModel
+      );
+      const modelBadgeBg = isOpusCall ? 'rgba(196,122,74,.15)' : 'rgba(143,175,177,.15)';
+      const modelBadgeColor = isOpusCall ? 'var(--accent)' : 'var(--deep)';
+      const modelBadgeText = isOpusCall ? '⚠ Modèle requis : ' + modelLabel + ' (capacité supérieure attendue)' : 'Modèle requis : ' + modelLabel;
+
+      modal.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+          <h3 style="font-family:var(--book);color:var(--deep);margin:0">Mode manuel · ${escapeHTML(taskInfo.taskLabel)}</h3>
+          <span style="font-size:.7rem;color:var(--ink2);font-weight:600">Appel ${callNum}</span>
+        </div>
+        <div style="margin-bottom:8px;font-size:.7rem">${projectBadge}</div>
+        <div style="margin-bottom:12px;padding:6px 10px;background:${modelBadgeBg};color:${modelBadgeColor};border-radius:6px;font-size:.7rem;font-weight:600;display:inline-block">
+          ${escapeHTML(modelBadgeText)}
+        </div>
+
+        <div style="display:flex;gap:6px;margin-bottom:12px;background:var(--paper);padding:3px;border-radius:6px">
+          <button type="button" id="modeUserOnly" style="flex:1;padding:6px 10px;border:none;background:${useUserOnly?'var(--deep)':'transparent'};color:${useUserOnly?'var(--blanc)':'var(--ink2)'};cursor:pointer;border-radius:4px;font-family:inherit;font-size:.7rem;font-weight:600">User-only (Project)</button>
+          <button type="button" id="modeFull" style="flex:1;padding:6px 10px;border:none;background:${useUserOnly?'transparent':'var(--deep)'};color:${useUserOnly?'var(--ink2)':'var(--blanc)'};cursor:pointer;border-radius:4px;font-family:inherit;font-size:.7rem;font-weight:600">Complet (system + user)</button>
+        </div>
+
+        <div style="display:flex;gap:8px;margin:8px 0">
+          <button class="btn btn-accent" id="copyMainBtn" style="flex:1;padding:10px">📋 ${useUserOnly?'Copier le user prompt':'Copier le prompt complet'}</button>
+          <button class="btn btn-ghost" id="copyOtherBtn" style="padding:10px;font-size:.7rem" title="Copier l'autre format">↻ ${useUserOnly?'Copier complet':'Copier user-only'}</button>
+        </div>
+        <div style="font-size:.62rem;color:var(--ink2);margin-bottom:8px">
+          Raccourcis : <strong>Ctrl/Cmd+Shift+C</strong> pour copier · <strong>Ctrl/Cmd+Enter</strong> pour valider
+        </div>
+
+        <details style="margin:10px 0;border:1px solid var(--sauge);border-radius:6px;padding:8px">
+          <summary style="cursor:pointer;font-size:.7rem;font-weight:600;color:var(--deep)">Voir aperçu (system : ${system.length} chars · user : ${userMsg.length} chars)</summary>
+          <div style="font-size:.62rem;font-weight:700;color:var(--deep);margin:10px 0 4px">SYSTÈME (premier KB)</div>
+          <div class="prompt-block" style="max-height:100px;font-size:.65rem">${escapeHTML(system.substring(0, 1000))}${system.length > 1000 ? '\n...['+(system.length-1000)+' chars de plus]' : ''}</div>
+          <div style="font-size:.62rem;font-weight:700;color:var(--deep);margin:10px 0 4px">USER (premier KB)</div>
+          <div class="prompt-block" style="max-height:120px;font-size:.65rem">${escapeHTML(userMsg.substring(0, 1500))}${userMsg.length > 1500 ? '\n...['+(userMsg.length-1500)+' chars de plus]' : ''}</div>
+        </details>
+
+        <div style="font-size:.65rem;font-weight:700;color:var(--deep);margin-bottom:6px;margin-top:12px">COLLE LA RÉPONSE :</div>
+        <textarea id="manualResponse" class="response-area" style="min-height:180px" placeholder="Colle ici la réponse de Claude.ai..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary" id="submitManual" style="flex:1">✓ Valider la réponse</button>
+          <button class="btn btn-ghost" id="saveInModal" title="Télécharger un .ldv.json de l'état actuel (avant cet appel)">💾 Sauver</button>
+          <button class="btn btn-ghost" id="cancelManual">Annuler</button>
+        </div>
+      `;
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+
+      // État local du modal pour basculer le mode
+      let currentUserOnly = useUserOnly;
+
+      const updateModeButtons = () => {
+        const btnUO = modal.querySelector('#modeUserOnly');
+        const btnFull = modal.querySelector('#modeFull');
+        btnUO.style.background = currentUserOnly ? 'var(--deep)' : 'transparent';
+        btnUO.style.color = currentUserOnly ? 'var(--blanc)' : 'var(--ink2)';
+        btnFull.style.background = currentUserOnly ? 'transparent' : 'var(--deep)';
+        btnFull.style.color = currentUserOnly ? 'var(--ink2)' : 'var(--blanc)';
+        modal.querySelector('#copyMainBtn').textContent = '📋 ' + (currentUserOnly ? 'Copier le user prompt' : 'Copier le prompt complet');
+        modal.querySelector('#copyOtherBtn').textContent = '↻ ' + (currentUserOnly ? 'Copier complet' : 'Copier user-only');
+      };
+
+      const copyMain = () => {
+        const txt = currentUserOnly ? userMsg : ('[SYSTEM]\n' + system + '\n\n[USER]\n' + userMsg);
+        navigator.clipboard.writeText(txt).then(() => {
+          const btn = modal.querySelector('#copyMainBtn');
+          btn.textContent = '✓ Copié';
+          setTimeout(() => {
+            btn.textContent = '📋 ' + (currentUserOnly ? 'Copier le user prompt' : 'Copier le prompt complet');
+          }, 1500);
+        });
+      };
+
+      const copyOther = () => {
+        const txt = currentUserOnly ? ('[SYSTEM]\n' + system + '\n\n[USER]\n' + userMsg) : userMsg;
+        navigator.clipboard.writeText(txt).then(() => {
+          const btn = modal.querySelector('#copyOtherBtn');
+          btn.textContent = '✓ Copié';
+          setTimeout(() => {
+            btn.textContent = '↻ ' + (currentUserOnly ? 'Copier complet' : 'Copier user-only');
+          }, 1500);
+        });
+      };
+
+      modal.querySelector('#modeUserOnly').onclick = () => { currentUserOnly = true; S.config.manualMode = 'user-only'; updateModeButtons(); };
+      modal.querySelector('#modeFull').onclick = () => { currentUserOnly = false; S.config.manualMode = 'full'; updateModeButtons(); };
+      modal.querySelector('#copyMainBtn').onclick = copyMain;
+      modal.querySelector('#copyOtherBtn').onclick = copyOther;
+
+      const submit = () => {
+        const resp = modal.querySelector('#manualResponse').value.trim();
+        if (resp.length < 10) { alert('Réponse trop courte'); return; }
+        document.body.removeChild(overlay);
+        document.removeEventListener('keydown', keyHandler);
+        S.manualCounter.done++;
+        accountTokens(model || S.config.model, Math.ceil((system.length + userMsg.length) / 4), Math.ceil(resp.length / 4));
+        resolve(resp);
+      };
+
+      modal.querySelector('#submitManual').onclick = submit;
+      modal.querySelector('#cancelManual').onclick = () => {
+        document.body.removeChild(overlay);
+        document.removeEventListener('keydown', keyHandler);
+        reject(new Error('Annulé'));
+      };
+
+      // V7.4.2.2 — Bouton Sauver intégré à la modale.
+      // Permet de télécharger un .ldv.json de l'état AVANT cet appel,
+      // sans fermer la modale ni perdre la progression. Si le navigateur
+      // ferme/crash pendant la modale, on a au moins l'état d'avant l'appel.
+      modal.querySelector('#saveInModal').onclick = () => {
+        try {
+          saveProjectDownload();
+          const btn = modal.querySelector('#saveInModal');
+          const originalText = btn.textContent;
+          btn.textContent = '✓ Sauvegardé';
+          btn.style.color = 'var(--accent)';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.color = '';
+          }, 2000);
+        } catch (e) {
+          alert('Erreur sauvegarde : ' + e.message);
+        }
+      };
+
+      // Raccourcis clavier
+      const keyHandler = (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
+          e.preventDefault();
+          copyMain();
+        } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          submit();
+        } else if (e.key === 'Escape') {
+          // Pas de cancel par Escape (risque trop élevé d'annuler par erreur)
+        }
+      };
+      document.addEventListener('keydown', keyHandler);
+
+      // Focus auto sur la textarea de réponse
+      setTimeout(() => modal.querySelector('#manualResponse').focus(), 100);
+    });
+  }
+
+  let autosaveTimer = null;
+  function scheduleAutosave() {
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(doAutosave, 1500);
+    // V7.4.2 — Réafficher les boutons immédiatement (sans attendre l'autosave)
+    try { reflowContinueButtons(); } catch (_) {}
+  }
+
+  function doAutosave() {
+    if (!S.session) return;
+    try {
+      const data = AuteurNoyau.saveSession(S.session);
+      data._shell_step = S.currentStep;
+      data._shell_config = S.config;
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+    } catch (e) {
+      try {
+        const data = AuteurNoyau.saveSession(S.session);
+        data._shell_step = S.currentStep;
+        data._shell_config = S.config;
+        data.chapters = data.chapters.map(c => ({
+          title: c.title, wordCount: c.wordCount,
+          text: c.text ? c.text.substring(0, 1000) + '...[tronqué]' : '',
+        }));
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+      } catch (e2) { console.warn('Autosave failed:', e2); }
+    }
+  }
+
+  function detectAutosave() {
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (data._format !== 'ldv-session') return null;
+      return data;
+    } catch (e) { return null; }
+  }
+
+  function clearAutosave() { localStorage.removeItem(AUTOSAVE_KEY); }
+
+  function saveProjectDownload() {
+    if (!S.session) return;
+    const data = AuteurNoyau.saveSession(S.session);
+    data._shell_step = S.currentStep;
+    data._shell_config = S.config;
+    const name = (S.session.parsed && S.session.parsed.prenom ? S.session.parsed.prenom.toLowerCase() : 'projet') + '-livre-de-vie';
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name + '.ldv.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    log('writeLog', 'Projet sauvegardé', 'ok');
+  }
+
+  function restoreFromSaved(data) {
+    try {
+      S.session = AuteurNoyau.restoreSession(data, {
+        config: data._shell_config || S.config,
+        llmCall: llmCallViaWorker,
+        onLog: (m, l) => log('writeLog', m, l),
+      });
+      if (data._shell_config) S.config = Object.assign({}, S.config, data._shell_config);
+      S.rawMarkdown = S.session.raw || '';
+      updateTokenCounter();
+
+      // V7.4.2 — Synchroniser les selects avec la config restaurée (compat V7.4.1 : valeurs par défaut)
+      try {
+        if (document.getElementById('modelSelect')) document.getElementById('modelSelect').value = S.config.model;
+        if (document.getElementById('lengthSelect')) document.getElementById('lengthSelect').value = S.config.length;
+        if (document.getElementById('editeurMode')) document.getElementById('editeurMode').value = S.config.editeurMode;
+        if (document.getElementById('rewriteMode')) document.getElementById('rewriteMode').value = S.config.rewriteMode;
+        if (document.getElementById('opusMode')) document.getElementById('opusMode').value = S.config.opusMode;
+        // V7.4.2 — memoryMode et transversalMode peuvent être absents des sessions V7.4.1
+        if (document.getElementById('memoryMode')) {
+          document.getElementById('memoryMode').value = S.config.memoryMode || 'full';
+          S.config.memoryMode = S.config.memoryMode || 'full';
+        }
+        if (document.getElementById('transversalMode')) {
+          document.getElementById('transversalMode').value = S.config.transversalMode || 'after';
+          S.config.transversalMode = S.config.transversalMode || 'after';
+        }
+        if (document.getElementById('opusScope')) {
+          document.getElementById('opusScope').value = S.config.opusScope || 'ciblé';
+          S.config.opusScope = S.config.opusScope || 'ciblé';
+        }
+      } catch (_) {}
+
+      const targetStep = data._shell_step || 0;
+      if (S.session.parsed) {
+        renderAnalysis(S.session.parsed);
+        document.getElementById('saveProjectBtn').disabled = false;
+      }
+      if (S.session.diagnostic) {
+        document.getElementById('diagOutput').style.display = 'block';
+        document.getElementById('diagOutput').textContent = S.session.diagnostic;
+        document.getElementById('diagStatus').textContent = 'Diagnostic restauré';
+        document.getElementById('toStep2Btn').disabled = false;
+      }
+      if (S.session.plan) {
+        renderPlan(S.session.plan);
+        document.getElementById('toStep3Btn').disabled = false;
+      }
+      if (S.session.chapters && S.session.chapters.length > 0) renderChaptersList();
+
+      // V7.4.2 — Reprise écriture : déterminer si certains chapitres restent à écrire
+      if (S.session.plan && S.session.plan.chapters) {
+        const totalCh = S.session.plan.chapters.length;
+        const writtenCh = (S.session.chapters || []).filter(c => c && c.text && c.text.length > 200).length;
+        const resumeBtn = document.getElementById('resumeWriteBtn');
+        if (resumeBtn) {
+          if (writtenCh > 0 && writtenCh < totalCh) {
+            // Écriture en cours
+            resumeBtn.textContent = '↻ Reprendre l\'écriture (' + writtenCh + '/' + totalCh + ' chapitres déjà écrits)';
+            resumeBtn.style.display = 'block';
+          } else if (writtenCh === 0 && S.session.plan) {
+            // Plan posé mais aucun chapitre écrit
+            resumeBtn.textContent = '▶ Lancer l\'écriture des ' + totalCh + ' chapitres';
+            resumeBtn.style.display = 'block';
+          } else if (writtenCh === totalCh) {
+            // Tous écrits — afficher la suite vers Opus
+            const opusBtn = document.getElementById('toStep35Btn');
+            if (opusBtn) opusBtn.style.display = 'block';
+            resumeBtn.style.display = 'none';
+          }
+        }
+        // Si on a des rapports Éditeur déjà accumulés dans la session export, les recharger
+        // (ils sont stockés dans S.editorReports en RAM mais pas dans le .ldv.json par défaut)
+      }
+
+      if (S.session.bookOpusReport) {
+        document.getElementById('opusOutput').style.display = 'block';
+        document.getElementById('opusOutput').textContent = S.session.bookOpusReport;
+        document.getElementById('toStep4Btn').style.display = 'block';
+      }
+      if (S.session.backCover) {
+        document.getElementById('backCoverOutput').textContent = S.session.backCover;
+        document.getElementById('assembleBtn').disabled = false;
+      }
+
+      // V7.4.2 — Choix intelligent du step de restauration
+      // Plutôt que de respecter aveuglément _shell_step (qui peut pointer vers
+      // step 5 alors que l'EPUB n'est pas reproductible sans rejouer Pexels),
+      // on rétrograde au dernier step réellement actionnable.
+      let smartStep = targetStep;
+      const totalChSmart = (S.session.plan && S.session.plan.chapters) ? S.session.plan.chapters.length : 0;
+      const writtenChSmart = (S.session.chapters || []).filter(c => c && c.text && c.text.length > 200).length;
+
+      if (targetStep >= 5) {
+        if (S.session.backCover) {
+          smartStep = 4;
+        } else if (S.session.bookOpusReport) {
+          smartStep = 3.5;
+        } else if (writtenChSmart === totalChSmart && totalChSmart > 0) {
+          smartStep = 3;
+        } else {
+          smartStep = 3;
+        }
+      } else if (targetStep === 4 && !S.session.backCover) {
+        smartStep = 3.5;
+      } else if (targetStep === 3.5 && !S.session.bookOpusReport) {
+        smartStep = 3;
+      }
+
+      // V7.4.2 — Réafficher tous les boutons « Continuer » disponibles
+      // peu importe le step courant. L'utilisateur peut toujours avancer manuellement.
+      reflowContinueButtons();
+
+      setStep(smartStep);
+      setHeaderStatus('Projet restauré');
+    } catch (e) {
+      alert('Erreur restauration : ' + e.message);
+      console.error(e);
+    }
+  }
+
+  function handleDropFile(file) {
+    const ext = file.name.toLowerCase().split('.').pop();
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      let md = e.target.result;
+      if (ext === 'json' || file.name.endsWith('.ldv.json')) {
+        try {
+          const j = JSON.parse(md);
+          if (j._format === 'ldv-session') { restoreFromSaved(j); return; }
+          else if (j._format === 'ldv-project') md = j.rawMarkdown || '';
+          else if (j.transcript) md = '# ' + (j.prenom || 'SUJET').toUpperCase() + ', ' + (j.age || '?') + ' ans\n\n' + j.transcript;
+          else { alert('JSON non reconnu.'); return; }
+        } catch (err) { alert('JSON invalide : ' + err.message); return; }
+      }
+      S.rawMarkdown = md;
+      document.getElementById('dropLabel').textContent = file.name;
+      document.getElementById('dropLabel').classList.add('loaded');
+      try {
+        S.session = AuteurNoyau.createSession({
+          config: S.config, llmCall: llmCallViaWorker,
+          onLog: (m, l) => log('writeLog', m, l),
+        });
+        const parsed = AuteurNoyau.loadTranscript(S.session, md);
+        renderAnalysis(parsed);
+        document.getElementById('saveProjectBtn').disabled = false;
+        setHeaderStatus(parsed.prenom + ' chargé');
+        scheduleAutosave();
+      } catch (err) { alert('Erreur parsing : ' + err.message); console.error(err); }
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function renderAnalysis(parsed) {
+    const badges = [];
+    if (parsed.prenom) badges.push({cls:'badge-tone', t: parsed.prenom + ', ' + parsed.age + ' ans'});
+    if (parsed.tours > 0) badges.push({cls:'badge-info', t: parsed.tours + ' tours'});
+    if (parsed.sections['PHRASE-CLE']) badges.push({cls:'badge-info', t: 'Phrase-clé OK'});
+    if (parsed.sections['SCENES FORTES']) badges.push({cls:'badge-info', t: 'Scènes OK'});
+    if (parsed.sections['FILS NARRATIFS']) badges.push({cls:'badge-info', t: 'Fils OK'});
+    if (parsed.sections['CE QUI NE COLLE PAS']) badges.push({cls:'badge-warn', t: 'Zones d\'ombre'});
+    document.getElementById('analysisBadges').innerHTML = badges
+      .map(b => '<span class="analysis-badge ' + b.cls + '">' + escapeHTML(b.t) + '</span>').join('');
+    document.getElementById('analysisDetail').textContent =
+      parsed.wordCount.toLocaleString('fr-FR') + ' mots · ' + parsed.charCount.toLocaleString('fr-FR') + ' chars';
+    document.getElementById('analysisResult').style.display = 'block';
+  }
+
+  function renderPlan(plan) {
+    let t = '« ' + plan.title + ' »\n';
+    if (plan.subtitle) t += plan.subtitle + '\n';
+    if (plan.epigraph) t += '\n> ' + plan.epigraph + '\n';
+    t += '\n' + (plan.chapters || []).length + ' chapitres :\n\n';
+    (plan.chapters || []).forEach((ch, i) => {
+      t += (i + 1) + '. ' + ch.title + '\n';
+      if (ch.description) t += '   ' + ch.description + '\n';
+    });
+    document.getElementById('planOutput').textContent = t;
+  }
+
+  function renderChaptersList() {
+    const plan = AuteurNoyau.getPlan(S.session);
+    const chapters = AuteurNoyau.getChapters(S.session);
+    if (!plan || !plan.chapters) return;
+    const listZone = document.getElementById('chaptersList');
+    listZone.innerHTML = '';
+    for (let i = 0; i < plan.chapters.length; i++) {
+      const ch = chapters[i];
+      const div = document.createElement('div');
+      div.className = 'chapter-item';
+      const done = ch && ch.text;
+      const wc = ch && ch.wordCount ? ch.wordCount.toLocaleString('fr-FR') + ' mots' : '—';
+      div.innerHTML = `
+        <div class="chapter-header">
+          <div class="ch-num ${done ? 'done' : ''}" id="chNum${i}">${i + 1}</div>
+          <div class="ch-title">${escapeHTML(plan.chapters[i].title)}</div>
+          <div class="ch-words" id="chWords${i}">${wc}</div>
+          <div class="ch-flags" id="chFlags${i}"></div>
+          <div class="ch-boussole" id="chBoussole${i}"></div>
+        </div>
+      `;
+      listZone.appendChild(div);
+    }
+  }
+
+  async function runDiagnose() {
+    setStep(1);
+    setHeaderStatus('Diagnostic...');
+    document.getElementById('diagStatus').textContent = 'Appel LLM en cours...';
+    document.getElementById('diagOutput').style.display = 'none';
+    try {
+      const diag = await AuteurNoyau.diagnose(S.session);
+      document.getElementById('diagStatus').textContent = 'Diagnostic produit : ' + diag.split(/\s+/).length + ' mots';
+      document.getElementById('diagOutput').style.display = 'block';
+      document.getElementById('diagOutput').textContent = diag;
+      document.getElementById('toStep2Btn').disabled = false;
+      setHeaderStatus('Diagnostic OK');
+      scheduleAutosave();
+    } catch (e) {
+      document.getElementById('diagStatus').textContent = 'Erreur : ' + e.message;
+      console.error(e);
+    }
+  }
+
+  async function runPartitionAndPlan() {
+    setStep(2);
+    setHeaderStatus('Partition...');
+    document.getElementById('partStatus').textContent = 'Production de la partition...';
+    document.getElementById('planOutput').textContent = '';
+    try {
+      await AuteurNoyau.producePartition(S.session);
+      document.getElementById('partStatus').textContent = 'Partition OK — supervision Opus...';
+      // V7.4.3 — l'UI reflète l'état RÉEL de la supervision (ne plus afficher "validée" à tort)
+      const sup = await AuteurNoyau.supervisePartition(S.session);
+      const partStatusEl = document.getElementById('partStatus');
+      if (sup.status === 'supervision_ok') {
+        partStatusEl.textContent = (sup.revised_dimensions && sup.revised_dimensions.length)
+          ? 'Partition révisée par Opus (' + sup.revised_dimensions.join(', ') + ') — plan...'
+          : 'Partition validée par Opus — plan...';
+        partStatusEl.style.color = '';
+      } else if (sup.status === 'supervision_indisponible') {
+        partStatusEl.textContent = 'Supervision indisponible — partition Sonnet conservée, plan...';
+        partStatusEl.style.color = 'var(--accent, #c47a4a)';
+      } else if (sup.status === 'supervision_revision_invalide') {
+        partStatusEl.textContent = 'Révision Opus rejetée — partition Sonnet conservée, plan...';
+        partStatusEl.style.color = 'var(--accent, #c47a4a)';
+      } else if (sup.status === 'partition_invalide') {
+        partStatusEl.textContent = '⚠ Partition incomplète (non validée) — vérifiez avant d\'écrire';
+        partStatusEl.style.color = 'var(--accent, #c47a4a)';
+      }
+      const plan = await AuteurNoyau.planBook(S.session);
+      renderPlan(plan);
+      document.getElementById('partStatus').textContent = 'Plan OK — ' + (plan.chapters || []).length + ' chapitres';
+      document.getElementById('toStep3Btn').disabled = false;
+      setHeaderStatus('Plan OK');
+      scheduleAutosave();
+    } catch (e) {
+      document.getElementById('partStatus').textContent = 'Erreur : ' + e.message;
+      console.error(e);
+    }
+  }
+
+  function displayEditorReport(i, report) {
+    const flagsEl = document.getElementById('chFlags' + i);
+    const boussoleEl = document.getElementById('chBoussole' + i);
+    if (!flagsEl) return;
+    if (report.flags.length > 0) {
+      const flagsStr = report.flags.map(f => f.code.split('-').slice(0, 2).join('-') + ':' + f.count).join(' · ');
+      flagsEl.textContent = flagsStr;
+      log('writeLog', '  Éditeur : ' + report.flags.length + ' flag(s)', 'warn');
+    } else {
+      flagsEl.textContent = '✓ clean';
+    }
+    if (report.boussole && boussoleEl) {
+      const icon = report.boussole.verdict === 'tient' ? '✓' : report.boussole.verdict === 'partiel' ? '~' : '⚠';
+      boussoleEl.textContent = icon + ' ' + report.boussole.verdict;
+    }
+  }
+
+  async function runWriteAllChapters() {
+    setStep(3);
+    const plan = AuteurNoyau.getPlan(S.session);
+    if (!plan || !plan.chapters || plan.chapters.length === 0) {
+      log('writeLog', 'Pas de plan valide', 'err'); return;
+    }
+    const nbCh = plan.chapters.length;
+    const partition = AuteurNoyau.getPartition(S.session);
+    const useEditeur = S.config.editeurMode !== 'off';
+    const useHybrid = S.config.editeurMode === 'hybrid';
+    const useRewrite = S.config.rewriteMode === 'auto';
+    renderChaptersList();
+
+    for (let i = 0; i < nbCh; i++) {
+      // V7.4.2 — Skip si chapitre déjà écrit (reprise après chargement projet ou crash)
+      const existing = S.session.chapters && S.session.chapters[i];
+      if (existing && existing.text && existing.text.length > 200) {
+        const wc = existing.text.split(/\s+/).filter(Boolean).length;
+        const numEl = document.getElementById('chNum' + i);
+        if (numEl) numEl.classList.add('done');
+        const wordsEl = document.getElementById('chWords' + i);
+        if (wordsEl) wordsEl.textContent = wc.toLocaleString('fr-FR') + ' mots ↻ déjà écrit';
+        log('writeLog', 'Ch.' + (i + 1) + ' "' + plan.chapters[i].title + '" déjà écrit (' + wc + ' mots) — skip', 'info');
+        document.getElementById('writeProgress').style.width = Math.round(((i + 1) / nbCh) * 100) + '%';
+        continue;
+      }
+
+      document.getElementById('chNum' + i).classList.add('active');
+      log('writeLog', 'Chapitre ' + (i + 1) + '/' + nbCh + ' — "' + plan.chapters[i].title + '"', 'info');
+      try {
+        const text = await AuteurNoyau.writeChapter(S.session, i, {
+          onLog: (m, l) => log('writeLog', m, l),
+        });
+        const wc = text.split(/\s+/).filter(Boolean).length;
+        document.getElementById('chWords' + i).textContent = wc.toLocaleString('fr-FR') + ' mots';
+
+        let editorReport = null;
+        if (useEditeur) {
+          const editCtx = { chapter_num: i + 1, chapter_title: plan.chapters[i].title, book_title: plan.title };
+          if (useHybrid) {
+            editorReport = await EditeurNoyau.reviewChapterHybrid(text, partition, editCtx, llmCallViaWorker);
+          } else {
+            editorReport = EditeurNoyau.reviewChapter(text, partition, {
+              chapterMemory: AuteurNoyau.getChapterMemory(S.session), chIdx: i,
+            });
+          }
+          S.editorReports[i] = editorReport;
+          displayEditorReport(i, editorReport);
+
+          if (useRewrite && editorReport.flags.length > 0) {
+            const hasCritical = editorReport.flags.some(f => f.severity === 'haute');
+            const hasMany = editorReport.flags.length >= 3;
+            if (hasCritical || hasMany) {
+              log('writeLog', '↻ Réécriture ciblée', 'warn');
+              const verify = async (newText) => {
+                if (useHybrid) return await EditeurNoyau.reviewChapterHybrid(newText, partition, editCtx, llmCallViaWorker);
+                return EditeurNoyau.reviewChapter(newText, partition, {
+                  chapterMemory: AuteurNoyau.getChapterMemory(S.session), chIdx: i,
+                });
+              };
+              const rr = await AuteurNoyau.rewriteTargeted(S.session, i, editorReport, { verify });
+              if (rr.accepted) {
+                document.getElementById('chNum' + i).classList.add('rewritten');
+                document.getElementById('chWords' + i).textContent =
+                  (rr.text.split(/\s+/).filter(Boolean).length).toLocaleString('fr-FR') + ' mots ↻';
+                if (rr.newReport) { S.editorReports[i] = rr.newReport; displayEditorReport(i, rr.newReport); }
+              }
+            }
+          }
+        }
+
+        // V7.4.2 — Résumé narratif structuré après chaque chapitre
+        // (après éventuelle réécriture, pour résumer la version finale)
+        if (S.config.memoryMode && S.config.memoryMode !== 'off') {
+          try {
+            await AuteurNoyau.generateChapterResume(S.session, i, { mode: S.config.memoryMode });
+          } catch (e) {
+            log('writeLog', '  ⚠ Résumé structuré Ch.' + (i + 1) + ' a échoué : ' + e.message, 'warn');
+            // Non bloquant : on continue même si le résumé rate
+          }
+        }
+
+        document.getElementById('chNum' + i).classList.remove('active');
+        document.getElementById('chNum' + i).classList.add('done');
+        document.getElementById('writeProgress').style.width = Math.round(((i + 1) / nbCh) * 100) + '%';
+        setHeaderStatus('Chapitres : ' + (i + 1) + '/' + nbCh);
+        scheduleAutosave();
+      } catch (e) {
+        log('writeLog', 'Erreur ch.' + (i + 1) + ' : ' + e.message, 'err');
+        console.error(e);
+      }
+    }
+    log('writeLog', 'Tous les chapitres écrits.', 'ok');
+    document.getElementById('toStep35Btn').style.display = 'block';
+  }
+
+  async function runOpusGlobal() {
+    setStep(3.5);
+    const doOpus = S.config.opusMode !== 'off';
+    const doTransversal = S.config.transversalMode !== 'off';
+
+    if (!doOpus && !doTransversal) {
+      document.getElementById('opusStatus').textContent = 'Relecture globale désactivée.';
+      document.getElementById('toStep4Btn').style.display = 'block';
+      return;
+    }
+
+    const outputZone = document.getElementById('opusOutput');
+    outputZone.style.display = 'block';
+    outputZone.textContent = '';
+
+    // 1. Éditeur transversal d'abord (V7.4.2) — rapport structurel JSON
+    if (doTransversal) {
+      setHeaderStatus('Éditeur transversal...');
+      document.getElementById('opusStatus').textContent = 'Éditeur transversal — détection des dilutions traversantes...';
+      try {
+        const transReport = await EditeurNoyau.reviewBookTransversal(S.session, S.session.llmCall, {
+          model: 'claude-opus-4-8',
+        });
+        S.transversalReport = transReport;
+
+        // Rendu textuel lisible du rapport JSON
+        let txt = '╔═══════════════════════════════════════════╗\n';
+        txt += '║  RAPPORT ÉDITEUR TRANSVERSAL (V7.4.2)     ║\n';
+        txt += '╚═══════════════════════════════════════════╝\n\n';
+        txt += 'Verdict global : ' + (transReport.verdict_global || 'indéterminé').toUpperCase() + '\n';
+        if (transReport.justification_verdict) txt += transReport.justification_verdict + '\n';
+        txt += '\n';
+
+        if (transReport.progression_peril) {
+          txt += '▸ PROGRESSION DU PÉRIL : ' + transReport.progression_peril.etat + '\n';
+          if (transReport.progression_peril.commentaire) txt += '  ' + transReport.progression_peril.commentaire + '\n';
+          if (transReport.progression_peril.chapitres_critiques && transReport.progression_peril.chapitres_critiques.length > 0) {
+            txt += '  Chapitres concernés : ' + transReport.progression_peril.chapitres_critiques.join(', ') + '\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.regime_narratif) {
+          txt += '▸ RÉGIME NARRATIF : ' + transReport.regime_narratif.etat + '\n';
+          if (transReport.regime_narratif.commentaire) txt += '  ' + transReport.regime_narratif.commentaire + '\n';
+          txt += '\n';
+        }
+
+        if (transReport.cartographie_motifs && transReport.cartographie_motifs.length > 0) {
+          txt += '▸ CARTOGRAPHIE DES MOTIFS\n';
+          for (const m of transReport.cartographie_motifs) {
+            txt += '  • "' + m.motif + '" — ' + m.etat + '\n';
+            if (m.chapitres_actifs) txt += '      Actif : Ch.' + m.chapitres_actifs.join(', Ch.') + '\n';
+            if (m.chapitres_silencieux && m.chapitres_silencieux.length > 0) {
+              txt += '      Silencieux : Ch.' + m.chapitres_silencieux.join(', Ch.') + '\n';
+            }
+            if (m.commentaire) txt += '      ' + m.commentaire + '\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.dettes_non_refermees && transReport.dettes_non_refermees.length > 0) {
+          txt += '▸ DETTES OUVERTES NON REFERMÉES\n';
+          for (const d of transReport.dettes_non_refermees) {
+            txt += '  ⚠ ' + d.nature + ' (ouverte Ch.' + d.chapitre_ouverture + ' — ' + d.jugement + ')\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.echos_non_repris && transReport.echos_non_repris.length > 0) {
+          txt += '▸ ÉCHOS NON REPRIS\n';
+          for (const e of transReport.echos_non_repris) {
+            txt += '  • "' + e.element + '" (posé Ch.' + e.chapitre_pose + ', intensité ' + e.intensite_pose + ', jugement : ' + e.jugement + ')\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.coupures_narratives && transReport.coupures_narratives.length > 0) {
+          txt += '▸ COUPURES NARRATIVES\n';
+          for (const c of transReport.coupures_narratives) {
+            txt += '  • Ch.' + c.chapitres + ' — ' + c.nature;
+            if (c.commentaire) txt += ' (' + c.commentaire + ')';
+            txt += '\n';
+          }
+          txt += '\n';
+        }
+
+        if (transReport.dilutions_cumulees && transReport.dilutions_cumulees.present) {
+          txt += '▸ DILUTIONS CUMULÉES\n';
+          txt += '  ' + transReport.dilutions_cumulees.description + '\n\n';
+        }
+
+        if (transReport.chapitres_prioritaires_a_retravailler && transReport.chapitres_prioritaires_a_retravailler.length > 0) {
+          txt += '▸ CHAPITRES À RETRAVAILLER EN PRIORITÉ\n';
+          for (const c of transReport.chapitres_prioritaires_a_retravailler) {
+            txt += '  • Ch.' + c.ch + ' — ' + c.raison + '\n';
+          }
+          txt += '\n';
+        }
+
+        outputZone.textContent = txt;
+        document.getElementById('opusStatus').textContent =
+          'Éditeur transversal terminé. Verdict : ' + (transReport.verdict_global || 'indéterminé') + '.';
+      } catch (e) {
+        log('writeLog', 'Éditeur transversal a échoué : ' + e.message, 'err');
+        outputZone.textContent = '(Éditeur transversal a échoué : ' + e.message + ')\n\n';
+      }
+    }
+
+    // 2. Opus global ensuite (V7.4.1) — rapport narratif littéraire
+    if (doOpus) {
+      setHeaderStatus('Opus relit...');
+      const prevText = outputZone.textContent;
+      document.getElementById('opusStatus').textContent = 'Opus relit le livre complet en prose...';
+      try {
+        const report = await AuteurNoyau.reviewBookOpus(S.session, {
+          model: 'claude-opus-4-8',
+          opusMode: S.config.opusScope || 'ciblé',          // V7.4.2 Bloc 5
+          editorReports: S.editorReports || [],              // V7.4.2 Bloc 5 — pour mode ciblé
+        });
+        outputZone.textContent = prevText + '\n\n╔═══════════════════════════════════════════╗\n║  RELECTURE OPUS GLOBALE                   ║\n╚═══════════════════════════════════════════╝\n\n' + report;
+        document.getElementById('opusStatus').textContent =
+          'Relecture terminée — ' + report.split(/\s+/).length + ' mots de rapport Opus' +
+          (doTransversal ? ' + rapport transversal structurel' : '') + '.';
+      } catch (e) {
+        log('writeLog', 'Opus global a échoué : ' + e.message, 'err');
+        outputZone.textContent = prevText + '\n\n(Opus global a échoué : ' + e.message + ')';
+      }
+    }
+
+    document.getElementById('toStep4Btn').style.display = 'block';
+    setHeaderStatus('Relectures OK');
+    scheduleAutosave();
+    return;
+  }
+
+  async function runBackCover() {
+    setStep(4);
+    setHeaderStatus('4e couverture...');
+    document.getElementById('backCoverOutput').textContent = 'Appel LLM...';
+    try {
+      const back = await AuteurNoyau.buildBackCover(S.session);
+      document.getElementById('backCoverOutput').textContent = back;
+      document.getElementById('assembleBtn').disabled = false;
+      setHeaderStatus('4e OK');
+      scheduleAutosave();
+    } catch (e) {
+      document.getElementById('backCoverOutput').textContent = 'Erreur : ' + e.message;
+    }
+  }
+
+  async function runAssemble() {
+    setStep(5);
+    const plan = AuteurNoyau.getPlan(S.session);
+    const chapters = AuteurNoyau.getChapters(S.session);
+    document.getElementById('finalTitle').textContent = plan ? plan.title : 'Livre';
+    const totalWords = chapters.reduce((s, c) => s + (c.wordCount || 0), 0);
+    document.getElementById('finalStats').textContent =
+      chapters.length + ' chapitres · ' + totalWords.toLocaleString('fr-FR') + ' mots';
+    setHeaderStatus('Assemblage...');
+    try {
+      const zip = await AuteurNoyau.buildEpub(S.session);
+      const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/epub+zip' });
+      const fname = (plan.title || 'livre').replace(/[^\w-]/g, '_') + '.epub';
+      document.getElementById('dlEpub').onclick = () => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = fname; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      };
+      document.getElementById('dlMd').onclick = () => {
+        const md = S.session.getMarkdown();
+        const mdBlob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(mdBlob);
+        a.download = (plan.title || 'livre').replace(/[^\w-]/g, '_') + '.md';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      };
+      document.getElementById('dlReport').onclick = () => {
+        const reports = {
+          opus_global: AuteurNoyau.getBookOpusReport(S.session) || '',
+          transversal_report: S.transversalReport || null,     // V7.4.2
+          chapter_resumes: AuteurNoyau.getChapterResumes(S.session),  // V7.4.2
+          editor_reports: S.editorReports,
+          token_usage: AuteurNoyau.getTokenUsage(S.session),
+          telemetry: exportTelemetry(),                          // V7.4.2 Bloc 8
+        };
+        const rBlob = new Blob([JSON.stringify(reports, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(rBlob);
+        a.download = (plan.title || 'livre').replace(/[^\w-]/g, '_') + '-rapports.json';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      };
+      document.getElementById('restartBtn').onclick = () => {
+        if (confirm('Effacer et démarrer un nouveau livre ?')) {
+          clearAutosave(); location.reload();
+        }
+      };
+      document.getElementById('downloadArea').style.display = 'block';
+      document.getElementById('assembleProgress').style.width = '100%';
+      log('assembleLog', 'EPUB prêt — ' + Math.round(blob.size / 1024) + ' KB', 'ok');
+      setHeaderStatus('Livre terminé');
+      scheduleAutosave();
+    } catch (e) {
+      log('assembleLog', 'Erreur assemblage : ' + e.message, 'err');
+      console.error(e);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof AuteurNoyau === 'undefined') { alert('atelier-auteur-core.js non chargé.'); return; }
+    console.log('Shell V' + SHELL_VERSION + ' · Auteur V' + AuteurNoyau.VERSION +
+                ' · Éditeur V' + (typeof EditeurNoyau !== 'undefined' ? EditeurNoyau.VERSION : 'absent'));
+
+    const autosaved = detectAutosave();
+    if (autosaved) {
+      const banner = document.getElementById('restoreBanner');
+      banner.style.display = 'flex';
+      const title = (autosaved.parsed && autosaved.parsed.prenom) ? autosaved.parsed.prenom : 'Projet';
+      const age = (autosaved.parsed && autosaved.parsed.age) ? ', ' + autosaved.parsed.age + ' ans' : '';
+      const step = autosaved._shell_step || 0;
+      const stepNames = { 0:'début', 1:'diagnostic', 2:'partition', 3:'écriture', 3.5:'Opus', 4:'4e', 5:'assemblage' };
+      const savedAt = new Date(autosaved._saved_at).toLocaleString('fr-FR');
+      document.getElementById('restoreDetails').textContent =
+        title + age + ' · arrêté à : ' + (stepNames[step] || step) + ' · ' + savedAt;
+      document.getElementById('restoreBtn').onclick = () => {
+        banner.style.display = 'none'; restoreFromSaved(autosaved);
+      };
+      document.getElementById('discardBtn').onclick = () => {
+        if (confirm('Effacer le projet sauvegardé ?')) { clearAutosave(); banner.style.display = 'none'; }
+      };
+    }
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag');
+      if (e.dataTransfer.files.length > 0) handleDropFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleDropFile(e.target.files[0]);
+    });
+
+    document.getElementById('modelSelect').addEventListener('change', (e) => S.config.model = e.target.value);
+    document.getElementById('lengthSelect').addEventListener('change', (e) => S.config.length = e.target.value);
+    document.getElementById('workerUrl').addEventListener('change', (e) => S.config.workerUrl = e.target.value);
+    document.getElementById('editeurMode').addEventListener('change', (e) => S.config.editeurMode = e.target.value);
+    document.getElementById('rewriteMode').addEventListener('change', (e) => S.config.rewriteMode = e.target.value);
+    document.getElementById('memoryMode').addEventListener('change', (e) => S.config.memoryMode = e.target.value);
+    document.getElementById('opusMode').addEventListener('change', (e) => S.config.opusMode = e.target.value);
+    document.getElementById('opusScope').addEventListener('change', (e) => S.config.opusScope = e.target.value);
+    document.getElementById('transversalMode').addEventListener('change', (e) => S.config.transversalMode = e.target.value);
+
+    document.querySelectorAll('.mode-toggle button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-toggle button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        S.config.execMode = btn.dataset.mode;
+        document.getElementById('fieldWorker').style.display = (S.config.execMode === 'manual') ? 'none' : 'block';
+        // V7.4.2 Bloc 2 — Affiche le panneau Configuration mode manuel
+        document.getElementById('manualConfigPanel').style.display = (S.config.execMode === 'manual') ? 'block' : 'none';
+        if (S.config.execMode === 'manual') renderProjectsList();
+      });
+    });
+
+    document.getElementById('saveProjectBtn').addEventListener('click', saveProjectDownload);
+    document.getElementById('telemetryBtn').addEventListener('click', showTelemetryPanel);
+    document.getElementById('toStep1Btn').addEventListener('click', runDiagnose);
+    document.getElementById('toStep2Btn').addEventListener('click', runPartitionAndPlan);
+    document.getElementById('toStep3Btn').addEventListener('click', runWriteAllChapters);
+    document.getElementById('resumeWriteBtn').addEventListener('click', () => {
+      document.getElementById('resumeWriteBtn').style.display = 'none';
+      runWriteAllChapters();
+    });
+    document.getElementById('toStep35Btn').addEventListener('click', runOpusGlobal);
+    document.getElementById('toStep4Btn').addEventListener('click', runBackCover);
+    document.getElementById('assembleBtn').addEventListener('click', runAssemble);
+  });
+})();
+</script>
+</body>
+</html>

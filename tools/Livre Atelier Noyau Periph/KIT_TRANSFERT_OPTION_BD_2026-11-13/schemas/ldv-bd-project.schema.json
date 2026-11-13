@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://c-concept-dev.local/schemas/ldv-bd-project-v1.json",
+  "title": "Projet Livre de Vie BD",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["_format", "_version", "id", "createdAt", "updatedAt", "source", "config", "visualBible", "storyboard", "assets", "approvals"],
+  "properties": {
+    "_format": { "const": "ldv-bd-project" },
+    "_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^bdp_[A-Za-z0-9-]+$" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["format", "version", "sha256", "chapterIndex", "chapterTitle", "chapterText"],
+      "properties": {
+        "format": { "const": "ldv-session" },
+        "version": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "chapterIndex": { "type": "integer", "minimum": 0 },
+        "chapterTitle": { "type": "string", "minLength": 1 },
+        "chapterText": { "type": "string", "minLength": 1 }
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["imageBackend", "pageFormat", "visualStyle", "pilot"],
+      "properties": {
+        "imageBackend": { "enum": ["mock", "manual_chatgpt", "openai_worker"] },
+        "pageFormat": { "enum": ["A4_PORTRAIT", "ALBUM_210_297", "DIGITAL_VERTICAL"] },
+        "visualStyle": { "type": "string", "minLength": 1 },
+        "pilot": { "type": "boolean" }
+      }
+    },
+    "adaptation": { "type": ["object", "null"] },
+    "visualBible": { "$ref": "visual-bible.schema.json" },
+    "storyboard": { "$ref": "storyboard.schema.json" },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "panelId", "version", "status", "backend", "prompt", "file", "createdAt"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^asset_[A-Za-z0-9-]+$" },
+          "panelId": { "type": "string", "pattern": "^panel_[0-9]{3}_[0-9]{2}$" },
+          "version": { "type": "integer", "minimum": 1 },
+          "status": { "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED", "STALE"] },
+          "backend": { "enum": ["mock", "manual_chatgpt", "openai_worker"] },
+          "prompt": { "type": "string", "minLength": 1 },
+          "negativeInstructions": { "type": "array", "items": { "type": "string" } },
+          "referenceAssetIds": { "type": "array", "items": { "type": "string" } },
+          "file": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "sha256"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+            }
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "review": { "type": ["object", "null"] }
+        }
+      }
+    },
+    "approvals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visualBible", "storyboard", "finalPages"],
+      "properties": {
+        "visualBible": { "$ref": "#/$defs/approval" },
+        "storyboard": { "$ref": "#/$defs/approval" },
+        "finalPages": { "$ref": "#/$defs/approval" }
+      }
+    }
+  },
+  "$defs": {
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED", "STALE"] },
+        "reviewer": { "type": ["string", "null"] },
+        "reviewedAt": { "type": ["string", "null"], "format": "date-time" },
+        "comment": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

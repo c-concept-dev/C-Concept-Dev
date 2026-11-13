@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://c-concept-dev.local/schemas/visual-bible-v1.json",
+  "title": "Bible visuelle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "status", "style", "characters", "places", "objects", "consents"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED", "STALE"] },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "palette", "line", "texture", "lighting", "forbidden"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "palette": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "line": { "type": "string" },
+        "texture": { "type": "string" },
+        "lighting": { "type": "string" },
+        "forbidden": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "characters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "displayName", "periods", "preserve", "forbidden", "referenceAssetIds", "status"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^char_[A-Za-z0-9-]+$" },
+          "displayName": { "type": "string", "minLength": 1 },
+          "periods": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label", "ageRange", "appearance", "clothing"],
+              "properties": {
+                "label": { "type": "string" },
+                "ageRange": { "type": "string" },
+                "appearance": { "type": "string" },
+                "clothing": { "type": "string" }
+              }
+            }
+          },
+          "preserve": { "type": "array", "items": { "type": "string" } },
+          "forbidden": { "type": "array", "items": { "type": "string" } },
+          "referenceAssetIds": { "type": "array", "items": { "type": "string" } },
+          "status": { "enum": ["DRAFT", "READY_FOR_REVIEW", "APPROVED", "REJECTED", "STALE"] }
+        }
+      }
+    },
+    "places": { "type": "array", "items": { "type": "object" } },
+    "objects": { "type": "array", "items": { "type": "object" } },
+    "consents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["referenceAssetId", "identifiable", "authorized", "externalTransferAuthorized"],
+        "properties": {
+          "referenceAssetId": { "type": "string" },
+          "identifiable": { "type": "boolean" },
+          "authorized": { "type": "boolean" },
+          "externalTransferAuthorized": { "type": "boolean" },
+          "scope": { "type": ["string", "null"] },
+          "authorizedBy": { "type": ["string", "null"] },
+          "authorizedAt": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    }
+  }
+}
