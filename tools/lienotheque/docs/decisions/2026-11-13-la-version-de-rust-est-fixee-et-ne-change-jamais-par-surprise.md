@@ -64,6 +64,27 @@ le stable du moment s'éloignera de la version fixée, rustup téléchargera cel
 dizaines de secondes par course. C'est le prix d'un outil qui ne change jamais par surprise, et il
 est moins cher qu'une demi-journée passée à chercher dans un commit une cause qui n'y est pas.
 
+## Et une quatrième leçon, payée à la course suivante
+
+Le premier correctif n'a touché que `tests/dialogue.rs`, **le fichier que j'avais sous les yeux**.
+La course **43435725998** a aussitôt rendu la même panne dans `tests/prototype.rs`, qui portait la
+même supposition de profondeur pour l'exemple `travail-long` :
+
+```
+.../target/release/build/lienotheque-bureau/cb24ef619e6c1675/examples/travail-long manque
+```
+
+C'est **la même faute de méthode que le `grep "ZoneLue"` du matin** : chercher par le nom de ce
+qu'on connaît plutôt que par la **forme** du défaut. Repris par la forme — « qui compose un chemin
+vers `examples/` ? », « qui suppose une profondeur depuis `current_exe()` ? » — il ne restait que
+cette seconde occurrence, et elle est corrigée.
+
+Deux usages réels existant désormais, la recherche vit dans `tests/commun/mod.rs` : c'est le seuil
+que ce dépôt exige avant toute abstraction, et c'est ce qui empêchera une troisième copie.
+
+**La suite Rust entière a été lancée ensuite**, et non un seul fichier : **179 contrôles, 0 en
+échec** sous 1.100.0 — le compte exact de la dernière course verte.
+
 ## Ce que cette journée a montré trois fois
 
 Ce rouge est le **troisième** de la série, et les trois ont la même forme : un contrôle accepté

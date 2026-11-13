@@ -19,6 +19,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+mod commun;
+
 fn racine_projet() -> PathBuf {
     // src-tauri → apps/app → apps → tools/lienotheque
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..").canonicalize().expect("racine du projet")
@@ -42,11 +44,13 @@ fn langue_disponible(tessdata: &Path) -> &'static str {
     }
 }
 
-/// Chemin de l'exemple `travail-long`, à côté du binaire de test : `target/<profil>/examples/`.
+/// Chemin de l'exemple `travail-long`, **cherché en remontant** — voir `commun::exemple`.
+///
+/// Ce fichier portait la même supposition de profondeur que `dialogue.rs`, et il est tombé à la
+/// course **43435725998**, juste après que l'autre eut été corrigé seul. C'est la raison d'être du
+/// module partagé : un défaut de cette forme se corrige par classe, jamais par occurrence.
 fn travail_long() -> PathBuf {
-    let binaire = std::env::current_exe().expect("binaire de test"); // target/<profil>/deps/<test>
-    let profil = binaire.parent().and_then(Path::parent).expect("dossier du profil");
-    profil.join("examples").join(format!("travail-long{}", std::env::consts::EXE_SUFFIX))
+    commun::exemple("travail-long")
 }
 
 fn exiger(chemin: &Path, remede: &str) {
