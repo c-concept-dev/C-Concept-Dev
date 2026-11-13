@@ -48,7 +48,19 @@ fn main() -> ExitCode {
     let racine = std::env::temp_dir().join(format!("lienotheque-epreuve-{}", std::process::id()));
     fs::remove_dir_all(&racine).ok();
 
-    let depot = match Depot::ouvrir(&racine) {
+    // `creer`, et non `ouvrir` : cette épreuve **fabrique** sa bibliothèque d'essai, elle n'en
+    // examine aucune. Elle efface son dossier à la ligne du dessus, puis le demandait à `ouvrir`,
+    // qui ne crée plus rien depuis le 30 octobre 2026 (`5866f2328`, « verrouiller les
+    // reconstructions »). Ce commit a eu raison de séparer les deux gestes — son propre contrôle
+    // s'appelle `ouvrir_un_dossier_quelconque_ne_le_transforme_pas_en_bibliotheque`, et le
+    // sélecteur « ouvrir une bibliothèque » ne doit semer ni `sources/` ni `derives/` dans un
+    // dossier qu'on se contente de regarder. C'est cet exemple qui n'a pas suivi.
+    //
+    // **Ce que le silence a coûté.** Cette épreuve est la seule qui prouve que le paquet construit
+    // sait LIRE, et elle a échoué sans que personne la voie du 30 octobre au 12 novembre : le
+    // déclencheur du workflow ignorait `wip/**`, et les courses d'avant n'échouaient que sur
+    // Windows — un rouge attendu cachait un rouge neuf.
+    let depot = match Depot::creer(&racine) {
         Ok(d) => d,
         Err(e) => return echec(&format!("bibliothèque impossible à préparer : {e}")),
     };
