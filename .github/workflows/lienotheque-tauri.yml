@@ -69,8 +69,23 @@ jobs:
           cache: pnpm
           cache-dependency-path: tools/lienotheque/pnpm-lock.yaml
 
+      # Cette action pose rustup et un stable ; **c'est `tools/lienotheque/rust-toolchain.toml`
+      # qui décide** de la version employée, parce que rustup le lit dans le dossier courant et
+      # ses parents. Le jour où le stable du moment s'éloigne de la version fixée, rustup
+      # téléchargera celle-ci : c'est le prix, assumé, d'un outil qui ne change jamais par
+      # surprise. Décision de Christophe du 13 novembre 2026, née d'un rouge que rien dans le
+      # commit n'expliquait — voir le fichier lui-même.
       - name: Installer Rust
         uses: dtolnay/rust-toolchain@stable
+
+      # La version employée, dite à voix haute dans la course. Une dépendance invisible rend un
+      # rouge indéchiffrable : celle-ci se lit désormais dans le journal, à côté du verdict.
+      - name: Dire quelle version de Rust tourne
+        shell: bash
+        run: |
+          rustup show active-toolchain
+          cargo --version
+          rustc --version
 
       - name: Mettre la cible Rust en cache
         uses: Swatinem/rust-cache@v2

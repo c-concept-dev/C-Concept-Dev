@@ -18,11 +18,33 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// Chemin de l'exemple `reciteur`, à côté du binaire de test : `target/<profil>/examples/`.
+/// Chemin de l'exemple `reciteur`, **cherché en remontant** depuis le binaire de test.
+///
+/// ## Pourquoi on ne compte pas les niveaux
+///
+/// Cette fonction faisait `parent().parent()`, en supposant que le binaire de test vit dans
+/// `target/<profil>/deps/` — deux niveaux exactement sous le profil. **Rust 1.100.0 a déplacé les
+/// binaires de contrôle** : ils sont maintenant sous `target/<profil>/build/<paquet>/<empreinte>/out/`.
+/// Deux niveaux y mènent à `…/<empreinte>`, et le chemin composé désigne un fichier qui n'existe
+/// nulle part. L'exemple, lui, n'a pas bougé : il est à `target/<profil>/examples/` dans les deux
+/// dispositions.
+///
+/// Mesuré le 13 novembre 2026, et des deux côtés : course **43252972457** verte sous rustc 1.99.1,
+/// course **43422731892** rouge sous rustc 1.100.0, puis la panne reproduite sur cette machine avec
+/// `cargo +1.100.0` — mêmes trois contrôles, même chemin.
+///
+/// Remonter jusqu'à trouver ne suppose aucune profondeur, donc aucune disposition de cargo. Une
+/// version qui déplacerait encore les binaires de contrôle ne casserait plus ce fichier.
 fn reciteur_binaire() -> PathBuf {
     let binaire = std::env::current_exe().expect("binaire de test");
-    let profil = binaire.parent().and_then(Path::parent).expect("dossier du profil");
-    profil.join("examples").join(format!("reciteur{}", std::env::consts::EXE_SUFFIX))
+    let cherche = PathBuf::from("examples").join(format!("reciteur{}", std::env::consts::EXE_SUFFIX));
+    binaire
+        .ancestors()
+        .map(|dossier| dossier.join(&cherche))
+        .find(|candidat| candidat.is_file())
+        // Sans trouvaille, on rend le chemin de la disposition d'origine : l'assertion qui suit
+        // dira quel fichier manque, ce qui est plus utile qu'une panique ici sans nom de fichier.
+        .unwrap_or_else(|| binaire.parent().and_then(Path::parent).unwrap_or(&binaire).join(cherche))
 }
 
 fn lancement(lignes: &[&str], dort: bool) -> Lancement {

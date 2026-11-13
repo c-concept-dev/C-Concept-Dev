@@ -1,0 +1,30 @@
+# La version de Rust de ce projet, fixée — décision de Christophe du 13 novembre 2026.
+#
+# « La version de Rust est fixée par un rust-toolchain.toml, identique sur ma machine et sur la
+# CI ; on en change volontairement, jamais par surprise. »
+#
+# ## Ce qui a motivé cette décision, mesuré des deux côtés
+#
+# Le workflow installait `dtolnay/rust-toolchain@stable`, donc le stable **du jour**. Entre deux
+# courses séparées de dix-huit heures, rustc est passé de 1.99.1 à 1.100.0 (publié le 9 novembre),
+# et trois contrôles de `tests/dialogue.rs` sont devenus rouges — non pas à cause d'un changement
+# du projet, mais parce que 1.100 range les binaires de contrôle ailleurs. Course 43252972457
+# verte sous 1.99.1, course 43422731892 rouge sous 1.100.0, panne ensuite reproduite à l'identique
+# sur la machine de Christophe avec `cargo +1.100.0`.
+#
+# Une intégration continue qui change d'outil toute seule rend un rouge indéchiffrable : on cherche
+# dans le commit ce qui vient de la plateforme. Ce fichier rend le changement d'outil délibéré, et
+# le fait apparaître dans un diff comme n'importe quelle autre décision.
+#
+# ## Où il est, et pourquoi ici
+#
+# Dans `tools/lienotheque/` et non à la racine du dépôt : rustup cherche ce fichier dans le dossier
+# courant **et ses parents**, donc il couvre aussi bien `pnpm check` lancé d'ici que `cargo` lancé
+# depuis `apps/app/src-tauri/`. Le dépôt est partagé avec d'autres projets, et aucun d'eux n'a à
+# subir le choix de celui-ci.
+#
+# ## Pour en changer
+#
+# On modifie la ligne ci-dessous, on relance les contrôles Rust, et on l'inscrit. Jamais l'inverse.
+[toolchain]
+channel = "1.100.0"
