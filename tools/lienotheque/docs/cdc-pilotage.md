@@ -245,7 +245,7 @@ Avant l'étape 0, le Tesseract embarqué chargeait sept bibliothèques depuis `/
 - [x] l'archive des moteurs est publiée (release `lienotheque-moteurs-macos-arm64-2026-11-09`, `sha256 373005d5…`, 112 Mo, retéléchargée et vérifiée depuis son adresse publique), son empreinte épinglée dans `fixtures/moteurs-de-lecture.json`, et la CI macOS lit avec **le même programme** que l'application (course 42705053655 verte : 33 contrôles réveillés, 0 rouge) ;
 - [x] vérification à l'écran par Christophe, le 10 novembre 2026 (niveau 3), ses mots : « **tout est bon**. Elle s'ouvre, la bibliothèque musicale aussi, Bass Aerobics affiche ses pages et ses liens comme le 5 novembre. »
 
-### Étape 1 — Fin d'A2 : le repli Vision branché
+### Étape 1 — Fin d'A2 : le repli Vision branché *(**finie** le 14 novembre 2026)*
 
 **Le port 2 est passé à l'étape 3**, décision de Christophe du 12 novembre 2026. La raison est
 dans le code : le coordinateur des repères est tenu de **jeter** une valeur non corroborée
@@ -261,7 +261,7 @@ ligne pour une valeur que le code doit écarter, ce qui est très exactement le 
       (`e034963b` et suite) ; cases non relues marquées `relecture_non_faite`, visibles dans
       Vérifier ;
 - [x] mesure sur Bass Aerobics entier, **par la porte**, à blanc, appels tracés, coût rapporté ;
-- [ ] (écriture réelle de la nouvelle version dans la bibliothèque : porte de Christophe, sauvegarde vérifiée, vérification à l'écran.)
+- [x] écriture réelle de la nouvelle version dans la bibliothèque, sur le mot de Christophe (12 novembre 2026, version 4 active), sauvegarde vérifiée (`musique-avant-version-4-20261112-165547`, conservée en place) ; **vérification à l'écran par Christophe le 14 novembre 2026 (niveau 3)**, ses mots : « **tout fonctionne** », sur l'application refabriquée et réinstallée le 14 novembre à 21:17. Le premier regard, le même jour, avait montré une bibliothèque **vide** : le paquet installé datait du 10 novembre et refusait un état écrit le 12. Voir [la décision](decisions/2026-11-14-reinstaller-l-application-avant-d-ecrire-avec-un-code-plus-recent.md) et le lot **0x**, qui en est le remède de fond.
 
 ### Étape 2 — Second déclencheur d'A2 : le texte des pages
 

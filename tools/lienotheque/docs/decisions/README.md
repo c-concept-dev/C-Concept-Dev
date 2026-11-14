@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-14 | L'étape 1 est close : Christophe a vu l'application | [2026-11-14-etape-1-finie-verification-a-l-ecran.md](2026-11-14-etape-1-finie-verification-a-l-ecran.md) |
 | 2026-11-14 | On réinstalle l'application avant d'écrire avec un code plus récent qu'elle | [2026-11-14-reinstaller-l-application-avant-d-ecrire-avec-un-code-plus-recent.md](2026-11-14-reinstaller-l-application-avant-d-ecrire-avec-un-code-plus-recent.md) |
 | 2026-11-14 | L'archive publiée fait foi, et on ne fabrique des moteurs que volontairement | [2026-11-14-l-archive-publiee-fait-foi-pour-les-moteurs.md](2026-11-14-l-archive-publiee-fait-foi-pour-les-moteurs.md) |
 | 2026-11-13 | La version de Rust est fixée, et elle ne change jamais par surprise | [2026-11-13-la-version-de-rust-est-fixee-et-ne-change-jamais-par-surprise.md](2026-11-13-la-version-de-rust-est-fixee-et-ne-change-jamais-par-surprise.md) |
