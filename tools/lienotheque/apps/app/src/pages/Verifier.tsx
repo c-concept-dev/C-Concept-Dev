@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
-import { accorder, nommer, type CasDouteux, type EtatDoute, type NatureDoute, type VueBibliotheque } from "@lienotheque/contrats";
+import { accorder, etatReconnu, nommer, type CasDouteux, type EtatDoute, type EtatDouteLu, type NatureDoute, type VueBibliotheque } from "@lienotheque/contrats";
 import { Bouton, FilAriane, Icone } from "../composants/index.js";
 import type { NomIcone } from "../composants/Icone.js";
 import { useEcoute } from "../ecoute/useEcoute.js";
@@ -56,6 +56,26 @@ const ETATS: Readonly<Record<EtatDoute, { readonly libelle: string; readonly ico
   // cas porte pourquoi (aucun relecteur branché, aucun accord, panne de l'étage appelé).
   relecture_non_faite: { libelle: "Case non relue", icone: "info" },
 };
+
+/** Comment se présente un état, y compris celui que ce paquet ne connaît pas (lot 0x).
+ *
+ *  Une application plus ancienne que les données qu'elle lit rencontre des états qu'elle n'a
+ *  jamais lus. Avant le 14 novembre 2026, le contrat refusait alors la vue entière et l'écran
+ *  n'affichait plus rien, sans dire pourquoi. Il les reçoit désormais marqués non reconnus, et
+ *  c'est ici qu'ils se montrent : nommés comme tels, avec la valeur reçue en toutes lettres,
+ *  plutôt que rangés d'office parmi les états connus ou passés sous silence.
+ *
+ *  Le libellé le dit avec les mots de l'utilisateur, sans jargon : ce qu'il faut qu'il comprenne
+ *  est que la bibliothèque a été écrite par une version plus récente que l'application, et que
+ *  ce cas-là l'attend — pas que quelque chose est cassé. */
+const presentationDe = (etat: EtatDouteLu): { readonly libelle: string; readonly icone: NomIcone } =>
+  etatReconnu(etat)
+    ? ETATS[etat]
+    : { libelle: `Écrit par une version plus récente (${etat.inconnu})`, icone: "info" };
+
+/** La partie du nom de classe qui dit l'état. Un état non reconnu n'a pas de style à lui : il
+ *  prend celui des informations, qui est le bon — il n'attend qu'un œil. */
+const classeDe = (etat: EtatDouteLu): string => (etatReconnu(etat) ? etat : "non-reconnu");
 
 /** Ce dont parle un cas. Un doute porte sur un élément ; une information porte sur ce que son
  *  libellé dit — et ce libellé a été écrit par qui connaît les mots de la bibliothèque. */
@@ -171,7 +191,7 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
                 {/* Une information n'a pas d'élément à montrer : son icône d'état tient la place
                     du numéro, plutôt qu'un cadre vide. */}
                 <span className="ln-planche__apercu" aria-hidden="true">
-                  {c.element === undefined ? <Icone nom={ETATS[c.etat].icone} /> : c.element.numero}
+                  {c.element === undefined ? <Icone nom={presentationDe(c.etat).icone} /> : c.element.numero}
                 </span>
                 <span className="ln-planche__nom">{sujetDe(c, vue.mots)}</span>
                 {c.element === undefined ? null : (
@@ -184,9 +204,9 @@ export function Verifier({ vue, onDecision, onAnnuler, derniere }: Props): JSX.E
                     → {nommer(vue.mots.piste, c.element.media.piste)}
                   </span>
                 )}
-                <span className={`ln-verifier__etiquette ln-verifier__etiquette--${c.etat}`}>
-                  <Icone nom={ETATS[c.etat].icone} />
-                  {ETATS[c.etat].libelle}
+                <span className={`ln-verifier__etiquette ln-verifier__etiquette--${classeDe(c.etat)}`}>
+                  <Icone nom={presentationDe(c.etat).icone} />
+                  {presentationDe(c.etat).libelle}
                 </span>
               </button>
             </li>

@@ -12,7 +12,16 @@ type Props = {
    *  Cet état manquait, et c'est pourquoi l'écran du catalogue montrait l'**accueil** pendant ce
    *  temps-là — un écran juste, mais pas celui qu'on avait demandé. Dire « Vérification de votre
    *  accès… » aurait menti : l'accès est déjà vérifié à ce moment. */
-  readonly etat: "verification" | "ouverture" | "vide";
+  /** `illisible` : la vue existe, mais ce paquet ne sait pas la lire (lot 0x).
+   *
+   *  Ce cas se présentait comme `ouverture` — « Ouverture de la bibliothèque… » —, c'est-à-dire
+   *  comme une attente qui ne finissait jamais. Une panne de lecture et une attente ne disent
+   *  pas la même chose, pas plus que l'attente et la bibliothèque vide : c'est la même leçon,
+   *  une couche plus bas. */
+  readonly etat: "verification" | "ouverture" | "vide" | "illisible";
+  /** La cause, en toutes lettres, quand l'état est `illisible`. Écrite par qui la connaît ; cet
+   *  écran ne la recompose pas. */
+  readonly cause?: string | undefined;
 };
 
 /** La bibliothèque en ligne n'a encore rien de publié.
@@ -35,7 +44,7 @@ type Props = {
  *  s'affichait avant et après la réponse. Christophe ne pouvait donc pas distinguer « encore en
  *  train de vérifier » de « déjà entré, rien de publié ». On ne certifie l'entrée qu'après la
  *  réponse du service ; avant elle, l'écran dit seulement qu'il vérifie. */
-export function RienAMontrer({ theme, etat }: Props): JSX.Element {
+export function RienAMontrer({ theme, etat, cause }: Props): JSX.Element {
   const logo = theme === "light" ? logoClair : logoSombre;
   return (
     <main id="contenu" className="ln-layout ln-premier" tabIndex={-1}>
@@ -50,7 +59,9 @@ export function RienAMontrer({ theme, etat }: Props): JSX.Element {
             ? "Vérification de votre accès…"
             : etat === "ouverture"
               ? "Ouverture de la bibliothèque…"
-              : "Vous êtes bien entré. Cette bibliothèque n’a encore rien à montrer : aucun document n’y a été publié."}
+              : etat === "illisible"
+                ? (cause ?? "Ce document n’a pas pu être lu par cette application.")
+                : "Vous êtes bien entré. Cette bibliothèque n’a encore rien à montrer : aucun document n’y a été publié."}
         </p>
       </div>
     </main>

@@ -35,6 +35,13 @@ type Props = {
   readonly premierePageTexte?: number | undefined;
   /** Le document demandé mais pas encore reçu. L'ancienne vue ne doit jamais se faire passer pour lui. */
   readonly chargementDocument?: string | undefined;
+  /** Pourquoi la vue de ce document n'a pas pu être lue, en toutes lettres (lot 0x).
+   *
+   *  Sans cette propriété, l'écran recevait une vue vide et n'avait rien à dire : il montrait le
+   *  panneau « aucune page choisie », qui parle de la bibliothèque, là où la vraie cause était un
+   *  paquet plus ancien que les données. Une panne de lecture et un document sans page ne se
+   *  présentent pas de la même façon — le § 3.5 l'exige des pages, et c'est vrai ici aussi. */
+  readonly echecDeLecture?: string | undefined;
   /** Ajouter est un geste du bureau. La façade en ligne ne l'affiche pas puisqu'elle ne peut
    *  ni choisir un fichier local ni écrire dans la bibliothèque publiée. */
   readonly onAjouter?: (() => void) | undefined;
@@ -92,6 +99,7 @@ export function Catalogue({
   texteLu = false,
   premierePageTexte,
   chargementDocument,
+  echecDeLecture,
   onAjouter,
   onDoublons,
   schema,
@@ -500,7 +508,11 @@ export function Catalogue({
         </div>
 
         <div className="ln-catalogue__pages-colonne">
-          {chargementDocument === undefined ? (
+          {echecDeLecture !== undefined ? (
+            <section className="ln-catalogue__chargement ln-panneau" role="alert">
+              {echecDeLecture}
+            </section>
+          ) : chargementDocument === undefined ? (
             <section className="ln-catalogue__liste" aria-labelledby="titre-pages">
           <div className="ln-catalogue__barre ln-panneau-titre">
             <h2 id="titre-pages" className="ln-catalogue__sous-titre">
@@ -597,7 +609,7 @@ export function Catalogue({
             </section>
           )}
 
-          {chargementDocument === undefined ? (
+          {chargementDocument === undefined && echecDeLecture === undefined ? (
             <aside className="ln-detail ln-panneau" aria-label={`Détail — ${nommer(vue.mots.page, detail?.numero ?? "")}`}>
           {detail === undefined ? (
             texteLu ? <p>Le texte de ce document est disponible dans le Lecteur.</p> : <p>Aucun résultat dans cette bibliothèque.</p>

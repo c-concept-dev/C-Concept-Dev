@@ -42,6 +42,7 @@ import { Recherche } from "./pages/Recherche.js";
 import { ManiereDeLire, type Essai } from "./pages/ManiereDeLire.js";
 import { Prototype } from "./pages/Prototype.js";
 import { chargerModeles } from "./donnees/modeles.js";
+import { causeDeLEchec } from "./donnees/echec-de-lecture.js";
 import { pontDAdministration, pontDeLecture } from "./pont/choix.js";
 import type { EtatApplicationEmbarquee } from "./pont/port.js";
 import { PasIdentifie } from "./pont/ligne.js";
@@ -106,6 +107,10 @@ export function App(): JSX.Element {
   const [passages, setPassages] = useState<readonly Passage[]>([]);
   /** Document demandé mais pas encore reçu : l'ancienne vue est masquée pendant cette attente. */
   const [chargementDocument, setChargementDocument] = useState<string | undefined>(undefined);
+  /** Pourquoi la vue du document regardé n'a pas pu être lue (lot 0x). Séparé de
+   *  `echecOuverture`, qui parle de la bibliothèque : une version illisible n'empêche pas la
+   *  bibliothèque de s'ouvrir, et confondre les deux ferait disparaître l'écran entier. */
+  const [echecDeLecture, setEchecDeLecture] = useState<string | undefined>(undefined);
   // Le classement de chaque document de la bibliothèque, lu d'un coup : les filtres
   // comptent dessus, et les demander un par un vaudrait autant d'allers-retours.
   const [classements, setClassements] = useState<ReadonlyMap<string, ClassementLocal>>(new Map());
@@ -622,6 +627,7 @@ export function App(): JSX.Element {
     setImagesDePages(new Map());
     setVersionRegardee(undefined);
     setRotationsManuelles(new Map());
+    setEchecDeLecture(undefined);
     setChargementDocument(documents.find((document) => document.empreinte === regarde)?.nom ?? "ce document");
     // Les deux ensemble, mais pas mêlées : la vue porte les repères, les passages portent le
     // texte. La recherche les reçoit séparément et n'en recopie aucun dans l'autre.
@@ -667,12 +673,17 @@ export function App(): JSX.Element {
         } else setVue(undefined);
         setChargementDocument(undefined);
       })
-      .catch(() => {
-        // Un document sans version active n'a rien à montrer, et ce n'est pas une panne.
+      .catch((souci: unknown) => {
+        // Un document sans version active est traité plus haut, par `lue === undefined` : ce
+        // n'est pas une panne, et ce n'est donc pas ici. Ce qui arrive ici EST une panne, et la
+        // taire est ce qui a rendu une bibliothèque entière invisible le 14 novembre 2026 : le
+        // paquet du 10 refusait un état écrit le 12, et l'écran montrait le vide sans un mot.
+        // On nomme donc la cause, et on ne la confond pas avec « ce document n'a rien ».
         if (!vivant) return;
         setVue(undefined);
         setPassages([]);
         setChargementDocument(undefined);
+        setEchecDeLecture(causeDeLEchec(souci));
       });
     return () => {
       vivant = false;
@@ -1237,7 +1248,18 @@ export function App(): JSX.Element {
       // celui qu'on avait demandé : qui tape `#catalogue` se retrouvait à l'accueil sans qu'un
       // mot l'explique.
       return vueDuCatalogue === undefined ? (
-        documents.length > 0 ? <RienAMontrer theme={theme} etat="ouverture" /> : sansRienAMontrer()
+        // Une lecture qui a échoué n'est pas une ouverture en cours : sans ce premier test, elle
+        // s'affichait comme « Ouverture de la bibliothèque… », c'est-à-dire comme une attente
+        // qui ne finit jamais. C'est l'autre moitié du silence du 14 novembre 2026 — la vue de
+        // repli du catalogue n'existe qu'au bureau, donc en ligne le message n'avait aucun
+        // chemin par lequel paraître.
+        echecDeLecture !== undefined ? (
+          <RienAMontrer theme={theme} etat="illisible" cause={echecDeLecture} />
+        ) : documents.length > 0 ? (
+          <RienAMontrer theme={theme} etat="ouverture" />
+        ) : (
+          sansRienAMontrer()
+        )
       ) : (
         <Catalogue
           vue={vueDuCatalogue}
@@ -1245,6 +1267,7 @@ export function App(): JSX.Element {
           texteLu={passages.length > 0}
           {...(passages[0] === undefined ? {} : { premierePageTexte: passages[0].page })}
           {...(chargementDocument === undefined ? {} : { chargementDocument })}
+          {...(echecDeLecture === undefined ? {} : { echecDeLecture })}
           {...(derniere?.description.schema === undefined ? {} : { schema: derniere.description.schema })}
           {...(regarde === undefined ? {} : { empreinte: regarde })}
           {...(regarde === undefined || classements.get(regarde) === undefined

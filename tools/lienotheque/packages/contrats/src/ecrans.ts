@@ -160,11 +160,39 @@ export const EtatDoute = z.enum([
 ]);
 export type EtatDoute = z.infer<typeof EtatDoute>;
 
+/** Un état **lu du dépôt** : soit l'un de ceux que ce contrat connaît, soit conservé tel quel,
+ *  marqué comme non reconnu.
+ *
+ *  Pourquoi cette tolérance, et pourquoi elle est étroite (lot 0x, 14 novembre 2026). Le 12
+ *  novembre, la chaîne a écrit une version portant `relecture_non_faite`, état ajouté ici le même
+ *  jour. L'application installée datait du 10 : son `EtatDoute` ignorait ce mot, l'énumération a
+ *  refusé la **vue entière**, et 116 pages ont disparu de l'écran — remplacées par une
+ *  bibliothèque qui se présentait comme vide, sans rien dire de la cause.
+ *
+ *  Un contrat qui refuse tout ce qu'il ne connaît pas transforme donc chaque état nouveau en
+ *  cécité, et une cécité muette. **HER-06** dit l'inverse : « toute valeur existante conservée,
+ *  même hors liste ». Le **§ 3.5** du cahier dit le reste : l'abstention dit toujours sa vraie
+ *  cause, et « je n'ai pas fini de regarder » ne s'affiche jamais comme « rien ne numérote ».
+ *
+ *  Ce que la tolérance ne fait **pas** : ranger l'inconnu parmi les connus. La valeur reçue reste
+ *  lisible et se distingue par sa forme — une chaîne pour un état connu, un objet `{ inconnu }`
+ *  sinon —, pour qu'un écran ne puisse pas la confondre avec un état qu'il sait nommer. Et ce qui
+ *  n'est pas un état du tout reste refusé : un nombre, un objet, le vide. */
+export const EtatDouteLu = z.union([
+  EtatDoute,
+  z.string().min(1).transform((brut): { readonly inconnu: string } => ({ inconnu: brut })),
+]);
+export type EtatDouteLu = z.infer<typeof EtatDouteLu>;
+
+/** Vrai quand l'état est l'un de ceux que ce contrat sait nommer. La forme suffit à décider : un
+ *  état connu est une chaîne, un état non reconnu est l'objet qui le porte. */
+export const etatReconnu = (etat: EtatDouteLu): etat is EtatDoute => typeof etat === "string";
+
 export const CasDouteux = z
   .object({
     id: Identifiant,
     nature: NatureDoute,
-    etat: EtatDoute,
+    etat: EtatDouteLu,
     /** L'élément concerné, quand le cas en a un. Une information n'en a pas : une page absente
      *  n'a justement rien porté, et un média orphelin n'est réclamé par personne. */
     element: ElementAffiche.optional(),

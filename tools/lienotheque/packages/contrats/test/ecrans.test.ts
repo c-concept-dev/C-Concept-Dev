@@ -98,7 +98,28 @@ describe("cas douteux (UX-03, SYN-04, SYN-05)", () => {
   it("connaît le conflit entre appareils et le rattachement après recalcul", () => {
     for (const etat of ["conflit_appareils", "a_rattacher", "segment_inconnu"])
       expect(CasDouteux.safeParse({ ...cas, etat }).success, etat).toBe(true);
-    expect(CasDouteux.safeParse({ ...cas, etat: "bizarre" }).success).toBe(false);
+  });
+
+  /** **Ce contrôle a changé de sens le 14 novembre 2026 (lot 0x), et c'est volontaire.**
+   *
+   *  Il exigeait auparavant qu'un état hors liste soit **refusé** : `etat: "bizarre"` devait
+   *  faire échouer la lecture. Cette exigence était défendable sur le papier et désastreuse à
+   *  l'usage — un refus porte sur la **vue entière**, donc une application plus ancienne que les
+   *  données perdait ses pages et ses liens pour un seul mot, sans rien en dire. C'est arrivé,
+   *  mesuré : 116 pages absentes de l'écran.
+   *
+   *  Ce qui reste exigé, et qui est la vraie garantie : un état hors liste n'est **jamais pris
+   *  pour un état connu**. La forme l'en distingue — une chaîne pour un connu, `{ inconnu }`
+   *  sinon —, de sorte qu'aucun écran ne peut le confondre avec l'un des onze qu'il sait nommer.
+   *  C'est HER-06 : « toute valeur existante conservée, même hors liste ». */
+  it("lit un état hors liste sans jamais le prendre pour un des siens (lot 0x, HER-06)", () => {
+    const lu = CasDouteux.safeParse({ ...cas, etat: "bizarre" });
+
+    expect(lu.success).toBe(true);
+    expect(lu.success && lu.data.etat).toEqual({ inconnu: "bizarre" });
+    // Et ce qui n'est pas un état du tout reste refusé : la tolérance ne vaut que pour un mot.
+    expect(CasDouteux.safeParse({ ...cas, etat: "" }).success).toBe(false);
+    expect(CasDouteux.safeParse({ ...cas, etat: 7 }).success).toBe(false);
   });
 
   /** A2 — une case que la relecture n'a pas rendue est un FAIT à connaître, pas un silence.
