@@ -33,6 +33,9 @@ import {
 import {
   attribuerPistes,
   borneDuVivier,
+  RAISONS_D_ABSTENTION,
+  type BorneDuVivier,
+  type RaisonAbstention,
   corroborationDesLignes,
   lireDansLaFenetre,
   lireLeNombreEcrit,
@@ -100,6 +103,97 @@ import { ocrDUnePageGrise } from "./texte.js";
  *  document déjà vu peut désormais publier des liens que sa première lecture laissait à
  *  vérifier ; garder l'acquis de l'ancienne voie reviendrait à lui refuser cette relecture
  *  pour la seule raison qu'on l'a déjà lu sans elle. */
+/** Les faits sur lesquels se décide la cause d'une abstention. Rien de plus que ce qui sert :
+ *  un fait de moins et la préséance devient indécidable, un de plus et elle devient opaque.
+ *
+ *  `disponibles` compte les enregistrements **présents**, `interpretes` ceux dont le nom porte un
+ *  numéro lisible. Les deux comptes sont distincts, et les confondre égare — c'est écrit plus bas,
+ *  là où ils sont établis. */
+export type FaitsDeLAbstention = {
+  readonly disponibles: number;
+  readonly interpretes: number;
+  readonly borne: BorneDuVivier;
+  readonly explorationInterrompue: boolean;
+  readonly aucuneMarqueNeTient: boolean;
+};
+
+/** **La préséance des causes d'abstention, en donnée et dans l'ordre** (dette D3, 15 novembre
+ *  2026).
+ *
+ *  ## Ce qu'elle remplace, et pourquoi une liste plutôt qu'une cascade
+ *
+ *  Cette préséance était une suite de conditions imbriquées, écrite à l'intérieur d'une seule
+ *  branche. Elle était juste pour cinq causes et **muette sur une sixième** : `vivier_non_borne`
+ *  n'y figurait pas. Pendant ce temps, `qualifierAssociation` — l'autre branche de la même
+ *  fonction, celle où des repères ont été lus — la décidait **avant tout le reste**. Le même
+ *  document, selon qu'une ligne avait été lue ou non, recevait donc deux causes différentes pour
+ *  un vivier exactement aussi peu borné ; et la cause rendue sans elle était la moins
+ *  informative des deux.
+ *
+ *  Une cascade ne se parcourt pas : on ne peut lui demander « quelles causes places-tu ? ». Cette
+ *  liste, oui — d'où les deux garde-fous qui tiennent la dette fermée : l'un vérifie qu'aucune
+ *  cause déclarée n'y manque, l'autre qu'aucune ne se décide ailleurs dans ce fichier.
+ *
+ *  ## L'ordre, et ce qui le justifie rung par rung
+ *
+ *  1. **`aucun_media`** passe en tête, et c'est le seul endroit où cette préséance diffère
+ *     volontairement de `qualifierAssociation` : celle-ci n'a pas ce rung. Sans aucun
+ *     enregistrement présenté, un vivier non borné est vrai mais inutile — `borneDuVivier` le dit
+ *     elle-même, « il n'y a rien à trier, seulement un dépôt à refaire ».
+ *  2. **`vivier_non_borne`** ensuite, et avant tout jugement, pour la raison que
+ *     `qualifierAssociation` donne en propres termes : « un score calculé dans un vivier qui
+ *     déborde le document ne vaut rien, aussi régulier soit-il ».
+ *  3. **`medias_non_interpretes`** : ils sont là, bornés, et aucun nom ne porte de numéro lisible.
+ *  4. **`exploration_interrompue`** avant « aucun repère lu », parce qu'elle **explique** ce
+ *     silence au lieu de le constater : « je n'ai pas fini de regarder » appelle une relance,
+ *     « rien ne numérote » appelle autre chose.
+ *  5. **`aucune_marque_ne_tient`** avant « aucun repère lu » aussi, parce qu'elle en dit plus :
+ *     on a trouvé, on a lu en entier, et c'est la relecture qui a démenti l'échantillon.
+ *  6. **`aucun_repere_lu`** en dernier, sans condition : c'est le constat qui reste quand aucune
+ *     explication ne s'applique, et il ne doit jamais tenir la place d'une explication. */
+export const PRESEANCE_DES_CAUSES: readonly {
+  readonly raison: RaisonAbstention;
+  /** Quand cette cause s'applique. Absent sur le dernier rung, qui est le constat par défaut. */
+  readonly quand?: (faits: FaitsDeLAbstention) => boolean;
+  /** La phrase à rendre, quand la cause en porte une qui dit déjà quoi faire. */
+  readonly pourquoi?: (faits: FaitsDeLAbstention) => string | undefined;
+  /** Renseigné quand la cause n'est PAS décidée ici : dit qui la décide. Une cause ainsi nommée
+   *  compte comme placée pour le garde-fou, sans pour autant entrer dans l'ordre ci-dessus. */
+  readonly decideeAilleurs?: string;
+}[] = [
+  { raison: "aucun_media", quand: (faits) => faits.disponibles === 0 },
+  {
+    raison: "vivier_non_borne",
+    quand: (faits) => !faits.borne.bornee,
+    // La phrase de la borne, telle qu'elle l'a écrite : elle dit quoi faire, et la recomposer ici
+    // la ferait vieillir à côté de son auteur.
+    pourquoi: (faits) => faits.borne.pourquoi,
+  },
+  { raison: "medias_non_interpretes", quand: (faits) => faits.interpretes === 0 },
+  { raison: "exploration_interrompue", quand: (faits) => faits.explorationInterrompue },
+  { raison: "aucune_marque_ne_tient", quand: (faits) => faits.aucuneMarqueNeTient },
+  { raison: "aucun_repere_lu" },
+  {
+    raison: "corroboration_insuffisante",
+    decideeAilleurs: "la confrontation des façons de savoir, dans qualifierAssociation : une seule façon de savoir appuie les liens.",
+  },
+];
+
+/** La cause de l'abstention, décidée par la préséance et par elle seule. */
+export function causeDeLAbstention(faits: FaitsDeLAbstention): {
+  readonly raison: RaisonAbstention;
+  readonly pourquoi?: string;
+} {
+  for (const rung of PRESEANCE_DES_CAUSES) {
+    if (rung.decideeAilleurs !== undefined) continue;
+    if (rung.quand !== undefined && !rung.quand(faits)) continue;
+    const pourquoi = rung.pourquoi?.(faits);
+    return pourquoi === undefined ? { raison: rung.raison } : { raison: rung.raison, pourquoi };
+  }
+  // Inatteignable : le dernier rung est sans condition, et un garde-fou vérifie qu'il y en a un.
+  throw new Error("Aucune cause d'abstention ne s'applique, ce qui ne devrait pas pouvoir arriver.");
+}
+
 export const ID_DE_LA_VOIE = "voie-sans-maniere-de-lire";
 export const VERSION_DE_LA_VOIE = 4;
 const LA_VOIE = { id: ID_DE_LA_VOIE, version: VERSION_DE_LA_VOIE } as const;
@@ -1811,6 +1905,14 @@ async function sansLien(
       ...(acquis === undefined ? {} : { acquis }),
     };
   }
+  const cause = causeDeLAbstention({
+    disponibles,
+    interpretes: medias.length,
+    borne: borneDuVivier(options.provenancesMedias ?? [], options.inventaireMedias ?? medias.map(() => ({}))),
+    explorationInterrompue,
+    aucuneMarqueNeTient,
+  });
+  const laPhrase = cause.pourquoi ?? pourquoi;
   return {
     resultat: {
       recette: LA_VOIE,
@@ -1830,24 +1932,17 @@ async function sansLien(
       // faux — les enregistrements n'y sont pour rien, la lecture n'a trouvé aucun repère ; dans
       // le second il n'y a pas de média du tout. Qui lit ne pouvait pas savoir s'il devait
       // déposer des enregistrements ou changer de manière de lire.
+      //
+      // Cette distinction vit désormais dans `PRESEANCE_DES_CAUSES`, avec les cinq autres, et non
+      // plus dans une cascade écrite ici (dette D3, 15 novembre 2026). Ce qui manquait à la
+      // cascade était la **borne du vivier** : elle n'était même pas calculée dans cette branche,
+      // alors que l'autre branche de cette fonction la demandait avant tout le reste.
       abstention: {
-        raison:
-          disponibles === 0
-            ? "aucun_media"
-            : medias.length === 0
-              ? "medias_non_interpretes"
-              // L'ordre compte. Une exploration arrêtée se dit AVANT « aucun repère lu », parce
-              // qu'elle EXPLIQUE ce silence au lieu de le constater : « je n'ai pas fini de
-              // regarder » appelle une relance, « rien ne numérote » appelle autre chose.
-              : explorationInterrompue
-                ? "exploration_interrompue"
-                : // Avant « aucun repère lu », parce qu'elle en dit plus : on a trouvé, on a lu
-                  // en entier, et c'est la relecture qui a démenti l'échantillon.
-                  aucuneMarqueNeTient
-                  ? "aucune_marque_ne_tient"
-                  : "aucun_repere_lu",
+        raison: cause.raison,
         combien: disponibles,
-        pourquoi,
+        // La phrase de la cause, quand elle en porte une, passe devant le résumé général : une
+        // cause qui sait dire quoi faire le dit mieux qu'un récit de ce qui a été tenté.
+        ...(laPhrase === undefined ? {} : { pourquoi: laPhrase }),
       },
     },
     medias,

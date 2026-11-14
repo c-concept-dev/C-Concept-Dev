@@ -32,6 +32,57 @@ export type Appariement = {
   readonly statut: "auto" | "a_verifier";
 };
 
+/** Toutes les causes d'abstention, **en donnée** et non en type seul.
+ *
+ *  Pourquoi une liste littérale (dette D3, 15 novembre 2026). Une cause peut disparaître de deux
+ *  façons : manquer à la préséance qui les ordonne, ou se décider à côté d'elle. C'est la première
+ *  qui a produit cette dette — `vivier_non_borne` n'était nulle part dans la cascade de la voie,
+ *  pendant que `qualifierAssociation` la décidait avant tout le reste, de sorte que le **même
+ *  document** recevait deux causes différentes selon qu'une ligne avait été lue ou non.
+ *
+ *  Une union de types ne se parcourt pas à l'exécution : aucun contrôle ne pouvait donc demander
+ *  « sont-elles toutes placées ? ». Déclarée ici en donnée, la liste rend cette question
+ *  mécanique, et une cause ajoutée sans être placée fait échouer un contrôle au lieu de produire
+ *  une phrase fausse à l'écran.
+ *
+ *  **L'ordre de cette liste ne signifie rien** : c'est un inventaire, pas une préséance. La
+ *  préséance vit dans `PRESEANCE_DES_CAUSES`, là où les causes sont décidées. */
+export const RAISONS_D_ABSTENTION = [
+  // Le vivier est vide : rien à relier, et rien à explorer non plus.
+  "aucun_media",
+  // La lecture n'a trouvé aucun repère. Les enregistrements n'y sont pour rien.
+  "aucun_repere_lu",
+  // L'exploration s'est arrêtée faute de budget, SANS avoir tout essayé. Distinct de
+  // « aucun repère lu », qui dit qu'on a regardé partout et que rien ne numérote : ici on
+  // n'a pas fini de regarder, et cela n'appelle pas le même geste — relancer la lecture
+  // peut suffire, alors qu'une absence de numérotation demande autre chose.
+  //
+  // Sans cette raison, l'écran disait « rien ne numérote » d'un document dont on n'avait vu
+  // qu'une part : une affirmation plus forte que ce que la lecture permettait.
+  //
+  // Mesuré le 7 novembre 2026 : une machine privée de processeur a fait dépenser à la voie ses
+  // 65 minutes de budget, et l'abstention a dit « aucun repère lu » là où la vérité était
+  // « budget épuisé ». Qui lit l'écran aurait changé de manière de lire pour rien.
+  "exploration_interrompue",
+  // Des endroits ont été élus, relus EN ENTIER, et aucun n'a tenu au rejugement. Distinct
+  // d'« aucun repère lu », qui dit qu'on n'a rien trouvé : ici on a trouvé, lu, et la
+  // relecture complète a démenti ce que l'échantillon promettait. Qui lit l'écran doit
+  // pouvoir le savoir, parce que cela dit quelque chose du document — ses marques sont
+  // trop peu nombreuses ou trop bruitées pour être tenues — et non de la lecture.
+  "aucune_marque_ne_tient",
+  // Des enregistrements sont là, lus, et cette manière de lire n'en fait rien.
+  "medias_non_interpretes",
+  // Rien ne permet d'affirmer que les enregistrements présentés appartiennent à ce document :
+  // sa provenance est inconnue, ou certains viennent d'ailleurs. Un score calculé dans un tel
+  // vivier ne vaut rien, aussi régulier soit-il — d'où sa place très haut dans la préséance.
+  "vivier_non_borne",
+  // Une seule façon de savoir appuie ces liens. Décidée par la confrontation, jamais par la voie
+  // qui lit : c'est pourquoi la préséance la nomme comme décidée ailleurs plutôt que de la ranger
+  // parmi les siennes.
+  "corroboration_insuffisante",
+] as const;
+export type RaisonAbstention = (typeof RAISONS_D_ABSTENTION)[number];
+
 export type Association = {
   readonly appariements: readonly Appariement[];
   /** Médias qu'aucun élément ne réclame : à signaler, jamais à rattacher au hasard. */
@@ -41,33 +92,9 @@ export type Association = {
   /** Le lot entier ne permet pas d'appliquer honnêtement cette manière de lire. Les lectures
    *  brutes restent disponibles pour le diagnostic, mais rien n'est présenté comme acquis. */
   readonly abstention?: {
-    readonly raison:
-      // Le vivier est vide : rien à relier, et rien à explorer non plus.
-      | "aucun_media"
-      // La lecture n'a trouvé aucun repère. Les enregistrements n'y sont pour rien.
-      | "aucun_repere_lu"
-      // L'exploration s'est arrêtée faute de budget, SANS avoir tout essayé. Distinct de
-      // « aucun repère lu », qui dit qu'on a regardé partout et que rien ne numérote : ici on
-      // n'a pas fini de regarder, et cela n'appelle pas le même geste — relancer la lecture
-      // peut suffire, alors qu'une absence de numérotation demande autre chose.
-      //
-      // Sans cette raison, l'écran disait « rien ne numérote » d'un document dont on n'avait vu
-      // qu'une part : une affirmation plus forte que ce que la lecture permettait.
-      //
-      // Mesuré le 7 novembre 2026 : une machine privée de processeur a fait dépenser à la voie ses
-      // 65 minutes de budget, et l'abstention a dit « aucun repère lu » là où la vérité était
-      // « budget épuisé ». Qui lit l'écran aurait changé de manière de lire pour rien.
-      | "exploration_interrompue"
-      // Des endroits ont été élus, relus EN ENTIER, et aucun n'a tenu au rejugement. Distinct
-      // d'« aucun repère lu », qui dit qu'on n'a rien trouvé : ici on a trouvé, lu, et la
-      // relecture complète a démenti ce que l'échantillon promettait. Qui lit l'écran doit
-      // pouvoir le savoir, parce que cela dit quelque chose du document — ses marques sont
-      // trop peu nombreuses ou trop bruitées pour être tenues — et non de la lecture.
-      | "aucune_marque_ne_tient"
-      // Des enregistrements sont là, lus, et cette manière de lire n'en fait rien.
-      | "medias_non_interpretes"
-      | "vivier_non_borne"
-      | "corroboration_insuffisante";
+    /** Laquelle, et pourquoi chacune : voir `RAISONS_D_ABSTENTION`, qui les porte toutes avec
+     *  leur raison d'être. */
+    readonly raison: RaisonAbstention;
     readonly combien: number;
     /** De quoi l'écrire en clair à qui lit l'écran, sans que l'écran ait à le deviner. */
     readonly pourquoi?: string;
