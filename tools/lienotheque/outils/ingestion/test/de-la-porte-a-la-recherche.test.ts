@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Passage, VueBibliotheque } from "@lienotheque/contrats";
 import { chercher } from "@lienotheque/noyau";
+import { tesseractDisponible } from "@lienotheque/lecteur-texte";
 import { chargeOuEchec, demandeDeTraitement, executerTravail } from "../src/index.js";
 
 /** De la porte à la recherche, par le chemin que l'application emprunte vraiment (RCH-07, BAS-02)
@@ -45,7 +46,14 @@ import { chargeOuEchec, demandeDeTraitement, executerTravail } from "../src/inde
 
 const RACINE = join(import.meta.dirname, "../../..");
 const NATIF = join(RACINE, "fixtures/fichiers/500-pages.pdf");
-const siNatif = existsSync(NATIF) ? it : it.skip;
+/** Deux conditions, et chacune a sa raison.
+ *
+ *  La fixture est privée, donc absente d'un clone : sans elle, rien à lire. Et ces
+ *  contrôles franchissent la Porte avec un document **numérisé**, donc atteignent
+ *  réellement la reconnaissance — mesuré le 14 novembre 2026 en rendant Tesseract
+ *  indisponible : ils tombent tous, sur « Command failed: tesseract ». Sauter est plus
+ *  honnête qu'un rouge qui ne dit rien du produit (lot 0q). */
+const siNatif = existsSync(NATIF) && tesseractDisponible() ? it : it.skip;
 
 let dossier = "";
 

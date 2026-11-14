@@ -1,0 +1,101 @@
+{
+  "description": "Les fichiers de contrôle qui PEUVENT atteindre la reconnaissance — le graphe des appels le dit — et dont la survie à son absence a été MESURÉE. Donnée, pas du code : le garde-fou `packages/banc/test/garde-tesseract.test.ts` la lit et refuse tout contrôle qui peut atteindre la reconnaissance sans porter la garde `tesseractDisponible()`, sans être épinglé pour l'absence de l'outil, et sans figurer ici. L'empreinte est celle du fichier AU MOMENT DE LA MESURE : un contrôle modifié depuis voit sa mesure périmer, et le garde-fou le refuse jusqu'à nouvelle mesure. C'est le même idiome que le gel de l'archive — une vérité mesurée ne vaut que pour les octets mesurés.",
+  "pourquoi_cette_liste_existe": "Un appel possible n'est pas un appel fait. Lire le code suffit à trouver les candidats, jamais à dire si le chemin est parcouru : sur les seize fichiers que le graphe désigne, treize passent sans Tesseract. Exiger la garde des seize aurait fait sauter une soixantaine de contrôles sur Ubuntu, où ils passent et prouvent quelque chose. Christophe l'avait nommé en posant le lot 0q : « c'est le chemin réellement exécuté qui compte ».",
+  "methode": "Un faux `tesseract` placé en tête du PATH, qui écrit sur la sortie d'erreur et sort en 127 — ce qu'un binaire absent produit pour `execFileSync`, et ce qui fait rendre `false` à `tesseractDisponible`. Puis chaque fichier relancé seul, `pnpm exec vitest run <fichier>`, et son code de sortie relevé. Un fichier qui passe est inscrit ici ; un fichier qui tombe reçoit la garde.",
+  "mesure_le": "2026-11-14",
+  "mesure_ou": "macOS Tahoe 26.3 Apple Silicon, dépôt complet, fixtures privées présentes",
+  "si_une_empreinte_ne_correspond_pas": "Le garde-fou doit REFUSER, pas s'adapter : le contrôle a changé depuis sa mesure, et rien ne dit que le chemin parcouru est le même. Refaire la mesure par la méthode ci-dessus, puis relever la nouvelle empreinte — jamais la recopier sans avoir relancé le contrôle.",
+  "controles": [
+    {
+      "chemin": "outils/ingestion/test/aebersold-002-corpus.test.ts",
+      "empreinte_sha256": "5de95e9725c989f1060305cea017cfeb85b2096f4463119056522e5c030828bd",
+      "octets": 1655,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Franchit la chaîne avec un corpus dont la couche de texte est native : l'export de pages n'appelle pas la reconnaissance."
+    },
+    {
+      "chemin": "outils/ingestion/test/format-non-lu.test.ts",
+      "empreinte_sha256": "d809cd2921dab5494636bae42b3aedc1154a8bacfb9ad07edf0d246b93c28c6c",
+      "octets": 6975,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Éprouve le refus d'un format que la chaîne ne lit pas : elle s'arrête avant toute lecture de page."
+    },
+    {
+      "chemin": "outils/ingestion/test/la-chaine-relit-les-cases.test.ts",
+      "empreinte_sha256": "de5cd63e5f580a29c7231bceff2ee09c6a85895f7442664709a8520315a0523a",
+      "octets": 7952,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Le relecteur y est fourni par le contrôle ; la chaîne ne descend pas jusqu'à la reconnaissance."
+    },
+    {
+      "chemin": "outils/ingestion/test/la-page-redressee-s-affiche-droite.test.ts",
+      "empreinte_sha256": "f39a2fc7b4d1c5bd96070078895eab90a8dc070b1eb7a920d29aa2a8e65d9633",
+      "octets": 5128,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Le redressement s'y éprouve sur l'image, et l'orientation par Tesseract est absorbée par l'appelant, qui rend « sens inconnu » sans lever."
+    },
+    {
+      "chemin": "outils/ingestion/test/lot-resilient.test.ts",
+      "empreinte_sha256": "e61d731179e1500b02d87464b3e86779face5114b19d5ba5c44bbe70deeea65c",
+      "octets": 14332,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Éprouve la reprise d'un lot interrompu sur des documents natifs : aucune page n'est océrisée."
+    },
+    {
+      "chemin": "outils/ingestion/test/pages-images-vide.test.ts",
+      "empreinte_sha256": "20000367cc09521d6db12a39ff2e911429466ba538c22e512860d1c355e45b3c",
+      "octets": 5306,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Éprouve un document sans page exportable : la chaîne s'arrête avant la lecture."
+    },
+    {
+      "chemin": "outils/ingestion/test/processus.test.ts",
+      "empreinte_sha256": "aa89abc57a0362d86be842ecf84d5ca630e03448d9527444b187bc2ea32324d9",
+      "octets": 5082,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Éprouve la boucle de messages et les échanges du processus, jamais une lecture de page."
+    },
+    {
+      "chemin": "outils/ingestion/test/vignettes.test.ts",
+      "empreinte_sha256": "6195a5d220c66bcc2485a35198425a5af9a982ea3175ec7c5ffcd04e59478b6f",
+      "octets": 3865,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Éprouve la production des vignettes à partir des images : la reconnaissance n'y entre pas."
+    },
+    {
+      "chemin": "outils/lecteur-texte/test/delai-ocr.test.ts",
+      "empreinte_sha256": "5c659879c0055c4abc803ecfc45e6cedec3af006d4a2388d6d810d2a3f1c200e",
+      "octets": 3625,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Lance son PROPRE binaire d'essai, un dormeur, pour éprouver le délai : Tesseract n'est jamais appelé."
+    },
+    {
+      "chemin": "outils/lecteur-texte/test/ocr-en-lot.test.ts",
+      "empreinte_sha256": "856b40947f506507d963f3e8d9290ad022e59acdfadc2f8805e89f4b67844150",
+      "octets": 10474,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Lance ses propres binaires d'essai — un groupeur, un qui refuse les listes — pour éprouver l'appel groupé et sa reprise."
+    },
+    {
+      "chemin": "outils/recettes/test/ocr-en-lot-du-lecteur.test.ts",
+      "empreinte_sha256": "b8bc776f59e932401426e7738a89bdbd8d7700f7bfc0174ca0f29944e74d1a12",
+      "octets": 4519,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Lance son propre binaire d'essai, un compteur, pour vérifier que la lecture groupée n'appelle l'outil qu'une fois."
+    },
+    {
+      "chemin": "outils/redresseur/test/redresseur.test.ts",
+      "empreinte_sha256": "478017b6960cb7144cdd8d75ad25041f9ba2fc99f3231b144a64047df8a71fe5",
+      "octets": 9132,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "L'orientation par Tesseract est lancée dans une fermeture que son appelant enveloppe d'un rattrapage : sans l'outil, elle rend « sens inconnu » et le redressement se rabat sur la forme et la lecture."
+    },
+    {
+      "chemin": "outils/vision/test/diagnostic-structurel.test.ts",
+      "empreinte_sha256": "b238e32c0866b0b4f48a74e0c4f9f78424cce8812a41eb54e8d62cd7f4639f8b",
+      "octets": 8741,
+      "verdict": "passe sans Tesseract",
+      "pourquoi": "Le diagnostic lit des lectures déjà faites, portées par ses fixtures : il n'ouvre aucune image."
+    }
+  ]
+}
