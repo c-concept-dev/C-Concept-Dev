@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-14 | Trois échéances tranchées : D3, D10 et le lot 2 | [2026-11-14-calendrier-de-d3-d10-et-du-lot-2.md](2026-11-14-calendrier-de-d3-d10-et-du-lot-2.md) |
 | 2026-11-14 | L'étape 1 est close : Christophe a vu l'application | [2026-11-14-etape-1-finie-verification-a-l-ecran.md](2026-11-14-etape-1-finie-verification-a-l-ecran.md) |
 | 2026-11-14 | On réinstalle l'application avant d'écrire avec un code plus récent qu'elle | [2026-11-14-reinstaller-l-application-avant-d-ecrire-avec-un-code-plus-recent.md](2026-11-14-reinstaller-l-application-avant-d-ecrire-avec-un-code-plus-recent.md) |
 | 2026-11-14 | L'archive publiée fait foi, et on ne fabrique des moteurs que volontairement | [2026-11-14-l-archive-publiee-fait-foi-pour-les-moteurs.md](2026-11-14-l-archive-publiee-fait-foi-pour-les-moteurs.md) |
