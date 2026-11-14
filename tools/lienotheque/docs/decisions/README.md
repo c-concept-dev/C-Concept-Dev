@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-14 | L'archive publiée fait foi, et on ne fabrique des moteurs que volontairement | [2026-11-14-l-archive-publiee-fait-foi-pour-les-moteurs.md](2026-11-14-l-archive-publiee-fait-foi-pour-les-moteurs.md) |
 | 2026-11-13 | La version de Rust est fixée, et elle ne change jamais par surprise | [2026-11-13-la-version-de-rust-est-fixee-et-ne-change-jamais-par-surprise.md](2026-11-13-la-version-de-rust-est-fixee-et-ne-change-jamais-par-surprise.md) |
 | 2026-11-12 | Le contrat relâché sur preuve, les pannes enfin comptées, et le port 2 renvoyé à l'étape 3 | [2026-11-12-le-contrat-relache-sur-preuve-et-les-pannes-comptees.md](2026-11-12-le-contrat-relache-sur-preuve-et-les-pannes-comptees.md) |
 | 2026-11-12 | La voie relit les cases qu'elle n'a pas su lire, et passe en version 4 | [2026-11-12-la-voie-relit-ses-cases-et-passe-en-version-4.md](2026-11-12-la-voie-relit-ses-cases-et-passe-en-version-4.md) |
