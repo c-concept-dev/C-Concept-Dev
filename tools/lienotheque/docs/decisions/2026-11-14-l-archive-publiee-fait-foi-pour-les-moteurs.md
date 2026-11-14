@@ -59,10 +59,18 @@ un vert qui ne porte pas sur ce qu'on croit.
 2. **puis** `preparer-moteur-node.py`, qui reconstruit la **chaîne** depuis les sources du commit
    sous essai, et recouvre le `chaine` de l'archive.
 
-Autrement dit : **l'archive fait foi pour les programmes, le commit fait foi pour la chaîne.** Je
-lis la décision ainsi — « moteurs » désigne dans ce projet les programmes embarqués, et la chaîne
-est préparée par un autre script. Si l'intention était plus large, c'est ce point qu'il faut me
-corriger, car il décide ce que l'épreuve du paquet prouve.
+Autrement dit : **l'archive fait foi pour les programmes, le commit fait foi pour la chaîne.**
+
+Ce point décidait ce que l'épreuve du paquet prouve, et il a donc été soumis plutôt que supposé.
+**Christophe l'a tranché le 14 novembre 2026**, dans les mêmes termes :
+
+> « Lecture confirmée : l'archive fait foi pour les programmes qui lisent (tesseract, siegfried,
+> bibliothèques, tessdata) ; le commit fait foi pour la chaîne (`preparer-moteur-node.py` depuis
+> les sources du commit sous essai). Ordre : archive d'abord, chaîne ensuite. »
+
+Sa liste recouvre **exactement** le `contenu` déclaré de l'archive épinglée — `bin`, `lib`,
+`tessdata`, `siegfried` — **moins `chaine`**, le seul dossier que l'archive porte et qui ne fait
+pas foi. Ce n'est donc plus une lecture : c'est la règle, et elle est vérifiable sur le manifeste.
 
 ## Ce que l'application de cette décision devra encore trancher
 
