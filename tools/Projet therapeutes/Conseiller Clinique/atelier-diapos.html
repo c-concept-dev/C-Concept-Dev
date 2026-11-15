@@ -35,7 +35,7 @@
           <div class="cv-zone-contenu"><span class="cv-zone-icone" aria-hidden="true">↥</span><span class="cv-zone-texte">Déposez votre présentation ici<small>Ou choisissez le fichier dans votre Mac</small><span class="cv-formats">HTML interactif · Projet JSON</span></span></div>
           <button id="cv-importer" type="button">Choisir un fichier</button>
         </div>
-        <fieldset class="cv-reglages"><legend>Réglages de départ</legend><div class="cv-reglages-ligne"><label class="cv-reglage"><span>Durée par image</span><span><input id="cv-duree" type="number" min="1" max="60" step=".5" value="4" aria-label="Durée initiale par image"> s</span></label><label class="cv-reglage"><span>Format des images</span><select id="cv-cadrage"><option value="imovie">iMovie · 1920 × 1080</option><option value="fidele">Format fidèle</option></select></label></div><small class="cv-reglages-aide">Vous pourrez ajuster chaque durée dans la timeline.</small></fieldset>
+        <fieldset class="cv-reglages"><legend>Réglages de départ</legend><div class="cv-reglages-ligne"><label class="cv-reglage"><span>Durée par image</span><span><input id="cv-duree" type="number" min="1" max="60" step=".5" value="4" aria-label="Durée initiale par image"> s</span></label><label class="cv-reglage"><span>Cadrage</span><select id="cv-cadrage"><option value="fidele">Studio Clinique · identique</option><option value="video">Vidéo · texte agrandi</option></select></label></div><small class="cv-reglages-aide">Le cadrage Studio Clinique conserve les proportions et positions de la présentation. Vous pourrez ajuster chaque durée dans la timeline.</small></fieldset>
       </div>
       <p class="cv-confidentialite">Traitement local : votre présentation reste sur cet ordinateur.</p>
       <input id="cv-fichier" type="file" accept=".html,.htm,.json,text/html,application/json" hidden>
@@ -47,10 +47,10 @@
   </main>
   <div id="cv-voile" hidden></div>
   <script src="studio-clinique-core.js"></script>
-  <script src="atelier-images.js"></script>
+  <script src="atelier-images.js?v=20261115-studio-frame"></script>
   <script src="atelier-muxer.bundle.js"></script>
   <script src="zip-stocke.js"></script>
-  <script src="atelier-diapos-base.js"></script>
+  <script src="atelier-diapos-base.js?v=20261115-studio-frame"></script>
   <script src="atelier-montage.js?v=20261115-copy-delete-slides"></script>
 </body>
 </html>

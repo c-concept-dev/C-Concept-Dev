@@ -102,12 +102,19 @@
     $('cv-avancement').hidden = false;
     $('cv-barre').style.width = '0%';
     $('cv-avancement-texte').textContent = 'Préparation des images…';
+    // Le canevas fixe du lecteur Studio Clinique est la référence visuelle. Le mode « video »
+    // du moteur choisit au contraire une scène différente pour chaque diapositive afin de
+    // grossir le texte : utile comme option de lisibilité, mais ce n'est pas le même cadrage.
+    // Le sélecteur pilotait jusqu'ici seulement un drapeau inutilisé (`formatImovie`) ; il doit
+    // transmettre explicitement le mode au moteur pour que « fidèle » signifie réellement
+    // mêmes proportions, mêmes marges et mêmes positions que la présentation source.
+    var cadrage = $('cv-cadrage').value;
     var res = await window.AtelierImages.rendreImages(presentation.doc, {
       modeCapture: true,
+      mode: cadrage === 'video' ? 'video' : 'fidele',
       masquerCitations: false,
       type: 'image/jpeg',
       qualite: 0.92,
-      formatImovie: $('cv-cadrage').value === 'imovie',
       surAvancement: function (avancement, ancienTotal) {
         var fait = typeof avancement === 'object' ? avancement.fait : avancement;
         var total = typeof avancement === 'object' ? avancement.total : ancienTotal;

@@ -3,6 +3,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
+const page = fs.readFileSync(path.join(__dirname, '..', 'atelier-diapos.html'), 'utf8');
+assert.match(page, /<select id="cv-cadrage"><option value="fidele">Studio Clinique · identique<\/option><option value="video">Vidéo · texte agrandi<\/option><\/select>/,
+  'le cadrage identique à Studio Clinique doit être le choix par défaut visible');
+
 const elements = new Map();
 function element(id) {
   if (!elements.has(id)) elements.set(id, {
@@ -15,7 +19,7 @@ function element(id) {
 }
 ['cv-message', 'cv-avancement', 'cv-barre', 'cv-avancement-texte', 'cv-vignettes', 'cv-cadrage',
  'cv-zip', 'cv-mp4', 'cv-fichier', 'cv-importer', 'cv-zone'].forEach(element);
-element('cv-cadrage').value = 'imovie';
+element('cv-cadrage').value = 'fidele';
 
 const document = {
   getElementById: (id) => elements.get(id) || null,
@@ -34,9 +38,11 @@ const document = {
 };
 
 let policesAuRendu = null;
+let optionsAuRendu = null;
 const window = {
   AtelierImages: {
-    async rendreImages() {
+    async rendreImages(_doc, options) {
+      optionsAuRendu = options;
       const style = document.getElementById('atelier-polices-importees');
       policesAuRendu = style ? style.textContent : null;
       return { images: [] };
@@ -66,6 +72,8 @@ element('cv-fichier').onchange();
 (async () => {
   for (let i = 0; i < 20 && policesAuRendu === null; i++) await new Promise((r) => setTimeout(r, 0));
   assert.ok(policesAuRendu, 'la police doit être installée avant le début du rendu');
+  assert.equal(optionsAuRendu.mode, 'fidele',
+    'le cadrage par défaut de Trame doit être celui du lecteur Studio Clinique');
   assert.match(policesAuRendu, /font-family:'Police Test'/);
   assert.match(policesAuRendu, /data:font\/woff2;base64/);
   assert.doesNotMatch(policesAuRendu, /example\.invalid|Police Réseau/,
