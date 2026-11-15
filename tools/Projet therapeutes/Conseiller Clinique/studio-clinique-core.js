@@ -7476,8 +7476,12 @@ ${recent}`;
       return null;
     }
   }
-  // À N'EMPLOYER QUE pour un document DÉJÀ SAUVEGARDÉ (ouverture, rendu). JAMAIS pour la sortie
-  // du modèle : adocPageNeuveRefus (D8) garde adocValidateSchema, strict, et doit le garder.
+  // À N'EMPLOYER QUE pour un document DÉJÀ SAUVEGARDÉ (ouverture, rendu). Une mutation
+  // locale de ce document peut l'employer à condition que l'élément NOUVEAU soit, lui, validé
+  // strictement avant d'être greffé. C'est notamment le contrat de adocPageNeuveRefus : la
+  // carte neuve passe par le schéma strict `block`, puis le document existant par ce validateur
+  // tolérant. Ainsi un champ futur déjà conservé dans le document ne bloque pas une insertion,
+  // sans qu'un champ inventé par le modèle puisse entrer dans la nouvelle carte.
   function adocValidateSchemaTolerant(kind, obj) {
     const validators = adocInitSchemaValidators();
     if (!validators || !validators[kind]) return adocValidateSchema(kind, obj);
@@ -22729,8 +22733,8 @@ ${recent}`;
         '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>' +
         insertMenu(blockType === 'card' || (blockId || '').startsWith('root:card-title:')) + addImageBtn +
         // D1 — les gestes de PAGE, après ceux de bloc et derrière le même repère visuel discret :
-        // ils ne corrigent pas ce passage, ils ajoutent une diapositive entière. Absents, et non
-        // pas inertes, hors d'une présentation.
+        // ils ne corrigent pas ce passage, ils ajoutent un conteneur entier. Absents, et non
+        // pas inertes, dans les quatre formats continus qui ne possèdent pas de pages/cartes.
         (adocPageGesturesAllowed(storeKey)
           ? '<div style="width:1px;align-self:stretch;background:var(--stone-300);"></div>'
             + pageBtn('before', 'Insérer une page avant') + pageBtn('after', 'Insérer une page après')
@@ -24141,8 +24145,8 @@ ${recent}`;
 
   function adocResolvePageInsertion(doc, blockId, zone, direction) {
     if (!doc) throw new Error('Document indisponible. Rouvrez le document.');
-    if (doc.documentKind !== 'presentation') {
-      throw new Error('Ajouter une page n’est possible que dans une présentation.');
+    if (doc.documentKind !== 'presentation' && doc.documentKind !== 'carrousel') {
+      throw new Error('Ajouter une page n’est possible que dans une présentation ou un carrousel.');
     }
     if (direction !== 'before' && direction !== 'after' && direction !== 'end') {
       throw new Error('Position de page invalide.');
@@ -24159,9 +24163,10 @@ ${recent}`;
   }
   window.adocResolvePageInsertion = adocResolvePageInsertion;
 
-  // Les gestes de page n'ont de sens que dans une présentation produite par le moteur structuré :
-  // ni dans un carrousel, ni dans un document ancien (legacy-html), qui n'ont pas de diapositives
-  // au sens de ce modèle. Plutôt que de montrer des boutons inertes, on ne les montre pas.
+  // Les gestes de page n'ont de sens que dans les deux formats dont la racine est réellement
+  // composée de conteneurs `card` : Présentation et Carrousel. Fiche, Script, Tableau et Liens
+  // restent des documents continus à blocs plats : leur inventer de fausses pages casserait leur
+  // structure et leur export. Plutôt que de montrer des boutons inertes, on ne les montre pas.
   // La règle vit ICI, une seule fois, et elle rend la PHRASE du refus : les boutons s'en servent
   // pour décider de paraître, et le point d'entrée s'en sert pour refuser. Deux copies de la même
   // règle finiraient par diverger — c'est exactement ce qu'un contrôle a attrapé ici : le
@@ -24172,10 +24177,10 @@ ${recent}`;
     const doc = art && art._adocStructuredDoc;
     if (!doc) return 'Document indisponible. Rouvrez le document.';
     if (art._adocGenerationEngine === 'legacy-html') {
-      return 'Ajouter une page n’est possible que dans une présentation créée par le Studio ; ce document est un document ancien.';
+      return 'Ajouter une page n’est possible que dans une présentation ou un carrousel créé par le Studio ; ce document est un document ancien.';
     }
-    if (doc.documentKind !== 'presentation') {
-      return 'Ajouter une page n’est possible que dans une présentation.';
+    if (doc.documentKind !== 'presentation' && doc.documentKind !== 'carrousel') {
+      return 'Ce type de document est continu : ajoutez directement les blocs de votre choix.';
     }
     return null;
   }
@@ -25080,7 +25085,15 @@ ${recent}`;
     return e;
   }
   function adocPageNeuveRefus(doc, index, page) {
-    const bilan = adocValidateSchema('clinicalDocument', adocPageNeuveCandidat(doc, index, page).candidat);
+    const construit = adocPageNeuveCandidat(doc, index, page);
+    const bloc = adocValidateSchema('block', construit.carte);
+    if (!bloc.valid || bloc.skipped) {
+      return (bloc.errors || ['validation de la nouvelle diapositive impossible']).slice(0, 4).join(' | ');
+    }
+    // Le document est déjà ouvert et peut porter des champs d'une version plus récente du
+    // schéma. Les refuser ici contredisait la compatibilité ascendante appliquée à l'ouverture :
+    // une page parfaitement valide devenait impossible à insérer à cause d'un AUTRE bloc.
+    const bilan = adocValidateSchemaTolerant('clinicalDocument', construit.candidat);
     if (bilan.valid && !bilan.skipped) return null;
     return (bilan.errors || ['validation impossible']).slice(0, 4).join(' | ');
   }
@@ -25109,15 +25122,10 @@ ${recent}`;
     window._adocPageInsertState = { storeKey: st.storeKey, direction: direction,
                                     cardId: cible.cardId, index: cible.index,
                                     panelEl: st.panelEl, page: null, enCours: false, posee: false };
-    const resultEl = st.panelEl && st.panelEl.querySelector('.cc-block-edit-result');
-    const controlsEl = st.panelEl && st.panelEl.querySelector('.cc-block-edit-controls');
-    if (!resultEl) return window._adocPageInsertState;   // appelée hors panneau (contrôles) : la cible suffit
-    if (controlsEl) controlsEl.hidden = true;
-    resultEl.hidden = false;
-    resultEl.innerHTML = adocBuildNewSlideFormHTML(direction);
-    const champ = resultEl.querySelector('[data-page-instruction]');
-    if (champ) champ.focus();
-    return window._adocPageInsertState;
+    // Décision produit : les trois gestes de page créent TOUJOURS une page vierge. La
+    // rédaction assistée n'est plus une étape imposée entre le clic et l'insertion ; les blocs
+    // sont choisis ensuite, un par un, avec la barre d'outils ordinaire de la nouvelle page.
+    return window.adocInsertBlankSlide();
   };
 
   function adocBuildNewSlideFormHTML(direction) {
@@ -25135,6 +25143,31 @@ ${recent}`;
       +   '<button type="button" class="cc-clarity-other-btn" onclick="event.stopPropagation();window.adocCancelNewSlide()">Annuler</button>'
       + '</div>';
   }
+
+  // Une page vierge est un geste LOCAL : aucun appel au modèle, aucune image inventée, aucun
+  // contenu provisoire. Le schéma autorise déjà une carte sans bloc ; son titre technique,
+  // obligatoire et directement éditable, donne l'ancre depuis laquelle l'utilisatrice choisit
+  // ensuite ses blocs (image, paragraphe, titre, vidéo…) avec le menu existant.
+  window.adocInsertBlankSlide = function () {
+    const ps = window._adocPageInsertState;
+    if (!ps || ps.enCours || ps.posee) return false;
+    const art = window._adocArtifacts && window._adocArtifacts[ps.storeKey];
+    const doc = art && art._adocStructuredDoc;
+    if (!doc) return false;
+    const page = { title: 'Nouvelle page', blocks: [] };
+    const refus = adocPageNeuveRefus(doc, ps.index, page);
+    if (refus) {
+      try { console.warn('[page vierge] refus :', refus); } catch (_) {}
+      alert('La page vierge n’a pas pu être insérée. Rien n’a changé.');
+      return false;
+    }
+    ps.page = page;
+    ps.mode = 'blank';
+    // adocConfirmNewSlide pose sa garde synchrone avant sa première attente : deux clics ne
+    // peuvent donc jamais insérer deux pages.
+    window.adocConfirmNewSlide();
+    return true;
+  };
 
   // RIEN n'entre dans le document tant que « Insérer » n'a pas été cliqué, quelle que soit
   // l'issue de cet appel — même promesse que la correction d'un passage.
@@ -25277,6 +25310,7 @@ ${recent}`;
     const ps = window._adocPageInsertState;
     if (!ps || !ps.page || ps.enCours || ps.posee) return;   // double clic : jamais deux pages
     ps.enCours = true;
+    const pageVierge = ps.mode === 'blank';
     const art = window._adocArtifacts && window._adocArtifacts[ps.storeKey];
     const doc = art && art._adocStructuredDoc;
     if (!doc) { ps.enCours = false; return; }
@@ -25330,6 +25364,16 @@ ${recent}`;
       adocArmerAnnulationPage(ps.storeKey, carte, avant);
       ps.posee = true;
       window._adocPageInsertState = null;
+      if (pageVierge) {
+        // Ouvre immédiatement le seul point éditable de la page vide. Le menu existant
+        // « Insérer un bloc » est alors visible sans que l'utilisatrice ait à retrouver la
+        // nouvelle diapositive dans le document.
+        const titre = document.getElementById('root:card-title:' + carte.id);
+        if (titre) {
+          titre.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+          titre.click();
+        }
+      }
     } catch (e) {
       doc.blocks = avant.blocs;
       if (avant.narration === null) delete doc.narration; else doc.narration = avant.narration;
