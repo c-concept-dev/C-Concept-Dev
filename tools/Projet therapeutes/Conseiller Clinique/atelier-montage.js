@@ -1254,23 +1254,24 @@
     const handle=e.target.closest('[data-resize-step]');
     if(handle){
       const i=+handle.dataset.resizeStep, boundary=i+1, lane=handle.parentElement.parentElement;
+      const initialTotal=duration(),rect=lane.getBoundingClientRect(),startX=e.clientX;
+      const originalDurations=state.images.map((_,index)=>slideDuration(index)),referenceDuration=originalDurations[i];
+      const paintSlideGeometry=()=>state.images.forEach((_,index)=>{
+        const node=lane.querySelector(`[data-focus="${index}"]`);if(!node)return;
+        node.style.left=`${state.cuts[index]/duration()*100}%`;
+        node.style.width=`${((state.cuts[index+1]??duration())-state.cuts[index])/duration()*100}%`;
+        const marker=lane.querySelector(`[data-transition="${index}"]`);if(marker)marker.style.left=`${state.cuts[index]/duration()*100}%`;
+      });
       const selectedGroup=state.selectedSlides.includes(i)&&state.selectedSlides.length>1
         ? [...new Set(state.selectedSlides.filter(index=>index>=0&&index<state.images.length))].sort((a,b)=>a-b)
         : [];
       if(selectedGroup.length){
-        const initialTotal=duration(),rect=lane.getBoundingClientRect(),startX=e.clientX;
-        const originalDurations=state.images.map((_,index)=>slideDuration(index)),referenceDuration=originalDurations[i];
         checkpoint(`durée de ${selectedGroup.length} diapositives`);handle.setPointerCapture(e.pointerId);
         const selectedSet=new Set(selectedGroup);
         handle.onpointermove=move=>{
           const commonDuration=clamp(referenceDuration+(move.clientX-startX)/Math.max(1,rect.width)*initialTotal,0.5,3600);
           rebuildCutsFromDurations(originalDurations.map((value,index)=>selectedSet.has(index)?commonDuration:value));
-          state.images.forEach((_,index)=>{
-            const node=lane.querySelector(`[data-focus="${index}"]`);if(!node)return;
-            node.style.left=`${state.cuts[index]/duration()*100}%`;
-            node.style.width=`${((state.cuts[index+1]??duration())-state.cuts[index])/duration()*100}%`;
-            const marker=lane.querySelector(`[data-transition="${index}"]`);if(marker)marker.style.left=`${state.cuts[index]/duration()*100}%`;
-          });
+          paintSlideGeometry();
         };
         const finishGroupResize=()=>{
           handle.onpointermove=null;handle.onpointerup=null;handle.onpointercancel=null;clearPreviewCache();render();seek(Math.min(state.previewAt,duration()));
@@ -1278,21 +1279,18 @@
         };
         handle.onpointerup=finishGroupResize;handle.onpointercancel=finishGroupResize;return;
       }
-      checkpoint(`durée de la diapositive ${i+1}`);const rect=lane.getBoundingClientRect(), initialTotal=duration();
+      checkpoint(`durée de la diapositive ${i+1}`);
       handle.setPointerCapture(e.pointerId);
       handle.onpointermove=move=>{
-        if(boundary===state.images.length){
-          state.total=Math.round(clamp((move.clientX-rect.left)/rect.width*initialTotal,state.cuts[i]+0.5,initialTotal*4)*100)/100;
-          handle.parentElement.style.width=`${(state.total-state.cuts[i])/initialTotal*100}%`;
-          return;
-        }
-        state.cuts[boundary]=Math.round(clamp((move.clientX-rect.left)/rect.width*duration(),state.cuts[i]+0.5,(state.cuts[boundary+1]??duration())-0.5)*100)/100;
-        handle.parentElement.style.width=`${(state.cuts[boundary]-state.cuts[i])/duration()*100}%`;
-        const next=lane.querySelector(`[data-focus="${boundary}"]`);
-        if(next){next.style.left=`${state.cuts[boundary]/duration()*100}%`;next.style.width=`${((state.cuts[boundary+1]??duration())-state.cuts[boundary])/duration()*100}%`;}
-        const marker=lane.querySelector(`[data-transition="${boundary}"]`);if(marker)marker.style.left=`${state.cuts[boundary]/duration()*100}%`;
+        const nextDuration=clamp(referenceDuration+(move.clientX-startX)/Math.max(1,rect.width)*initialTotal,0.5,3600);
+        rebuildCutsFromDurations(originalDurations.map((value,index)=>index===i?nextDuration:value));
+        paintSlideGeometry();
       };
-      handle.onpointerup=()=>{handle.onpointermove=null;handle.onpointerup=null;render();seek(Math.min(duration()-0.05,state.cuts[boundary]??state.cuts[i]));};
+      const finishResize=()=>{
+        handle.onpointermove=null;handle.onpointerup=null;handle.onpointercancel=null;clearPreviewCache();render();seek(Math.min(duration()-0.05,state.cuts[boundary]??state.cuts[i]));
+        badge(`Diapositive ${i+1} réglée à ${slideDuration(i).toFixed(1).replace('.',',')} s. Les diapositives suivantes ont été décalées sans changer de durée.`,false);
+      };
+      handle.onpointerup=finishResize;handle.onpointercancel=finishResize;
       return;
     }
     if(e.target.closest('[data-transition]'))return;

@@ -4,7 +4,7 @@ const path = require('node:path');
 const base = path.join(__dirname, '..');
 const target = path.join(base, 'atelier-diapos.html');
 const html = fs.readFileSync(target, 'utf8');
-if (!html.includes('<script src="atelier-montage.js"></script>')) {
+if (!/<script src="atelier-montage\.js(?:\?[^"<>]+)?"><\/script>/.test(html)) {
   throw Error('La page autonome doit charger atelier-montage.js comme dépendance locale.');
 }
 if (!html.includes('<script src="atelier-muxer.bundle.js"></script>')) {
