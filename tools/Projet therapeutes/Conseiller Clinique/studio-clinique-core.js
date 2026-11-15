@@ -14780,6 +14780,12 @@ ${recent}`;
     '.adoc-sc-tableau .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,82,102,0.35),rgba(61,82,102,0.88));}' +
     '.adoc-sc-liens .adoc-sc-cover{background-color:#3d5c47;}' +
     '.adoc-sc-liens .adoc-sc-cover::before{background:linear-gradient(180deg,rgba(61,92,71,0.35),rgba(61,92,71,0.88));}';
+  // Trame peint les diapositives dans une scène hors écran, sans charger la grande feuille de
+  // style de studio-clinique.html. Le moteur d'image doit donc pouvoir reprendre cette source
+  // canonique au lieu de recopier une seconde fois les marges, espacements et styles de blocs.
+  // Un getter rend une chaîne immuable ; l'appelant la scope à sa scène de capture pour qu'aucune
+  // règle (notamment `body`) ne puisse atteindre l'interface de Trame.
+  window.adocGetDocumentContentCSS = function () { return ADOC_DOC_CONTENT_CSS; };
   // ═══ ANNEXE « Approfondissements » pour les exports NON INTERACTIFS ═══
   // Un export HTML statique ou un PDF n'a pas de porte plein écran : les pages d'approfondissement
   // y disparaissaient purement et simplement — écrites, payées, puis perdues à l'export. Elles sont

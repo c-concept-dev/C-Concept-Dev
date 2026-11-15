@@ -50,7 +50,7 @@ const html = `<!doctype html>
     <footer class="cv-pied">Traitement local dans votre navigateur. Vos fichiers ne sont pas envoyés sur Internet.</footer>
   </main>
   <div id="cv-voile" hidden></div>
-  <script src="studio-clinique-core.js"></script>
+  <script src="studio-clinique-core.js?v=20261115-studio-css"></script>
   <script src="atelier-images.js"></script>
   <script src="atelier-muxer.bundle.js"></script>
   <script src="zip-stocke.js"></script>

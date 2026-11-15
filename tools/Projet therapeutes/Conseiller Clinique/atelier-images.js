@@ -227,11 +227,29 @@
     // QUATRIÈME attribut : l'activer ne peut rien changer d'autre.
     '[data-atelier-capture][data-atelier-plafond-photo] .adoc-sc-card-img{max-height:var(--atelier-plafond-photo);}';
   var _cssPose = false;
+  function cssContenuScopeCapture(css) {
+    return String(css || '').replace(/([^{}]+)\{([^{}]*)\}/g, function (_, selecteurs, declarations) {
+      var scopes = selecteurs.split(',').map(function (selecteur) { return selecteur.trim(); })
+        // La règle body de l'export dimensionne une page HTML autonome. La scène 1422×800 est
+        // déjà dimensionnée par creerScene : la reprendre ici réduirait le canevas et toucherait
+        // potentiellement l'interface de Trame.
+        .filter(function (selecteur) { return selecteur && selecteur !== 'body'; })
+        .map(function (selecteur) { return '[data-atelier-capture] ' + selecteur; });
+      return scopes.length ? scopes.join(',') + '{' + declarations + '}' : '';
+    });
+  }
   function poserCssCapture() {
     if (_cssPose || document.getElementById('atelier-capture-css')) { _cssPose = true; return; }
     var el = document.createElement('style');
     el.id = 'atelier-capture-css';
-    el.textContent = CSS_CAPTURE;
+    // Sans la feuille de contenu de Studio, Safari applique ses propres marges à <figure>, <h2>,
+    // listes et paragraphes, et la carte perd notamment son padding de 18 px. Les images restent
+    // en 1920×1080 mais leur cadrage n'est plus celui du document source. Reprendre la constante
+    // partagée corrige uniquement la géométrie de la scène capturée ; CSS_CAPTURE conserve ensuite
+    // les retraits propres à une vidéo (loupe, chrome interactif), dans le même ordre qu'avant.
+    var cssStudio = typeof window.adocGetDocumentContentCSS === 'function'
+      ? cssContenuScopeCapture(window.adocGetDocumentContentCSS()) : '';
+    el.textContent = cssStudio + CSS_CAPTURE;
     document.head.appendChild(el);
     _cssPose = true;
   }
