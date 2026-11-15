@@ -12,7 +12,7 @@
   const normalizeMaster = value => Object.fromEntries(MASTER_KINDS.map(kind=>[kind,{...defaultMaster()[kind],...(value?.[kind]||{})}]));
   const state = { tracks: [], sources: [], copiedSource: null, images: [], cuts: [], total: 0, playing: false, started: 0,
     previewAt: 0, raf: 0, bitmap: null, bitmapIndex: -1, exporting: false,
-    selectedId: null, selectedIds: [], selectedSlides: [], slideAnchor: null, copiedTracks: [], zoom: 20, annexZoom: {voice: 1, music: 1}, linkedZoom: false,
+    selectedId: null, selectedIds: [], selectedSourceIds: [], selectedSlides: [], slideAnchor: null, copiedTracks: [], zoom: 20, annexZoom: {voice: 1, music: 1}, linkedZoom: false,
     placementMode: 'free', previewQuality: 'full', workspace: 'all', transitions: [], selectedTransition: 1, previewRequest: 0,
     previewCache: new Map(), previewDrawAt: null, previewDrawing: false, previewGeneration: 0, scrubbing: false,
     historyPast: [], historyFuture: [], lastAction: '',
@@ -96,7 +96,7 @@
     return {
       tracks:state.tracks.map(cloneItem),sources:state.sources.map(cloneItem),copiedSource:cloneItem(state.copiedSource),
       copiedTracks:state.copiedTracks.map(cloneItem),images:state.images.slice(),cuts:state.cuts.slice(),total:state.total,
-      previewAt:state.previewAt,selectedId:state.selectedId,selectedIds:state.selectedIds.slice(),selectedSlides:state.selectedSlides.slice(),slideAnchor:state.slideAnchor,zoom:state.zoom,
+      previewAt:state.previewAt,selectedId:state.selectedId,selectedIds:state.selectedIds.slice(),selectedSourceIds:state.selectedSourceIds.slice(),selectedSlides:state.selectedSlides.slice(),slideAnchor:state.slideAnchor,zoom:state.zoom,
       annexZoom:{...state.annexZoom},linkedZoom:state.linkedZoom,placementMode:state.placementMode,
       previewQuality:state.previewQuality,workspace:state.workspace,transitions:state.transitions.map(t=>({...t,params:{...(t.params||{})}})),
       selectedTransition:state.selectedTransition,master:normalizeMaster(state.master)
@@ -112,7 +112,7 @@
   }
   function restoreSnapshot(snapshot) {
     if(state.playing)stopPreview();
-    for(const key of ['tracks','sources','copiedTracks','images','cuts','selectedIds','selectedSlides','transitions']) state[key]=snapshot[key]||[];
+    for(const key of ['tracks','sources','copiedTracks','images','cuts','selectedIds','selectedSourceIds','selectedSlides','transitions']) state[key]=snapshot[key]||[];
     for(const key of ['copiedSource','total','previewAt','selectedId','slideAnchor','zoom','linkedZoom','placementMode','previewQuality','workspace','selectedTransition']) state[key]=snapshot[key];
     state.master=normalizeMaster(snapshot.master);
     state.zoom=clamp(+state.zoom||20,2,240);
@@ -242,7 +242,7 @@
     .am-source-clip{position:relative;flex:0 0 calc(var(--region-ratio,1) * 100%);min-width:150px;background:#e4efee;background:color-mix(in srgb,var(--track-color,#1f5053) 13%,white);color:#17393b;border:2px solid var(--track-color,#1f5053);border-radius:7px;padding:5px;cursor:grab;display:grid;gap:3px;user-select:none;-webkit-user-select:none}
     .am-source-clip+.am-source-clip{margin-left:-2px}.am-source-primary{display:flex;align-items:center;gap:3px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;padding-bottom:1px}.am-source-primary>*{flex:0 0 auto}
     .am-source-advanced{position:absolute;right:5px;top:3px;z-index:12;font-size:10px}.am-source-advanced summary{display:grid;place-items:center;width:25px;height:23px;border:1px solid currentColor;border-radius:5px;background:#fffdf9;cursor:pointer;font-weight:800;color:#52615f;list-style:none}.am-source-advanced summary::-webkit-details-marker{display:none}.am-source-advanced[open]{position:static;grid-column:1;min-width:0}.am-source-advanced[open] summary{position:absolute;right:5px;top:3px}.am-source-advanced[open] .am-source-actions{display:flex;flex-wrap:wrap;width:100%;padding:5px;border:1px solid #9baba7;border-radius:7px;background:#fffdf9;box-shadow:0 2px 7px #102f3128}.am-source-advanced:not([open]) .am-source-actions{display:none}
-    .am-source-clip:active{cursor:grabbing}.am-region-label{display:inline-block;margin-right:6px;padding:2px 6px;border-radius:10px;background:var(--track-color);color:#fff;font-style:normal;font-size:10px;font-weight:800}.am-drag-hint{font-size:10px;font-weight:700;color:#52615f;white-space:nowrap}
+    .am-source-clip:active{cursor:grabbing}.am-source-clip[data-source-selected=true]{outline:3px solid #e6b15c;outline-offset:1px}.am-source-select[aria-pressed=true]{background:#1f5053!important;color:#fff!important}.am-source-merge{white-space:nowrap}.am-region-label{display:inline-block;margin-right:6px;padding:2px 6px;border-radius:10px;background:var(--track-color);color:#fff;font-style:normal;font-size:10px;font-weight:800}.am-drag-hint{font-size:10px;font-weight:700;color:#52615f;white-space:nowrap}
     .am-source-clip[data-locked=true]{opacity:.7;cursor:not-allowed}.am-source-clip[data-used=true]{background-image:repeating-linear-gradient(135deg,transparent 0 9px,color-mix(in srgb,var(--track-color) 20%,transparent) 9px 13px)}
     .am-source-clip[data-kind=music]{background:#f3e5df;background:color-mix(in srgb,var(--track-color,#8a3f29) 13%,white);border-color:var(--track-color,#8a3f29);color:#4f2d22}.am-source-clip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
     .am-track-badge{display:inline-grid;place-items:center;min-width:28px;height:22px;padding:0 5px;border-radius:12px;background:var(--track-color);color:#fff;font-size:11px;font-weight:800;flex:0 0 auto}
@@ -368,6 +368,7 @@
 
   function render() {
     root.classList.toggle('am-has-selection', !!selected());
+    state.selectedSourceIds=state.selectedSourceIds.filter(id=>state.sources.some(source=>source.id===id));
     const selectedSlides=state.selectedSlides.filter(index=>index>=0&&index<state.images.length);
     state.selectedSlides=selectedSlides;
     const slideTools=$('am-slide-selection-tools');slideTools.hidden=!selectedSlides.length;
@@ -386,13 +387,14 @@
       const kindSources=state.sources.filter(s=>s.kind===kind),originIds=[...new Set(kindSources.map(s=>s.originId||s.id))];
       const sourceClips = originIds.map(originId => {
         const blocks=kindSources.filter(s=>(s.originId||s.id)===originId),first=blocks[0],fullDuration=Math.max(0.01,blocks.reduce((sum,s)=>sum+s.out-s.in,0)),track=sourceRegionMeta(first).track;
-        const regions=blocks.map(s=>{const region=sourceRegionMeta(s),used=state.tracks.some(t=>(t.sourceId||t.originId)===s.id||(t.originId&&t.originId===(s.originId||s.id))),ratio=(s.out-s.in)/fullDuration;
+        const regions=blocks.map(s=>{const region=sourceRegionMeta(s),used=state.tracks.some(t=>(t.sourceId||t.originId)===s.id||(t.originId&&t.originId===(s.originId||s.id))),ratio=(s.out-s.in)/fullDuration,sourceSelected=state.selectedSourceIds.includes(s.id);
           const listenAt=clamp(Number.isFinite(s.listenAt)?s.listenAt:0,0,Math.max(0,s.out-s.in-0.01)),listenPercent=(listenAt/Math.max(0.01,s.out-s.in)*100).toFixed(3);
           const destination=MASTER_LABELS[s.preferredMasterKind||s.kind]||'Master';
-          return `<div class="am-source-clip" draggable="false" data-drag-block="true" data-locked="${!!s.locked}" data-used="${used}" role="group" aria-label="${region.track} bloc ${region.blockIndex} sur ${region.blockCount}, glissable vers le Master" data-source="${s.id}" data-kind="${kind}" style="--track-color:${s.color};--region-ratio:${ratio}" title="Saisir la bande supérieure de ce bloc et la glisser vers le Master"><div class="am-source-head" draggable="true" data-source-handle="${s.id}" aria-label="Poignée pour glisser ce bloc vers le Master"><span><em class="am-region-label" style="--track-color:${s.color}">Bloc ${region.blockIndex}/${region.blockCount}</em>${time(s.out-s.in)}${used?' · déjà utilisé':''}</span><span class="am-drag-hint">☷ Glisser</span></div><div class="am-source-wave-wrap"><canvas class="am-source-wave" data-source-wave="${s.id}" width="${Math.min(16000,Math.max(500,Math.ceil(500*state.annexZoom[kind])))}" height="${s.height==='L'?54:s.height==='S'?22:30}" aria-label="Forme d’onde du bloc ${region.blockIndex} de ${esc(s.name)}" title="Cliquez pour placer la tête de lecture et de scission"></canvas><span class="am-source-playhead" data-source-playhead="${s.id}" style="--playhead:${listenPercent}%" role="slider" tabindex="0" aria-label="Curseur audio de ${esc(s.name)}" aria-valuemin="0" aria-valuemax="${(s.out-s.in).toFixed(2)}" aria-valuenow="${listenAt.toFixed(2)}" title="Glissez ce curseur rouge horizontalement"></span></div><div class="am-source-primary"><button class="am-source-listen" type="button" data-source-action="listen" data-source-id="${s.id}" title="Écouter ce bloc" aria-label="Écouter ce bloc">▶<span class="am-visually-hidden"> Écouter</span></button><label class="am-source-cut-time" title="Position précise du curseur">Position <input type="number" min="0.01" max="${(s.out-s.in-0.01).toFixed(2)}" step="0.01" value="${Math.max(0.01,listenAt).toFixed(2)}" data-source-cursor="${s.id}" aria-label="Position précise du curseur annexe en secondes"> s</label><span class="am-source-gain" aria-label="Volume précis de ce bloc"><button type="button" data-source-action="gain-down" data-source-id="${s.id}" title="Baisser le volume de 1 dB">−</button><output>${s.db} dB</output><button type="button" data-source-action="gain-up" data-source-id="${s.id}" title="Augmenter le volume de 1 dB">+</button></span><button type="button" data-source-action="split" data-source-id="${s.id}" title="Scinder ce bloc au curseur" aria-label="Scinder ce bloc au curseur">✂</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce bloc sur ${destination} à l’endroit du curseur rouge">→ ${destination}</button></div><details class="am-source-advanced"><summary title="Autres réglages du bloc" aria-label="Autres réglages du bloc">•••</summary><div class="am-source-actions"><label>Gain <input type="number" min="-60" max="12" step="1" value="${s.db}" data-source-field="db" data-source-id="${s.id}"></label><label>Hauteur <select data-source-field="height" data-source-id="${s.id}"><option ${s.height==='S'?'selected':''}>S</option><option ${!s.height||s.height==='M'?'selected':''}>M</option><option ${s.height==='L'?'selected':''}>L</option></select></label><input type="color" value="${s.color}" data-source-field="color" data-source-id="${s.id}" aria-label="Couleur de ${esc(s.name)}"><button type="button" data-source-action="mute" data-source-id="${s.id}">${s.muted?'Réactiver':'Muet'}</button><button type="button" data-source-action="solo" data-source-id="${s.id}" aria-pressed="${!!s.solo}">Solo</button><button type="button" data-source-action="lock" data-source-id="${s.id}" aria-pressed="${!!s.locked}">${s.locked?'Déverrouiller':'Verrouiller'}</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}">Effacer</button></div></details></div>`;}).join('');
+          return `<div class="am-source-clip" draggable="false" data-drag-block="true" data-locked="${!!s.locked}" data-used="${used}" data-source-selected="${sourceSelected}" role="group" aria-label="${region.track} bloc ${region.blockIndex} sur ${region.blockCount}, glissable vers le Master" data-source="${s.id}" data-kind="${kind}" style="--track-color:${s.color};--region-ratio:${ratio}" title="Saisir la bande supérieure de ce bloc et la glisser vers le Master"><div class="am-source-head" draggable="true" data-source-handle="${s.id}" aria-label="Poignée pour glisser ce bloc vers le Master"><span><em class="am-region-label" style="--track-color:${s.color}">Bloc ${region.blockIndex}/${region.blockCount}</em>${time(s.out-s.in)}${used?' · déjà utilisé':''}</span><span class="am-drag-hint">☷ Glisser</span></div><div class="am-source-wave-wrap"><canvas class="am-source-wave" data-source-wave="${s.id}" width="${Math.min(16000,Math.max(500,Math.ceil(500*state.annexZoom[kind])))}" height="${s.height==='L'?54:s.height==='S'?22:30}" aria-label="Forme d’onde du bloc ${region.blockIndex} de ${esc(s.name)}" title="Cliquez pour placer la tête de lecture et de scission"></canvas><span class="am-source-playhead" data-source-playhead="${s.id}" style="--playhead:${listenPercent}%" role="slider" tabindex="0" aria-label="Curseur audio de ${esc(s.name)}" aria-valuemin="0" aria-valuemax="${(s.out-s.in).toFixed(2)}" aria-valuenow="${listenAt.toFixed(2)}" title="Glissez ce curseur rouge horizontalement"></span></div><div class="am-source-primary"><button class="am-source-select" type="button" data-source-action="select" data-source-id="${s.id}" aria-pressed="${sourceSelected}" title="${sourceSelected?'Retirer ce bloc de la sélection':'Ajouter ce bloc à la sélection pour le fusionner'}">${sourceSelected?'✓ Sélectionné':'Sélectionner'}</button><button class="am-source-listen" type="button" data-source-action="listen" data-source-id="${s.id}" title="Écouter ce bloc" aria-label="Écouter ce bloc">▶<span class="am-visually-hidden"> Écouter</span></button><label class="am-source-cut-time" title="Position précise du curseur">Position <input type="number" min="0.01" max="${(s.out-s.in-0.01).toFixed(2)}" step="0.01" value="${Math.max(0.01,listenAt).toFixed(2)}" data-source-cursor="${s.id}" aria-label="Position précise du curseur annexe en secondes"> s</label><span class="am-source-gain" aria-label="Volume précis de ce bloc"><button type="button" data-source-action="gain-down" data-source-id="${s.id}" title="Baisser le volume de 1 dB">−</button><output>${s.db} dB</output><button type="button" data-source-action="gain-up" data-source-id="${s.id}" title="Augmenter le volume de 1 dB">+</button></span><button type="button" data-source-action="split" data-source-id="${s.id}" title="Scinder ce bloc au curseur" aria-label="Scinder ce bloc au curseur">✂</button><button type="button" data-source-action="place" data-source-id="${s.id}" title="Placer ce bloc sur ${destination} à l’endroit du curseur rouge">→ ${destination}</button></div><details class="am-source-advanced"><summary title="Autres réglages du bloc" aria-label="Autres réglages du bloc">•••</summary><div class="am-source-actions"><label>Gain <input type="number" min="-60" max="12" step="1" value="${s.db}" data-source-field="db" data-source-id="${s.id}"></label><label>Hauteur <select data-source-field="height" data-source-id="${s.id}"><option ${s.height==='S'?'selected':''}>S</option><option ${!s.height||s.height==='M'?'selected':''}>M</option><option ${s.height==='L'?'selected':''}>L</option></select></label><input type="color" value="${s.color}" data-source-field="color" data-source-id="${s.id}" aria-label="Couleur de ${esc(s.name)}"><button type="button" data-source-action="mute" data-source-id="${s.id}">${s.muted?'Réactiver':'Muet'}</button><button type="button" data-source-action="solo" data-source-id="${s.id}" aria-pressed="${!!s.solo}">Solo</button><button type="button" data-source-action="lock" data-source-id="${s.id}" aria-pressed="${!!s.locked}">${s.locked?'Déverrouiller':'Verrouiller'}</button><button type="button" data-source-action="copy" data-source-id="${s.id}">Copier</button><button type="button" class="am-source-remove" data-source-action="remove" data-source-id="${s.id}">Effacer</button></div></details></div>`;}).join('');
         const collapsed=blocks.every(s=>s.collapsed===true),provenance=first.provenance;
         const credit=provenance?`<div class="am-source-credit">${esc(provenance.attribution||`Son de ${provenance.creator||'créateur non renseigné'}`)} · <a href="${esc(safeHttpUrl(provenance.sourceUrl))}" target="_blank" rel="noopener">source</a> · <a href="${esc(safeHttpUrl(provenance.licenseUrl))}" target="_blank" rel="noopener">${esc(provenance.licenseLabel||provenance.license||'licence')}</a></div>`:'';
-        return `<section class="am-source-track" data-collapsed="${collapsed}" style="--track-color:${first.color};--annex-zoom:${state.annexZoom[kind]}"><div class="am-source-track-head"><b class="am-track-badge" style="--track-color:${first.color}">${track}</b><strong>${esc(first.name)}</strong><span>${blocks.length} bloc${blocks.length>1?'s':''}</span><button class="am-source-track-toggle" type="button" data-source-action="collapse-track" data-source-id="${first.id}" aria-expanded="${!collapsed}" title="${collapsed?'Afficher les blocs de cette piste':'Réduire cette piste'}">${collapsed?'Afficher':'Réduire'}</button><button class="am-source-track-remove" type="button" data-source-action="remove-track" data-source-id="${first.id}" title="Effacer toute la piste ${kind==='voice'?'voix':'musique'} « ${esc(first.name)} »" aria-label="Effacer toute la piste ${kind==='voice'?'voix':'musique'} ${esc(first.name)}">×</button></div>${credit}<div class="am-source-regions">${regions}</div></section>`;
+        const selectedBlocks=blocks.filter(s=>state.selectedSourceIds.includes(s.id));
+        return `<section class="am-source-track" data-collapsed="${collapsed}" style="--track-color:${first.color};--annex-zoom:${state.annexZoom[kind]}"><div class="am-source-track-head"><b class="am-track-badge" style="--track-color:${first.color}">${track}</b><strong>${esc(first.name)}</strong><span>${blocks.length} bloc${blocks.length>1?'s':''}</span>${selectedBlocks.length>=2?`<button class="am-source-merge" type="button" data-source-action="merge" data-source-id="${first.id}" title="Réunir les blocs sélectionnés sans blanc, avec une micro-transition anti-clic">Fusionner ${selectedBlocks.length} blocs</button>`:''}<button class="am-source-track-toggle" type="button" data-source-action="collapse-track" data-source-id="${first.id}" aria-expanded="${!collapsed}" title="${collapsed?'Afficher les blocs de cette piste':'Réduire cette piste'}">${collapsed?'Afficher':'Réduire'}</button><button class="am-source-track-remove" type="button" data-source-action="remove-track" data-source-id="${first.id}" title="Effacer toute la piste ${kind==='voice'?'voix':'musique'} « ${esc(first.name)} »" aria-label="Effacer toute la piste ${kind==='voice'?'voix':'musique'} ${esc(first.name)}">×</button></div>${credit}<div class="am-source-regions">${regions}</div></section>`;
       }).join('');
       const paste = state.copiedSource ? `<button class="am-source-paste" type="button" data-source-action="paste" data-source-kind="${kind}">Coller le bloc copié ici</button>` : '';
       root.querySelector(`[data-source-lane="${kind}"]`).innerHTML = paste + (sourceClips || `<span>Aucun fichier ${kind==='voice'?'voix':'musique'} importé. Utilisez le bouton ci-dessus ou déposez vos fichiers dans la zone en pointillés.</span>`);
@@ -692,7 +694,7 @@
       state.sources=(project.sources||[]).map(restoreAudio);state.tracks=(project.tracks||[]).map(restoreAudio);state.cuts=(project.cuts||[]).slice();state.total=+project.total||0;
       state.zoom=clamp(+(project.zoom?.master||20),2,240);const savedAnnex=project.zoom?.annexes||1;state.annexZoom=typeof savedAnnex==='number'?{voice:savedAnnex,music:savedAnnex}:{voice:savedAnnex.voice||1,music:savedAnnex.music||1};state.linkedZoom=project.zoom?.linked===true;state.placementMode=project.placementMode||'free';state.previewQuality=project.previewQuality||'full';state.workspace=workspaceValue(workspaceSet(project.workspace));
       state.transitions=(project.transitions||[]).map(transition=>({...transition,params:{...(transition.params||{})}}));state.master=normalizeMaster(project.master);
-      state.selectedId=null;state.selectedIds=[];state.selectedSlides=[];state.slideAnchor=null;state.previewAt=0;clearPreviewCache();$('am-duck').value=String(project.mix?.duck??0.126);$('am-uniform-voices').checked=project.mix?.uniformVoices!==false;
+      state.selectedId=null;state.selectedIds=[];state.selectedSourceIds=[];state.selectedSlides=[];state.slideAnchor=null;state.previewAt=0;clearPreviewCache();$('am-duck').value=String(project.mix?.duck??0.126);$('am-uniform-voices').checked=project.mix?.uniformVoices!==false;
       if($('cv-mp4'))$('cv-mp4').disabled=!state.images.length;applyPreviewQuality();render();drawPreview(0);badge(`Projet restauré : ${state.images.length} images, ${state.sources.length} blocs annexes et ${state.tracks.length} clips Master.`,false);
     }finally{await ctx.close();}
   }
@@ -749,12 +751,64 @@
     if(performance.now()-sourceTransportPointerAt<500)return;
     const source=state.sources.find(s=>s.id===button.dataset.sourceId);if(source)toggleSourceAudition(source);
   },true);
-  root.querySelector('.am-sources').onclick = e => {
+  function wavFileFromBuffer(buffer,name) {
+    const channels=buffer.numberOfChannels,frames=buffer.length,bytes=44+frames*channels*2,data=new ArrayBuffer(bytes),view=new DataView(data);
+    const write=(offset,value)=>{for(let i=0;i<value.length;i++)view.setUint8(offset+i,value.charCodeAt(i));};
+    write(0,'RIFF');view.setUint32(4,bytes-8,true);write(8,'WAVE');write(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);
+    view.setUint16(22,channels,true);view.setUint32(24,buffer.sampleRate,true);view.setUint32(28,buffer.sampleRate*channels*2,true);view.setUint16(32,channels*2,true);view.setUint16(34,16,true);
+    write(36,'data');view.setUint32(40,frames*channels*2,true);let offset=44;
+    for(let frame=0;frame<frames;frame++)for(let channel=0;channel<channels;channel++){
+      const sample=clamp(buffer.getChannelData(channel)[frame],-1,1);view.setInt16(offset,sample<0?sample*32768:sample*32767,true);offset+=2;
+    }
+    return new File([data],name.replace(/\.[^.]+$/,'')+'-fusion.wav',{type:'audio/wav'});
+  }
+  async function mergeSourceBlocks(first) {
+    const originId=first.originId||first.id,selectedSet=new Set(state.selectedSourceIds);
+    const blocks=state.sources.filter(source=>(source.originId||source.id)===originId&&selectedSet.has(source.id));
+    if(blocks.length<2)return badge('Sélectionnez au moins deux blocs de cette piste à fusionner.',true);
+    if(blocks.some(source=>source.locked))return badge('Déverrouillez les blocs sélectionnés avant de les fusionner.',true);
+    if(sourceAudition&&blocks.some(source=>sourceAudition.source.id===source.id))stopSourceAudition();
+    const rate=Math.max(...blocks.map(source=>source.buffer.sampleRate)),channels=Math.max(...blocks.map(source=>source.buffer.numberOfChannels));
+    const frames=blocks.map(source=>Math.max(1,Math.round((source.out-source.in)*rate)));
+    const overlaps=blocks.slice(1).map((_,index)=>Math.min(Math.round(rate*0.008),Math.floor(frames[index]/4),Math.floor(frames[index+1]/4)));
+    const totalFrames=frames.reduce((sum,value)=>sum+value,0)-overlaps.reduce((sum,value)=>sum+value,0);
+    const Audio=window.AudioContext||window.webkitAudioContext,ctx=new Audio(),buffer=ctx.createBuffer(channels,totalFrames,rate);
+    let cursor=0;
+    for(let blockIndex=0;blockIndex<blocks.length;blockIndex++){
+      const source=blocks[blockIndex],frameCount=frames[blockIndex],overlapBefore=overlaps[blockIndex-1]||0,overlapAfter=overlaps[blockIndex]||0;
+      if(blockIndex)cursor-=overlapBefore;
+      for(let channel=0;channel<channels;channel++){
+        const input=source.buffer.getChannelData(Math.min(channel,source.buffer.numberOfChannels-1)),output=buffer.getChannelData(channel);
+        for(let frame=0;frame<frameCount;frame++){
+          const local=frame/rate,sourcePosition=(source.in+local)*source.buffer.sampleRate,index=Math.min(input.length-1,Math.floor(sourcePosition)),next=Math.min(input.length-1,index+1),fraction=sourcePosition-index;
+          let weight=1;if(overlapBefore&&frame<overlapBefore)weight*=frame/overlapBefore;if(overlapAfter&&frame>=frameCount-overlapAfter)weight*=(frameCount-frame-1)/overlapAfter;
+          const gain=source.muted?0:dbGain(source.db+automationDb(source,local));
+          output[cursor+frame]+=(input[index]+(input[next]-input[index])*fraction)*gain*weight;
+        }
+      }
+      cursor+=frameCount;
+    }
+    await ctx.close();
+    const id=crypto.randomUUID(),file=wavFileFromBuffer(buffer,blocks[0].file?.name||blocks[0].name||'audio.wav'),durationSeconds=buffer.duration;
+    const merged={...blocks[0],id,originId:id,name:`${String(blocks[0].name).replace(/ · fusion$/,'')} · fusion`,file,buffer,in:0,out:+durationSeconds.toFixed(3),listenAt:0,db:0,fadeIn:blocks[0].fadeIn,fadeOut:blocks.at(-1).fadeOut,loop:false,muted:false,solo:false,locked:false,
+      automation:[{time:0,db:0},{time:+durationSeconds.toFixed(3),db:0}],provenance:null};
+    if(merged.kind==='voice')Object.assign(merged,voiceLevel(buffer));
+    const firstIndex=Math.min(...blocks.map(source=>state.sources.indexOf(source))),ids=new Set(blocks.map(source=>source.id));
+    checkpoint(`fusion de ${blocks.length} blocs ${merged.kind==='voice'?'voix':'musique'}`);
+    state.sources=state.sources.filter(source=>!ids.has(source.id));state.sources.splice(firstIndex,0,merged);state.selectedSourceIds=[merged.id];
+    badge(`${blocks.length} blocs réunis en un seul, sans blanc, avec une micro-transition anti-clic de 8 ms. Les clips déjà placés sur le Master sont inchangés.`,false);render();
+  }
+  root.querySelector('.am-sources').onclick = async e => {
     const wave=e.target.closest('[data-source-wave]');
     if (wave) {placeAnnexCursor(wave,e.clientX);return;}
     const action=e.target.dataset.sourceAction; if (!action) return;
     const source=state.sources.find(s=>s.id===e.target.dataset.sourceId);
     if (action==='listen') return;
+    if (action==='select' && source) {
+      state.selectedSourceIds=state.selectedSourceIds.includes(source.id)?state.selectedSourceIds.filter(id=>id!==source.id):[...state.selectedSourceIds,source.id];
+      render();badge(`${state.selectedSourceIds.length} bloc${state.selectedSourceIds.length>1?'s':''} sélectionné${state.selectedSourceIds.length>1?'s':''} dans Voix et musiques.`,false);return;
+    }
+    if (action==='merge' && source) { await mergeSourceBlocks(source);return; }
     if (action==='collapse-track' && source) {
       const originId=source.originId||source.id,blocks=state.sources.filter(item=>(item.originId||item.id)===originId),collapsed=!blocks.every(item=>item.collapsed===true);
       blocks.forEach(item=>item.collapsed=collapsed);render();
@@ -763,7 +817,7 @@
       const originId=source.originId||source.id,blocks=state.sources.filter(item=>(item.originId||item.id)===originId);
       if(blocks.some(item=>item.locked))return badge('Déverrouillez les blocs de cette piste avant de la supprimer.',true);
       if(sourceAudition&&blocks.some(item=>item.id===sourceAudition.source.id))stopSourceAudition();
-      checkpoint(`suppression de la piste ${source.name}`);state.sources=state.sources.filter(item=>(item.originId||item.id)!==originId);
+      checkpoint(`suppression de la piste ${source.name}`);const removedIds=new Set(blocks.map(item=>item.id));state.sources=state.sources.filter(item=>(item.originId||item.id)!==originId);state.selectedSourceIds=state.selectedSourceIds.filter(id=>!removedIds.has(id));
       badge(`Piste annexe « ${source.name} » effacée. Utilisez « Annuler » pour la restaurer. Les clips déjà placés sur le Master sont conservés.`,false);render();
     }
     if (action==='place' && source) { const destination=source.preferredMasterKind||source.kind,lane=root.querySelector(`[data-master-lane="${destination}"]`);const r=lane.getBoundingClientRect(),filmDuration=duration();placeSource(source,lane,filmDuration>0?r.left+r.width*state.previewAt/filmDuration:r.left); }
@@ -780,7 +834,7 @@
       const from=state.sources.indexOf(source),step=action==='up'?-1:1,to=clamp(from+step,0,state.sources.length-1);
       if(from!==to){checkpoint(`réorganisation de ${source.name}`);state.sources.splice(from,1);state.sources.splice(to,0,source);render();}
     }
-    if (action==='remove' && source) { if(source.locked)return badge('Déverrouillez ce bloc avant de le supprimer.',true);if(sourceAudition?.source.id===source.id)stopSourceAudition();checkpoint(`suppression de ${source.name}`);state.sources=state.sources.filter(s=>s.id!==source.id); badge(`Bloc annexe « ${source.name} » effacé. Les clips déjà placés sur le Master restent en place.`,false); render(); }
+    if (action==='remove' && source) { if(source.locked)return badge('Déverrouillez ce bloc avant de le supprimer.',true);if(sourceAudition?.source.id===source.id)stopSourceAudition();checkpoint(`suppression de ${source.name}`);state.sources=state.sources.filter(s=>s.id!==source.id);state.selectedSourceIds=state.selectedSourceIds.filter(id=>id!==source.id);badge(`Bloc annexe « ${source.name} » effacé. Les clips déjà placés sur le Master restent en place.`,false); render(); }
     if (action==='copy' && source) { state.copiedSource={...source,automation:source.automation.map(p=>({...p}))}; badge(`« ${source.name} » copié.`,false); render(); }
     if (action==='paste' && state.copiedSource) {
       checkpoint('collage d’un bloc annexe');
