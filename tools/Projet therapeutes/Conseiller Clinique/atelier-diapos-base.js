@@ -2,7 +2,11 @@
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var dernier = null;
-  window.__chutier = { dernier: function () { return dernier; } };
+  var dernieresPolices = { regles: 0, familles: [] };
+  window.__chutier = {
+    dernier: function () { return dernier; },
+    polices: function () { return { regles: dernieresPolices.regles, familles: dernieresPolices.familles.slice() }; }
+  };
 
   function message(texte, erreur) {
     var el = $('cv-message');
@@ -35,9 +39,45 @@
     }
     return doc;
   }
+  // Un export interactif Studio Clinique autonome embarque ses polices en WOFF/WOFF2 dans des
+  // règles @font-face. Trame ne peut pas se contenter d'importer ADOC_EXPORT_DOC : le document
+  // continue alors de demander « Pompiere » ou « Montserrat », mais aucune fonte de ce nom
+  // n'existe dans la page de Trame et Safari affiche une police de secours. Les tailles et les
+  // retours à la ligne changent avec elle.
+  //
+  // On ne reprend JAMAIS la feuille CSS de l'export : elle pourrait modifier l'interface de
+  // Trame. Seules les règles @font-face dont la source est une donnée de police embarquée en
+  // base64 sont admises. Les URL réseau et tout autre CSS sont écartés.
+  function extrairePolicesEmbarquees(source) {
+    var candidates = String(source || '').match(/@font-face\s*\{[^{}]*\}/gi) || [];
+    var autorisees = [], familles = [];
+    candidates.forEach(function (regle) {
+      var sourceData = regle.match(/src\s*:\s*url\(\s*(['"]?)data:((?:font|application)\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)\1\s*\)/i);
+      var famille = regle.match(/font-family\s*:\s*(['"])([^'"{};]+)\1\s*;?/i);
+      if (!sourceData || !famille) return;
+      // Une charge utile base64 vide ou manifestement tronquée n'est pas une police.
+      if (sourceData[3].replace(/\s/g, '').length < 64) return;
+      autorisees.push(regle);
+      if (familles.indexOf(famille[2]) === -1) familles.push(famille[2]);
+    });
+    return { css: autorisees.join('\n'), regles: autorisees.length, familles: familles };
+  }
+  function installerPolicesEmbarquees(polices) {
+    var ancien = document.getElementById('atelier-polices-importees');
+    if (ancien) ancien.remove();
+    dernieresPolices = { regles: 0, familles: [] };
+    if (!polices || !polices.css) return dernieresPolices;
+    var style = document.createElement('style');
+    style.id = 'atelier-polices-importees';
+    style.setAttribute('data-source', 'export-studio-clinique');
+    style.textContent = polices.css;
+    document.head.appendChild(style);
+    dernieresPolices = { regles: polices.regles, familles: polices.familles.slice() };
+    return dernieresPolices;
+  }
   function lireFichier(fichier) {
     return fichier.text().then(function (texte) {
-      var doc, images = {};
+      var doc, images = {}, polices = { css: '', regles: 0, familles: [] };
       if (/\.json$/i.test(fichier.name) || fichier.type === 'application/json') {
         var brut = JSON.parse(texte);
         doc = brut.clinicalDocument || brut;
@@ -47,11 +87,14 @@
         doc = JSON.parse(brutDoc);
         var brutImages = extraireObjet(texte, 'window.ADOC_EXPORT_IMAGES');
         if (brutImages) images = JSON.parse(brutImages);
+        polices = extrairePolicesEmbarquees(texte);
       }
       verifier(doc);
+      installerPolicesEmbarquees(polices);
       window.ADOC_EXPORT_DOC = doc;
       window.ADOC_EXPORT_IMAGES = Object.assign({}, window.ADOC_EXPORT_IMAGES || {}, images);
-      return { doc: doc, nom: fichier.name, images: Object.keys(images).length };
+      return { doc: doc, nom: fichier.name, images: Object.keys(images).length,
+               polices: polices.regles, famillesPolices: polices.familles };
     });
   }
   async function rendre(presentation) {
@@ -86,7 +129,12 @@
     $('cv-zip').disabled = false;
     $('cv-mp4').disabled = false;
     $('cv-avancement-texte').textContent = res.images.length + ' images prêtes en 1920 × 1080.';
-    message('Présentation chargée : ' + presentation.nom + ' — ' + res.images.length + ' images.');
+    var infoPolices = presentation.polices
+      ? ' — ' + presentation.polices + ' variante' + (presentation.polices > 1 ? 's' : '')
+        + ' de police embarquée' + (presentation.polices > 1 ? 's' : '')
+        + (presentation.famillesPolices.length ? ' (' + presentation.famillesPolices.join(', ') + ')' : '')
+      : '';
+    message('Présentation chargée : ' + presentation.nom + ' — ' + res.images.length + ' images' + infoPolices + '.');
   }
   async function importer(fichiers) {
     var fichier = Array.from(fichiers || []).find(function (f) { return /\.(html?|json)$/i.test(f.name); });
