@@ -14493,11 +14493,15 @@ ${recent}`;
     const resizeHandle = ['nw','n','ne','e','se','s','sw','w'].map(function (direction) {
       return '<span class="adoc-sc-card-resize-handle cc-pos-resize-' + direction + '" data-resize-direction="' + direction + '" aria-hidden="true"></span>';
     }).join('');
+    const titre = card.content.titleHidden ? ''
+      : '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id)
+        + '" data-cc-editor-leaf="card-title"' + adocTitleStyleAttr(card.content.titleStyle)
+        + '>' + adocEsc(card.content.title) + '</h2>';
     return '<section class="adoc-sc-card" id="' + adocEsc(card.id) + '"' + styleAttr + ' role="group" aria-label="Carte ' + (index + 1) + ' sur ' + total + ' : ' + adocEsc(card.content.title) + '">' +
       // Item 68 — même mécanisme d'édition directe que la bannière Fiche (data-cc-editor-leaf
       // générique, jamais .adoc-sc-block : un titre de carte reste une DÉCORATION de card.content,
       // synchronisé par adocSyncEditedRootFieldsToDoc, jamais par adocEditorSyncStructured).
-      img + couvZoomBadge + coverChipsHTML + '<h2 class="adoc-sc-card-title" id="' + adocEsc('root:card-title:' + card.id) + '" data-cc-editor-leaf="card-title"' + adocTitleStyleAttr(card.content.titleStyle) + '>' + adocEsc(card.content.title) + '</h2>' + nested + resizeHandle + '</section>';
+      img + couvZoomBadge + coverChipsHTML + titre + nested + resizeHandle + '</section>';
   }
   // CORRECTIF ITEM 75 (effondrement du Carrousel) — `.adoc-sc-carrousel` est en display:flex, sa
   // hauteur dépend normalement de ses cartes en flux normal ; une carte avec x/y/width/height
@@ -22828,6 +22832,12 @@ ${recent}`;
     const parentCardId = blockEl.closest('.adoc-sc-card')?.id;
     adocEditorCheckpoint();
     siblings.splice(index, 1);
+    // Si le dernier contenu d'une page « image seule » est retiré, son titre redevient
+    // automatiquement visible : une page totalement vide doit toujours conserver une ancre pour
+    // permettre l'insertion du prochain bloc.
+    const parentCard = parentCardId && adocFindEditableBlock(doc, parentCardId);
+    if (parentCard && parentCard.type === 'card' && parentCard.content.blocks === siblings &&
+        !siblings.length && parentCard.content.titleHidden) delete parentCard.content.titleHidden;
     try {
       adocWsClearBlockSelection();
       if (!await window.adocOpenWorkspace(storeKey)) throw new Error('le rendu du document a échoué');
@@ -22839,6 +22849,36 @@ ${recent}`;
       art._adocStructuredDoc = JSON.parse(before);
       await window.adocOpenWorkspace(storeKey);
       alert('Impossible de supprimer ce bloc : ' + (error && error.message || 'erreur inconnue') + '.');
+    }
+  };
+
+  // Le titre d'une page est une propriété de la carte, pas un bloc enfant : la croix de la
+  // carte supprime donc légitimement toute la page. Ce geste distinct masque SEULEMENT le titre
+  // visuel et conserve son libellé sémantique (sommaire, historique, accessibilité). Il n'est
+  // proposé qu'après l'ajout d'au moins un vrai bloc, afin de ne jamais laisser une page vide sans
+  // point d'ancrage pour insérer son premier contenu.
+  window.adocHideCardTitle = async function (cardId) {
+    const storeKey = window._adocWsState && window._adocWsState.storeKey;
+    const art = window._adocArtifacts && window._adocArtifacts[storeKey];
+    const doc = art && art._adocStructuredDoc;
+    const card = doc && adocFindEditableBlock(doc, cardId);
+    if (!card || card.type !== 'card' || card.content.titleHidden || !(card.content.blocks || []).length) return false;
+    if (!window.confirm('Supprimer uniquement le titre de cette page ? La page et ses blocs seront conservés.')) return false;
+    adocSyncEditedStructuredBlocksToDoc(art); adocSyncEditedRootFieldsToDoc(art);
+    const before = JSON.stringify(doc);
+    adocEditorCheckpoint(true);
+    card.content.titleHidden = true;
+    try {
+      adocWsClearBlockSelection();
+      if (!await window.adocOpenWorkspace(storeKey)) throw new Error('le rendu du document a échoué');
+      const first = card.content.blocks[0] && document.getElementById(card.content.blocks[0].id);
+      if (first) first.scrollIntoView({ block: 'center', inline: 'nearest' });
+      return true;
+    } catch (error) {
+      art._adocStructuredDoc = JSON.parse(before);
+      await window.adocOpenWorkspace(storeKey);
+      alert('Impossible de supprimer ce titre : ' + (error && error.message || 'erreur inconnue') + '.');
+      return false;
     }
   };
 
@@ -23028,6 +23068,19 @@ ${recent}`;
       button.setAttribute('aria-label', adocDeleteControlLabel(kind, index, cardEl.querySelector('.adoc-sc-card-title')?.textContent));
       button.contentEditable = 'false';
       cardEl.appendChild(button);
+      const card = art._adocStructuredDoc && adocFindEditableBlock(art._adocStructuredDoc, cardEl.id);
+      const titleEl = cardEl.querySelector(':scope > .adoc-sc-card-title');
+      if (card && titleEl && (card.content.blocks || []).length && !card.content.titleHidden) {
+        const titleDelete = document.createElement('button');
+        titleDelete.type = 'button'; titleDelete.className = 'cc-card-title-delete'; titleDelete.textContent = '×';
+        titleDelete.title = 'Supprimer uniquement le titre';
+        titleDelete.setAttribute('aria-label', 'Supprimer uniquement le titre de cette page');
+        titleDelete.contentEditable = 'false';
+        titleDelete.onclick = function (event) {
+          event.preventDefault(); event.stopPropagation(); window.adocHideCardTitle(cardEl.id);
+        };
+        titleEl.insertAdjacentElement('afterend', titleDelete);
+      }
     });
     if (art._adocStructuredDoc && art._adocStructuredDoc.documentKind !== 'carrousel') {
       docCard.querySelectorAll('.adoc-sc-block[id]').forEach(function (blockEl) {

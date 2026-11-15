@@ -403,6 +403,10 @@
           "type": "string",
           "minLength": 1
         },
+      "titleHidden": {
+        "$comment": "Masque uniquement le titre visuel de la carte. Le titre sémantique reste conservé pour identifier la page dans le sommaire, l’historique et les outils d’édition. Optionnel : absent ou false conserve exactement le rendu historique.",
+        "type": "boolean"
+      },
         "titleStyle": {
           "$comment": "Q1 — mise en forme du titre de la carte. MÊME définition que le style d'un bloc ($ref blockStyle, une seule liste de champs à tenir à jour), OPTIONNEL : absent = l'apparence vient du CSS et de la charte, exactement comme avant ce champ. Aucune valeur par défaut n'est écrite, sous peine de figer l'apparence et de casser tout changement de charte.",
           "$ref": "#/$defs/blockStyle"

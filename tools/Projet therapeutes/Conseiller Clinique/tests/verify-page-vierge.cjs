@@ -31,6 +31,7 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
     const page = await navigateur.newPage({ viewport: { width: 1440, height: 900 } });
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(e.message));
+    page.on('dialog', (dialog) => dialog.accept());
     await page.route('**/*', (route) => route.request().url().startsWith('http://127.0.0.1:' + port + '/')
       ? route.continue() : route.abort());
     await page.goto('http://127.0.0.1:' + port + '/studio-clinique.html?atelier-local=1');
@@ -66,7 +67,7 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
         const doc = window._adocArtifacts.vierge._adocStructuredDoc;
         const carte = doc.blocks[2];
         const panneau = window._adocBlockEditState && window._adocBlockEditState.panelEl;
-        return { titre: carte.content.title, blocs: carte.content.blocks.length,
+        return { id: carte.id, titre: carte.content.title, blocs: carte.content.blocks.length,
           ordre: doc.blocks.map((b) => b.id), champFutur: doc.blocks[0].content.blocks[0].futureField,
           selection: window._adocBlockEditState && window._adocBlockEditState.blockId,
           menuBloc: panneau && [...panneau.querySelectorAll('label')]
@@ -79,6 +80,33 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
       assert.deepEqual(resultat.champFutur, { preserved: true }, kind + ' : le champ futur doit survivre');
       assert.match(resultat.selection || '', /^root:card-title:/, kind + ' : le titre neuf doit être sélectionné');
       assert.equal(resultat.menuBloc, true, kind + ' : le menu « Insérer un bloc » doit être ouvert');
+
+      // Une page avec un contenu peut devenir « image seule » : le titre visuel disparaît,
+      // mais ni la carte ni son bloc ne sont supprimés. Le libellé sémantique reste stocké.
+      await page.evaluate(async ({ cardId, imageId }) => {
+        const art = window._adocArtifacts.vierge;
+        const card = art._adocStructuredDoc.blocks.find((b) => b.id === cardId);
+        card.content.blocks.push({ id: imageId, type: 'image',
+          content: { query: 'quiet therapy room', alt: 'Photo de test' }, citationIds: [], validation: {} });
+        await window.adocOpenWorkspace('vierge');
+      }, { cardId: resultat.id, imageId: 'image-seule-' + kind });
+      const carte = page.locator('#' + resultat.id);
+      await carte.getByRole('button', { name: 'Supprimer uniquement le titre de cette page' }).click();
+      await page.waitForFunction((cardId) => {
+        const card = window._adocArtifacts.vierge._adocStructuredDoc.blocks.find((b) => b.id === cardId);
+        return card && card.content.titleHidden === true;
+      }, resultat.id);
+      const imageSeule = await page.evaluate((cardId) => {
+        const doc = window._adocArtifacts.vierge._adocStructuredDoc;
+        const card = doc.blocks.find((b) => b.id === cardId);
+        return { cartes: doc.blocks.length, titre: card.content.title, masque: card.content.titleHidden,
+          blocs: card.content.blocks.map((b) => b.type), titreVisible: !!document.getElementById('root:card-title:' + cardId) };
+      }, resultat.id);
+      assert.equal(imageSeule.cartes, avant.length + 1, kind + ' : la page doit rester présente');
+      assert.deepEqual(imageSeule.blocs, ['image'], kind + ' : la photo doit rester présente');
+      assert.equal(imageSeule.titre, 'Nouvelle page', kind + ' : le titre sémantique doit être conservé');
+      assert.equal(imageSeule.masque, true, kind + ' : le titre visuel doit être masqué');
+      assert.equal(imageSeule.titreVisible, false, kind + ' : aucun titre ne doit rester dans le rendu');
     }
     // Les formats continus gardent l'insertion de blocs, sans faux geste de page.
     await page.evaluate(async () => {
@@ -98,7 +126,7 @@ const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
       'Fiche : l\'insertion de blocs reste disponible');
     assert.equal(posts, 0, 'une page vierge ne doit appeler ni modèle ni Worker');
     assert.deepEqual(erreurs, [], 'aucune erreur navigateur');
-    console.log('PASS verify-page-vierge — Présentation + Carrousel, page vide, ordre préservé, champs futurs conservés, 0 appel réseau.');
+    console.log('PASS verify-page-vierge — Présentation + Carrousel, page vide puis image seule, ordre préservé, 0 appel réseau.');
   } finally {
     await navigateur.close();
     serveur.close();
