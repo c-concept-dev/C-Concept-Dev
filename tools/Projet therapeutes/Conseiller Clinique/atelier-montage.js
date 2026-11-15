@@ -12,7 +12,7 @@
   const normalizeMaster = value => Object.fromEntries(MASTER_KINDS.map(kind=>[kind,{...defaultMaster()[kind],...(value?.[kind]||{})}]));
   const state = { tracks: [], sources: [], copiedSource: null, images: [], cuts: [], total: 0, playing: false, started: 0,
     previewAt: 0, raf: 0, bitmap: null, bitmapIndex: -1, exporting: false,
-    selectedId: null, selectedIds: [], selectedSourceIds: [], selectedSlides: [], slideAnchor: null, copiedTracks: [], zoom: 20, annexZoom: {voice: 1, music: 1}, linkedZoom: false,
+    selectedId: null, selectedIds: [], selectedSourceIds: [], selectedSlides: [], slideAnchor: null, copiedTracks: [], copiedSlides: [], zoom: 20, annexZoom: {voice: 1, music: 1}, linkedZoom: false,
     placementMode: 'free', previewQuality: 'full', workspace: 'all', transitions: [], selectedTransition: 1, previewRequest: 0,
     previewCache: new Map(), previewDrawAt: null, previewDrawing: false, previewGeneration: 0, scrubbing: false,
     historyPast: [], historyFuture: [], lastAction: '',
@@ -95,7 +95,7 @@
   function projectSnapshot() {
     return {
       tracks:state.tracks.map(cloneItem),sources:state.sources.map(cloneItem),copiedSource:cloneItem(state.copiedSource),
-      copiedTracks:state.copiedTracks.map(cloneItem),images:state.images.slice(),cuts:state.cuts.slice(),total:state.total,
+      copiedTracks:state.copiedTracks.map(cloneItem),copiedSlides:state.copiedSlides.map(item=>({...item,image:{...item.image},transition:{...item.transition,params:{...(item.transition?.params||{})}}})),images:state.images.slice(),cuts:state.cuts.slice(),total:state.total,
       previewAt:state.previewAt,selectedId:state.selectedId,selectedIds:state.selectedIds.slice(),selectedSourceIds:state.selectedSourceIds.slice(),selectedSlides:state.selectedSlides.slice(),slideAnchor:state.slideAnchor,zoom:state.zoom,
       annexZoom:{...state.annexZoom},linkedZoom:state.linkedZoom,placementMode:state.placementMode,
       previewQuality:state.previewQuality,workspace:state.workspace,transitions:state.transitions.map(t=>({...t,params:{...(t.params||{})}})),
@@ -112,7 +112,7 @@
   }
   function restoreSnapshot(snapshot) {
     if(state.playing)stopPreview();
-    for(const key of ['tracks','sources','copiedTracks','images','cuts','selectedIds','selectedSourceIds','selectedSlides','transitions']) state[key]=snapshot[key]||[];
+    for(const key of ['tracks','sources','copiedTracks','copiedSlides','images','cuts','selectedIds','selectedSourceIds','selectedSlides','transitions']) state[key]=snapshot[key]||[];
     for(const key of ['copiedSource','total','previewAt','selectedId','slideAnchor','zoom','linkedZoom','placementMode','previewQuality','workspace','selectedTransition']) state[key]=snapshot[key];
     state.master=normalizeMaster(snapshot.master);
     state.zoom=clamp(+state.zoom||20,2,240);
@@ -274,7 +274,7 @@
     .am-source-lane-head>.am-local-history{grid-area:history;justify-self:end;gap:6px;padding-top:1px;border-top:1px solid #b8b0a5;background:transparent}.am-source-lane-head>.am-local-history button{display:inline!important;width:auto!important;min-width:0!important;height:auto!important;min-height:17px!important;padding:0 2px!important;border:0!important;border-radius:2px!important;background:transparent!important;color:#395b5d!important;font-size:8px!important;text-decoration:underline dotted;text-underline-offset:2px}.am-source-lane-head>.am-local-history button:disabled{color:#9b958c!important;text-decoration:none}
     .am-audio-library{position:sticky;left:0;z-index:6;width:100%;margin:0 0 7px;border:1px solid #d0a58f;border-radius:8px;background:#fffaf6;overflow:hidden}.am-audio-library>summary{display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;color:#713b2b;font-size:11px;font-weight:800;list-style:none}.am-audio-library>summary::-webkit-details-marker{display:none}.am-audio-library>summary::before{content:'♪';display:grid;place-items:center;width:19px;height:19px;border-radius:50%;background:#b7482a;color:#fff;font-size:10px}.am-audio-library>summary:hover,.am-audio-library>summary:focus-visible{background:#f8e9df}.am-audio-library>summary:focus-visible{outline:2px solid #b7482a;outline-offset:-2px}.am-audio-library-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.am-audio-library-toggle{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:2px 6px;border:1px solid #d0a58f;border-radius:999px;background:#fff;color:#713b2b;font-size:9px;font-weight:750;white-space:nowrap}.am-audio-library-toggle::before{content:'▾';font-size:8px;transition:transform .15s ease}.am-audio-library:not([open]) .am-audio-library-toggle::before{transform:rotate(-90deg)}.am-audio-library:not([open]) .am-audio-library-when-open,.am-audio-library[open] .am-audio-library-when-closed{display:none}.am-audio-library[open]>summary{border-bottom:1px solid #ead5c9}.am-audio-search-form{display:grid;grid-template-columns:minmax(150px,1fr) auto;gap:5px;padding:7px 8px 4px}.am-audio-search-form input{min-width:0;padding:6px 8px;border:1px solid #9b7a6c;border-radius:6px;background:#fff;font:inherit}.am-audio-search-form button{min-height:29px!important;padding:4px 8px!important;font-size:10px!important}.am-audio-search-help{display:block;padding:0 8px 6px;color:#6f6259;font-size:9px}.am-audio-search-results{display:grid;gap:5px;max-height:260px;overflow:auto;padding:0 8px 8px}.am-audio-result{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 6px;padding:6px;border:1px solid #dec8bc;border-radius:7px;background:#fff}.am-audio-result-main{min-width:0}.am-audio-result strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:#4f2d22}.am-audio-result-meta{display:block;margin-top:2px;color:#6f6259;font-size:9px;white-space:normal}.am-audio-result-actions{display:flex;align-items:center;gap:3px}.am-audio-result-actions button{min-height:25px!important;padding:2px 5px!important;font-size:9px!important}.am-audio-result-credit{grid-column:1/-1;font-size:8px;color:#806e65;white-space:normal}.am-audio-result-credit a{color:#6d3b2b}.am-audio-library-status{padding:2px 8px 7px;color:#6f6259;font-size:9px}.am-audio-library-status[data-error=true]{color:#9c3d27}.am-source-credit{margin:-1px 0 5px 35px;color:#6f6259;font-size:9px;white-space:normal}.am-source-credit a{color:#6d3b2b}
     .am-step-clip[data-slide-selected=true]{background:#d9effb;outline:2px solid #187fc2;outline-offset:-2px;padding-left:18px}.am-step-clip[data-slide-selected=true]::before{content:'✓';position:absolute;left:2px;top:1px;z-index:3;width:13px;height:13px;display:grid;place-items:center;border-radius:50%;background:#187fc2;color:#fff;font-size:8px}
-    .am-slide-selection-tools{display:inline-flex;align-items:center;gap:2px;padding:1px 3px;border:1px solid #187fc2;border-radius:5px;background:#eef7fc;color:#174a67;font-size:9px;flex:0 0 auto}.am-slide-selection-tools[hidden]{display:none}.am-slide-selection-tools input{width:45px!important;min-height:21px!important;padding:1px 2px!important;font-size:9px!important}.am-slide-selection-tools button{min-width:21px!important;min-height:21px!important;padding:1px 3px!important;font-size:9px!important}
+    .am-slide-selection-tools{display:inline-flex;align-items:center;gap:2px;padding:1px 3px;border:1px solid #187fc2;border-radius:5px;background:#eef7fc;color:#174a67;font-size:9px;flex:0 0 auto}.am-slide-selection-tools[hidden]{display:none}.am-slide-selection-tools input{width:45px!important;min-height:21px!important;padding:1px 2px!important;font-size:9px!important}.am-slide-selection-tools button{min-width:21px!important;min-height:21px!important;padding:1px 3px!important;font-size:9px!important}.am-slide-selection-tools .am-slide-copy{padding-inline:5px!important;border-color:#9dbdcd!important;background:#fafdff!important;color:#174a67!important;font-weight:750;opacity:.88}.am-slide-selection-tools .am-slide-copy:hover,.am-slide-selection-tools .am-slide-copy:focus-visible{background:#dceef7!important;opacity:1}.am-slide-selection-tools .am-slide-copy:disabled{opacity:.35}
     .am-transition-panel{display:block;padding:0;background:#f4e8d9;border:1px solid #c4a88e;border-radius:8px;font-size:11px;overflow:hidden}
     .am-transition-panel[hidden]{display:none}
     .am-transition-panel>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;list-style:none;cursor:pointer;padding:5px 8px;color:#17393b;font-weight:750}.am-transition-panel>summary::-webkit-details-marker{display:none}.am-transition-panel>summary::before{content:'▸';font-size:10px;transition:transform .15s ease}.am-transition-panel[open]>summary::before{transform:rotate(90deg)}.am-transition-summary{margin-left:auto;color:#6f6259;font-weight:600;font-size:10px}.am-transition-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 8px;border-top:1px solid #c4a88e}.am-transition-controls label{display:flex;align-items:center;gap:3px;white-space:nowrap}.am-transition-controls select,.am-transition-controls input{font:inherit;padding:3px!important}.am-transition-controls input{width:54px}.am-transition-controls button{min-height:27px!important;padding:3px 6px!important;font-size:10px!important}.am-transition-help{color:#6f6259;font-size:10px;margin-left:auto}
@@ -318,7 +318,7 @@
     <div class="am-source-lane" data-import-lane="music"><div class="am-source-lane-head"><div class="am-source-lane-title"><strong>Musique</strong><small>Fond et ambiance</small></div><div class="am-zoom-tools" aria-label="Zoom des musiques"><button id="am-music-zoom-out" type="button" title="Dézoomer les musiques">−</button><label>Zoom <input id="am-music-zoom" type="range" min="1" max="100" step="0.5" value="1" aria-label="Zoom précis des sources musique"></label><button id="am-music-zoom-in" type="button" title="Zoomer les musiques">+</button><button id="am-music-zoom-precision" type="button">×10</button><button id="am-music-zoom-fit" type="button">Tout voir</button><output id="am-music-zoom-value">×1</output></div><button id="am-open-music" class="am-compact-import am-drop-audio" type="button" data-commande="importer-musique" title="Cliquez pour choisir des fichiers, ou déposez-les dans toute la zone Musique">+ Importer / déposer</button></div><details class="am-audio-library" id="am-audio-library"><summary><span class="am-audio-library-title">Bibliothèque d’ambiances sonores</span><span class="am-audio-library-toggle" aria-hidden="true"><span class="am-audio-library-when-open">Replier</span><span class="am-audio-library-when-closed">Afficher</span></span></summary><form class="am-audio-search-form" id="am-audio-search-form"><input id="am-audio-search" type="search" autocomplete="off" placeholder="Ex. pluie douce, forêt, café…" aria-label="Rechercher un son d’ambiance"><button type="submit">Rechercher</button></form><small class="am-audio-search-help">Freesound + Openverse · uniquement CC0, domaine public ou CC BY.</small><div class="am-audio-library-status" id="am-audio-library-status">Saisissez une ambiance, écoutez-la, puis ajoutez-la à Ambiance Master.</div><div class="am-audio-search-results" id="am-audio-search-results" aria-live="polite"></div></details><div class="am-source-list" data-source-lane="music"></div></div></div></section></div>
     <p id="am-status" role="status" aria-live="polite">Prêt pour l’import audio MP3, M4A ou WAV.</p>`;
   root.querySelectorAll('.am-source-lane-head').forEach(head=>head.querySelector('.am-compact-import')?.insertAdjacentHTML('afterend','<span class="am-local-history" aria-label="Annuler et rétablir plusieurs actions"><button type="button" data-history="undo" title="Annuler la dernière action ; cliquez plusieurs fois pour remonter davantage" disabled>↶ Annuler</button><button type="button" data-history="redo" title="Rétablir l’action annulée ; cliquez plusieurs fois pour avancer davantage" disabled>↷ Rétablir</button></span>'));
-  root.querySelector('.am-final-timeline-head>strong')?.insertAdjacentHTML('afterend','<span id="am-slide-selection-tools" class="am-slide-selection-tools" hidden><b id="am-slide-selection-count">0 diapo</b><button type="button" data-slide-duration-delta="-0.5" title="Raccourcir les diapositives sélectionnées de 0,5 seconde">−0,5</button><label>Durée <input id="am-slide-duration" type="number" min="0.5" step="0.1" value="4" aria-label="Durée commune des diapositives sélectionnées"> s</label><button type="button" data-slide-duration-delta="0.5" title="Allonger les diapositives sélectionnées de 0,5 seconde">+0,5</button><button type="button" id="am-clear-slide-selection" title="Annuler la sélection de diapositives" aria-label="Annuler la sélection de diapositives">×</button></span>');
+  root.querySelector('.am-final-timeline-head>strong')?.insertAdjacentHTML('afterend','<span id="am-slide-selection-tools" class="am-slide-selection-tools" hidden><b id="am-slide-selection-count">0 diapo</b><button class="am-slide-copy" type="button" id="am-copy-slides" title="Copier les diapositives sélectionnées (⌘C)">⧉ Copier</button><button class="am-slide-copy" type="button" id="am-paste-slides" title="Coller les diapositives copiées au curseur (⌘V)" disabled>↳ Coller</button><button type="button" data-slide-duration-delta="-0.5" title="Raccourcir les diapositives sélectionnées de 0,5 seconde">−0,5</button><label>Durée <input id="am-slide-duration" type="number" min="0.5" step="0.1" value="4" aria-label="Durée commune des diapositives sélectionnées"> s</label><button type="button" data-slide-duration-delta="0.5" title="Allonger les diapositives sélectionnées de 0,5 seconde">+0,5</button><button type="button" id="am-clear-slide-selection" title="Annuler la sélection de diapositives" aria-label="Annuler la sélection de diapositives">×</button></span>');
   $('cv-vignettes').before(root);
   const vignetteDetails = document.createElement('details');
   vignetteDetails.id = 'am-vignettes-details';
@@ -351,6 +351,25 @@
     clearPreviewCache();render();seek(Math.min(state.previewAt,duration()));
     badge(`${indexes.length} diapositive${indexes.length>1?'s':''} réglée${indexes.length>1?'s':''} à ${next.toFixed(1).replace('.',',')} s.`,false);
   }
+  const cloneTransition = transition => ({...(transition||{type:'cut',duration:0.6,easing:'linear'}),params:{...(transition?.params||{})}});
+  function copySelectedSlides() {
+    const indexes=[...new Set(state.selectedSlides.filter(index=>index>=0&&index<state.images.length))].sort((a,b)=>a-b);
+    if(!indexes.length)return badge('Sélectionnez une ou plusieurs diapositives à copier.',true);
+    state.copiedSlides=indexes.map(index=>({image:{...state.images[index]},duration:slideDuration(index),transition:cloneTransition(state.transitions[index])}));
+    render();badge(`${indexes.length} diapositive${indexes.length>1?'s':''} copiée${indexes.length>1?'s':''}. Placez le curseur puis cliquez sur « Coller au curseur ».`,false);
+  }
+  function pasteSlidesAtCursor() {
+    if(!state.copiedSlides.length)return badge('Copiez d’abord une ou plusieurs diapositives.',true);
+    const exact=state.cuts.findIndex(cut=>Math.abs(cut-state.previewAt)<0.05),next=state.cuts.findIndex(cut=>cut>state.previewAt);
+    const insertion=exact>=0?exact:(next>=0?next:state.images.length),durations=state.images.map((_,index)=>slideDuration(index));
+    const copies=state.copiedSlides.map(item=>({image:{...item.image},duration:item.duration,transition:cloneTransition(item.transition)}));
+    checkpoint(`collage de ${copies.length} diapositive${copies.length>1?'s':''}`);
+    state.images.splice(insertion,0,...copies.map(item=>item.image));durations.splice(insertion,0,...copies.map(item=>item.duration));
+    state.transitions.splice(insertion,0,...copies.map(item=>item.transition));rebuildCutsFromDurations(durations);
+    state.selectedSlides=Array.from({length:copies.length},(_,offset)=>insertion+offset);state.slideAnchor=insertion;state.selectedTransition=clamp(Math.max(1,insertion),1,Math.max(1,state.images.length-1));
+    clearPreviewCache();render();seek(state.cuts[insertion]||0);
+    badge(`${copies.length} diapositive${copies.length>1?'s':''} collée${copies.length>1?'s':''} au curseur. La suite a été décalée et le temps total adapté.`,false);
+  }
   function selectSlide(index,event={}) {
     if(index<0||index>=state.images.length)return;
     if(event.shiftKey&&Number.isInteger(state.slideAnchor)){
@@ -373,6 +392,7 @@
     state.selectedSlides=selectedSlides;
     const slideTools=$('am-slide-selection-tools');slideTools.hidden=!selectedSlides.length;
     if(selectedSlides.length){$('am-slide-selection-count').textContent=`${selectedSlides.length} diapo${selectedSlides.length>1?'s':''}`;$('am-slide-duration').value=slideDuration(selectedSlides[0]).toFixed(1);}
+    $('am-copy-slides').disabled=!selectedSlides.length;$('am-paste-slides').disabled=!state.copiedSlides.length;
     $('am-clock').textContent = `${time(state.previewAt)} / ${time(duration())}`;
     $('am-cursor-time').textContent = state.zoom>=100?timePrecise(state.previewAt):time(state.previewAt);
     $('am-seek').max = Math.max(1, duration()); $('am-seek').value = clamp(state.previewAt, 0, duration());
@@ -531,7 +551,7 @@
     if (!d || !d.res || !d.res.images || !d.res.images.length) return;
     state.images.forEach(im => URL.revokeObjectURL(im.url));
     state.images = d.res.images.map(im => ({...im, url: URL.createObjectURL(im.blob)}));
-    state.selectedSlides=[];state.slideAnchor=null;
+    state.selectedSlides=[];state.copiedSlides=[];state.slideAnchor=null;
     const n = state.images.length, total = duration();
     state.cuts = Array.from({length:n}, (_, i) => i * total / n);
     state.transitions = Array.from({length:n},()=>({type:'cut',duration:0.6,easing:'linear'}));
@@ -694,7 +714,7 @@
       state.sources=(project.sources||[]).map(restoreAudio);state.tracks=(project.tracks||[]).map(restoreAudio);state.cuts=(project.cuts||[]).slice();state.total=+project.total||0;
       state.zoom=clamp(+(project.zoom?.master||20),2,240);const savedAnnex=project.zoom?.annexes||1;state.annexZoom=typeof savedAnnex==='number'?{voice:savedAnnex,music:savedAnnex}:{voice:savedAnnex.voice||1,music:savedAnnex.music||1};state.linkedZoom=project.zoom?.linked===true;state.placementMode=project.placementMode||'free';state.previewQuality=project.previewQuality||'full';state.workspace=workspaceValue(workspaceSet(project.workspace));
       state.transitions=(project.transitions||[]).map(transition=>({...transition,params:{...(transition.params||{})}}));state.master=normalizeMaster(project.master);
-      state.selectedId=null;state.selectedIds=[];state.selectedSourceIds=[];state.selectedSlides=[];state.slideAnchor=null;state.previewAt=0;clearPreviewCache();$('am-duck').value=String(project.mix?.duck??0.126);$('am-uniform-voices').checked=project.mix?.uniformVoices!==false;
+      state.selectedId=null;state.selectedIds=[];state.selectedSourceIds=[];state.selectedSlides=[];state.copiedSlides=[];state.slideAnchor=null;state.previewAt=0;clearPreviewCache();$('am-duck').value=String(project.mix?.duck??0.126);$('am-uniform-voices').checked=project.mix?.uniformVoices!==false;
       if($('cv-mp4'))$('cv-mp4').disabled=!state.images.length;applyPreviewQuality();render();drawPreview(0);badge(`Projet restauré : ${state.images.length} images, ${state.sources.length} blocs annexes et ${state.tracks.length} clips Master.`,false);
     }finally{await ctx.close();}
   }
@@ -1404,6 +1424,8 @@
   document.addEventListener('keydown', e => {
     if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){e.preventDefault();return e.shiftKey?redo():undo();}
     if((e.metaKey||e.ctrlKey)&&['+','=','-','0'].includes(e.key)){e.preventDefault();if(e.key==='0')$('am-zoom-fit').click();else setMasterZoom(state.zoom*(e.key==='-'?0.8:1.25));return;}
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='c'&&state.selectedSlides.length){e.preventDefault();copySelectedSlides();return;}
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='v'&&state.copiedSlides.length){e.preventDefault();pasteSlidesAtCursor();return;}
     if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='c'&&state.selectedIds.length){e.preventDefault();state.copiedTracks=state.tracks.filter(t=>state.selectedIds.includes(t.id)).map(cloneItem);badge(`${state.copiedTracks.length} clip(s) Master copié(s).`,false);return;}
     if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='v'&&state.copiedTracks.length){e.preventDefault();checkpoint('collage de clips Master');const first=Math.min(...state.copiedTracks.map(t=>t.at));const copies=state.copiedTracks.map(t=>({...cloneItem(t),id:crypto.randomUUID(),at:Math.max(0,state.previewAt+t.at-first),locked:false}));state.tracks.push(...copies);state.selectedIds=copies.map(t=>t.id);state.selectedId=copies.at(-1).id;render();return;}
     const editing=/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName);if(editing)return;
@@ -1412,6 +1434,8 @@
   });
   root.addEventListener('click',e=>{const action=e.target.closest('[data-history]')?.dataset.history;if(action==='undo')undo();else if(action==='redo')redo();});
   root.addEventListener('click',e=>{
+    if(e.target.closest('#am-copy-slides')){copySelectedSlides();return;}
+    if(e.target.closest('#am-paste-slides')){pasteSlidesAtCursor();return;}
     const delta=e.target.closest('[data-slide-duration-delta]')?.dataset.slideDurationDelta;
     if(delta!==undefined){const selectedFirst=state.selectedSlides[0];if(selectedFirst!==undefined)setSelectedSlideDuration(slideDuration(selectedFirst)+Number(delta));return;}
     if(e.target.closest('#am-clear-slide-selection')){state.selectedSlides=[];state.slideAnchor=null;render();badge('Sélection des diapositives annulée.',false);}
