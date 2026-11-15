@@ -1,0 +1,71 @@
+{
+  "description": "Les citations, dans les documents du projet, qui ont la forme d'une empreinte de commit sans en être une.",
+  "pourquoi_cette_liste_existe": "Ce dépôt cite entre accents graves, et de la même façon, des commits, des versions de document, des travaux de la file, des documents de bibliothèque et des empreintes de fichier. Aucune forme ne les distingue. Le garde-fou refuse donc toute citation que l'historique Git ne connaît pas, SAUF celles nommées ici — et nommer, c'est dire ce que c'est, pas seulement l'excuser.",
+  "methode": "Relevé sur docs/autorisations-de-push.md, docs/decisions.md, docs/decisions/*.md et docs/file-des-lots.md, puis chaque jeton éprouvé par « git cat-file -e <jeton>^{commit} », puis chaque inconnu LU DANS SON CONTEXTE pour savoir ce qu'il désigne. Aucune de ces natures n'a été devinée.",
+  "mesure_le": "2026-11-15",
+  "si_une_citation_devient_un_commit": "Le garde-fou doit le DIRE : une épingle périmée est un trou. On la retire alors de cette liste plutôt que de la laisser couvrir une vraie empreinte.",
+  "ce_que_la_longueur_ecarte_deja": "Les courses d'intégration continue (11 signes), l'empreinte d'un fichier (16) et celles des archives (64) sortent par leur longueur, sans épingle : une citation de commit fait ici 8 signes (120 fois), 9 (3 fois) ou 40. Elles n'ont donc pas à être nommées une par une, et une course nouvelle n'oblige à rien.",
+  "pas_des_commits": [
+    {
+      "citation": "ca36cf98",
+      "ce_que_c_est": "document",
+      "precision": "Le document de 116 pages de la bibliothèque musicale, celui dont l'écran a été examiné le 12 novembre 2026. Cité onze fois dans le journal des décisions, et une douzième par l'entrée 52 du registre, qui parle de ce relevé même."
+    },
+    {
+      "citation": "f5bca72c",
+      "ce_que_c_est": "document",
+      "precision": "Un document de 21 pages, sans repères, que j'avais compté « touché » à tort le 12 novembre 2026 : une erreur de critère de ma part, inscrite comme telle."
+    },
+    {
+      "citation": "fc41f8c5",
+      "ce_que_c_est": "document",
+      "precision": "Un document de 29 pages lues, ligne d'un tableau comparatif du journal des décisions — 28 feuilles, aucune page absente."
+    },
+    {
+      "citation": "07451d43",
+      "ce_que_c_est": "version",
+      "precision": "La version publiée du document ca36cf98, celle qui porte 116 pages et 52 enregistrements. Elle a remplacé d183554c, conservée."
+    },
+    {
+      "citation": "d183554c",
+      "ce_que_c_est": "version",
+      "precision": "La version précédente du même document, activée le 2 novembre 2026 à 22:42:12, et conservée."
+    },
+    {
+      "citation": "c294689f",
+      "ce_que_c_est": "version",
+      "precision": "La version écrite lors de l'écriture réelle du 12 novembre 2026, l'un des quatre fichiers ajoutés que la comparaison à la sauvegarde a relevés."
+    },
+    {
+      "citation": "914c0ae2",
+      "ce_que_c_est": "travail",
+      "precision": "Le travail de la file qui relie la version 07451d43 à sa source."
+    },
+    {
+      "citation": "f3ccbc86",
+      "ce_que_c_est": "travail",
+      "precision": "Un travail en échec du 28 octobre 2026, antérieur et légitime : un fichier d'un format que la chaîne ne sait pas encore lire. C'est l'objet du lot 0v."
+    },
+    {
+      "citation": "145252cf",
+      "ce_que_c_est": "travail",
+      "precision": "La première tentative d'écriture dans la bibliothèque, échouée sur un manifeste sans exécutable."
+    },
+    {
+      "citation": "827dd395",
+      "ce_que_c_est": "version de deploiement du Worker",
+      "precision": "La version rendue par Cloudflare au redéploiement du Worker, citée dans la file des lots. Sixième nature trouvée, et la seule qui ne vienne pas de la bibliothèque : elle est apparue en élargissant le périmètre du garde-fou à la file des lots, que la ligne du lot ne nommait pas."
+    }
+  ],
+  "empreintes_fantomes": [
+    {
+      "citation": "0ee45c0e",
+      "citee_a_l_entree": 37,
+      "citations": 2,
+      "vrai_commit": "29d4ed06",
+      "corrigee_a_l_entree": 38,
+      "pourquoi": "Une empreinte PARIÉE avant que le commit existe, le 11 novembre 2026 : l'entrée 37 annonce « 0ee45c0e ou son équivalent ». C'est la faute qui a fait naître cette dette, et elle enfreignait une règle déjà écrite — « les chiffres d'un message de commit sont écrits par la commande » (10 novembre 2026), appliquée jusque-là aux chiffres de mesure et pas aux empreintes. Un numéro de commit s'écrit APRÈS le commit, jamais avant.",
+      "pourquoi_l_entree_37_n_est_pas_corrigee": "Décision de Christophe le 15 novembre 2026 : « Ne modifie pas l'entrée 37. » Le précédent est net — l'entrée 24 a corrigé le compte faux de l'entrée 23 en l'écrivant dans la NOUVELLE entrée, sans toucher à l'ancienne. Une ligne de journal ne se récrit pas ; elle se corrige par la suivante."
+    }
+  ]
+}
