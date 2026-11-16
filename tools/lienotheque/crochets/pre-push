@@ -1,0 +1,39 @@
+#!/bin/sh
+# Crochet de pré-poussée de la Liénothèque — versionné, donc partagé et relisible.
+#
+# POURQUOI AVANT LA POUSSÉE, ET PAS AILLEURS
+#
+# C'est le dernier instant où le geste est encore réversible sans réécrire d'histoire. Le même
+# contrôle après coup ne protégerait rien : il décrirait un fait accompli.
+#
+# CE QU'IL JUGE
+#
+# Ce que CETTE poussée emporte — git lui donne les références sur l'entrée standard — comparé aux
+# empreintes que la DERNIÈRE entrée du registre nomme. La règle est dans `ecartsDeLaPoussee`,
+# pure et éprouvée ; ce fichier ne décide rien.
+#
+# CE QU'IL NE PROUVE PAS
+#
+# L'entrée du registre est écrite par Claude. Ce crochet vérifie donc que Claude est d'accord avec
+# lui-même. Seuls les mots de Christophe, cités dans l'entrée, prouvent son accord.
+#
+# SUR QUELLES BRANCHES IL EXISTE — dette D17
+#
+# `core.hooksPath` est un réglage par copie, et ce fichier est versionné : le crochet n'existe que
+# là où la branche le porte. `main` ne l'aura qu'à la fusion.
+#
+# MISE EN PLACE (une fois par copie, le réglage n'est pas versionnable) :
+#
+#     git config core.hooksPath tools/lienotheque/crochets
+
+racine=$(git rev-parse --show-toplevel) || exit 1
+[ -d "$racine/tools/lienotheque" ] || exit 0
+cd "$racine/tools/lienotheque" || exit 1
+
+juge=packages/banc/node_modules/.bin/tsx
+if [ ! -x "$juge" ]; then
+  printf '\nPOUSSÉE REFUSÉE — l outil du projet est absent : %s\n' "$juge" >&2
+  printf 'Lancer « pnpm install » dans tools/lienotheque, puis recommencer.\n\n' >&2
+  exit 1
+fi
+exec "$juge" packages/banc/scripts/avant-poussee.ts --racine "$racine"
