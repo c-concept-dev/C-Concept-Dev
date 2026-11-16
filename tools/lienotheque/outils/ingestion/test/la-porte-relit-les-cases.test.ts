@@ -37,7 +37,7 @@ import { pdfDePages, prose } from "./aides/pdf.js";
  *  **Ce qui n'est PAS repris ici, et c'est délibéré** : le comptage d'une panne, et le cas « aucun
  *  relecteur » vu de la voie. Les deux sont tenus deux étages plus bas — `la-chaine-relit-les-cases`
  *  pour la voie, `relecteur-par-vision` pour l'étage distant — et **un rejeu de document coûte
- *  quarante-cinq secondes**. Ce que seule la porte peut prouver, c'est le **branchement** : qu'un
+ *  vingt-quatre secondes**. Ce que seule la porte peut prouver, c'est le **branchement** : qu'un
  *  document traité par l'application atteigne le port, dans le bon repère, et que ce qu'il en
  *  rapporte arrive à l'écran. Le reste n'a pas à être repayé ici. */
 
@@ -112,10 +112,36 @@ function lieux(): { description: string; medias: string; document: string } {
   );
   const medias = join(dossier, "medias");
   mkdirSync(medias);
-  // Trois pages : assez pour que rien ne revienne régulièrement — donc la seconde voie passe par
-  // sa table globale —, et pas plus, parce que **chaque page est un rendu**. Mesuré : le corps de
-  // ce fichier est à peu près linéaire en pages, neuf secondes chacune sur cette machine.
-  const document = pdfDePages(dossier, "table.pdf", [TABLE, ...Array.from({ length: 2 }, (_, r) => prose(700 - r * 60))]);
+  // Deux pages : la table, et **une** page ordinaire — assez pour que rien ne revienne
+  // régulièrement, donc la seconde voie passe par sa table globale.
+  //
+  // ## Pourquoi deux et non trois (lot 0w, mesuré le 16 novembre 2026)
+  //
+  // Le corps d'un passage tombe de **46,4 à 24,1 s**, et les branches parcourues sont les
+  // **mêmes** : les lignes du journal de la voie, comparées forme par forme entre deux et trois
+  // pages, ne diffèrent que par la longueur d'une seule — « relecture complète », qui liste une
+  // page de cellules en moins. Aucune famille de lignes n'a disparu, donc aucun chemin.
+  //
+  // ## Et pourquoi pas moins, ni plus court
+  //
+  // Une **seule** page ramène le corps à 0,8 s — soit cinquante-six fois moins — mais fait
+  // disparaître **huit familles** de lignes du journal : l'exploration des signes, la marque
+  // retenue, l'endroit écarté à la relecture, la relecture complète. Avec une page, la voie
+  // n'explore rien. Une page de prose réduite à un mot en fait disparaître **cinq** : aucun
+  // endroit n'est plus retenu, donc aucun n'est plus relu entièrement. Le contenu de cette page
+  // n'est donc **pas** indifférent, contrairement à ce que j'avais écrit dans la file : il porte
+  // les candidats que l'exploration doit écarter. Et réduire la table de huit rangées à six ne
+  // gagne que 20 %, tandis qu'à quatre **cinq contrôles tombent** sans rien gagner — la table n'y
+  // nomme plus aucune case à relire.
+  //
+  // ## Où va le temps, puisque ce n'est pas le rendu
+  //
+  // **603 démarrages de `tesseract` pour un passage, 43,7 s cumulées sur 46,4** — 90 % du corps.
+  // Dont **450 appels d'une seule image**, les trois segmentations de `lireLeNombreEcrit` sur
+  // cinquante fenêtres, à 70 ms chacun là où un appel groupé en lit des dizaines pour le même
+  // prix. C'est le gisement que la dette **D7** nomme (lot 14 ter), il est dans le code du
+  // produit, et aucune retouche de ce fichier ne le réparera.
+  const document = pdfDePages(dossier, "table.pdf", [TABLE, prose(700)]);
   return { description, medias, document };
 }
 
@@ -205,8 +231,15 @@ describe("A2 : la porte relit les cases en défaut", () => {
       // La case mesure 13,3 × 12 dans le repère du texte (595 de large) et la voie rend à 1800 :
       // le facteur est de 3,03, marge claire en plus. Sans conversion, ce qui partirait ferait
       // une vingtaine de pixels de côté — et montrerait le coin de la feuille.
-      expect(zone.largeur, "la case part à la taille du repère du texte : on lirait du papier blanc").toBeGreaterThan(30);
-      expect(zone.hauteur).toBeGreaterThan(30);
+      //
+      // **La barre vient de la mesure des deux cas, et non d'un ordre de grandeur (lot 0w,
+      // 16 novembre 2026).** Ce qui part mesure **140 × 132** avec la conversion et **46 × 44**
+      // sans elle. L'ancienne barre — « plus de 30 » — admettait donc les DEUX : le contrôle
+      // portait le bon nom, le bon commentaire, et ne rougissait pas quand on retirait du code
+      // la conversion même. Éprouvé par mutation sur la version d'origine comme sur celle-ci,
+      // avant d'y toucher : les deux passaient. La barre est posée à 100, entre 46 et 140.
+      expect(zone.largeur, "la case part à la taille du repère du texte : on lirait du papier blanc").toBeGreaterThan(100);
+      expect(zone.hauteur, "la case part à la taille du repère du texte : on lirait du papier blanc").toBeGreaterThan(100);
       expect(zone.largeur, "ce qui part n'est plus une case").toBeLessThan(300);
     },
     180_000,
