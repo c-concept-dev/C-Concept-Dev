@@ -180,11 +180,18 @@ pub struct Refus {
     pub raison: String,
 }
 
-impl Refus {
-    /// La phrase du journal. Le préfixe est resté le même qu'avant ce lot, pour qu'un journal
-    /// ancien et un journal neuf se cherchent avec le même mot.
-    pub fn dit(&self) -> String {
-        format!("Travail illisible, ignoré : {} ({})", self.nom, self.raison)
+/// La phrase du journal. Le préfixe est resté le même qu'avant le lot 0t, pour qu'un journal
+/// ancien et un journal neuf se cherchent avec le même mot.
+///
+/// `Display` et non une méthode à nous : **douze endroits** — huit exemples et un test
+/// d'intégration — écrivaient déjà `eprintln!("file : {t}")` avec l'ancienne chaîne. Une méthode
+/// obligeait à les réécrire tous, et c'est la faute que j'ai faite : `cargo test --lib` ne compile
+/// aucun exemple, mes 165 contrôles étaient verts, et la course a trouvé l'exemple cassé **après**
+/// la poussée. Le trait rend la phrase là où le format la demande, et les douze appels tiennent
+/// sans retouche.
+impl std::fmt::Display for Refus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Travail illisible, ignoré : {} ({})", self.nom, self.raison)
     }
 }
 

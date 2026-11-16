@@ -257,7 +257,7 @@ impl Roulement {
         let tous = file::charger_tout(&dossier, &mut |refus: file::Refus| {
             // Une fois, et non à chaque tour : voir le commentaire de `refus_dits`.
             if self.refus_dits.lock().expect("refus déjà dits").a_dire(&refus) {
-                eprintln!("file : {}", refus.dit());
+                eprintln!("file : {refus}");
             }
         })?;
 
