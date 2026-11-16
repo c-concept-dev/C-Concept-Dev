@@ -51,6 +51,34 @@ export interface EntreeDeJournal {
 
 const DEBUT_DE_LIGNE = /^\| (\d+) \|/u;
 
+/** Les rangées du journal qui ne sont pas des entrées lisibles, dites en français. Vide quand la
+ *  table est en ordre.
+ *
+ *  **Pourquoi ce contrôle existe, et il n'était pas prévu** : l'entrée du lot 18 est partie
+ *  **sans son numéro** — quatre colonnes attendues, trois écrites, le commit à la place du
+ *  numéro — et elle a traversé un contrôle complet, une poussée et une course verte sans que rien
+ *  ne le dise. Les deux contrôles de ce module ne pouvaient pas la voir : une rangée sans numéro
+ *  n'est pas une entrée **pour eux**, donc ils ne la comptaient ni ne la comparaient. Un garde-fou
+ *  qui ne juge que ce qu'il reconnaît laisse passer ce qu'il ne reconnaît pas, et c'est le pire
+ *  endroit où être aveugle : la rangée existait, elle rapportait une poussée, et le journal
+ *  pouvait désormais porter une poussée **sans numéro** — ce que la numérotation continue de
+ *  l'archive devait justement empêcher. */
+export function rangeesQuiNeSontPasDesEntrees(texte: string): readonly string[] {
+  const lignes = texte.split("\n");
+  const entete = lignes.indexOf(ENTETE_DU_JOURNAL);
+  if (entete === -1) return [`l'entête « ${ENTETE_DU_JOURNAL} » manque`];
+  const colonnes = ENTETE_DU_JOURNAL.split("|").length;
+  return lignes.slice(entete + 1).flatMap((ligne, rang) => {
+    if (!ligne.startsWith("|")) return [];
+    if (/^\|[-| ]+\|$/u.test(ligne)) return []; // la ligne de séparation de la table
+    const ou = `rangée ${rang + 1} après l'entête`;
+    if (DEBUT_DE_LIGNE.exec(ligne) === null)
+      return [`${ou} : ne commence pas par un numéro — « ${ligne.slice(0, 40)}… »`];
+    const vues = ligne.split("|").length;
+    return vues === colonnes ? [] : [`${ou} : ${vues - 2} colonne(s) au lieu de ${colonnes - 2}`];
+  });
+}
+
 /** Les entrées d'un journal, dans l'ordre où elles paraissent. Rien avant l'entête n'est lu. */
 export function entreesDuJournal(texte: string): readonly EntreeDeJournal[] {
   const lignes = texte.split("\n");

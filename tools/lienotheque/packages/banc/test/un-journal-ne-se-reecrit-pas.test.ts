@@ -5,6 +5,7 @@ import {
   ENTETE_DU_JOURNAL,
   PREMIER_NUMERO,
   entreesDuJournal,
+  rangeesQuiNeSontPasDesEntrees,
   rupturesDeNumerotation,
 } from "../src/journal-en-ajout-seul.js";
 
@@ -94,6 +95,19 @@ describe("le registre des poussées est un journal en ajout seul (D12)", () => {
     expect(rupturesDeNumerotation(entrees), "rupture(s) dans la numérotation du registre").toEqual([]);
   });
 
+  /** Né d'une faute à moi, le 16 novembre 2026 : l'entrée du lot 18 est partie **sans son
+   *  numéro** — trois colonnes au lieu de quatre, le commit à la place du numéro —, et elle a
+   *  traversé le contrôle complet, la poussée et une course verte sans un mot. Les deux contrôles
+   *  ci-dessus ne pouvaient pas la voir : une rangée sans numéro n'est pas une entrée **pour
+   *  eux**. Un garde-fou qui ne juge que ce qu'il reconnaît est aveugle à tout le reste. */
+  it("exige que chaque rangée de la table soit une entrée numérotée, à quatre colonnes", () => {
+    const journal = readFileSync(new URL(JOURNAL, RACINE), "utf8");
+    expect(
+      rangeesQuiNeSontPasDesEntrees(journal),
+      "rangée(s) du journal qui ne sont pas des entrées lisibles : une poussée sans numéro est ce que la numérotation continue devait empêcher",
+    ).toEqual([]);
+  });
+
   siHistoriqueComplet("n'a jamais vu réécrire une entrée, sur toutes ses versions passées (sauté si l'historique est tronqué)", () => {
     const vues = new Map<number, { readonly ligne: string; readonly ou: string }>();
     const reecrites: string[] = [];
@@ -150,5 +164,16 @@ describe("le registre des poussées est un journal en ajout seul (D12)", () => {
     expect(entreesDuJournal(avant).map((une) => une.numero)).toEqual([19, 20]);
     // Et sans entête, rien n'est lu — dit comme une rupture, non comme un journal en ordre.
     expect(rupturesDeNumerotation(entreesDuJournal("| 19 | x | y | z |"))).toHaveLength(1);
+
+    // La faute du 16 novembre, telle qu'elle s'est produite : le commit à la place du numéro.
+    const sansNumero = `${ENTETE_DU_JOURNAL}\n|---|---|---|---|\n| \`5919829d\` — un lot | les mots | les conditions |`;
+    expect(entreesDuJournal(sansNumero)).toEqual([]);
+    expect(rangeesQuiNeSontPasDesEntrees(sansNumero)).toHaveLength(1);
+    expect(rangeesQuiNeSontPasDesEntrees(sansNumero)[0]).toContain("ne commence pas par un numéro");
+
+    // Et une entrée numérotée à qui il manque une colonne est dite aussi.
+    const troisColonnes = `${ENTETE_DU_JOURNAL}\n|---|---|---|---|\n| 19 | les commits | les mots |`;
+    expect(rangeesQuiNeSontPasDesEntrees(troisColonnes)[0]).toContain("3 colonne(s) au lieu de 4");
+    expect(rangeesQuiNeSontPasDesEntrees(journal(19, 20))).toEqual([]);
   });
 });
