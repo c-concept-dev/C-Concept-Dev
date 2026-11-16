@@ -91,7 +91,9 @@ pub fn deposer(
     origines: &[PathBuf],
     avertir: &mut dyn FnMut(String),
 ) -> io::Result<Arrivee> {
-    let mut deja = file::charger_tout(dossier_file, avertir)?;
+    // Le dépôt rapporte ses avertissements en phrases — c'est ce que l'écran d'arrivée montre.
+    // La file, elle, les rend en deux champs depuis le lot 0t : on compose ici, au bord.
+    let mut deja = file::charger_tout(dossier_file, &mut |refus: file::Refus| avertir(refus.dit()))?;
     let mut arrivee = Arrivee::default();
     let provenance_lot = format!("lot:{}", uuid::Uuid::new_v4());
 

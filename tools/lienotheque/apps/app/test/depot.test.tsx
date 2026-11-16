@@ -230,6 +230,42 @@ describe("ce qui est déposé mais ne se lit pas seul", () => {
     expect(within(liste).getByText("archive.zip")).toBeInTheDocument();
     expect(within(liste).getByText(/ne sait pas encore lire/)).toBeInTheDocument();
   });
+
+  /** Lot 0t — **un travail que l'hôte ne sait pas relire se voit à l'écran** (JOB-05, dont le
+   *  critère nomme l'écran : « toute erreur visible dans Traitement »).
+   *
+   *  Avant ce lot, l'hôte récoltait ces refus dans un vecteur qu'il jetait ensuite ; l'écran n'en
+   *  savait rien, et le journal les répétait à chaque tour de file. Mesuré le 16 novembre 2026 sur
+   *  3 968 travaux de 19 dossiers : **un seul** fichier est dans ce cas, et il y dort depuis le
+   *  5 novembre sans que personne l'ait vu.
+   *
+   *  **Ce que ce contrôle n'exige pas, et pourquoi** : JOB-05 demande « une action proposée », et
+   *  il n'y en a pas ici. La seule action serait de retirer le fichier, c'est-à-dire une
+   *  suppression — une porte qui appartient à Christophe, et ce fichier-ci doit rester en place
+   *  sur son ordre. L'écran dit donc ce qui est vrai : il reste là, et il n'est pas traité. */
+  it("un travail que l'hôte ne sait pas relire se voit, à part des refus du dépôt (lot 0t, JOB-05)", () => {
+    poser({
+      refuses: [{ nom: "archive.zip", raison: "Liénothèque ne sait pas encore lire ce type de fichier." }],
+      refusesDeLaFile: [{ nom: "914c0ae2.json", raison: "missing field `nom` at line 10 column 2" }],
+    });
+
+    const bloc = screen.getByRole("region", { name: "Travaux refusés" });
+    expect(within(bloc).getByText("914c0ae2.json")).toBeInTheDocument();
+    expect(within(bloc).getByText(/missing field/)).toBeInTheDocument();
+    // Il reste en place : l'écran ne doit pas laisser croire qu'il a disparu ni qu'on l'a retiré.
+    expect(within(bloc).getByText(/reste en place/)).toBeInTheDocument();
+
+    // Et les deux familles ne se mélangent pas : le fichier du dépôt n'est pas dans ce bloc.
+    expect(within(bloc).queryByText("archive.zip")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("list", { name: "Fichiers refusés" })).queryByText("914c0ae2.json"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("ne montre rien quand la file ne refuse rien : c'est le cas de presque toutes les bibliothèques", () => {
+    poser({ refusesDeLaFile: [] });
+    expect(screen.queryByRole("region", { name: "Travaux refusés" })).not.toBeInTheDocument();
+  });
 });
 
 

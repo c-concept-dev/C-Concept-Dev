@@ -6,6 +6,7 @@ import {
   AnalyseDepot,
   ArchivePreparee,
   ArriveeDeFichiers,
+  FileDeTravaux,
   ClassementLocal,
   CorrespondancesBibliotheque,
   DescriptionBibliotheque,
@@ -234,9 +235,13 @@ export async function faireTourner(racine: string): Promise<boolean> {
   return invoke<boolean>("faire_tourner", { racine });
 }
 
-/** La file d'une bibliothèque, telle que l'écran de traitement la montre. */
-export async function travauxDe(racine: string): Promise<readonly Travail[]> {
-  return Travail.array().parse(await invoke("travaux", { racine }));
+/** La file d'une bibliothèque, telle que l'écran de traitement la montre — travaux **et** refus.
+ *
+ *  Avant le lot 0t, cette fonction ne lisait que la liste des travaux. L'hôte récoltait pourtant
+ *  les fichiers qu'il n'avait pas su relire, puis jetait le vecteur : le contrat n'avait pas de
+ *  place pour les dire, et l'écran n'en savait rien (JOB-05). */
+export async function travauxDe(racine: string): Promise<FileDeTravaux> {
+  return FileDeTravaux.parse(await invoke("travaux", { racine }));
 }
 
 /** Met un travail en pause, le reprend, ou l'annule (JOB-08). */

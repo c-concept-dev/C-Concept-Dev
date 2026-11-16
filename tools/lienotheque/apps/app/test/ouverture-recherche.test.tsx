@@ -70,7 +70,10 @@ describe("la recherche suit la bibliothèque réellement ouverte", () => {
       actionDisponible: false,
     });
     ports.administration.faireTourner.mockResolvedValue(false);
-    ports.administration.travauxDe.mockResolvedValue([]);
+    // La file rend deux listes depuis le lot 0t — les travaux et ce qu'elle refuse. Ce double
+    // rendait une liste nue, et l'écran plantait en la déstructurant : un double passe par un
+    // `as`, donc le compilateur ne l'a pas vu ; c'est ce contrôle qui l'a dit.
+    ports.administration.travauxDe.mockResolvedValue({ travaux: [], refuses: [] });
   });
 
   it("nomme une bibliothèque vide ouverte depuis le disque, pas la première carte de l'accueil", async () => {

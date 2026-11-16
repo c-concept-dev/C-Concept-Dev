@@ -176,6 +176,10 @@ pub struct Roulement {
     /// Vrai tant que le volume de la bibliothèque ne répond pas. Ce n'est pas une panne et ce
     /// n'est pas une pause décidée : c'est une attente, et elle se lève d'elle-même.
     suspendu: AtomicBool,
+    /// Les travaux refusés déjà dits. La boucle relit la file toutes les deux secondes : sans
+    /// cette mémoire, un seul fichier abîmé écrit des centaines de lignes identiques et le fait
+    /// devient introuvable dans son propre journal (lot 0t, JOB-05).
+    refus_dits: Mutex<file::DejaDits>,
 }
 
 impl Roulement {
@@ -189,6 +193,7 @@ impl Roulement {
             menes: Mutex::new(HashSet::new()),
             arret: AtomicBool::new(false),
             suspendu: AtomicBool::new(false),
+            refus_dits: Mutex::new(file::DejaDits::default()),
         });
         let fil = Arc::clone(&roulement);
         std::thread::spawn(move || fil.boucler());
@@ -249,7 +254,12 @@ impl Roulement {
     fn un_tour(self: &Arc<Self>) -> std::io::Result<()> {
         let dossier = self.depot.travaux();
         let maintenant = travail::maintenant();
-        let tous = file::charger_tout(&dossier, &mut |texte| eprintln!("file : {texte}"))?;
+        let tous = file::charger_tout(&dossier, &mut |refus: file::Refus| {
+            // Une fois, et non à chaque tour : voir le commentaire de `refus_dits`.
+            if self.refus_dits.lock().expect("refus déjà dits").a_dire(&refus) {
+                eprintln!("file : {}", refus.dit());
+            }
+        })?;
 
         loop {
             let menes = self.menes.lock().expect("ensemble des travaux menés").clone();
@@ -992,6 +1002,7 @@ mod tests {
             menes: Mutex::new(HashSet::new()),
             arret: AtomicBool::new(false),
             suspendu: AtomicBool::new(false),
+            refus_dits: Mutex::new(file::DejaDits::default()),
         }
     }
 

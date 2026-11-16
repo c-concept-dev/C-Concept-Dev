@@ -85,6 +85,13 @@ type Props = {
   readonly accompagnements?: readonly { readonly nom: string; readonly contenu: TypeDeContenu }[] | undefined;
   /** Les fichiers que le dernier dépôt a refusés, et pourquoi. */
   readonly refuses?: readonly { readonly nom: string; readonly raison: string }[] | undefined;
+  /** Les fichiers **de la file** que l'hôte ne sait pas relire, et pourquoi (JOB-05).
+   *
+   *  Distincts des refus du dépôt juste au-dessus, et montrés à part : un dépôt refusé est un
+   *  geste qui vient d'échouer, là où un travail illisible dort dans la bibliothèque depuis
+   *  longtemps et n'a échoué devant personne. Les confondre ferait croire que le fichier qu'on
+   *  vient de déposer est en cause. */
+  readonly refusesDeLaFile?: readonly { readonly nom: string; readonly raison: string }[] | undefined;
   /** Ouvre le sélecteur de fichiers du système. Absent sur le web, qui n'en a pas. */
   readonly onParcourir?: (() => void) | undefined;
   readonly onImporterArchive?: (() => void) | undefined;
@@ -120,6 +127,7 @@ export function Depot({
   travaux,
   accompagnements,
   refuses,
+  refusesDeLaFile,
   onParcourir,
   onImporterArchive,
   onPreparerEnsemble,
@@ -314,6 +322,24 @@ export function Depot({
             </li>
           ))}
         </ul>
+      )}
+
+      {refusesDeLaFile === undefined || refusesDeLaFile.length === 0 ? null : (
+        <section aria-label="Travaux refusés">
+          <p className="ln-muted">
+            {refusesDeLaFile.length === 1
+              ? "Un fichier de cette bibliothèque n’a pas pu être relu. Il reste en place et n’est pas traité."
+              : `${refusesDeLaFile.length} fichiers de cette bibliothèque n’ont pas pu être relus. Ils restent en place et ne sont pas traités.`}
+          </p>
+          <ul className="ln-traitement__refuses">
+            {refusesDeLaFile.map((refuse) => (
+              <li key={refuse.nom}>
+                <Icone nom="alerte" />
+                <strong>{refuse.nom}</strong> — {refuse.raison}
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <div className="ln-traitement__barre ln-panneau-titre">

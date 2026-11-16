@@ -182,6 +182,33 @@ export const ReglagesHote = z
   .strict();
 export type ReglagesHote = z.infer<typeof ReglagesHote>;
 
+/** Un fichier refusé, et pourquoi (JOB-05).
+ *
+ *  Deux champs, jamais une phrase déjà composée : l'écran les montre côte à côte, et une phrase
+ *  l'obligerait à la découper pour retrouver le nom. Les deux sont non vides — un refus sans
+ *  cause serait une erreur avalée avec une étape de plus.
+ *
+ *  Partagé par deux frontières réelles : ce qu'un dépôt a refusé, et ce que la file ne sait pas
+ *  relire. */
+export const FichierRefuse = z.object({ nom: z.string().min(1), raison: z.string().min(1) }).strict();
+export type FichierRefuse = z.infer<typeof FichierRefuse>;
+
+/** La file d'une bibliothèque telle que l'écran de traitement la reçoit (JOB-05).
+ *
+ *  Deux listes, et la seconde **toujours présente**. L'hôte rendait avant une liste de travaux et
+ *  rien d'autre : les fichiers qu'il ne savait pas relire étaient récoltés dans un vecteur jeté
+ *  aussitôt, si bien que l'écran n'en savait rien. Mesuré le 16 novembre 2026 sur 3 968 travaux de
+ *  19 dossiers : un seul fichier est refusé, dans toutes les bibliothèques et sauvegardes
+ *  réunies. C'est le cas rare qui compte, et un champ facultatif l'aurait rendu oubliable. */
+export const FileDeTravaux = z
+  .object({
+    travaux: z.array(Travail),
+    /** Les fichiers de la file qu'on n'a pas su relire. Presque toujours vide, jamais absente. */
+    refuses: z.array(FichierRefuse),
+  })
+  .strict();
+export type FileDeTravaux = z.infer<typeof FileDeTravaux>;
+
 /** Ce qu'un dépôt de fichiers a donné (JOB-01, JOB-04).
  *
  *  Trois listes, parce que trois choses différentes arrivent : des travaux qui vont partir, des
@@ -194,7 +221,7 @@ export const ArriveeDeFichiers = z
     /** Déposés et copiés, mais qui ne se lisent pas seuls : ils seront lus avec leur document. */
     accompagnements: z.array(z.object({ nom: z.string().min(1), contenu: TypeDeContenu }).strict()),
     /** Refusés, et pourquoi. Jamais avalés : on dit lesquels, et ce qui cloche. */
-    refuses: z.array(z.object({ nom: z.string().min(1), raison: z.string().min(1) }).strict()),
+    refuses: z.array(FichierRefuse),
     avertissements: z.array(z.string()).default([]),
   })
   .strict();

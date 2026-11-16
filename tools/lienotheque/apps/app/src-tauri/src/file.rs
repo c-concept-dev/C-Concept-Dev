@@ -165,9 +165,72 @@ fn chemin_du(dossier: &Path, id: &str) -> PathBuf {
     dossier.join(format!("{id}.json"))
 }
 
+/// Un travail que la file n'a pas su relire, et pourquoi (JOB-05).
+///
+/// Deux champs plutôt qu'une phrase : l'écran montre les refus dans la même liste que les
+/// fichiers refusés au dépôt — « nom » et « raison » —, et une phrase déjà composée l'obligerait
+/// à la découper pour les retrouver. Le journal, lui, veut une phrase : c'est `dit` qui la donne.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Refus {
+    /// Le nom du fichier, et non son chemin entier : c'est ce que l'écran peut montrer et ce que
+    /// la personne retrouvera dans le dossier.
+    pub nom: String,
+    /// La cause telle que `serde` la dit, sans réécriture. Elle nomme le champ qui manque, et
+    /// c'est la seule chose qui permette de comprendre un fichier qu'on n'a pas écrit.
+    pub raison: String,
+}
+
+impl Refus {
+    /// La phrase du journal. Le préfixe est resté le même qu'avant ce lot, pour qu'un journal
+    /// ancien et un journal neuf se cherchent avec le même mot.
+    pub fn dit(&self) -> String {
+        format!("Travail illisible, ignoré : {} ({})", self.nom, self.raison)
+    }
+}
+
+/// Ce qui a déjà été dit, pour ne pas le redire à chaque tour de file (JOB-05).
+///
+/// Mesuré le 14 novembre 2026 : le roulement relit la file toutes les deux secondes et imprimait
+/// le même refus **à chaque tour** — des centaines de lignes identiques dans un seul journal.
+/// Dire trop et ne rien dire se ressemblent de près : les deux rendent le fait introuvable.
+///
+/// La clé est le couple **nom et cause**, et non le nom seul : si la cause change, le fait est
+/// nouveau et se dit. Rien n'est jamais oublié de cette mémoire — elle vit le temps du processus,
+/// et un redémarrage redit tout, ce qui est le bon sens : on vient de rouvrir le journal.
+#[derive(Default)]
+pub struct DejaDits {
+    dits: std::collections::HashSet<Refus>,
+}
+
+impl DejaDits {
+    /// Vrai la première fois seulement. Le nom dit ce qu'il faut en faire : `if deja.a_dire(&r)`.
+    pub fn a_dire(&mut self, refus: &Refus) -> bool {
+        self.dits.insert(refus.clone())
+    }
+}
+
+/// La file telle que l'écran la reçoit : les travaux lisibles **et** les refus, côte à côte.
+///
+/// Elle existe parce que la commande `travaux` récoltait les refus dans un vecteur qu'elle jetait
+/// ensuite : le compilateur n'y voyait rien à redire, et l'écran n'a jamais rien su d'un travail
+/// que l'hôte refusait. Un garde-fou ne pouvait pas non plus le voir — une commande Tauri ne
+/// s'appelle pas depuis un contrôle. La composition est donc ici, où elle s'éprouve, et la
+/// commande n'est plus qu'un passage. Les deux clés sont celles du contrat `FileDeTravaux`.
+pub fn vue_de_la_file(dossier: &Path) -> io::Result<serde_json::Value> {
+    let mut refuses: Vec<Refus> = Vec::new();
+    let travaux = charger_tout(dossier, &mut |refus| refuses.push(refus))?;
+    Ok(serde_json::json!({
+        "travaux": travaux.iter().map(Travail::vu).collect::<Vec<_>>(),
+        "refuses": refuses
+            .iter()
+            .map(|refus| serde_json::json!({ "nom": refus.nom, "raison": refus.raison }))
+            .collect::<Vec<_>>(),
+    }))
+}
+
 /// Relit la file entière. Un fichier illisible ne fait pas perdre les autres : il est signalé et
 /// la liste continue — perdre la file parce qu'un fichier est abîmé serait pire que le fichier.
-pub fn charger_tout(dossier: &Path, avertir: &mut dyn FnMut(String)) -> io::Result<Vec<Travail>> {
+pub fn charger_tout(dossier: &Path, refuser: &mut dyn FnMut(Refus)) -> io::Result<Vec<Travail>> {
     let entrees = match fs::read_dir(dossier) {
         Ok(e) => e,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
@@ -183,7 +246,12 @@ pub fn charger_tout(dossier: &Path, avertir: &mut dyn FnMut(String)) -> io::Resu
         match travail::charger(&chemin) {
             Ok(Some(t)) => travaux.push(t),
             Ok(None) => {}
-            Err(e) => avertir(format!("Travail illisible, ignoré : {} ({e})", chemin.display())),
+            Err(e) => refuser(Refus {
+                nom: chemin
+                    .file_name()
+                    .map_or_else(|| chemin.display().to_string(), |nom| nom.to_string_lossy().into_owned()),
+                raison: e.to_string(),
+            }),
         }
     }
     // Un ordre stable quelle que soit celui du système de fichiers : sans lui, deux lectures de la
@@ -545,5 +613,117 @@ mod tests {
         assert_eq!(prochain(&a_l_envers, 1_000).map(|t| t.id.clone()), a_l_endroit);
         // Le bail expiré ne retient plus personne.
         assert_eq!(en_cours(&travaux, 1_015), 0);
+    }
+}
+
+#[cfg(test)]
+mod refus {
+    use super::*;
+
+    /// Lot 0t — **un travail que la file ne sait pas relire se dit, une fois, et jusqu'à l'écran**
+    /// (JOB-05 : « aucune erreur avalée silencieusement ; toute erreur visible dans Traitement »).
+    ///
+    /// ## Ce que la mesure a trouvé, et ce qu'elle a corrigé de l'énoncé du lot
+    ///
+    /// La file des lots annonçait « un travail d'un **format antérieur** » dont le `sujet` manque
+    /// de `nom`. Mesuré le 16 novembre 2026 sur **3 968** travaux de **19** dossiers, toutes
+    /// bibliothèques et toutes sauvegardes confondues : **un seul** fichier est refusé — et il
+    /// n'est pas d'un format antérieur de l'application. Son propre champ `origine` le dit :
+    /// « mesures/r2-ecrire-la-version-oracle.ts — R2 du plan A1 […] champs renommés au format de
+    /// l'hôte le 5 novembre 2026 ». C'est l'**artefact d'une mesure**, écrit à la main, qui porte
+    /// deux champs que l'hôte ne connaît pas (`genre`, `origine`) et à qui il manque **sept**
+    /// champs obligatoires : `outil`, `tentative`, `total`, `verrou`, `point_reprise`,
+    /// `sujet.nom`, `sujet.contenu`. `serde` n'en nommait qu'un parce qu'il s'arrête au premier.
+    ///
+    /// **Rendre les champs optionnels serait donc la mauvaise moitié du choix** : ce serait
+    /// ressusciter un artefact en travail légitime, sans `outil`, c'est-à-dire sans rien à faire.
+    /// Des deux chemins que la file posait, la mesure retient le second : refuser, et le dire.
+    ///
+    /// **Deux silences réels, et c'est eux que ce lot paie** : la commande `travaux` récoltait les
+    /// avertissements dans un vecteur qu'elle **jetait** — l'écran n'en a jamais rien su —, et le
+    /// roulement les imprimait **à chaque tour**, des centaines de fois dans un seul journal. Dire
+    /// trop et dire rien se ressemblent de près : les deux rendent le fait introuvable.
+    fn dossier(nom: &str) -> PathBuf {
+        let chemin = std::env::temp_dir().join(format!("lienotheque-refus-{nom}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&chemin);
+        fs::create_dir_all(&chemin).expect("dossier d'essai");
+        chemin
+    }
+
+    /// Le fichier tel qu'il existe dans la vraie bibliothèque, champ pour champ. Son identifiant
+    /// et son empreinte sont ceux de l'artefact — ce sont des données de mesure, pas une œuvre.
+    const ARTEFACT: &str = r#"{
+ "id": "914c0ae2-7c26-4d32-b762-39c1bf99a503",
+ "empreinte": "ca36cf9859691679fcc7c0065461275a18d32d318e82ccb89fb2404a786be90a",
+ "genre": "reprise",
+ "etat": "termine",
+ "sujet": { "provenances_medias": ["zip:19c63a74"] },
+ "version_cible": "07451d43-2aeb-4734-b819-1ccf8a983b4b",
+ "maj_le": 1793902885
+}"#;
+
+    #[test]
+    fn un_travail_refuse_porte_son_nom_et_sa_cause_sans_faire_perdre_les_autres_job_05() {
+        let dossier = dossier("nom-et-cause");
+        for (rang, id) in ["aaa", "bbb"].iter().enumerate() {
+            let mut t = Travail::neuf(id, "lecture", 3);
+            t.cree_le = rang as u64;
+            enregistrer(&dossier, &t).expect("travail écrit");
+        }
+        fs::write(dossier.join("914c0ae2.json"), ARTEFACT).expect("artefact écrit");
+
+        let mut refuses: Vec<Refus> = Vec::new();
+        let lus = charger_tout(&dossier, &mut |refus| refuses.push(refus)).expect("file relue");
+
+        // Les deux travaux lisibles ne sont pas perdus : un fichier abîmé ne coûte pas la file.
+        assert_eq!(lus.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(), vec!["aaa", "bbb"]);
+
+        // Et le refus porte de quoi agir : le nom du fichier, et la cause telle que serde la dit.
+        assert_eq!(refuses.len(), 1, "un seul refus attendu");
+        let refus = &refuses[0];
+        assert_eq!(refus.nom, "914c0ae2.json", "le nom du fichier, et non son chemin entier");
+        assert!(
+            refus.raison.contains("nom"),
+            "la cause doit nommer ce qui manque, et elle dit : {}",
+            refus.raison
+        );
+    }
+
+    #[test]
+    fn un_refus_ne_se_dit_qu_une_fois_meme_quand_la_file_tourne_sans_fin_job_05() {
+        let mut deja = DejaDits::default();
+        let refus = Refus { nom: "914c0ae2.json".to_owned(), raison: "missing field `nom`".to_owned() };
+        let autre = Refus { nom: "autre.json".to_owned(), raison: "missing field `nom`".to_owned() };
+
+        // Le roulement relit la file toutes les deux secondes : mille tours, une seule phrase.
+        let dits = (0..1000).filter(|_| deja.a_dire(&refus)).count();
+        assert_eq!(dits, 1, "un refus répété à chaque tour noie le journal et cache le fait");
+
+        // Un autre fichier reste à dire : on tait la répétition, jamais un fait nouveau.
+        assert!(deja.a_dire(&autre), "un refus nouveau se dit, même après mille tours");
+        assert!(!deja.a_dire(&autre), "et lui non plus ne se répète pas");
+
+        // Même nom, autre cause : c'est un fait nouveau, il se dit.
+        let changee = Refus { nom: refus.nom.clone(), raison: "fichier tronqué".to_owned() };
+        assert!(deja.a_dire(&changee), "une cause nouvelle sur le même fichier se dit");
+    }
+
+    #[test]
+    fn la_vue_de_la_file_porte_les_refus_a_cote_des_travaux_job_05() {
+        let dossier = dossier("vue");
+        enregistrer(&dossier, &Travail::neuf("aaa", "lecture", 3)).expect("travail écrit");
+        fs::write(dossier.join("914c0ae2.json"), ARTEFACT).expect("artefact écrit");
+
+        let vue = vue_de_la_file(&dossier).expect("vue composée");
+
+        // Ce que l'écran reçoit : deux listes nommées, jamais une liste et un silence.
+        assert_eq!(vue["travaux"].as_array().map(Vec::len), Some(1), "le travail lisible est là");
+        let refuses = vue["refuses"].as_array().expect("la vue porte toujours la liste des refus");
+        assert_eq!(refuses.len(), 1);
+        assert_eq!(refuses[0]["nom"], "914c0ae2.json");
+        assert!(
+            refuses[0]["raison"].as_str().is_some_and(|r| !r.is_empty()),
+            "un refus sans cause serait une erreur avalée avec plus d'étapes"
+        );
     }
 }

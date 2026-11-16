@@ -7,6 +7,7 @@ import type {
   DescriptionBibliotheque,
   DocumentSuspect,
   Doublons as DoublonsTrouves,
+  FichierRefuse,
   Passage,
   Rotation,
   SchemaBibliotheque,
@@ -140,6 +141,10 @@ export function App(): JSX.Element {
   const [recuEnLigne, setRecuEnLigne] = useState<"on ne sait pas" | "oui" | "non">("on ne sait pas");
   /** La file de la bibliothèque ouverte, relue régulièrement : c'est l'hôte qui la tient. */
   const [file, setFile] = useState<readonly Travail[]>([]);
+  /** Les fichiers de la file que l'hôte n'a pas su relire. Presque toujours vide — un seul dans
+   *  toutes les bibliothèques mesurées le 16 novembre 2026 —, et c'est pour ce cas qu'elle existe :
+   *  avant le lot 0t, l'hôte les récoltait puis les jetait, et l'écran n'en savait rien (JOB-05). */
+  const [refusesDeLaFile, setRefusesDeLaFile] = useState<readonly FichierRefuse[]>([]);
   const [accompagnements, setAccompagnements] = useState<readonly { nom: string; contenu: TypeDeContenu }[]>([]);
   const [refuses, setRefuses] = useState<readonly { nom: string; raison: string }[]>([]);
   /** La recherche est un voile par-dessus l'écran courant, pas un écran de plus : on revient
@@ -699,8 +704,17 @@ export function App(): JSX.Element {
       setEchecOuverture(erreur instanceof Error ? erreur.message : String(erreur));
     });
     const relire = (): void => {
-      void administration.travauxDe(courante.racine).then((travaux) => {
+      void administration.travauxDe(courante.racine).then(({ travaux, refuses }) => {
         if (!vivant) return;
+        // Même discipline que pour les travaux : ne republier que ce qui a changé. La file se relit
+        // toutes les deux secondes, et republier un relevé identique rejoue toute la cascade —
+        // c'est la version d'écran du refus répété à chaque tour dans le journal.
+        setRefusesDeLaFile((anciens) =>
+          anciens.length === refuses.length &&
+          anciens.every((un, rang) => un.nom === refuses[rang]?.nom && un.raison === refuses[rang]?.raison)
+            ? anciens
+            : refuses,
+        );
         // **Ne republier que ce qui a changé.** Relire est peu coûteux — 249 travaux font 137 Ko
         // et se lisent en 6 ms —, mais republier un relevé identique rejoue tout ce qui en
         // dépend, et l'un de ces dépendants relit la bibliothèque entière. En gardant la
@@ -1155,6 +1169,7 @@ export function App(): JSX.Element {
           travaux={file}
           accompagnements={accompagnements}
           refuses={refuses}
+          refusesDeLaFile={refusesDeLaFile}
           onParcourir={administration !== undefined ? () => void deposerDesFichiers(derniere.racine) : undefined}
           onImporterArchive={administration !== undefined ? () => void importerArchive(derniere.racine) : undefined}
           onAnalyserFichiers={administration !== undefined ? analyserDesFichiers : undefined}

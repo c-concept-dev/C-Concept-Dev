@@ -3,6 +3,7 @@ import type {
   AnalyseDepot,
   ArchivePreparee,
   ArriveeDeFichiers,
+  FileDeTravaux,
   ClassementLocal,
   CorrespondanceBibliotheque,
   DescriptionBibliotheque,
@@ -93,7 +94,7 @@ export type PortAdministration = {
   /** La file : la remplir, la faire tourner, la lire, agir dessus. */
   readonly deposer: (racine: string, chemins: readonly string[]) => Promise<ArriveeDeFichiers>;
   readonly faireTourner: (racine: string) => Promise<boolean>;
-  readonly travauxDe: (racine: string) => Promise<readonly Travail[]>;
+  readonly travauxDe: (racine: string) => Promise<FileDeTravaux>;
   readonly agirSurTravail: (
     racine: string,
     id: string,

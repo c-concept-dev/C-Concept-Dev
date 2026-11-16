@@ -182,12 +182,9 @@ fn creer_archive(
 
 /// La file d'une bibliothèque, telle que l'écran de traitement la montre.
 #[tauri::command]
-fn travaux(racine: String) -> Result<Vec<serde_json::Value>, String> {
+fn travaux(racine: String) -> Result<serde_json::Value, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
-    let mut avertissements: Vec<String> = Vec::new();
-    let tous = file::charger_tout(&depot.travaux(), &mut |texte| avertissements.push(texte))
-        .map_err(|e| format!("File illisible : {e}"))?;
-    Ok(tous.iter().map(travail::Travail::vu).collect())
+    file::vue_de_la_file(&depot.travaux()).map_err(|e| format!("File illisible : {e}"))
 }
 
 /// Met un travail en pause, le reprend, ou l'annule (JOB-08).
