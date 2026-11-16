@@ -92,17 +92,41 @@ describe("une course qui éprouve la lecture lit le programme de l'application (
     expect(tauri, "le programme de l'application passe devant celui du coureur").toContain("GITHUB_PATH");
   });
 
-  siLesWorkflowsSontLa("reconstruit la chaîne APRÈS avoir déployé l'archive, jamais avant (sauté si `.github/` n'est pas du lot)", () => {
+  /** **Un ordre à trois temps, et chacun a coûté quelque chose.**
+   *
+   *  1. l'**archive** : elle apporte les programmes qui lisent ;
+   *  2. la **chaîne**, reconstruite depuis le commit sous essai : l'archive en porte une du
+   *     9 novembre, et déployée après elle recouvrirait le code sous essai — une course verte sur
+   *     du code d'avant ;
+   *  3. le **PATH** des moteurs, en dernier.
+   *
+   *  Le troisième temps est né d'une faute à moi, trouvée par la course du 16 novembre 2026 :
+   *  j'avais posé le PATH juste après l'archive. `preparer-moteur-node.py` prend le node du PATH
+   *  (`shutil.which`) et l'écrit dans `moteurs/bin/node` ; avec `moteurs/bin` en tête, il trouvait
+   *  **sa propre cible**, l'effaçait — le script efface avant de copier, pour ne pas écrire par
+   *  dessus un binaire signé —, puis échouait sur `FileNotFoundError`. Il doit embarquer le node
+   *  **du coureur**, pas celui de l'archive. */
+  siLesWorkflowsSontLa("tient l'ordre archive → chaîne → PATH, et chacun pour sa raison (sauté si `.github/` n'est pas du lot)", () => {
     const lignes = lire(TAURI).split("\n");
     const rangDe = (quoi: string): number => lignes.findIndex((ligne) => ligne.includes(quoi));
     const archive = rangDe("tar -xzf");
     const chaine = rangDe("preparer-moteur-node.py");
+    // `$moteurs/bin` et non `GITHUB_PATH` seul : l'étape Windows, gardée plus haut pour le jour
+    // où la question se reposera, écrit elle aussi dans `GITHUB_PATH` — et le premier repère
+    // trouvé était le sien. Le contrôle l'a dit en rougissant pour la mauvaise raison, ce qui
+    // est encore une bonne raison de l'écrire.
+    const chemin = rangDe('echo "$moteurs/bin" >> "$GITHUB_PATH"');
     expect(archive, "le déploiement de l'archive est introuvable").toBeGreaterThan(-1);
     expect(chaine, "la reconstruction de la chaîne est introuvable").toBeGreaterThan(-1);
+    expect(chemin, "la mise du paquet en tête du PATH est introuvable").toBeGreaterThan(-1);
     expect(
       chaine,
       "l'archive porte une chaîne du 9 novembre : déployée après la reconstruction, elle recouvrirait le code sous essai",
     ).toBeGreaterThan(archive);
+    expect(
+      chemin,
+      "le PATH des moteurs avant la reconstruction fait que le script trouve sa propre cible et l'efface",
+    ).toBeGreaterThan(chaine);
   });
 
   siLesWorkflowsSontLa("ne laisse pas deux Tesseract joignables sans dire lequel répond (sauté si `.github/` n'est pas du lot)", () => {

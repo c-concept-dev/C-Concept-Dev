@@ -198,6 +198,28 @@ jobs:
           mkdir -p apps/app/src-tauri
           tar -xzf "$RUNNER_TEMP/moteurs.tar.gz" -C apps/app/src-tauri
 
+      # Le moteur de traitement — Node réduit à l'architecture du runner, la chaîne rassemblée en
+      # un fichier, et les codecs — est déclaré en binaire annexe dans tauri.conf.json. Sans cette
+      # étape, la construction s'arrête avant de compiler, sur « resource path
+      # moteurs/bin/node-… doesn't exist ». C'est arrivé, et la PR l'a montré.
+      - name: Embarquer le moteur de traitement
+        shell: bash
+        run: python apps/app/src-tauri/outils/preparer-moteur-node.py
+      # ── Le PATH des moteurs vient APRÈS la reconstruction de la chaîne ────────────────
+      #
+      # Et c'est une faute à moi, trouvée par la course du 16 novembre 2026. Ces deux étapes
+      # étaient plus haut, juste après le déploiement de l'archive. `preparer-moteur-node.py`
+      # prend le node du PATH (`shutil.which`) et l'écrit dans `moteurs/bin/node` ; avec
+      # `moteurs/bin` en tête du PATH, il trouvait **sa propre cible**, l'effaçait — le script
+      # efface avant de copier, pour ne pas écrire par-dessus un binaire signé — puis échouait
+      # sur `FileNotFoundError`. Il doit embarquer le node DU COUREUR, pas celui de l'archive.
+      #
+      # L'ordre est donc à trois temps, et chacun a sa raison : l'archive d'abord (elle apporte
+      # les programmes qui lisent), la chaîne ensuite (elle vient du commit sous essai et
+      # recouvre celle de l'archive, vieille de cinq jours), le PATH en dernier (pour que les
+      # contrôles lisent avec les programmes du paquet).
+
+
       # Le paquet DEVANT : ce qu'on emporte a été éprouvé avec la chaîne, ce que la machine
       # fournit ne l'a pas été. Et on dit QUEL tesseract répond : deux programmes joignables sans
       # savoir lequel parle, c'est la mesure fausse de nouveau, avec un chemin de plus.
@@ -226,14 +248,6 @@ jobs:
             exit 1
           fi
           tesseract --version | head -2
-
-      # Le moteur de traitement — Node réduit à l'architecture du runner, la chaîne rassemblée en
-      # un fichier, et les codecs — est déclaré en binaire annexe dans tauri.conf.json. Sans cette
-      # étape, la construction s'arrête avant de compiler, sur « resource path
-      # moteurs/bin/node-… doesn't exist ». C'est arrivé, et la PR l'a montré.
-      - name: Embarquer le moteur de traitement
-        shell: bash
-        run: python apps/app/src-tauri/outils/preparer-moteur-node.py
 
       # Le paquet construit ici doit déclarer ce que SES moteurs exigent. Depuis le lot 0u, ces
       # moteurs sont ceux de l'archive publiée — donc exactement ceux que le produit embarque, et

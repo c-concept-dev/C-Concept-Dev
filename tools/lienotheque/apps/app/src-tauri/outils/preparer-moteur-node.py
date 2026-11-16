@@ -77,6 +77,21 @@ def embarquer_node(cible: pathlib.Path) -> str:
     source = shutil.which("node")
     if source is None:
         raise SystemExit("node absent du chemin : installez Node 24 ou plus.")
+    # LE NODE DU PATH NE DOIT PAS ÊTRE CELUI QU'ON ÉCRIT.
+    #
+    # Mesuré le 16 novembre 2026 sur l'intégration continue : une étape avait mis
+    # `moteurs/bin` en tête du PATH avant cet appel. `shutil.which` a donc rendu la cible
+    # elle-même, l'effacement qui suit a supprimé la source, et la copie a échoué sur
+    # « FileNotFoundError » — un message qui ne disait rien de la cause. Le script doit embarquer
+    # le node de la MACHINE, jamais celui déjà posé dans le paquet : recopier celui du paquet
+    # reviendrait à embarquer indéfiniment le node d'une archive ancienne.
+    if pathlib.Path(source).resolve() == cible.resolve():
+        raise SystemExit(
+            f"le node trouvé sur le PATH EST la cible ({cible}).\n"
+            "Le paquet est en tête du PATH : ce script doit embarquer le node de la machine, "
+            "et non recopier celui du paquet sur lui-même.\n"
+            "Retirez moteurs/bin du PATH avant de lancer ce script."
+        )
     # Effacer avant de copier : écrire par-dessus un binaire déjà signé laisse macOS avec une
     # signature en cache qui ne correspond plus au contenu, et les outils qui suivent — `lipo`
     # le premier — échouent sans dire pourquoi. Le script doit se rejouer sur un poste déjà
