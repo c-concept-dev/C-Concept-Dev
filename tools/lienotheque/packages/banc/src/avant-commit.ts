@@ -28,6 +28,14 @@ import { termesTrouves } from "./vocabulaire.js";
  *  vingt-cinq minutes serait désactivé avant la fin de la journée, et un garde-fou désactivé ne
  *  garde rien.
  *
+ *  **Une exception, et une seule, décidée par Christophe le 16 novembre 2026** : un commit qui
+ *  touche `apps/app/src-tauri/` lance la suite Rust **entière** et **tous les exemples** avant
+ *  d'exister — voir `epreuve-rust`. Trois erreurs Rust avaient été découvertes après la poussée,
+ *  dont une le jour même, sur 165 contrôles verts de `cargo test --lib` qui ne compile aucun
+ *  exemple. La règle ci-dessus n'est pas abandonnée, elle est **payée au prix mesuré** : **54 s**
+ *  sur le cas le plus coûteux, et seulement pour les commits de ce dossier. Les autres ne lancent
+ *  rien.
+ *
  *  ## Pourquoi elle nomme toutes les fautes
  *
  *  Un refus qui s'arrête à la première fait recommencer le commit autant de fois qu'il y a de

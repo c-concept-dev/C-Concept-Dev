@@ -9,11 +9,20 @@
  *
  *     npx tsx packages/banc/scripts/avant-commit.ts [--racine <chemin>]
  */
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { indexDuProjet } from "../src/index-du-projet.js";
+import { indexDuProjet, placeDuProjet } from "../src/index-du-projet.js";
 import { contenuDeLIndex } from "../src/rien-de-fantome.js";
 import { verdictAvantCommit, type GardeDuVocabulaire } from "../src/avant-commit.js";
+import {
+  PRIX_MESURE,
+  refusDeLEcartAuDisque,
+  refusDesEpreuvesRust,
+  rustAEprouver,
+  type EpreuveRust,
+  type Lancement,
+} from "../src/epreuve-rust.js";
 
 const arguments_ = process.argv.slice(2);
 const place = arguments_.indexOf("--racine");
@@ -43,7 +52,59 @@ const garde = JSON.parse(
 
 const { refus } = verdictAvantCommit({ suivis, lire: contenuDeLIndex(racine), garde });
 
-if (refus.length === 0) {
+/** L'épreuve de l'hôte Rust, lancée pour de vrai (lot prioritaire du 16 novembre 2026).
+ *
+ *  Elle n'est payée que par un commit qui touche `apps/app/src-tauri/` — mesuré **54 s** sur le cas
+ *  le plus coûteux. C'est une exception assumée à la règle écrite de ce crochet, « seulement les
+ *  garde-fous rapides » : trois erreurs Rust ont été découvertes après la poussée, et une minute
+ *  par commit de l'hôte coûte moins qu'une branche cassée. Décision de Christophe.
+ *
+ *  Elle ne part pas si une faute rapide a déjà refusé le commit : la minute ne servirait à rien,
+ *  le commit étant refusé de toute façon. */
+function refusDeLHoteRust(): readonly string[] {
+  const chemins = rustAEprouver(suivis);
+  if (chemins.length === 0) return [];
+
+  const { depot, prefixe } = placeDuProjet(racine);
+  const debut = prefixe === "" ? "" : `${prefixe}/`;
+  // Ce que le disque porte et que l'index ne porte pas : cargo compile le disque, ce crochet juge
+  // l'index, et un verdict sur un autre arbre ne dirait rien du commit.
+  const nonIndexes = (execFileSync("git", ["diff", "--name-only"], { cwd: depot, encoding: "utf8" }) as string)
+    .split("\n")
+    .filter((ligne) => ligne.startsWith(debut))
+    .map((ligne) => ligne.slice(debut.length));
+  const ecart = refusDeLEcartAuDisque(nonIndexes);
+  if (ecart.length > 0) return ecart;
+
+  const lancer = (epreuve: EpreuveRust): Lancement => {
+    try {
+      execFileSync(epreuve.programme, [...epreuve.arguments], {
+        cwd: racine,
+        encoding: "utf8",
+        stdio: "pipe",
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      return { code: 0, sortie: "" };
+    } catch (souci) {
+      const echec = souci as { status?: number; code?: string; stdout?: string; stderr?: string };
+      // `cargo` absent : on refuse plutôt que de sauter. Un commit de l'hôte Rust qu'aucune épreuve
+      // n'a lu est exactement ce que ce lot existe pour empêcher, et `--no-verify` est interdit.
+      if (echec.code === "ENOENT")
+        return { code: 127, sortie: `${epreuve.programme} est introuvable — installez Rust (rustup), puis recommencez.` };
+      return { code: echec.status ?? -1, sortie: `${echec.stdout ?? ""}${echec.stderr ?? ""}` };
+    }
+  };
+
+  console.log(
+    `avant-commit : ${chemins.length} chemin(s) de l'hôte Rust dans ce commit — épreuve de la suite` +
+      ` entière et de tous les exemples (${PRIX_MESURE.secondes} s mesurées le plus souvent)…`,
+  );
+  return refusDesEpreuvesRust(chemins, lancer);
+}
+
+const tous = refus.length > 0 ? refus : [...refus, ...refusDeLHoteRust()];
+
+if (tous.length === 0) {
   console.log(
     `avant-commit : ${suivis.length} chemin(s) du projet sur ${total} dans l'index du commit` +
       `${prefixe === "" ? "" : ` (préfixe « ${prefixe} » retiré)`}, rien à redire.`,
@@ -51,8 +112,8 @@ if (refus.length === 0) {
   process.exit(0);
 }
 
-console.error(`\nCOMMIT REFUSÉ — ${refus.length} faute(s) dans ce que l'index porte :\n`);
-for (const raison of refus) console.error(`  · ${raison}`);
+console.error(`\nCOMMIT REFUSÉ — ${tous.length} faute(s) dans ce que l'index porte :\n`);
+for (const raison of tous) console.error(`  · ${raison}`);
 console.error(
   "\nCes règles sont celles du contrôle complet, appliquées plus tôt : une faute trouvée ici coûte" +
     "\nun geste, la même trouvée par l'intégration continue coûte une branche cassée." +
