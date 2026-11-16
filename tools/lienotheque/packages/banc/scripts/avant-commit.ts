@@ -62,18 +62,24 @@ const { refus } = verdictAvantCommit({ suivis, lire: contenuDeLIndex(racine), ga
  *  Elle ne part pas si une faute rapide a déjà refusé le commit : la minute ne servirait à rien,
  *  le commit étant refusé de toute façon. */
 function refusDeLHoteRust(): readonly string[] {
-  const chemins = rustAEprouver(suivis);
-  if (chemins.length === 0) return [];
-
   const { depot, prefixe } = placeDuProjet(racine);
   const debut = prefixe === "" ? "" : `${prefixe}/`;
+  const duDepot = (commande: readonly string[]): readonly string[] =>
+    (execFileSync("git", [...commande], { cwd: depot, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 }) as string)
+      .split("\n")
+      .filter((ligne) => ligne.startsWith(debut))
+      .map((ligne) => ligne.slice(debut.length));
+
+  // **Ce que le commit CHANGE, et non ce que l'index porte.** Les autres règles lisent l'index
+  // entier — « ce commit emporte-t-il un mot de domaine ? » se demande de tout ce qu'il porte.
+  // Celle-ci non : l'index porte les 78 fichiers de l'hôte Rust dès qu'ils sont suivis, et la
+  // décision partait donc sur **tous** les commits, documents compris. Vu sur le commit de ce lot
+  // lui-même — « 78 chemin(s) de l'hôte Rust » alors qu'il n'en touchait aucun.
+  const chemins = rustAEprouver(duDepot(["diff", "--cached", "--name-only"]));
+  if (chemins.length === 0) return [];
   // Ce que le disque porte et que l'index ne porte pas : cargo compile le disque, ce crochet juge
   // l'index, et un verdict sur un autre arbre ne dirait rien du commit.
-  const nonIndexes = (execFileSync("git", ["diff", "--name-only"], { cwd: depot, encoding: "utf8" }) as string)
-    .split("\n")
-    .filter((ligne) => ligne.startsWith(debut))
-    .map((ligne) => ligne.slice(debut.length));
-  const ecart = refusDeLEcartAuDisque(nonIndexes);
+  const ecart = refusDeLEcartAuDisque(duDepot(["diff", "--name-only"]));
   if (ecart.length > 0) return ecart;
 
   const lancer = (epreuve: EpreuveRust): Lancement => {

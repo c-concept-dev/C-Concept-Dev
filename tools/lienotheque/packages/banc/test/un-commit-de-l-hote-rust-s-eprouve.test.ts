@@ -165,6 +165,32 @@ describe("un commit qui touche l'hôte Rust s'éprouve (lot prioritaire du 16 no
     expect(verdict.dit).toContain("l'hôte Rust");
   });
 
+  /** **Le défaut que ce contrôle a trouvé, et il était dans mon premier jet.**
+   *
+   *  Le juge lit l'index **entier** — c'est ce que les autres règles veulent, « ce commit emporte-t-il
+   *  un mot de domaine ? » se demandant de tout ce qu'il porte. J'avais posé la décision sur cette
+   *  liste : elle contient les **78** fichiers de l'hôte Rust dès qu'ils sont suivis, que le commit
+   *  les touche ou non. L'épreuve partait donc sur **tous** les commits, y compris un commit de
+   *  documents — 54 s pour rien, et ma propre phrase « les autres ne lancent rien » était fausse.
+   *
+   *  Vu sur le commit de ce lot lui-même : « 78 chemin(s) de l'hôte Rust dans ce commit », alors
+   *  qu'il n'en touchait aucun. Le dépôt fabriqué des contrôles ne pouvait pas le dire : l'index y
+   *  vaut le commit. Celui-ci fabrique la différence — un fichier de l'hôte **déjà commité et
+   *  inchangé**, et une modification ailleurs. */
+  it("ne lance rien quand l'hôte est suivi mais que le commit ne le touche pas", () => {
+    const bac = depot({ "apps/app/src-tauri/src/file.rs": "pub fn rien() {}\n", "paquet/src/index.ts": "export const a = 1;\n" });
+    const git = (...args: readonly string[]): string =>
+      execFileSync("git", [...args], { cwd: bac, encoding: "utf8", env: { ...process.env, GIT_AUTHOR_NAME: "banc", GIT_AUTHOR_EMAIL: "banc@essai", GIT_COMMITTER_NAME: "banc", GIT_COMMITTER_EMAIL: "banc@essai" } });
+    git("commit", "--no-verify", "-m", "le socle");
+    // Une modification qui ne touche pas l'hôte, et lui seule.
+    writeFileSync(join(bac, "paquet/src/index.ts"), "export const a = 2;\n");
+    git("add", "paquet/src/index.ts");
+
+    const verdict = juger(bac);
+    expect(verdict.dit, "l'hôte est suivi, mais ce commit ne le touche pas : rien ne doit partir").not.toContain("hôte Rust");
+    expect(verdict.code).toBe(0);
+  });
+
   it("ne fait pas payer l'épreuve à un commit qui ne touche pas l'hôte", () => {
     const verdict = juger(depot({ "paquet/src/index.ts": "export const rien = 1;\n" }));
     expect(verdict.code).toBe(0);
