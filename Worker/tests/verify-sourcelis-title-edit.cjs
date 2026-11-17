@@ -14,5 +14,7 @@ assert.match(html, /if \(!bookTitle \|\| bookTitle\.length > 300\)/,
   'validation explicite non vide et 300 caractères maximum attendue');
 assert.match(html, /JSON\.stringify\(\{ book_id: bookId, book_title: bookTitle, approach, author, language \}\)/,
   'book_title validé doit être envoyé à /update-book-meta');
+assert.match(html, /data\.updated_chunks \?\? '\?'/,
+  'le compteur zéro doit rester affiché comme zéro, jamais comme une valeur inconnue');
 
 console.log('PASS S1 — champ Titre prérempli, borné, nettoyé et transmis');

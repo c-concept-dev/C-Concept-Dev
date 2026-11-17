@@ -3069,7 +3069,7 @@ async function submitEditMeta(bookId) {
         if (res.ok) {
             const data = await res.json();
             if (data.success) {
-                log('  Métadonnées mises à jour (' + (data.updated_chunks || '?') + ' chunks)', 'success');
+                log('  Métadonnées mises à jour (' + (data.updated_chunks ?? '?') + ' chunks)', 'success');
                 document.getElementById('edit-overlay')?.remove();
                 refreshLibrary();
                 return;
