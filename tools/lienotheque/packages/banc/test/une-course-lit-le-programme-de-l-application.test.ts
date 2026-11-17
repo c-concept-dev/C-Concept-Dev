@@ -198,4 +198,77 @@ describe("une course qui éprouve la lecture lit le programme de l'application (
       ).toBe(false);
     },
   );
+  /** Lot **0s bis** — **la version de Node des deux courses est épinglée au correctif près**, comme
+   *  celle de Rust l'est depuis le lot 0s.
+   *
+   *  ## Ce qui l'a provoquée, et c'est le nouveau garde-fou du lot 0u ter qui l'a dit
+   *
+   *  La course **44077859840** a refusé d'embarquer la chaîne, avec ce message :
+   *
+   *  ```
+   *  node : le paquet ANNONCE 24.22.2, l'épingle dit 24.11.1
+   *  ```
+   *
+   *  `preparer-moteur-node.py` embarque le node **du coureur** (`shutil.which("node")`) — il le
+   *  doit, le PATH des moteurs arriverait sinon devant sa propre cible —, et les deux courses
+   *  écrivaient `node-version: 24`, c'est-à-dire **le dernier 24.x du jour**. Le paquet partait
+   *  donc avec un node 24.22.2 accompagné du texte de licence de 24.11.1 : un fichier redistribué
+   *  dont la licence embarquée décrit une **autre** version. Le défaut était là depuis le premier
+   *  jour ; seul le juge des versions, né la veille, pouvait le nommer.
+   *
+   *  **Ici, rien ne le voyait, et pour la plus mauvaise des raisons** : cette machine installe
+   *  justement 24.11.1. La collecte était verte par coïncidence de versions, pas par épingle.
+   *
+   *  C'est la troisième fois que la même forme coûte un rouge — un outil installé « à la dernière
+   *  version » : Rust (lot 0s, `rust-toolchain.toml` à `1.100.0`), le tesseract de Homebrew
+   *  (dette D1, lot 0u), et Node aujourd'hui. Décision de Christophe du 13 novembre 2026, qui
+   *  vaut mot pour mot ici : « on en change volontairement, jamais par surprise. »
+   *
+   *  ## Pourquoi l'épingle se lit dans la donnée, et pourquoi l'amont du collecteur est lu aussi
+   *
+   *  Le nombre `24.11.1` n'est écrit **dans aucun contrôle** : il se lit dans
+   *  `fixtures/licences-des-moteurs.json`, qui est la donnée que la collecte juge. Un contrôle qui
+   *  porterait sa propre copie de l'épingle resterait vert le jour où la donnée changerait — et
+   *  c'est exactement la faute dont ce fichier garde déjà les empreintes d'archive.
+   *
+   *  Le collecteur, lui, décide de la version **attendue** depuis son `AMONT`. Si la donnée et
+   *  `AMONT` divergeaient, ce contrôle garderait une épingle que personne ne juge : les courses
+   *  installeraient la version de la donnée et la collecte refuserait au nom d'une autre. La
+   *  dernière vérification ci-dessous ferme ce trou, et elle seule rend les précédentes vraies. */
+  siLesWorkflowsSontLa(
+    "les deux courses épinglent Node au correctif près, et au numéro que la donnée porte (lot 0s bis ; sauté si `.github/` n'est pas du lot)",
+    () => {
+      // `amont.node` est nommé, et non lu par index : sous `noUncheckedIndexedAccess`, un
+      // `Record<string, …>` rendrait `undefined` possible et il faudrait l'écarter — alors que la
+      // donnée doit porter cette clé, et son absence est déjà un refus du lot 0d.
+      const epingle = (
+        JSON.parse(readFileSync(new URL("fixtures/licences-des-moteurs.json", PROJET), "utf8")) as {
+          readonly amont: { readonly node: { readonly version: string } };
+        }
+      ).amont.node.version;
+      expect(epingle, "l'épingle de node doit nommer un correctif, pas une famille").toMatch(/^\d+\.\d+\.\d+$/u);
+
+      for (const [nom, ou] of [
+        ["lienotheque-ci.yml", CI],
+        ["lienotheque-tauri.yml", TAURI],
+      ] as const) {
+        const demandees = [...lire(ou).matchAll(/^\s*node-version:\s*['"]?([^'"\s#]+)/gmu)].flatMap((trouve) =>
+          trouve[1] === undefined ? [] : [trouve[1]],
+        );
+        expect(demandees.length, `${nom} : aucune version de Node demandée, ce contrôle ne garderait rien`).toBeGreaterThan(0);
+        for (const demandee of demandees)
+          expect(
+            demandee,
+            `${nom} demande Node « ${demandee} » : une famille sans correctif installe le dernier du jour, et le paquet partirait avec un binaire que sa licence embarquée ne décrit pas`,
+          ).toBe(epingle);
+      }
+
+      const amont = readFileSync(new URL("apps/app/src-tauri/outils/collecter-licences.py", PROJET), "utf8");
+      const versionDuCollecteur = /"node":\s*\{[^}]*?"version":\s*"([^"]+)"/su.exec(amont)?.[1];
+      expect(
+        versionDuCollecteur,
+        "le collecteur doit attendre la version que la donnée épingle, sans quoi les courses installeraient l'une et la collecte refuserait au nom de l'autre",
+      ).toBe(epingle);
+    },
+  );
 });
