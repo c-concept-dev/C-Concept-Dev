@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-17 | La version de Node est épinglée, comme celle de Rust | [2026-11-17-la-version-de-node-est-epinglee-comme-celle-de-rust.md](2026-11-17-la-version-de-node-est-epinglee-comme-celle-de-rust.md) |
 | 2026-11-17 | On avance avec prudence et sécurité, pas à la cadence | [2026-11-17-prudence-et-securite-avant-la-cadence.md](2026-11-17-prudence-et-securite-avant-la-cadence.md) |
 | 2026-11-17 | Une autorisation ne suit pas le code qui change après elle | [2026-11-17-une-autorisation-ne-suit-pas-le-code-qui-change.md](2026-11-17-une-autorisation-ne-suit-pas-le-code-qui-change.md) |
 | 2026-11-16 | Une poussée emporte tout ce qui précède, et cela se demande avant | [2026-11-16-une-poussee-emporte-ce-qui-precede.md](2026-11-16-une-poussee-emporte-ce-qui-precede.md) |
