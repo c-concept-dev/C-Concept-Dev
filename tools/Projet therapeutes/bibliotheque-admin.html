@@ -188,6 +188,14 @@
         .bc-chunks { font-size: 11px; color: #aaa; }
         .bc-language { display:inline-block;padding:2px 8px;border-radius:10px;background:#e9efec;color:#52676a;font-size:10px;font-weight:700; }
         .bc-language.translation-needed { background:#fff0d6;color:#8a5200;border:1px solid #e9b65d; }
+        .title-review { margin: 12px 0 16px; padding: 14px 16px; border: 1px solid #d8cdbb; border-left: 4px solid #b88a3b; border-radius: 10px; background: #fffaf0; }
+        .title-review h3 { color: #674b1e; font: 600 17px 'Fraunces', serif; }
+        .title-review p { margin-top: 5px; color: #6b6255; font-size: 12px; line-height: 1.5; }
+        .title-review ul { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+        .title-review li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #eadfc8; border-radius: 8px; background: #fff; }
+        .title-review-copy { min-width: 0; flex: 1; }
+        .title-review-copy strong { display: block; color: var(--so-ink); overflow-wrap: anywhere; }
+        .title-review-copy span { display: block; margin-top: 3px; color: #82642f; font-size: 11px; }
         .translation-panel { margin:14px 0;padding:18px;border:2px solid #8FAFB1;border-radius:12px;background:#f6faf9; }
         .translation-panel h3 { color:#365f62;font-size:16px;margin-bottom:8px; }
         .translation-panel p { font-size:12px;line-height:1.5;margin:8px 0; }
@@ -325,6 +333,7 @@
             .tab { padding: 15px 12px; font-size: 12px; }
             .form-grid { grid-template-columns: 1fr; }
             .book-card { flex-wrap: wrap; }
+            .title-review li { align-items: flex-start; flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -408,6 +417,7 @@
                 </select>
             </label>
             <div id="libraryFilterStatus" role="status" aria-live="polite" style="font-size:12px;color:#52676a;margin-bottom:10px;"></div>
+            <section id="titleReviewPanel" class="title-review" aria-live="polite" hidden></section>
             <div class="translation-panel" id="bookTranslationQueueControls">
                 <h3>File de traduction</h3>
                 <p>Cochez les livres, puis ajoutez-les à la file. Les traductions sont conservées uniquement dans ce navigateur. Fermer l’onglet arrête le travail ; au retour, chiffrez puis relancez la file.</p>
@@ -2375,6 +2385,7 @@ async function refreshLibrary() {
 
         window._libBooks = Array.isArray(data.books) ? data.books : [];
         renderReplaceBookOptions();
+        renderTitleReviewList(window._libBooks);
 
         if (window._libBooks.length === 0) {
             el.innerHTML = `<div class="empty-state">
@@ -2440,6 +2451,37 @@ function libraryLanguageLabel(lang) {
         try { name = new Intl.DisplayNames(['fr'], { type: 'language' }).of(lang); } catch { /* code non reconnu */ }
     }
     return lang.toUpperCase() + (name && name.toLowerCase() !== lang ? ' · ' + name : '');
+}
+function libraryTitleReviewReasons(book) {
+    const title = String(book?.book_title || '').trim();
+    const author = String(book?.author || '').trim();
+    const reasons = [];
+    const containsDomain = /(?:https?:\/\/|www\.)[^\s)]+|(?:^|[\s(,])(?:[a-z0-9-]+\.)+(?:com|org|net|fr|sk|io|co|eu|info|biz|dev|app)(?=$|[\s),])/i.test(title);
+    const looksLikeFilename = /^\d{1,4}\s*[-_.]\s*\S+/.test(title)
+        || /\.(?:pdf|epub|mobi|azw3?|html?|docx?|txt)\s*$/i.test(title);
+    if (containsDomain) reasons.push('nom de domaine dans le titre');
+    if (looksLikeFilename) reasons.push('nom de fichier probable');
+    if (!author || /^(?:unknown|inconnu(?:e)?|n\/?a)$/i.test(author)) reasons.push('auteur à renseigner');
+    return reasons;
+}
+function renderTitleReviewList(books) {
+    const panel = document.getElementById('titleReviewPanel');
+    if (!panel) return;
+    const flagged = (Array.isArray(books) ? books : []).map((book, index) => ({
+        book, index, reasons: libraryTitleReviewReasons(book)
+    })).filter(item => item.reasons.length);
+    if (!flagged.length) {
+        panel.hidden = true;
+        panel.replaceChildren();
+        return;
+    }
+    panel.hidden = false;
+    panel.innerHTML = '<h3>Titres à vérifier (' + flagged.length + ')</h3>'
+        + '<p>Cette liste est une aide au repérage. Rien n’est corrigé automatiquement : utilisez « Modifier » après vérification de l’ouvrage.</p>'
+        + '<ul>' + flagged.map(item => '<li><div class="title-review-copy"><strong>'
+            + escHtml(item.book.book_title || item.book.book_id || 'Titre manquant') + '</strong><span>'
+            + escHtml(item.reasons.join(' · ')) + '</span></div><button class="btn-sm" type="button" onclick="editBookByIndex('
+            + item.index + ')">Modifier</button></li>').join('') + '</ul>';
 }
 function normalizeBookSearch(value) {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
