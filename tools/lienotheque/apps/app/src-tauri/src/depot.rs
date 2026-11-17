@@ -47,7 +47,12 @@ pub const DERIVES: &str = "derives";
 pub const BASE: &str = "base";
 
 const VERSIONS: &str = "versions";
-/// L'ancien pointeur unique, gardé pour la migration et pour elle seule.
+/// L'ancien pointeur unique, gardé pour les contrôles de la migration : eux seuls le nomment, et
+/// c'est voulu. `migrer_les_actives` ne le lit pas — elle déduit la table des travaux terminés —,
+/// et les contrôles fabriquent ce fichier pour prouver qu'elle l'ignore. D'où le `cfg(test)` :
+/// hors contrôles, personne ne doit nommer ce chemin, et un avertissement de construction le
+/// disait sans que rien ne le corrige.
+#[cfg(test)]
 const ACTIVE: &str = "active.json";
 
 /// Ce qui rend indivisible la **mise à jour** de la table des actives, et non sa seule écriture.
