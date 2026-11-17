@@ -21,6 +21,15 @@ est celle de l'archive, pour qu'aucun lot ne porte deux numéros.
 **Reste en vigueur, et n'est pas touchée** : la règle du 5 novembre « aucun retraitement par la
 voie recette avant A1b ».
 
+**Note d'écriture, et non un lot** — 17 novembre 2026, à la demande de Christophe : dans le
+registre des poussées, **pas de barre verticale dans une cellule, même échappée ; l'écrire en
+mots**. Le garde-fou du journal découpe une rangée sur la barre verticale et n'interprète pas le
+markdown : une barre échappée compte quand même une colonne, et la rangée est refusée — c'est
+arrivé à l'entrée 65, qui citait une clause de shell et s'est retrouvée à huit colonnes pour
+quatre. Rien à corriger de son côté : une rangée à huit colonnes n'est pas une entrée lisible, et
+le refus est juste. La règle est portée par le **message de refus lui-même**, pour qu'elle
+paraisse à la seconde où on la viole ; elle est répétée ici pour qui lit la file avant d'écrire.
+
 | # | Étape | Lot | Nature | État |
 |---|---|---|---|---|
 | — | — *garde-fou, § 4.6* | garde-fou des promesses | technique | commité, né en parallèle, à tort |
