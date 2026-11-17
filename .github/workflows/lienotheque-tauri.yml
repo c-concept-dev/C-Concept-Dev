@@ -255,7 +255,11 @@ jobs:
         run: |
           attendu="$PWD/apps/app/src-tauri/moteurs/bin/tesseract"
           echo "tesseract joignables, dans l'ordre du PATH :"
-          command -v -a tesseract || true
+          # `type -ap` et non `command -v -a` : `command -v` ne prend aucune option, et la forme
+          # d'avant rendait « command: -a: invalid option » que le `|| true` avalait — l'étape
+          # annonçait une liste qu'elle ne produisait pas. `type -ap` est une primitive de bash
+          # qui rend tous les chemins trouvés, dans l'ordre du PATH.
+          type -ap tesseract || true
           repond=$(command -v tesseract || true)
           if [ "$repond" != "$attendu" ]; then
             echo "::error::ce n'est pas le tesseract de l'application qui répond"

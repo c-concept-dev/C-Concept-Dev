@@ -129,9 +129,81 @@ describe("une course qui éprouve la lecture lit le programme de l'application (
     ).toBeGreaterThan(chaine);
   });
 
-  siLesWorkflowsSontLa("ne laisse pas deux Tesseract joignables sans dire lequel répond (sauté si `.github/` n'est pas du lot)", () => {
+  /** Lot **0u sexies** — **l'étape qui annonce la liste doit la produire**.
+   *
+   *  La course **44125534966** a passé cette étape en vert, et pourtant sa liste était ceci :
+   *
+   *  ```
+   *  tesseract joignables, dans l'ordre du PATH :
+   *  command: -a: invalid option
+   *  ```
+   *
+   *  `command -v` **ne prend aucune option** : `-a` est une forme de zsh, le shell de l'étape est
+   *  bash, et le `|| true` avalait le refus. La comparaison qui suit — celle qui refuse vraiment —
+   *  marchait ; mais l'étape **annonçait une liste qu'elle ne produisait pas**, et c'est la faute
+   *  que ce dépôt nomme depuis le lot 0c ter : un garde-fou qui applique une règle et en annonce
+   *  une autre trompe exactement qui le lit. Ici, il aurait tu une seconde installation de
+   *  Tesseract — le défaut même que l'étape existe pour montrer.
+   *
+   *  **Et le garde-fou d'avant acceptait la forme cassée** : son motif `command -v tesseract`
+   *  était satisfait par la ligne de comparaison, et la ligne de listage n'était vérifiée par
+   *  personne. Un motif qui se contente d'un mot ne mesure rien.
+   *
+   *  ## Pourquoi ce contrôle **lance** la forme au lieu de la reconnaître
+   *
+   *  Un motif aurait accepté n'importe quelle autre invention refusée par bash. Ce contrôle
+   *  extrait donc la ligne de listage de l'étape et **la lance**, en remplaçant le nom du
+   *  programme par `sh` — qui existe partout. Il ne cherche pas Tesseract, il éprouve la **forme**
+   *  : bash l'accepte-t-il, et rend-elle au moins un chemin ? Le verdict ne dépend donc ni de
+   *  Tesseract, ni de cette machine. */
+  siLesWorkflowsSontLa("ne laisse pas deux Tesseract joignables sans dire lequel répond, et la liste annoncée est vraiment produite (lot 0u sexies ; sauté si `.github/` n'est pas du lot)", () => {
     const tauri = lire(TAURI);
-    expect(tauri, "la course doit dire quel tesseract répond, et d'où il vient").toMatch(/command -v tesseract|which -a tesseract/u);
+    const etape = tauri.slice(tauri.indexOf("- name: Dire quel Tesseract répond"));
+    // Les **ordres** de l'étape, commentaires retirés : la règle porte sur ce que le shell
+    // exécute. Mon premier jet jugeait le texte entier et se refusait sur mon propre commentaire,
+    // qui cite la forme cassée pour l'expliquer — un garde-fou qui ne distingue pas un ordre
+    // d'une explication interdit d'expliquer.
+    const corps = etape
+      .slice(0, etape.indexOf("\n      - name:"))
+      .split("\n")
+      .filter((ligne) => !ligne.trim().startsWith("#"))
+      .join("\n");
+
+    expect(corps, "l'étape doit comparer le tesseract qui répond au chemin attendu").toContain("command -v tesseract");
+    expect(
+      /command\s+-\w*v\w*\s+-/u.test(corps),
+      "`command -v` ne prend aucune option : toute option lui fait rendre « invalid option » au lieu d'une liste",
+    ).toBe(false);
+
+    const listage = corps
+      .split("\n")
+      .map((ligne) => ligne.trim())
+      .find((ligne) => /tesseract/u.test(ligne) && /^(type|which|command|whence|where)\b/u.test(ligne));
+    expect(listage, "aucune ligne ne cherche les tesseract joignables : l'étape annoncerait une liste vide").toBeTruthy();
+
+    // La forme, et non l'environnement : `sh` existe partout, Tesseract non. Ce contrôle
+    // n'appelle aucune reconnaissance — il ne fait que demander à bash s'il comprend l'ordre.
+    const surUnProgrammeQuiExiste = (listage ?? "").replace(/tesseract/gu, "sh").replace(/\s*\|\|\s*true$/u, "");
+    const lance = ((): { readonly code: number; readonly sortie: string; readonly erreur: string } => {
+      try {
+        return { code: 0, sortie: execFileSync("bash", ["-c", surUnProgrammeQuiExiste], { encoding: "utf8", stdio: "pipe" }), erreur: "" };
+      } catch (souci) {
+        const echec = souci as { status?: number; stdout?: string; stderr?: string };
+        return { code: echec.status ?? -1, sortie: echec.stdout ?? "", erreur: echec.stderr ?? "" };
+      }
+    })();
+
+    expect(
+      lance.code,
+      `bash refuse « ${surUnProgrammeQuiExiste} » : ${lance.erreur.trim() || "sans rien dire"} — l'étape annoncerait une liste qu'elle ne produit pas`,
+    ).toBe(0);
+    expect(lance.erreur, "une forme que bash n'accepte pas s'en plaint sur la sortie d'erreur, et le journal de la course la montre").not.toMatch(
+      /invalid option|usage:/u,
+    );
+    expect(
+      lance.sortie.split("\n").filter((ligne) => ligne.includes("/")),
+      "la forme doit rendre au moins un chemin : une liste vide ne dit pas lequel répond",
+    ).not.toHaveLength(0);
   });
 
   /** Demandé par Christophe le 16 novembre 2026 : « Vérifie que `lienotheque-tauri.yml` se
