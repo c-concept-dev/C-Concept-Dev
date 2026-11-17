@@ -10,8 +10,13 @@
 # alors ce proxy de 3,1 Mo et ses cinq liaisons par un worker de
 # 18 Ko. Vérifié le 27/09/2026.
 #
-# Un essai à blanc correct annonce ~3 175 KiB, 22 modules, et les cinq
-# liaisons CLONE_KV, DB, VECTOR_INDEX, BRAND_ASSETS, AI :
+# Un essai à blanc correct annonce ~3 240 KiB, 25 modules, et les cinq
+# liaisons CLONE_KV, DB, VECTOR_INDEX, BRAND_ASSETS, AI. Valeurs vérifiées
+# le 17/11/2026 par comparaison avec la version de référence
+# 72afffc6-9028-4743-8b3e-2e1f81e7a68c : elle comportait déjà les mêmes
+# 25 modules (dont migrations 0013 à 0015 et les huit fichiers node_modules)
+# pour 3 234,14 KiB ; les 5,98 KiB ajoutés correspondent aux 6 124 octets
+# de croissance de index.js :
 #
 #     npx wrangler deploy --config wrangler.toml --dry-run
 #
