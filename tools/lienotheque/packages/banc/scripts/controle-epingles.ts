@@ -9,8 +9,11 @@
  *  pour qu'on lise ce qui se passe, le `json` pour qu'on puisse en juger. Les rapports sont
  *  effacés avant chaque passage — un rapport d'hier ferait juger un passage qui n'a pas eu lieu. */
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
+import { nomDuBac, restesABalayer, variablesDuBac } from "../src/bac-du-controle.js";
+import { ceQuiABouge, releverLeDepot, type Lancer, type ReleveDuDepot } from "../src/releve-du-depot.js";
 import { accepte, juger, raconter, type Controle, type Epingle } from "../src/epingles.js";
 import {
   accepteLesMarges,
@@ -62,6 +65,43 @@ if (!process.argv.includes("--sans-relancer"))
 // coûte vingt minutes et davantage quand le cache vient d'être invalidé : rejuger ce qui a déjà
 // tourné doit être possible sans le repayer, sinon on hésite à corriger le juge.
 const sansRelancer = process.argv.includes("--sans-relancer");
+
+/** Lance un programme depuis la racine du dépôt et rend ce qu'il a dit, sortie d'erreur comprise. */
+const lancer: Lancer = (programme, arguments_) => {
+  const vu = spawnSync(programme, [...arguments_], { cwd: RACINE, encoding: "utf8" });
+  return { code: vu.status ?? -1, sortie: `${vu.stdout ?? ""}${vu.stderr ?? ""}` };
+};
+
+/** La racine du DÉPÔT, et non celle du projet : les chemins de `git status` se comptent depuis
+ *  elle, et le projet vit dans un sous-dossier. */
+const racineDuDepot = (): string => {
+  const vu = lancer("git", ["rev-parse", "--show-toplevel"]);
+  if (vu.code !== 0) throw new Error(`git rev-parse a échoué : ${vu.sortie}`);
+  return vu.sortie.trim();
+};
+
+// Le bac de la course : un seul dossier temporaire pour tout ce que les contrôles fabriquent, et
+// le balayage de ce qu'une course arrêtée a laissé. Voir `src/bac-du-controle.ts`.
+const bac = join(tmpdir(), nomDuBac(process.pid));
+let restesBalayes = 0;
+if (!sansRelancer) {
+  for (const reste of restesABalayer(readdirSync(tmpdir()), nomDuBac(process.pid))) {
+    rmSync(join(tmpdir(), reste), { recursive: true, force: true });
+    restesBalayes += 1;
+  }
+  mkdirSync(bac, { recursive: true });
+  // Le bac de CETTE course part à la fin, quelle que soit la sortie — acceptée, refusée ou
+  // tombée. Ce qu'un arrêt brutal laisse derrière lui, c'est la course suivante qui le balaie :
+  // aucun code ne tourne après un `SIGKILL`, et prétendre le contraire serait une parade de
+  // papier.
+  process.on("exit", () => rmSync(bac, { recursive: true, force: true }));
+  if (restesBalayes > 0)
+    console.log(`── bac temporaire : ${restesBalayes} reste(s) de course(s) arrêtée(s) balayé(s) ──`);
+}
+
+// Le dépôt ENTIER, avant la course. Un fichier écrit pendant qu'elle tourne rend son verdict faux
+// pour ce fichier : le relevé d'après dira lequel, et la course sera refusée.
+const avant: ReleveDuDepot | undefined = sansRelancer ? undefined : releverLeDepot(lancer, racineDuDepot());
 if (!sansRelancer) console.log(`── contrôle complet : ${attendus.length} paquet(s) à éprouver ──`);
 else console.log("── jugement des rapports déjà rendus, sans relancer ──");
 // `--no-bail` n'est pas un détail de confort : sans lui, `pnpm -r` s'arrête au PREMIER paquet
@@ -83,8 +123,13 @@ const passage = sansRelancer
     "--reporter=json",
     `--outputFile=${RAPPORT}`,
   ],
-  { cwd: RACINE, stdio: "inherit" },
+  { cwd: RACINE, stdio: "inherit", env: { ...process.env, ...variablesDuBac(bac) } },
 );
+
+// Le dépôt entier, après la course, relevé tout de suite : le jugement qui suit ne coûte qu'une
+// seconde, mais le relevé doit porter sur l'instant où la course a fini.
+const bougeDansLeDepot: readonly string[] =
+  avant === undefined ? [] : ceQuiABouge(avant, releverLeDepot(lancer, racineDuDepot()));
 
 const controles: Controle[] = [];
 const mesures: Mesure[] = [];
@@ -187,6 +232,29 @@ const surUnCoureur = process.env["GITHUB_ACTIONS"] === "true";
 const verdictDesMarges = jugerLesMarges(mesures, barre, 10, !surUnCoureur);
 console.log(`\n── garde-fou des marges de délai ──`);
 for (const dit of raconterLesMarges(verdictDesMarges)) console.log(`  ${dit}`);
+
+// Le relevé est dit, et refusé, AVANT les deux autres : si le dépôt a bougé sous la course, les
+// lignes des deux garde-fous ci-dessus décrivent un état que plus rien ne porte — les lire comme
+// un verdict serait exactement la faute du 5 novembre 2026. Elles restent affichées, parce
+// qu'elles disent ce qui a tourné ; elles ne valent simplement pas acceptation.
+console.log(`\n── relevé du dépôt ──`);
+if (bougeDansLeDepot.length === 0)
+  console.log(
+    avant === undefined
+      ? "  pas de relevé : rien n'a été relancé, donc rien n'a pu bouger"
+      : `  rien n'a bougé pendant la course (${avant.chemins.size} chemin(s) nommé(s) par git status)`,
+  );
+else {
+  console.error(
+    `\n${bougeDansLeDepot.length} chemin(s) ont bougé PENDANT la course, et le verdict ne les décrit donc pas :`,
+  );
+  for (const dit of bougeDansLeDepot) console.error(`  ${dit}`);
+  console.error(
+    "\nLe contrôle est refusé : il a jugé un état qui n'a pas tenu en place.\n" +
+      "Relancez-le sur une copie immobile — ou, pour rejuger ce qui a déjà tourné, `pnpm epingles --sans-relancer`.",
+  );
+  process.exit(1);
+}
 
 if (!accepte(verdict)) {
   console.error(
