@@ -205,6 +205,16 @@ Comparer des données reste du niveau 1, quelle que soit la force de la comparai
 
 Une mesure périmée se corrige **à sa date**, avec la trace de la correction. Une phrase de consigne devenue fausse est une dette, au même titre qu'un bug.
 
+**L'amendement forcé, et pourquoi ce n'est pas une contradiction** (inscrit le 17 novembre 2026, lot `0c quater`). Deux garde-fous du registre semblent se contredire : l'un refuse qu'une ligne commitée du journal change (lot 18), l'autre exige qu'une entrée fautive soit corrigée. Écrire l'entrée, puis découvrir une correction avant que le commit n'existe, oblige donc à **amender** — et il faut le lire ici plutôt que le redécouvrir chaque fois.
+
+La règle tient en trois temps, et le moment du commit les sépare :
+
+1. **Avant le commit**, l'entrée n'est pas encore une ligne du journal : elle se réécrit librement, autant de fois qu'il le faut.
+2. **Entre le commit et la poussée**, elle se corrige par `git commit --amend` sur ce seul commit. Le garde-fou d'ajout seul lit les versions que porte l'**historique de la branche** (`git log --full-history`, et non `--all` ni le journal des références) : un commit amendé quitte cet historique, et la version remplacée n'y figure plus. L'amendement ne lui présente donc aucune ligne réécrite — c'est la seule fenêtre où il est permis, et elle se ferme à la poussée.
+3. **Après la poussée**, plus jamais : la correction s'écrit dans une **entrée nouvelle**, qui nomme celle qu'elle corrige. C'est la règle des lignes anciennes, sans exception.
+
+**Et la prose n'est pas une entrée** — mesuré le 17 novembre 2026 dans le garde-fou lui-même, qui ancre sa lecture sur l'entête de la table : « tout ce qui précède est de la prose, et la prose, elle, se corrige ». Le texte d'ouverture du registre peut donc être corrigé sans amendement ni entrée nouvelle ; seule la **table** est en ajout seul.
+
 ### 4.10 Le Mac
 
 Pendant les longs travaux : **sur secteur, éveillé**. Spotlight exclu des dossiers lourds de la Liénothèque. Pas de gros calcul d'un autre projet en même temps qu'un contrôle complet. Surveiller l'espace libre du disque interne (au moins 20 à 30 Go).
