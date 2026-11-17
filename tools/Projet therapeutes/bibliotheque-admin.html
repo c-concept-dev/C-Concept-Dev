@@ -2967,6 +2967,9 @@ async function editBookMeta(bookId, title, currentApproach, currentAuthor, curre
     formDiv.appendChild(titleEl);
 
     formDiv.innerHTML += '<div style="display:flex;flex-direction:column;gap:12px;">'
+        + '<div><label for="edit-title" style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Titre</label>'
+        + '<input id="edit-title" type="text" maxlength="300" required value="' + escHtml(title || '') + '" aria-describedby="edit-title-error" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">'
+        + '<div id="edit-title-error" role="alert" style="display:none;color:#9f2f24;font-size:11px;margin-top:5px;">Le titre est obligatoire et ne peut pas dépasser 300 caractères.</div></div>'
         + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Approche thérapeutique</label>'
         + '<select id="edit-approach" style="width:100%;padding:8px 10px;border:2px solid #D8CDBB;border-radius:8px;font-size:13px;font-family:inherit;">' + optionsHtml + '</select></div>'
         + '<div><label style="font-size:11px;color:#888;font-weight:600;display:block;margin-bottom:4px;">Auteur</label>'
@@ -2999,9 +3002,17 @@ async function editBookMeta(bookId, title, currentApproach, currentAuthor, curre
 }
 
 async function submitEditMeta(bookId) {
+    const bookTitle = document.getElementById('edit-title').value.trim();
     const approach = document.getElementById('edit-approach').value;
     const author = document.getElementById('edit-author').value;
     const language = document.getElementById('edit-lang').value;
+    const titleError = document.getElementById('edit-title-error');
+    if (!bookTitle || bookTitle.length > 300) {
+        titleError.style.display = 'block';
+        document.getElementById('edit-title').focus();
+        return;
+    }
+    titleError.style.display = 'none';
     
     try {
         log('Modification : ' + bookId + ' → ' + approach + ', ' + author);
@@ -3010,7 +3021,7 @@ async function submitEditMeta(bookId) {
         let res = await fetch(getWorkerUrl() + '/update-book-meta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-API-Key': await getAdminApiKey() },
-            body: JSON.stringify({ book_id: bookId, approach, author, language })
+            body: JSON.stringify({ book_id: bookId, book_title: bookTitle, approach, author, language })
         });
         
         if (res.ok) {
