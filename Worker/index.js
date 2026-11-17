@@ -57914,13 +57914,19 @@ async function handleUpdateBookMeta(request2, env2) {
   } catch {
     return jsonErr("Invalid JSON", 400);
   }
-  const { book_id, approach, author, language } = body;
+  const { book_id, book_title, approach, author, language } = body;
   if (!book_id)
     return jsonErr("book_id requis", 400);
   if (!env2.DB)
     return jsonErr("D1 not configured", 500);
   try {
     const updates = [], params = [];
+    if (book_title !== void 0) {
+      if (typeof book_title !== "string" || !book_title.trim() || book_title.trim().length > 300)
+        return jsonErr("book_title doit contenir de 1 à 300 caractères", 400);
+      updates.push("book_title = ?");
+      params.push(book_title.trim());
+    }
     if (approach !== void 0) {
       updates.push("approach = ?");
       params.push(approach);
@@ -57937,7 +57943,8 @@ async function handleUpdateBookMeta(request2, env2) {
       return jsonErr("Aucun champ \xE0 modifier", 400);
     params.push(book_id);
     const result = await env2.DB.prepare(`UPDATE chunks SET ${updates.join(", ")} WHERE book_id = ?`).bind(...params).run();
-    return json({ success: true, book_id, d1_changes: result.meta?.changes || 0 });
+    const updatedChunks = result.meta?.changes || 0;
+    return json({ success: true, book_id, updated_chunks: updatedChunks, d1_changes: updatedChunks });
   } catch (err2) {
     return jsonErr(err2.message, 500);
   }

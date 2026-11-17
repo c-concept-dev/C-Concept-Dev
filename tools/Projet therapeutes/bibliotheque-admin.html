@@ -3040,10 +3040,15 @@ async function submitEditMeta(bookId) {
         // Dernier recours : instruction manuelle
         log('  Endpoints non disponibles. Ajoutez /update-book-meta à votre Worker.', 'error');
         log('  SQL à exécuter dans D1 Dashboard :', 'info');
-        log('  UPDATE chunks SET approach = "' + approach + '", author = "' + author + '" WHERE book_id = "' + bookId + '";', 'info');
+        const sqlValue = value => "'" + String(value).replace(/'/g, "''") + "'";
+        log('  UPDATE chunks SET book_title = ' + sqlValue(bookTitle) + ', approach = ' + sqlValue(approach)
+            + ', author = ' + sqlValue(author) + ', language = ' + sqlValue(language)
+            + ' WHERE book_id = ' + sqlValue(bookId) + ';', 'info');
         
         // Copier dans le presse-papier
-        const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
+        const sql = 'UPDATE chunks SET book_title = ' + sqlValue(bookTitle) + ', approach = ' + sqlValue(approach)
+            + ', author = ' + sqlValue(author) + ', language = ' + sqlValue(language)
+            + ' WHERE book_id = ' + sqlValue(bookId) + ';';
         try { 
             await navigator.clipboard.writeText(sql);
             log('  SQL copié dans le presse-papier !', 'success');
@@ -3052,7 +3057,10 @@ async function submitEditMeta(bookId) {
     } catch (err) {
         log('  ' + err.message, 'error');
         // Donner le SQL en fallback
-        const sql = 'UPDATE chunks SET approach = "' + approach + '", author = "' + author + '", language = "' + language + '" WHERE book_id = "' + bookId + '";';
+        const sqlValue = value => "'" + String(value).replace(/'/g, "''") + "'";
+        const sql = 'UPDATE chunks SET book_title = ' + sqlValue(bookTitle) + ', approach = ' + sqlValue(approach)
+            + ', author = ' + sqlValue(author) + ', language = ' + sqlValue(language)
+            + ' WHERE book_id = ' + sqlValue(bookId) + ';';
         log('  SQL fallback : ' + sql, 'info');
         try { await navigator.clipboard.writeText(sql); log('  SQL copié !', 'success'); } catch(e) {}
     }
