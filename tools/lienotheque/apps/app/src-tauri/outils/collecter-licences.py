@@ -7,12 +7,36 @@ Le paquet embarque des programmes et des bibliothèques écrits par d'autres. Le
 leur texte de licence n'est pas permis, et la règle 3.6 du cahier de pilotage le dit : l'application
 « embarque les textes de licence de tout ce qu'elle redistribue ». C'est la dette D2.
 
-COMMENT ON SAIT À QUI APPARTIENT UN FICHIER
+DEUX MODES, ET POURQUOI (lot 0u ter)
 
-On ne le devine pas, et on n'écrit pas de table à la main : on retrouve le fichier sous le Cellar de
-Homebrew, et c'est le chemin qui nomme la formule et sa version. Ce qui ne s'y retrouve pas —
-Node.js, Siegfried, et le texte de Leptonica, que sa formule ne livre pas — se télécharge depuis
-l'amont, à version figée et empreinte vérifiée, comme Siegfried lui-même.
+Par défaut, LES LICENCES DES MOTEURS VIENNENT DE L'ARCHIVE et la chaîne seule est recollectée.
+C'est la suite de la décision du 14 novembre 2026 — « l'archive publiée fait foi » — appliquée aux
+licences comme elle l'est aux programmes.
+
+Ce script faisait l'inverse, et cela a cassé la course du 16 novembre 2026 : il commençait par
+EFFACER `moteurs/licences`, que l'archive venait de déposer, puis cherchait les textes sous le
+Cellar de Homebrew. Le lot 0u ayant retiré `brew install tesseract tesseract-lang`, il n'y avait
+plus rien à trouver : « tessdata : aucun texte à côté des fichiers de langue ». Le garde-fou avait
+raison de refuser — il ne pouvait pas prouver les licences d'un paquet qu'on s'apprêtait à
+distribuer.
+
+Et recollecter depuis Homebrew aurait été PIRE que vérifier : Homebrew livre aujourd'hui tesseract
+5.5.4 quand l'archive embarque 5.5.1. Le paquet serait parti avec des textes décrivant une autre
+version que ses binaires — une licence qui parle d'autre chose ne couvre rien.
+
+Avec `--fabriquer`, et seulement là, les textes se retrouvent sous le Cellar de Homebrew — c'est le
+chemin qui nomme la formule et sa version — et ce qui ne s'y trouve pas (Node.js, Siegfried, et le
+texte de Leptonica, que sa formule ne livre pas) se télécharge depuis l'amont, à version figée et
+empreinte vérifiée. Ce mode sert à FABRIQUER une nouvelle archive, acte volontaire, et il refuse si
+les versions trouvées ne sont pas celles épinglées : changer de moteur est une décision à part, qui
+se prend avec une mesure, pas un effet de bord d'une collecte.
+
+LA CHAÎNE N'EST PAS UN MOTEUR
+
+`preparer-moteur-node.py` la reconstruit depuis les sources du dépôt à chaque préparation. Celle de
+l'archive a cinq jours ; celle du paquet vient du commit sous essai. Son entrée est donc toujours
+recollectée, et elle DIT DE QUEL COMMIT elle vient. Si `git rev-parse HEAD` ne répond pas, la
+collecte refuse : une entrée « chaine » sans commit rassurerait sans rien dire.
 
 CE QUI FAIT ROUGIR
 
@@ -24,6 +48,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -35,8 +60,14 @@ MOTEURS = RACINE / "moteurs"
 LICENCES = MOTEURS / "licences"
 PROJET = RACINE.parent.parent.parent
 EPINGLES = PROJET / "fixtures" / "licences-des-moteurs.json"
+EPINGLES_MOTEURS = PROJET / "fixtures" / "moteurs-de-lecture.json"
 
-CELLAR = pathlib.Path("/opt/homebrew/Cellar")
+# POINT D'ENTRÉE DE CONTRÔLE, et rien d'autre. En service la variable n'est jamais posée : la
+# racine est celle de Homebrew sur macOS arm64, le seul système que le CDC vise. Elle existe parce
+# qu'un contrôle doit pouvoir fabriquer un faux Cellar dans un dossier temporaire pour éprouver le
+# refus de `--fabriquer` ; sans elle, ce refus ne serait vérifiable que sur une machine où Homebrew
+# livre la mauvaise version, c'est-à-dire par accident.
+CELLAR = pathlib.Path(os.environ.get("LIENOTHEQUE_CELLAR_DE_CONTROLE", "/opt/homebrew/Cellar"))
 MOTIFS = ("LICENSE*", "LICENCE*", "COPYING*", "NOTICE*")
 
 # Ce qui n'est pas livré par une formule Homebrew. Les adresses sont figées sur une étiquette de
@@ -152,31 +183,275 @@ def redistribues() -> list[pathlib.Path]:
     return fichiers
 
 
-def main(argv: list[str]) -> int:
-    if not MOTEURS.exists():
-        raise SystemExit(f"{MOTEURS} absent : lancer preparer-moteurs.py d'abord")
 
-    # Un paquet incomplet se refuse, il ne se sous-compte pas. La chaîne porte neuf textes de
-    # licence : collecter avant qu'elle existe les annoncerait à zéro, et le contrôle du dépôt
-    # n'y verrait rien — il vérifie que chaque texte ANNONCÉ est là, pas qu'aucun ne manque à
-    # l'annonce. D'où ce refus, au lieu d'une collecte qui rassure.
-    for indispensable in ("bin", "lib", "tessdata", "chaine"):
-        if not (MOTEURS / indispensable).exists():
-            raise SystemExit(
-                f"moteurs/{indispensable} absent : le paquet n'est pas complet, et une collecte "
-                "sur un paquet incomplet compte moins de textes qu'il n'en faut.\n"
-                "Lancer preparer-moteurs.py puis preparer-moteur-node.py, dans cet ordre."
-            )
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# Le juge des versions : un seul, appelé par les DEUX modes
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+#
+# Exigé par Christophe le 17 novembre 2026 : « la comparaison des versions avec les épingles vaut
+# dans les deux modes. En --fabriquer, une version différente (Homebrew livre 5.5.4) refuse :
+# changer de moteur est une décision à part, avec mesure. »
+#
+# DEUX SOURCES, ET AUCUNE N'EST TAUTOLOGIQUE. C'est le piège qu'il fallait fermer : en
+# `--fabriquer`, les versions des composants d'AMONT sont écrites dans ce fichier même. Les
+# comparer aux épingles serait comparer une constante à elle-même — vert par construction, et
+# muet. On compare donc aussi CE QUE LES PROGRAMMES EMBARQUÉS ANNONCENT, qui est une mesure, et
+# c'est elle qui répond littéralement à l'exigence : chaque texte doit décrire la version
+# embarquée.
 
-    epingles = json.loads(EPINGLES.read_text(encoding="utf-8")) if EPINGLES.exists() else {}
-    attendues: dict[str, str] = {
-        nom: valeur["empreinte_sha256"] for nom, valeur in epingles.get("amont", {}).items()
+
+def versions_epinglees() -> dict[str, str]:
+    """Les versions attendues. LUES, jamais écrites ici : `fixtures/moteurs-de-lecture.json` pour
+    le programme de lecture, et les `version` d'AMONT pour le reste."""
+    programme = json.loads(EPINGLES_MOTEURS.read_text(encoding="utf-8"))["programme"]
+    attendues = {
+        "tesseract": programme["version_tesseract"],
+        "leptonica": programme["version_leptonica"],
     }
-    relever = "--relever" in argv
+    for nom, quoi in AMONT.items():
+        attendues.setdefault(nom, quoi["version"])
+    return attendues
 
+
+def version_annoncee_par(programme: pathlib.Path, *arguments: str) -> str | None:
+    """Ce qu'un binaire embarqué dit de lui-même, ou None s'il ne répond pas."""
+    if not programme.exists():
+        return None
+    try:
+        sortie = subprocess.run(
+            [str(programme), *arguments], capture_output=True, text=True, timeout=60
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return f"{sortie.stdout}\n{sortie.stderr}"
+
+
+def versions_annoncees() -> dict[str, str]:
+    """Les versions que les programmes du paquet annoncent. Mesure, et non lecture d'un fichier.
+
+    Vide quand les binaires sont absents — sur un coureur Linux, il n'y a rien à interroger, et un
+    juge qui inventerait une version y serait plus faux que silencieux. Le silence est dit par
+    l'appelant, jamais tu."""
+    vues: dict[str, str] = {}
+
+    dit = version_annoncee_par(MOTEURS / "bin" / "tesseract", "--version")
+    if dit is not None:
+        for ligne in dit.splitlines():
+            if ligne.startswith("tesseract "):
+                vues["tesseract"] = ligne.split()[1]
+            if "leptonica-" in ligne:
+                # « leptonica-1.86.0 (…) » : on prend le numéro, pas la parenthèse.
+                vues["leptonica"] = ligne.split("leptonica-")[1].split()[0].split(")")[0]
+
+    dit = version_annoncee_par(MOTEURS / "bin" / "node", "--version")
+    if dit is not None and dit.strip().startswith("v"):
+        vues["node"] = dit.strip().lstrip("v").split()[0]
+
+    sf = MOTEURS / "bin" / "sf"
+    dit = version_annoncee_par(sf, "-sig", str(MOTEURS / "siegfried" / "default.sig"), "-version")
+    if dit is not None:
+        for ligne in dit.splitlines():
+            if ligne.lower().startswith("siegfried "):
+                vues["siegfried"] = ligne.split()[1].lstrip("v")
+    return vues
+
+
+def versions_du_cellar() -> dict[str, str]:
+    """Les versions que les formules de Homebrew portent, pour les seuls noms épinglés.
+
+    Troisième source du juge, et la seule disponible AVANT de télécharger ou d'effacer quoi que ce
+    soit. C'est là que le `5.5.4` de Homebrew se voit, et le voir tôt permet de refuser tôt.
+
+    Interrogé par `proprietaire`, c'est-à-dire par LA MÊME mécanique que la collecte elle-même.
+    Mon premier jet parcourait les dossiers du Cellar et gardait le dernier par ordre alphabétique
+    — où « 5.5.10 » passe avant « 5.5.4 » —, donc il pouvait juger une version que la collecte
+    n'emploierait pas. Deux chemins pour la même question divergent toujours un jour."""
+    vues: dict[str, str] = {}
+    for nom in versions_epinglees():
+        formule, version = proprietaire(nom)
+        if formule is not None and version is not None:
+            vues[nom] = version
+    return vues
+
+
+def ecarts_de_version(
+    epinglees: dict[str, str],
+    *,
+    inventaire: dict[str, dict] | None = None,
+    annoncees: dict[str, str] | None = None,
+    cellar: dict[str, str] | None = None,
+) -> list[str]:
+    """Tout désaccord entre les épingles et les sources fournies. Vide quand tout concorde.
+
+    UN SEUL JUGE, TROIS SOURCES, toutes facultatives — c'est ce qui permet de l'appeler tôt, avec
+    la seule source alors connue, puis tard avec les trois. Deux juges se seraient contredits un
+    jour, et le plus indulgent aurait eu le dernier mot.
+
+    Les composants qu'aucune épingle ne nomme ne sont pas jugés : les bibliothèques d'image suivent
+    la formule qui les livre, et leur version n'est épinglée nulle part — l'inventer ici serait
+    écrire une donnée dans du code."""
+    ecarts: list[str] = []
+    for nom, attendue in sorted(epinglees.items()):
+        if inventaire is not None:
+            composant = inventaire.get(nom)
+            if composant is None:
+                ecarts.append(f"{nom} : épinglé à {attendue}, absent de l'inventaire des licences")
+            elif str(composant.get("version", "")) != attendue:
+                ecarts.append(
+                    f"{nom} : l'inventaire annonce « {composant.get('version')} », l'épingle dit "
+                    f"{attendue}"
+                )
+        if annoncees is not None and (vue := annoncees.get(nom)) is not None and vue != attendue:
+            ecarts.append(f"{nom} : le paquet ANNONCE {vue}, l'épingle dit {attendue}")
+        if cellar is not None and (vue := cellar.get(nom)) is not None and vue != attendue:
+            ecarts.append(f"{nom} : Homebrew livre {vue}, l'épingle dit {attendue}")
+    return ecarts
+
+
+def refuser_les_ecarts(ecarts: list[str], mode: str) -> None:
+    if not ecarts:
+        return
+    raise SystemExit(
+        f"les versions ne concordent pas ({mode}) :\n"
+        + "\n".join(f"  {ligne}" for ligne in ecarts)
+        + "\n\nChanger de moteur est une DÉCISION À PART, qui se prend avec une mesure : relever la\n"
+        "nouvelle version, vérifier ce que l'application embarque, et l'inscrire aux épingles.\n"
+        "Jamais ajuster l'attendu pour faire passer une collecte, et jamais distribuer un texte de\n"
+        "licence qui décrit une autre version que le binaire qu'il accompagne."
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# La chaîne, et le commit d'où elle vient
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+
+
+def commit_de_la_chaine() -> str:
+    """Le commit dont la chaîne a été reconstruite, et un refus si git ne répond pas.
+
+    Exigé par Christophe le 17 novembre 2026 : « Si git rev-parse échoue pendant la collecte, la
+    collecte refuse en le disant ; jamais d'entrée chaine sans commit. »"""
+    try:
+        sortie = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=PROJET, capture_output=True, text=True, check=True
+        )
+    except (OSError, subprocess.CalledProcessError) as souci:
+        raise SystemExit(
+            "la collecte refuse : « git rev-parse HEAD » n'a pas répondu, et l'entrée « chaine »\n"
+            "de l'inventaire dirait alors venir d'un commit sans dire lequel.\n"
+            f"  dossier interrogé : {PROJET}\n"
+            f"  cause : {souci}"
+        ) from souci
+    commit = sortie.stdout.strip()
+    if len(commit) != 40 or any(c not in "0123456789abcdef" for c in commit):
+        raise SystemExit(
+            f"la collecte refuse : « git rev-parse HEAD » a répondu « {commit} », qui n'est pas une\n"
+            "empreinte de commit. Une entrée « chaine » sans commit lisible ne dit rien."
+        )
+    etat = subprocess.run(
+        ["git", "status", "--porcelain"], cwd=PROJET, capture_output=True, text=True
+    )
+    if etat.returncode != 0:
+        return f"{commit} (état de la copie inconnu : git status n'a pas répondu)"
+    return commit if not etat.stdout.strip() else f"{commit} (copie modifiée au moment de la collecte)"
+
+
+def inscrire_la_chaine(inventaire: dict[str, dict]) -> None:
+    """Remplace l'entrée « chaine » par celle du paquet présent. On ne recopie pas ses textes : ils
+    voyagent dans la chaîne elle-même."""
+    chaine = sorted((MOTEURS / "chaine").rglob("LICENSE*")) if (MOTEURS / "chaine").exists() else []
+    inventaire["chaine"] = {
+        "version": "livrés dans la chaîne elle-même",
+        "source": "moteurs/chaine",
+        "commit": commit_de_la_chaine(),
+        "pourquoi_le_commit": (
+            "La chaîne est reconstruite depuis les sources du dépôt à chaque préparation, alors que "
+            "les moteurs viennent de l'archive publiée. Sans ce commit, l'inventaire ne dirait pas "
+            "de quelles sources ses neuf textes répondent."
+        ),
+        "textes": [
+            {"fichier": str(t.relative_to(MOTEURS)), "empreinte_sha256": empreinte(t.read_bytes())}
+            for t in chaine
+        ],
+        "redistribue": ["chaine"],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# Le mode par défaut : les licences des moteurs viennent de l'archive
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+
+
+def dossier_du_composant(nom: str, version: str) -> pathlib.Path | None:
+    """Où l'archive a posé les textes d'un composant, ou None si nulle part."""
+    for candidat in (LICENCES / f"{nom}-{version}", LICENCES / nom):
+        if candidat.is_dir():
+            return candidat
+    return None
+
+
+def licences_de_l_archive() -> dict[str, dict]:
+    """Ce que l'archive a déposé, vérifié texte par texte.
+
+    On ne fait pas confiance à l'inventaire sur parole : chaque texte qu'il annonce doit être là,
+    et porter l'empreinte inscrite. Un inventaire qui annonce un texte absent est pire qu'un
+    inventaire vide — il fait croire la question réglée."""
+    annonce = LICENCES / "INVENTAIRE.json"
+    if not annonce.exists():
+        raise SystemExit(
+            f"{annonce.relative_to(RACINE)} absent : les licences des moteurs viennent de l'archive\n"
+            "publiée, et l'archive ne semble pas avoir été déployée. Déployer l'archive épinglée dans\n"
+            "fixtures/moteurs-de-lecture.json, ou, pour fabriquer de nouveaux moteurs, lancer cette\n"
+            "collecte avec --fabriquer."
+        )
+    composants: dict[str, dict] = dict(
+        json.loads(annonce.read_text(encoding="utf-8"))["composants"]
+    )
+    manques: list[str] = []
+    for nom, composant in sorted(composants.items()):
+        if nom == "chaine":
+            continue  # reconstruite depuis le commit, donc recollectée plus bas
+        dossier = dossier_du_composant(nom, str(composant.get("version", "")))
+        if dossier is None:
+            manques.append(f"{nom} : aucun dossier de textes sous licences/")
+            continue
+        for texte in composant.get("textes", []):
+            chemin = dossier / texte["fichier"]
+            if not chemin.is_file():
+                manques.append(f"{nom} : {texte['fichier']} annoncé, absent du paquet")
+            elif empreinte(chemin.read_bytes()) != texte["empreinte_sha256"]:
+                manques.append(
+                    f"{nom} : {texte['fichier']} présent, mais son empreinte diffère de celle "
+                    "que l'inventaire annonce"
+                )
+    if manques:
+        raise SystemExit(
+            "les licences déposées par l'archive ne sont pas celles qu'elle annonce :\n"
+            + "\n".join(f"  {ligne}" for ligne in manques)
+            + "\n\nUn paquet dont on ne peut pas prouver les licences ne se distribue pas."
+        )
+    composants.pop("chaine", None)
+    return composants
+
+
+def licences_depuis_homebrew(
+    relever: bool, attendues: dict[str, str]
+) -> tuple[dict[str, dict], list[str]]:
+    """Les textes retrouvés sous le Cellar et téléchargés depuis l'amont — mode `--fabriquer`.
+
+    C'était le seul chemin de ce script jusqu'au lot 0u ter. Il ne sert plus qu'à FABRIQUER une
+    nouvelle archive : en service, les licences des moteurs viennent de l'archive publiée. Il
+    efface `licences/` et le reconstruit, ce qui est juste ici — on fabrique — et ce qui était
+    exactement le défaut quand ce chemin servait par défaut, puisqu'il détruisait alors ce que
+    l'archive venait de déposer."""
+    # AVANT d'effacer et AVANT de télécharger : une version qu'on n'a pas le droit d'embarquer se
+    # refuse pendant que rien n'est encore détruit ni rapatrié. Mon premier jet ne jugeait qu'à la
+    # fin, après les trois téléchargements de l'amont — le refus arrivait juste, mais trop tard.
+    refuser_les_ecarts(
+        ecarts_de_version(versions_epinglees(), cellar=versions_du_cellar()), "--fabriquer"
+    )
     shutil.rmtree(LICENCES, ignore_errors=True)
     LICENCES.mkdir(parents=True)
-
     inventaire: dict[str, dict] = {}
     sans_licence: list[str] = []
 
@@ -249,20 +524,52 @@ def main(argv: list[str]) -> int:
             "redistribue": emporte,
         }
 
-    # 4. Ce que la chaîne porte déjà : on ne le recopie pas, on l'inscrit.
-    chaine = sorted((MOTEURS / "chaine").rglob("LICENSE*")) if (MOTEURS / "chaine").exists() else []
-    inventaire["chaine"] = {
-        "version": "livrés dans la chaîne elle-même",
-        "source": "moteurs/chaine",
-        "textes": [
-            {
-                "fichier": str(t.relative_to(MOTEURS)),
-                "empreinte_sha256": empreinte(t.read_bytes()),
-            }
-            for t in chaine
-        ],
-        "redistribue": ["chaine"],
+    return inventaire, sans_licence
+
+
+def main(argv: list[str]) -> int:
+    if not MOTEURS.exists():
+        raise SystemExit(f"{MOTEURS} absent : lancer preparer-moteurs.py d'abord")
+
+    # Un paquet incomplet se refuse, il ne se sous-compte pas. La chaîne porte neuf textes de
+    # licence : collecter avant qu'elle existe les annoncerait à zéro, et le contrôle du dépôt
+    # n'y verrait rien — il vérifie que chaque texte ANNONCÉ est là, pas qu'aucun ne manque à
+    # l'annonce. D'où ce refus, au lieu d'une collecte qui rassure.
+    for indispensable in ("bin", "lib", "tessdata", "chaine"):
+        if not (MOTEURS / indispensable).exists():
+            raise SystemExit(
+                f"moteurs/{indispensable} absent : le paquet n'est pas complet, et une collecte "
+                "sur un paquet incomplet compte moins de textes qu'il n'en faut.\n"
+                "Lancer preparer-moteurs.py puis preparer-moteur-node.py, dans cet ordre."
+            )
+
+    epingles = json.loads(EPINGLES.read_text(encoding="utf-8")) if EPINGLES.exists() else {}
+    attendues: dict[str, str] = {
+        nom: valeur["empreinte_sha256"] for nom, valeur in epingles.get("amont", {}).items()
     }
+    relever = "--relever" in argv
+    # `--relever` télécharge les textes d'amont pour en publier les empreintes : c'est un geste de
+    # fabrication, pas une collecte de service.
+    fabriquer = "--fabriquer" in argv or relever
+
+    if fabriquer:
+        inventaire, sans_licence = licences_depuis_homebrew(relever, attendues)
+    else:
+        inventaire, sans_licence = licences_de_l_archive(), []
+
+    # 4. La chaîne vient du commit sous essai, jamais de l'archive : son entrée est toujours
+    #    recollectée, et elle dit de quel commit elle répond.
+    inscrire_la_chaine(inventaire)
+
+    # 5. Les versions, dans les deux modes. Placé ici, après la chaîne et avant toute écriture
+    #    d'inventaire : un paquet dont les licences décrivent une autre version que ses binaires
+    #    ne doit pas même produire son inventaire, qui ferait foi à tort.
+    refuser_les_ecarts(
+        ecarts_de_version(
+            versions_epinglees(), inventaire=inventaire, annoncees=versions_annoncees()
+        ),
+        "--fabriquer" if fabriquer else "licences de l'archive",
+    )
 
     if sans_licence:
         raise SystemExit(

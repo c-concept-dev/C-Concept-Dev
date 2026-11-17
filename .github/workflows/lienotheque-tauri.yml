@@ -181,11 +181,27 @@ jobs:
           # L'empreinte EST la clef : d'autres octets, un autre cache, jamais une reprise à tort.
           key: moteurs-lecture-${{ steps.moteurs.outputs.empreinte }}
 
+      # Déployée aussi quand le cache a répondu mais ne porte pas les licences de l'archive.
+      # Depuis le lot 0u ter, ce sont ELLES qui font foi : un `moteurs/` repris du cache sans son
+      # `licences/INVENTAIRE.json` ferait refuser la collecte en accusant l'archive d'un défaut du
+      # cache. Le cas n'est pas théorique — une course qui échouait après l'effacement des licences
+      # laissait exactement cet état derrière elle.
       - name: Déployer les moteurs de l'application
         timeout-minutes: 15
-        if: runner.os == 'macOS' && steps.cache-moteurs-lecture.outputs.cache-hit != 'true'
+        if: runner.os == 'macOS'
         shell: bash
+        env:
+          REPRIS: ${{ steps.cache-moteurs-lecture.outputs.cache-hit }}
         run: |
+          inventaire=apps/app/src-tauri/moteurs/licences/INVENTAIRE.json
+          if [ "$REPRIS" = "true" ] && [ -f "$inventaire" ]; then
+            echo "moteurs repris du cache, licences de l'archive présentes"
+            exit 0
+          fi
+          if [ "$REPRIS" = "true" ]; then
+            echo "::warning::cache repris SANS $inventaire : l'archive est redéployée par-dessus"
+            rm -rf apps/app/src-tauri/moteurs
+          fi
           curl -fsSL -o "$RUNNER_TEMP/moteurs.tar.gz" "${{ steps.moteurs.outputs.url }}"
           obtenue=$(shasum -a 256 "$RUNNER_TEMP/moteurs.tar.gz" | cut -d' ' -f1)
           attendue="${{ steps.moteurs.outputs.empreinte }}"

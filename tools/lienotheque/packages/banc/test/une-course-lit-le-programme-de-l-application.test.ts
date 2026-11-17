@@ -178,4 +178,24 @@ describe("une course qui éprouve la lecture lit le programme de l'application (
       );
     }
   });
+
+  siLesWorkflowsSontLa(
+    "le cache ne peut pas livrer un paquet sans les licences de l'archive (lot 0u ter ; sauté si `.github/` n'est pas du lot)",
+    () => {
+      // Depuis le lot 0u ter, les licences des moteurs viennent de l'archive. Un `moteurs/` repris
+      // du cache sans son `licences/INVENTAIRE.json` ferait donc refuser la collecte en accusant
+      // l'archive d'un défaut du cache — et l'état n'est pas théorique : une course qui échouait
+      // après l'effacement des licences le laissait derrière elle.
+      const texte = lire(TAURI);
+      const etape = texte.slice(texte.indexOf("- name: Déployer les moteurs de l'application"));
+      expect(
+        etape,
+        "l'étape de déploiement doit lire l'inventaire des licences avant de se croire dispensée",
+      ).toContain("licences/INVENTAIRE.json");
+      expect(
+        /if: runner\.os == 'macOS' && steps\.cache-moteurs-lecture\.outputs\.cache-hit != 'true'/u.test(texte),
+        "la dispense ne doit plus tenir au seul cache-hit : c'est la présence des licences qui décide",
+      ).toBe(false);
+    },
+  );
 });
