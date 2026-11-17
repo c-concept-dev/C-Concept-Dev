@@ -75,7 +75,17 @@ export function rangeesQuiNeSontPasDesEntrees(texte: string): readonly string[] 
     if (DEBUT_DE_LIGNE.exec(ligne) === null)
       return [`${ou} : ne commence pas par un numéro — « ${ligne.slice(0, 40)}… »`];
     const vues = ligne.split("|").length;
-    return vues === colonnes ? [] : [`${ou} : ${vues - 2} colonne(s) au lieu de ${colonnes - 2}`];
+    if (vues === colonnes) return [];
+    //  Trop de colonnes : la cause est presque toujours une barre verticale écrite dans une
+    //  cellule. L'échappement markdown n'y change rien — ce découpage compte les barres, il
+    //  n'interprète pas le markdown —, et la règle se dit donc ici, à la seconde où on la viole,
+    //  plutôt que dans un document qu'il faudrait penser à ouvrir. Entrée 65 du registre : une
+    //  rangée a compté huit colonnes pour quatre parce qu'une clause de shell y était citée.
+    const regle =
+      vues > colonnes
+        ? " — pas de barre verticale dans une cellule, même échappée ; l'écrire en mots"
+        : "";
+    return [`${ou} : ${vues - 2} colonne(s) au lieu de ${colonnes - 2}${regle}`];
   });
 }
 

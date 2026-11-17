@@ -174,6 +174,14 @@ describe("le registre des poussées est un journal en ajout seul (D12)", () => {
     // Et une entrée numérotée à qui il manque une colonne est dite aussi.
     const troisColonnes = `${ENTETE_DU_JOURNAL}\n|---|---|---|---|\n| 19 | les commits | les mots |`;
     expect(rangeesQuiNeSontPasDesEntrees(troisColonnes)[0]).toContain("3 colonne(s) au lieu de 4");
+    // Une colonne en trop ne se dit pas comme une colonne en moins : la cause est une barre
+    // verticale dans une cellule, et le refus porte la règle au lieu de laisser chercher.
+    const barreDansUneCellule = `${ENTETE_DU_JOURNAL}\n|---|---|---|---|\n| 19 | a \\| b | les mots | les conditions |`;
+    const refus = rangeesQuiNeSontPasDesEntrees(barreDansUneCellule)[0] ?? "";
+    expect(refus).toContain("5 colonne(s) au lieu de 4");
+    expect(refus).toContain("pas de barre verticale dans une cellule, même échappée ; l'écrire en mots");
+    // Et elle ne s'affiche que là où elle a un sens : une colonne manquante n'en vient pas.
+    expect(rangeesQuiNeSontPasDesEntrees(troisColonnes)[0]).not.toContain("barre verticale");
     expect(rangeesQuiNeSontPasDesEntrees(journal(19, 20))).toEqual([]);
   });
 });
