@@ -16,6 +16,8 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-17 | On avance avec prudence et sécurité, pas à la cadence | [2026-11-17-prudence-et-securite-avant-la-cadence.md](2026-11-17-prudence-et-securite-avant-la-cadence.md) |
+| 2026-11-17 | Une autorisation ne suit pas le code qui change après elle | [2026-11-17-une-autorisation-ne-suit-pas-le-code-qui-change.md](2026-11-17-une-autorisation-ne-suit-pas-le-code-qui-change.md) |
 | 2026-11-16 | Une poussée emporte tout ce qui précède, et cela se demande avant | [2026-11-16-une-poussee-emporte-ce-qui-precede.md](2026-11-16-une-poussee-emporte-ce-qui-precede.md) |
 | 2026-11-16 | Un mot de nature devant un identifiant ne garde rien (convention refusée) | [2026-11-16-la-nature-devant-un-identifiant-ne-garde-rien.md](2026-11-16-la-nature-devant-un-identifiant-ne-garde-rien.md) |
 | 2026-11-14 | Trois échéances tranchées : D3, D10 et le lot 2 | [2026-11-14-calendrier-de-d3-d10-et-du-lot-2.md](2026-11-14-calendrier-de-d3-d10-et-du-lot-2.md) |
