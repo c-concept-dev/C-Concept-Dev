@@ -177,8 +177,12 @@ que le contrôle décide, donc ils relèvent de la règle stricte, quelle que so
 | garde-fou de l'archive gelée | refuse toute modification de `docs/decisions.md` |
 | garde-fou des épingles | ne tolère que les échecs épinglés ; une épingle dont le contrôle passe est périmée |
 | fidélité de lecture | fichiers de langue et version de Tesseract identiques à ceux de l'application, rouge en cas d'écart, **jamais d'ajustement de l'attendu** |
+| relevé du dépôt | le contrôle complet relève le dépôt entier avant et après la course et refuse s'il a jugé un état qui n'a pas tenu en place ; `git status` énumère, la taille, la date et l'empreinte jugent ([décision du 18 novembre 2026](decisions/2026-11-18-git-status-enumere-l-empreinte-juge.md), lot `0c quater`) |
+| bac de la course | la course pose son propre dossier temporaire et le dit à ses enfants ; la suivante balaie ce qu'une course arrêtée a laissé (lot `0c quater`) |
 
 Tout garde-fou neuf est **éprouvé par mutation** : on prouve qu'il mord. Une règle qu'aucune mutation ne tue est supprimée. Un garde-fou qui lit du code ne lit pas les chaînes ni les commentaires comme du code (sauf CLA-01, qui doit les lire).
+
+**Et ce qu'aucun garde-fou ne ramassera** — règle de Christophe du 18 novembre 2026 : ce qu'on fabrique **à la main**, hors du contrôle — cible de compilation, dépôt d'essai, copie jetable —, se nettoie **dans la même commande**. Le bac de la course ne couvre que ce que la course fabrique ; les 5,8 Go qui ont rempli le disque le 17 novembre 2026 étaient trois cibles de compilation Rust posées par des commandes de mesure tapées à la main. Une commande tapée à la main n'a pas de fin de suite où brancher un nettoyage : celle-ci se tient donc à la main, et elle est écrite pour cela ([décision](decisions/2026-11-18-ce-qu-on-fabrique-a-la-main-se-nettoie-dans-la-meme-commande.md)).
 
 ### 4.7 Ne jamais perdre de travail
 
@@ -212,6 +216,8 @@ La règle tient en trois temps, et le moment du commit les sépare :
 1. **Avant le commit**, l'entrée n'est pas encore une ligne du journal : elle se réécrit librement, autant de fois qu'il le faut.
 2. **Entre le commit et la poussée**, elle se corrige par `git commit --amend` sur ce seul commit. Le garde-fou d'ajout seul lit les versions que porte l'**historique de la branche** (`git log --full-history`, et non `--all` ni le journal des références) : un commit amendé quitte cet historique, et la version remplacée n'y figure plus. L'amendement ne lui présente donc aucune ligne réécrite — c'est la seule fenêtre où il est permis, et elle se ferme à la poussée.
 3. **Après la poussée**, plus jamais : la correction s'écrit dans une **entrée nouvelle**, qui nomme celle qu'elle corrige. C'est la règle des lignes anciennes, sans exception.
+
+**Et ce que l'amendement n'est pas** — limite posée par Christophe le 18 novembre 2026, au lendemain de la règle ci-dessus, parce que j'allais m'en servir pour autre chose. Le deuxième temps sert à **corriger une faute**, et à rien d'autre. En particulier : un fichier que des garde-fous lisent — le registre en est un — qui change **après** le contrôle complet part **sans contrôle**, et la poussée ne porte alors pas l'état jugé. Si une faute apparaît après le contrôle, on corrige **et on recontrôle** ; si ce n'est pas une faute, cela attend l'entrée suivante. Les **chiffres du contrôle** qui conditionne une poussée ne complètent donc jamais l'entrée après coup : ils vont dans le **message du commit** — amender un message ne touche aucun fichier, et le contrôle reste valable — ou dans l'**entrée suivante** ([décision](decisions/2026-11-18-le-registre-ne-s-amende-pas-apres-le-controle.md)).
 
 **Et la prose n'est pas une entrée** — mesuré le 17 novembre 2026 dans le garde-fou lui-même, qui ancre sa lecture sur l'entête de la table : « tout ce qui précède est de la prose, et la prose, elle, se corrige ». Le texte d'ouverture du registre peut donc être corrigé sans amendement ni entrée nouvelle ; seule la **table** est en ajout seul.
 

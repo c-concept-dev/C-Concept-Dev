@@ -16,6 +16,9 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-18 | Le registre ne s'amende pas après le contrôle | [2026-11-18-le-registre-ne-s-amende-pas-apres-le-controle.md](2026-11-18-le-registre-ne-s-amende-pas-apres-le-controle.md) |
+| 2026-11-18 | `git status` énumère, la taille, la date et l'empreinte jugent | [2026-11-18-git-status-enumere-l-empreinte-juge.md](2026-11-18-git-status-enumere-l-empreinte-juge.md) |
+| 2026-11-18 | Ce qu'on fabrique à la main se nettoie dans la même commande | [2026-11-18-ce-qu-on-fabrique-a-la-main-se-nettoie-dans-la-meme-commande.md](2026-11-18-ce-qu-on-fabrique-a-la-main-se-nettoie-dans-la-meme-commande.md) |
 | 2026-11-17 | La version de Node est épinglée, comme celle de Rust | [2026-11-17-la-version-de-node-est-epinglee-comme-celle-de-rust.md](2026-11-17-la-version-de-node-est-epinglee-comme-celle-de-rust.md) |
 | 2026-11-17 | On avance avec prudence et sécurité, pas à la cadence | [2026-11-17-prudence-et-securite-avant-la-cadence.md](2026-11-17-prudence-et-securite-avant-la-cadence.md) |
 | 2026-11-17 | Une autorisation ne suit pas le code qui change après elle | [2026-11-17-une-autorisation-ne-suit-pas-le-code-qui-change.md](2026-11-17-une-autorisation-ne-suit-pas-le-code-qui-change.md) |
