@@ -34,8 +34,25 @@ pnpm build                                              # schémas, feuille des 
 python3 apps/app/src-tauri/outils/preparer-moteurs.py   # Tesseract — à lancer EN PREMIER
 python3 apps/app/src-tauri/outils/preparer-moteur-node.py  # Node, chaîne, rendu PDF, codecs
 pnpm --filter @lienotheque/app tauri build              # empaquette
-pnpm --filter @lienotheque/app tauri:finaliser:macos    # signe, vérifie, éprouve le démarrage de Node
+pnpm --filter @lienotheque/app tauri:finaliser:macos    # juge, signe, vérifie, éprouve Node
 ```
+
+**Le dernier maillon refuse une copie modifiée** (lot `0u quater`, demandé par Christophe le
+17 novembre 2026 : « pour qu'aucune licence ne décrive un état introuvable »). La finalisation juge
+le paquet avant de le signer, et refuse pour trois raisons : son inventaire de licences ne nomme
+pas un commit nu — c'est là que `collecter-licences.py` écrit « copie modifiée au moment de la
+collecte » —, ce commit est inconnu du dépôt, ou la copie est modifiée maintenant, puisque
+`tauri build` compile après la collecte. Un paquet d'**essai** reste fabricable sans commiter :
+`tauri build` seul le produit, et
+
+```sh
+pnpm --filter @lienotheque/app tauri:finaliser:macos -- --essai
+```
+
+le signe et l'éprouve quand même, en écrivant dans le paquet, sous
+`Contents/Resources/PAQUET-D-ESSAI.txt`, ce qui aurait dû le faire refuser. Le refus ne tombe qu'ici :
+aucune course de l'intégration continue n'appelle cette passe, et les trois maillons d'avant
+servent aux mesures, où une copie modifiée est la règle de travail.
 
 **L'ordre des deux préparations compte.** `preparer-moteurs.py` commence par effacer `moteurs/`
 en entier ; lancé après son voisin, il emporte le binaire Node, et `tauri build` s'arrête alors sur
@@ -61,7 +78,7 @@ Le panneau « Prototype bureau » n'apparaît que dans la fenêtre de bureau, ja
 | `src/mesures.rs` | Pesée d'une installation | taille d'installation |
 | `outils/preparer-moteurs.py` | Embarque Tesseract et ses bibliothèques (macOS et Windows). **Efface `moteurs/` d'abord** | — |
 | `outils/preparer-moteur-node.py` | Embarque Node réduit à l'architecture du poste, la chaîne compilée, le rendu PDF et les codecs | — |
-| `outils/finaliser-paquet-macos.py` | Signe le moteur avec ses droits puis la racine du paquet, vérifie en profondeur, prouve que Node démarre | — |
+| `outils/finaliser-paquet-macos.py` | **Refuse un paquet qui ne vient pas d'un état retrouvable** (`--essai` pour passer outre, en marquant le paquet), puis signe le moteur avec ses droits et la racine du paquet, vérifie en profondeur, prouve que Node démarre | lot `0u quater` |
 | `outils/resumer-mesures.py` | Écrit les mesures dans le résumé d'exécution de l'intégration continue | — |
 
 ## Limites connues
