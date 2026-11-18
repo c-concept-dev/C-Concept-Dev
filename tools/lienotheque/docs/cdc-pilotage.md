@@ -161,6 +161,14 @@ que le contrôle décide, donc ils relèvent de la règle stricte, quelle que so
   tableau d'une course à l'autre. Un contrôle qui passe **sous ×2 de façon répétée** sur le coureur
   devient un **lot pour raccourcir son corps**, jamais pour allonger son délai. Voir
   [`docs/decisions/2026-11-11-la-barre-refuse-en-local-publie-sur-le-coureur.md`](decisions/2026-11-11-la-barre-refuse-en-local-publie-sur-le-coureur.md).
+- **Une marge suivie nommément** (Christophe, 18 novembre 2026). Sur la course `44258274904` du
+  18 novembre, le coureur macOS a rendu **×2,51** — 1 993 ms de corps pour un délai de 5 000 — sur
+  `outils/ingestion/test/voie-oracle.test.ts`, « publie l'accord noms-table même si les pages
+  liminaires n'ont pas de folio (REC-02, OUT-15) ». C'est **la seule marge sous ×3 de cette
+  course**, et le garde-fou l'a comptée comme telle (« 1 contrôle y seraient refusés »), sans
+  refuser, comme la règle ci-dessus le veut. Elle est désormais **rapportée à chaque course**, et
+  dite explicitement chaque fois qu'elle passe sous **×3**. Elle n'ouvre pas de lot : le seuil du
+  coureur reste ×2 répété.
 
 ### 4.6 Garde-fous mécaniques plutôt que vigilance
 
@@ -190,6 +198,14 @@ Tout garde-fou neuf est **éprouvé par mutation** : on prouve qu'il mord. Une r
 - Branche locale de sauvegarde (jamais poussée), **rafraîchie après chaque pièce finie**, vérifiée par empreinte.
 - `cp` est un `checkout --` sans Git ; `git apply --3way` et `cherry-pick --no-commit` indexent leur résultat : on vérifie l'index après chaque geste.
 - Un essai jetable se fait dans un **dépôt jetable**, jamais dans la copie de travail.
+- **Une épreuve sur un vrai objet se prévoit et s'annonce avant** (Christophe, 18 novembre 2026).
+  Tout ce qui sort des dossiers temporaires — un paquet construit, une application installée, une
+  vraie bibliothèque — se dit **avant** d'être touché, jamais après coup. Né d'un incident du
+  18 novembre : en éprouvant la commande réelle du lot `0u quater`, le paquet du 14 novembre qui
+  dormait sous `target/` a été **marqué et re-signé sans que ce soit prévu**. L'épreuve était
+  bonne et son résultat utile ; c'est la **portée** qui a été décidée toute seule, exactement la
+  faute du 17 novembre sur les autorisations
+  ([décision](decisions/2026-11-18-une-epreuve-sur-un-vrai-paquet-se-prevoit.md)).
 
 ### 4.8 Niveaux de preuve
 
