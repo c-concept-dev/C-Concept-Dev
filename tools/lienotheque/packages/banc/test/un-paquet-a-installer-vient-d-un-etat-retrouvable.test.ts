@@ -1,6 +1,14 @@
 // @vitest-environment node
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +43,29 @@ const OUTIL = fileURLToPath(
   new URL("../../../apps/app/src-tauri/outils/finaliser-paquet-macos.py", import.meta.url),
 );
 const DELAI = 30_000;
+
+/** La racine du dépôt **demandée à git**, jamais comptée en `../` — l'idiome de
+ *  `une-course-lit-le-programme-de-l-application.test.ts`, et pour la raison qu'il donne : un
+ *  chemin compté de travers fait sauter le contrôle **en silence**, et un garde-fou qui ne tourne
+ *  jamais ne dit pas « vert ». */
+const RACINE_DU_DEPOT = new URL(
+  `${execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    cwd: fileURLToPath(new URL("../../../", import.meta.url)),
+    encoding: "utf8",
+  }).trim()}/`,
+  "file:///",
+);
+const WORKFLOWS = ["lienotheque-tauri.yml", "lienotheque-ci.yml"].map(
+  (nom) => new URL(`.github/workflows/${nom}`, RACINE_DU_DEPOT),
+);
+
+/** **Pourquoi ce contrôle-ci se saute sur les coureurs, et le dit.** Les deux courses prennent le
+ *  dépôt en `sparse-checkout: tools/lienotheque` : `.github/` n'est pas du lot, et il n'y a rien à
+ *  y lire. Écrit sans ce saut, ce contrôle a fait **rougir les deux travaux de Vérification de la
+ *  course 44265849503** — `ENOENT … .github/workflows/lienotheque-tauri.yml` —, alors que le
+ *  contrôle complet local était vert : l'idiome existait déjà dans le contrôle voisin, et je ne
+ *  l'avais pas regardé. */
+const siLesWorkflowsSontLa = WORKFLOWS.every((ou) => existsSync(ou)) ? it : it.skip;
 const bacs: string[] = [];
 afterAll(() => {
   for (const bac of bacs) rmSync(bac, { recursive: true, force: true });
@@ -239,11 +270,14 @@ describe("le paquet qu'on installe vient d'un état retrouvable (lot 0u quater, 
     DELAI,
   );
 
-  it("aucune course de l'intégration continue n'appelle la finalisation, et c'est mesuré", () => {
-    const sous = (nom: string): string =>
-      readFileSync(new URL(`../../../../../.github/workflows/${nom}`, import.meta.url), "utf8");
-    for (const nom of ["lienotheque-tauri.yml", "lienotheque-ci.yml"]) {
-      expect(sous(nom), `${nom} ne doit pas appeler la finalisation`).not.toContain("finaliser");
-    }
-  });
+  siLesWorkflowsSontLa(
+    "aucune course de l'intégration continue n'appelle la finalisation, et c'est mesuré (sauté là où `.github/` n'est pas du lot)",
+    () => {
+      for (const ou of WORKFLOWS) {
+        expect(readFileSync(ou, "utf8"), `${ou.pathname} ne doit pas appeler la finalisation`).not.toContain(
+          "finaliser",
+        );
+      }
+    },
+  );
 });
