@@ -179,6 +179,7 @@ que le contrôle décide, donc ils relèvent de la règle stricte, quelle que so
 | fidélité de lecture | fichiers de langue et version de Tesseract identiques à ceux de l'application, rouge en cas d'écart, **jamais d'ajustement de l'attendu** |
 | relevé du dépôt | le contrôle complet relève le dépôt entier avant et après la course et refuse s'il a jugé un état qui n'a pas tenu en place ; `git status` énumère, la taille, la date et l'empreinte jugent ([décision du 18 novembre 2026](decisions/2026-11-18-git-status-enumere-l-empreinte-juge.md), lot `0c quater`) |
 | bac de la course | la course pose son propre dossier temporaire et le dit à ses enfants ; la suivante balaie ce qu'une course arrêtée a laissé (lot `0c quater`) |
+| paquet à installer | la finalisation du paquet refuse un paquet qui ne vient pas d'un état retrouvable : inventaire de licences sans commit nu, commit inconnu du dépôt, ou copie modifiée. `--essai` lève le refus et **marque le paquet** de l'intérieur (lot `0u quater`) |
 
 Tout garde-fou neuf est **éprouvé par mutation** : on prouve qu'il mord. Une règle qu'aucune mutation ne tue est supprimée. Un garde-fou qui lit du code ne lit pas les chaînes ni les commentaires comme du code (sauf CLA-01, qui doit les lire).
 
