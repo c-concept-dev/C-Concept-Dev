@@ -9,6 +9,7 @@ mod memoire;
 pub mod arrivee;
 pub mod application_embarquee;
 pub mod archive;
+pub mod bac_jetable;
 pub mod captures;
 pub mod depot;
 pub mod doublons;

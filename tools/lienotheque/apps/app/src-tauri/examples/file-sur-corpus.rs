@@ -18,7 +18,10 @@
 //!       ../../../fixtures/bibliotheques/F3.json \
 //!       "../../../fixtures/fichiers/F3/<dossier de médias>"
 
-use lienotheque_bureau::{arrivee, depot::Depot, file, roulement::Roulement, traitement::Emplacements};
+use lienotheque_bureau::{
+    arrivee, bac_jetable::refuser_un_effacement_dangereux, depot::Depot, file,
+    roulement::Roulement, traitement::Emplacements,
+};
 use std::{fs, path::PathBuf, process::ExitCode, time::{Duration, Instant}};
 
 fn main() -> ExitCode {
@@ -33,6 +36,11 @@ fn main() -> ExitCode {
     let racine = PathBuf::from(travail_dir);
     let bibliotheque = racine.join("bibliotheque");
     let cache = racine.join("cache");
+    // Même garde que `parcours-complet`, et pour la même raison : `travail_dir` est un argument.
+    if let Err(refus) = refuser_un_effacement_dangereux(&bibliotheque) {
+        eprintln!("{refus}");
+        return ExitCode::from(2);
+    }
     fs::remove_dir_all(&bibliotheque).ok();
 
     let depot = match Depot::ouvrir(&bibliotheque) {

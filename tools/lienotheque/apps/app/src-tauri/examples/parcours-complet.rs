@@ -10,7 +10,10 @@
 //!
 //!     cargo run --example parcours-complet -- <travail> <document> <description> <recette> [médias]
 
-use lienotheque_bureau::{arrivee, depot::Depot, file, roulement::Roulement, traitement};
+use lienotheque_bureau::{
+    arrivee, bac_jetable::refuser_un_effacement_dangereux, depot::Depot, file,
+    roulement::Roulement, traitement,
+};
 use std::{
     fs,
     path::PathBuf,
@@ -33,6 +36,13 @@ fn main() -> ExitCode {
     };
 
     let racine = PathBuf::from(travail).join("bibliotheque");
+    // Le dossier de travail vient d'un ARGUMENT : avant de l'effacer, on demande la permission au
+    // chemin lui-même (règle du 18 novembre 2026). Pointé sur une vraie bibliothèque, cet exemple
+    // l'effaçait sans un mot, avant même de s'en servir.
+    if let Err(refus) = refuser_un_effacement_dangereux(&racine) {
+        eprintln!("{refus}");
+        return ExitCode::from(2);
+    }
     fs::remove_dir_all(&racine).ok();
 
     // 1. Créer la bibliothèque — ce que fait `creer_bibliotheque` au bout de l'assistant.
