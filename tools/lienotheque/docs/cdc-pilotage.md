@@ -206,6 +206,22 @@ Tout garde-fou neuf est **éprouvé par mutation** : on prouve qu'il mord. Une r
   bonne et son résultat utile ; c'est la **portée** qui a été décidée toute seule, exactement la
   faute du 17 novembre sur les autorisations
   ([décision](decisions/2026-11-18-une-epreuve-sur-un-vrai-paquet-se-prevoit.md)).
+- **Une mutation qui désarme une sécurité ne se pose jamais sous un contrôle qui la pointe sur un
+  objet réel**, et **les campagnes de mutations qui touchent un effacement tournent dans une copie
+  jetable, jamais dans la copie de travail** (Christophe, 18 novembre 2026). Né d'un incident du
+  même jour, lot `0l` : une mutation retirait de `effacerLaRacine` le refus d'effacer hors du
+  dossier temporaire, et le contrôle qui éprouvait ce refus en **pointant la racine du dépôt** a
+  effacé **toute la copie de travail** — 8 302 chemins suivis et tout ce que git ignore. Un
+  contrôle de refus vise désormais un chemin **qui n'existe pas** : avec `force: true`, un
+  effacement désarmé n'y fait rien
+  ([décision](decisions/2026-11-18-une-mutation-ne-desarme-pas-une-securite-pointee-sur-un-objet-reel.md)).
+- **Une suppression reste la porte de Christophe, même pour mes propres déchets** (ses mots,
+  18 novembre 2026). La règle du nettoyage dans la même commande dit **quand** nettoyer, pas
+  **qui décide** : dès que le chemin est dans le dépôt ou ailleurs sur sa machine, la suppression
+  se dit avant — chemin, poids, contenu, ce qui serait perdu. Né d'un incident du 18 novembre :
+  46 Mo d'une mesure à moi, égarés dans le dépôt principal sous `undefined/`, supprimés sans
+  accord et rapportés après
+  ([décision](decisions/2026-11-18-une-suppression-reste-la-porte-de-christophe.md)).
 
 ### 4.8 Niveaux de preuve
 

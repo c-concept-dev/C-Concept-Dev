@@ -16,6 +16,8 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-18 | Une suppression reste la porte de Christophe, même pour mes propres déchets | [2026-11-18-une-suppression-reste-la-porte-de-christophe.md](2026-11-18-une-suppression-reste-la-porte-de-christophe.md) |
+| 2026-11-18 | Une mutation qui désarme une sécurité ne se pose jamais sous un contrôle qui la pointe sur un objet réel | [2026-11-18-une-mutation-ne-desarme-pas-une-securite-pointee-sur-un-objet-reel.md](2026-11-18-une-mutation-ne-desarme-pas-une-securite-pointee-sur-un-objet-reel.md) |
 | 2026-11-18 | Une épreuve sur un vrai paquet se prévoit et s'annonce avant | [2026-11-18-une-epreuve-sur-un-vrai-paquet-se-prevoit.md](2026-11-18-une-epreuve-sur-un-vrai-paquet-se-prevoit.md) |
 | 2026-11-18 | Le registre ne s'amende pas après le contrôle | [2026-11-18-le-registre-ne-s-amende-pas-apres-le-controle.md](2026-11-18-le-registre-ne-s-amende-pas-apres-le-controle.md) |
 | 2026-11-18 | `git status` énumère, la taille, la date et l'empreinte jugent | [2026-11-18-git-status-enumere-l-empreinte-juge.md](2026-11-18-git-status-enumere-l-empreinte-juge.md) |
