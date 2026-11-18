@@ -198,6 +198,14 @@ Tout garde-fou neuf est **éprouvé par mutation** : on prouve qu'il mord. Une r
 - Branche locale de sauvegarde (jamais poussée), **rafraîchie après chaque pièce finie**, vérifiée par empreinte.
 - `cp` est un `checkout --` sans Git ; `git apply --3way` et `cherry-pick --no-commit` indexent leur résultat : on vérifie l'index après chaque geste.
 - Un essai jetable se fait dans un **dépôt jetable**, jamais dans la copie de travail.
+- **En langage compilé, une restauration par copie rajeunit le fichier** (Christophe,
+  18 novembre 2026). `shutil.copy2` et `cp -p` rendent le contenu **et la date** : le contenu
+  est alors juste, l'empreinte conforme, et `cargo` réutilise le binaire **muté**, parce qu'il
+  juge par la date. Mesuré le 18 novembre sur le lot `0z bis` : après restauration, un contrôle
+  échouait encore et j'ai failli rapporter un faux défaut dans mon propre code. C'est la faute
+  du lot `0w` — « ma restauration a échoué sans bruit » — sous un autre masque : là le contenu
+  n'était pas revenu, ici il l'est mais le compilateur ne l'a pas vu. Une campagne de mutations
+  en langage compilé **rejoue le code propre après chaque restauration** et exige son vert.
 - **Une épreuve sur un vrai objet se prévoit et s'annonce avant** (Christophe, 18 novembre 2026).
   Tout ce qui sort des dossiers temporaires — un paquet construit, une application installée, une
   vraie bibliothèque — se dit **avant** d'être touché, jamais après coup. Né d'un incident du
