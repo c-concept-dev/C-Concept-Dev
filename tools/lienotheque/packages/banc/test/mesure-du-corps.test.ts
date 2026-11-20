@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { LigneDeReleve } from "../src/marges.js";
@@ -20,8 +21,20 @@ import type { LigneDeReleve } from "../src/marges.js";
  *     fichier de configuration ;
  *  3. l'instrument ne retire **pas** le délai : un corps qui le dépasse échoue toujours.
  *
- *  Le passage imbriqué vit dans un dossier temporaire créé **sous ce paquet**, pour deux raisons :
- *  les modules de vitest s'y résolvent, et son relevé ne se mêle pas à celui du passage en cours.
+ *  ## Où vit le passage imbriqué, et pourquoi cela a changé le 20 novembre 2026
+ *
+ *  Il vivait dans un dossier temporaire créé **sous ce paquet** — pour que les modules de vitest
+ *  s'y résolvent, et pour que son relevé ne se mêle pas à celui du passage en cours. C'était le
+ *  **seul effacement récursif d'un contrôle du dépôt à viser l'intérieur de l'arbre réel**, relevé
+ *  par le garde-fou du lot `0z bis`, et le voisinage du 18 novembre a montré ce que cela coûte : un
+ *  effacement forcé qui vise la copie de travail n'a besoin que d'une mutation pour l'emporter.
+ *
+ *  Il vit donc maintenant dans le **dossier temporaire du système**, et le `node_modules` du paquet
+ *  y est **lié** plutôt que recopié : c'est la technique du lot `0l`, déjà éprouvée là-bas — vitest
+ *  se résout à travers le lien, et `rmSync` ne suit pas les liens, donc l'effacement du bac
+ *  n'emporte pas le paquet. Les deux raisons d'origine tiennent toujours, et la troisième est
+ *  gagnée : il n'y a plus rien à effacer dans le dépôt.
+ *
  *  Ses fichiers ne portent pas `.test.ts`, afin qu'un reste oublié ne soit jamais ramassé par un
  *  passage ordinaire. */
 
@@ -53,7 +66,10 @@ describe("délai dépassé", () => {
 });
 `;
 
-const bac = mkdtempSync(join(PAQUET, "epreuve-des-marges-"));
+const bac = mkdtempSync(join(tmpdir(), "epreuve-des-marges-"));
+// Le lien, et non une copie : le paquet pèse des centaines de mégaoctets, et `rmSync` ne suit pas
+// les liens — mesuré au lot `0l`, leurre à l'appui.
+symlinkSync(join(PAQUET, "node_modules"), join(bac, "node_modules"), "dir");
 afterAll(() => rmSync(bac, { recursive: true, force: true }));
 
 type ControleRapporte = { readonly fullName: string; readonly status: string; readonly duration?: number };
