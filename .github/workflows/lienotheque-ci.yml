@@ -230,16 +230,84 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.machine.outputs.os }}-${{ steps.machine.outputs.version }}-${{ steps.playwright.outputs.version }}
 
+      # `install` et non `install --with-deps` : les moteurs ici, les paquets système à l'étape
+      # suivante. Ils étaient installés par deux chemins — `--with-deps` sur cache manqué,
+      # `install-deps` sur reprise — et les deux appelaient apt. Ci2 ne frappait donc pas une
+      # étape sur deux courses, il frappait apt sur TOUTES. Un seul appel, un seul endroit à
+      # borner (lot Ci2 bis, 20 novembre 2026).
       - name: Installer les moteurs
         timeout-minutes: 15
         if: steps.cache-moteurs.outputs.cache-hit != 'true'
-        run: pnpm --filter @lienotheque/app exec playwright install --with-deps chromium firefox webkit
+        run: pnpm --filter @lienotheque/app exec playwright install chromium firefox webkit
 
-      # Les dépendances système ne sont pas dans le cache : à réinstaller même sur reprise.
+      # ── Ci2 bis, 20 novembre 2026 : deux tentatives bornées, puis une preuve ─────────────
+      #
+      # Les paquets système ne sont pas dans le cache des moteurs : ils vivent dans la racine de
+      # la machine, pas sous `~/.cache/ms-playwright`. Ils sont donc réinstallés à chaque course,
+      # et ce n'est pas un gaspillage — MESURÉ sur dix courses vertes, navigateur par navigateur,
+      # sur l'image `ubuntu26-20261116.202.1` :
+      #
+      #     famille   demandés   déjà dans l'image   à installer
+      #     outils      12              5                7   (polices)
+      #     chromium    21             21                0
+      #     firefox     25             24                1   (libavcodec62)
+      #     webkit      51             30               21   (gstreamer, ffmpeg, libflite…)
+      #
+      # Soit, transitivement et à l'identique sur les dix : **1 mis à jour, 185 nouveaux, 139 Mo
+      # à télécharger, 436 Mo sur le disque**. L'indice « libasound2t64 is already the newest
+      # version » qui avait fait croire à une étape inutile était la PREMIÈRE ligne d'une liste
+      # de 50 — elle en cachait 185 autres qui, elles, manquaient. **Ne pas appeler l'étape du
+      # tout est donc exclu par la mesure** : WebKit ne démarre pas sans sa pile média.
+      #
+      # Ce qui lâche n'est jamais le calcul des dépendances ni le dépaquetage : c'est
+      # l'ACQUISITION, et les cinq occurrences de Ci2 se rangent en deux formes.
+      #
+      #   1. **Le résolveur de la machine tombe** — quatre fois, le 11 novembre 2026. Le journal
+      #      le dit en clair : « Temporary failure resolving 'azure.archive.ubuntu.com' », et les
+      #      deux miroirs de secours avec. apt n'abandonne pas : il reprend ses 193 fichiers un
+      #      par un, chacun attendant le délai du résolveur, 20 à 40 s. Mesuré : **zéro octet de
+      #      paquet récupéré**, 24 à 210 lignes `Ign:` en quinze minutes. À ce rythme il lui
+      #      fallait plus d'une heure pour seulement renoncer.
+      #   2. **Le miroir rampe** — une fois, le 18 novembre 2026. Le résolveur va bien, mais la
+      #      machine est tombée sur `us-east-2.ec2.archive.ubuntu.com` au lieu d'`azure`, et
+      #      débite ~60 ko/s : **72 paquets sur 193 en 14 min 40 s**, là où les dix courses
+      #      vertes prennent 139 Mo en 5 à 67 s.
+      #
+      # Aucune des deux ne se règle en réglant apt : son délai par fichier est déjà de 20 s, et
+      # 193 fichiers × 20 s dépassent le quart d'heure quoi qu'on y mette. Ce qui les règle
+      # toutes deux est le même geste : **borner la tentative à la montre, et en faire une
+      # seconde** — un résolveur revient en une minute, et le miroir est retiré du chapeau à
+      # neuf à chaque fois.
+      #
+      # Six minutes par tentative : la plus lente des dix étapes vertes mesurées tient en 85 s,
+      # celle d'une installation neuve en 92 s. Six minutes laissent ×4,2 — au-delà de la barre
+      # ×3 du dépôt. Deux tentatives font douze minutes, soit MOINS que le quart d'heure d'avant :
+      # aucun délai n'est allongé ici, l'un est raccourci.
+      #
+      # `continue-on-error` sur la première, et ce n'est pas « vert sans preuve » : l'étape
+      # « Prouver que les moteurs ont leurs dépendances » est en travers du chemin, bloquante, et
+      # c'est `playwright` lui-même qui juge. Le rendu ne peut pas tourner derrière une
+      # installation manquée.
       - name: Installer les dépendances système des moteurs
-        timeout-minutes: 15
-        if: steps.cache-moteurs.outputs.cache-hit == 'true'
+        id: dependances-des-moteurs
+        timeout-minutes: 6
+        continue-on-error: true
         run: pnpm --filter @lienotheque/app exec playwright install-deps chromium firefox webkit
+
+      - name: Réinstaller les dépendances système des moteurs, la première tentative perdue
+        if: steps.dependances-des-moteurs.outcome == 'failure'
+        timeout-minutes: 6
+        run: |
+          echo "::warning::Ci2 — première tentative perdue sur apt, seconde en cours"
+          pnpm --filter @lienotheque/app exec playwright install-deps chromium firefox webkit
+
+      # La preuve, et la mesure du contenu installé en une seule commande : `--dry-run` simule
+      # l'installation et sort non nul s'il manque un seul paquet. Elle tient lieu de garde-fou
+      # pour le `continue-on-error` ci-dessus, et elle dirait aussi le jour où l'image du coureur
+      # cesserait de fournir les 50 paquets qu'elle fournit aujourd'hui.
+      - name: Prouver que les moteurs ont leurs dépendances
+        timeout-minutes: 5
+        run: pnpm --filter @lienotheque/app exec playwright install-deps --dry-run chromium firefox webkit
 
       - name: Mesurer le rendu
         run: pnpm --filter @lienotheque/app run test:navigateurs
