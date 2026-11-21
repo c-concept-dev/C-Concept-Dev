@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  estDansLePerimetreDuProduit,
   EXCEPTIONS,
   PORTEURS_DU_REFUS,
   REFUS_NOMME,
@@ -331,5 +332,171 @@ describe("le garde-fou lit vraiment les fichiers qu'il croit lire (lot 0z quinqu
     const chemin = "apps/app/src-tauri/src/roulement.rs";
     const sienne = sources().filter((une) => une.chemin === chemin);
     expect(effacementsHorsDuBac(sienne)).toStrictEqual([]);
+  });
+});
+
+describe("les liaisons du produit ne viennent que du produit (lot 0z sexies)", () => {
+  /** Le défaut A, mesuré le 21 novembre 2026 : `liaisons` lisait le fichier ENTIER, donc les
+   *  liaisons des modules `#[cfg(test)]` acquittaient le code du produit du même fichier.
+   *  `depot.rs` lie `racine` à `std::env::temp_dir()` dans ses contrôles, et cela suffisait à
+   *  faire passer pour borné le retrait d'une version d'une vraie bibliothèque.
+   *
+   *  **Le périmètre livré n'est pas ouvert** : ces contrôles l'ouvrent pour MESURER, le temps que
+   *  Christophe décide des exceptions du produit. Ouvrir sans exemptions ferait accuser à tort,
+   *  et un garde-fou qui accuse à tort finit désarmé. */
+  const duProduit = (): readonly ReturnType<typeof effacementsHorsDuBac>[number][] =>
+    effacementsHorsDuBac(sources(), { zone: "produit", perimetre: estDansLePerimetreDuProduit });
+
+  it("accuse le retrait d'une version dans depot.rs, que les liaisons des contrôles acquittaient", () => {
+    const siennes = duProduit().filter((une) => une.chemin === "apps/app/src-tauri/src/depot.rs");
+    expect(
+      siennes.map((une) => une.cible),
+      "le retrait d'une version vise une vraie bibliothèque, jamais un bac",
+    ).toContain("self.racine.join(DERIVES).join(version)");
+  });
+
+  it("excepte la corbeille du même fichier, sans excepter le retrait d'une version", () => {
+    // Deux sites du produit vivent dans `depot.rs`, et ils ne se valent pas : l'un est excepté
+    // parce que son chemin ne vient jamais d'une donnée, l'autre est un défaut.
+    const cibles = duProduit()
+      .filter((une) => une.chemin === "apps/app/src-tauri/src/depot.rs")
+      .map((une) => une.cible);
+    expect(
+      cibles,
+      "`retirer_entree` est excepté : `copier_entree` remonte toutes ses erreurs, l'original ne part qu'après une copie complète",
+    ).not.toContain("chemin");
+    const tous = effacementsRecursifs(sources(), {
+      zone: "produit",
+      perimetre: estDansLePerimetreDuProduit,
+    })
+      .filter((une) => une.chemin === "apps/app/src-tauri/src/depot.rs")
+      .map((une) => une.cible);
+    expect(tous, "le site excepté est bien LU, sinon l'exception ne protège rien").toContain("chemin");
+  });
+
+  it("ne prend plus les contrôles du même fichier pour une preuve de bornage", () => {
+    // Les mêmes sources, zone des contrôles : là, les bacs de `temp_dir()` bornent bel et bien.
+    const auxControles = effacementsHorsDuBac(sources(), {
+      zone: "controles",
+      perimetre: estDansLePerimetreDuProduit,
+    }).filter((une) => une.chemin === "apps/app/src-tauri/src/depot.rs");
+    expect(auxControles, "les effacements des contrôles de depot.rs visent le dossier temporaire").toStrictEqual([]);
+  });
+
+  /** Le périmètre est désormais OUVERT AU PRODUIT, et c'est le contenu du lot `0z quater`,
+   *  absorbé ici. Sept sites sont exceptés, chacun par son contenu et avec sa raison écrite ;
+   *  `depot.rs:461` est refusé — c'est un défaut du produit, renvoyé au lot `0z septies` — et son
+   *  rouge est épinglé sous `depot-rs-nom-de-version-non-valide`.
+   *
+   *  Ce contrôle est donc ROUGE tant que ce défaut n'est pas corrigé, et c'est voulu : l'épingle
+   *  dit la cause, et une épingle dont le contrôle passe est signalée comme ayant survécu à sa
+   *  cause. Rien n'est vert à tort, rien n'est caché. */
+  it("ne laisse aucun effacement du produit sans exception nommée", () => {
+    const restants = duProduit().map((une) => `${une.chemin}:${une.ligne} ${une.appel}(${une.cible})`);
+    expect(restants, "tout effacement récursif du produit est excepté, ou c'est un défaut").toStrictEqual([]);
+  });
+
+  /** Le contrôle ci-dessus est ÉPINGLÉ, donc rouge quoi qu'il arrive tant que `0z septies` n'est
+   *  pas fait — et un contrôle rouge est insensible à ce qu'on lui ajoute. Retirer une exception
+   *  passerait donc inaperçu. Celui-ci tient la liste exacte : il est VERT, et il rougit au
+   *  premier changement, qu'on retire une exception ou qu'on ajoute un effacement au produit.
+   *  Sans numéro de ligne : une exception se reconnaît par son contenu. */
+  it("tient la liste exacte des effacements du produit que rien n'excepte", () => {
+    const restants = duProduit()
+      .map((une) => `${une.chemin} ${une.appel}(${une.cible})`)
+      .sort();
+    expect(restants).toStrictEqual([
+      "apps/app/src-tauri/src/depot.rs remove_dir_all(self.racine.join(DERIVES).join(version))",
+    ]);
+  });
+});
+
+describe("une exception se reconnaît par sa fonction ET son appel (lot 0z sexies)", () => {
+  /** Les faiblesses relevées par Christophe le 21 novembre 2026, avant le commit, et corrigées :
+   *
+   *  1. `exceptionsMortes` ne vérifiait que l'existence de la fonction et la présence d'un
+   *     effacement de même cible QUELQUE PART dans le fichier ;
+   *  2. l'exemption elle-même, dans `effacementsHorsDuBac`, ne comparait que fichier et cible —
+   *     donc un second appel de même cible ajouté ailleurs était exempté sans avoir été nommé.
+   *     C'est le cas qui ferait passer un effacement en douce.
+   *
+   *  Le découpage du corps se fait sur le MASQUE, et il est éprouvé dans les deux langages des
+   *  exceptions : méthode d'`impl`, fermeture, corps portant une accolade citée, et corps portant
+   *  une durée de vie anonyme — le défaut du lot `0z quinquies` s'étant caché exactement là. */
+  const TS = "outils/faux/src/index.ts";
+  const RS = "apps/app/src-tauri/src/faux.rs";
+  const sourceTs = (contenu: string) => [{ chemin: TS, contenu }];
+  const sourceRs = (contenu: string) => [{ chemin: RS, contenu }];
+  const exceptionTs = [
+    { chemin: TS, cible: "dossier", fonction: "vider", efface: "<le dossier nommé par l'appelant>",
+      pourquoi: "pour l'épreuve" },
+  ];
+  const exceptionRs = [
+    { chemin: RS, cible: "&bac", fonction: "nettoyer", efface: "<le bac nommé par l'appelant>",
+      pourquoi: "pour l'épreuve" },
+  ];
+  const accuses = (sources: { chemin: string; contenu: string }[], exceptions: typeof exceptionTs) =>
+    effacementsHorsDuBac(sources, {
+      zone: "produit",
+      perimetre: estDansLePerimetreDuProduit,
+      exceptions,
+      porteurs: [],
+    });
+
+  it("reste vivante et exempte, quand l'appel est bien dans la fonction nommée", () => {
+    const code = "export function vider(chemin: string): void {\n  rmSync(dossier, { recursive: true });\n}\n";
+    expect(exceptionsMortes(sourceTs(code), exceptionTs)).toStrictEqual([]);
+    expect(accuses(sourceTs(code), exceptionTs)).toStrictEqual([]);
+  });
+
+  it("meurt quand l'appel sort de la fonction, et le site devient accusé", () => {
+    const code =
+      "export function vider(chemin: string): void {\n  journaliser(chemin);\n}\n" +
+      "export function autre(): void {\n  rmSync(dossier, { recursive: true });\n}\n";
+    expect(exceptionsMortes(sourceTs(code), exceptionTs).map((une) => une.pourquoi)).toStrictEqual([
+      "cette fonction n'efface plus cette cible",
+    ]);
+    expect(accuses(sourceTs(code), exceptionTs).map((une) => une.ligne)).toStrictEqual([5]);
+  });
+
+  it("reste vivante quand un SECOND appel de même cible paraît ailleurs, et ce second est accusé", () => {
+    const code =
+      "export function vider(chemin: string): void {\n  rmSync(dossier, { recursive: true });\n}\n" +
+      "export function enDouce(): void {\n  rmSync(dossier, { recursive: true });\n}\n";
+    expect(exceptionsMortes(sourceTs(code), exceptionTs), "l'appel nommé est toujours là").toStrictEqual([]);
+    const restants = accuses(sourceTs(code), exceptionTs);
+    expect(restants.map((une) => une.ligne), "seul celui du dehors est accusé").toStrictEqual([5]);
+  });
+
+  it("découpe une méthode d'`impl` en Rust, et une fonction imbriquée en TypeScript", () => {
+    const rust =
+      "impl Depot {\n    fn ailleurs(&self) {}\n\n    fn nettoyer(&self, bac: &Path) {\n" +
+      "        fs::remove_dir_all(&bac).ok();\n    }\n}\n";
+    expect(exceptionsMortes(sourceRs(rust), exceptionRs)).toStrictEqual([]);
+    expect(accuses(sourceRs(rust), exceptionRs)).toStrictEqual([]);
+
+    const ts =
+      "export function vider(chemin: string): void {\n  const dedans = (): void => {\n" +
+      "    rmSync(dossier, { recursive: true });\n  };\n  dedans();\n}\n";
+    expect(exceptionsMortes(sourceTs(ts), exceptionTs)).toStrictEqual([]);
+    expect(accuses(sourceTs(ts), exceptionTs)).toStrictEqual([]);
+  });
+
+  it("ne se perd pas sur une accolade citée, ni sur une durée de vie anonyme", () => {
+    const ts =
+      'export function vider(chemin: string): void {\n  const bruit = "} ceci ferme tout {";\n' +
+      "  rmSync(dossier, { recursive: true });\n}\n";
+    expect(exceptionsMortes(sourceTs(ts), exceptionTs), "la chaîne est blanchie, pas lue").toStrictEqual([]);
+    expect(accuses(sourceTs(ts), exceptionTs)).toStrictEqual([]);
+
+    const rust =
+      "impl Depot {\n    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n" +
+      "        Ok(())\n    }\n\n    fn nettoyer(&self, bac: &Path) {\n" +
+      "        fs::remove_dir_all(&bac).ok();\n    }\n}\n";
+    expect(
+      exceptionsMortes(sourceRs(rust), exceptionRs),
+      "une durée de vie anonyme n'ouvre plus de littéral depuis le lot 0z quinquies",
+    ).toStrictEqual([]);
+    expect(accuses(sourceRs(rust), exceptionRs)).toStrictEqual([]);
   });
 });

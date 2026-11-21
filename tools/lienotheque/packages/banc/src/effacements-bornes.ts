@@ -89,6 +89,14 @@ export interface EffacementHorsDuBac extends Effacement {
  *  garde-fou le dit — c'est la leçon de `decideeAilleurs` au lot D3, où une liste d'exemptions
  *  avait survécu à ce qu'elle exemptait. */
 export interface ExceptionNommee {
+  /** La fonction qui porte l'appel, telle qu'elle s'écrit dans le fichier.
+   *
+   *  Avec `cible`, c'est ce qui reconnaît une exception **par son contenu** — fonction et appel —
+   *  et jamais par un numéro de ligne : règle de Christophe du 21 novembre 2026. Quand elle est
+   *  donnée, elle remplace la vérification du dernier segment de `efface` : une cible qui vient
+   *  d'un paramètre n'a pas de chemin littéral à chercher dans le fichier, et c'est le nom de la
+   *  fonction qui dit alors que l'exception désigne toujours quelque chose. */
+  readonly fonction?: string;
   /** Chemin du fichier, relatif à la racine du dépôt. */
   readonly chemin: string;
   /** Le texte du premier argument, tel qu'il doit être écrit à ce site. */
@@ -158,6 +166,67 @@ export const EXCEPTIONS: readonly ExceptionNommee[] = [
       "est connu et corrigé : il trouvait autrefois sa cible par le PATH, et pouvait viser le Node " +
       "du poste.",
   },
+  // ── Les sept sites du PRODUIT, accordés par Christophe le 21 novembre 2026 sur l'inventaire
+  // mesuré. Six entrées pour sept sites : `reconstruction.rs` en porte deux, de même cible.
+  // Chacune est reconnue par son contenu — fichier et cible — jamais par un numéro de ligne.
+  {
+    chemin: "outils/cache/src/index.ts",
+    cible: "chemin",
+    fonction: "vider",
+    efface: "<le coin du cache que l'appelant nomme>",
+    pourquoi:
+      "C'est l'utilisateur qui vide son cache, à l'écran, et le cache est fait pour être vidé. " +
+      "L'écran confirme ; ce garde-fou n'en est pas le juge.",
+  },
+  {
+    chemin: "outils/ingestion/src/texte.ts",
+    cible: "dossier",
+    fonction: "lireLeTexte",
+    efface: "<le dossier de travail du lecteur>",
+    pourquoi:
+      "Le lecteur retire ce qu'il a lui-même créé pour travailler. Rien de l'utilisateur n'y vit.",
+  },
+  {
+    chemin: "apps/app/src-tauri/src/application_embarquee.rs",
+    cible: "&sauvegarde",
+    fonction: "installer_application",
+    efface: "applications/.precedente-<identifiant>.app",
+    pourquoi:
+      "Le balayage qui suit une installation réussie : l'application neuve est en place avant ce " +
+      "geste, et un échec n'y laisse qu'un résidu, nommé à l'écran, jamais une installation ratée.",
+  },
+  {
+    chemin: "apps/app/src-tauri/src/application_embarquee.rs",
+    cible: "&chemin",
+    fonction: "nettoyer_ancienne_disposition",
+    efface: "applications/macOS, applications/.precedentes",
+    pourquoi:
+      "Deux dossiers d'une disposition que l'application ne pose plus. Ils sont à elle, et leur " +
+      "retrait est la fin d'une migration, pas une perte pour l'utilisateur.",
+  },
+  {
+    chemin: "apps/app/src-tauri/src/reconstruction.rs",
+    cible: "&self.photographie",
+    fonction: "preparer_destination",
+    efface: "<nom>.photographie-source",
+    pourquoi:
+      "Un retour en arrière sur sa propre création : `fs::create_dir(&self.photographie)` est deux " +
+      "lignes plus haut, et ces deux sites la retirent quand la copie échoue ou qu'il manque " +
+      "`actives.json`. Rien n'existait avant la fonction.",
+  },
+  {
+    chemin: "apps/app/src-tauri/src/depot.rs",
+    cible: "chemin",
+    fonction: "retirer_entree",
+    efface: "~/.Trash/<nom>",
+    pourquoi:
+      "Accordée le 21 novembre 2026 après vérification d'une condition posée par Christophe : " +
+      "`copier_entree` remonte TOUTES ses erreurs — sept appels faillibles, sept `?`, aucun " +
+      "`let _ =` ni `.ok()` — donc l'original n'est retiré qu'après une copie réellement " +
+      "complète, et un nœud qu'elle ne sait pas copier donne un `Err(Unsupported)` explicite. Le " +
+      "chemin ne vient jamais d'une donnée : c'est une entrée d'un `read_dir` de l'arbre de la " +
+      "bibliothèque, ou une destination `~/.Trash/<nom>` construite sur place.",
+  },
   {
     chemin: "apps/worker/bancs/ceremonie-bout-en-bout.mjs",
     cible: 'new URL("../.wrangler/state/v3/d1", import.meta.url)',
@@ -224,15 +293,128 @@ export function estDansLePerimetre(chemin: string): boolean {
  *
  *  Pour un fichier de l'hôte Rust (`src/*.rs`), ce sont **les modules `#[cfg(test)]` seulement** ;
  *  pour tout le reste du périmètre, le fichier entier. */
-function plagesJugees(masque: string, chemin: string): readonly (readonly [number, number])[] {
+function plagesJugees(
+  masque: string,
+  chemin: string,
+  zone: Zone,
+): readonly (readonly [number, number])[] {
+  // SEULES les sources de l'hôte mêlent les deux zones dans un même fichier. Un exemple
+  // (`examples/*.rs`) n'a pas de module de contrôles : élargir cette règle à tous les `.rs` lui
+  // rendait une liste de plages vide, donc plus aucun jugement — mesuré le 21 novembre 2026, et
+  // c'est un contrôle du lot `0z bis` qui l'a attrapé.
   if (!/(?:^|\/)src\/[^/]+\.rs$/u.test(chemin)) return [[0, masque.length]];
-  const plages: (readonly [number, number])[] = [];
+  const tests: (readonly [number, number])[] = [];
   for (const trouve of masque.matchAll(/#\[cfg\(test\)\]\s*(?:pub\s+)?mod\s+[\w]+\s*\{/gu)) {
     const accolade = masque.indexOf("{", trouve.index);
     if (accolade === -1) continue;
-    plages.push([accolade, finDuGroupe(masque, accolade)]);
+    tests.push([accolade, finDuGroupe(masque, accolade)]);
   }
+  if (zone === "controles") return tests;
+  // Le produit, c'est le COMPLÉMENT des modules de contrôles.
+  const plages: (readonly [number, number])[] = [];
+  let curseur = 0;
+  for (const [debut, fin] of tests) {
+    if (debut > curseur) plages.push([curseur, debut]);
+    curseur = Math.max(curseur, fin);
+  }
+  if (curseur < masque.length) plages.push([curseur, masque.length]);
   return plages;
+}
+
+/** La zone d'un fichier qu'un relevé juge. Pour un fichier de l'hôte Rust, les deux existent
+ *  dans le MÊME fichier, et c'est toute la difficulté : `#[cfg(test)] mod tests` y vit à côté du
+ *  produit. */
+export type Zone = "controles" | "produit";
+
+/** Le périmètre du produit : ses sources, et rien de ce qui l'éprouve.
+ *
+ *  Sert aux contrôles du lot `0z quinquies` et à l'inventaire qui précède `0z quater`. Le
+ *  périmètre LIVRÉ reste `estDansLePerimetre` jusqu'à ce que Christophe ait décidé des exceptions
+ *  du produit : un garde-fou qu'on ouvre avant d'avoir ses exemptions accuse à tort, et un
+ *  garde-fou qui accuse à tort finit désarmé. */
+export function estDansLePerimetreDuProduit(chemin: string): boolean {
+  if (/(?:^|\/)(?:test|tests)\//u.test(chemin)) return false;
+  if (/\.test\.[cm]?[jt]sx?$/u.test(chemin)) return false;
+  if (/(?:^|\/)(?:examples|scripts|bancs|mesures)\//u.test(chemin)) return false;
+  if (/\.py$/u.test(chemin)) return false;
+  return /(?:^|\/)src\//u.test(chemin);
+}
+
+/** Le masque réduit aux plages jugées : tout le reste est blanchi, longueur et lignes gardées.
+ *
+ *  **C'est le correctif du défaut A (21 novembre 2026).** `liaisons` lisait le fichier ENTIER,
+ *  donc les liaisons des modules de contrôles acquittaient le code du produit : `depot.rs:461`
+ *  retire une version d'une vraie bibliothèque et passait pour borné, parce que le même fichier
+ *  lie ailleurs `racine` à `std::env::temp_dir()` — dans ses tests. Les effacements ET les
+ *  liaisons viennent désormais de la même zone. */
+function restreindre(masque: string, plages: readonly (readonly [number, number])[]): string {
+  const dedans = (i: number): boolean => plages.some(([debut, fin]) => i >= debut && i <= fin);
+  let sortie = "";
+  for (let i = 0; i < masque.length; i += 1)
+    sortie += dedans(i) ? masque[i] : masque[i] === "\n" ? "\n" : " ";
+  return sortie;
+}
+
+/** Le corps de la fonction nommée, sur le masque : `[ouverture, fermeture]`, ou `undefined`.
+ *
+ *  On travaille sur le MASQUE, jamais sur le texte : une accolade dans une chaîne y est blanchie,
+ *  et une durée de vie de Rust n'y ouvre plus de littéral depuis le lot `0z quinquies`. C'est
+ *  exactement là que le défaut du 21 novembre s'était caché, et c'est pourquoi ce découpage est
+ *  éprouvé dans les deux langages, méthode d'`impl`, fonction imbriquée et fermeture comprises.
+ *
+ *  Une méthode d'`impl` se déclare comme une fonction libre en Rust — `fn nom(` —, donc le même
+ *  motif les couvre toutes deux. En JavaScript, on accepte aussi la forme `const nom = … =>`. */
+function corpsDeLaFonction(
+  masque: string,
+  nom: string,
+  langage: Langage,
+): readonly [number, number] | undefined {
+  const echappe = nom.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const motifs =
+    langage === "rust"
+      ? [new RegExp(`\\bfn\\s+${echappe}\\s*(?:<[^>]*>)?\\s*\\(`, "u")]
+      : langage === "python"
+        ? [new RegExp(`\\bdef\\s+${echappe}\\s*\\(`, "u")]
+        : [
+            new RegExp(`\\bfunction\\s+${echappe}\\s*(?:<[^>]*>)?\\s*\\(`, "u"),
+            new RegExp(`\\b(?:const|let|var)\\s+${echappe}\\s*(?::[^=\\n]+)?=\\s*(?:async\\s*)?\\(`, "u"),
+            new RegExp(`(?:^|[;{}\\s])${echappe}\\s*\\(`, "mu"),
+          ];
+  for (const motif of motifs) {
+    const trouve = motif.exec(masque);
+    if (trouve === null) continue;
+    // La parenthèse des paramètres se referme par appariement : un paramètre qui en porte une
+    // n'arrête pas la lecture.
+    const ouvranteDesParametres = masque.indexOf("(", trouve.index);
+    let profondeur = 0;
+    let apres = -1;
+    for (let i = ouvranteDesParametres; i < masque.length; i += 1) {
+      if (masque[i] === "(") profondeur += 1;
+      else if (masque[i] === ")") {
+        profondeur -= 1;
+        if (profondeur === 0) {
+          apres = i + 1;
+          break;
+        }
+      }
+    }
+    if (apres === -1) continue;
+    // Puis la première accolade qui ouvre un CORPS. Une accolade précédée de « : » ouvre un type
+    // — `): { page: number } {` en TypeScript — et se saute avec son contenu.
+    let curseur = apres;
+    while (curseur < masque.length) {
+      const accolade = masque.indexOf("{", curseur);
+      if (accolade === -1) return undefined;
+      const avantElle = masque.slice(curseur, accolade).trimEnd();
+      if (avantElle.endsWith(":")) {
+        curseur = finDuGroupe(masque, accolade) + 1;
+        continue;
+      }
+      return [accolade, finDuGroupe(masque, accolade)];
+    }
+    return undefined;
+  }
+  return undefined;
 }
 
 export function langageDe(chemin: string): Langage | undefined {
@@ -271,9 +453,9 @@ function finDuPremierArgument(masque: string, ouverture: number, fermeture: numb
 /** Les effacements récursifs d'une source, lus sur son masque. */
 function effacementsDe(source: Source, masque: string): readonly Effacement[] {
   const releves: Effacement[] = [];
-  const plages = plagesJugees(masque, source.chemin);
+  // Le masque reçu est DÉJÀ réduit à la zone jugée : c'est l'appelant qui choisit la zone, et les
+  // liaisons viennent de la même réduction. Juger ici une seconde fois dédoublerait la règle.
   for (const trouve of masque.matchAll(APPELS)) {
-    if (!plages.some(([debut, fin]) => trouve.index >= debut && trouve.index <= fin)) continue;
     const appel = trouve[1]!;
     const debut = trouve.index + trouve[0].length - 1;
     const fermeture = finDuGroupe(masque, debut);
@@ -411,17 +593,28 @@ export interface CeQueLeReleveSait {
   /** Juger **sans** tenir compte du refus nommé. Sert à mesurer le branchement : un fichier qui
    *  n'est borné que par son appel au refus est accusé dès qu'on le retire. */
   readonly ignorerLeRefus?: boolean;
+  /** La zone jugée. Par défaut `controles` : c'est le périmètre livré du lot `0z bis`. */
+  readonly zone?: Zone;
+  /** Le périmètre à employer. Par défaut `estDansLePerimetre`, celui du lot `0z bis`. Ouvert au
+   *  produit par les contrôles du lot `0z quinquies` et par l'inventaire qui précède `0z quater`,
+   *  pour mesurer sans livrer. */
+  readonly perimetre?: (chemin: string) => boolean;
 }
 
 /** Tous les effacements récursifs des sources lisibles, exceptions comprises. */
-export function effacementsRecursifs(sources: readonly Source[]): readonly Effacement[] {
+export function effacementsRecursifs(
+  sources: readonly Source[],
+  sait: CeQueLeReleveSait = {},
+): readonly Effacement[] {
+  const { zone = "controles", perimetre = estDansLePerimetre } = sait;
   return sources.flatMap((source) => {
     const langage = langageDe(source.chemin);
-    if (langage === undefined || !estDansLePerimetre(source.chemin)) return [];
-    return effacementsDe(source, masqueDeCode(source.contenu, {
+    if (langage === undefined || !perimetre(source.chemin)) return [];
+    const masque = masqueDeCode(source.contenu, {
       diese: langage === "python",
       apostropheDeDureeDeVie: langage === "rust",
-    }));
+    });
+    return effacementsDe(source, restreindre(masque, plagesJugees(masque, source.chemin, zone)));
   });
 }
 
@@ -438,26 +631,44 @@ export function effacementsHorsDuBac(
   sources: readonly Source[],
   sait: CeQueLeReleveSait = {},
 ): readonly EffacementHorsDuBac[] {
-  const { exceptions = EXCEPTIONS, porteurs = PORTEURS_DU_REFUS, ignorerLeRefus = false } = sait;
+  const {
+    exceptions = EXCEPTIONS,
+    porteurs = PORTEURS_DU_REFUS,
+    ignorerLeRefus = false,
+    zone = "controles",
+    perimetre = estDansLePerimetre,
+  } = sait;
   const accuses: EffacementHorsDuBac[] = [];
 
   for (const source of sources) {
     const langage = langageDe(source.chemin);
-    if (langage === undefined || !estDansLePerimetre(source.chemin)) continue;
+    if (langage === undefined || !perimetre(source.chemin)) continue;
     if (porteurs.includes(source.chemin)) continue;
 
-    const masque = masqueDeCode(source.contenu, {
+    const entier = masqueDeCode(source.contenu, {
       diese: langage === "python",
       apostropheDeDureeDeVie: langage === "rust",
     });
+    // Le masque de la ZONE jugée : les effacements et les liaisons en viennent tous les deux.
+    const masque = restreindre(entier, plagesJugees(entier, source.chemin, zone));
     const porteLeRefus = new RegExp(`\\b${REFUS_NOMME}\\s*\\(`, "u").test(masque);
     if (porteLeRefus && !ignorerLeRefus) continue;
 
     const table = liaisons(masque, langage);
     for (const efface of effacementsDe(source, masque)) {
-      const excepte = exceptions.some(
-        (une) => une.chemin === efface.chemin && une.cible === efface.cible,
-      );
+      // L'exemption est LOCALE quand l'exception nomme sa fonction : elle ne couvre que les
+      // effacements du corps de cette fonction. Sans cela, un second appel de même cible ajouté
+      // ailleurs dans le fichier serait exempté sans avoir jamais été nommé — c'est le cas qui
+      // ferait passer un effacement en douce, relevé par Christophe le 21 novembre 2026.
+      const excepte = exceptions.some((une) => {
+        if (une.chemin !== efface.chemin || une.cible !== efface.cible) return false;
+        if (une.fonction === undefined) return true;
+        const corps = corpsDeLaFonction(masque, une.fonction, langage);
+        if (corps === undefined) return false;
+        const premiere = masque.slice(0, corps[0]).split("\n").length;
+        const derniere = masque.slice(0, corps[1]).split("\n").length;
+        return efface.ligne >= premiere && efface.ligne <= derniere;
+      });
       if (excepte) continue;
       const { borne, trace } = remonter(efface.cible, table);
       if (borne) continue;
@@ -471,7 +682,12 @@ export function effacementsHorsDuBac(
  *  fichier. Une liste d'exemptions qui survit à ce qu'elle exemptait est pire que pas de liste. */
 export interface ExceptionMorte {
   readonly exception: ExceptionNommee;
-  readonly pourquoi: "le fichier n'est pas là" | "ce site n'efface plus cette cible" | "le chemin déclaré ne paraît pas dans le fichier";
+  readonly pourquoi:
+    | "le fichier n'est pas là"
+    | "ce site n'efface plus cette cible"
+    | "le chemin déclaré ne paraît pas dans le fichier"
+    | "la fonction déclarée ne paraît plus dans le fichier"
+    | "cette fonction n'efface plus cette cible";
 }
 
 export function exceptionsMortes(
@@ -491,19 +707,39 @@ export function exceptionsMortes(
       diese: langage === "python",
       apostropheDeDureeDeVie: langage === "rust",
     });
-    if (!effacementsDe(source, masque).some((un) => un.cible === exception.cible)) {
+    // Quand la fonction est nommée, l'effacement doit être DANS SON CORPS. Vérifier seulement que
+    // la fonction existe et qu'un effacement de cette cible traîne quelque part dans le fichier
+    // laissait passer le pire des cas : l'appel déplacé hors de la fonction, ou un second appel de
+    // même cible ajouté ailleurs, que l'exception aurait exempté sans l'avoir jamais nommé.
+    // Faiblesse relevée par Christophe le 21 novembre 2026, avant le commit.
+    if (exception.fonction !== undefined) {
+      const corps = corpsDeLaFonction(masque, exception.fonction, langage!);
+      if (corps === undefined) {
+        mortes.push({ exception, pourquoi: "la fonction déclarée ne paraît plus dans le fichier" });
+        continue;
+      }
+      const [ouverture, fermeture] = corps;
+      const dedans = effacementsDe(source, restreindre(masque, [[ouverture, fermeture]]));
+      if (!dedans.some((un) => un.cible === exception.cible)) {
+        mortes.push({ exception, pourquoi: "cette fonction n'efface plus cette cible" });
+        continue;
+      }
+    } else if (!effacementsDe(source, masque).some((un) => un.cible === exception.cible)) {
       mortes.push({ exception, pourquoi: "ce site n'efface plus cette cible" });
       continue;
     }
     // Le dernier segment LITTÉRAL suffit : le fichier dit « moteurs » ou « @napi-rs », pas son
     // chemin depuis la racine. Un segment variable — `canvas-<architecture>` — ne se cherche pas
     // littéralement : on prend le dernier qui n'en soit pas un.
-    const dernier =
-      exception.efface
-        .split("/")
-        .filter((un) => un !== "" && !/[<{]/u.test(un))
-        .at(-1) ?? exception.efface;
-    if (!source.contenu.includes(dernier)) {
+    const dernier = exception.efface
+      .split("/")
+      .filter((un) => un !== "" && !/[<{]/u.test(un))
+      .at(-1);
+    // Quand tous les segments sont variables — `<le coin du cache que l'appelant nomme>` —, il n'y
+    // a rien à chercher littéralement, et c'est le corps de la fonction qui atteste. On ne se
+    // rabat PAS sur la chaîne entière : elle n'est pas un chemin, et l'exiger dans le fichier
+    // ferait accuser à tort.
+    if (dernier !== undefined && !source.contenu.includes(dernier)) {
       mortes.push({ exception, pourquoi: "le chemin déclaré ne paraît pas dans le fichier" });
     }
   }

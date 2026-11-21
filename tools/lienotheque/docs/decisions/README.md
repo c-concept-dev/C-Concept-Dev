@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-21 | Le garde-fou des effacements juge le produit, avec sept exceptions nommées — **remplace celle du 20 novembre** | [2026-11-21-le-garde-fou-des-effacements-juge-le-produit.md](2026-11-21-le-garde-fou-des-effacements-juge-le-produit.md) |
 | 2026-11-20 | Le produit efface ce que l'utilisateur lui demande à l'écran, et le garde-fou des effacements ne le juge pas | [2026-11-20-le-produit-efface-ce-que-l-utilisateur-demande.md](2026-11-20-le-produit-efface-ce-que-l-utilisateur-demande.md) |
 | 2026-11-18 | Une suppression reste la porte de Christophe, même pour mes propres déchets | [2026-11-18-une-suppression-reste-la-porte-de-christophe.md](2026-11-18-une-suppression-reste-la-porte-de-christophe.md) |
 | 2026-11-18 | Une mutation qui désarme une sécurité ne se pose jamais sous un contrôle qui la pointe sur un objet réel | [2026-11-18-une-mutation-ne-desarme-pas-une-securite-pointee-sur-un-objet-reel.md](2026-11-18-une-mutation-ne-desarme-pas-une-securite-pointee-sur-un-objet-reel.md) |
