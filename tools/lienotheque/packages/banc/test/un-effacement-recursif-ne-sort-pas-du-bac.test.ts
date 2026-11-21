@@ -305,3 +305,31 @@ describe("ce que le garde-fou voit, et ce qu'il refuse de voir (lot 0z bis)", ()
     expect(estDansLePerimetre("apps/app/src-tauri/outils/preparer-moteurs.py")).toBe(true);
   });
 });
+
+describe("le garde-fou lit vraiment les fichiers qu'il croit lire (lot 0z quinquies)", () => {
+  /** L'ancrage de la régression du 21 novembre 2026, au niveau du garde-fou et non du masque.
+   *
+   *  `roulement.rs` déclare son module de contrôles ligne 737, mais une durée de vie anonyme
+   *  `<'_>` faisait lire son apostrophe comme un littéral : 21 octets blanchis emportaient la
+   *  déclaration, `plagesJugees` ne trouvait aucune plage, et le garde-fou **ne jugeait rien** dans
+   *  ce fichier. Il ne les acquittait pas, il ne les lisait pas — et il disait vert.
+   *
+   *  Ce contrôle ne compte pas les effacements, il exige qu'il y en ait : un jour où `roulement.rs`
+   *  n'en portera plus, il faudra choisir un autre fichier de l'hôte, pas désarmer la règle. */
+  it("lit les effacements du module de contrôles de roulement.rs, que le masque avalait", () => {
+    const chemin = "apps/app/src-tauri/src/roulement.rs";
+    const sienne = sources().filter((une) => une.chemin === chemin);
+    expect(sienne, `${chemin} doit être parmi les sources lues`).toHaveLength(1);
+    const lus = effacementsRecursifs(sienne);
+    expect(
+      lus.length,
+      "zéro effacement lu ici est le symptôme exact du défaut : le masque a avalé `#[cfg(test)] mod tests`",
+    ).toBeGreaterThan(0);
+  });
+
+  it("n'accuse rien dans roulement.rs, parce que ses effacements visent bien le bac", () => {
+    const chemin = "apps/app/src-tauri/src/roulement.rs";
+    const sienne = sources().filter((une) => une.chemin === chemin);
+    expect(effacementsHorsDuBac(sienne)).toStrictEqual([]);
+  });
+});

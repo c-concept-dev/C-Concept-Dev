@@ -418,7 +418,10 @@ export function effacementsRecursifs(sources: readonly Source[]): readonly Effac
   return sources.flatMap((source) => {
     const langage = langageDe(source.chemin);
     if (langage === undefined || !estDansLePerimetre(source.chemin)) return [];
-    return effacementsDe(source, masqueDeCode(source.contenu, { diese: langage === "python" }));
+    return effacementsDe(source, masqueDeCode(source.contenu, {
+      diese: langage === "python",
+      apostropheDeDureeDeVie: langage === "rust",
+    }));
   });
 }
 
@@ -443,7 +446,10 @@ export function effacementsHorsDuBac(
     if (langage === undefined || !estDansLePerimetre(source.chemin)) continue;
     if (porteurs.includes(source.chemin)) continue;
 
-    const masque = masqueDeCode(source.contenu, { diese: langage === "python" });
+    const masque = masqueDeCode(source.contenu, {
+      diese: langage === "python",
+      apostropheDeDureeDeVie: langage === "rust",
+    });
     const porteLeRefus = new RegExp(`\\b${REFUS_NOMME}\\s*\\(`, "u").test(masque);
     if (porteLeRefus && !ignorerLeRefus) continue;
 
@@ -481,7 +487,10 @@ export function exceptionsMortes(
       continue;
     }
     const langage = langageDe(source.chemin);
-    const masque = masqueDeCode(source.contenu, { diese: langage === "python" });
+    const masque = masqueDeCode(source.contenu, {
+      diese: langage === "python",
+      apostropheDeDureeDeVie: langage === "rust",
+    });
     if (!effacementsDe(source, masque).some((un) => un.cible === exception.cible)) {
       mortes.push({ exception, pourquoi: "ce site n'efface plus cette cible" });
       continue;
@@ -511,7 +520,10 @@ export function porteursSansRefus(
   return porteurs.filter((chemin) => {
     const source = parChemin.get(chemin);
     if (source === undefined) return true;
-    const masque = masqueDeCode(source.contenu, { diese: langageDe(chemin) === "python" });
+    const masque = masqueDeCode(source.contenu, {
+      diese: langageDe(chemin) === "python",
+      apostropheDeDureeDeVie: langageDe(chemin) === "rust",
+    });
     return !DANS_LE_BAC(masque);
   });
 }
@@ -532,7 +544,10 @@ export function tiennentParLeRefusNomme(
     const langage = langageDe(source.chemin);
     if (langage === undefined || !estDansLePerimetre(source.chemin)) continue;
     if (porteurs.includes(source.chemin)) continue;
-    const masque = masqueDeCode(source.contenu, { diese: langage === "python" });
+    const masque = masqueDeCode(source.contenu, {
+      diese: langage === "python",
+      apostropheDeDureeDeVie: langage === "rust",
+    });
     if (!new RegExp(`\\b${REFUS_NOMME}\\s*\\(`, "u").test(masque)) continue;
     const sansLeRefus = effacementsHorsDuBac([source], { exceptions, porteurs, ignorerLeRefus: true });
     if (sansLeRefus.length > 0) tenus.push(source.chemin);

@@ -67,7 +67,30 @@ export interface CommentDeLire {
    *  l'envers — non plus accuser une citation, mais ne plus voir le vrai code. L'appelant dit donc
    *  le langage ; ce module ne le devine pas depuis l'extension, qu'il ne connaît pas. */
   readonly diese?: boolean;
+
+  /** Traiter l'apostrophe comme pouvant ouvrir une **durée de vie** ou une **étiquette** de Rust,
+   *  et non seulement un littéral de caractère.
+   *
+   *  **Hors de Rust, ce serait faux** : en JavaScript et en TypeScript `'abc'` est une chaîne, et
+   *  la règle ci-dessous y verrait une durée de vie — le masque cesserait de blanchir les chaînes,
+   *  et le garde-fou de CLA-01 accuserait les mots de domaine cités dans un message. L'appelant dit
+   *  donc le langage, comme pour `diese`.
+   *
+   *  **Ce que cela a coûté avant d'être écrit (lot `0z quinquies`, 21 novembre 2026)** : dans
+   *  `apps/app/src-tauri/src/roulement.rs`, `fn fmt(&self, f: &mut std::fmt::Formatter<'_>)`
+   *  ouvrait un littéral qui ne se refermait qu'à l'apostrophe suivante, blanchissant 21 octets
+   *  aux lignes 734 à 738 — dont la déclaration `#[cfg(test)] mod tests {`. Le garde-fou des
+   *  effacements n'y jugeait plus rien, et il disait vert. */
+  readonly apostropheDeDureeDeVie?: boolean;
 }
+
+/** Un littéral de caractère de Rust, tel que le lexique l'écrit : un seul caractère, ou une
+ *  séquence d'échappement, puis l'apostrophe fermante. Le préfixe `b` d'un littéral d'octet
+ *  précède l'apostrophe, donc `b'a'` tombe ici par sa seconde moitié.
+ *
+ *  Tout le reste — `'_`, `'a`, `'static`, `'boucle:` — est une durée de vie ou une étiquette. */
+const LITTERAL_DE_CARACTERE =
+  /^'(?:[^\\']|\\(?:[nrt0\\'"]|x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]{1,6}\}))'/u;
 
 /** Les mots-clés après lesquels une barre oblique ouvre une expression régulière, et ne divise
  *  pas : ils attendent tous une valeur. */
@@ -85,7 +108,7 @@ function laBarreDivise(dernier: string, motAvant: string): boolean {
 }
 
 export function masqueDeCode(contenu: string, comment: CommentDeLire = {}): string {
-  const { diese = false } = comment;
+  const { diese = false, apostropheDeDureeDeVie = false } = comment;
   const sortie: string[] = [];
   let etat: "code" | "chaine" | "ligne" | "bloc" | "expression" = "code";
   let delimiteur = "";
@@ -125,7 +148,15 @@ export function masqueDeCode(contenu: string, comment: CommentDeLire = {}): stri
         place += 1;
         continue;
       }
-      if (caractere === '"' || caractere === "'" || caractere === "`") {
+      // Une apostrophe de Rust n'ouvre un littéral que si elle se referme juste après un seul
+      // caractère ou une séquence d'échappement. Sinon elle nomme une durée de vie ou une
+      // étiquette, et c'est du CODE : la prendre pour une chaîne blanchit tout ce qui suit
+      // jusqu'à l'apostrophe suivante.
+      const ouvreUnLitteral =
+        caractere !== "'" ||
+        !apostropheDeDureeDeVie ||
+        LITTERAL_DE_CARACTERE.test(contenu.slice(place));
+      if ((caractere === '"' || caractere === "`" || caractere === "'") && ouvreUnLitteral) {
         etat = "chaine";
         delimiteur = caractere;
       }

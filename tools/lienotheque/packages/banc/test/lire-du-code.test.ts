@@ -95,3 +95,47 @@ describe("ce que le masque savait déjà faire", () => {
     expect(masqueDeCode(source)).toHaveLength(source.length);
   });
 });
+
+describe("une apostrophe de Rust n'est pas toujours un littéral (lot 0z quinquies)", () => {
+  /** Le code qui doit rester lisible APRÈS l'apostrophe. Si le masque l'avale, un garde-fou
+   *  devient muet sur tout le reste du fichier — et il dit « vert ». */
+  const SUITE = "#[cfg(test)]\nmod tests { remove_dir_all(x); }";
+  const lu = (code: string): boolean => {
+    const masque = masqueDeCode(code, { apostropheDeDureeDeVie: true });
+    return masque.includes("cfg(test)") && masque.includes("remove_dir_all");
+  };
+
+  it.each([
+    ["la durée de vie anonyme, celle qui a aveuglé roulement.rs", "fn fmt(f: &mut Formatter<'_>) {}"],
+    ["une durée de vie nommée", "struct S<'a> { r: &'a str }"],
+    ["la durée de vie 'static", "static R: &'static str = \"x\";"],
+    ["une étiquette de boucle", "'boucle: loop { break 'boucle; }"],
+  ])("laisse lire le code qui suit %s", (_, code) => {
+    expect(lu(`${code}\n${SUITE}`)).toBe(true);
+  });
+
+  it.each([
+    ["un littéral simple", "let c = 'a';", "'a'"],
+    ["une séquence d'échappement", "let c = '\\n';", "'\\n'"],
+    ["un littéral qui porte l'apostrophe", "let c = '\\'';", "'\\''"],
+    ["un littéral d'octet", "let c = b'a';", "'a'"],
+  ])("blanchit %s, qui reste un littéral, sans perdre le code qui suit", (_, code, litteral) => {
+    const masque = masqueDeCode(`${code} remove_dir_all(x);`, { apostropheDeDureeDeVie: true });
+    expect(masque, "le contenu du littéral est de la donnée, il se blanchit").not.toContain(litteral);
+    expect(masque, "le code qui suit le littéral se lit").toContain("remove_dir_all");
+    expect(masque, "la longueur ne bouge pas, sinon les lignes relevées sont fausses").toHaveLength(
+      `${code} remove_dir_all(x);`.length,
+    );
+  });
+
+  it("ne change RIEN hors de Rust : en TypeScript une apostrophe ouvre une chaîne", () => {
+    const source = "const a = 'remove_dir_all';";
+    expect(masqueDeCode(source)).not.toContain("remove_dir_all");
+    expect(masqueDeCode(source, { apostropheDeDureeDeVie: false })).not.toContain("remove_dir_all");
+  });
+
+  it("sans l'option, la durée de vie anonyme aveugle encore — c'est l'appelant qui dit le langage", () => {
+    const code = `fn fmt(f: &mut Formatter<'_>) {}\n${SUITE}`;
+    expect(masqueDeCode(code).includes("cfg(test)"), "le défaut mesuré le 21 novembre 2026").toBe(false);
+  });
+});
