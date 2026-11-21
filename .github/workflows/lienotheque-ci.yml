@@ -301,10 +301,31 @@ jobs:
           echo "::warning::Ci2 — première tentative perdue sur apt, seconde en cours"
           pnpm --filter @lienotheque/app exec playwright install-deps chromium firefox webkit
 
-      # La preuve, et la mesure du contenu installé en une seule commande : `--dry-run` simule
-      # l'installation et sort non nul s'il manque un seul paquet. Elle tient lieu de garde-fou
-      # pour le `continue-on-error` ci-dessus, et elle dirait aussi le jour où l'image du coureur
-      # cesserait de fournir les 50 paquets qu'elle fournit aujourd'hui.
+      # La preuve, et la mesure du contenu installé, en une seule commande. Elle tient lieu de
+      # garde-fou pour le `continue-on-error` ci-dessus, et elle dirait aussi le jour où l'image
+      # du coureur cesserait de fournir les 50 paquets qu'elle fournit aujourd'hui.
+      #
+      # **Qu'elle sorte non nul n'est pas à croire sur parole, c'est lu dans le paquet posé**
+      # (`playwright-core` 1.63.0, `lib/coreBundle.js`), et le paquet est bien celui du registre
+      # — empreinte du verrou identique à celle publiée, fichier intact dans le magasin pnpm :
+      #
+      #   :32084  `if (dryRun) { await reportMissingDependenciesLinux(uniqueLibraries); return; }`
+      #   :32108  `spawnAsync("apt-get", ["install", "-s", "--no-install-recommends", ...])`
+      #   :32127  `process.exitCode = 1;`  ← la ligne décisive, si la liste manquante n'est pas vide
+      #
+      # Aucun des sept `process.exit(0)` du paquet n'est sur ce chemin, et `pnpm … exec` rend bien
+      # ce code au shell (éprouvé). Attention : ce n'était PAS vrai des anciens Playwright, où
+      # `--dry-run` ne faisait qu'afficher la commande — le paquet en garde la contradiction, son
+      # schéma d'outil (:69464) décrivant encore « do not execute installation, only print
+      # information ». Une descente de version rendrait donc cette étape décorative ET verte.
+      # C'est pourquoi un contrôle mesure le paquet posé plutôt que son numéro :
+      # `packages/banc/test/une-course-borne-l-installation-des-dependances.test.ts`.
+      #
+      # Réserve, raisonnée et non mesurée : `apt-get install -s` marque `Inst` aussi bien une
+      # MONTÉE de version qu'un paquet absent. Ici les listes ne bougent pas entre l'installation
+      # et la preuve (c'est `install-deps` lui-même qui fait l'`apt-get update`), donc rien ne
+      # peut être en attente de montée. Si cette étape rougissait un jour en nommant des paquets
+      # pourtant installés, c'est là qu'il faudrait regarder d'abord.
       - name: Prouver que les moteurs ont leurs dépendances
         timeout-minutes: 5
         run: pnpm --filter @lienotheque/app exec playwright install-deps --dry-run chromium firefox webkit

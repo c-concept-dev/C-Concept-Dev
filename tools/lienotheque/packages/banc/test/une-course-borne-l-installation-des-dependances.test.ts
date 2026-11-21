@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 /** `tools/lienotheque/` : trois niveaux au-dessus de `test/`, comme les autres contrôles du banc. */
@@ -207,4 +207,77 @@ describe("une course borne l'installation des dépendances des moteurs (lot Ci2 
       ).toBeUndefined();
     },
   );
+
+  /** Le corps d'une fonction du paquet livré, accolades appariées depuis sa déclaration. */
+  function corpsDe(bundle: string, nom: string): string {
+    const debut = bundle.indexOf(`function ${nom}(`);
+    if (debut < 0) return "";
+    const ouvre = bundle.indexOf("{", debut);
+    let profondeur = 0;
+    for (let i = ouvre; i < bundle.length; i += 1) {
+      if (bundle[i] === "{") profondeur += 1;
+      else if (bundle[i] === "}") {
+        profondeur -= 1;
+        if (profondeur === 0) return bundle.slice(ouvre, i + 1);
+      }
+    }
+    return "";
+  }
+
+  // Ce contrôle-ci ne lit pas la course : il lit le PAQUET POSÉ, donc il ne se saute jamais.
+  //
+  // Toute la preuve de l'étape « Prouver que les moteurs ont leurs dépendances » tient dans une
+  // promesse de Playwright : `install-deps --dry-run` sort non nul s'il manque un paquet. Cette
+  // promesse n'a pas toujours été tenue — le paquet livré en garde la contradiction, son schéma
+  // d'outil décrivant encore `--dry-run` comme « do not execute installation, only print
+  // information ». Si Playwright redescendait sous la version qui l'a introduite, notre preuve
+  // afficherait une commande et sortirait à zéro : **l'étape resterait verte en ne prouvant
+  // plus rien**, la seule issue que ce lot refuse. Alors on mesure le paquet, au lieu de croire
+  // son numéro de version.
+  //
+  // S'il rougit, la réponse n'est pas de l'assouplir : c'est de relire le code du paquet,
+  // refaire la preuve, et remplacer l'étape du workflow par une vérification à nous si la
+  // promesse a disparu.
+  it("ne laisse pas la preuve reposer sur une promesse que le Playwright posé ne tient plus", () => {
+    // On lit le paquet **dans l'arbre contrôlé**, par le dossier de pnpm, et non par
+    // `require.resolve` : celui-ci rend un chemin RÉEL, qui sort de l'arbre dès qu'un
+    // `node_modules` y est lié. Un contrôle qu'aucun bac ne peut masquer est un contrôle
+    // qu'aucune mutation ne peut éprouver — et le numéro de version n'est pas écrit ici, il est
+    // lu dans le nom du dossier posé.
+    const pnpm = new URL("node_modules/.pnpm/", PROJET);
+    const poses = readdirSync(pnpm).filter((nom) => nom.startsWith("playwright-core@"));
+    expect(poses, "un seul `playwright-core` posé, sinon on ne sait pas lequel la course charge").toHaveLength(1);
+    const version = (poses[0] as string).slice("playwright-core@".length);
+    const dit = (quoi: string): string =>
+      `playwright-core ${version} : ${quoi}. Relisez le code du paquet et refaites la preuve ; n'assouplissez pas ce contrôle.`;
+    const bundle = readFileSync(
+      new URL(`${poses[0]}/node_modules/playwright-core/lib/coreBundle.js`, pnpm),
+      "utf8",
+    );
+
+    const linux = corpsDe(bundle, "installDependenciesLinux");
+    expect(linux, dit("`installDependenciesLinux` est introuvable")).not.toBe("");
+
+    // La branche `--dry-run` doit déléguer à un rapporteur, et non retomber sur un affichage.
+    const delegue = /if \(dryRun\) \{\s*(?:await\s+)?([A-Za-z0-9_$]+)\(/.exec(linux);
+    expect(delegue, dit("la branche `--dry-run` n'appelle plus de rapporteur")).not.toBeNull();
+    const rapporteur = corpsDe(bundle, (delegue as RegExpExecArray)[1] as string);
+    expect(rapporteur, dit("le corps du rapporteur est introuvable")).not.toBe("");
+
+    // Il interroge vraiment apt, en simulation — donc sans rien changer à la machine…
+    expect(/"apt-get"[\s\S]{0,120}"-s"/.test(rapporteur), dit("le rapporteur ne simule plus par `apt-get -s`")).toBe(true);
+    // … et sans élévation, sinon l'étape demanderait un mot de passe au lieu de prouver.
+    expect(/sudo|transformCommandsForRoot/.test(rapporteur), dit("le rapporteur réclame maintenant les droits de root")).toBe(false);
+
+    // Et la ligne décisive : un code de sortie non nul, posé seulement si la liste n'est pas vide.
+    const sortie = /process\.exitCode\s*=\s*([0-9]+)/.exec(rapporteur);
+    expect(sortie, dit("le rapporteur ne pose plus de code de sortie")).not.toBeNull();
+    expect(Number((sortie as RegExpExecArray)[1]), dit("le code de sortie posé est nul")).not.toBe(0);
+    // Et il ne le pose que si la liste n'est pas vide : sans ce retour anticipé, l'étape
+    // rougirait même tout installé, et nous l'aurions désarmée au premier faux rouge.
+    expect(
+      /if \(!\w+\.length\)[\s\S]{0,160}return/.test(rapporteur),
+      dit("le rapporteur ne sort plus tôt quand la liste des manquants est vide — il rougirait tout installé"),
+    ).toBe(true);
+  });
 });
