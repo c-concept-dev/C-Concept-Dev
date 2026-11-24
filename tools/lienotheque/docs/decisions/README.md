@@ -16,6 +16,7 @@ décision ne porte pas : un plan d'exécution — la file des lots est ailleurs.
 
 | Date | Décision | Fichier |
 |---|---|---|
+| 2026-11-24 | Une fonction d'effacement arrive avec son appelant, son exception et sa décision — **corrige une raison des décisions du 20 et du 21 novembre, sans les modifier** | [2026-11-24-une-fonction-d-effacement-arrive-avec-son-appelant.md](2026-11-24-une-fonction-d-effacement-arrive-avec-son-appelant.md) |
 | 2026-11-21 | Le garde-fou des effacements juge le produit, avec sept exceptions nommées — **remplace celle du 20 novembre** | [2026-11-21-le-garde-fou-des-effacements-juge-le-produit.md](2026-11-21-le-garde-fou-des-effacements-juge-le-produit.md) |
 | 2026-11-20 | Le produit efface ce que l'utilisateur lui demande à l'écran, et le garde-fou des effacements ne le juge pas | [2026-11-20-le-produit-efface-ce-que-l-utilisateur-demande.md](2026-11-20-le-produit-efface-ce-que-l-utilisateur-demande.md) |
 | 2026-11-18 | Une suppression reste la porte de Christophe, même pour mes propres déchets | [2026-11-18-une-suppression-reste-la-porte-de-christophe.md](2026-11-18-une-suppression-reste-la-porte-de-christophe.md) |

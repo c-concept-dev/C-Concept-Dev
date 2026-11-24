@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, rmSync, utimesSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { CACHE_PAR_DEFAUT, PLAFOND_PAR_DEFAUT, PLAFOND_REPLI, coin, nettoyer, ouvrirCache, peser, vider } from "../src/index.js";
+import { CACHE_PAR_DEFAUT, PLAFOND_PAR_DEFAUT, PLAFOND_REPLI, coin, nettoyer, ouvrirCache, peser } from "../src/index.js";
 
 const dossiers: string[] = [];
 const neuf = (): string => {
@@ -118,15 +118,5 @@ describe("pesée et nettoyage", () => {
     poser(cache.dossier, "a.bin", 500);
     expect(nettoyer(cache, 10_000)).toEqual({ octets: 0, fichiers: 0 });
     expect(readdirSync(cache.dossier)).toEqual(["a.bin"]);
-  });
-
-  it("vide un coin de fond en comble, et le laisse utilisable", () => {
-    const cache = ouvrirCache({ dossier: join(neuf(), "cache"), avertir: () => {} });
-    const images = coin(cache, "images");
-    poser(images, "a.pgm", 10);
-    poser(images, "b.pgm", 10);
-    vider(images);
-    expect(existsSync(images)).toBe(true);
-    expect(readdirSync(images)).toEqual([]);
   });
 });

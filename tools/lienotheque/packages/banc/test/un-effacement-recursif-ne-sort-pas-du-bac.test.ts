@@ -405,8 +405,9 @@ describe("les liaisons du produit ne viennent que du produit (lot 0z sexies)", (
   });
 
   /** Le périmètre est OUVERT AU PRODUIT, et c'est le contenu du lot `0z quater`, absorbé par
-   *  `0z sexies`. **Huit sites exceptés, sept entrées** — `reconstruction.rs` en porte deux, de
-   *  même cible —, chacun reconnu par son contenu et portant sa raison écrite.
+   *  `0z sexies`. **Sept sites exceptés, six entrées** — `reconstruction.rs` en porte deux, de
+   *  même cible —, chacun reconnu par son contenu et portant sa raison écrite. C'étaient huit
+   *  sites et sept entrées jusqu'au lot `0z octies`, qui a retiré celle du vidage du cache.
    *
    *  **Ce contrôle était rouge et épinglé, il est vert depuis le 24 novembre 2026.** Le huitième
    *  site, `retirer_document`, était refusé comme défaut du produit sous l'épingle
@@ -422,6 +423,40 @@ describe("les liaisons du produit ne viennent que du produit (lot 0z sexies)", (
   it("ne laisse aucun effacement du produit sans exception nommée", () => {
     const restants = duProduit().map((une) => `${une.chemin}:${une.ligne} ${une.appel}(${une.cible})`);
     expect(restants, "tout effacement récursif du produit est excepté, ou c'est un défaut").toStrictEqual([]);
+  });
+
+  /** Le compte des exceptions du produit, et pourquoi ce n'est PAS le doublon de son voisin.
+   *
+   *  Le voisin rougit quand un effacement du produit n'a **pas** d'exception. Celui-ci rougit
+   *  quand une exception **paraît** sans avoir été décidée : les deux sens comptent, et une
+   *  exception de plus ne coûte qu'une ligne à écrire. Aucune mutation du voisin ne tue celui-ci,
+   *  et l'inverse est vrai aussi — c'est la condition à laquelle une règle se garde.
+   *
+   *  **Six, depuis le lot `0z octies`.** La septième exceptait `vider()` du cache au motif que
+   *  « c'est l'utilisateur qui vide son cache, à l'écran ». Mesuré le 24 novembre 2026 : la
+   *  fonction n'avait aucun appelant, aucun écran ne la portait, et le moteur livré ne l'embarquait
+   *  même pas. Elle est supprimée, son exception avec elle, et la règle est posée par la décision
+   *  du 24 novembre 2026 : aucun effacement récursif sans appelant dans le produit ne reçoit
+   *  d'exception ; une fonction d'effacement arrive avec son appelant, son exception et sa
+   *  décision. Les décisions du 20 et du 21 novembre, qui portaient la raison fausse, ne sont pas
+   *  modifiées : la nouvelle les nomme. */
+  it("le produit ne porte plus que six exceptions nommées, et aucune ne couvre le cache (lot 0z octies)", () => {
+    const duProduitNommees = EXCEPTIONS.filter((une) => estDansLePerimetreDuProduit(une.chemin));
+    expect(
+      duProduitNommees.map((une) => `${une.chemin} ${une.fonction ?? "—"}`),
+      "une exception du produit a paru ou disparu sans décision",
+    ).toStrictEqual([
+      "outils/ingestion/src/texte.ts lireLeTexte",
+      "apps/app/src-tauri/src/application_embarquee.rs installer_application",
+      "apps/app/src-tauri/src/application_embarquee.rs nettoyer_ancienne_disposition",
+      "apps/app/src-tauri/src/reconstruction.rs preparer_destination",
+      "apps/app/src-tauri/src/depot.rs retirer_entree",
+      "apps/app/src-tauri/src/depot.rs retirer_document",
+    ]);
+    expect(
+      EXCEPTIONS.filter((une) => une.chemin.startsWith("outils/cache/")),
+      "le vidage du cache est supprimé : plus rien ne doit l'excepter",
+    ).toStrictEqual([]);
   });
 
 });

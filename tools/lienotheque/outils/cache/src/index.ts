@@ -11,7 +11,14 @@ import { join } from "node:path";
  *  Trois règles. Un plafond, parce qu'un cache sans plafond finit par remplir un disque, et c'est
  *  arrivé. Un nettoyage explicite, qui retire le plus ancien jusqu'à repasser sous le plafond.
  *  Et un repli : si le volume prévu n'est pas monté, on se rabat sur un dossier local plus étroit
- *  en le disant, plutôt que d'échouer au milieu d'un traitement. */
+ *  en le disant, plutôt que d'échouer au milieu d'un traitement.
+ *
+ *  **Ce que ce module ne fait pas, mesuré le 24 novembre 2026.** `nettoyer` n'a aucun appelant :
+ *  le plafond annoncé ci-dessus n'est appliqué par personne. Et plus rien ne vide un coin —
+ *  `vider` a été supprimée au lot `0z octies`, faute d'appelant elle aussi. Les images
+ *  intermédiaires dites « à jeter tout de suite » ne sont donc jetées par personne. Qui applique
+ *  le plafond et qui jette se décide au lot `0z undecies`, dette **D33** ; d'ici là, cet en-tête
+ *  annonce une intention, pas un comportement. */
 
 /** Dossier choisi par défaut quand rien n'est déclaré. Il contient une espace : tout chemin
  *  qui le traverse se cite entre guillemets dans un terminal. */
@@ -136,11 +143,4 @@ export function nettoyer(cache: Cache, plafond = cache.plafond): Pesee {
     }
   }
   return { octets: libere, fichiers: retires };
-}
-
-/** Vide un coin du cache de fond en comble. Pour les images intermédiaires, qui ne doivent
- *  survivre à aucune exécution. */
-export function vider(chemin: string): void {
-  rmSync(chemin, { recursive: true, force: true });
-  mkdirSync(chemin, { recursive: true });
 }

@@ -166,18 +166,17 @@ export const EXCEPTIONS: readonly ExceptionNommee[] = [
       "est connu et corrigé : il trouvait autrefois sa cible par le PATH, et pouvait viser le Node " +
       "du poste.",
   },
-  // ── Les sept sites du PRODUIT, accordés par Christophe le 21 novembre 2026 sur l'inventaire
-  // mesuré. Six entrées pour sept sites : `reconstruction.rs` en porte deux, de même cible.
+  // ── Les SEPT sites du PRODUIT, SIX entrées : `reconstruction.rs` en porte deux, de même cible.
+  // Accordés par Christophe le 21 novembre 2026 sur l'inventaire mesuré, moins un, et plus un.
   // Chacune est reconnue par son contenu — fichier et cible — jamais par un numéro de ligne.
-  {
-    chemin: "outils/cache/src/index.ts",
-    cible: "chemin",
-    fonction: "vider",
-    efface: "<le coin du cache que l'appelant nomme>",
-    pourquoi:
-      "C'est l'utilisateur qui vide son cache, à l'écran, et le cache est fait pour être vidé. " +
-      "L'écran confirme ; ce garde-fou n'en est pas le juge.",
-  },
+  //
+  // Celle de `retirer_document` a été accordée le 24 novembre 2026, au lot `0z septies`, APRÈS
+  // son correctif. Celle du vidage du cache a été RETIRÉE le même jour, au lot `0z octies` : sa
+  // raison nommait un écran — « c'est l'utilisateur qui vide son cache, à l'écran » — et cet
+  // écran n'existait pas ; la fonction n'avait aucun appelant, et elle est supprimée. D'où la
+  // règle, décision du 24 novembre 2026 : aucun effacement récursif sans appelant dans le produit
+  // ne reçoit d'exception, et une fonction d'effacement arrive avec son appelant, son exception
+  // et sa décision.
   {
     chemin: "outils/ingestion/src/texte.ts",
     cible: "dossier",
