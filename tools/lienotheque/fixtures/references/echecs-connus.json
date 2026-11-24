@@ -86,33 +86,6 @@
         "A2"
       ],
       "renomme_le": "2026-11-10 : le contrôle « compte des pages, et n'en double pas le nombre sur une feuille double » a été SÉPARÉ en deux par le lot 16b — il portait deux affirmations indépendantes et payait leurs deux lectures contre un seul délai. Les deux noms neufs sont ci-dessus. L'oubli de cette mise à jour a fait ROUGIR Ubuntu à la course 42823695147 : deux RÉGRESSIONS, qui n'étaient que l'épingle ne reconnaissant plus ses contrôles. Invisible sur une machine qui a Tesseract, où ces contrôles passent et l'épingle est hors contexte. D'où le garde-fou neuf : une épingle qui nomme un contrôle qu'aucun rapport ne porte refuse le passage."
-    },
-    {
-      "id": "depot-rs-nom-de-version-non-valide",
-      "raison": "défaut du produit, nom de version non validé, lot 0z septies",
-      "paquet": "@lienotheque/banc",
-      "fichier": "test/un-effacement-recursif-ne-sort-pas-du-bac.test.ts",
-      "epingle_le": "2026-11-21",
-      "apparu_le": "2026-11-21",
-      "exigences": [
-        "SEC"
-      ],
-      "assertion": "expect(restants, \"tout effacement récursif du produit est excepté, ou c'est un défaut\").toStrictEqual([])",
-      "echec": "apps/app/src-tauri/src/depot.rs:461 remove_dir_all(self.racine.join(DERIVES).join(version))",
-      "cause": {
-        "quoi": "`retirer_document` efface un dossier de version dont le nom n'est JAMAIS validé. `version` vient de deux données relues sur le disque : `pointeur.version` d'`actives.json` (depot.rs:438) et `lu[\"version_cible\"]` de chaque fichier de travail (depot.rs:452). Aucune vérification : ni chaîne vide, ni chemin absolu, ni `..`, ni nombre de composants. L'appel est précédé d'un `let _ =`, qui avale jusqu'à l'erreur.",
-        "mesure": "rustc 1.100.0, 21 novembre 2026, sur cette machine : `Path::new(\"/Bibliotheque\").join(\"derives\").join(version)` rend `/Bibliotheque/derives/` pour une chaîne vide — tout DERIVES —, `/` pour `\"/\"` — la racine du disque —, et `/etc` pour `\"/etc\"`. Un composant absolu REMPLACE le chemin entier.",
-        "garde_fou_legitime": true,
-        "pourquoi_il_est_rouge_et_non_excepte": "Christophe l'a refusé le 21 novembre 2026 : ce n'est pas un geste que l'utilisateur demande, c'est un défaut du produit. Les sept autres sites du produit sont exceptés, chacun avec sa raison ; celui-ci est renvoyé à un lot."
-      },
-      "ce_qui_le_levera": "Le lot `0z septies` : une fonction qui valide un nom de version — un seul composant `Component::Normal`, non vide, sans séparateur, sans `..`, non absolu —, appliquée aux deux sources et à toute autre place où `version` sert à construire un chemin ; sinon refus explicite, journalisé, et rien n'est effacé. Contrôles exigés par Christophe : `\"v1\"` accepté, et `\"\"`, `\"/\"`, `\"..\"`, `\"/etc\"`, `\"a/b\"` refusés, avec un dossier témoin hors de DERIVES qui doit survivre.",
-      "a_ne_pas_faire": "Ne jamais excepter ce site pour verdir le contrôle, ni relâcher le périmètre du produit : l'épingle dit un défaut réel, et une exception le cacherait. Ne pas non plus corriger le défaut sans ses contrôles — le `let _ =` rendrait un refus silencieux indistinguable d'un succès.",
-      "controles": [
-        {
-          "nom": "les liaisons du produit ne viennent que du produit (lot 0z sexies) ne laisse aucun effacement du produit sans exception nommée",
-          "message": "tout effacement récursif du produit est excepté, ou c'est un défaut"
-        }
-      ]
     }
   ]
 }

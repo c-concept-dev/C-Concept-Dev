@@ -861,7 +861,8 @@ fn image_de_page(racine: String, version: String, fichier: String) -> Result<Opt
     if !nom.ends_with(".webp") {
         return Err("Seules les images de page se servent ainsi.".to_owned());
     }
-    let chemin = depot.racine().join(depot::DERIVES).join(&version).join("pages").join(nom);
+    let version = depot::nom_de_version(&version, "la page demandée").map_err(|e| e.to_string())?;
+    let chemin = depot.racine().join(depot::DERIVES).join(version).join("pages").join(nom);
     match std::fs::read(&chemin) {
         Ok(octets) => Ok(Some(format!("data:image/webp;base64,{}", BASE64.encode(&octets)))),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -892,6 +893,7 @@ fn relire_page(
     langue: &str,
 ) -> Result<Option<String>, String> {
     let nom = nom_image_page(fichier)?;
+    let version = depot::nom_de_version(version, "la page relue").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     let chemin = depot.racine().join(depot::DERIVES).join(version).join("pages").join(nom);
     if !chemin.exists() {
@@ -1325,7 +1327,7 @@ mod greffe {
 
 #[cfg(test)]
 mod relecture_ocr {
-    use super::{relire_page, Moteurs};
+    use super::{image_de_page, relire_page, Moteurs};
     use crate::depot::Depot;
     use std::{fs, path::Path};
 
@@ -1363,4 +1365,35 @@ mod relecture_ocr {
         let refus = relire_page(&moteurs, "/tmp", "version-test", "../secret.webp", "fr").expect_err("refus");
         assert!(refus.contains("image de page"), "{refus}");
     }
+    /// Un nom de version venu de l’écran ne devient pas un chemin (HER-07, dette D28).
+    ///
+    /// Les deux portes de l’interface **lisent** : c’est donc ici, et nulle part où l’on efface,
+    /// que les noms absolus « / » et « /etc » s’éprouvent. Une mutation qui retirerait la
+    /// validation y ferait lire un chemin arbitraire, jamais effacer quoi que ce soit.
+    #[test]
+    fn un_nom_de_version_qui_est_un_chemin_ne_sert_a_lire_aucune_page() {
+        let moteurs = Moteurs::depuis(&Path::new(env!("CARGO_MANIFEST_DIR")).join("moteurs"));
+        let racine = std::env::temp_dir().join(format!("lienotheque-version-lue-{}", std::process::id()));
+        fs::remove_dir_all(&racine).ok();
+        Depot::creer(&racine).expect("bibliothèque d’épreuve");
+        let adresse = racine.to_str().expect("racine utf8").to_owned();
+
+        for abime in ["", "/", "..", "/etc", "a/b", ".", "a/"] {
+            let refus = relire_page(&moteurs, &adresse, abime, "page-0000.webp", "fr")
+                .expect_err("la relecture doit refuser un nom de version qui est un chemin");
+            assert!(refus.contains("Nom de version invalide"), "relecture, « {abime} » : {refus}");
+
+            let refus = image_de_page(adresse.clone(), abime.to_owned(), "page-0000.webp".to_owned())
+                .expect_err("l’image doit refuser un nom de version qui est un chemin");
+            assert!(refus.contains("Nom de version invalide"), "image, « {abime} » : {refus}");
+        }
+
+        // Un nom de version correct passe la validation : le refus ne vient pas de tout refuser.
+        assert!(
+            image_de_page(adresse, "v-saine".to_owned(), "page-0000.webp".to_owned()).expect("pas de refus").is_none(),
+            "une version valide dont la page n’existe pas rend « rien », pas une erreur",
+        );
+        fs::remove_dir_all(&racine).ok();
+    }
 }
+

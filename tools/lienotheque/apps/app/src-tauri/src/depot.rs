@@ -25,9 +25,10 @@
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
+    ffi::OsStr,
     fs,
     io::{self, Write},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 /// Ce qu'un retrait de document a emporté — de quoi le dire, plutôt que de laisser deviner.
@@ -160,6 +161,42 @@ pub struct Pointeur {
     pub activee_le: u64,
 }
 
+/// Valide un nom de version avant qu’il serve à construire un chemin (HER-07).
+///
+/// ## Pourquoi un nom de version se valide
+///
+/// Un nom de version désigne **un dossier de `derives/` et un fichier de `base/versions/`**, rien
+/// de plus : c’est donc un seul nom, sans séparateur. Sans cette vérification, un nom relu dans un
+/// fichier abîmé devient un chemin. Mesuré le 21 novembre 2026 avec `rustc 1.100.0` : un composant
+/// vide fait viser **tout `derives/`**, et un composant absolu **remplace le chemin entier**, donc
+/// `"/"` vise la racine du disque. C’est la dette D28, et le lot `0z septies` la lève.
+///
+/// ## Pourquoi cette forme, et pas une liste de caractères interdits
+///
+/// Elle suit celle de `nom_image_page` et de `preparer_destination` : on ne demande pas si le nom
+/// « a l’air » correct, on vérifie qu’il est **exactement** le seul composant ordinaire que `Path`
+/// y voit. Un seul geste refuse ainsi la chaîne vide, `/`, `..`, `.`, `/etc` et `a/b` — et aussi
+/// `a/`, parce qu’un `Path` le réduit à `a` : un nom qui ne se relit pas tel quel n’est pas le nom
+/// qu’on croyait lire. Une liste de caractères interdits, elle, se laisse toujours contourner par
+/// celui qu’on a oublié.
+///
+/// `provenance` nomme **où le nom a été lu**, pour que le refus dise quel fichier réparer.
+pub fn nom_de_version<'a>(nom: &'a str, provenance: &str) -> io::Result<&'a str> {
+    let mut composants = Path::new(nom).components();
+    if let (Some(Component::Normal(seul)), None) = (composants.next(), composants.next()) {
+        if seul == OsStr::new(nom) {
+            return Ok(nom);
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::InvalidInput,
+        format!(
+            "Nom de version invalide dans {provenance} : « {nom} ». Un nom de version est un seul \
+             nom de dossier, sans séparateur."
+        ),
+    ))
+}
+
 pub struct Depot {
     racine: PathBuf,
 }
@@ -223,7 +260,7 @@ impl Depot {
     /// Où le moteur écrira les dérivés d'une version. Le dossier est créé ici : c'est l'hôte qui
     /// décide de l'emplacement, le moteur n'écrit que là où on le lui dit.
     pub fn derives_de(&self, version: &str) -> io::Result<PathBuf> {
-        let chemin = self.racine.join(DERIVES).join(version);
+        let chemin = self.racine.join(DERIVES).join(nom_de_version(version, "la version de ce travail")?);
         fs::create_dir_all(&chemin)?;
         Ok(chemin)
     }
@@ -344,13 +381,15 @@ impl Depot {
     /// L'écriture est atomique : un arrêt brutal laisse le fichier absent ou complet, jamais
     /// tronqué — et une version tronquée qu'on activerait serait pire qu'une version manquante.
     pub fn ecrire_version(&self, version: &str, charge: &str) -> io::Result<PathBuf> {
-        let chemin = self.racine.join(BASE).join(VERSIONS).join(format!("{version}.json"));
+        let nom = nom_de_version(version, "la version à écrire")?;
+        let chemin = self.racine.join(BASE).join(VERSIONS).join(format!("{nom}.json"));
         ecrire_atomique(&chemin, charge.as_bytes())?;
         Ok(chemin)
     }
 
     pub fn lire_version(&self, version: &str) -> io::Result<Option<String>> {
-        match fs::read_to_string(self.racine.join(BASE).join(VERSIONS).join(format!("{version}.json"))) {
+        let nom = nom_de_version(version, "la version à relire")?;
+        match fs::read_to_string(self.racine.join(BASE).join(VERSIONS).join(format!("{nom}.json"))) {
             Ok(texte) => Ok(Some(texte)),
             Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(e) => Err(e),
@@ -424,20 +463,23 @@ impl Depot {
         }
         let _tenu = VERROU_ACTIVES.lock().unwrap_or_else(|empoisonne| empoisonne.into_inner());
 
-        // 1. Le pointeur, d'abord : les écrans cessent de voir ce document.
+        // 1. **Lire d'abord, écrire ensuite.** Les deux étapes étaient autrefois mêlées : le
+        //    pointeur partait avant que les noms de version soient connus, et les fichiers de
+        //    travail s'effaçaient pendant qu'on les lisait. Un seul nom invalide laissait donc une
+        //    bibliothèque à moitié retirée. Désormais, tout ce qu'il faut est **rassemblé et
+        //    validé** avant la première écriture, et un nom invalide refuse l'opération entière en
+        //    nommant le fichier à réparer (HER-07, dette D28).
         let mut table = self.actives()?;
         let pointeur = table.remove(empreinte);
-        if pointeur.is_some() {
-            self.ecrire_actives(&table)?;
-        }
 
-        // 2. Ses versions, reconnues par les travaux qui les visaient — une version n'inscrit pas
-        //    l'empreinte de sa source, c'est le travail qui fait le lien.
+        // Ses versions, reconnues par les travaux qui les visaient — une version n'inscrit pas
+        // l'empreinte de sa source, c'est le travail qui fait le lien.
         let mut versions: BTreeSet<String> = BTreeSet::new();
         if let Some(pointeur) = &pointeur {
+            nom_de_version(&pointeur.version, "le fichier base/actives.json")?;
             versions.insert(pointeur.version.clone());
         }
-        let mut travaux_retires = 0_usize;
+        let mut travaux_a_retirer: Vec<PathBuf> = Vec::new();
         if let Ok(entrees) = fs::read_dir(self.travaux()) {
             for entree in entrees.flatten() {
                 let chemin = entree.path();
@@ -450,11 +492,21 @@ impl Depot {
                     continue;
                 }
                 if let Some(cible) = lu["version_cible"].as_str() {
+                    nom_de_version(cible, &format!("le fichier {}", chemin.display()))?;
                     versions.insert(cible.to_owned());
                 }
-                let _ = fs::remove_file(&chemin);
-                travaux_retires += 1;
+                travaux_a_retirer.push(chemin);
             }
+        }
+
+        // 2. Plus rien ne peut être refusé : on écrit. Le pointeur en premier, pour que les écrans
+        //    cessent de voir ce document avant qu'il ne s'effrite.
+        if pointeur.is_some() {
+            self.ecrire_actives(&table)?;
+        }
+        let travaux_retires = travaux_a_retirer.len();
+        for chemin in &travaux_a_retirer {
+            let _ = fs::remove_file(chemin);
         }
 
         for version in &versions {
@@ -1059,7 +1111,179 @@ mod tests {
         assert!(un.starts_with(racine.join(DERIVES)));
         fs::remove_dir_all(&racine).ok();
     }
+    /// Un nom de version est un seul nom de dossier, et rien d’autre (HER-07, dette D28).
+    ///
+    /// ## Pourquoi « / » et « /etc » s’éprouvent ICI, et jamais à travers un effacement
+    ///
+    /// Un composant absolu **remplace** le chemin entier. Pousser « / » par la porte qui efface
+    /// voudrait dire qu’une mutation retirant la validation ferait effacer la racine du disque :
+    /// un contrôle ne doit pas pouvoir détruire la machine qui le lit. Les noms absolus sont donc
+    /// refusés ici, sur la fonction, et aux portes qui ne font que **lire** (`relire_page`,
+    /// `image_de_page`). Aux portes qui effacent, on n’éprouve que des noms dont l’effacement, si
+    /// la validation disparaissait, resterait dans le dossier temporaire.
+    #[test]
+    fn un_nom_de_version_est_un_seul_nom_de_dossier() {
+        assert_eq!(nom_de_version("v1", "l’épreuve").expect("« v1 » est un nom de version"), "v1");
+        for refuse in ["", "/", "..", "/etc", "a/b", ".", "a/", "a/../b", "//", "~/ailleurs"] {
+            assert!(
+                nom_de_version(refuse, "l’épreuve").is_err(),
+                "« {refuse} » ne devrait pas être accepté comme nom de version",
+            );
+        }
+        let refus = nom_de_version("..", "le fichier base/actives.json").expect_err("un refus");
+        assert!(
+            refus.to_string().contains("base/actives.json"),
+            "le refus doit nommer le fichier à réparer : {refus}",
+        );
+        assert!(refus.to_string().contains("« .. »"), "le refus doit citer la valeur lue : {refus}");
+    }
+
+    /// Les noms dont l’effacement resterait dans le dossier temporaire, si la validation tombait.
+    const NOMS_SANS_DANGER: [(&str, &str); 5] =
+        [("vide", ""), ("point", "."), ("parent", ".."), ("deux-noms", "a/b"), ("barre-finale", "a/")];
+
+    /// Une bibliothèque d’épreuve, avec deux témoins qui doivent survivre à tout refus.
+    ///
+    /// Le premier est **hors de `derives/`** : un nom vide ferait viser tout `derives/`. Le second
+    /// est une **autre version**, dans `derives/` : un `..` ferait viser la bibliothèque entière.
+    fn bibliotheque_a_retirer(nom: &str) -> (Depot, PathBuf, String) {
+        let (depot, racine) = depot_neuf(nom);
+        depot.ecrire_description(r#"{"nom":"Essai"}"#).expect("description");
+        let empreinte = "ab".to_owned() + &"c".repeat(62);
+        let palier = depot.racine().join(SOURCES).join(&empreinte[..2]);
+        fs::create_dir_all(&palier).expect("palier");
+        fs::write(palier.join(format!("{empreinte}.pdf")), b"x").expect("source");
+        depot.ecrire_version("v-saine", r#"{"vue":{"pages":[]}}"#).expect("version");
+        depot.activer(&empreinte, "v-saine", 1).expect("activée");
+        fs::create_dir_all(depot.racine().join(DERIVES).join("v-saine")).expect("dérivés");
+        fs::write(depot.racine().join(DERIVES).join("v-saine").join("page.webp"), b"i").expect("image");
+        fs::create_dir_all(depot.travaux()).expect("travaux");
+        fs::create_dir_all(racine.join("temoin")).expect("témoin");
+        fs::write(racine.join("temoin").join("a-garder.txt"), b"temoin").expect("témoin écrit");
+        fs::create_dir_all(depot.racine().join(DERIVES).join("v-voisine")).expect("voisine");
+        fs::write(depot.racine().join(DERIVES).join("v-voisine").join("page.webp"), b"j").expect("voisine");
+        (depot, racine, empreinte)
+    }
+
+    /// Ce qu’un refus doit avoir laissé intact : les deux témoins, la version saine, la source.
+    fn rien_n_a_bouge(depot: &Depot, racine: &Path, empreinte: &str, cas: &str) {
+        assert!(
+            racine.join("temoin").join("a-garder.txt").exists(),
+            "{cas} : le témoin hors de derives doit survivre",
+        );
+        assert!(
+            depot.racine().join(DERIVES).join("v-saine").join("page.webp").exists(),
+            "{cas} : les dérivés de la version saine doivent survivre",
+        );
+        assert!(
+            depot.racine().join(DERIVES).join("v-voisine").join("page.webp").exists(),
+            "{cas} : les dérivés de la version voisine doivent survivre",
+        );
+        assert!(
+            depot.racine().join(BASE).join(VERSIONS).join("v-saine.json").exists(),
+            "{cas} : le fichier de la version saine doit survivre",
+        );
+        assert!(
+            depot.racine().join(SOURCES).join("ab").join(format!("{empreinte}.pdf")).exists(),
+            "{cas} : la source doit rester dans la bibliothèque",
+        );
+    }
+
+    /// Un nom de version abîmé dans `base/actives.json` refuse le retrait **entier**, et rien n’est
+    /// écrit ni effacé (HER-07, dette D28).
+    ///
+    /// C’est la porte du disque. Le refus arrive **avant la première écriture** : `actives.json` et
+    /// le fichier de travail sont relus et comparés **au bit près**.
+    #[test]
+    fn un_nom_abime_dans_actives_refuse_le_retrait_sans_rien_ecrire() {
+        for (etiquette, abime) in NOMS_SANS_DANGER {
+            let (depot, racine, empreinte) = bibliotheque_a_retirer(&format!("actives-{etiquette}"));
+            let travail = depot.travaux().join("t-un.json");
+            fs::write(
+                &travail,
+                format!(r#"{{"id":"t-un","empreinte":"{empreinte}","version_cible":"v-saine"}}"#),
+            )
+            .expect("travail");
+
+            let mut table = depot.actives().expect("actives");
+            table.insert(empreinte.clone(), Pointeur { version: abime.to_owned(), activee_le: 1 });
+            depot.ecrire_actives(&table).expect("actives abîmées");
+
+            let avant_actives = fs::read(racine.join(BASE).join(ACTIVES)).expect("actives lues");
+            let avant_travail = fs::read(&travail).expect("travail lu");
+
+            let refus = depot.retirer_document(&empreinte).expect_err(&format!(
+                "« {abime} » dans actives.json doit refuser le retrait"
+            ));
+            assert!(
+                refus.to_string().contains("actives.json"),
+                "{etiquette} : le refus doit nommer le fichier à réparer : {refus}",
+            );
+            assert_eq!(
+                fs::read(racine.join(BASE).join(ACTIVES)).expect("actives relues"),
+                avant_actives,
+                "{etiquette} : actives.json doit être intact au bit près",
+            );
+            assert_eq!(
+                fs::read(&travail).expect("travail relu"),
+                avant_travail,
+                "{etiquette} : le fichier de travail doit être intact au bit près",
+            );
+            rien_n_a_bouge(&depot, &racine, &empreinte, etiquette);
+            fs::remove_dir_all(&racine).ok();
+        }
+    }
+
+    /// Un `version_cible` abîmé dans un fichier de travail refuse le retrait **entier** (HER-07,
+    /// dette D28).
+    ///
+    /// La seconde porte du disque, et la plus traîtresse : l’ancien code effaçait les fichiers de
+    /// travail **pendant** qu’il les lisait, donc un nom invalide trouvé au troisième laissait les
+    /// deux premiers déjà partis.
+    #[test]
+    fn un_nom_abime_dans_un_travail_refuse_le_retrait_sans_rien_ecrire() {
+        for (etiquette, abime) in NOMS_SANS_DANGER {
+            let (depot, racine, empreinte) = bibliotheque_a_retirer(&format!("travail-{etiquette}"));
+            let sain = depot.travaux().join("t-sain.json");
+            fs::write(
+                &sain,
+                format!(r#"{{"id":"t-sain","empreinte":"{empreinte}","version_cible":"v-saine"}}"#),
+            )
+            .expect("travail sain");
+            let abime_chemin = depot.travaux().join("t-abime.json");
+            fs::write(
+                &abime_chemin,
+                format!(r#"{{"id":"t-abime","empreinte":"{empreinte}","version_cible":"{abime}"}}"#),
+            )
+            .expect("travail abîmé");
+
+            let avant_actives = fs::read(racine.join(BASE).join(ACTIVES)).expect("actives lues");
+            let avant_sain = fs::read(&sain).expect("travail sain lu");
+
+            let refus = depot.retirer_document(&empreinte).expect_err(&format!(
+                "« {abime} » dans un fichier de travail doit refuser le retrait"
+            ));
+            assert!(
+                refus.to_string().contains("t-abime.json"),
+                "{etiquette} : le refus doit nommer le fichier de travail à réparer : {refus}",
+            );
+            assert_eq!(
+                fs::read(racine.join(BASE).join(ACTIVES)).expect("actives relues"),
+                avant_actives,
+                "{etiquette} : actives.json doit être intact au bit près",
+            );
+            assert_eq!(
+                fs::read(&sain).expect("travail sain relu"),
+                avant_sain,
+                "{etiquette} : le fichier de travail sain doit être intact au bit près",
+            );
+            assert!(abime_chemin.exists(), "{etiquette} : le fichier abîmé reste, à réparer");
+            rien_n_a_bouge(&depot, &racine, &empreinte, etiquette);
+            fs::remove_dir_all(&racine).ok();
+        }
+    }
 }
+
 
 #[cfg(test)]
 mod actives {

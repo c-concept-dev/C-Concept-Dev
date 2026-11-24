@@ -347,17 +347,38 @@ describe("les liaisons du produit ne viennent que du produit (lot 0z sexies)", (
   const duProduit = (): readonly ReturnType<typeof effacementsHorsDuBac>[number][] =>
     effacementsHorsDuBac(sources(), { zone: "produit", perimetre: estDansLePerimetreDuProduit });
 
-  it("accuse le retrait d'une version dans depot.rs, que les liaisons des contrôles acquittaient", () => {
-    const siennes = duProduit().filter((une) => une.chemin === "apps/app/src-tauri/src/depot.rs");
+  /** L'ancrage du défaut A, mesuré **sans** l'exception du lot `0z septies`.
+   *
+   *  Ce site est excepté depuis le 24 novembre 2026 : son nom de version est validé avant tout
+   *  effacement. L'accusation ne paraît donc plus dans le relevé livré — et elle doit pourtant
+   *  rester **mesurable**, sans quoi le défaut A pourrait revenir sans que rien le dise : si
+   *  `liaisons` relisait le fichier entier, le bac de `temp_dir()` des contrôles acquitterait de
+   *  nouveau le produit, exception ou pas, et le relevé serait vide pour la mauvaise raison. On
+   *  retire donc l'exception le temps de cette seule mesure. */
+  it("accuse le retrait d'une version dans depot.rs dès qu'on retire son exception", () => {
+    const sansElle = EXCEPTIONS.filter(
+      (une) => !(une.chemin === "apps/app/src-tauri/src/depot.rs" && une.fonction === "retirer_document"),
+    );
+    expect(
+      sansElle,
+      "l'exception du retrait d'une version doit exister, sinon cette mesure ne mesure rien",
+    ).toHaveLength(EXCEPTIONS.length - 1);
+    const siennes = effacementsHorsDuBac(sources(), {
+      zone: "produit",
+      perimetre: estDansLePerimetreDuProduit,
+      exceptions: sansElle,
+    }).filter((une) => une.chemin === "apps/app/src-tauri/src/depot.rs");
     expect(
       siennes.map((une) => une.cible),
       "le retrait d'une version vise une vraie bibliothèque, jamais un bac",
     ).toContain("self.racine.join(DERIVES).join(version)");
   });
 
-  it("excepte la corbeille du même fichier, sans excepter le retrait d'une version", () => {
-    // Deux sites du produit vivent dans `depot.rs`, et ils ne se valent pas : l'un est excepté
-    // parce que son chemin ne vient jamais d'une donnée, l'autre est un défaut.
+  it("excepte la corbeille du même fichier, et ce site excepté est bien lu", () => {
+    // Deux sites du produit vivent dans `depot.rs`, et leurs raisons ne sont pas les mêmes : la
+    // corbeille parce que son chemin ne vient jamais d'une donnée, le retrait d'une version parce
+    // que le nom qu'il emploie est validé avant tout effacement (lot `0z septies`). Une exception
+    // n'exempte rien si son site n'est pas lu : c'est ce que la seconde moitié vérifie.
     const cibles = duProduit()
       .filter((une) => une.chemin === "apps/app/src-tauri/src/depot.rs")
       .map((une) => une.cible);
@@ -383,32 +404,26 @@ describe("les liaisons du produit ne viennent que du produit (lot 0z sexies)", (
     expect(auxControles, "les effacements des contrôles de depot.rs visent le dossier temporaire").toStrictEqual([]);
   });
 
-  /** Le périmètre est désormais OUVERT AU PRODUIT, et c'est le contenu du lot `0z quater`,
-   *  absorbé ici. Sept sites sont exceptés, chacun par son contenu et avec sa raison écrite ;
-   *  `depot.rs:461` est refusé — c'est un défaut du produit, renvoyé au lot `0z septies` — et son
-   *  rouge est épinglé sous `depot-rs-nom-de-version-non-valide`.
+  /** Le périmètre est OUVERT AU PRODUIT, et c'est le contenu du lot `0z quater`, absorbé par
+   *  `0z sexies`. **Huit sites exceptés, sept entrées** — `reconstruction.rs` en porte deux, de
+   *  même cible —, chacun reconnu par son contenu et portant sa raison écrite.
    *
-   *  Ce contrôle est donc ROUGE tant que ce défaut n'est pas corrigé, et c'est voulu : l'épingle
-   *  dit la cause, et une épingle dont le contrôle passe est signalée comme ayant survécu à sa
-   *  cause. Rien n'est vert à tort, rien n'est caché. */
+   *  **Ce contrôle était rouge et épinglé, il est vert depuis le 24 novembre 2026.** Le huitième
+   *  site, `retirer_document`, était refusé comme défaut du produit sous l'épingle
+   *  `depot-rs-nom-de-version-non-valide` : le lot `0z septies` l'a corrigé — le nom de version
+   *  est validé avant tout effacement, et un nom invalide refuse l'opération entière —, l'épingle
+   *  est levée, et l'exception vient APRÈS le correctif, jamais à sa place.
+   *
+   *  **Un contrôle a été retiré en même temps, et c'est voulu.** Il tenait la « liste exacte » des
+   *  sites non exceptés, pour la seule raison que celui-ci était épinglé, donc rouge et insensible
+   *  à ce qu'on lui ajoutait. L'épingle levée, celui-ci redevient vivant : il rougit au premier
+   *  retrait d'exception comme au premier effacement neuf, et les deux disaient désormais la même
+   *  chose. Une règle qu'aucune mutation ne tue se supprime. */
   it("ne laisse aucun effacement du produit sans exception nommée", () => {
     const restants = duProduit().map((une) => `${une.chemin}:${une.ligne} ${une.appel}(${une.cible})`);
     expect(restants, "tout effacement récursif du produit est excepté, ou c'est un défaut").toStrictEqual([]);
   });
 
-  /** Le contrôle ci-dessus est ÉPINGLÉ, donc rouge quoi qu'il arrive tant que `0z septies` n'est
-   *  pas fait — et un contrôle rouge est insensible à ce qu'on lui ajoute. Retirer une exception
-   *  passerait donc inaperçu. Celui-ci tient la liste exacte : il est VERT, et il rougit au
-   *  premier changement, qu'on retire une exception ou qu'on ajoute un effacement au produit.
-   *  Sans numéro de ligne : une exception se reconnaît par son contenu. */
-  it("tient la liste exacte des effacements du produit que rien n'excepte", () => {
-    const restants = duProduit()
-      .map((une) => `${une.chemin} ${une.appel}(${une.cible})`)
-      .sort();
-    expect(restants).toStrictEqual([
-      "apps/app/src-tauri/src/depot.rs remove_dir_all(self.racine.join(DERIVES).join(version))",
-    ]);
-  });
 });
 
 describe("une exception se reconnaît par sa fonction ET son appel (lot 0z sexies)", () => {

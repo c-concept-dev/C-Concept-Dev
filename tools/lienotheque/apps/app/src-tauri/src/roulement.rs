@@ -658,6 +658,11 @@ impl Roulement {
             Vec::new()
         };
 
+        // La version visée est relue d'un fichier de travail : elle se valide avant de devenir un
+        // chemin, comme tout nom de version (dette D28).
+        let version_cible = crate::depot::nom_de_version(&travail.version_cible, "le fichier de ce travail")
+            .map_err(|e| Obstacle::Casse(e.to_string()))?;
+
         Ok(serde_json::json!({
             "document": document,
             "acquis": self.acquis_connu(empreinte),
@@ -668,7 +673,7 @@ impl Roulement {
             "verifieParUnHumain": verifie_par_un_humain,
             "description": description,
             "cache": self.cache,
-            "images": racine.join(crate::depot::DERIVES).join(&travail.version_cible).join("pages"),
+            "images": racine.join(crate::depot::DERIVES).join(version_cible).join("pages"),
             "relecture": ADRESSE_RELECTURE,
         }))
     }
