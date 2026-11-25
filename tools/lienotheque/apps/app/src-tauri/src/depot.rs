@@ -197,6 +197,43 @@ pub fn nom_de_version<'a>(nom: &'a str, provenance: &str) -> io::Result<&'a str>
     ))
 }
 
+/// ## Pourquoi une empreinte se valide, elle aussi
+///
+/// Une empreinte **range** une source : `sources/ab/abcdef….pdf`, où le palier est ses deux
+/// premiers caractères. Elle arrive de l'interface dans **douze** commandes, et elle était relue
+/// sans que rien ne la vérifie.
+///
+/// Mesuré le 25 novembre 2026 avec `rustc 1.100.0`, le compilateur qu'épingle
+/// `tools/lienotheque/rust-toolchain.toml` : sur `"€a9f"`, `len()` rend **6** — six octets pour
+/// quatre caractères, puisqu'un `€` en pèse trois —, l'ancienne garde `len() < 2` laisse donc
+/// passer, et `&empreinte[..2]` **panique** : l'indice 2 tombe à l'intérieur du `€`. Ce n'était pas
+/// une erreur refusée, c'était l'hôte qui s'arrêtait. C'est la dette D31.
+///
+/// ## Pourquoi cette forme
+///
+/// Elle reprend **mot pour mot** le contrat qui dit déjà la règle de l'autre côté de la frontière,
+/// `packages/contrats/src/commun.ts` : `z.string().regex(/^[0-9a-f]{64}$/)`. Exactement 64
+/// caractères, chacun un chiffre hexadécimal **minuscule** — une empreinte SHA-256 et rien
+/// d'autre. Les majuscules sont refusées comme le reste : deux écritures du même contenu feraient
+/// deux rangements, et le contrat n'en connaît qu'une.
+///
+/// Après ce passage, `&empreinte[..2]` ne peut plus paniquer : 64 caractères ASCII sont 64 octets,
+/// et l'indice 2 est une frontière.
+///
+/// `provenance` nomme **où l'empreinte a été lue**, pour que le refus dise quoi réparer.
+pub fn empreinte_de_document<'a>(empreinte: &'a str, provenance: &str) -> io::Result<&'a str> {
+    if empreinte.len() == 64 && empreinte.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)) {
+        return Ok(empreinte);
+    }
+    Err(io::Error::new(
+        io::ErrorKind::InvalidInput,
+        format!(
+            "Empreinte invalide dans {provenance} : « {empreinte} ». Une empreinte est faite de \
+             64 chiffres hexadécimaux minuscules."
+        ),
+    ))
+}
+
 pub struct Depot {
     racine: PathBuf,
 }
@@ -268,6 +305,10 @@ impl Depot {
     /// Copie un original dans la bibliothèque. C'est ce qui la rend portable : le document
     /// voyage avec elle, et rien ne dépend plus de l'endroit d'où il venait.
     pub fn deposer_source(&self, origine: &Path, empreinte: &str) -> io::Result<PathBuf> {
+        // Le palier est les deux premiers caractères : il ne se découpe qu'après validation
+        // (dette D31). Ici l'empreinte est calculée par la maison, mais la porte se tient fermée
+        // de toute façon — une porte qui ne se garde que lorsqu'on la croit menacée ne garde rien.
+        let empreinte = empreinte_de_document(empreinte, "le dépôt d'une source")?;
         let extension = origine.extension().and_then(|e| e.to_str()).unwrap_or("bin").to_lowercase();
         let palier = self.racine.join(SOURCES).join(&empreinte[..2]);
         fs::create_dir_all(&palier)?;
@@ -282,8 +323,15 @@ impl Depot {
     }
 
     /// Où se trouve une source, d'après son empreinte.
+    ///
+    /// **Elle ne refuse rien, parce qu'elle rend un chemin et non un `Result`.** Le refus vit en
+    /// amont, à l'entrée des douze commandes qui reçoivent une empreinte de l'interface
+    /// (`empreinte_de_document`, dette D31). Ici le palier se prend par **caractères** et non par
+    /// octets : ainsi une empreinte abîmée qui arriverait par un chemin qu'on n'a pas prévu rend un
+    /// chemin qui n'existe pas — ce que l'appelant sait lire — au lieu de faire paniquer l'hôte.
     pub fn source(&self, empreinte: &str, extension: &str) -> PathBuf {
-        self.racine.join(SOURCES).join(&empreinte[..2]).join(format!("{empreinte}.{extension}"))
+        let palier: String = empreinte.chars().take(2).collect();
+        self.racine.join(SOURCES).join(palier).join(format!("{empreinte}.{extension}"))
     }
 
     /// Retient le nom d'origine d'un média rangé par empreinte.
@@ -458,9 +506,10 @@ impl Depot {
     /// effacés — ils se reconstruisent depuis la source, et les garder encombrerait la corbeille
     /// de mégaoctets que personne ne ressortira.
     pub fn retirer_document(&self, empreinte: &str) -> io::Result<RetraitDeDocument> {
-        if empreinte.len() < 2 {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Empreinte trop courte pour désigner un document."));
-        }
+        // L'ancienne garde comptait des OCTETS — « trop courte » — et laissait donc passer une
+        // empreinte de six octets pour quatre caractères, que le découpage faisait paniquer
+        // (dette D31). Le valideur compte des caractères et dit lesquels.
+        let empreinte = empreinte_de_document(empreinte, "la demande de retrait")?;
         let _tenu = VERROU_ACTIVES.lock().unwrap_or_else(|empoisonne| empoisonne.into_inner());
 
         // 1. **Lire d'abord, écrire ensuite.** Les deux étapes étaient autrefois mêlées : le
@@ -1695,5 +1744,63 @@ mod migration {
         assert_eq!(rotations.get(&13), Some(&270));
         assert_eq!(rotations.len(), 2, "les pages d'un autre document ne doivent pas entrer ici");
         fs::remove_dir_all(&racine).ok();
+    }
+}
+
+/// L'empreinte se valide, et un refus n'est pas une panique (dette D31, lot `0z nonies`).
+#[cfg(test)]
+mod empreinte {
+    use super::empreinte_de_document;
+
+    const BONNE: &str = "3b1f8d0c5a7e2946bd04f83c6e1a7520d9c48b36ef50172a8d6c3b9f04e7a128";
+
+    #[test]
+    fn une_empreinte_de_64_chiffres_hexadecimaux_minuscules_passe() {
+        assert_eq!(BONNE.len(), 64, "la fixture elle-même doit faire 64 caractères");
+        assert_eq!(empreinte_de_document(BONNE, "l'épreuve").expect("acceptée"), BONNE);
+    }
+
+    /// Chacun de ces noms REFUSE, et aucun ne panique.
+    ///
+    /// `"€a9f"` est le cas qui a nommé la dette : six octets pour quatre caractères, donc
+    /// l'ancienne garde `len() < 2` le laissait passer et `&empreinte[..2]` paniquait à
+    /// l'intérieur du `€`. `"€€€"` est celui de l'affichage, neuf octets. Les majuscules sont
+    /// refusées parce que le contrat n'en connaît pas : deux écritures feraient deux rangements.
+    #[test]
+    fn tout_le_reste_refuse_proprement_et_ne_panique_jamais() {
+        let majuscules = BONNE.to_uppercase();
+        let soixante_trois = &BONNE[..63];
+        let soixante_cinq = format!("{BONNE}a");
+        for abime in [
+            "€a9f",
+            "€€€",
+            soixante_trois,
+            soixante_cinq.as_str(),
+            majuscules.as_str(),
+            "",
+            "../..",
+            "/etc",
+            "3b1f8d0c5a7e2946bd04f83c6e1a7520d9c48b36ef50172a8d6c3b9f04e7a12g",
+        ] {
+            let refus = empreinte_de_document(abime, "l'épreuve")
+                .expect_err(&format!("« {abime} » doit être refusée, et non acceptée"));
+            assert!(
+                refus.to_string().contains("Empreinte invalide"),
+                "« {abime} » : le refus doit se nommer — {refus}"
+            );
+        }
+    }
+
+    /// Le palier d'une source se prend sur une empreinte validée, donc il ne peut plus paniquer.
+    #[test]
+    fn le_chemin_d_une_source_ne_panique_sur_aucune_entree() {
+        let racine = std::env::temp_dir().join(format!("lienotheque-palier-{}", std::process::id()));
+        std::fs::remove_dir_all(&racine).ok();
+        let depot = super::Depot::creer(&racine).expect("bibliothèque d'épreuve");
+        for abime in ["€a9f", "€", "", "a", BONNE] {
+            let chemin = depot.source(abime, "pdf");
+            assert!(chemin.starts_with(&racine), "« {abime} » sort de la bibliothèque : {chemin:?}");
+        }
+        std::fs::remove_dir_all(&racine).ok();
     }
 }

@@ -237,6 +237,8 @@ fn moteur_embarque() -> Result<traitement::Emplacements, String> {
 /// dont l'éditeur de manière de lire a besoin, et elle vient avant toute recette.
 #[tauri::command]
 fn apercu_de_pages(racine: String, empreinte: String, nom: String, depuis: u32, combien: u32) -> Result<serde_json::Value, String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     // **Par l'empreinte, jamais par le nom.** Les sources sont rangées sous leur empreinte, en
     // paliers — `sources/ab/abcdef….pdf` — parce que deux documents peuvent porter le même nom
@@ -278,6 +280,10 @@ fn apercu_de_pages(racine: String, empreinte: String, nom: String, depuis: u32, 
     let mut rendues = Vec::with_capacity(pages.len());
     for page in pages {
         let Some(fichier) = page["fichier"].as_str() else { continue };
+        // Le nom vient de la réponse du moteur, donc du dehors : il se valide comme celui que
+        // l'interface envoie. Un composant absolu remplacerait le chemin entier et un `..`
+        // remonterait — la leçon du lot `0z septies`, appliquée au nom de fichier (dette D31).
+        let fichier = nom_image_page(fichier)?;
         let octets = std::fs::read(images.join(fichier))
             .map_err(|e| format!("Image de page illisible : {e}"))?;
         rendues.push(serde_json::json!({
@@ -342,6 +348,8 @@ fn essayer_maniere(
     depuis: u32,
     pages: u32,
 ) -> Result<serde_json::Value, String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     // Par l'empreinte, comme l'aperçu et comme la file : `sources/ab/abcdef….pdf`. Cette
     // commande-ci cherchait encore sous `sources/<nom du fichier>`, un chemin qui n'existe
@@ -442,6 +450,8 @@ fn lire_maniere(racine: String) -> Result<Option<String>, String> {
 /// active de la bibliothèque — ce qui n'avait de sens que tant qu'elle n'en portait qu'une.
 #[tauri::command]
 fn vue_de_document(etat: State<'_, Etat>, racine: String, empreinte: String) -> Result<Option<serde_json::Value>, String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     let Some(mut vue) = vue_active(&depot, &empreinte)? else { return Ok(None) };
     brancher_sources_media(&etat, &depot, &mut vue)?;
@@ -628,6 +638,8 @@ fn greffer_le_texte(vue: &mut serde_json::Value, passages: &serde_json::Value) {
 /// une panne, c'est un document qui n'a pas encore été traité.
 #[tauri::command]
 fn passages_de_document(racine: String, empreinte: String) -> Result<Option<serde_json::Value>, String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     let Some(charge) = depot
         .charge_active(&empreinte)
@@ -656,6 +668,8 @@ fn rechercher_bibliotheque(racine: String, requete: String, combien: usize) -> R
 /// import ou geste de la personne — et jamais une déduction depuis le texte.
 #[tauri::command]
 fn classer_document(racine: String, empreinte: String, classement: serde_json::Value) -> Result<(), String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     depot
         .classer(&empreinte, &classement)
@@ -664,6 +678,8 @@ fn classer_document(racine: String, empreinte: String, classement: serde_json::V
 
 #[tauri::command]
 fn lire_decisions(racine: String, empreinte: String) -> Result<std::collections::BTreeMap<String, String>, String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     depot.decisions(&empreinte).map_err(|e| format!("Décisions illisibles : {e}"))
 }
@@ -675,6 +691,8 @@ fn enregistrer_decision(
     cas: String,
     decision: String,
 ) -> Result<(), String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     if !matches!(decision.as_str(), "confirme" | "corrige" | "ignore" | "vu") {
         return Err("Décision inconnue".to_owned());
     }
@@ -684,18 +702,24 @@ fn enregistrer_decision(
 
 #[tauri::command]
 fn annuler_decision(racine: String, empreinte: String, cas: String) -> Result<(), String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     depot.annuler_decision(&empreinte, &cas).map_err(|e| format!("Décision non annulée : {e}"))
 }
 
 #[tauri::command]
 fn rotations_manuelles(racine: String, empreinte: String) -> Result<std::collections::BTreeMap<u32, u16>, String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     depot.rotations_manuelles(&empreinte).map_err(|e| format!("Rotations manuelles illisibles : {e}"))
 }
 
 #[tauri::command]
 fn tourner_page(racine: String, empreinte: String, page: u32, rotation: u16) -> Result<(), String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     depot.tourner_page(&empreinte, page, rotation).map_err(|e| format!("Rotation manuelle non enregistrée : {e}"))
 }
@@ -759,11 +783,17 @@ pub fn titres_de(depot: &depot::Depot) -> std::collections::HashMap<String, Stri
 ///
 /// Sans travail retrouvé, on ne devine pas : l'empreinte abrégée distingue au moins les documents
 /// les uns des autres, ce que le nom de la bibliothèque ne faisait pas.
+///
+/// **Elle coupe par caractères, et elle ne refuse rien** : c'est un affichage, nourri par les
+/// fichiers de la bibliothèque et non par l'interface. L'ancienne forme coupait par OCTETS —
+/// `&empreinte[..empreinte.len().min(8)]` — et paniquait sur `"€€€"` : neuf octets, `min(8)` rend
+/// 8, et l'indice 8 tombe à l'intérieur du troisième `€` (mesuré le 25 novembre 2026,
+/// `rustc 1.100.0`). Un nom à montrer ne doit pas pouvoir arrêter l'hôte (dette D31).
 pub fn titre_ou_empreinte(titres: &std::collections::HashMap<String, String>, empreinte: &str) -> String {
     titres
         .get(empreinte)
         .cloned()
-        .unwrap_or_else(|| format!("Document {}", &empreinte[..empreinte.len().min(8)]))
+        .unwrap_or_else(|| format!("Document {}", empreinte.chars().take(8).collect::<String>()))
 }
 
 pub fn apercus_de(racine: &str) -> Result<Vec<serde_json::Value>, String> {
@@ -843,6 +873,8 @@ fn doublons_de_bibliotheque(racine: String) -> Result<serde_json::Value, String>
 /// cette source.
 #[tauri::command]
 fn retirer_document(racine: String, empreinte: String) -> Result<serde_json::Value, String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     let retrait = depot
         .retirer_document(&empreinte)
@@ -853,14 +885,12 @@ fn retirer_document(racine: String, empreinte: String) -> Result<serde_json::Val
 #[tauri::command]
 fn image_de_page(racine: String, version: String, fichier: String) -> Result<Option<String>, String> {
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
-    // Un nom de fichier, rien d'autre : jamais un chemin qui remonte hors du dossier.
-    let nom = std::path::Path::new(&fichier)
-        .file_name()
-        .and_then(|n| n.to_str())
-        .ok_or("Nom d’image invalide.")?;
-    if !nom.ends_with(".webp") {
-        return Err("Seules les images de page se servent ainsi.".to_owned());
-    }
+    // **Elle refuse, elle ne réécrit plus.** Cette porte validait en ligne, avec `file_name()` :
+    // un `pages/x.webp` y devenait `x.webp` **en silence**, et c'est cette réécriture qui laissait
+    // un seul appel servir deux ports aux besoins contraires. Depuis le 25 novembre 2026, les
+    // trois portes d'image passent par `nom_image_page` et refusent tout séparateur ; le préfixe
+    // `pages/` vit dans le port en ligne, le seul dont la clé en a besoin (dette D31).
+    let nom = nom_image_page(&fichier)?;
     let version = depot::nom_de_version(&version, "la page demandée").map_err(|e| e.to_string())?;
     let chemin = depot.racine().join(depot::DERIVES).join(version).join("pages").join(nom);
     match std::fs::read(&chemin) {
@@ -926,6 +956,8 @@ fn relire_texte_page(
 /// La version active d'un document, pour savoir où prendre ses images.
 #[tauri::command]
 fn version_active(racine: String, empreinte: String) -> Result<Option<String>, String> {
+    // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
+    depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
     depot
         .version_active(&empreinte)
@@ -1397,3 +1429,145 @@ mod relecture_ocr {
     }
 }
 
+/// Ce qui vient du dehors se valide : l'empreinte aux douze commandes, le nom d'image aux trois
+/// portes (dette D31, lot `0z nonies`).
+#[cfg(test)]
+mod ce_qui_vient_du_dehors {
+    use super::{image_de_page, nom_image_page, relire_page, titre_ou_empreinte, Moteurs};
+    use crate::depot::Depot;
+    use std::{collections::HashMap, fs, path::Path};
+
+    fn source_de(fichier: &str) -> String {
+        fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src").join(fichier))
+            .expect("la source du produit doit être lisible")
+    }
+
+    /// Le corps d'une fonction, du `{` de sa signature à l'accolade qui la ferme.
+    fn corps_de(source: &str, signature: &str) -> String {
+        let debut = source.find(signature).unwrap_or_else(|| panic!("signature introuvable : {signature}"));
+        let reste = &source[debut..];
+        let ouverture = reste.find('{').expect("une fonction a une accolade");
+        let mut profondeur = 0_i32;
+        for (place, caractere) in reste[ouverture..].char_indices() {
+            if caractere == '{' {
+                profondeur += 1;
+            } else if caractere == '}' {
+                profondeur -= 1;
+                if profondeur == 0 {
+                    return reste[ouverture..ouverture + place].to_owned();
+                }
+            }
+        }
+        panic!("corps non fermé : {signature}")
+    }
+
+    /// L'affichage coupe par caractères : il ne refuse rien, mais il ne panique pas.
+    #[test]
+    fn un_titre_abrege_ne_panique_sur_aucune_empreinte() {
+        let vides: HashMap<String, String> = HashMap::new();
+        for abime in ["€€€", "€a9f", "", "a", "€€€€€€€€€€"] {
+            let titre = titre_ou_empreinte(&vides, abime);
+            assert!(titre.starts_with("Document "), "« {abime} » : {titre}");
+        }
+        let mut connus = HashMap::new();
+        connus.insert("€€€".to_owned(), "Un titre".to_owned());
+        assert_eq!(titre_ou_empreinte(&connus, "€€€"), "Un titre");
+    }
+
+    /// Le valideur du nom d'image : un nom nu de page, et rien d'autre.
+    #[test]
+    fn un_nom_d_image_est_un_nom_nu_de_page() {
+        assert_eq!(nom_image_page("page-001.webp").expect("accepté"), "page-001.webp");
+        // Deux refus différents, et c'est voulu : un nom VIDE n'a pas de dernier segment, donc
+        // `file_name()` rend `None` et le refus dit « Nom d'image invalide » ; les autres passent
+        // la comparaison et disent « Seule une image de page peut être relue ». Les deux nomment
+        // l'image, et c'est ce qu'un refus doit faire — se nommer.
+        for abime in ["../x.webp", "/etc/x.webp", "a/b.webp", "x.png", "", "pages/page-001.webp"] {
+            let refus = nom_image_page(abime).expect_err(&format!("« {abime} » doit être refusé"));
+            assert!(refus.contains("image"), "« {abime} » : le refus doit se nommer — {refus}");
+        }
+    }
+
+    /// Les deux portes qu'on peut appeler ici refusent, et ne réécrivent plus.
+    ///
+    /// `image_de_page` validait en ligne avec `file_name()` : `pages/x.webp` y devenait `x.webp`
+    /// **en silence**. Depuis le 25 novembre 2026 elle refuse, comme `relire_page`.
+    #[test]
+    fn les_portes_d_image_refusent_un_chemin_au_lieu_de_le_reecrire() {
+        let moteurs = Moteurs::depuis(&Path::new(env!("CARGO_MANIFEST_DIR")).join("moteurs"));
+        let racine = std::env::temp_dir().join(format!("lienotheque-nom-d-image-{}", std::process::id()));
+        fs::remove_dir_all(&racine).ok();
+        Depot::creer(&racine).expect("bibliothèque d'épreuve");
+        let adresse = racine.to_str().expect("racine utf8").to_owned();
+
+        for abime in ["../x.webp", "/etc/x.webp", "a/b.webp", "x.png", "", "pages/page-001.webp"] {
+            let refus = image_de_page(adresse.clone(), "version-test".to_owned(), abime.to_owned())
+                .expect_err(&format!("l'image doit refuser « {abime} », et non le réécrire"));
+            assert!(refus.contains("image"), "image, « {abime} » : {refus}");
+
+            let refus = relire_page(&moteurs, &adresse, "version-test", abime, "fr")
+                .expect_err(&format!("la relecture doit refuser « {abime} »"));
+            assert!(refus.contains("image"), "relecture, « {abime} » : {refus}");
+        }
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// La troisième porte, `apercu_de_pages`, demande un moteur en marche : on ne peut pas
+    /// l'appeler ici. Ce qui se vérifie alors est **structurel**, et c'est dit : le nom qu'elle
+    /// lit dans la réponse du moteur passe par le même valideur que les deux autres.
+    #[test]
+    fn la_troisieme_porte_passe_par_le_meme_valideur() {
+        let source = source_de("lib.rs");
+        let corps = corps_de(&source, "fn apercu_de_pages(");
+        assert!(
+            corps.contains("nom_image_page(fichier)"),
+            "le nom venu du moteur doit passer par `nom_image_page` avant de devenir un chemin"
+        );
+        for porte in ["fn image_de_page(", "fn relire_page("] {
+            let corps = corps_de(&source, porte);
+            assert!(corps.contains("nom_image_page("), "{porte} doit passer par `nom_image_page`");
+        }
+    }
+
+    /// Les douze commandes qui reçoivent une empreinte la valident, et aucune n'est oubliée.
+    ///
+    /// Structurel, et pour une raison : chaque commande ouvre une vraie bibliothèque, et les
+    /// appeler toutes coûterait douze dépôts d'épreuve pour vérifier une seule chose — qu'aucune
+    /// porte n'a été ajoutée sans sa garde. C'est un décompte, et un décompte se lit.
+    #[test]
+    fn les_douze_commandes_valident_l_empreinte_qu_elles_recoivent() {
+        let source = source_de("lib.rs");
+        let commandes = [
+            "fn apercu_de_pages(",
+            "fn essayer_maniere(",
+            "fn vue_de_document(",
+            "fn passages_de_document(",
+            "fn classer_document(",
+            "fn lire_decisions(",
+            "fn enregistrer_decision(",
+            "fn annuler_decision(",
+            "fn rotations_manuelles(",
+            "fn tourner_page(",
+            "fn retirer_document(",
+            "fn version_active(",
+        ];
+        for commande in commandes {
+            let corps = corps_de(&source, commande);
+            assert!(
+                corps.contains("empreinte_de_document(&empreinte"),
+                "{commande} reçoit une empreinte de l'interface sans la valider (dette D31)"
+            );
+        }
+        // La part PRODUIT du fichier, et non le fichier entier : sans cette coupe, ce contrôle
+        // comptait sa propre chaîne et trouvait treize commandes pour douze. Un décompte qui
+        // s'inclut lui-même ne compte pas ce qu'il croit.
+        let produit = source.split("#[cfg(test)]").next().expect("la part produit du fichier");
+        let recues = produit.matches("empreinte: String").count();
+        assert_eq!(
+            recues,
+            commandes.len(),
+            "une commande reçoit une empreinte sans être dans la liste gardée : la liste se met à jour, \\
+             elle ne se contourne pas"
+        );
+    }
+}

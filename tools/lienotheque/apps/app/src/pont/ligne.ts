@@ -166,12 +166,20 @@ export function pontEnLigne({ base, appeler = fetch }: Adresse): PortDeLecture {
 
     /** L'adresse d'une image de page, ouverte par un laissez-passer signé (SEC-05).
      *
-     *  Le service compose la clé de l'objet lui-même, à partir de la clé de la bibliothèque : on
-     *  lui donne une version et un nom, jamais un chemin. Le laissez-passer vaut trois
-     *  minutes — assez pour que le navigateur charge l'image, trop peu pour qu'une adresse
-     *  recopiée serve encore demain. */
+     *  **Ce port reçoit une version et un NOM NU, jamais un chemin** — c'est lui qui ajoute le
+     *  segment `pages/`, parce que c'est SA clé qui en a besoin : `cleDerive` compose
+     *  `…/derives/<version>/<nom>` et n'ajoute rien d'autre. Les portes du bureau, elles, ajoutent
+     *  `pages` côté Rust et refusent tout séparateur ; un seul appel servait les deux grâce à une
+     *  réécriture silencieuse, et le lot `0z nonies` l'a retirée. La requête envoyée au service
+     *  est inchangée **au bit près** : son contrôle le tient.
+     *
+     *  Le laissez-passer vaut trois minutes — assez pour que le navigateur charge l'image, trop
+     *  peu pour qu'une adresse recopiée serve encore demain. */
     imageDePage: async (_racine: string, version: string, fichier: string) => {
-      const brut = await demander("/laissez", { method: "POST", body: JSON.stringify({ version, fichier }) });
+      const brut = await demander("/laissez", {
+        method: "POST",
+        body: JSON.stringify({ version, fichier: `pages/${fichier}` }),
+      });
       if (brut === null || typeof brut !== "object") return undefined;
       const { laissez } = brut as Record<string, unknown>;
       if (typeof laissez !== "string" || laissez.length === 0) return undefined;

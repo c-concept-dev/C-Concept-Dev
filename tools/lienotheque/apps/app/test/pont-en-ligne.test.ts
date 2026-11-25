@@ -75,13 +75,16 @@ const APERCU = ApercuEnLigne.parse({
 
 /** Un service simulé : il note ce qu'on lui demande, et rend ce qu'on lui a dit de rendre. */
 const service = (reponses: Record<string, { statut?: number; corps?: unknown }>) => {
-  const appels: { chemin: string; methode: string; temoin: string | undefined }[] = [];
+  const appels: { chemin: string; methode: string; temoin: string | undefined; corps: string | undefined }[] = [];
   const appeler = (async (adresse: string | URL, options: RequestInit = {}) => {
     const chemin = String(adresse).slice(BASE.length);
     appels.push({
       chemin,
       methode: options.method ?? "GET",
       temoin: options.credentials === "include" ? "inclus" : undefined,
+      // Le corps BRUT, jamais relu par `JSON.parse` : c'est la seule façon de comparer au bit près
+      // ce que le service reçoit (lot `0z nonies`).
+      corps: typeof options.body === "string" ? options.body : undefined,
     });
     const prevue = reponses[chemin];
     if (prevue === undefined) return new Response("", { status: 500 });
@@ -105,7 +108,7 @@ describe("la vue et les passages arrivent du service, séparément", () => {
     const { pont: p, appels } = pont({ [CHEMIN_VUE]: { corps: VUE } });
     const vue = await p.vueDeDocument("peu importe", EMPREINTE);
     expect(vue).toEqual(VUE);
-    expect(appels).toEqual([{ chemin: CHEMIN_VUE, methode: "GET", temoin: "inclus" }]);
+    expect(appels).toEqual([{ chemin: CHEMIN_VUE, methode: "GET", temoin: "inclus", corps: undefined }]);
   });
 
   it("rend les passages par une seconde route : deux objets, deux routes", async () => {
@@ -166,7 +169,12 @@ describe("la recherche en ligne est la même recherche", () => {
     const { pont: p, appels } = pont({ [CHEMIN_RECHERCHE]: { corps: [resultat] } });
 
     expect(await p.rechercherBibliotheque("x", "mesure", 20)).toEqual([resultat]);
-    expect(appels[0]).toEqual({ chemin: CHEMIN_RECHERCHE, methode: "POST", temoin: "inclus" });
+    expect(appels[0]).toEqual({
+      chemin: CHEMIN_RECHERCHE,
+      methode: "POST",
+      temoin: "inclus",
+      corps: '{"requete":"mesure","combien":20}',
+    });
   });
 
   it("rend exactement ce que le bureau rendrait, sur les mêmes octets", async () => {
@@ -202,22 +210,39 @@ describe("la recherche en ligne est la même recherche", () => {
 describe("l'image d'une page passe par un laissez-passer signé", () => {
   it("demande le laissez-passer et compose l'adresse", async () => {
     const { pont: p, appels } = pont({ "/laissez": { corps: { laissez: "charge.signature", secondes: 180 } } });
-    const adresse = await p.imageDePage("x", "v3", "pages/page-0001.webp");
+    const adresse = await p.imageDePage("x", "v3", "page-0001.webp");
 
     expect(adresse).toBe(`${BASE}/fichier/charge.signature`);
-    expect(appels[0]).toEqual({ chemin: "/laissez", methode: "POST", temoin: "inclus" });
+    expect(appels[0]).toEqual({
+      chemin: "/laissez",
+      methode: "POST",
+      temoin: "inclus",
+      corps: '{"version":"v3","fichier":"pages/page-0001.webp"}',
+    });
   });
 
   it("ne rend rien si le service ne signe pas", async () => {
     const { pont: p } = pont({ "/laissez": { corps: { secondes: 180 } } });
-    expect(await p.imageDePage("x", "v3", "pages/page-0001.webp")).toBeUndefined();
+    expect(await p.imageDePage("x", "v3", "page-0001.webp")).toBeUndefined();
   });
 
-  it("donne une version et un nom, jamais un chemin", async () => {
-    // La règle d'objets.ts tenue depuis l'appelant : le pont n'a aucun moyen d'envoyer une clé.
+  it("reçoit un nom nu et envoie au service une requête identique AU BIT PRÈS (lot 0z nonies)", async () => {
+    // Ce contrôle portait ce nom sans rien en vérifier : il ne regardait que le chemin, jamais le
+    // corps. C'est ce que le lot `0z nonies` répare, et c'est lui qui garantit que le serveur en
+    // ligne ne voit AUCUNE différence après le déplacement du préfixe `pages/` de l'interface
+    // vers ce port. Le corps est comparé en entier, octet pour octet, ordre des clés compris.
     const { pont: p, appels } = pont({ "/laissez": { corps: { laissez: "a.b" } } });
-    await p.imageDePage("x", "v3", "pages/page-0001.webp");
+    await p.imageDePage("x", "v3", "page-0001.webp");
     expect(appels[0]?.chemin).toBe("/laissez");
+    expect(appels[0]?.corps).toBe('{"version":"v3","fichier":"pages/page-0001.webp"}');
+  });
+
+  it("n'envoie jamais de chemin reçu de l'appelant : le préfixe vient d'ici (lot 0z nonies)", async () => {
+    // Si l'interface se remettait à préfixer, le service recevrait `pages/pages/…` : ce contrôle
+    // le voit, et la mutation qui remet le préfixe dans App.tsx le fait rougir.
+    const { pont: p, appels } = pont({ "/laissez": { corps: { laissez: "a.b" } } });
+    await p.imageDePage("x", "v3", "page-0001.webp");
+    expect(appels[0]?.corps).not.toContain("pages/pages/");
   });
 });
 

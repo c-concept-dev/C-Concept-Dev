@@ -479,7 +479,9 @@ export function App(): JSX.Element {
     const fichier = adresse.split("/").pop();
     if (courante === undefined || lecture === undefined || versionRegardee === undefined || fichier === undefined)
       return undefined;
-    return lecture.imageDePage(courante.racine, versionRegardee, `pages/${fichier}`);
+    // Le NOM NU, sans séparateur. Le préfixe `pages/` appartient au port en ligne, le seul dont
+    // la clé d'objet en a besoin : les trois portes du bureau le refusent (lot `0z nonies`).
+    return lecture.imageDePage(courante.racine, versionRegardee, fichier);
   }, [courante?.racine, lecture, versionRegardee]);
 
   const tournerPageManuellement = useCallback((page: number, rotation: Rotation): void => {
