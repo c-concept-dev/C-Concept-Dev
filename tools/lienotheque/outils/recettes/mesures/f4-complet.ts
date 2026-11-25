@@ -34,7 +34,7 @@ for (const ligne of readFileSync(ORACLE, "utf8").split("\n").slice(1)) {
 }
 console.log(`Oracle : ${attendus.length} pistes`);
 
-const cache = coin(ouvrirCache({ avertir: (message) => console.warn(message) }), "lectures");
+const cache = coin(ouvrirCache(), "lectures");
 const debut = Date.now();
 const lues = await lireLot(F4, RECETTE, { cache });
 console.log(`Lecture : ${lues.length} pages en ${Math.round((Date.now() - debut) / 1000)} s`);
@@ -85,6 +85,6 @@ console.log(`\n${ecarts.length} écarts :`);
 for (const ecart of ecarts.slice(0, 40)) console.log(`  ${ecart}`);
 if (ecarts.length > 40) console.log(`  … et ${ecarts.length - 40} autres`);
 
-const sortie = join(coin(ouvrirCache({ avertir: () => {} }), "vision"), "f4-complet.json");
+const sortie = join(coin(ouvrirCache(), "vision"), "f4-complet.json");
 writeFileSync(sortie, JSON.stringify({ premiersJustes, pagesJustes, total, ecarts }, null, 1));
 console.log(`\nDétail : ${sortie}`);

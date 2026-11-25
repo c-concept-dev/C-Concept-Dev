@@ -43,7 +43,7 @@ for (const ligne of readFileSync(ORACLE, "utf8").split("\n").slice(1)) {
 }
 console.log(`Oracle : ${attendus.length} pistes`);
 
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 
 const charge = (avecRelecture: boolean): ChargeTraitement => ({
   document: F4,

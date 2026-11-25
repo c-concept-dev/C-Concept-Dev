@@ -37,7 +37,7 @@ for (const ligne of readFileSync(ORACLE, "utf8").split("\n").slice(1)) {
   if (Number.isFinite(Number(element)) && Number(piste) > 0) pisteDeLElement.set(Number(element), Number(piste));
 }
 
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 const releve = join(coin(cache, "vision-candidats"), "paves.json");
 if (!existsSync(releve)) {
   console.log("Pavés absents : lancez d'abord la sélection (mesures/candidats-f4.ts).");

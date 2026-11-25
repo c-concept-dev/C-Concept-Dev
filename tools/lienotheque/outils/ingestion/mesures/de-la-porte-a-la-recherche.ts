@@ -109,7 +109,7 @@ writeFileSync(
   }),
 );
 
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 
 try {
   // 1. Le traitement, par la porte, et rien qu'elle.

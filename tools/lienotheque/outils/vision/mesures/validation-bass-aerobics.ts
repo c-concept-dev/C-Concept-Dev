@@ -25,7 +25,7 @@ const MEDIAS = process.env["LIENOTHEQUE_BASS_AEROBICS_MEDIAS"] ?? join(PDF, ".."
 const RAPPORT =
   process.env["LIENOTHEQUE_BASS_AEROBICS_DIAGNOSTIC"] ??
   "/Volumes/Macbook Pro/lienotheque-cache/diagnostic-structurel/bass-aerobics-2026-10-28T08-45-30.040Z.json";
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 const temporaire = mkdtempSync(join(tmpdir(), "lienotheque-bass-aerobics-temoins-"));
 
 function lirePgm(octets: Buffer): ImageGrise {

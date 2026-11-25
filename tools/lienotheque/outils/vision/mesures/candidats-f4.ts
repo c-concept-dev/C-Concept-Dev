@@ -38,7 +38,7 @@ for (const ligne of readFileSync(ORACLE, "utf8").split("\n").slice(1)) {
   if (Number.isFinite(numero) && Number.isFinite(valeur) && valeur > 0) pisteDeLElement.set(numero, valeur);
 }
 
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 const lectures = coin(cache, "lectures");
 const sortie = coin(cache, "vision-candidats");
 

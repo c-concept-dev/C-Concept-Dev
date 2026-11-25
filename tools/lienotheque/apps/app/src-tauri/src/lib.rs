@@ -125,11 +125,13 @@ fn faire_tourner(app: tauri::AppHandle, etat: State<Etat>, racine: String) -> Re
     let emplacements = traitement::Emplacements::depuis_executable(&executable)
         .ok_or("Moteur introuvable à côté de l’application : le paquet est incomplet.")?;
     let appareil = reglages::Reglages::lire(&dossier_des_reglages(&app)?).appareil;
+    // Le dossier de cache de l'application, **nu** : la chaîne y creuse elle-même ses quatre
+    // coins — `lectures`, `vision-cases`, `vision-reponses`, `vision-structurelle`. Un
+    // `.join("lectures")` ici donnait `lectures/lectures` (lot `0z undecies`).
     let cache = app
         .path()
         .app_cache_dir()
-        .map_err(|e| format!("Cache de travail introuvable : {e}"))?
-        .join("lectures");
+        .map_err(|e| format!("Cache de travail introuvable : {e}"))?;
 
     roulements.insert(racine, roulement::Roulement::demarrer(depot, emplacements, appareil, cache));
     Ok(true)

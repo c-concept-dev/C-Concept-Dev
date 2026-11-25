@@ -22,7 +22,7 @@ if (!existsSync(F4)) {
 const premier = Number(process.argv[2] ?? 33);
 const dernier = Number(process.argv[3] ?? 46);
 
-const dossier = join(coin(ouvrirCache({ avertir: (message) => console.warn(message) }), "prototype"), "cliches");
+const dossier = join(coin(ouvrirCache(), "prototype"), "cliches");
 mkdirSync(dossier, { recursive: true });
 
 const objets = objetsPdf(await readFile(F4));

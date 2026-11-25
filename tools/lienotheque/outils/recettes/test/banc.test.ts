@@ -21,7 +21,7 @@ import { ResultatRecette } from "@lienotheque/contrats";
 
 /** Lire trois cents pages prend un quart d'heure : on garde les lectures entre deux exécutions.
  *  Le cache ne contient que des numéros et des positions — rien du document lui-même. */
-const CACHE = coin(ouvrirCache({ avertir: (message) => console.warn(message) }), "lectures");
+const CACHE = coin(ouvrirCache(), "lectures");
 
 /** Banc d'essai (OUT-15) : rejoue les fixtures et compare à la référence.
  *

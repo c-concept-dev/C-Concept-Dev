@@ -13,9 +13,9 @@ import { emplacementInstantane } from "../emplacement-instantane.js";
  *  la construction, et un instantané est produit depuis des fichiers sous droits. Les deux vont au
  *  cache de travail (correction 8).
  *
- *  Où est ce cache n'est pas écrit ici : `ouvrirCache` connaît le volume prévu, et se replie sur
- *  un dossier local quand il n'est pas monté. Écrire le chemin en dur, c'était supposer un disque
- *  externe sur une machine d'intégration continue — et y échouer. */
+ *  Où est ce cache n'est pas écrit ici : `ouvrirCache` prend le dossier de cache du système, que
+ *  toute machine possède. Écrire le chemin en dur, c'était supposer un disque externe sur une
+ *  machine d'intégration continue — et s'y replier dans la copie de travail (lot `0z undecies`). */
 export default async function preparer(): Promise<void> {
   const { instantane: cible } = emplacementInstantane();
 

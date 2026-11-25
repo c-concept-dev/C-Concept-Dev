@@ -8,7 +8,7 @@ import { PRESENCE_MINIMALE, appui, chargerRecette, interpreter, lireLot, prepare
 
 /** Redresser et lire 42 clichés prend deux minutes : on garde les lectures entre deux exécutions.
  *  Le cache ne contient que des numéros et des positions — rien du document lui-même. */
-const CACHE = coin(ouvrirCache({ avertir: (message) => console.warn(message) }), "lectures");
+const CACHE = coin(ouvrirCache(), "lectures");
 const LOT = { pages: 42, cache: CACHE } as const;
 
 /** Lecture de F4, méthode photographiée en doubles pages (A2).

@@ -37,7 +37,7 @@ if (!existsSync(F4)) {
   process.exit(0);
 }
 
-const cache = ouvrirCache({ avertir: (m) => console.warn(m) });
+const cache = ouvrirCache();
 const message = await executerTravail(
   demandeDeTraitement(randomUUID(), randomUUID(), {
     document: F4,

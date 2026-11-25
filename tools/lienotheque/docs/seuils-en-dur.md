@@ -18,6 +18,12 @@ faire pour la plupart.
 | **produit** | 23 | choix d'ergonomie, de budget, de version ou tarif externe. Ne dépendent d'aucun document |
 | **jugement** | 82 | **seuils qui décident de quelque chose dans un document.** C'est la catégorie que la doctrine visait |
 
+**Une de moins depuis le 25 novembre 2026** : le lot `0z undecies` a supprimé `PLAFOND_REPLI` avec
+le repli du cache dans la copie de travail, et la ligne de `PLAFOND_PAR_DEFAUT` a bougé. Les
+comptes ci-dessus sont ceux du **24 novembre** et ne sont **pas** recomptés ici : la méthode du
+balayage n'est pas rejouable au caractère depuis ce document, et un chiffre qu'on ne peut pas
+refaire ne se corrige pas de mémoire.
+
 ## Priorité haute : les seuils dont l'effet est **mesuré**
 
 Le reste du relevé liste sans juger. Ici, on sait ce que le seuil coûte, parce qu'on l'a vu
@@ -283,8 +289,7 @@ Longueur minimale d'un mot, motifs de lettres. Un corpus non latin les casse.
 | `outils/ingestion/src/voie-oracle.ts:99` | `LARGEUR_DE_RENDU` | 1800 |
 | `outils/ingestion/src/voie-oracle.ts:140` | `ENDROITS_COUVERTS` | 128 |
 | `outils/ingestion/src/voie-oracle.ts:141` | `SECONDES_PAR_ESSAI_AU_PLUS_LENT` | 10.2 |
-| `outils/cache/src/index.ts:20` | `PLAFOND_PAR_DEFAUT` | 50 |
-| `outils/cache/src/index.ts:22` | `PLAFOND_REPLI` | 2 |
+| `outils/cache/src/index.ts:40` | `PLAFOND_PAR_DEFAUT` | 50 |
 | `outils/redresseur/src/rotation.ts:43` | `REDUCTION_PAR_DEFAUT` | 2 |
 | `outils/lecteur-texte/src/epub.ts:42` | `TAILLE_FEUILLET` | 300 |
 | `outils/vision/src/relecture.ts:46` | `DOLLARS_PAR_EURO` | 1.08 |

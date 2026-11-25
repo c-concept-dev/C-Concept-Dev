@@ -46,7 +46,7 @@ const exige = (nom: string): string => {
   return valeur;
 };
 
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 const sortie = resolve(lire("sortie") ?? join(coin(cache, "instantane"), "bibliotheque.json"));
 
 // Les images de page vont à côté de l'instantané : le greffon de Vite sert les deux de là.

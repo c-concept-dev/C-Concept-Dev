@@ -36,7 +36,7 @@ const RECETTE_NUMERO_COMPOSE = join(RACINE, "fixtures/recettes/methode-numero-co
 const REFERENCE_FUNK_FUSION = join(RACINE, "fixtures/references/funk-fusion-bass-appariement.json");
 const SERVICE_STRUCTUREL =
   process.env["LIENOTHEQUE_DIAGNOSTIC_URL"] ?? "https://lienotheque-api.11drumboy11.workers.dev";
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 const lectures = coin(cache, "lectures-c9-3");
 const rapports = coin(cache, "rapports-c9-3");
 const validations = coin(cache, "vision-structurelle");

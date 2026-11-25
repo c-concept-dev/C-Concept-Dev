@@ -40,7 +40,7 @@ const DOLLARS_PAR_MILLION_SORTIE = 5;
  *  confiance. Mesuré à part, il ne dépend pas de l'échelle. */
 const SORTIE_PAR_ZONE = 30;
 
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 const releve = join(coin(cache, "vision-candidats"), "paves.json");
 if (!existsSync(releve)) {
   console.log(`Pavés absents : lancez d'abord la sélection (mesures/candidats-f4.ts).`);

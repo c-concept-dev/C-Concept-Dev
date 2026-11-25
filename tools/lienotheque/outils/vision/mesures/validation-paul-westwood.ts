@@ -57,7 +57,7 @@ const VOLUMES = [
   },
 ] as const;
 
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 const medias = await mediasDuDossier(RACINE_PAUL_WESTWOOD, recette);
 const inventaireMedias = medias.map(({ nom, empreinte }) => ({ nom, empreinte }));
 const resultats = [];

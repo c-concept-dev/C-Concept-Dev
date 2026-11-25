@@ -9,8 +9,10 @@ import { coin, ouvrirCache } from "@lienotheque/cache";
  *  local, le greffon continuait de chercher le volume externe, et les écrans ne trouvaient rien.
  *
  *  `LIENOTHEQUE_INSTANTANE` passe devant tout : c'est ainsi qu'on montre un autre lot sans rien
- *  déplacer. Sinon `ouvrirCache` décide, et se replie sur un dossier local quand le volume prévu
- *  n'est pas monté — une machine d'intégration continue n'a pas de disque externe. */
+ *  déplacer. Sinon `ouvrirCache` décide, et prend le **dossier de cache du système** — présent sur
+ *  toute machine, celle de l'intégration continue comprise, qui n'a pas de disque externe. Avant le
+ *  lot `0z undecies`, il visait un volume externe et se repliait **dans la copie de travail** : les
+ *  deux chemins ont disparu. */
 export function emplacementInstantane(): { readonly instantane: string; readonly pages: string; readonly medias: string | undefined } {
   // Les médias, eux, ne sont jamais recopiés : ils sont servis là où ils sont. Un lot réel pèse
   // des gigaoctets, et les dupliquer pour les montrer serait payer deux fois pour la même chose.
@@ -21,7 +23,7 @@ export function emplacementInstantane(): { readonly instantane: string; readonly
   if (declare !== undefined)
     return { instantane: declare, pages: process.env["LIENOTHEQUE_PAGES"] ?? join(declare, "..", "pages"), medias };
 
-  const dossier = coin(ouvrirCache({ avertir: (message) => console.warn(message) }), "instantane");
+  const dossier = coin(ouvrirCache(), "instantane");
   return {
     instantane: join(dossier, "bibliotheque.json"),
     pages: process.env["LIENOTHEQUE_PAGES"] ?? join(dossier, "pages"),

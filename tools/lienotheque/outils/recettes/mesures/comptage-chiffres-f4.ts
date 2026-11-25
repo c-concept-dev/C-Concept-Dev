@@ -36,7 +36,7 @@ const premier = nombres[0] ?? 33;
 const dernier = nombres[1] ?? 46;
 const relire = process.argv.includes("--relire");
 
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 const lectures = coin(cache, "lectures");
 const sortie = coin(cache, "comptage-chiffres");
 const releve = join(sortie, `reperes-${premier}-${dernier}.json`);

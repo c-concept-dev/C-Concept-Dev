@@ -37,7 +37,7 @@ if (!existsSync(F4) || !existsSync(ORACLE)) {
   process.exit(0);
 }
 
-const cache = ouvrirCache({ avertir: (message) => console.warn(message) });
+const cache = ouvrirCache();
 const lues = await lireLot(F4, RECETTE, { cache: coin(cache, "lectures") });
 
 const carte = join(coin(cache, "vision"), "f4-vision-map.json");

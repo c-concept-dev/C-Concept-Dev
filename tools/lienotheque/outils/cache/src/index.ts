@@ -1,51 +1,86 @@
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 
 /** Cache de travail sur disque.
  *
  *  Traiter un livre de trois cents pages produit beaucoup de choses qu'on voudrait garder entre
- *  deux exécutions — les lectures d'OCR surtout, qui coûtent un quart d'heure — et beaucoup de
+ *  deux exécutions — les lectures d'OCR surtout, qui coûtent une seconde la page — et beaucoup de
  *  choses qu'il faut jeter tout de suite : les images intermédiaires. Les deux vont ici, et rien
  *  d'ici n'entre dans le dépôt.
  *
- *  Trois règles. Un plafond, parce qu'un cache sans plafond finit par remplir un disque, et c'est
- *  arrivé. Un nettoyage explicite, qui retire le plus ancien jusqu'à repasser sous le plafond.
- *  Et un repli : si le volume prévu n'est pas monté, on se rabat sur un dossier local plus étroit
- *  en le disant, plutôt que d'échouer au milieu d'un traitement.
+ *  ## Où il vit, depuis le lot `0z undecies`
  *
- *  **Ce que ce module ne fait pas, mesuré le 24 novembre 2026.** `nettoyer` n'a aucun appelant :
- *  le plafond annoncé ci-dessus n'est appliqué par personne. Et plus rien ne vide un coin —
- *  `vider` a été supprimée au lot `0z octies`, faute d'appelant elle aussi. Les images
- *  intermédiaires dites « à jeter tout de suite » ne sont donc jetées par personne. Qui applique
- *  le plafond et qui jette se décide au lot `0z undecies`, dette **D33** ; d'ici là, cet en-tête
- *  annonce une intention, pas un comportement. */
+ *  Le **dossier de cache du système**, celui que la plateforme prévoit pour cela. Avant, un chemin
+ *  en dur vers un volume externe — `/Volumes/…` — et un **repli** dans la copie de travail quand
+ *  ce volume n'était pas monté. Les deux ont disparu, pour deux raisons mesurées le 24 novembre
+ *  2026 : le volume est débranchable, donc le repli était la règle et non l'exception (877 s
+ *  perdues en un seul contrôle) ; et le repli écrivait **dans la copie de travail**, où un cache
+ *  n'a rien à faire — sur une machine d'intégration continue, qui n'a aucun `/Volumes`, c'était le
+ *  cas de toutes les courses.
+ *
+ *  `LIENOTHEQUE_CACHE` passe devant. **Déclaré et introuvable, il refuse** : un dossier qu'on a
+ *  nommé et qui manque est une erreur de la personne ou un volume démonté, pas une invitation à
+ *  choisir à sa place. Le refus arrive **avant** tout traitement, et il nomme le dossier.
+ *
+ *  ## Ce que ce module ne fait toujours pas
+ *
+ *  Mesuré le 24 novembre 2026, et **inchangé par ce lot** : `nettoyer` n'a aucun appelant, donc le
+ *  plafond n'est appliqué par personne, et `peser` n'est lue que par ses propres contrôles, donc
+ *  rien ne dit jamais ce que le cache pèse. Qui applique le plafond et qui jette se décide dans
+ *  les rangées qui suivent `0z undecies` — peser et afficher d'abord, retirer ensuite —, et la
+ *  **politique du plus ancien d'abord y sera reprise** : les dix plus anciens fichiers du cache
+ *  mesurés le 25 novembre sont des captures et des **lectures d'OCR**, c'est-à-dire ce qui coûte
+ *  le plus cher à refaire. Dette **D33**. D'ici là, `plafond` est une valeur portée, pas une borne
+ *  tenue. */
 
-/** Dossier choisi par défaut quand rien n'est déclaré. Il contient une espace : tout chemin
- *  qui le traverse se cite entre guillemets dans un terminal. */
-export const CACHE_PAR_DEFAUT = "/Volumes/Macbook Pro/lienotheque-cache";
-/** Plafond du cache principal. */
+/** Le nom du dossier, sous le dossier de cache de la plateforme. */
+export const NOM_DU_CACHE = "lienotheque";
+/** Plafond du cache. Porté, pas encore appliqué : voir l'en-tête et D33. */
 export const PLAFOND_PAR_DEFAUT = 50 * 1024 ** 3;
-/** Plafond du repli local : il vit sur le disque de la machine, il reste modeste. */
-export const PLAFOND_REPLI = 2 * 1024 ** 3;
 
 export type Reglages = {
-  /** Où le cache doit vivre. `LIENOTHEQUE_CACHE` sinon, le dossier par défaut à défaut. */
+  /** Où le cache doit vivre. `LIENOTHEQUE_CACHE` sinon, le dossier du système à défaut.
+   *
+   *  Donné ici ou par l'environnement, c'est un dossier **déclaré** : s'il n'est pas joignable,
+   *  l'ouverture refuse. */
   readonly dossier?: string | undefined;
-  /** Où se replier si le premier n'est pas joignable. */
-  readonly repli?: string;
   readonly plafond?: number;
-  readonly plafondRepli?: number;
-  /** Où dire ce qui s'est passé. La console par défaut ; rien du tout en test. */
-  readonly avertir?: (message: string) => void;
+  /** La plateforme à considérer. Le vrai `process.platform` par défaut ; les contrôles la posent
+   *  pour éprouver les trois systèmes depuis un seul. */
+  readonly plateforme?: NodeJS.Platform;
+  /** L'environnement à lire. Le vrai `process.env` par défaut, et il se pose pour la même raison.
+   *
+   *  C'est un **paramètre**, non une variable qu'on écrirait : `process.env` est global au
+   *  processus, et deux contrôles en parallèle se le disputeraient. */
+  readonly environnement?: NodeJS.ProcessEnv;
 };
 
 export type Cache = {
   /** Dossier réellement utilisé. */
   readonly dossier: string;
-  /** Vrai quand on a dû se replier : l'appelant peut le dire à son tour. */
-  readonly replie: boolean;
   readonly plafond: number;
 };
+
+/** Le dossier de cache de la plateforme, sans rien créer ni rien lire sur le disque.
+ *
+ *  Les trois systèmes, parce que le projet est multiplateforme et que l'intégration continue
+ *  tourne sur deux d'entre eux. Windows est **suspendu, pas abandonné** (décision du 5 novembre
+ *  2026) : son chemin est donc écrit, conservé et éprouvé ici, comme le reste de son code. */
+export function cacheParDefaut(
+  plateforme: NodeJS.Platform = process.platform,
+  environnement: NodeJS.ProcessEnv = process.env,
+): string {
+  const maison = environnement["HOME"] ?? homedir();
+  if (plateforme === "darwin") return join(maison, "Library", "Caches", NOM_DU_CACHE);
+  if (plateforme === "win32") {
+    const local =
+      environnement["LOCALAPPDATA"] ?? join(environnement["USERPROFILE"] ?? homedir(), "AppData", "Local");
+    return join(local, NOM_DU_CACHE, "cache");
+  }
+  // Linux et tout le reste : la convention XDG, qui porte son propre défaut.
+  return join(environnement["XDG_CACHE_HOME"] ?? join(maison, ".cache"), NOM_DU_CACHE);
+}
 
 const joignable = (dossier: string): boolean => {
   try {
@@ -59,24 +94,29 @@ const joignable = (dossier: string): boolean => {
   }
 };
 
-/** Ouvre le cache, avec repli. N'échoue pas : au pire le repli, au pire du pire une erreur claire
- *  avant que le traitement ne commence, jamais au milieu. */
+/** Ouvre le cache. Échoue **avant** que le traitement ne commence, jamais au milieu, et nomme
+ *  toujours le dossier qu'elle n'a pas pu ouvrir. */
 export function ouvrirCache(reglages: Reglages = {}): Cache {
-  const avertir = reglages.avertir ?? ((message: string) => console.warn(message));
-  const voulu = reglages.dossier ?? process.env["LIENOTHEQUE_CACHE"] ?? CACHE_PAR_DEFAUT;
+  const environnement = reglages.environnement ?? process.env;
+  const plafond = reglages.plafond ?? PLAFOND_PAR_DEFAUT;
+  const declare = reglages.dossier ?? environnement["LIENOTHEQUE_CACHE"];
 
-  if (joignable(voulu)) return { dossier: voulu, replie: false, plafond: reglages.plafond ?? PLAFOND_PAR_DEFAUT };
+  if (declare !== undefined) {
+    if (!joignable(declare))
+      throw new Error(
+        `Cache déclaré introuvable : « ${declare} » ne peut pas être ouvert en écriture — ` +
+          `volume démonté, chemin faux, ou écriture refusée. Montez le volume, corrigez le chemin, ` +
+          `ou retirez la déclaration pour employer le dossier de cache du système.`,
+      );
+    return { dossier: declare, plafond };
+  }
 
-  const repli = reglages.repli ?? join(process.cwd(), ".cache");
-  avertir(
-    `Cache : « ${voulu} » n'est pas joignable — volume démonté ou écriture refusée. ` +
-      `Repli sur « ${repli} », plafonné à ${Math.round((reglages.plafondRepli ?? PLAFOND_REPLI) / 1024 ** 3)} Gio.`,
-  );
-  if (!joignable(repli)) throw new Error(`Aucun cache utilisable : ni « ${voulu} », ni « ${repli} »`);
-  return { dossier: repli, replie: true, plafond: reglages.plafondRepli ?? PLAFOND_REPLI };
+  const defaut = cacheParDefaut(reglages.plateforme, environnement);
+  if (!joignable(defaut))
+    throw new Error(`Cache du système inutilisable : « ${defaut} » ne peut pas être ouvert en écriture.`);
+  return { dossier: defaut, plafond };
 }
 
-/** Un coin du cache, pour un usage donné. */
 /** Un coin du cache, désigné par le chemin de sa racine.
  *
  *  Le même geste que `coin`, pour les appelants qui n'ont qu'un chemin — un processus qui reçoit
@@ -87,6 +127,7 @@ export function sousDossier(racine: string, nom: string): string {
   return chemin;
 }
 
+/** Un coin du cache, pour un usage donné. */
 export function coin(cache: Cache, nom: string): string {
   return sousDossier(cache.dossier, nom);
 }
@@ -112,7 +153,10 @@ export function peser(dossier: string): Pesee {
 
 /** Retire le plus ancien jusqu'à repasser sous le plafond. Rend ce qui a été libéré.
  *
- *  Le plus ancien d'abord : ce qui a servi récemment resservira. */
+ *  **Aucun appelant, et c'est voulu pour l'instant** : la politique du plus ancien d'abord est
+ *  juste pour un coin jetable et fausse pour un coin coûteux — mesuré le 25 novembre 2026, les
+ *  plus anciens fichiers du cache sont des lectures d'OCR. Elle se décide par coin, dans une
+ *  rangée qui vient après l'affichage du poids. */
 export function nettoyer(cache: Cache, plafond = cache.plafond): Pesee {
   const entrees: { chemin: string; octets: number; vu: number }[] = [];
   if (!existsSync(cache.dossier)) return { octets: 0, fichiers: 0 };

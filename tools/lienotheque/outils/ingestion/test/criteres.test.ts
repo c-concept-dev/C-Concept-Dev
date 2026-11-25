@@ -23,18 +23,16 @@ import { chargeOuEchec, demandeDApercu, demandeDeTraitement, executerTravail } f
 const RACINE = join(import.meta.dirname, "../../..");
 /** Le cache de ces critères est **explicite, et dans le dossier temporaire**.
  *
- *  Sans `dossier`, `ouvrirCache` retombe sur `CACHE_PAR_DEFAUT`, qui est un **vrai volume de
- *  travail** — `/Volumes/…`. Un contrôle n'a rien à écrire là, et le module exporte `nettoyer` et
- *  `vider`, qui y effacent : un mot de plus dans un contrôle voisin et une course effaçait un
- *  disque. Exigé par Christophe le 18 novembre 2026, après l'incident du jour.
+ *  Sans `dossier`, `ouvrirCache` prend le dossier de cache du système — celui de la personne, où
+ *  l'application elle-même travaille. Un contrôle n'a rien à écrire là, et le module exporte
+ *  `nettoyer`, qui y efface : un mot de plus dans un contrôle voisin et une course effaçait le
+ *  cache du produit. Exigé par Christophe le 18 novembre 2026, après l'incident du jour, quand le
+ *  défaut était un volume externe ; la raison n'a pas changé avec le défaut (lot `0z undecies`).
  *
  *  Le nom est **stable et non tiré au sort** : le critère F3 coûte trente-six secondes sans cache,
  *  et deux passages d'affilée doivent pouvoir relire ce que le premier a écrit. Un `mkdtemp` ici
  *  rendrait le cache inutile, ce qui est une autre façon de le perdre. */
-const CACHE = ouvrirCache({
-  dossier: join(tmpdir(), "lienotheque-cache-des-criteres"),
-  avertir: (message) => console.warn(message),
-});
+const CACHE = ouvrirCache({ dossier: join(tmpdir(), "lienotheque-cache-des-criteres") });
 
 const F1 = join(RACINE, "fixtures/fichiers/F1/aebersold-FRENCH.pdf");
 const F3 = join(RACINE, "fixtures/fichiers/F3/'70s Funk & Disco Bass.pdf");
