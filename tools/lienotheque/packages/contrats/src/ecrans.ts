@@ -380,16 +380,57 @@ export const Doublons = z
   .strict();
 export type Doublons = z.infer<typeof Doublons>;
 
-/** Ce qu'un retrait de document a emporté (HER-07).
+/** Un élément qu'un retrait n'a pas pu emporter : ce qu'il est, où il est, et pourquoi (HER-07).
+ *
+ *  **Pourquoi ce contrat existe.** Un retrait efface plusieurs choses à plusieurs endroits, et
+ *  chacune peut échouer pour elle seule — un dossier dont les droits ont changé, un volume
+ *  débranché entre deux gestes. Tant que ces échecs étaient avalés, le compte rendu annonçait ce
+ *  que l'hôte avait **voulu** faire ; ce qui restait sur le disque n'était nommé nulle part et
+ *  aucun écran ne pouvait l'atteindre, puisque les écrans lisent la table des versions actives.
+ *
+ *  `quoi` est une liste fermée, et c'est voulu : ce sont les cinq seules choses qu'un retrait
+ *  touche, et un vocabulaire qui dérive au fil des versions ne se compare plus d'une fois à
+ *  l'autre. Le texte est celui de l'écran — c'est ce qui se lit, pas un code à traduire. */
+export const ResteDeRetrait = z
+  .object({
+    quoi: z.enum([
+      "les images de page",
+      "l'enregistrement de version",
+      "un fichier de travail",
+      "le classement",
+      "la source",
+    ]),
+    chemin: z.string().min(1),
+    cause: z.string().min(1),
+  })
+  .strict();
+export type ResteDeRetrait = z.infer<typeof ResteDeRetrait>;
+
+/** Ce qu'un retrait de document a emporté, et ce qui est resté (HER-07).
  *
  *  On le dit plutôt que de laisser deviner : « retiré » sans compte rendu laisse croire qu'un
- *  document a disparu alors que sa source est à la corbeille, ou l'inverse. */
+ *  document a disparu alors que sa source est à la corbeille, ou l'inverse.
+ *
+ *  **Ces comptes disent ce qui est parti, jamais ce qui était visé** (lot `0z decies`). Ils
+ *  comptaient autrefois les intentions : `travaux` était la taille de la liste à retirer, lue
+ *  **avant** le premier effacement, et `versions` celle de l'ensemble des versions trouvées.
+ *  Les six effacements d'une version pouvaient tous échouer sans changer un chiffre. Désormais
+ *  une version ne compte que si ses **deux** fichiers sont partis — ses images de page et son
+ *  enregistrement —, parce que l'un sans l'autre laisse une bibliothèque qui se contredit.
+ *
+ *  `travauxIllisibles` est une mesure, pas un reste : un fichier de travail que l'hôte n'a pas pu
+ *  lire a pu désigner une version de ce document, et cette version n'a donc pas été cherchée.
+ *  Le taire ferait passer le retrait pour complet. */
 export const RetraitDeDocument = z
   .object({
     versions: z.number().int().nonnegative(),
     travaux: z.number().int().nonnegative(),
     /** Où la source a atterri dans la corbeille. Absente si le document n'en avait plus. */
     source: z.string().min(1).optional(),
+    /** Les fichiers de travail illisibles ou abîmés, qui ont pu cacher une version. */
+    travauxIllisibles: z.number().int().nonnegative().default(0),
+    /** Ce qui n'a pas pu être emporté, nommé un par un. Vide quand tout est parti. */
+    restes: z.array(ResteDeRetrait).default([]),
   })
   .strict();
 export type RetraitDeDocument = z.infer<typeof RetraitDeDocument>;

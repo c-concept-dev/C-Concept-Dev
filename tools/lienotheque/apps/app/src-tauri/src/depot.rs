@@ -31,7 +31,14 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-/// Ce qu'un retrait de document a emporté — de quoi le dire, plutôt que de laisser deviner.
+/// Ce qu'un retrait de document a emporté, **et ce qui est resté**.
+///
+/// Les comptes disent ce qui est **parti**, jamais ce qui était visé (lot `0z decies`).
+/// `travaux` valait autrefois la taille de la liste à retirer, lue AVANT le premier effacement,
+/// et `versions` celle de l'ensemble des versions trouvées : les six effacements d'une version
+/// pouvaient donc tous échouer sans changer un chiffre. Une version ne compte désormais que si
+/// ses **deux** fichiers sont partis — ses images de page et son enregistrement —, parce que
+/// l'un sans l'autre laisse une bibliothèque qui se contredit.
 #[derive(Debug, Serialize)]
 pub struct RetraitDeDocument {
     pub versions: usize,
@@ -40,6 +47,59 @@ pub struct RetraitDeDocument {
     /// un contrat qui attend une chaîne ou rien refuserait un nul, et il a raison de le faire.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<PathBuf>,
+    /// Les fichiers de travail illisibles ou abîmés. C'est une **mesure**, pas un reste : chacun
+    /// a pu désigner une version de ce document, donc une version qu'on n'a pas su chercher. Le
+    /// taire ferait passer le retrait pour complet.
+    #[serde(rename = "travauxIllisibles")]
+    pub travaux_illisibles: usize,
+    /// Ce que le retrait n'a pas pu emporter, nommé un par un. Vide quand tout est parti.
+    pub restes: Vec<ResteDeRetrait>,
+}
+
+/// Un élément qu'un retrait n'a pas pu emporter : ce qu'il est, où il est, et pourquoi.
+///
+/// `quoi` porte le **texte de l'écran**, et non un code à traduire : il n'y a pas deux
+/// vocabulaires à tenir d'accord, et le contrat `ResteDeRetrait` en ferme la liste.
+#[derive(Debug, Serialize)]
+pub struct ResteDeRetrait {
+    pub quoi: &'static str,
+    pub chemin: PathBuf,
+    pub cause: String,
+}
+
+impl ResteDeRetrait {
+    fn neuf(quoi: &'static str, chemin: PathBuf, cause: &io::Error) -> Self {
+        Self { quoi, chemin, cause: cause.to_string() }
+    }
+}
+
+/// Les cinq choses qu'un retrait touche, telles que le contrat les énumère. Un contrôle compare
+/// ces cinq textes à ceux du contrat : deux vocabulaires qui dérivent ne se comparent plus.
+const RESTE_IMAGES: &str = "les images de page";
+const RESTE_VERSION: &str = "l'enregistrement de version";
+const RESTE_TRAVAIL: &str = "un fichier de travail";
+const RESTE_CLASSEMENT: &str = "le classement";
+const RESTE_SOURCE: &str = "la source";
+
+/// La phrase affichée quand l’empreinte demandée n’est connue de rien : ni pointeur, ni travail,
+/// ni classement, ni source.
+///
+/// Elle est **publique** pour deux raisons. L’hôte la reconnaît afin de ne pas la préfixer d’un
+/// « Retrait impossible : » qui ferait croire à une panne de la bibliothèque. Et un contrôle la
+/// compare au texte de l’écran : une phrase écrite deux fois finit toujours par différer.
+pub const ABSENT_DE_LA_BIBLIOTHEQUE: &str = "Ce document n’est pas dans la bibliothèque.";
+
+/// « Ce qui n'est plus là est parti. »
+///
+/// Un effacement qui ne trouve rien a **obtenu** ce qu'on voulait : un document composé en texte
+/// n'a aucune image de page, et son `derives/<version>/` n'a jamais existé. Confondre l'absence
+/// et l'échec ferait nommer un reste qui n'existe pas — et un compte rendu qui accuse à tort ne
+/// se lit plus, comme un garde-fou qui accuse à tort finit désarmé.
+fn parti(resultat: io::Result<()>) -> io::Result<()> {
+    match resultat {
+        Err(souci) if souci.kind() == io::ErrorKind::NotFound => Ok(()),
+        autre => autre,
+    }
 }
 
 /// Agencement du dossier, le même que celui du noyau TypeScript.
@@ -47,7 +107,10 @@ pub const SOURCES: &str = "sources";
 pub const DERIVES: &str = "derives";
 pub const BASE: &str = "base";
 
-const VERSIONS: &str = "versions";
+/// **Public** depuis le lot `0z decies` : le relevé d'orphelins d'`examples/retrait.rs` doit
+/// atteindre le même dossier que le dépôt, et la seule autre façon était d'en recopier le nom.
+/// Un agencement écrit deux fois finit par différer.
+pub const VERSIONS: &str = "versions";
 /// L'ancien pointeur unique, gardé pour les contrôles de la migration : eux seuls le nomment, et
 /// c'est voulu. `migrer_les_actives` ne le lit pas — elle déduit la table des travaux terminés —,
 /// et les contrôles fabriquent ce fichier pour prouver qu'elle l'ignore. D'où le `cfg(test)` :
@@ -236,6 +299,19 @@ pub fn empreinte_de_document<'a>(empreinte: &'a str, provenance: &str) -> io::Re
 
 pub struct Depot {
     racine: PathBuf,
+    /// Où partent les originaux qu'on retire. **Vide dans le produit** : c'est alors `~/.Trash`,
+    /// la corbeille du système, et rien d'autre ne doit la changer.
+    ///
+    /// Ce champ existe pour les **contrôles**, et c'est un champ plutôt qu'une variable
+    /// d'environnement pour une raison mesurée : `HOME` est global au processus, et des contrôles
+    /// qui tournent de front se le disputeraient — l'un verrait le bac de l'autre, et la mesure
+    /// ne vaudrait rien. Un champ appartient à son dépôt.
+    ///
+    /// **Pourquoi il a fallu l'ajouter.** Le 25 novembre 2026, les contrôles du retrait écrivaient
+    /// dans la vraie corbeille de Christophe et l'en retiraient ensuite. Un fichier qu'une course
+    /// précédente y avait laissé a ainsi été effacé sans accord, contrairement à la règle du
+    /// 18 novembre 2026. Un contrôle n'écrit jamais hors du dossier temporaire.
+    corbeille: Option<PathBuf>,
 }
 
 impl Depot {
@@ -261,7 +337,7 @@ impl Depot {
                 ));
             }
         }
-        let depot = Self { racine };
+        let depot = Self { racine, corbeille: None };
 
         // La table des actives se rattrape à l'ouverture, depuis les travaux.
         //
@@ -287,7 +363,7 @@ impl Depot {
             fs::create_dir_all(racine.join(dossier))?;
         }
         fs::create_dir_all(racine.join(BASE).join(VERSIONS))?;
-        Ok(Self { racine })
+        Ok(Self { racine, corbeille: None })
     }
 
     pub fn racine(&self) -> &Path {
@@ -492,12 +568,47 @@ impl Depot {
     /// En oublier un laisse une bibliothèque qui se contredit : un pointeur vers une version
     /// effacée, ou une source que plus rien ne nomme.
     ///
-    /// ## L'ordre, et pourquoi celui-là
+    /// **Ce que ce retrait ne touche pas, et ce n'est pas le même cas pour les deux.** Les
+    /// décisions prises sur un document — `base/decisions.json` — lui **survivent à dessein**
+    /// (UX-03, SYN-07) : ce sont des jugements humains, et un document redéposé retrouve les
+    /// siens au lieu de les redemander. Les rotations manuelles (`base/rotations-pages.json`) et
+    /// l'inventaire des médias (`base/medias.json`), eux, restent sans que personne l'ait
+    /// décidé : c'est une dette nommée, non un choix.
     ///
-    /// Le **pointeur d'abord**. Tant qu'il existe, les écrans lisent ce document ; le retirer en
-    /// premier fait qu'ils cessent de le voir avant que quoi que ce soit ne disparaisse sous eux.
-    /// Puis les dérivés, les versions, les travaux, et la source en dernier — c'est elle qui,
-    /// seule, permettrait de tout refaire.
+    /// ## L'ordre, et pourquoi celui-là — mesuré, non supposé
+    ///
+    /// Le **pointeur d'abord**, et trois mesures le justifient plutôt qu'une intuition.
+    ///
+    /// Le catalogue, l'écran des doublons, le Lecteur et l'index de recherche lisent **tous** la
+    /// table des versions actives. Comme `ecrire_actives` passe par un temporaire puis un
+    /// renommage, le document quitte les quatre d'un seul geste indivisible, ou d'aucun.
+    ///
+    /// **L'index de recherche ne se répare que dans cet ordre.** `recherche::synchroniser`
+    /// supprime de l'index toute empreinte absente de cette table, et les passages suivent en
+    /// cascade. Dans l'ordre inverse, le pointeur survit à l'échec, le couple version-titre de
+    /// l'index correspond encore, la boucle passe — et le document **reste trouvable**, avec
+    /// tous ses passages, pour ouvrir ensuite une version qui n'existe plus.
+    ///
+    /// Enfin, cet ordre a un **filet** que l'autre n'a pas : tant qu'un fichier de travail et
+    /// son fichier de version survivent, `migrer_les_actives` ramène le document entier au
+    /// prochain lancement. Le pire moment de cet ordre-ci se répare tout seul.
+    ///
+    /// Puis les travaux, les dérivés, les versions, le classement, et la source en dernier —
+    /// c'est elle qui, seule, permettrait de tout refaire.
+    ///
+    /// ## La frontière : la première écriture
+    ///
+    /// Tout ce qui peut **refuser** se fait avant elle — lecture de la table, validation de
+    /// chaque nom de version, lecture et recomposition des classements, résolution du chemin de
+    /// la source, préparation de la corbeille. Un refus laisse alors la bibliothèque **intacte**,
+    /// et nomme le fichier à réparer (HER-07, dettes D28 et D32).
+    ///
+    /// **Au-delà, plus rien ne rend d'erreur — et ce n'est pas dire que plus rien n'échoue.**
+    /// Les trois effacements, l'écriture des classements et le déplacement vers la corbeille
+    /// restent faillibles ; leurs échecs sont **collectés** avec leur chemin et leur cause, et
+    /// rapportés dans `restes`. La raison est que, passé ce point, le retrait a commencé :
+    /// rendre une erreur ferait écrire « retrait impossible » à l'écran d'un document qui a déjà
+    /// quitté le catalogue — ce qui est exactement ce que l'ancienne forme faisait.
     ///
     /// ## À la corbeille, comme une bibliothèque
     ///
@@ -529,73 +640,184 @@ impl Depot {
             versions.insert(pointeur.version.clone());
         }
         let mut travaux_a_retirer: Vec<PathBuf> = Vec::new();
-        if let Ok(entrees) = fs::read_dir(self.travaux()) {
-            for entree in entrees.flatten() {
-                let chemin = entree.path();
-                if chemin.extension().is_none_or(|e| e != "json") {
-                    continue;
+        let mut travaux_illisibles = 0;
+        match fs::read_dir(self.travaux()) {
+            // Une bibliothèque sans file n'a pas de dossier de travaux : l'absence est une
+            // réponse, pas une panne.
+            Err(souci) if souci.kind() == io::ErrorKind::NotFound => {}
+            // Toute autre panne de lecture **refuse**, et il en est encore temps. Avalée, elle
+            // faisait trouver ZÉRO travail : le pointeur partait en laissant derrière lui les
+            // fichiers qui le ressuscitent, et le compte rendu annonçait « 0 travail » comme si
+            // c'était vrai (dette D32).
+            Err(souci) => {
+                return Err(io::Error::new(
+                    souci.kind(),
+                    format!("Le dossier {} est illisible : {souci}", self.travaux().display()),
+                ));
+            }
+            Ok(entrees) => {
+                for entree in entrees {
+                    // Un travail qu'on ne sait pas lire est **compté**, et il l'est même quand
+                    // rien ne dit qu'il appartient à ce document : c'est précisément ce qu'on ne
+                    // peut pas savoir, et la version qu'il visait serait restée invisible.
+                    let Ok(entree) = entree else {
+                        travaux_illisibles += 1;
+                        continue;
+                    };
+                    let chemin = entree.path();
+                    if chemin.extension().is_none_or(|e| e != "json") {
+                        continue;
+                    }
+                    let Ok(texte) = fs::read_to_string(&chemin) else {
+                        travaux_illisibles += 1;
+                        continue;
+                    };
+                    let Ok(lu) = serde_json::from_str::<serde_json::Value>(&texte) else {
+                        travaux_illisibles += 1;
+                        continue;
+                    };
+                    if lu["empreinte"].as_str() != Some(empreinte) {
+                        continue;
+                    }
+                    if let Some(cible) = lu["version_cible"].as_str() {
+                        nom_de_version(cible, &format!("le fichier {}", chemin.display()))?;
+                        versions.insert(cible.to_owned());
+                    }
+                    travaux_a_retirer.push(chemin);
                 }
-                let Ok(texte) = fs::read_to_string(&chemin) else { continue };
-                let Ok(lu) = serde_json::from_str::<serde_json::Value>(&texte) else { continue };
-                if lu["empreinte"].as_str() != Some(empreinte) {
-                    continue;
-                }
-                if let Some(cible) = lu["version_cible"].as_str() {
-                    nom_de_version(cible, &format!("le fichier {}", chemin.display()))?;
-                    versions.insert(cible.to_owned());
-                }
-                travaux_a_retirer.push(chemin);
             }
         }
 
-        // 2. Plus rien ne peut être refusé : on écrit. Le pointeur en premier, pour que les écrans
-        //    cessent de voir ce document avant qu'il ne s'effrite.
+        // Le classement est lu **et recomposé** ici : sérialiser peut refuser, et plus rien n'a
+        // le droit de refuser passé la frontière. Ne reste à faire que l'écriture.
+        let mut rangs = self.classements()?;
+        let classement = match rangs.remove(empreinte) {
+            None => None,
+            Some(_) => Some(serde_json::to_string_pretty(&rangs)?),
+        };
+
+        // La source est **cherchée, pas touchée**. Deux fichiers peuvent porter la même empreinte
+        // sous deux extensions : chacun partira, et le compte rendu nommera le dernier.
+        let mut a_jeter: Vec<PathBuf> = Vec::new();
+        let palier = self.racine.join(SOURCES).join(&empreinte[..2]);
+        match fs::read_dir(&palier) {
+            Err(souci) if souci.kind() == io::ErrorKind::NotFound => {}
+            // Avalée, cette panne faisait dire « sa source n'y était plus » d'une source bien
+            // présente dans un dossier devenu illisible (dette D32).
+            Err(souci) => {
+                return Err(io::Error::new(
+                    souci.kind(),
+                    format!("Le dossier {} est illisible : {souci}", palier.display()),
+                ));
+            }
+            Ok(entrees) => {
+                for entree in entrees.flatten() {
+                    let chemin = entree.path();
+                    if chemin.file_stem().and_then(|s| s.to_str()) != Some(empreinte) {
+                        continue;
+                    }
+                    a_jeter.push(chemin);
+                }
+            }
+        }
+
+        // **Rien à retirer n'est pas un retrait.** L'écran annonçait « Document retiré » d'une
+        // empreinte que la bibliothèque n'avait jamais connue, et le compte rendu tout à zéro
+        // n'y changeait rien : c'est la phrase que la personne lit.
+        if pointeur.is_none() && travaux_a_retirer.is_empty() && a_jeter.is_empty() && classement.is_none() {
+            return Err(io::Error::new(io::ErrorKind::NotFound, ABSENT_DE_LA_BIBLIOTHEQUE));
+        }
+
+        // La corbeille, préparée **avant** d'écrire : un dossier personnel introuvable ou un
+        // `~/.Trash` impossible à créer sont des refus, pas des restes. On ne la touche que s'il
+        // y a quelque chose à y mettre.
+        let corbeille = if a_jeter.is_empty() {
+            None
+        } else {
+            let corbeille = self.corbeille()?;
+            fs::create_dir_all(&corbeille)?;
+            Some(corbeille)
+        };
+
+        // 2. **La frontière.** Ce qui suit n'a plus le droit de rendre une erreur. Cette écriture
+        //    la porte : si elle échoue, rien n'a encore été effacé et le refus dit vrai.
+        let mut restes: Vec<ResteDeRetrait> = Vec::new();
         if pointeur.is_some() {
             self.ecrire_actives(&table)?;
         }
-        let travaux_retires = travaux_a_retirer.len();
+
+        // 3. Les travaux, et le compte ne monte **qu'après** le geste.
+        let mut travaux_retires = 0;
         for chemin in &travaux_a_retirer {
-            let _ = fs::remove_file(chemin);
+            if let Err(souci) = parti(fs::remove_file(chemin)) {
+                restes.push(ResteDeRetrait::neuf(RESTE_TRAVAIL, chemin.clone(), &souci));
+                continue;
+            }
+            travaux_retires += 1;
         }
 
+        // 4. Les dérivés et l'enregistrement de chaque version. Les deux effacements sont
+        //    indépendants : une version ne compte que si les deux ont abouti, parce que l'un sans
+        //    l'autre laisse soit des images que plus aucun écran n'atteint, soit un enregistrement
+        //    qui désigne des dérivés absents.
+        let mut versions_retirees = 0;
         for version in &versions {
-            let _ = fs::remove_dir_all(self.racine.join(DERIVES).join(version));
-            let _ = fs::remove_file(self.racine.join(BASE).join(VERSIONS).join(format!("{version}.json")));
+            let derives = self.racine.join(DERIVES).join(version);
+            let enregistrement = self.racine.join(BASE).join(VERSIONS).join(format!("{version}.json"));
+            let mut entiere = true;
+            // La cible est écrite **en entier à l'appel**, et non confiée à la variable ci-dessus :
+            // c'est par le texte de son argument que l'exception du garde-fou des effacements
+            // reconnaît ce site, et un chemin destructeur se lit mieux là où il efface.
+            if let Err(souci) = parti(fs::remove_dir_all(self.racine.join(DERIVES).join(version))) {
+                restes.push(ResteDeRetrait::neuf(RESTE_IMAGES, derives, &souci));
+                entiere = false;
+            }
+            if let Err(souci) = parti(fs::remove_file(&enregistrement)) {
+                restes.push(ResteDeRetrait::neuf(RESTE_VERSION, enregistrement, &souci));
+                entiere = false;
+            }
+            if entiere {
+                versions_retirees += 1;
+            }
         }
 
-        // 3. Son classement, s'il en avait un.
-        let mut rangs = self.classements()?;
-        if rangs.remove(empreinte).is_some() {
-            ecrire_atomique(
-                &self.racine.join(BASE).join(CLASSEMENTS),
-                serde_json::to_string_pretty(&rangs)?.as_bytes(),
-            )?;
+        // 5. Son classement, s'il en avait un. Le texte est déjà composé : il ne reste qu'à
+        //    l'écrire, et cette écriture-là peut encore échouer.
+        if let Some(texte) = classement {
+            let chemin = self.racine.join(BASE).join(CLASSEMENTS);
+            if let Err(souci) = ecrire_atomique(&chemin, texte.as_bytes()) {
+                restes.push(ResteDeRetrait::neuf(RESTE_CLASSEMENT, chemin, &souci));
+            }
         }
 
-        // 4. La source, en dernier, et à la corbeille.
+        // 6. La source, en dernier, et à la corbeille.
         let mut jetee = None;
-        let palier = self.racine.join(SOURCES).join(&empreinte[..2]);
-        if let Ok(entrees) = fs::read_dir(&palier) {
-            for entree in entrees.flatten() {
-                let chemin = entree.path();
-                if chemin.file_stem().and_then(|s| s.to_str()) != Some(empreinte) {
-                    continue;
-                }
-                let corbeille = dossier_personnel()?.join(".Trash");
-                fs::create_dir_all(&corbeille)?;
-                let nom = chemin.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| empreinte.to_owned());
+        if let Some(corbeille) = corbeille {
+            for chemin in &a_jeter {
+                let nom = chemin
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| empreinte.to_owned());
                 let mut vise = corbeille.join(&nom);
                 let mut rang = 2;
                 while vise.exists() {
                     vise = corbeille.join(format!("{rang} {nom}"));
                     rang += 1;
                 }
-                deplacer_avec_repli(&chemin, &vise, |de, vers| fs::rename(de, vers))?;
-                jetee = Some(vise);
+                match deplacer_avec_repli(chemin, &vise, |de, vers| fs::rename(de, vers)) {
+                    Ok(()) => jetee = Some(vise),
+                    Err(souci) => restes.push(ResteDeRetrait::neuf(RESTE_SOURCE, chemin.clone(), &souci)),
+                }
             }
         }
 
-        Ok(RetraitDeDocument { versions: versions.len(), travaux: travaux_retires, source: jetee })
+        Ok(RetraitDeDocument {
+            versions: versions_retirees,
+            travaux: travaux_retires,
+            source: jetee,
+            travaux_illisibles,
+            restes,
+        })
     }
 
     /// Met le dossier de la bibliothèque **à la corbeille**, et rend où il a atterri.
@@ -617,6 +839,29 @@ impl Depot {
     ///
     /// Deux bibliothèques du même nom jetées le même jour ne doivent pas s'écraser l'une
     /// l'autre : on cherche un nom disponible plutôt que d'écrire par-dessus.
+    /// Déplace la corbeille de ce dépôt, le temps d'une épreuve. **Réservé aux contrôles.**
+    ///
+    /// Le produit ne l'appelle jamais : `ouvrir` et `creer` laissent le champ vide, et les deux
+    /// gestes qui jettent — le retrait d'un document et la mise à la corbeille d'une bibliothèque —
+    /// visent alors `~/.Trash`. Un contrôle, lui, passe un dossier de son bac jetable, et
+    /// n'écrit donc jamais hors du dossier temporaire.
+    #[must_use]
+    pub fn avec_corbeille(mut self, corbeille: impl Into<PathBuf>) -> Self {
+        self.corbeille = Some(corbeille.into());
+        self
+    }
+
+    /// La corbeille de ce dépôt : celle qu'on lui a posée, sinon celle du système.
+    ///
+    /// **Le seul endroit du dépôt qui nomme `.Trash`**, et un contrôle de structure vérifie qu'il
+    /// le reste : deux endroits, et l'un des deux finirait par échapper au réglage.
+    fn corbeille(&self) -> io::Result<PathBuf> {
+        match &self.corbeille {
+            Some(posee) => Ok(posee.clone()),
+            None => Ok(dossier_personnel()?.join(".Trash")),
+        }
+    }
+
     pub fn a_la_corbeille(&self) -> io::Result<PathBuf> {
         if !self.deja_une_bibliotheque() {
             return Err(io::Error::new(
@@ -625,7 +870,7 @@ impl Depot {
             ));
         }
 
-        let corbeille = dossier_personnel()?.join(".Trash");
+        let corbeille = self.corbeille()?;
         fs::create_dir_all(&corbeille)?;
         let nom = self
             .racine
@@ -920,7 +1165,12 @@ mod tests {
     fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
         let racine = std::env::temp_dir().join(format!("lienotheque-depot-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
-        (Depot::creer(&racine).expect("dépôt créé"), racine)
+        // **La corbeille vit dans le bac, à côté de la racine, et jamais chez la personne.**
+        // Elle est posée ICI plutôt que par chaque contrôle : un réglage qu'on peut oublier
+        // se perd, et c'est exactement ce qui est arrivé le 25 novembre 2026.
+        let corbeille = racine.with_extension("corbeille");
+        let _ = fs::remove_dir_all(&corbeille);
+        (Depot::creer(&racine).expect("dépôt créé").avec_corbeille(corbeille), racine)
     }
 
 
@@ -981,6 +1231,11 @@ mod tests {
         assert!(jetee.exists(), "la source devrait être dans la corbeille");
         assert_eq!(retrait.travaux, 1);
         assert_eq!(retrait.versions, 1);
+        // **Et le compte rendu dit qu'il ne reste rien** (lot `0z decies`). Sans cette paire
+        // d'assertions, un retrait qui laisserait tout derrière lui passerait pour complet : les
+        // deux comptes disaient autrefois l'intention, et les restes n'existaient pas.
+        assert_eq!(retrait.restes.len(), 0, "rien ne devait résister");
+        assert_eq!(retrait.travaux_illisibles, 0, "aucun travail n'était abîmé");
 
         // Le voisin n'a pas bougé d'un pouce.
         assert!(depot.actives().expect("actives").contains_key(&autre), "l'autre document reste actif");
@@ -988,19 +1243,61 @@ mod tests {
         assert!(depot.racine().join(SOURCES).join("de").join(format!("{autre}.pdf")).exists(), "sa source reste");
         assert!(depot.classement(&autre).expect("classements").is_some(), "son classement reste");
 
-        let _ = fs::remove_file(&jetee);
+        // Le bac emporte sa corbeille : elle vit à côté de la racine, dans le dossier
+        // temporaire, et rien ici n'a jamais touché celle de la personne.
+        let corbeille = racine.with_extension("corbeille");
+        fs::remove_dir_all(&corbeille).ok();
         fs::remove_dir_all(&racine).ok();
     }
 
-    /// Retirer un document qui n'existe pas ne casse rien et ne ment pas.
+    /// Retirer un document qui n'existe pas **refuse**, et la phrase affichée le dit (lot `0z decies`).
+    ///
+    /// Elle rendait autrefois un compte rendu tout à zéro, et c'était vrai du `struct` : rien
+    /// n'avait bougé, et le contrôle s'appelait « ne fait rien ». Mais l'écran, lui, lisait ce
+    /// compte rendu sans source et affichait « Document retiré de la bibliothèque. Sa source n'y
+    /// était plus » — d'une empreinte que la bibliothèque n'avait jamais connue. Un compte rendu
+    /// exact qui produit une phrase fausse n'est pas exact : c'est la phrase qui se lit.
+    ///
+    /// On vérifie donc les deux : le refus, et **le texte même** que l'écran affichera.
     #[test]
-    fn retirer_un_document_absent_ne_fait_rien() {
+    fn retirer_un_document_absent_refuse_et_la_phrase_affichee_le_dit() {
         let (depot, racine) = depot_neuf("retrait-absent");
         depot.ecrire_description(r#"{"nom":"Essai"}"#).expect("description");
-        let retrait = depot.retirer_document(&("00".to_owned() + &"0".repeat(62))).expect("rien à retirer");
+
+        let refus = depot
+            .retirer_document(&("00".to_owned() + &"0".repeat(62)))
+            .expect_err("une empreinte inconnue doit refuser, non rendre un retrait vide");
+
+        assert_eq!(refus.kind(), io::ErrorKind::NotFound);
+        assert_eq!(refus.to_string(), ABSENT_DE_LA_BIBLIOTHEQUE);
+        assert_eq!(ABSENT_DE_LA_BIBLIOTHEQUE, "Ce document n’est pas dans la bibliothèque.");
+        assert!(
+            !ABSENT_DE_LA_BIBLIOTHEQUE.contains("retiré"),
+            "la phrase ne doit pas annoncer un retrait qui n'a pas eu lieu",
+        );
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Un classement orphelin **suffit** à retirer, et c'est voulu.
+    ///
+    /// Le refus ci-dessus demande que rien ne soit connu : ni pointeur, ni travail, ni source,
+    /// ni classement. Un classement seul est la trace d'un retrait precedent qui s'est arrêté
+    /// en route — exactement l'état que ce lot cherche à rendre réparable. Refuser là
+    /// condamnerait la personne à vivre avec une entrée que plus rien ne nomme.
+    #[test]
+    fn un_classement_orphelin_suffit_a_retirer() {
+        let (depot, racine) = depot_neuf("retrait-classement-seul");
+        depot.ecrire_description(r#"{"nom":"Essai"}"#).expect("description");
+        let empreinte = "ab".to_owned() + &"1".repeat(62);
+        depot.classer(&empreinte, &serde_json::json!({ "axe": "une valeur" })).expect("classé");
+
+        let retrait = depot.retirer_document(&empreinte).expect("un classement seul se retire");
+
         assert_eq!(retrait.versions, 0);
         assert_eq!(retrait.travaux, 0);
-        assert!(retrait.source.is_none(), "rien n'avait à partir à la corbeille");
+        assert!(retrait.source.is_none());
+        assert_eq!(retrait.restes.len(), 0);
+        assert!(depot.classement(&empreinte).expect("classements").is_none(), "le classement devait partir");
         fs::remove_dir_all(&racine).ok();
     }
 
@@ -1015,7 +1312,10 @@ mod tests {
         assert!(!racine.exists(), "le dossier d'origine devrait avoir bougé");
         assert!(jetee.join(BASE).join(DESCRIPTION).exists(), "la description devrait avoir suivi");
         assert!(jetee.join(SOURCES).join("un-document.pdf").exists(), "les documents aussi");
-        fs::remove_dir_all(&jetee).ok();
+        // La bibliothèque entière a été DÉPLACÉE dans la corbeille du bac : c'est elle qu'on
+        // retire, et la racine n'existe plus.
+        let corbeille = racine.with_extension("corbeille");
+        fs::remove_dir_all(&corbeille).ok();
     }
 
     /// Un renommage ne traverse pas deux volumes (EXDEV). La corbeille du compte est sur le
@@ -1342,7 +1642,12 @@ mod actives {
     fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
         let racine = std::env::temp_dir().join(format!("lienotheque-actives-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
-        (Depot::creer(&racine).expect("dépôt créé"), racine)
+        // **La corbeille vit dans le bac, à côté de la racine, et jamais chez la personne.**
+        // Elle est posée ICI plutôt que par chaque contrôle : un réglage qu'on peut oublier
+        // se perd, et c'est exactement ce qui est arrivé le 25 novembre 2026.
+        let corbeille = racine.with_extension("corbeille");
+        let _ = fs::remove_dir_all(&corbeille);
+        (Depot::creer(&racine).expect("dépôt créé").avec_corbeille(corbeille), racine)
     }
 
     const A: &str = "aaaa000000000000000000000000000000000000000000000000000000000000";
@@ -1527,7 +1832,12 @@ mod classement {
     fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
         let racine = std::env::temp_dir().join(format!("lienotheque-classement-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
-        (Depot::creer(&racine).expect("dépôt créé"), racine)
+        // **La corbeille vit dans le bac, à côté de la racine, et jamais chez la personne.**
+        // Elle est posée ICI plutôt que par chaque contrôle : un réglage qu'on peut oublier
+        // se perd, et c'est exactement ce qui est arrivé le 25 novembre 2026.
+        let corbeille = racine.with_extension("corbeille");
+        let _ = fs::remove_dir_all(&corbeille);
+        (Depot::creer(&racine).expect("dépôt créé").avec_corbeille(corbeille), racine)
     }
 
     const A: &str = "aaaa000000000000000000000000000000000000000000000000000000000000";
@@ -1588,7 +1898,12 @@ mod migration {
     fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
         let racine = std::env::temp_dir().join(format!("lienotheque-migration-{nom}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&racine);
-        (Depot::creer(&racine).expect("dépôt créé"), racine)
+        // **La corbeille vit dans le bac, à côté de la racine, et jamais chez la personne.**
+        // Elle est posée ICI plutôt que par chaque contrôle : un réglage qu'on peut oublier
+        // se perd, et c'est exactement ce qui est arrivé le 25 novembre 2026.
+        let corbeille = racine.with_extension("corbeille");
+        let _ = fs::remove_dir_all(&corbeille);
+        (Depot::creer(&racine).expect("dépôt créé").avec_corbeille(corbeille), racine)
     }
 
     const A: &str = "aaaa000000000000000000000000000000000000000000000000000000000000";
@@ -1802,5 +2117,456 @@ mod empreinte {
             assert!(chemin.starts_with(&racine), "« {abime} » sort de la bibliothèque : {chemin:?}");
         }
         std::fs::remove_dir_all(&racine).ok();
+    }
+}
+
+/// **Ce qu'un retrait n'a pas pu emporter est nommé, et ne rend pas d'erreur** (HER-07, dette D32).
+///
+/// Ce module éprouve la seule chose que l'ancienne forme ne savait pas faire : échouer **en le
+/// disant**. Trois `let _ =` avalaient les effacements, et deux comptes étaient établis avant le
+/// geste ; une bibliothèque pouvait donc rester entière derrière un « Document retiré ».
+///
+/// ## Comment on provoque un échec sans casser la machine
+///
+/// En retirant les droits d'écriture sur un dossier du **dossier temporaire**, puis en les
+/// rendant avant le nettoyage. Rien d'autre ne tombe sous ces contrôles, et c'est pourquoi la
+/// racine vient d'ici et de nulle part ailleurs : `std::env::temp_dir()`.
+///
+/// ## Pourquoi `#[cfg(unix)]`, et ce qui est prévu pour Windows
+///
+/// Un dossier en lecture seule n'empêche pas d'y supprimer un fichier sous Windows : l'équivalent
+/// y est une **poignée ouverte** sur le fichier, qui rend la suppression impossible le temps
+/// qu'elle vit. Windows est suspendu — non abandonné — par la décision du 5 novembre 2026, et ces
+/// contrôles-là s'écriront au retour de `windows-latest` dans les matrices. Le reste du module,
+/// qui n'a pas besoin de droits, ne porte aucune garde.
+#[cfg(test)]
+mod restes {
+    use super::*;
+
+    /// La racine est **ici** liée au dossier temporaire, et non dans un module voisin : un
+    /// garde-fou qui lit les liaisons d'un autre module acquitterait ce code pour la mauvaise
+    /// raison, et c'est exactement le défaut A du 21 novembre 2026.
+    fn depot_neuf(nom: &str) -> (Depot, PathBuf) {
+        let racine = std::env::temp_dir().join(format!("lienotheque-restes-{nom}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&racine);
+        // **La corbeille vit dans le bac, à côté de la racine, et jamais chez la personne.**
+        // Elle est posée ICI plutôt que par chaque contrôle : un réglage qu'on peut oublier
+        // se perd, et c'est exactement ce qui est arrivé le 25 novembre 2026.
+        let corbeille = racine.with_extension("corbeille");
+        let _ = fs::remove_dir_all(&corbeille);
+        (Depot::creer(&racine).expect("dépôt créé").avec_corbeille(corbeille), racine)
+    }
+
+    const EMPREINTE: &str = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+    const VERSION: &str = "v-une";
+
+    /// Un document complet : source, pointeur, version, dérivés, travail, classement.
+    fn un_document_entier(nom: &str) -> (Depot, PathBuf) {
+        let (depot, racine) = depot_neuf(nom);
+        depot.ecrire_description(r#"{"nom":"Essai"}"#).expect("description");
+        let palier = depot.racine().join(SOURCES).join(&EMPREINTE[..2]);
+        fs::create_dir_all(&palier).expect("palier");
+        fs::write(palier.join(format!("{EMPREINTE}.pdf")), b"x").expect("source");
+        depot.ecrire_version(VERSION, r#"{"vue":{"pages":[]}}"#).expect("version");
+        depot.activer(EMPREINTE, VERSION, 1).expect("activée");
+        let pages = depot.racine().join(DERIVES).join(VERSION).join("pages");
+        fs::create_dir_all(&pages).expect("dérivés");
+        fs::write(pages.join("page-0001.webp"), b"i").expect("image");
+        fs::create_dir_all(depot.travaux()).expect("travaux");
+        fs::write(
+            depot.travaux().join("t-un.json"),
+            format!(r#"{{"id":"t-un","empreinte":"{EMPREINTE}","version_cible":"{VERSION}"}}"#),
+        )
+        .expect("travail");
+        depot.classer(EMPREINTE, &serde_json::json!({ "axe": "une valeur" })).expect("classé");
+        (depot, racine)
+    }
+
+    #[cfg(unix)]
+    fn droits(chemin: &Path, mode: u32) {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(chemin, fs::Permissions::from_mode(mode)).expect("droits posés");
+    }
+
+    /// Les images de page qui résistent : **pas d'erreur**, un reste nommé, et la version ne
+    /// compte pas.
+    ///
+    /// C'est le cœur du lot. L'ancienne forme avalait cet échec et annonçait « 1 version » : des
+    /// centaines de mégaoctets restaient sur le disque, qu'aucun écran ne peut atteindre puisque
+    /// les écrans lisent la table des versions actives, et le compte rendu disait le contraire.
+    #[cfg(unix)]
+    #[test]
+    fn des_images_de_page_qui_resistent_ne_rendent_pas_d_erreur_et_se_nomment() {
+        let (depot, racine) = un_document_entier("images");
+        let derives = depot.racine().join(DERIVES).join(VERSION);
+        // Lecture et parcours permis, écriture refusée : le `remove_dir_all` échoue au premier
+        // fichier à délier.
+        droits(&derives, 0o555);
+
+        let retrait = depot.retirer_document(EMPREINTE).expect("un échec d'effacement ne rend pas d'erreur");
+
+        droits(&derives, 0o755);
+
+        assert_eq!(retrait.restes.len(), 1, "un reste, et un seul : {:?}", retrait.restes);
+        let reste = &retrait.restes[0];
+        assert_eq!(reste.quoi, RESTE_IMAGES);
+        assert_eq!(reste.chemin, derives, "le reste doit nommer le dossier qui est resté");
+        assert!(!reste.cause.is_empty(), "un reste sans cause ne se répare pas");
+
+        // **Le compte ne compte que ce qui est parti.** L'enregistrement de version est bien
+        // effacé, mais les images restent : la version n'est pas retirée, et le dire serait faux.
+        assert_eq!(retrait.versions, 0, "une version dont les images restent n'est pas retirée");
+        assert!(
+            !depot.racine().join(BASE).join(VERSIONS).join(format!("{VERSION}.json")).exists(),
+            "l'enregistrement de version, lui, devait partir : les deux effacements sont indépendants",
+        );
+        // **`remove_dir_all` n'est pas indivisible, et c'est une raison de plus de nommer le
+        // chemin** : mesuré ici, il a bien délié l'image — le dossier `pages` qui la portait avait
+        // ses droits — puis il a échoué à retirer `pages` du dossier verrouillé. Ce qui reste est
+        // donc un arbre **partiel**, que ni un compte ni un booléen ne décriraient. Dire « il
+        // reste ceci, à cet endroit » est la seule forme qui se répare.
+        assert!(derives.exists(), "le dossier des dérivés est resté, et c'est le sujet");
+        assert!(derives.join("pages").exists(), "l'effacement s'est arrêté en route, sans tout emporter");
+
+        // Et tout le reste du retrait a bien eu lieu : un échec n'arrête pas les autres gestes.
+        assert_eq!(retrait.travaux, 1);
+        assert!(!depot.actives().expect("actives").contains_key(EMPREINTE));
+        assert!(depot.classement(EMPREINTE).expect("classements").is_none());
+        let jetee = retrait.source.clone().expect("la source devait partir à la corbeille");
+        assert!(jetee.exists());
+
+        // Le bac emporte sa corbeille : elle vit à côté de la racine, dans le dossier
+        // temporaire, et rien ici n'a jamais touché celle de la personne.
+        let corbeille = racine.with_extension("corbeille");
+        fs::remove_dir_all(&corbeille).ok();
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Un fichier de travail qui résiste : il ne se compte pas comme retiré.
+    ///
+    /// `travaux` valait la **taille de la liste**, lue avant le premier effacement. Ce contrôle
+    /// est celui qu'aucune mesure ne passait : un travail resté sur place peut ressusciter le
+    /// pointeur au prochain lancement, par `migrer_les_actives`.
+    #[cfg(unix)]
+    #[test]
+    fn un_fichier_de_travail_qui_resiste_ne_se_compte_pas_comme_retire() {
+        let (depot, racine) = un_document_entier("travail");
+        let dossier = depot.travaux();
+        droits(&dossier, 0o555);
+
+        let retrait = depot.retirer_document(EMPREINTE).expect("un échec d'effacement ne rend pas d'erreur");
+
+        droits(&dossier, 0o755);
+
+        assert_eq!(retrait.travaux, 0, "rien n'est parti : le compte doit le dire");
+        assert!(dossier.join("t-un.json").exists(), "le travail est resté, et c'est le sujet");
+        assert_eq!(retrait.restes.len(), 1, "{:?}", retrait.restes);
+        assert_eq!(retrait.restes[0].quoi, RESTE_TRAVAIL);
+        assert_eq!(retrait.restes[0].chemin, dossier.join("t-un.json"));
+        // La version, elle, est partie entière : les deux fichiers ont cédé.
+        assert_eq!(retrait.versions, 1);
+
+        assert!(retrait.source.is_some(), "la source devait partir à la corbeille du bac");
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Une source qui ne peut pas partir : le compte rendu ne la dit **pas** jetée.
+    ///
+    /// C'est le mensonge le plus direct de l'ancienne forme : `jetee` restait vide et l'écran
+    /// écrivait « Sa source n'y était plus » d'une source intacte.
+    #[cfg(unix)]
+    #[test]
+    fn une_source_qui_ne_peut_pas_partir_est_nommee_et_jamais_dite_jetee() {
+        let (depot, racine) = un_document_entier("source");
+        let palier = depot.racine().join(SOURCES).join(&EMPREINTE[..2]);
+        droits(&palier, 0o555);
+
+        let retrait = depot.retirer_document(EMPREINTE).expect("un échec d'effacement ne rend pas d'erreur");
+
+        droits(&palier, 0o755);
+
+        assert!(retrait.source.is_none(), "rien n'est allé à la corbeille : ne pas le dire");
+        assert!(palier.join(format!("{EMPREINTE}.pdf")).exists(), "la source est restée, et c'est le sujet");
+        assert_eq!(retrait.restes.len(), 1, "{:?}", retrait.restes);
+        assert_eq!(retrait.restes[0].quoi, RESTE_SOURCE);
+        assert_eq!(retrait.restes[0].chemin, palier.join(format!("{EMPREINTE}.pdf")));
+
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Un dossier de travaux illisible **refuse**, et avant d'avoir rien écrit.
+    ///
+    /// Avalée, cette panne faisait trouver zéro travail : le pointeur partait en laissant derrière
+    /// lui le fichier qui le ressuscite, et le compte rendu annonçait « 0 travail ».
+    #[cfg(unix)]
+    #[test]
+    fn un_dossier_de_travaux_illisible_refuse_avant_d_ecrire() {
+        let (depot, racine) = un_document_entier("travaux-illisibles");
+        let dossier = depot.travaux();
+        droits(&dossier, 0o000);
+
+        let refus = depot.retirer_document(EMPREINTE).expect_err("un dossier illisible doit refuser");
+
+        droits(&dossier, 0o755);
+
+        assert!(refus.to_string().contains("illisible"), "« {refus} » devrait nommer la panne");
+        assert!(refus.to_string().contains("travaux"), "« {refus} » devrait nommer le dossier");
+        // **Rien n'a bougé.** C'est la promesse de la phase de lecture.
+        assert!(depot.actives().expect("actives").contains_key(EMPREINTE), "le pointeur devait rester");
+        assert!(depot.racine().join(DERIVES).join(VERSION).exists(), "les dérivés devaient rester");
+        assert!(depot.classement(EMPREINTE).expect("classements").is_some(), "le classement devait rester");
+        assert!(
+            depot.racine().join(SOURCES).join(&EMPREINTE[..2]).join(format!("{EMPREINTE}.pdf")).exists(),
+            "la source devait rester",
+        );
+
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Un palier de sources illisible refuse lui aussi, et pour la même raison.
+    #[cfg(unix)]
+    #[test]
+    fn un_palier_de_sources_illisible_refuse_avant_d_ecrire() {
+        let (depot, racine) = un_document_entier("palier-illisible");
+        let palier = depot.racine().join(SOURCES).join(&EMPREINTE[..2]);
+        droits(&palier, 0o000);
+
+        let refus = depot.retirer_document(EMPREINTE).expect_err("un palier illisible doit refuser");
+
+        droits(&palier, 0o755);
+
+        assert!(refus.to_string().contains("illisible"), "« {refus} » devrait nommer la panne");
+        assert!(depot.actives().expect("actives").contains_key(EMPREINTE), "le pointeur devait rester");
+        assert!(depot.racine().join(DERIVES).join(VERSION).exists(), "les dérivés devaient rester");
+
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// Un travail abîmé est **compté**, et sa version n'est pas réputée cherchée.
+    ///
+    /// Sans droits à manipuler : il suffit d'un fichier que `serde_json` refuse. Un travail
+    /// illisible a pu désigner une version de ce document, et c'est précisément ce qu'on ne peut
+    /// pas savoir — le taire ferait passer le retrait pour complet.
+    #[test]
+    fn un_travail_abime_est_compte_et_dit() {
+        let (depot, racine) = un_document_entier("travail-abime");
+        fs::write(depot.travaux().join("casse.json"), b"{ ceci n'est pas du JSON").expect("travail abîmé");
+
+        let retrait = depot.retirer_document(EMPREINTE).expect("un travail abîmé n'empêche pas le retrait");
+
+        assert_eq!(retrait.travaux_illisibles, 1, "le travail abîmé devait être compté");
+        assert_eq!(retrait.travaux, 1, "le travail sain, lui, est bien parti");
+        assert_eq!(retrait.versions, 1);
+        assert_eq!(retrait.restes.len(), 0, "un travail abîmé n'est pas un reste : c'est une mesure");
+        assert!(depot.travaux().join("casse.json").exists(), "on ne retire pas un fichier qu'on n'a pas su lire");
+
+        assert!(retrait.source.is_some(), "la source devait partir à la corbeille du bac");
+        fs::remove_dir_all(&racine).ok();
+    }
+
+    /// La source du produit, relue sur le disque : un contrôle de structure doit lire le fichier
+    /// **tel qu'il est**, sinon une mutation ne le ferait pas tomber.
+    fn source_du_depot() -> String {
+        fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src").join("depot.rs"))
+            .expect("la source du dépôt doit être lisible")
+    }
+
+    /// Le corps de `retirer_document`, de son `{` à l'accolade qui le ferme.
+    fn corps_du_retrait(source: &str) -> String {
+        let debut = source
+            .find("pub fn retirer_document(")
+            .expect("la signature de retirer_document doit être là");
+        let reste = &source[debut..];
+        let ouverture = reste.find('{').expect("une fonction a une accolade");
+        let mut profondeur = 0_i32;
+        for (place, caractere) in reste[ouverture..].char_indices() {
+            if caractere == '{' {
+                profondeur += 1;
+            } else if caractere == '}' {
+                profondeur -= 1;
+                if profondeur == 0 {
+                    return reste[ouverture..ouverture + place].to_owned();
+                }
+            }
+        }
+        panic!("corps non fermé")
+    }
+
+    /// Les lignes de code seules : un `?` dans un commentaire n'est pas un `?` de Rust.
+    fn sans_les_commentaires(corps: &str) -> String {
+        corps
+            .lines()
+            .filter(|ligne| !ligne.trim_start().starts_with("//"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    const FRONTIERE: &str = "self.ecrire_actives(&table)?;";
+
+    /// **L'ordre est tenu par le code, et une mutation qui l'inverse fait tomber ce contrôle.**
+    ///
+    /// Aucune mesure de comportement ne peut l'attraper : passé la frontière, plus rien ne rend
+    /// d'erreur, donc un pointeur écrit en dernier produirait exactement le même compte rendu. Et
+    /// l'ordre n'est pas un détail de forme — il porte trois propriétés mesurées, écrites dans la
+    /// documentation de la fonction : les quatre vues s'éteignent d'un geste indivisible, l'index
+    /// de recherche se répare, et un arrêt brutal se rattrape par `migrer_les_actives`. C'est donc
+    /// un contrôle de **structure**, et il le dit.
+    #[test]
+    fn le_pointeur_s_ecrit_avant_le_premier_effacement() {
+        let corps = sans_les_commentaires(&corps_du_retrait(&source_du_depot()));
+        let frontiere = corps.find(FRONTIERE).expect("la première écriture doit être là");
+        let premier_effacement = corps
+            .find("fs::remove_")
+            .expect("le retrait doit bien effacer quelque chose");
+        assert!(
+            frontiere < premier_effacement,
+            "le pointeur doit partir AVANT le premier effacement : sans quoi un document resterait \
+             visible, et trouvable par la recherche, en désignant des données déjà effacées",
+        );
+    }
+
+    /// **Passé la frontière, plus rien ne rend d'erreur.**
+    ///
+    /// Ce n'est pas dire que plus rien n'échoue : les trois effacements, l'écriture des
+    /// classements et le déplacement vers la corbeille restent faillibles, et c'est tout le sujet
+    /// des restes. C'est dire qu'un échec ne se rend plus comme un refus — « Retrait impossible »
+    /// d'un document qui a déjà quitté le catalogue était faux, et c'est ce que l'écran affichait.
+    ///
+    /// Le contrôle est structurel parce que la propriété l'est : il n'y a pas d'échec de disque
+    /// qu'on puisse provoquer sur chacun des six `?` de l'ancienne forme.
+    #[test]
+    fn aucun_point_d_interrogation_ne_subsiste_apres_la_frontiere() {
+        let corps = sans_les_commentaires(&corps_du_retrait(&source_du_depot()));
+        let frontiere = corps.find(FRONTIERE).expect("la première écriture doit être là");
+        let apres = &corps[frontiere + FRONTIERE.len()..];
+        let fautifs: Vec<&str> = apres
+            .lines()
+            .filter(|ligne| ligne.contains('?'))
+            .map(str::trim)
+            .collect();
+        assert!(
+            fautifs.is_empty(),
+            "ces lignes rendent une erreur après la frontière, là où il faut collecter : {fautifs:?}",
+        );
+    }
+
+    /// Et **aucun effacement avalé** ne subsiste dans la fonction.
+    ///
+    /// Les contrôles de comportement ci-dessus tombent déjà si l'un revient — un reste manquant se
+    /// voit. Celui-ci dit la règle plutôt que ses conséquences, et il la dit sur le texte : les
+    /// trois `let _ = fs::remove_…` étaient la dette D32, et un quatrième se poserait un jour sans
+    /// que personne pense à écrire son contrôle de comportement.
+    #[test]
+    fn aucun_effacement_n_est_avale_dans_le_retrait() {
+        let corps = sans_les_commentaires(&corps_du_retrait(&source_du_depot()));
+        let avales: Vec<&str> = corps
+            .lines()
+            .map(str::trim)
+            .filter(|ligne| ligne.starts_with("let _ =") && ligne.contains("fs::remove"))
+            .collect();
+        assert!(avales.is_empty(), "un effacement avalé est revenu : {avales:?}");
+    }
+
+    /// Une plage de code atteint-elle la corbeille de la personne ?
+    ///
+    /// Deux formes, et elles disent un **usage** : composer le chemin de la corbeille du système,
+    /// ou demander le dossier personnel. Le simple mot « .Trash » n'en est pas une — un message
+    /// d'erreur le nomme, et un garde-fou qui accuse à tort finit désarmé.
+    fn jette_chez_la_personne(plage: &str) -> bool {
+        // Les aiguilles sont **assemblées**. Écrites en clair, elles se trouveraient elles-mêmes :
+        // ce module serait accusé par son propre relevé, et il l'a été avant cette correction.
+        plage.contains(concat!(".join(\"", ".Trash", "\")")) || plage.contains(concat!("dossier_", "personnel("))
+    }
+
+    /// **Aucun contrôle n'écrit dans la corbeille de la personne**, et le code le garantit.
+    ///
+    /// Le 25 novembre 2026, les contrôles du retrait jetaient dans la vraie `~/.Trash` et l'en
+    /// retiraient ensuite. Deux courses s'y sont croisées, un fichier d'une course précédente y
+    /// est resté, et il a été effacé **sans l'accord de Christophe** — contrairement à la règle du
+    /// 18 novembre 2026. La mesure empirique — compter la corbeille avant et après une course —
+    /// dit l'état d'un jour ; celui-ci dit la règle, et il tombe si l'un des réglages disparaît.
+    ///
+    /// Les trois choses qu'il tient :
+    ///
+    /// 1. **chaque fabrique de dépôt d'épreuve pose une corbeille** — un réglage qu'on peut
+    ///    oublier se perd, donc aucun contrôle n'a le choix ;
+    /// 2. aucun module de contrôle ne nomme `.Trash` ni n'appelle `dossier_personnel` ;
+    /// 3. le produit ne nomme `.Trash` **qu'une fois**, dans `corbeille()` : deux endroits, et
+    ///    l'un des deux finirait par échapper au réglage.
+    #[test]
+    fn aucun_controle_n_ecrit_dans_la_corbeille_de_la_personne() {
+        let source = source_du_depot();
+
+        // 1. Toutes les fabriques, et chacune avec son réglage.
+        let fabriques = source.matches("fn depot_neuf(nom: &str) -> (Depot, PathBuf)").count();
+        assert!(fabriques >= 5, "seulement {fabriques} fabriques trouvées : le relevé ne mesure rien");
+        assert_eq!(
+            source.matches("avec_corbeille(corbeille)").count(),
+            fabriques,
+            "une fabrique de dépôt d'épreuve ne pose pas de corbeille : ses contrôles jetteraient chez la personne",
+        );
+
+        // 2. Les plages de contrôles, lues une par une.
+        let mut reste = source.as_str();
+        let mut plages = 0;
+        while let Some(place) = reste.find("#[cfg(test)]\nmod ") {
+            let depuis = &reste[place..];
+            let fin = depuis[1..].find("\n#[cfg(test)]\nmod ").map_or(depuis.len(), |d| d + 1);
+            let plage = &depuis[..fin];
+            plages += 1;
+            // On juge l'**usage**, pas le mot : ce contrôle-ci nomme forcément `.Trash` dans ses
+            // messages, et s'accuserait lui-même. C'est la leçon du garde-fou des effacements, qui
+            // lit à travers un masque pour la même raison. Les deux formes cherchées ici ne
+            // paraissent pas dans sa propre source, où elles sont échappées ou citées.
+            let nom = plage.lines().nth(1).unwrap_or("?").trim();
+            assert!(
+                !jette_chez_la_personne(plage),
+                "« {nom} » atteint la corbeille de la personne : il y écrirait",
+            );
+            reste = &depuis[fin..];
+        }
+        assert!(plages >= 5, "seulement {plages} plages de contrôles lues : le relevé ne mesure rien");
+
+        // 3. Le produit, une seule porte.
+        assert_eq!(
+            source.matches(".join(\".Trash\")").count(),
+            1,
+            "`.Trash` doit être nommé une seule fois, dans `corbeille()`",
+        );
+
+        // Et la sonde : un relevé qui ne sait pas accuser ne vaut rien. Les deux formes qu'un
+        // contrôle emploierait s'il jetait chez la personne sont bien reconnues, et une phrase
+        // qui ne fait que les nommer ne l'est pas.
+        // Les aiguilles sont **assemblées**, jamais écrites en clair : une sonde qui les écrit
+        // telles quelles se fait accuser par le relevé qu'elle éprouve. C'est arrivé ici même.
+        let corbeille_du_systeme = concat!(".join(\"", ".Trash", "\")");
+        let demande_du_foyer = concat!("dossier_", "personnel(");
+        assert!(jette_chez_la_personne(&format!("let c = foyer()?{corbeille_du_systeme};")));
+        assert!(jette_chez_la_personne(&format!("let c = {demande_du_foyer})?;")));
+        assert!(
+            !jette_chez_la_personne("// un contrôle n'écrit pas dans la corbeille du compte"),
+            "nommer la règle n'est pas l'enfreindre",
+        );
+    }
+
+    /// Un effacement qui ne trouve **rien** a obtenu ce qu'on voulait.
+    ///
+    /// Un document composé en texte n'a aucune image de page : son `derives/<version>/` n'a jamais
+    /// existé. Compter cette absence comme un échec nommerait un reste qui n'existe pas — et un
+    /// compte rendu qui accuse à tort ne se lit plus.
+    #[test]
+    fn une_version_sans_derives_compte_comme_retiree() {
+        let (depot, racine) = depot_neuf("sans-derives");
+        depot.ecrire_description(r#"{"nom":"Essai"}"#).expect("description");
+        depot.ecrire_version(VERSION, r#"{"vue":{"pages":[]},"passages":[]}"#).expect("version");
+        depot.activer(EMPREINTE, VERSION, 1).expect("activée");
+
+        let retrait = depot.retirer_document(EMPREINTE).expect("retiré");
+
+        assert_eq!(retrait.versions, 1, "une version sans dérivés est retirée entière");
+        assert_eq!(retrait.restes.len(), 0, "l'absence de dérivés n'est pas un reste : {:?}", retrait.restes);
+        assert!(retrait.source.is_none(), "ce document n'avait pas de source déposée");
+
+        fs::remove_dir_all(&racine).ok();
     }
 }

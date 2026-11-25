@@ -163,14 +163,56 @@ fn le_rendu_des_doublons_porte_les_clefs_du_contrat() {
 fn un_retrait_sans_source_omet_la_clef_plutot_que_de_la_mettre_nulle() {
     use lienotheque_bureau::depot::RetraitDeDocument;
 
-    let rendu = serde_json::to_value(RetraitDeDocument { versions: 1, travaux: 2, source: None }).expect("sérialisé");
+    let rendu = serde_json::to_value(RetraitDeDocument {
+        versions: 1,
+        travaux: 2,
+        source: None,
+        travaux_illisibles: 0,
+        restes: Vec::new(),
+    })
+    .expect("sérialisé");
     assert!(rendu.get("source").is_none(), "une source absente ne doit pas voyager comme un nul");
 
     let avec = serde_json::to_value(RetraitDeDocument {
         versions: 1,
         travaux: 1,
         source: Some(std::path::PathBuf::from("/Users/quelqu-un/.Trash/un-recit.pdf")),
+        travaux_illisibles: 0,
+        restes: Vec::new(),
     })
     .expect("sérialisé");
     assert_eq!(avec["source"].as_str(), Some("/Users/quelqu-un/.Trash/un-recit.pdf"));
+}
+
+/// Les restes voyagent sous les noms que le contrat attend (HER-07, lot `0z decies`).
+///
+/// Le compte rendu traverse une frontière : un champ nommé `travaux_illisibles` en Rust et
+/// `travauxIllisibles` dans le contrat ne se rencontrent jamais, et la lecture échouerait **après**
+/// le retrait, donc sans moyen de le redire. C'est la même raison que l'omission ci-dessus.
+#[test]
+fn un_reste_voyage_sous_les_noms_du_contrat() {
+    use lienotheque_bureau::depot::{ResteDeRetrait, RetraitDeDocument};
+
+    let rendu = serde_json::to_value(RetraitDeDocument {
+        versions: 0,
+        travaux: 0,
+        source: None,
+        travaux_illisibles: 2,
+        restes: vec![ResteDeRetrait {
+            quoi: "les images de page",
+            chemin: std::path::PathBuf::from("/Bibliotheque/derives/v3"),
+            cause: "Permission denied (os error 13)".to_owned(),
+        }],
+    })
+    .expect("sérialisé");
+
+    let mut champs: Vec<&String> = rendu.as_object().expect("un objet").keys().collect();
+    champs.sort();
+    assert_eq!(champs, vec!["restes", "travaux", "travauxIllisibles", "versions"]);
+
+    let mut dedans: Vec<&String> = rendu["restes"][0].as_object().expect("un objet").keys().collect();
+    dedans.sort();
+    assert_eq!(dedans, vec!["cause", "chemin", "quoi"]);
+    assert_eq!(rendu["restes"][0]["chemin"].as_str(), Some("/Bibliotheque/derives/v3"));
+    assert_eq!(rendu["travauxIllisibles"].as_u64(), Some(2));
 }

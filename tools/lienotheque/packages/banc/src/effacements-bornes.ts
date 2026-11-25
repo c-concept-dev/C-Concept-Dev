@@ -237,7 +237,8 @@ export const EXCEPTIONS: readonly ExceptionNommee[] = [
       "fonction, chacun passé à `nom_de_version` AVANT la première écriture, et un seul nom " +
       "invalide refuse l'opération entière en nommant le fichier à réparer. C'est ce garde-fou " +
       "qui avait trouvé le défaut (dette D28) ; l'exception vient après le correctif, jamais à " +
-      "sa place.",
+      "sa place. Depuis le lot `0z decies`, l'erreur de ce site n'est plus avalée : elle est " +
+      "nommée dans le compte rendu du retrait, avec son chemin et sa cause.",
   },
   {
     chemin: "apps/worker/bancs/ceremonie-bout-en-bout.mjs",

@@ -141,6 +141,91 @@ describe("ce qui se trouve deux fois (HER-08)", () => {
     expect(screen.getByText("Des feuilles numérisées.pdf")).toBeTruthy();
   });
 
+  /** **Ce qu'un retrait n'a pas pu emporter est nommé à l'écran** (HER-07, lot `0z decies`).
+   *
+   *  C'est le seul endroit où ces éléments existent. Les écrans lisent la table des versions
+   *  actives, et le document vient d'en sortir : ce qui est resté sur le disque est invisible par
+   *  construction, et personne ne pourrait le réparer sans son chemin. Les comptes ne suffisent
+   *  pas — ils disent combien, jamais lequel ni où. */
+  it("HER-07 : il nomme ce que le retrait n’a pas pu effacer, avec son chemin et sa cause", () => {
+    render(
+      <Doublons
+        nom="Ma bibliothèque"
+        onChercher={vi.fn()}
+        onRetirer={vi.fn()}
+        onRetour={vi.fn()}
+        retire="Document retiré. Sa source est à la corbeille, d’où vous pouvez la ressortir."
+        restes={[
+          {
+            quoi: "les images de page",
+            chemin: "/Volumes/Disque/Ma bibliothèque/derives/v3",
+            cause: "Permission denied (os error 13)",
+          },
+        ]}
+      />,
+    );
+    const alerte = screen.getByRole("alert");
+    expect(alerte, "un seul élément se dit au singulier").toHaveTextContent(/Un élément n’a pas pu être effacé/);
+    expect(screen.getByText("les images de page")).toBeTruthy();
+    expect(screen.getByText("/Volumes/Disque/Ma bibliothèque/derives/v3")).toBeTruthy();
+    expect(screen.getByText("Permission denied (os error 13)")).toBeTruthy();
+  });
+
+  it("HER-07 : plusieurs restes se comptent, et chacun garde son chemin", () => {
+    render(
+      <Doublons
+        nom="Ma bibliothèque"
+        onChercher={vi.fn()}
+        onRetirer={vi.fn()}
+        onRetour={vi.fn()}
+        retire="Document retiré de la bibliothèque."
+        restes={[
+          { quoi: "les images de page", chemin: "/B/derives/v3", cause: "Permission denied" },
+          { quoi: "la source", chemin: "/B/sources/ab/abc.pdf", cause: "Permission denied" },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(/2 éléments n’ont pas pu être effacés/);
+    expect(screen.getByText("/B/derives/v3")).toBeTruthy();
+    expect(screen.getByText("/B/sources/ab/abc.pdf")).toBeTruthy();
+  });
+
+  /** Un retrait complet ne doit pas ouvrir un bloc vide : « rien ne reste » se dit en ne disant
+   *  rien, et une alerte sans contenu apprendrait à ignorer les alertes. */
+  it("HER-07 : un retrait qui n’a rien laissé derrière lui n’annonce aucun reste", () => {
+    render(
+      <Doublons
+        nom="Ma bibliothèque"
+        onChercher={vi.fn()}
+        onRetirer={vi.fn()}
+        onRetour={vi.fn()}
+        retire="Document retiré. Sa source est à la corbeille, d’où vous pouvez la ressortir."
+        restes={[]}
+      />,
+    );
+    expect(screen.queryByRole("alert"), "aucune alerte quand tout est parti").toBeNull();
+    expect(screen.queryByText(/n’a pas pu être effacé/)).toBeNull();
+  });
+
+  /** La phrase du document absent vient de l'hôte et s'affiche **telle quelle**.
+   *
+   *  L'écran annonçait « Document retiré de la bibliothèque. Sa source n’y était plus » d'une
+   *  empreinte que la bibliothèque n'avait jamais connue : le compte rendu tout à zéro était
+   *  exact, et la phrase fausse. C'est la phrase qui se lit. */
+  it("HER-07 : une empreinte inconnue se dit, et ne s’annonce jamais comme un retrait", () => {
+    render(
+      <Doublons
+        nom="Ma bibliothèque"
+        onChercher={vi.fn()}
+        onRetirer={vi.fn()}
+        onRetour={vi.fn()}
+        echec="Ce document n’est pas dans la bibliothèque."
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Ce document n’est pas dans la bibliothèque.");
+    expect(screen.queryByText(/Document retiré/), "rien n’a été retiré : ne pas le dire").toBeNull();
+  });
+
   /** Pendant une recherche de dix secondes, le bouton ne doit pas se représenter comme prêt. */
   it("HER-08 : pendant la recherche, le bouton dit ce qui se passe et ne se represse pas", () => {
     render(

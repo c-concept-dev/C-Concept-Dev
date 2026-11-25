@@ -870,15 +870,25 @@ fn doublons_de_bibliotheque(racine: String) -> Result<serde_json::Value, String>
 ///
 /// La source part à la corbeille du système : se tromper de document ne doit pas coûter un livre.
 /// Le reste — versions, dérivés, travaux, classement — s'efface, puisqu'il se reconstruit depuis
-/// cette source.
+/// cette source. Ce qui n'a pas pu partir est **nommé** dans le compte rendu plutôt qu'avalé
+/// (lot `0z decies`).
+///
+/// **Une empreinte que la bibliothèque ne connaît pas n'est pas une panne**, et son message ne se
+/// préfixe donc pas : « Retrait impossible : ce document n'est pas dans la bibliothèque » ferait
+/// croire à un empêchement technique, là où la phrase seule dit exactement ce qui se passe. Le
+/// texte vient du dépôt, pour qu'il n'en existe qu'un.
 #[tauri::command]
 fn retirer_document(racine: String, empreinte: String) -> Result<serde_json::Value, String> {
     // L'empreinte vient de l'interface : elle se valide AVANT de ranger ou de découper (dette D31).
     depot::empreinte_de_document(&empreinte, "la demande de l'interface").map_err(|e| e.to_string())?;
     let depot = depot::Depot::ouvrir(&racine).map_err(|e| format!("Bibliothèque introuvable : {e}"))?;
-    let retrait = depot
-        .retirer_document(&empreinte)
-        .map_err(|e| format!("Retrait impossible : {e}"))?;
+    let retrait = depot.retirer_document(&empreinte).map_err(|souci| {
+        if souci.kind() == std::io::ErrorKind::NotFound && souci.to_string() == depot::ABSENT_DE_LA_BIBLIOTHEQUE {
+            souci.to_string()
+        } else {
+            format!("Retrait impossible : {souci}")
+        }
+    })?;
     serde_json::to_value(retrait).map_err(|e| format!("Compte rendu illisible : {e}"))
 }
 

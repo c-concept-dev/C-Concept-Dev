@@ -92,3 +92,29 @@
 .ln-doublons__echec {
   color: var(--ln-avertissement, var(--ln-accent));
 }
+
+/* Ce qu'un retrait n'a pas pu emporter (lot `0z decies`).
+ *
+ * Le chemin se recopie : c'est le seul moyen de retrouver ce qui est resté, puisque aucun écran
+ * ne lit le disque hors de la table des versions actives. Il garde donc la police à largeur fixe
+ * que `<code>` lui donne — la charte v3 ne porte aucun jeton de police fixe, et en inventer un
+ * ici le rendrait faux partout ailleurs. La taille est celle de ses voisins de ce fichier.
+ * La cause vient du système et tient sur sa propre ligne. */
+.ln-doublons__restes-liste {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--ln-grid) * 0.5);
+  margin: 0;
+  padding-inline-start: calc(var(--ln-grid) * 2.5);
+}
+
+.ln-doublons__reste-chemin,
+.ln-doublons__reste-cause {
+  display: block;
+  color: var(--ln-text-secondary);
+  font-size: 13px;
+}
+
+.ln-doublons__reste-chemin {
+  overflow-wrap: anywhere;
+}

@@ -9,6 +9,7 @@ import type {
   Doublons as DoublonsTrouves,
   FichierRefuse,
   Passage,
+  ResteDeRetrait,
   Rotation,
   SchemaBibliotheque,
   Travail,
@@ -302,6 +303,9 @@ export function App(): JSX.Element {
     readonly occupe: boolean;
     readonly echec?: string;
     readonly retire?: string;
+    /** Ce qu'un retrait n'a pas pu emporter. Vide n'est pas la même chose qu'absent : absent veut
+     *  dire qu'aucun retrait n'a eu lieu. */
+    readonly restes?: readonly ResteDeRetrait[];
   }>({ occupe: false });
 
   /** Combien de fois on a demandé à relire la bibliothèque pour une raison qui n'est pas un
@@ -356,12 +360,22 @@ export function App(): JSX.Element {
       // inassignables à ce qu'on vient d'en lire, pour aucun gain.
       const sansLui = (documents: DocumentSuspect[]): DocumentSuspect[] =>
         documents.filter((document) => document.empreinte !== empreinte);
+      // **La phrase dit ce qui a été fait, et rien de plus** (lot `0z decies`). Une source
+      // absente du compte rendu voulait dire trois choses à la fois : qu'il n'y en avait pas,
+      // qu'un dossier illisible l'avait cachée, ou qu'elle avait refusé de partir. L'hôte refuse
+      // désormais les deux premiers cas avant d'écrire quoi que ce soit, et nomme le troisième
+      // dans ses restes — alors la phrase redevient vraie.
+      const sourceRestee = compte.restes.some((reste) => reste.quoi === "la source");
+      const dit =
+        compte.source !== undefined
+          ? "Document retiré. Sa source est à la corbeille, d’où vous pouvez la ressortir."
+          : sourceRestee
+            ? "Document retiré de la bibliothèque."
+            : "Document retiré de la bibliothèque. Il n’avait pas de source déposée.";
       setDoublons((avant) => ({
         occupe: false,
-        retire:
-          compte.source === undefined
-            ? "Document retiré de la bibliothèque. Sa source n’y était plus."
-            : "Document retiré. Sa source est à la corbeille, d’où vous pouvez la ressortir.",
+        retire: dit,
+        restes: compte.restes,
         ...(avant.trouves === undefined
           ? {}
           : {
@@ -1242,6 +1256,7 @@ export function App(): JSX.Element {
           {...(doublons.trouves === undefined ? {} : { trouves: doublons.trouves })}
           {...(doublons.echec === undefined ? {} : { echec: doublons.echec })}
           {...(doublons.retire === undefined ? {} : { retire: doublons.retire })}
+          {...(doublons.restes === undefined ? {} : { restes: doublons.restes })}
           occupe={doublons.occupe}
         />
       );

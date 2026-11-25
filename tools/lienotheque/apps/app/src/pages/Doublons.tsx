@@ -1,5 +1,5 @@
 import { useState, type JSX } from "react";
-import type { DocumentSuspect, Doublons as DoublonsTrouves } from "@lienotheque/contrats";
+import type { DocumentSuspect, Doublons as DoublonsTrouves, ResteDeRetrait } from "@lienotheque/contrats";
 import { Bouton, FilAriane, Icone } from "../composants/index.js";
 import "./Doublons.css";
 
@@ -42,6 +42,12 @@ type Props = {
   readonly echec?: string | undefined;
   /** Ce qui vient d'être retiré, pour le dire au lieu de laisser la liste se raccourcir en silence. */
   readonly retire?: string | undefined;
+  /** Ce que le retrait n'a **pas** pu emporter, nommé un par un (lot `0z decies`).
+   *
+   *  Sans cette liste, ces éléments n'existeraient nulle part : les écrans lisent la table des
+   *  versions actives, et le document vient précisément d'en sortir. Ce qui reste sur le disque
+   *  serait donc invisible par construction, et personne ne pourrait le réparer. */
+  readonly restes?: readonly ResteDeRetrait[] | undefined;
 };
 
 /** Un poids que l'on lit. Les octets bruts d'un livre ne disent rien à personne. */
@@ -102,6 +108,7 @@ export function Doublons({
   occupe,
   echec,
   retire,
+  restes,
 }: Props): JSX.Element {
   // Un seul document armé à la fois : deux boutons « Confirmer » côte à côte invitent à se
   // tromper, et ce sont justement des documents qui se ressemblent.
@@ -138,6 +145,26 @@ export function Doublons({
           <Icone nom="corbeille" />
           {retire}
         </p>
+      )}
+
+      {restes === undefined || restes.length === 0 ? null : (
+        <section className="ln-doublons__restes">
+          <p className="ln-doublons__echec" role="alert">
+            <Icone nom="alerte" />
+            {restes.length === 1
+              ? "Un élément n’a pas pu être effacé, et il est resté sur le disque :"
+              : `${restes.length} éléments n’ont pas pu être effacés, et ils sont restés sur le disque :`}
+          </p>
+          <ul className="ln-doublons__restes-liste">
+            {restes.map((reste) => (
+              <li key={`${reste.quoi} ${reste.chemin}`}>
+                {reste.quoi}
+                <code className="ln-doublons__reste-chemin">{reste.chemin}</code>
+                <span className="ln-doublons__reste-cause">{reste.cause}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {trouves === undefined ? null : trouves.groupes.length === 0 ? (
