@@ -46,7 +46,13 @@ fn main() {
 
     let debut = std::time::Instant::now();
     let trouvaille = match doublons::chercher(&depot, &|empreinte: &str| {
-        titres.get(empreinte).cloned().unwrap_or_else(|| format!("Document {}", &empreinte[..8]))
+        // La même forme que `titre_ou_empreinte` du produit, et pour la même raison : par
+        // CARACTÈRES. Cette ligne portait une copie du défaut que le lot `0z nonies` a corrigé —
+        // neuf octets de « €€€ » et le banc s'arrêtait (dette D31).
+        titres
+            .get(empreinte)
+            .cloned()
+            .unwrap_or_else(|| format!("Document {}", empreinte.chars().take(8).collect::<String>()))
     }) {
         Ok(g) => g,
         Err(souci) => {

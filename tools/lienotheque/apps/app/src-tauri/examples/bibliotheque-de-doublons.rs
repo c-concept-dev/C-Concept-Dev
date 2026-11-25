@@ -18,7 +18,10 @@
 //! **synthétique**, et elle ne prétend pas autre chose : ce qu'elle éprouve, c'est la recherche
 //! de doublons et le retrait, pas la lecture des formats.
 
-use lienotheque_bureau::{arrivee, depot::Depot};
+use lienotheque_bureau::{
+    arrivee,
+    depot::{empreinte_de_document, Depot},
+};
 use std::{fs, path::PathBuf, process::ExitCode, time::{SystemTime, UNIX_EPOCH}};
 
 fn maintenant() -> u64 {
@@ -77,6 +80,17 @@ fn main() -> ExitCode {
             }
         };
         let extension = chemin.extension().and_then(|bout| bout.to_str()).unwrap_or("pdf").to_lowercase();
+        // Ce banc **construit un chemin** avec l'empreinte, comme `deposer_source` : il la valide
+        // donc avant de la découper (dette D31). Elle est calculée ici même par `empreinte_de`,
+        // et la porte se garde quand même — une porte qui ne se garde que lorsqu'on la croit
+        // menacée ne garde rien, et ces bancs sont l'outil de travail de tous les jours.
+        let empreinte = match empreinte_de_document(&empreinte, "le banc des doublons") {
+            Ok(verifiee) => verifiee.to_owned(),
+            Err(souci) => {
+                eprintln!("  {} : empreinte inattendue — {souci}", chemin.display());
+                continue;
+            }
+        };
         let palier = racine.join("sources").join(&empreinte[..2]);
         if let Err(souci) =
             fs::create_dir_all(&palier).and_then(|()| fs::copy(chemin, palier.join(format!("{empreinte}.{extension}"))).map(|_| ()))

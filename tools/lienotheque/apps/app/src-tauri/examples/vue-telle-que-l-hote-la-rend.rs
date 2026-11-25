@@ -53,7 +53,8 @@ fn main() {
         Ok(Some(vue)) => {
             eprintln!(
                 "vue composée · empreinte {}… · {} page(s)",
-                &empreinte[..8],
+                // Par CARACTÈRES : un affichage ne doit pas pouvoir arrêter le banc (dette D31).
+                empreinte.chars().take(8).collect::<String>(),
                 vue["pages"].as_array().map(Vec::len).unwrap_or(0)
             );
             println!("{vue}");

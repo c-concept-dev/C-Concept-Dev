@@ -37,7 +37,10 @@ fn main() {
         eprintln!("2. aucune version active");
         std::process::exit(1);
     };
-    println!("2. document le plus récent · empreinte {}… · version {}", &empreinte[..8], &pointeur.version[26..]);
+    // Un affichage coupe par CARACTÈRES : il ne refuse rien, mais il ne doit pas pouvoir
+    // arrêter le banc sur une empreinte abîmée (dette D31).
+    let abregee: String = empreinte.chars().take(8).collect();
+    println!("2. document le plus récent · empreinte {abregee}… · version {}", &pointeur.version[26..]);
 
     let Some(charge) = depot.charge_active(empreinte).expect("charge") else {
         eprintln!("3. charge active : ABSENTE");
